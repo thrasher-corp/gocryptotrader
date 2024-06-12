@@ -19,7 +19,9 @@ import (
 
 const (
 	// API
-	apiURL = "https://api.hitbtc.com"
+	apiURL       = "https://api.hitbtc.com"
+	tradeBaseURL = "https://hitbtc.com/"
+	tradeFutures = "futures/"
 
 	// Public
 	apiV2Trades    = "/api/2/public/trades"

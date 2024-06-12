@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -79,7 +80,6 @@ func (p *Poloniex) WsConnect() error {
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	p.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		err := p.wsAuthConn()
 		if err != nil {
@@ -89,6 +89,7 @@ func (p *Poloniex) WsConnect() error {
 	onceOrderbook = make(map[string]struct{})
 	p.Websocket.Wg.Add(1)
 	go p.wsReadData(p.Websocket.Conn)
+
 	return nil
 }
 
@@ -161,6 +162,7 @@ func (p *Poloniex) wsReadData(conn stream.Connection) {
 }
 
 func (p *Poloniex) wsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var result SubscriptionResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -336,16 +338,16 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 			Action:     orderbook.UpdateInsert,
 			Asset:      asset.Spot,
 		}
-		update.Asks = make([]orderbook.Item, len(resp[x].Asks))
+		update.Asks = make(orderbook.Tranches, len(resp[x].Asks))
 		for i := range resp[x].Asks {
-			update.Asks[i] = orderbook.Item{
+			update.Asks[i] = orderbook.Tranche{
 				Price:  resp[x].Asks[i][0].Float64(),
 				Amount: resp[x].Asks[i][1].Float64(),
 			}
 		}
-		update.Bids = make([]orderbook.Item, len(resp[x].Bids))
+		update.Bids = make(orderbook.Tranches, len(resp[x].Bids))
 		for i := range resp[x].Bids {
-			update.Bids[i] = orderbook.Item{
+			update.Bids[i] = orderbook.Tranche{
 				Price:  resp[x].Bids[i][0].Float64(),
 				Amount: resp[x].Bids[i][1].Float64(),
 			}
@@ -455,7 +457,7 @@ func (p *Poloniex) processResponse(result *SubscriptionResponse, instance interf
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -466,55 +468,51 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 			cnlOrders,
 			cnlBalances}...)
 	}
-	subscriptions := make([]subscription.Subscription, 0, 6*len(enabledCurrencies))
+	subscriptions := make(subscription.List, 0, 6*len(enabledCurrencies))
 	for i := range channels {
 		switch channels[i] {
 		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
-			for x := range enabledCurrencies {
-				var params map[string]interface{}
-				if channels[i] == cnlBooks {
-					params = map[string]interface{}{
-						"depth": 20,
-					}
+			var params map[string]interface{}
+			if channels[i] == cnlBooks {
+				params = map[string]interface{}{
+					"depth": 20,
 				}
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Pair:    enabledCurrencies[x],
-					Channel: channels[i],
-					Params:  params,
-				})
 			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Pairs:   enabledCurrencies,
+				Channel: channels[i],
+				Params:  params,
+			})
 		case cnlCurrencies:
 			currencyMaps := make(map[currency.Code]struct{})
 			for x := range enabledCurrencies {
 				_, okay := currencyMaps[enabledCurrencies[x].Base]
 				if !okay {
-					subscriptions = append(subscriptions, subscription.Subscription{
+					subscriptions = append(subscriptions, &subscription.Subscription{
 						Channel: channels[i],
-						Pair:    currency.Pair{Base: enabledCurrencies[x].Base},
+						Pairs:   []currency.Pair{{Base: enabledCurrencies[x].Base}},
 					})
 					currencyMaps[enabledCurrencies[x].Base] = struct{}{}
 				}
 				_, okay = currencyMaps[enabledCurrencies[x].Quote]
 				if !okay {
-					subscriptions = append(subscriptions, subscription.Subscription{
+					subscriptions = append(subscriptions, &subscription.Subscription{
 						Channel: channels[i],
-						Pair:    currency.Pair{Base: enabledCurrencies[x].Quote},
+						Pairs:   []currency.Pair{{Base: enabledCurrencies[x].Quote}},
 					})
 					currencyMaps[enabledCurrencies[x].Quote] = struct{}{}
 				}
 			}
 		case cnlCandles:
-			for x := range enabledCurrencies {
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel: channels[i],
-					Pair:    enabledCurrencies[x],
-					Params: map[string]interface{}{
-						"interval": kline.FiveMin,
-					},
-				})
-			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[i],
+				Pairs:   enabledCurrencies,
+				Params: map[string]interface{}{
+					"interval": kline.FiveMin,
+				},
+			})
 		case cnlOrders, cnlBalances, cnlExchange:
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
 			})
 		}
@@ -522,45 +520,35 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 	return subscriptions, nil
 }
 
-func (p *Poloniex) handleSubscriptions(operation string, subscs []subscription.Subscription) ([]SubscriptionPayload, error) {
-	pairsMap := map[string]*SubscriptionPayload{}
-	currencies := make(map[string]struct{})
+func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.List) ([]SubscriptionPayload, error) {
 	payloads := []SubscriptionPayload{}
 	for x := range subscs {
 		switch subscs[x].Channel {
 		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
-			sp, okay := pairsMap[subscs[x].Channel]
-			if !okay {
-				sp = &SubscriptionPayload{
-					Event:   operation,
-					Channel: []string{subscs[x].Channel},
-					Symbols: []string{},
-				}
-				pairsMap[subscs[x].Channel] = sp
+			sp := SubscriptionPayload{
+				Event:   operation,
+				Channel: []string{subscs[x].Channel},
+				Symbols: subscs[x].Pairs.Strings(),
 			}
-			sp.Symbols = append(sp.Symbols, subscs[x].Pair.String())
 			if subscs[x].Channel == cnlBooks {
 				depth, okay := subscs[x].Params["depth"]
 				if okay {
 					sp.Depth, _ = depth.(int64)
 				}
 			}
+			payloads = append(payloads, sp)
 		case cnlCurrencies:
-			sp, okay := pairsMap[subscs[x].Channel]
-			if !okay {
-				sp = &SubscriptionPayload{
-					Event:      operation,
-					Channel:    []string{subscs[x].Channel},
-					Currencies: []string{},
+			sp := SubscriptionPayload{
+				Event:      operation,
+				Channel:    []string{subscs[x].Channel},
+				Currencies: []string{},
+			}
+			for _, p := range subscs[x].Pairs {
+				if !slices.Contains[[]string](sp.Currencies, p.Base.String()) {
+					sp.Currencies = append(sp.Currencies, p.Base.String())
 				}
-				pairsMap[subscs[x].Channel] = sp
 			}
-			_, okay = currencies[subscs[x].Pair.Base.Upper().String()]
-			if !okay {
-				sp.Currencies = append(sp.Currencies, subscs[x].Pair.Base.String())
-				currencies[subscs[x].Pair.Base.Upper().String()] = struct{}{}
-			}
-			currencies[subscs[x].Pair.Base.String()] = struct{}{}
+			payloads = append(payloads, sp)
 		case cnlCandles:
 			interval, okay := subscs[x].Params["interval"].(kline.Interval)
 			if !okay {
@@ -571,16 +559,11 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []subscription.S
 				return nil, err
 			}
 			channelName := fmt.Sprintf("%s_%s", subscs[x].Channel, strings.ToLower(intervalString))
-			sp, okay := pairsMap[channelName]
-			if !okay {
-				sp = &SubscriptionPayload{
-					Event:   operation,
-					Channel: []string{channelName},
-					Symbols: []string{},
-				}
-				pairsMap[channelName] = sp
-			}
-			sp.Symbols = append(sp.Symbols, subscs[x].Pair.String())
+			payloads = append(payloads, SubscriptionPayload{
+				Event:   operation,
+				Channel: []string{channelName},
+				Symbols: subscs[x].Pairs.Strings(),
+			})
 		case cnlOrders:
 			payloads = append(payloads, SubscriptionPayload{
 				Event:   operation,
@@ -596,14 +579,11 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []subscription.S
 			return nil, errChannelNotSupported
 		}
 	}
-	for _, val := range pairsMap {
-		payloads = append(payloads, *val)
-	}
 	return payloads, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(subs []subscription.Subscription) error {
+func (p *Poloniex) Subscribe(subs subscription.List) error {
 	var canUseAuthenticate bool
 	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		canUseAuthenticate = true
@@ -622,6 +602,10 @@ func (p *Poloniex) Subscribe(subs []subscription.Subscription) error {
 				}
 			}
 		default:
+
+			val, _ := json.Marshal(payloads[i])
+			println(string(val))
+
 			err = p.Websocket.Conn.SendJSONMessage(payloads[i])
 			if err != nil {
 				return err
@@ -633,7 +617,7 @@ func (p *Poloniex) Subscribe(subs []subscription.Subscription) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
+func (p *Poloniex) Unsubscribe(unsub subscription.List) error {
 	var canUseAuthenticate bool
 	if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
 		canUseAuthenticate = true

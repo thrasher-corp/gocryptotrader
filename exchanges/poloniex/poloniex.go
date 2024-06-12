@@ -22,8 +22,9 @@ import (
 
 const (
 	poloniexAPIURL = "https://api.poloniex.com"
-
-	marketEps = "/markets/"
+	tradeSpot      = "/trade/"
+	tradeFutures   = "/futures" + tradeSpot
+	marketEps      = "/markets/"
 )
 
 var (

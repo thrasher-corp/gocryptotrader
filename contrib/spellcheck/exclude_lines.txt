@@ -21,3 +21,5 @@
 	currency.MIS:        0.002,
 	SHFT             = NewCode("SHFT")
 	currency.SHFT:     84,
+		TotalIn  float64 `json:"totalIn"`
+		TotalIn        int64  `json:"totalIn"`

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1481,4 +1482,23 @@ func TestGetKlineDataOfContract(t *testing.T) {
 	result, err := p.GetKlineDataOfContract(context.Background(), "BTCUSDTPERP", 123, time.Time{}, time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, p)
+	for _, a := range p.GetAssetTypes(false) {
+		pairs, err := p.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := p.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := p.WsConnect()
+	require.NoError(t, err)
+	time.Sleep(time.Second * 23)
 }

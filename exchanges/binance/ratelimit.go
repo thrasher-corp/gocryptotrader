@@ -1,12 +1,9 @@
 package binance
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -77,7 +74,6 @@ const (
 	cFuturesOrderbook100Rate
 	cFuturesOrderbook500Rate
 	cFuturesOrderbook1000Rate
-	cFuturesKline100Rate
 	cFuturesKline500Rate
 	cFuturesKline1000Rate
 	cFuturesKlineMaxRate
@@ -96,173 +92,79 @@ const (
 	uFuturesSetMultiAssetMarginRate
 )
 
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	SpotRate           *rate.Limiter
-	SpotOrdersRate     *rate.Limiter
-	UFuturesRate       *rate.Limiter
-	UFuturesOrdersRate *rate.Limiter
-	CFuturesRate       *rate.Limiter
-	CFuturesOrdersRate *rate.Limiter
-}
+// GetRateLimits returns the rate limit for the exchange
+func GetRateLimits() request.RateLimitDefinitions {
+	spotDefaultLimiter := request.NewRateLimit(spotInterval, spotRequestRate)
+	spotOrderLimiter := request.NewRateLimit(spotOrderInterval, spotOrderRequestRate)
+	usdMarginedFuturesLimiter := request.NewRateLimit(uFuturesInterval, uFuturesRequestRate)
+	usdMarginedFuturesOrdersLimiter := request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate)
+	coinMarginedFuturesLimiter := request.NewRateLimit(cFuturesInterval, cFuturesRequestRate)
+	coinMarginedFuturesOrdersLimiter := request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate)
 
-// Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	var limiter *rate.Limiter
-	var tokens int
-	switch f {
-	case spotDefaultRate:
-		limiter, tokens = r.SpotRate, 1
-	case spotOrderbookTickerAllRate,
-		spotSymbolPriceAllRate:
-		limiter, tokens = r.SpotRate, 2
-	case spotHistoricalTradesRate,
-		spotOrderbookDepth500Rate:
-		limiter, tokens = r.SpotRate, 5
-	case spotOrderbookDepth1000Rate,
-		spotAccountInformationRate,
-		spotExchangeInfo:
-		limiter, tokens = r.SpotRate, 10
-	case spotPriceChangeAllRate:
-		limiter, tokens = r.SpotRate, 40
-	case spotOrderbookDepth5000Rate:
-		limiter, tokens = r.SpotRate, 50
-	case spotOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 1
-	case spotOrderQueryRate:
-		limiter, tokens = r.SpotOrdersRate, 2
-	case spotOpenOrdersSpecificRate:
-		limiter, tokens = r.SpotOrdersRate, 3
-	case spotAllOrdersRate:
-		limiter, tokens = r.SpotOrdersRate, 10
-	case spotOpenOrdersAllRate:
-		limiter, tokens = r.SpotOrdersRate, 40
-	case uFuturesDefaultRate,
-		uFuturesKline100Rate:
-		limiter, tokens = r.UFuturesRate, 1
-	case uFuturesOrderbook50Rate,
-		uFuturesKline500Rate,
-		uFuturesOrderbookTickerAllRate:
-		limiter, tokens = r.UFuturesRate, 2
-	case uFuturesOrderbook100Rate,
-		uFuturesKline1000Rate,
-		uFuturesAccountInformationRate:
-		limiter, tokens = r.UFuturesRate, 5
-	case uFuturesOrderbook500Rate,
-		uFuturesKlineMaxRate:
-		limiter, tokens = r.UFuturesRate, 10
-	case uFuturesOrderbook1000Rate,
-		uFuturesHistoricalTradesRate:
-		limiter, tokens = r.UFuturesRate, 20
-	case uFuturesTickerPriceHistoryRate:
-		limiter, tokens = r.UFuturesRate, 40
-	case uFuturesOrdersDefaultRate:
-		limiter, tokens = r.UFuturesOrdersRate, 1
-	case uFuturesBatchOrdersRate,
-		uFuturesGetAllOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 5
-	case uFuturesCountdownCancelRate:
-		limiter, tokens = r.UFuturesOrdersRate, 10
-	case uFuturesCurrencyForceOrdersRate,
-		uFuturesSymbolOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 20
-	case uFuturesIncomeHistoryRate:
-		limiter, tokens = r.UFuturesOrdersRate, 30
-	case uFuturesPairOrdersRate,
-		uFuturesGetAllOpenOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 40
-	case uFuturesAllForceOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 50
-	case cFuturesKline100Rate:
-		limiter, tokens = r.CFuturesRate, 1
-	case cFuturesKline500Rate,
-		cFuturesOrderbookTickerAllRate:
-		limiter, tokens = r.CFuturesRate, 2
-	case cFuturesKline1000Rate,
-		cFuturesAccountInformationRate:
-		limiter, tokens = r.CFuturesRate, 5
-	case cFuturesKlineMaxRate,
-		cFuturesIndexMarkPriceRate:
-		limiter, tokens = r.CFuturesRate, 10
-	case cFuturesHistoricalTradesRate,
-		cFuturesCurrencyForceOrdersRate:
-		limiter, tokens = r.CFuturesRate, 20
-	case cFuturesTickerPriceHistoryRate:
-		limiter, tokens = r.CFuturesRate, 40
-	case cFuturesAllForceOrdersRate:
-		limiter, tokens = r.CFuturesRate, 50
-	case cFuturesOrdersDefaultRate:
-		limiter, tokens = r.CFuturesOrdersRate, 1
-	case cFuturesBatchOrdersRate,
-		cFuturesGetAllOpenOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 5
-	case cFuturesCancelAllOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 10
-	case cFuturesIncomeHistoryRate,
-		cFuturesSymbolOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 20
-	case cFuturesPairOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 40
-	case cFuturesOrderbook50Rate:
-		limiter, tokens = r.CFuturesRate, 2
-	case cFuturesOrderbook100Rate:
-		limiter, tokens = r.CFuturesRate, 5
-	case cFuturesOrderbook500Rate:
-		limiter, tokens = r.CFuturesRate, 10
-	case cFuturesOrderbook1000Rate:
-		limiter, tokens = r.CFuturesRate, 20
-	case cFuturesDefaultRate:
-		limiter, tokens = r.CFuturesRate, 1
-	case uFuturesMultiAssetMarginRate:
-		limiter, tokens = r.UFuturesRate, 30
-	case uFuturesSetMultiAssetMarginRate:
-		limiter, tokens = r.UFuturesRate, 1
-	default:
-		limiter, tokens = r.SpotRate, 1
+	return request.RateLimitDefinitions{
+		spotDefaultRate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 1),
+		spotOrderbookTickerAllRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
+		spotSymbolPriceAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
+		spotHistoricalTradesRate:        request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
+		spotOrderbookDepth500Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
+		spotOrderbookDepth1000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
+		spotAccountInformationRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
+		spotExchangeInfo:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
+		spotPriceChangeAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 40),
+		spotOrderbookDepth5000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 50),
+		spotOrderRate:                   request.GetRateLimiterWithWeight(spotOrderLimiter, 1),
+		spotOrderQueryRate:              request.GetRateLimiterWithWeight(spotOrderLimiter, 2),
+		spotOpenOrdersSpecificRate:      request.GetRateLimiterWithWeight(spotOrderLimiter, 3),
+		spotAllOrdersRate:               request.GetRateLimiterWithWeight(spotOrderLimiter, 10),
+		spotOpenOrdersAllRate:           request.GetRateLimiterWithWeight(spotOrderLimiter, 40),
+		uFuturesDefaultRate:             request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
+		uFuturesKline100Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
+		uFuturesOrderbook50Rate:         request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
+		uFuturesKline500Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
+		uFuturesOrderbookTickerAllRate:  request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
+		uFuturesOrderbook100Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
+		uFuturesKline1000Rate:           request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
+		uFuturesAccountInformationRate:  request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
+		uFuturesOrderbook500Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 10),
+		uFuturesKlineMaxRate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 10),
+		uFuturesOrderbook1000Rate:       request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 20),
+		uFuturesHistoricalTradesRate:    request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 20),
+		uFuturesTickerPriceHistoryRate:  request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 40),
+		uFuturesOrdersDefaultRate:       request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 1),
+		uFuturesBatchOrdersRate:         request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 5),
+		uFuturesGetAllOrdersRate:        request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 5),
+		uFuturesCountdownCancelRate:     request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 10),
+		uFuturesCurrencyForceOrdersRate: request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 20),
+		uFuturesSymbolOrdersRate:        request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 20),
+		uFuturesIncomeHistoryRate:       request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 30),
+		uFuturesPairOrdersRate:          request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 40),
+		uFuturesGetAllOpenOrdersRate:    request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 40),
+		uFuturesAllForceOrdersRate:      request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 50),
+		cFuturesDefaultRate:             request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 1),
+		cFuturesKline500Rate:            request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 2),
+		cFuturesOrderbookTickerAllRate:  request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 2),
+		cFuturesKline1000Rate:           request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 5),
+		cFuturesAccountInformationRate:  request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 5),
+		cFuturesKlineMaxRate:            request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 10),
+		cFuturesIndexMarkPriceRate:      request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 10),
+		cFuturesHistoricalTradesRate:    request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 20),
+		cFuturesCurrencyForceOrdersRate: request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 20),
+		cFuturesTickerPriceHistoryRate:  request.GetRateLimiterWithWeight(coinMarginedFuturesLimiter, 40),
+		cFuturesAllForceOrdersRate:      request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 50),
+		cFuturesOrdersDefaultRate:       request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 1),
+		cFuturesBatchOrdersRate:         request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 5),
+		cFuturesGetAllOpenOrdersRate:    request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 5),
+		cFuturesCancelAllOrdersRate:     request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 10),
+		cFuturesIncomeHistoryRate:       request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 20),
+		cFuturesSymbolOrdersRate:        request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 20),
+		cFuturesPairOrdersRate:          request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 40),
+		cFuturesOrderbook50Rate:         request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 2),
+		cFuturesOrderbook100Rate:        request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 5),
+		cFuturesOrderbook500Rate:        request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 10),
+		cFuturesOrderbook1000Rate:       request.GetRateLimiterWithWeight(coinMarginedFuturesOrdersLimiter, 20),
+		uFuturesMultiAssetMarginRate:    request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 30),
+		uFuturesSetMultiAssetMarginRate: request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
 	}
-
-	var finalDelay time.Duration
-	var reserves = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reserves[i] = limiter.Reserve()
-		finalDelay = reserves[i].Delay()
-	}
-
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		// Cancel all potential reservations to free up rate limiter if deadline
-		// is exceeded.
-		for x := range reserves {
-			reserves[x].Cancel()
-		}
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
-	}
-
-	time.Sleep(finalDelay)
-	return nil
-}
-
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		SpotRate:           request.NewRateLimit(spotInterval, spotRequestRate),
-		SpotOrdersRate:     request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
-		UFuturesRate:       request.NewRateLimit(uFuturesInterval, uFuturesRequestRate),
-		UFuturesOrdersRate: request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate),
-		CFuturesRate:       request.NewRateLimit(cFuturesInterval, cFuturesRequestRate),
-		CFuturesOrdersRate: request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate),
-	}
-}
-
-func bestPriceLimit(symbol string) request.EndpointLimit {
-	if symbol == "" {
-		return spotOrderbookTickerAllRate
-	}
-
-	return spotDefaultRate
 }
 
 func openOrdersLimit(symbol string) request.EndpointLimit {

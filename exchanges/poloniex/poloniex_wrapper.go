@@ -30,29 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	p.SetDefaults()
-	exchCfg, err := p.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = p.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default settings for poloniex
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"
@@ -145,7 +122,7 @@ func (p *Poloniex) SetDefaults() {
 
 	p.Requester, err = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -349,13 +326,13 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids)/2)
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids)/2)
 	for y := range book.Bids {
 		book.Bids[y].Price = orderbookNew.Bids[y*2].Float64()
 		book.Bids[y].Amount = orderbookNew.Bids[y*2+1].Float64()
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks)/2)
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks)/2)
 	for y := range book.Asks {
 		book.Asks[y].Price = orderbookNew.Asks[y*2].Float64()
 		book.Asks[y].Amount = orderbookNew.Asks[y*2+1].Float64()
@@ -1314,4 +1291,22 @@ func (p *Poloniex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 	}
 	return p.LoadLimits(limits)
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (p *Poloniex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := p.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return poloniexAPIURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Futures:
+		cp.Delimiter = ""
+		return poloniexAPIURL + tradeFutures + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

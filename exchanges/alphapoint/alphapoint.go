@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -581,7 +582,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 		return err
 	}
 
-	n := a.Requester.GetNonce(true)
+	n := a.Requester.GetNonce(nonce.UnixNano)
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"

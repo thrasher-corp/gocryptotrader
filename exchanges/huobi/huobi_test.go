@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2991,4 +2992,21 @@ func TestContractOpenInterestUSDT(t *testing.T) {
 	resp, err = h.ContractOpenInterestUSDT(context.Background(), currency.EMPTYPAIR, currency.EMPTYPAIR, "", "swap")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, h)
+	for _, a := range h.GetAssetTypes(false) {
+		pairs, err := h.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
+			require.ErrorIs(t, err, common.ErrNotYetImplemented)
+		} else {
+			require.NoError(t, err)
+			assert.NotEmpty(t, resp)
+		}
+	}
 }

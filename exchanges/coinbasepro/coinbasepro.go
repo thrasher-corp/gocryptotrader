@@ -23,6 +23,7 @@ import (
 const (
 	coinbaseproAPIURL                  = "https://api.pro.coinbase.com/"
 	coinbaseproSandboxAPIURL           = "https://api-public.sandbox.pro.coinbase.com/"
+	tradeBaseURL                       = "https://www.coinbase.com/advanced-trade/spot/"
 	coinbaseproAPIVersion              = "0"
 	coinbaseproProducts                = "products"
 	coinbaseproOrderbook               = "book"
@@ -766,7 +767,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 		HTTPRecording: c.HTTPRecording,
 	}
 
-	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return c.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

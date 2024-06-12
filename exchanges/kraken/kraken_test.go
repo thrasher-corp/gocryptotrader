@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -17,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,10 +31,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var k = &Kraken{}
+var k *Kraken
 var wsSetupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
@@ -44,31 +45,21 @@ const (
 	canManipulateRealOrders = false
 )
 
-// TestSetup setup func
 func TestMain(m *testing.M) {
-	k.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	k = new(Kraken)
+	if err := testexch.Setup(k); err != nil {
 		log.Fatal(err)
 	}
-	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
-	if err != nil {
-		log.Fatal(err)
-	}
-	krakenConfig.API.AuthenticatedSupport = true
-	krakenConfig.API.Credentials.Key = apiKey
-	krakenConfig.API.Credentials.Secret = apiSecret
-	k.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = k.Setup(krakenConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = k.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		k.API.AuthenticatedSupport = true
+		k.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
@@ -139,30 +130,28 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
+	testexch.UpdatePairsOnce(t, k)
+	err := k.UpdateTickers(context.Background(), asset.Spot)
+	require.NoError(t, err, "UpdateTickers must not error")
 	ap, err := k.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
-	require.NoError(t, err)
-	err = k.UpdateTickers(context.Background(), asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Spot)
-		assert.NoError(t, err)
+		require.NoError(t, err, "GetTicker must not error")
 	}
-
 	ap, err = k.GetAvailablePairs(asset.Futures)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	err = k.UpdateTickers(context.Background(), asset.Futures)
-	assert.NoError(t, err)
+	require.NoError(t, err, "UpdateTickers must not error")
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
-		assert.NoError(t, err)
+		require.NoError(t, err, "GetTicker must not error")
 	}
 
 	err = k.UpdateTickers(context.Background(), asset.Index)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateTickers should error correctly on Index asset")
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -1227,10 +1216,10 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe([]subscription.Subscription{
+	err := k.Subscribe(subscription.List{
 		{
 			Channel: defaultSubscribedChannels[0],
-			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
 		},
 	})
 	if err != nil {
@@ -1253,7 +1242,9 @@ func TestGetWSToken(t *testing.T) {
 }
 
 func TestWsAddOrder(t *testing.T) {
-	setupWsTests(t)
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	testexch.SetupWs(t, k)
 	_, err := k.wsAddOrder(&WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
@@ -1265,11 +1256,42 @@ func TestWsAddOrder(t *testing.T) {
 	}
 }
 
-func TestWsCancelOrder(t *testing.T) {
-	setupWsTests(t)
-	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
-		t.Error(err)
+func mockWsCancelOrders(msg []byte, w *websocket.Conn) error {
+	var req WsCancelOrderRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
 	}
+	resp := WsCancelOrderResponse{
+		Event:     krakenWsCancelOrderStatus,
+		Status:    "ok",
+		RequestID: req.RequestID,
+		Count:     int64(len(req.TransactionIDs)),
+	}
+	if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
+		resp.Status = "error"
+		resp.ErrorMessage = "[EOrder:Unknown order]"
+	}
+	respJSON, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	return w.WriteMessage(websocket.TextMessage, respJSON)
+}
+
+func TestWsCancelOrders(t *testing.T) {
+	t.Parallel()
+
+	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsCancelOrders)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
+
+	err := k.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
+	assert.ErrorIs(t, err, errCancellingOrder, "Should error cancelling order")
+	assert.ErrorContains(t, err, "BATFISH", "Should error containing txn id")
+	assert.ErrorContains(t, err, "CATFISH", "Should error containing txn id")
+	assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
+
+	err = k.wsCancelOrders([]string{"RABBIT", "SQUIRREL", "MOUSE"})
+	assert.NoError(t, err, "Should not error with valid ids")
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
@@ -1802,72 +1824,68 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	n := new(Kraken)
-	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
-	seen := 0
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-n.Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *order.Detail:
-				switch seen {
-				case 1:
-					assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-					assert.Equal(t, order.Limit, v.Type, "order type")
-					assert.Equal(t, order.Sell, v.Side, "order side")
-					assert.Equal(t, order.Open, v.Status, "order status")
-					assert.Equal(t, 34.5, v.Price, "price")
-					assert.Equal(t, 10.00345345, v.Amount, "amount")
-				case 2:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.Market, v.Type, "order type")
-					assert.Equal(t, order.Buy, v.Side, "order side")
-					assert.Equal(t, order.Pending, v.Status, "order status")
-					assert.Equal(t, 0.0, v.Price, "price")
-					assert.Equal(t, 0.0001, v.Amount, "amount")
-					assert.Equal(t, time.UnixMicro(1692851641361371), v.Date, "Date")
-				case 3:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.Open, v.Status, "order status")
-				case 4:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-					assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-					assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
-					assert.Equal(t, 0.00687, v.Fee, "Fee")
-				case 5:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.Closed, v.Status, "order status")
-					assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-					assert.Equal(t, 0.00687, v.Fee, "Fee")
-					assert.Equal(t, time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
-				case 6:
-					assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-					assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-					assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.001, v.Fee, "Fee")
-					assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-				case 7:
-					assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-					assert.Equal(t, order.Closed, v.Status, "order status")
-					assert.Equal(t, time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
-					assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.001, v.Fee, "Fee")
-					assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-					reading = false
-				}
-			default:
-				t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
+	testexch.UpdatePairsOnce(t, k)
+	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", k.wsHandleData)
+	close(k.Websocket.DataHandler)
+	assert.Len(t, k.Websocket.DataHandler, 7, "Should see 7 orders")
+	for resp := range k.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *order.Detail:
+			switch len(k.Websocket.DataHandler) {
+			case 6:
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert.Equal(t, order.Limit, v.Type, "order type")
+				assert.Equal(t, order.Sell, v.Side, "order side")
+				assert.Equal(t, order.Open, v.Status, "order status")
+				assert.Equal(t, 34.5, v.Price, "price")
+				assert.Equal(t, 10.00345345, v.Amount, "amount")
+			case 5:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.Market, v.Type, "order type")
+				assert.Equal(t, order.Buy, v.Side, "order side")
+				assert.Equal(t, order.Pending, v.Status, "order status")
+				assert.Equal(t, 0.0, v.Price, "price")
+				assert.Equal(t, 0.0001, v.Amount, "amount")
+				assert.Equal(t, time.UnixMicro(1692851641361371), v.Date, "Date")
+			case 4:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.Open, v.Status, "order status")
+			case 3:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
+				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
+				assert.Equal(t, 0.00687, v.Fee, "Fee")
+			case 2:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.Closed, v.Status, "order status")
+				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, 0.00687, v.Fee, "Fee")
+				assert.Equal(t, time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
+			case 1:
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
+				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.001, v.Fee, "Fee")
+				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+			case 0:
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert.Equal(t, order.Closed, v.Status, "order status")
+				assert.Equal(t, time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.001, v.Fee, "Fee")
+				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
 		}
 	}
-
-	assert.Equal(t, 7, seen, "number of DataHandler emissions")
 }
 
 func TestWsAddOrderJSON(t *testing.T) {
@@ -1877,18 +1895,6 @@ func TestWsAddOrderJSON(t *testing.T) {
   "event": "addOrderStatus",
   "status": "ok",
   "txid": "ONPNXH-KMKMU-F4MR5V"
-}`)
-	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsCancelOrderJSON(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-  "event": "cancelOrderStatus",
-  "status": "ok"
 }`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -2023,7 +2029,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 var testOb = orderbook.Base{
-	Asks: []orderbook.Item{
+	Asks: []orderbook.Tranche{
 		// NOTE: 0.00000500 float64 == 0.000005
 		{Price: 0.05005, StrPrice: "0.05005", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05010, StrPrice: "0.05010", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -2036,7 +2042,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, StrPrice: "0.05045", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05050, StrPrice: "0.05050", Amount: 0.00000500, StrAmount: "0.00000500"},
 	},
-	Bids: []orderbook.Item{
+	Bids: []orderbook.Tranche{
 		{Price: 0.05000, StrPrice: "0.05000", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04995, StrPrice: "0.04995", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04990, StrPrice: "0.04990", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -2151,7 +2157,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
-		// in the orderbook.Item struct.
+		// in the orderbook.Tranche struct.
 		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
 		if err != nil && x != len(websocketLUNAEUROrderbookUpdates)-1 {
 			t.Fatal(err)
@@ -2281,4 +2287,36 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = k.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+// curryWsMockUpgrader handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
+func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc {
+	tb.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
+			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
+			require.NoError(tb, err, "Write should not error")
+			return
+		}
+		testexch.WsMockUpgrader(tb, w, r, h)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
+	for _, a := range k.GetAssetTypes(false) {
+		pairs, err := k.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		resp, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a != asset.Spot && a != asset.Futures {
+			assert.ErrorIs(t, err, asset.ErrNotSupported)
+			continue
+		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -22,6 +23,7 @@ const (
 	geminiAPIURL        = "https://api.gemini.com"
 	geminiSandboxAPIURL = "https://api.sandbox.gemini.com"
 	geminiAPIVersion    = "1"
+	tradeBaseURL        = "https://exchange.gemini.com/trade/"
 
 	geminiSymbols            = "symbols"
 	geminiSymbolDetails      = "symbols/details"
@@ -400,7 +402,7 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 		HTTPRecording: g.HTTPRecording,
 	}
 
-	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return g.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
@@ -421,7 +423,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	return g.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		req := make(map[string]interface{})
 		req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-		req["nonce"] = g.Requester.GetNonce(true).String()
+		req["nonce"] = g.Requester.GetNonce(nonce.UnixNano).String()
 
 		for key, value := range params {
 			req[key] = value

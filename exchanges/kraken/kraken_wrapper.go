@@ -34,29 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	k.SetDefaults()
-	exchCfg, err := k.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = k.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
 	k.Name = "Kraken"
@@ -195,7 +172,7 @@ func (k *Kraken) SetDefaults() {
 
 	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -520,16 +497,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
+		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
 			}
 		}
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
+		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks[y] = orderbook.Item{
+			book.Asks[y] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[y].Amount,
 				Price:  orderbookNew.Asks[y].Price,
 			}
@@ -540,16 +517,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Asks = make([]orderbook.Item, len(futuresOB.Orderbook.Asks))
+		book.Asks = make([]orderbook.Tranche, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			}
 		}
-		book.Bids = make([]orderbook.Item, len(futuresOB.Orderbook.Bids))
+		book.Bids = make([]orderbook.Tranche, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
@@ -1718,12 +1695,10 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		if ok, err := k.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
 			return nil, err
-		}
-		if !isEnabled {
-			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
+		} else if !ok {
+			return nil, currency.ErrPairNotContainedInAvailablePairs
 		}
 	}
 
@@ -1816,4 +1791,22 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		})
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := k.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + cp.Lower().String(), nil
+	case asset.Futures:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeFuturesURL + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

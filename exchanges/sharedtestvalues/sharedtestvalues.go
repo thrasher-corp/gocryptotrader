@@ -1,7 +1,6 @@
 package sharedtestvalues
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -9,26 +8,23 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // This package is only to be referenced in test files
 const (
 	// WebsocketResponseDefaultTimeout used in websocket testing
 	// Defines wait time for receiving websocket response before cancelling
-	WebsocketResponseDefaultTimeout = (3 * time.Second)
+	WebsocketResponseDefaultTimeout = 3 * time.Second
 	// WebsocketResponseExtendedTimeout used in websocket testing
 	// Defines wait time for receiving websocket response before cancelling
-	WebsocketResponseExtendedTimeout = (15 * time.Second)
+	WebsocketResponseExtendedTimeout = 15 * time.Second
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
 	WebsocketChannelOverrideCapacity = 500
@@ -56,15 +52,10 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
-	return &stream.Websocket{
-		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
-		ToRoutine:         make(chan interface{}, 1000),
-		TrafficAlert:      make(chan struct{}),
-		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []subscription.Subscription, 10),
-		Unsubscribe:       make(chan []subscription.Subscription, 10),
-		Match:             stream.NewMatch(),
-	}
+	w := stream.NewWebsocket()
+	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan interface{}, 1000)
+	return w
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the
@@ -152,38 +143,6 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 		return fmt.Errorf("failed to walk directory: %w", err)
 	}
 	return nil
-}
-
-// TestFixtureToDataHandler takes a new empty exchange and configures a new websocket handler for it, and squirts the json path contents to it
-// It accepts a reader function, which is probably e.wsHandleData but could be anything
-func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
-	t.Helper()
-	b := e.GetBase()
-	seedBase := seed.GetBase()
-
-	err := b.CurrencyPairs.Load(&seedBase.CurrencyPairs)
-	assert.NoError(t, err, "Loading currency pairs should not error")
-
-	b.Name = "fixture"
-	b.Websocket = &stream.Websocket{
-		Wg:          new(sync.WaitGroup),
-		DataHandler: make(chan interface{}, 128),
-	}
-	b.API.Endpoints = b.NewEndpoints()
-
-	fixture, err := os.Open(fixturePath)
-	assert.NoError(t, err, "Opening fixture '%s' should not error", fixturePath)
-	defer func() {
-		assert.NoError(t, fixture.Close(), "Closing the fixture file should not error")
-	}()
-
-	s := bufio.NewScanner(fixture)
-	for s.Scan() {
-		msg := s.Bytes()
-		err := reader(msg)
-		assert.NoErrorf(t, err, "Fixture message should not error:\n%s", msg)
-	}
-	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
 }
 
 // SetupCurrencyPairsForExchangeAsset enables an asset for an exchange

@@ -65,6 +65,7 @@ type ExchangeInfo struct {
 		IsMarginTradingAllowed     bool          `json:"isMarginTradingAllowed"`
 		Filters                    []*filterData `json:"filters"`
 		Permissions                []string      `json:"permissions"`
+		PermissionSets             [][]string    `json:"permissionSets"`
 	} `json:"symbols"`
 }
 
@@ -750,11 +751,6 @@ type DepositAddress struct {
 // websocket connection
 type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
-}
-
-type wsAccountInfo struct {
-	Stream string            `json:"stream"`
-	Data   WsAccountInfoData `json:"data"`
 }
 
 // WsAccountInfoData defines websocket account info data

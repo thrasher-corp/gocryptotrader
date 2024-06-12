@@ -31,29 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (c *COINUT) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	c.SetDefaults()
-	exchCfg, err := c.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets current default values
 func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
@@ -433,17 +410,17 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Buy))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Buy))
 	for x := range orderbookNew.Buy {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Buy[x].Quantity,
 			Price:  orderbookNew.Buy[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Sell))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Sell))
 	for x := range orderbookNew.Sell {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Sell[x].Quantity,
 			Price:  orderbookNew.Sell[x].Price,
 		}
@@ -1124,4 +1101,14 @@ func (c *COINUT) GetLatestFundingRates(context.Context, *fundingrate.LatestRateR
 // UpdateOrderExecutionLimits updates order execution limits
 func (c *COINUT) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (c *COINUT) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := c.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = ""
+	return tradeBaseURL + cp.Upper().String() + "/", nil
 }

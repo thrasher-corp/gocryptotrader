@@ -185,17 +185,15 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		var assetLen int
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
-			if input.AssignableTo(assetParam) ||
-				input.AssignableTo(orderSubmitParam) ||
-				input.AssignableTo(orderModifyParam) ||
-				input.AssignableTo(orderCancelParam) ||
-				input.AssignableTo(orderCancelsParam) ||
-				input.AssignableTo(pairKeySliceParam) ||
-				input.AssignableTo(getOrdersRequestParam) ||
-				input.AssignableTo(pairKeySliceParam) {
-				// this allows wrapper functions that support assets types
-				// to be tested with all supported assets
-				assetLen = len(assetParams) - 1
+			for _, t := range []reflect.Type{
+				assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
+			} {
+				if input.AssignableTo(t) {
+					// this allows wrapper functions that support assets types
+					// to be tested with all supported assets
+					assetLen = len(assetParams) - 1
+					break
+				}
 			}
 		}
 		tt := time.Now()
