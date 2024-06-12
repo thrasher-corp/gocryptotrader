@@ -61,6 +61,16 @@ func (l List) GroupPairs() (n List) {
 	return s.List()
 }
 
+// QualifiedChannels returns a sorted list of all the qualified Channels in the list
+func (l List) QualifiedChannels() []string {
+	c := make([]string, len(l))
+	for i := range l {
+		c[i] = l[i].QualifiedChannel
+	}
+	slices.Sort(c)
+	return c
+}
+
 // SetStates sets the state for all the subs in a list
 // Errors are collected for any subscriptions already in the state
 // On error all changes are reverted
