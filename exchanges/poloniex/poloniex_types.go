@@ -1053,10 +1053,10 @@ type FuturesWebsocketServerInstances struct {
 
 // FuturesSubscriptionInput represents a subscription input through the futures stream.
 type FuturesSubscriptionInput struct {
-	ID             int64  `json:"id"`
+	ID             string `json:"id"`
 	Type           string `json:"type"`
 	Topic          string `json:"topic"`
-	PrivateChannel bool   `json:"privateChannel"`
+	PrivateChannel bool   `json:"privateChannel,omitempty"`
 	Response       bool   `json:"response"`
 }
 
@@ -1065,6 +1065,137 @@ type FuturesSubscriptionResp struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
 
-	Subject string `json:"subject"`
-	Topic   string `json:"topic"`
+	// detailed information of incoming message.
+	Subject string          `json:"subject"`
+	Topic   string          `json:"topic"`
+	Data    json.RawMessage `json:"data"`
+}
+
+// WsFuturesTickerInfo represents a futures ticker information push data through the websocket stream.
+type WsFuturesTickerInfo struct {
+	Symbol       string               `json:"symbol"`   // Market of the symbol
+	Sequence     int                  `json:"sequence"` // Sequence number which is used to judge the continuity of the pushed messages
+	Side         string               `json:"side"`     // Transaction side of the last traded taker order
+	Price        float64              `json:"price"`    // Filled price
+	Size         float64              `json:"size"`     // Filled quantity
+	TradeID      string               `json:"tradeId"`  // Order ID
+	BestBidSize  float64              `json:"bestBidSize"`
+	BestBidPrice float64              `json:"bestBidPrice"`
+	BestAskPrice float64              `json:"bestAskPrice"`
+	BestAskSize  float64              `json:"bestAskSize"`
+	FilledTime   convert.ExchangeTime `json:"ts"` // Filled time - nanosecond
+}
+
+// WsFuturesLvl2Orderbook represents an orderbook data with 2 levels.
+type WsFuturesLvl2Orderbook struct {
+	LastSequence int64    `json:"lastSequence"`
+	Sequence     int64    `json:"sequence"`
+	Change       string   `json:"change"`  //[deprecated]Price, side, quantity
+	Changes      []string `json:"changes"` // Price, side, quantity。incremental change in multiple gears
+	Timestamp    int64    `json:"timestamp"`
+}
+
+// WsOrderFill represents an orderbook fill.
+type WsOrderFill struct {
+	Symbol       string               `json:"symbol"`
+	Sequence     int64                `json:"sequence"`
+	Side         string               `json:"side"`
+	MatchSize    float64              `json:"matchSize"`
+	UnfilledSize float64              `json:"size"`
+	Price        float64              `json:"price"`
+	TakerOrderID string               `json:"takerOrderId"`
+	FilledTime   convert.ExchangeTime `json:"ts"`
+	MakerOrderID string               `json:"makerOrderId"`
+	TradeID      string               `json:"tradeId"`
+}
+
+// WsOrderbookLevel3V2 represents an orderbook level 3 v2.
+type WsOrderbookLevel3V2 struct {
+	Symbol    string               `json:"symbol"`
+	Sequence  int64                `json:"sequence"`
+	OrderID   string               `json:"orderId"`
+	ClientOid string               `json:"clientOid"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
+// WsOrderbookOpen represents level 3 orderbook data entry to the orderbook.
+type WsOrderbookOpen struct {
+	Symbol    string               `json:"symbol"`
+	Sequence  int64                `json:"sequence"`
+	Side      string               `json:"side"`
+	Price     types.Number         `json:"price"`
+	Size      types.Number         `json:"size"`
+	OrderID   string               `json:"orderId"`
+	OrderTime convert.ExchangeTime `json:"orderTime"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
+// WsOrderbookUpdateOrder represents an update on the orderbook of level 3.
+type WsOrderbookUpdateOrder struct {
+	Symbol      string               `json:"symbol"`
+	Sequence    int64                `json:"sequence"`
+	OrderID     string               `json:"orderId"`
+	UpdatedSize types.Number         `json:"size"`
+	Timestamp   convert.ExchangeTime `json:"ts"`
+}
+
+// WsOrderbookMatch represents an order match in the orderbook
+type WsOrderbookMatch struct {
+	Symbol          string               `json:"symbol"`
+	Sequence        int64                `json:"sequence"`
+	Side            string               `json:"side"`
+	FilledPrice     types.Number         `json:"price"`
+	FilledSize      types.Number         `json:"size"`
+	MakerOrderID    string               `json:"makerOrderId"`
+	TakerOrderID    string               `json:"takerOrderId"`
+	TradeID         string               `json:"tradeId"`
+	TransactionTime convert.ExchangeTime `json:"ts"`
+}
+
+// WsOrderbookMatchDone represents a notification when matching cycle of an order ends.
+type WsOrderbookMatchDone struct {
+	Symbol             string               `json:"symbol"`
+	Sequence           int64                `json:"sequence"`
+	CancellationReason string               `json:"reason"`
+	OrderID            string               `json:"orderId"`
+	CompletionTime     convert.ExchangeTime `json:"ts"`
+}
+
+// WsFuturesLevel2Depth5OB represents a level 2 orderbook with depth of 5
+type WsFuturesLevel2Depth5OB struct {
+	Asks      [][]types.Number     `json:"asks"`
+	Bids      [][]types.Number     `json:"bids"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
+// InstrumentMarkAndIndexPrice represents index and mark price information of an instrument.
+type InstrumentMarkAndIndexPrice struct {
+	Granularity int64                `json:"granularity"`
+	IndexPrice  float64              `json:"indexPrice"`
+	MarkPrice   float64              `json:"markPrice"`
+	Timestamp   convert.ExchangeTime `json:"timestamp"`
+}
+
+// WsFuturesInstrumentFundingRate represents a futures instrument funding rate information.
+type WsFuturesInstrumentFundingRate struct {
+	Granularity int64                `json:"granularity"`
+	FundingRate float64              `json:"fundingRate"`
+	Timestamp   convert.ExchangeTime `json:"timestamp"`
+}
+
+// WsSystemAnnouncement represents a funding system announcement.
+type WsSystemAnnouncement struct {
+	Symbol      string               `json:"symbol"`
+	FundingTime convert.ExchangeTime `json:"fundingTime"`
+	FundingRate float64              `json:"fundingRate"`
+	Timestamp   convert.ExchangeTime `json:"timestamp"`
+}
+
+// WsFuturesTicker represents a futures ticker information.
+type WsFuturesTicker struct {
+	Volume24Hr   float64              `json:"volume"`
+	Turnover24Hr float64              `json:"turnover"`
+	LastPrice    float64              `json:"lastPrice"`
+	PriceChgPct  float64              `json:"priceChgPct"`
+	SnapshotTime convert.ExchangeTime `json:"ts"`
 }

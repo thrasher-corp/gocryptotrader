@@ -5,11 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -17,12 +24,20 @@ const (
 	fCnlTicker               = "/contractMarket/ticker"
 	fCnlLevel2Orderbook      = "/contractMarket/level2"
 	fCnlContractExecution    = "/contractMarket/execution"
-	fCnlMarketExecution      = "/contractMarket/level3v2"
+	fCnlLvl3Orderbook        = "/contractMarket/level3v2"
 	fCnlOrderbookLvl2Depth5  = "/contractMarket/level2Depth5"
 	fCnlOrderbookLvl2Depth50 = "/contractMarket/level2Depth50"
 	fCnlInstruments          = "/contract/instrument"
 	fCnlAnnouncement         = "/contract/announcement"
-	fCnlContractMarket       = "/contractMarket/snapshot"
+	fCnlTickerSnapshot       = "/contractMarket/snapshot"
+
+	// Private channels
+
+	fCnlTradeOrders       = "/contractMarket/tradeOrders"
+	fCnlAdvancedOrders    = "/contractMarket/advancedOrders"
+	fCnlWallet            = "/contractAccount/wallet"
+	fCnlContractPositions = "/contract/position"
+	fCnlCrossPositionInfo = "/contract/positionCross"
 )
 
 var defaultFuturesChannels = []string{
@@ -82,7 +97,18 @@ func (p *Poloniex) WsFuturesConnect() error {
 	})
 	p.Websocket.Wg.Add(1)
 	go p.wsFuturesReadData(p.Websocket.Conn)
-	return nil
+	input := &FuturesSubscriptionInput{
+		ID:       "1545910660740",
+		Type:     "subscribe",
+		Topic:    "/contractMarket/level2:BTCUSDTPERP",
+		Response: true,
+	}
+
+	val, _ := json.Marshal(input)
+	println("Input: " + string(val))
+
+	return p.Websocket.Conn.SendJSONMessage(input)
+	// return nil
 }
 
 // wsFuturesReadData handles data from the websocket connection for futures instruments subscriptions.
@@ -107,23 +133,327 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		return err
 	}
 	if result.ID != "" {
+		if result.ID == "1" {
+			// Handling ping messages.
+			return nil
+		}
 		if !p.Websocket.Match.IncomingWithData(result.ID, respRaw) {
 			return fmt.Errorf("could not match trade response with ID: %s Event: %s ", result.ID, result.Topic)
 		}
 		return nil
 	}
-	if result.Topic != "" {
-		log.Debugf(log.ExchangeSys, string(respRaw))
-		return nil
+	topicSplit := strings.Split(result.Topic, ":")
+	if len(topicSplit) != 2 {
+		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
+		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
-	switch result.Topic {
-	case fCnlTicker, fCnlLevel2Orderbook, fCnlContractExecution, fCnlMarketExecution,
-		fCnlOrderbookLvl2Depth5, fCnlOrderbookLvl2Depth50, fCnlInstruments,
-		fCnlAnnouncement, fCnlContractMarket:
-		// TODO: ...
+	switch topicSplit[0] {
+	case fCnlTicker:
+		return p.processFuturesWsTicker(result)
+	case fCnlLevel2Orderbook:
+		return p.processFuturesWsOrdderbook(topicSplit[1], result)
+	case fCnlContractExecution:
+		return p.processOrderFills(topicSplit[1], result)
+	case fCnlLvl3Orderbook:
+		return p.processV3FuturesLevel3Orderbook(result)
+	case fCnlOrderbookLvl2Depth5,
+		fCnlOrderbookLvl2Depth50:
+		return p.processOrderbookLvl2Depth5(topicSplit[1], result)
+	case fCnlInstruments:
+		switch result.Subject {
+		case "mark.index.price":
+			var resp *InstrumentMarkAndIndexPrice
+			err := json.Unmarshal(result.Data, resp)
+			if err != nil {
+				return err
+			}
+			p.Websocket.DataHandler <- resp
+		case "funding.rate":
+			var resp *WsFuturesInstrumentFundingRate
+			err := json.Unmarshal(result.Data, resp)
+			if err != nil {
+				return err
+			}
+			p.Websocket.DataHandler <- resp
+		}
+		return nil
+	case fCnlAnnouncement:
+		switch result.Subject {
+		case "funding.end", "funding.begin":
+			var resp *WsSystemAnnouncement
+			err := json.Unmarshal(result.Data, resp)
+			if err != nil {
+				return err
+			}
+			p.Websocket.DataHandler <- resp
+			return nil
+		}
+	case fCnlTickerSnapshot:
+		return p.processFuturesTickerSnapshot(topicSplit[1], result)
+
+		// Private channels.
+	case fCnlTradeOrders:
+		// TODO:
+	case fCnlAdvancedOrders:
+		// TODO:
+	case fCnlWallet:
+		// TODO:
+	case fCnlContractPositions:
+		// TODO:
+	case fCnlCrossPositionInfo:
+		// TODO:
 	default:
 		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
+	}
+	return nil
+}
+
+func (p *Poloniex) processFuturesTickerSnapshot(pairString string, resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesTicker
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(pairString)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- ticker.Price{
+		Last:         result.LastPrice,
+		Volume:       result.Volume24Hr,
+		Pair:         cp,
+		ExchangeName: p.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  result.SnapshotTime.Time(),
+	}
+	return nil
+}
+
+// orderbookSnapshotLoadedPairsMap used to check pair which has pair snapshots added.
+var orderbookSnapshotLoadedPairsMap = map[string]bool{}
+
+func (p *Poloniex) processOrderbookLvl2Depth5(pairString string, resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesLevel2Depth5OB
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(pairString)
+	if err != nil {
+		return err
+	}
+	asks := make(orderbook.Tranches, len(result.Asks))
+	for i := range result.Asks {
+		asks[i] = orderbook.Tranche{Price: result.Asks[i][0].Float64(), Amount: result.Asks[i][1].Float64()}
+	}
+	bids := make(orderbook.Tranches, len(result.Bids))
+	for i := range result.Bids {
+		bids[i] = orderbook.Tranche{Price: result.Bids[i][0].Float64(), Amount: result.Bids[i][1].Float64()}
+	}
+	found, okay := orderbookSnapshotLoadedPairsMap[pairString]
+	if !found || !okay {
+		orderbookSnapshotLoadedPairsMap[pairString] = true
+		base := &orderbook.Base{
+			Exchange:    p.Name,
+			Pair:        cp,
+			Asset:       asset.Futures,
+			LastUpdated: result.Timestamp.Time(),
+			Asks:        asks,
+			Bids:        bids,
+		}
+		return p.Websocket.Orderbook.LoadSnapshot(base)
+	}
+	update := &orderbook.Update{
+		UpdateTime: result.Timestamp.Time(),
+		Asset:      asset.Futures,
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+	}
+	return p.Websocket.Orderbook.Update(update)
+}
+
+func (p *Poloniex) processV3FuturesLevel3Orderbook(resp *FuturesSubscriptionResp) error {
+	// cp, err := currency.NewPairFromString(result.Symbol)
+	// if err != nil {
+	// 	return err
+	// }
+	switch resp.Subject {
+	case "received":
+		var result *WsOrderbookLevel3V2
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		p.Websocket.DataHandler <- result
+	case "open":
+		var result *WsOrderbookOpen
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		p.Websocket.DataHandler <- result
+	case "update":
+		var result *WsOrderbookUpdateOrder
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		p.Websocket.DataHandler <- result
+	case "match":
+		var result *WsOrderbookMatch
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		p.Websocket.DataHandler <- result
+	case "done":
+		var result *WsOrderbookMatchDone
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		p.Websocket.DataHandler <- result
+	default:
+		return fmt.Errorf("unhandled websocket data %s", string(resp.Data))
+	}
+	return nil
+}
+
+func (p *Poloniex) processOrderFills(pairString string, resp *FuturesSubscriptionResp) error {
+	var result *WsOrderFill
+	cp, err := currency.NewPairFromString(pairString)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	oSide, err := order.StringToOrderSide(result.Side)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- []fill.Data{{
+		ID:            result.TradeID,
+		Timestamp:     result.FilledTime.Time(),
+		Exchange:      p.Name,
+		AssetType:     asset.Futures,
+		CurrencyPair:  cp,
+		Side:          oSide,
+		OrderID:       result.MakerOrderID,
+		ClientOrderID: result.TakerOrderID,
+		TradeID:       result.TradeID,
+		Price:         result.Price,
+		Amount:        result.MatchSize,
+	}}
+	return nil
+}
+
+func (p *Poloniex) processFuturesWsOrdderbook(pairString string, resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesLvl2Orderbook
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(pairString)
+	if err != nil {
+		return err
+	}
+
+	// Check and load orderbook snapshot for an asset type and currency pair.
+	base, err := p.Websocket.Orderbook.GetOrderbook(cp, asset.Futures)
+	if err != nil {
+		ob, err := p.GetFullOrderbookLevel2(context.Background(), pairString)
+		if err != nil {
+			return err
+		}
+		base, err = ob.GetOBBase()
+		if err != nil {
+			return err
+		}
+		base.Exchange = p.Name
+	}
+	if result.LastSequence <= base.LastUpdateID {
+		// Discard the feed data of a sequence that is below or equals to the last orderbook snapshot sequence
+		return nil
+	}
+	for i := range result.Changes {
+		splitted := strings.Split(result.Changes[i], ",")
+		if len(splitted) != 3 {
+			continue
+		}
+		price, err := strconv.ParseFloat(splitted[0], 64)
+		if err != nil {
+			return err
+		}
+		amount, err := strconv.ParseFloat(splitted[2], 64)
+		if err != nil {
+			return err
+		}
+		switch splitted[1] {
+		case "sell":
+			found := false
+			for j := range base.Asks {
+				if price == base.Asks[j].Price {
+					if amount == 0 {
+						base.Asks = append(base.Asks[:j], base.Asks[j+1:]...)
+					} else {
+						base.Asks[j].Amount = amount
+					}
+					found = true
+				}
+			}
+			if !found {
+				base.Asks = append(base.Asks, orderbook.Tranche{Price: price, Amount: amount})
+			}
+		case "buy":
+			found := false
+			for j := range base.Bids {
+				if price == base.Bids[j].Price {
+					if amount == 0 {
+						base.Bids = append(base.Bids[:j], base.Bids[j+1:]...)
+					} else {
+						base.Bids[j].Amount = amount
+					}
+					found = true
+				}
+			}
+			if !found {
+				base.Bids = append(base.Bids, orderbook.Tranche{Price: price, Amount: amount})
+			}
+		default:
+			continue
+		}
+	}
+	err = base.Process()
+	if err != nil {
+		return err
+	}
+	return p.Websocket.Orderbook.LoadSnapshot(base)
+}
+
+func (p *Poloniex) processFuturesWsTicker(resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesTickerInfo
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(result.Symbol)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- ticker.Price{
+		Bid:          result.BestBidPrice,
+		BidSize:      result.BestBidSize,
+		Ask:          result.BestAskPrice,
+		Volume:       result.Size,
+		IndexPrice:   result.Price,
+		Pair:         cp,
+		ExchangeName: p.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  result.FilledTime.Time(),
 	}
 	return nil
 }
@@ -132,15 +462,45 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 
 // GenerateFuturesDefaultSubscriptions adds default subscriptions to futures websockets.
 func (p *Poloniex) GenerateFuturesDefaultSubscriptions() (subscription.List, error) {
-	enabledCurrencies, err := p.GetEnabledPairs(asset.Futures)
+	enabledPairs, err := p.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return nil, err
 	}
 	channels := defaultFuturesChannels
-	subscriptions := make(subscription.List, 0, len(enabledCurrencies))
+	subscriptions := subscription.List{}
 	for i := range channels {
-		// TODO: ...
-		println(i)
+		switch channels[i] {
+		case fCnlCrossPositionInfo,
+			fCnlWallet,
+			fCnlAdvancedOrders,
+			fCnlTradeOrders:
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel:       channels[i],
+				Asset:         asset.Futures,
+				Authenticated: true,
+			})
+		case fCnlTicker,
+			fCnlLevel2Orderbook,
+			fCnlContractExecution,
+			fCnlLvl3Orderbook,
+			fCnlOrderbookLvl2Depth5,
+			fCnlOrderbookLvl2Depth50,
+			fCnlInstruments,
+			fCnlAnnouncement,
+			fCnlTickerSnapshot,
+			fCnlContractPositions:
+			authenticated := false
+			if channels[i] == fCnlContractPositions {
+				authenticated = true
+			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel:       channels[i],
+				Asset:         asset.Futures,
+				Pairs:         enabledPairs,
+				Authenticated: authenticated,
+			})
+
+		}
 	}
 	return subscriptions, nil
 }
@@ -148,11 +508,26 @@ func (p *Poloniex) GenerateFuturesDefaultSubscriptions() (subscription.List, err
 func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscription.List) ([]FuturesSubscriptionInput, error) {
 	payloads := []FuturesSubscriptionInput{}
 	for x := range subscs {
-		payloads = append(payloads, FuturesSubscriptionInput{
-			ID:    p.Websocket.Conn.GenerateMessageID(false),
-			Type:  operation,
-			Topic: subscs[x].Channel + ":" + subscs[x].Pairs[0].String(),
-		})
+		if len(subscs[x].Pairs) == 0 {
+			input := FuturesSubscriptionInput{
+				ID:    strconv.FormatInt(p.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:  operation,
+				Topic: subscs[x].Channel,
+			}
+			payloads = append(payloads, input)
+		} else {
+			for i := range subscs[x].Pairs {
+				input := FuturesSubscriptionInput{
+					ID:    strconv.FormatInt(p.Websocket.Conn.GenerateMessageID(false), 10),
+					Type:  operation,
+					Topic: subscs[x].Channel,
+				}
+				if !subscs[x].Pairs[x].IsEmpty() {
+					input.Topic += ":" + subscs[x].Pairs[i].String()
+				}
+				payloads = append(payloads, input)
+			}
+		}
 	}
 	return payloads, nil
 }
@@ -164,8 +539,10 @@ func (p *Poloniex) SubscribeFutures(subs subscription.List) error {
 		return err
 	}
 	for i := range payloads {
-		// TODO:
-		println(i)
+		err = p.Websocket.Conn.SendJSONMessage(payloads[i])
+		if err != nil {
+			return err
+		}
 	}
 	return p.Websocket.AddSuccessfulSubscriptions(subs...)
 }
@@ -177,8 +554,10 @@ func (p *Poloniex) UnsubscribeFutures(unsub subscription.List) error {
 		return err
 	}
 	for i := range payloads {
-		// TODO:
-		println(i)
+		err = p.Websocket.Conn.SendJSONMessage(payloads[i])
+		if err != nil {
+			return err
+		}
 	}
 	return p.Websocket.RemoveSubscriptions(unsub...)
 }

@@ -4,6 +4,9 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -108,6 +111,30 @@ type Orderbook struct {
 		// Added for level2 data.
 		Timestamp convert.ExchangeTime `json:"ts"`
 	} `json:"data"`
+}
+
+// GetOBBase creates an orderbook.Base instance from *Orderbook instance.
+func (a *Orderbook) GetOBBase() (*orderbook.Base, error) {
+	cp, err := currency.NewPairFromString(a.Data.Symbol)
+	if err != nil {
+		return nil, err
+	}
+	base := &orderbook.Base{
+		Pair:         cp,
+		Asset:        asset.Futures,
+		LastUpdateID: a.Data.Sequence,
+	}
+	base.Asks = make(orderbook.Tranches, len(a.Data.Asks))
+	for i := range a.Data.Asks {
+		base.Asks[i].Price = a.Data.Asks[i][0].Float64()
+		base.Asks[i].Amount = a.Data.Asks[i][1].Float64()
+	}
+	base.Bids = make(orderbook.Tranches, len(a.Data.Bids))
+	for i := range a.Data.Bids {
+		base.Bids[i].Price = a.Data.Bids[i][0].Float64()
+		base.Bids[i].Amount = a.Data.Bids[i][1].Float64()
+	}
+	return base, nil
 }
 
 // OrderbookChange represents an orderbook change data

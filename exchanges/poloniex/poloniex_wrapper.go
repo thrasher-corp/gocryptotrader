@@ -165,7 +165,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		ExchangeConfig:        exch,
 		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,
-		Connector:             p.WsConnect,
+		Connector:             p.WsFuturesConnect,
 		Subscriber:            p.Subscribe,
 		Unsubscriber:          p.Unsubscribe,
 		GenerateSubscriptions: p.GenerateDefaultSubscriptions,

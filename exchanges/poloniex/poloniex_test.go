@@ -1512,3 +1512,11 @@ func TestWsConnect(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second * 23)
 }
+
+func TestWsFuturesConnect(t *testing.T) {
+	t.Parallel()
+	p.Verbose = true
+	err := p.WsFuturesConnect()
+	require.NoError(t, err)
+	time.Sleep(time.Second * 60)
+}
