@@ -168,6 +168,7 @@ func (m *mockEx) CanUseAuthenticatedWebsocketEndpoints() bool { return m.auth }
 
 // equalLists is a utility function to compare subscription lists and show a pretty failure message
 // It overcomes the verbose depth of assert.ElementsMatch spewConfig
+// Duplicate of internal/testing/subscriptions/EqualLists
 func equalLists(tb testing.TB, a, b List) bool {
 	tb.Helper()
 	for _, sub := range append(a, b...) {
