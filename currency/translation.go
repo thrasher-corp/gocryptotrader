@@ -21,6 +21,9 @@ var translations = map[*Item]Code{
 	USDT.Item: USD,
 }
 
+// Translations is a map of translations for a specific exchange implementation
+type Translations map[*Item]Code
+
 // NewTranslations returns a new translation map, the key indicates the exchange
 // representation and the value indicates the internal representation/common/standard
 // representation. e.g. XBT as key and BTC as value, this is useful for exchanges
@@ -32,9 +35,6 @@ func NewTranslations(t map[Code]Code) Translations {
 	}
 	return lookup
 }
-
-// Translations is a map of translations for a specific exchange implementation
-type Translations map[*Item]Code
 
 // Translate returns the translated currency code, usually used to convert
 // exchange specific currency codes to common currency codes. If no translation
