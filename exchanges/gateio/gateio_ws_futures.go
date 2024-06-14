@@ -236,7 +236,7 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, assetType)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, assetType, push.Time)
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, assetType, push.Time.Time())
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
@@ -557,7 +557,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 		}
 	}
 	updates := orderbook.Update{
-		UpdateTime: time.UnixMilli(data.TimestampInMs),
+		UpdateTime: data.TimestampInMs.Time(),
 		Pair:       data.ContractName,
 		Asset:      assetType,
 	}
@@ -577,7 +577,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 	return g.Websocket.Orderbook.Update(&updates)
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, pushTime int64) error {
+func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, pushTime time.Time) error {
 	if event == "all" {
 		var data WsFuturesOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -643,7 +643,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     time.Unix(pushTime, 0),
+			LastUpdated:     pushTime,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
