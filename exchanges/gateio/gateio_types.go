@@ -2330,7 +2330,7 @@ type WsFuturesLiquidationNotification struct {
 	OrderID    int64   `json:"order_id"`
 	OrderPrice float64 `json:"order_price"`
 	Size       float64 `json:"size"`
-	Time       int64   `json:"time"`
+	Time       Time   `json:"time"`
 	TimeMs     Time    `json:"time_ms"`
 	Contract   string  `json:"contract"`
 	User       string  `json:"user"`
