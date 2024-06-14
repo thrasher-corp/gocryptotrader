@@ -28,11 +28,25 @@ type Deribit struct {
 	exchange.Base
 }
 
+var (
+	// optionRegex compiles optionDecimalRegex at startup and is used to help set
+	// option currency lower-case d eg MATIC-USDC-3JUN24-0d64-P
+	optionRegex *regexp.Regexp
+)
+
 const (
 	deribitAPIVersion = "/api/v2"
+	tradeBaseURL      = "https://www.deribit.com/"
+	tradeSpot         = "spot/"
+	tradeFutures      = "futures/"
+	tradeOptions      = "options/"
+	tradeFuturesCombo = "futures-spreads/"
+	tradeOptionsCombo = "combos/"
+
+	perpString         = "PERPETUAL"
+	optionDecimalRegex = `\d+(D)\d+`
 
 	// Public endpoints
-
 	// Market Data
 	getBookByCurrency                = "public/get_book_summary_by_currency"
 	getBookByInstrument              = "public/get_book_summary_by_instrument"
@@ -2682,10 +2696,51 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 	}
 }
 
-func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error) {
+// getAssetPairByInstrument is able to determine the asset type and currency pair
+// based on the received instrument ID
+func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
+	if instrument == "" {
+		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
+	}
+
+	var item asset.Item
+	// Find the first occurrence of the delimiter and split the instrument string accordingly
+	parts := strings.Split(instrument, currency.DashDelimiter)
+	switch {
+	case len(parts) == 1:
+		if i := strings.IndexAny(instrument, currency.UnderscoreDelimiter); i == -1 {
+			return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
+		}
+		item = asset.Spot
+	case len(parts) == 2:
+		item = asset.Futures
+	case parts[len(parts)-1] == "C" || parts[len(parts)-1] == "P":
+		item = asset.Options
+	case len(parts) >= 3:
+		// Check for options or other types
+		switch parts[1] {
+		case "USDC", "USDT":
+			item = asset.Futures
+		case "FS":
+			item = asset.FutureCombo
+		default:
+			item = asset.OptionCombo
+		}
+	default:
+		return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
+	}
+	cp, err := currency.NewPairFromString(instrument)
+	if err != nil {
+		return currency.EMPTYPAIR, asset.Empty, err
+	}
+
+	return cp, item, nil
+}
+
+func getAssetFromPair(currencyPair currency.Pair) (asset.Item, error) {
 	currencyPairString := currencyPair.String()
 	vals := strings.Split(currencyPairString, currency.DashDelimiter)
-	if strings.HasSuffix(currencyPairString, "PERPETUAL") || len(vals) == 2 {
+	if strings.HasSuffix(currencyPairString, perpString) || len(vals) == 2 {
 		return asset.Futures, nil
 	} else if len(vals) == 1 {
 		if vals = strings.Split(vals[0], currency.UnderscoreDelimiter); len(vals) == 2 {
@@ -2721,7 +2776,7 @@ func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error
 }
 
 func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	assetType, err := guessAssetTypeFromInstrument(feeBuilder.Pair)
+	assetType, err := getAssetFromPair(feeBuilder.Pair)
 	if err != nil {
 		return 0, err
 	}
@@ -2735,7 +2790,7 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
 		case strings.HasPrefix(feeBuilder.Pair.String(), currencyBTC),
 			strings.HasPrefix(feeBuilder.Pair.String(), currencyETH):
-			if strings.HasSuffix(feeBuilder.Pair.String(), "PERPETUAL") {
+			if strings.HasSuffix(feeBuilder.Pair.String(), perpString) {
 				if feeBuilder.IsMaker {
 					return 0, nil
 				}
@@ -2786,10 +2841,16 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 // it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
 	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
-	if len(subCodes) == 3 {
-		if match, err := regexp.MatchString(`^[a-zA-Z0-9_]*$`, subCodes[1]); match && err == nil {
-			subCodes[1] = strings.ToLower(subCodes[1])
+	initialDelimiter := currency.DashDelimiter
+	if subCodes[0] == "USDC" {
+		initialDelimiter = currency.UnderscoreDelimiter
+	}
+	for i := range subCodes {
+		if match := optionRegex.MatchString(subCodes[i]); match {
+			subCodes[i] = strings.ToLower(subCodes[i])
+			break
 		}
 	}
-	return pair.Base.String() + currency.DashDelimiter + strings.Join(subCodes, currency.DashDelimiter)
+
+	return pair.Base.String() + initialDelimiter + strings.Join(subCodes, currency.DashDelimiter)
 }

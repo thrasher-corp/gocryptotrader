@@ -722,7 +722,7 @@ func getKlineRateBudget(limit int64) request.EndpointLimit {
 	rateBudget := cFuturesDefaultRate
 	switch {
 	case limit > 0 && limit < 100:
-		rateBudget = cFuturesKline100Rate
+		rateBudget = cFuturesDefaultRate
 	case limit >= 100 && limit < 500:
 		rateBudget = cFuturesKline500Rate
 	case limit >= 500 && limit < 1000:

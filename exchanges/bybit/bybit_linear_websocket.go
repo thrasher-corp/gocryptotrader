@@ -41,8 +41,8 @@ func (by *Bybit) WsLinearConnect() error {
 }
 
 // GenerateLinearDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (by *Bybit) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
@@ -61,9 +61,9 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 		for p := range linearPairMap[a] {
 			for x := range channels {
 				subscriptions = append(subscriptions,
-					subscription.Subscription{
+					&subscription.Subscription{
 						Channel: channels[x],
-						Pair:    pairs[p],
+						Pairs:   currency.Pairs{pairs[p]},
 						Asset:   a,
 					})
 			}
@@ -73,16 +73,16 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) LinearSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) LinearSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleLinearPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) LinearUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) LinearUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleLinearPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.USDTMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err

@@ -90,25 +90,22 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket",
-			w.ExchangeName)
+		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%s websocket connection: sending message to websocket %+v\n",
-			w.ExchangeName,
-			data)
+		if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
+			log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.ExchangeName, msg)
+		}
 	}
 
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-				w.ExchangeName)
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 		}
 	}
 	return w.Connection.WriteJSON(data)
@@ -117,29 +114,23 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-			w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection: sending message [%s]\n",
-			w.ExchangeName,
-			message)
+		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
 	}
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-				w.ExchangeName)
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 		}
 	}
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-			w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 	return w.Connection.WriteMessage(messageType, message)
 }

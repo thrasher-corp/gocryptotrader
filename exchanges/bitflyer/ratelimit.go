@@ -1,11 +1,9 @@
 package bitflyer
 
 import (
-	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 // Exchange specific rate limit consts
@@ -17,50 +15,14 @@ const (
 	bitflyerPublicRequestRate           = 500
 )
 
-// RateLimit implements the rate.Limiter interface
-type RateLimit struct {
-	Auth   *rate.Limiter
-	UnAuth *rate.Limiter
-
-	// Send a New Order
-	// Submit New Parent Order (Special order)
-	// Cancel All Orders
-	Order     *rate.Limiter
-	LowVolume *rate.Limiter
-}
-
-// Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	switch f {
-	case request.Auth:
-		return r.Auth.Wait(ctx)
-	case orders:
-		err := r.Auth.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		return r.Order.Wait(ctx)
-	case lowVolume:
-		err := r.LowVolume.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		err = r.Order.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		return r.Auth.Wait(ctx)
-	default:
-		return r.UnAuth.Wait(ctx)
-	}
-}
-
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		Auth:      request.NewRateLimit(biflyerRateInterval, bitflyerPrivateRequestRate),
-		UnAuth:    request.NewRateLimit(biflyerRateInterval, bitflyerPublicRequestRate),
-		Order:     request.NewRateLimit(biflyerRateInterval, bitflyerPrivateSendOrderRequestRate),
-		LowVolume: request.NewRateLimit(time.Minute, bitflyerPrivateLowVolumeRequestRate),
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
+	return request.RateLimitDefinitions{
+		request.Auth:   request.NewRateLimitWithWeight(biflyerRateInterval, bitflyerPrivateRequestRate, 1),
+		request.UnAuth: request.NewRateLimitWithWeight(biflyerRateInterval, bitflyerPublicRequestRate, 1),
+		// TODO: Below limits need to also take from auth rate limit. This
+		// can not yet be tested and verified so is left not done for now.
+		orders:    request.NewRateLimitWithWeight(biflyerRateInterval, bitflyerPrivateSendOrderRequestRate, 1),
+		lowVolume: request.NewRateLimitWithWeight(time.Minute, bitflyerPrivateLowVolumeRequestRate, 1),
 	}
 }
