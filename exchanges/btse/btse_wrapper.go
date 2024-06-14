@@ -279,7 +279,11 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	ticks, err := b.GetMarketSummary(ctx, p.String(), a == asset.Spot)
+	symbol, err := b.FormatSymbol(p, a)
+	if err != nil {
+		return nil, err
+	}
+	ticks, err := b.GetMarketSummary(ctx, symbol, a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
