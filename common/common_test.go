@@ -885,4 +885,7 @@ func TestErrorWithContext(t *testing.T) {
 	for _, e := range exp {
 		require.Contains(t, got.Error(), e)
 	}
+
+	// Test so we don't add context with more context
+	require.Equal(t, got, ErrorWithContext(got))
 }
