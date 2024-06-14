@@ -62,15 +62,14 @@ func TestSubmit_Validate(t *testing.T) {
 			},
 		}, // valid pair but invalid order side
 		{
-			ExpectedErr: errTimeInForceConflict,
+			ExpectedErr: ErrInvalidTimeInForce,
 			Submit: &Submit{
-				Exchange:          "test",
-				Pair:              testPair,
-				AssetType:         asset.Spot,
-				Side:              Ask,
-				Type:              Market,
-				ImmediateOrCancel: true,
-				FillOrKill:        true,
+				Exchange:    "test",
+				Pair:        testPair,
+				AssetType:   asset.Spot,
+				Side:        Ask,
+				Type:        Market,
+				TimeInForce: TimeInForce(89),
 			},
 		},
 		{
@@ -998,24 +997,24 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	}
 
 	om := ModifyResponse{
-		ImmediateOrCancel: true,
-		PostOnly:          true,
-		Price:             1,
-		Amount:            1,
-		TriggerPrice:      1,
-		RemainingAmount:   1,
-		Exchange:          "1",
-		Type:              1,
-		Side:              1,
-		Status:            1,
-		AssetType:         1,
-		LastUpdated:       updated,
-		Pair:              pair,
+		TimeInForce:     IOC,
+		PostOnly:        true,
+		Price:           1,
+		Amount:          1,
+		TriggerPrice:    1,
+		RemainingAmount: 1,
+		Exchange:        "1",
+		Type:            1,
+		Side:            1,
+		Status:          1,
+		AssetType:       1,
+		LastUpdated:     updated,
+		Pair:            pair,
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
 
-	if !od.ImmediateOrCancel {
+	if od.TimeInForce == UnknownTIF {
 		t.Error("Failed to update")
 	}
 	if !od.PostOnly {
@@ -1084,34 +1083,33 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	om := &Detail{
-		ImmediateOrCancel: true,
-		HiddenOrder:       true,
-		FillOrKill:        true,
-		PostOnly:          true,
-		Leverage:          1,
-		Price:             1,
-		Amount:            1,
-		LimitPriceUpper:   1,
-		LimitPriceLower:   1,
-		TriggerPrice:      1,
-		QuoteAmount:       1,
-		ExecutedAmount:    1,
-		RemainingAmount:   1,
-		Fee:               1,
-		Exchange:          "1",
-		InternalOrderID:   id,
-		OrderID:           "1",
-		AccountID:         "1",
-		ClientID:          "1",
-		ClientOrderID:     "DukeOfWombleton",
-		WalletAddress:     "1",
-		Type:              1,
-		Side:              1,
-		Status:            1,
-		AssetType:         1,
-		LastUpdated:       updated,
-		Pair:              pair,
-		Trades:            []TradeHistory{},
+		TimeInForce:     GTC,
+		HiddenOrder:     true,
+		PostOnly:        true,
+		Leverage:        1,
+		Price:           1,
+		Amount:          1,
+		LimitPriceUpper: 1,
+		LimitPriceLower: 1,
+		TriggerPrice:    1,
+		QuoteAmount:     1,
+		ExecutedAmount:  1,
+		RemainingAmount: 1,
+		Fee:             1,
+		Exchange:        "1",
+		InternalOrderID: id,
+		OrderID:         "1",
+		AccountID:       "1",
+		ClientID:        "1",
+		ClientOrderID:   "DukeOfWombleton",
+		WalletAddress:   "1",
+		Type:            1,
+		Side:            1,
+		Status:          1,
+		AssetType:       1,
+		LastUpdated:     updated,
+		Pair:            pair,
+		Trades:          []TradeHistory{},
 	}
 
 	od = &Detail{Exchange: "test"}
@@ -1128,13 +1126,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.InternalOrderID != id {
 		t.Error("Failed to initialize the internal order ID")
 	}
-	if !od.ImmediateOrCancel {
+	if od.TimeInForce != GTC {
 		t.Error("Failed to update")
 	}
 	if !od.HiddenOrder {
-		t.Error("Failed to update")
-	}
-	if !od.FillOrKill {
 		t.Error("Failed to update")
 	}
 	if !od.PostOnly {
@@ -2061,4 +2056,113 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+}
+
+func TestIsValid(t *testing.T) {
+	t.Parallel()
+	if TimeInForce(50).IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+
+	if !IOC.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !GTT.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !GTC.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !FOK.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !PostOnlyGTC.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !UnknownTIF.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if TimeInForce(22).IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+}
+
+func TestStringToTimeInForce(t *testing.T) {
+	t.Parallel()
+	_, err := StringToTimeInForce("Unknown")
+	if !errors.Is(err, ErrInvalidTimeInForce) {
+		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
+	}
+	tif1, err := StringToTimeInForce("GoodTillCancel")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tif, err := StringToTimeInForce("GOOD_TILL_CANCELED")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif1 != tif {
+		t.Fatalf("unexpected result")
+	}
+
+	tif, err = StringToTimeInForce("GTT")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != GTT {
+		t.Fatalf("expected %v, got %v", GTT, tif)
+	}
+
+	tif, err = StringToTimeInForce("GOOD_TIL_TIME")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != GTT {
+		t.Fatalf("expected %v, got %v", GTT, tif)
+	}
+
+	tif, err = StringToTimeInForce("FILLORKILL")
+	if err != nil {
+		t.Error(err)
+	} else if tif != FOK {
+		t.Fatalf("expected %v, got %v", FOK, tif)
+	}
+
+	tif, err = StringToTimeInForce("POST_ONLY_GOOD_TIL_CANCELLED")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != PostOnlyGTC {
+		t.Fatalf("expected %v, got %v", PostOnlyGTC, tif)
+	}
+
+	tif, err = StringToTimeInForce("immedIate_Or_Cancel")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != IOC {
+		t.Fatalf("expected %v, got %v", IOC, tif)
+	}
+
+	_, err = StringToTimeInForce("")
+	if !errors.Is(err, ErrInvalidTimeInForce) {
+		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
+	}
+	_, err = StringToTimeInForce("IOC")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestString(t *testing.T) {
+	t.Parallel()
+	valMap := map[string]TimeInForce{
+		"IOC":                          IOC,
+		"GTC":                          GTC,
+		"GTT":                          GTT,
+		"FOK":                          FOK,
+		"POST_ONLY_GOOD_TIL_CANCELLED": PostOnlyGTC,
+		"UNKNOWN":                      UnknownTIF,
+	}
+	for x := range valMap {
+		if result := valMap[x].String(); x != result {
+			t.Fatalf("expected %v, got %v", x, result)
+		}
+	}
 }

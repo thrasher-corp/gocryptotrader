@@ -36,6 +36,8 @@ var (
 	ErrUnableToPlaceOrder = errors.New("order not placed")
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
+	// ErrInvalidTimeInForce is returned when an invalid time-in-force value is provided
+	ErrInvalidTimeInForce = errors.New("invalid time in force value provided")
 
 	// ErrUnknownPriceType returned when price type is unknown
 	ErrUnknownPriceType = errors.New("unknown price type")
@@ -85,8 +87,8 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrTypeIsInvalid
 	}
 
-	if s.ImmediateOrCancel && s.FillOrKill {
-		return errTimeInForceConflict
+	if !s.TimeInForce.IsValid() {
+		return ErrInvalidTimeInForce
 	}
 
 	if s.Amount == 0 && s.QuoteAmount == 0 {
@@ -127,16 +129,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 
 	var updated bool
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if d.TimeInForce != m.TimeInForce {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if d.HiddenOrder != m.HiddenOrder {
 		d.HiddenOrder = m.HiddenOrder
-		updated = true
-	}
-	if d.FillOrKill != m.FillOrKill {
-		d.FillOrKill = m.FillOrKill
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -294,8 +292,8 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.OrderID = m.OrderID
 		updated = true
 	}
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -470,18 +468,17 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
-		MarginType:        s.MarginType,
+		TimeInForce:   s.TimeInForce,
+		PostOnly:      s.PostOnly,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
+		MarginType:    s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
@@ -563,17 +560,16 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
+		TimeInForce:   s.TimeInForce,
+		PostOnly:      s.PostOnly,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
 
 		InternalOrderID: internal,
 
@@ -623,18 +619,18 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 		return nil, errOrderDetailIsNil
 	}
 	return &ModifyResponse{
-		Exchange:          m.Exchange,
-		OrderID:           m.OrderID,
-		ClientOrderID:     m.ClientOrderID,
-		Type:              m.Type,
-		Side:              m.Side,
-		AssetType:         m.AssetType,
-		Pair:              m.Pair,
-		ImmediateOrCancel: m.ImmediateOrCancel,
-		PostOnly:          m.PostOnly,
-		Price:             m.Price,
-		Amount:            m.Amount,
-		TriggerPrice:      m.TriggerPrice,
+		Exchange:      m.Exchange,
+		OrderID:       m.OrderID,
+		ClientOrderID: m.ClientOrderID,
+		Type:          m.Type,
+		Side:          m.Side,
+		AssetType:     m.AssetType,
+		Pair:          m.Pair,
+		TimeInForce:   m.TimeInForce,
+		PostOnly:      m.PostOnly,
+		Price:         m.Price,
+		Amount:        m.Amount,
+		TriggerPrice:  m.TriggerPrice,
 	}, nil
 }
 
@@ -696,6 +692,25 @@ func (t Type) String() string {
 		return "OPTIMAL_LIMIT_IOC"
 	case OCO:
 		return "OCO"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// String implements the stringer interface.
+func (t TimeInForce) String() string {
+	switch t {
+	case IOC:
+		return "IOC"
+	case GTC:
+		return "GTC"
+	case GTT:
+		return "GTT"
+	case FOK:
+		return "FOK"
+	case PostOnlyGTC:
+		// Added in Bittrex exchange to represent PostOnly and GTC
+		return "POST_ONLY_GOOD_TIL_CANCELLED"
 	default:
 		return "UNKNOWN"
 	}
@@ -1174,6 +1189,31 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
 	}
+}
+
+// StringToTimeInForce converts time in force string value to TimeInForce instance.
+func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
+	timeInForce = strings.ToUpper(timeInForce)
+	switch timeInForce {
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", IOC.String():
+		return IOC, nil
+	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GTC.String():
+		return GTC, nil
+	case "GOODTILLTIME", "GOOD_TIL_TIME", GTT.String():
+		return GTT, nil
+	case "FILLORKILL", "FILL_OR_KILL", FOK.String():
+		return FOK, nil
+	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnlyGTC.String():
+		return PostOnlyGTC, nil
+	default:
+		return UnknownTIF, fmt.Errorf("%w, tif=%s", ErrInvalidTimeInForce, timeInForce)
+	}
+}
+
+// IsValid returns whether or not the supplied time in force value is valid or
+// not
+func (t TimeInForce) IsValid() bool {
+	return t == UnknownTIF || supportedTimeInForceFlag&t == t
 }
 
 func (o *ClassificationError) Error() string {
