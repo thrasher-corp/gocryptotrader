@@ -870,3 +870,12 @@ func TestGetPairsByBase(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)
 	}
 }
+
+// TestPairsEqual exercises Pairs.Equal
+func TestPairsEqual(t *testing.T) {
+	t.Parallel()
+	orig := Pairs{NewPairWithDelimiter("USDT", "BTC", "-"), NewPair(DAI, XRP), NewPair(DAI, BTC)}
+	assert.True(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)}), "Equal Pairs should return true")
+	assert.Equal(t, "USDT-BTC", orig[0].String(), "Equal Pairs should not effect original order or format")
+	assert.False(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USD, LTC)}), "UnEqual Pairs should return false")
+}

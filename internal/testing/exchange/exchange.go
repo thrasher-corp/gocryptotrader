@@ -1,12 +1,14 @@
 package exchange
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -114,10 +117,10 @@ func MockWsInstance[T any, PT interface {
 		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
 	}
 
-	// Disable default subscriptions; Would disrupt unit tests
-	b.Features.Subscriptions = []*subscription.Subscription{}
+	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
+	b.Features.Subscriptions = subscription.List{}
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
-	b.Websocket.GenerateSubs = func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil }
+	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = b.Websocket.Connect()
 	require.NoError(tb, err, "Connect should not error")
@@ -152,6 +155,25 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 	}
 }
 
+// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData)
+func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
+	tb.Helper()
+
+	fixture, err := os.Open(fixturePath)
+	assert.NoError(tb, err, "Opening fixture '%s' should not error", fixturePath)
+	defer func() {
+		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
+	}()
+
+	s := bufio.NewScanner(fixture)
+	for s.Scan() {
+		msg := s.Bytes()
+		err := reader(msg)
+		assert.NoErrorf(tb, err, "Fixture message should not error:\n%s", msg)
+	}
+	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
+}
+
 var setupWsMutex sync.Mutex
 var setupWsOnce = make(map[exchange.IBotExchange]bool)
 
@@ -169,34 +191,46 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	}
 
 	b := e.GetBase()
-	if !b.Websocket.IsEnabled() {
+	w, err := b.GetWebsocket()
+	if err != nil || !b.Websocket.IsEnabled() {
 		tb.Skip("Websocket not enabled")
 	}
-	if b.Websocket.IsConnected() {
+	if w.IsConnected() {
 		return
 	}
-	err := b.Websocket.Connect()
+
+	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
+	b.Features.Subscriptions = subscription.List{}
+	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
+	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+
+	err = w.Connect()
 	require.NoError(tb, err, "WsConnect should not error")
 
 	setupWsOnce[e] = true
 }
 
 var updatePairsMutex sync.Mutex
-var updatePairsOnce = make(map[exchange.IBotExchange]bool)
+var updatePairsOnce = make(map[string]*currency.PairsManager)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
+// A clone of the cache of the updated pairs is used to populate duplicate requests
 func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 
 	updatePairsMutex.Lock()
 	defer updatePairsMutex.Unlock()
 
-	if updatePairsOnce[e] {
+	b := e.GetBase()
+	if c, ok := updatePairsOnce[e.GetName()]; ok {
+		b.CurrencyPairs.Load(c)
 		return
 	}
 
 	err := e.UpdateTradablePairs(context.Background(), true)
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
-	updatePairsOnce[e] = true
+	cache := new(currency.PairsManager)
+	cache.Load(&b.CurrencyPairs)
+	updatePairsOnce[e.GetName()] = cache
 }

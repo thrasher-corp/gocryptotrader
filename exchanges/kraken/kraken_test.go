@@ -130,31 +130,28 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, k)
+	err := k.UpdateTickers(context.Background(), asset.Spot)
+	require.NoError(t, err, "UpdateTickers must not error")
 	ap, err := k.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
-	require.NoError(t, err)
-	err = k.UpdateTickers(context.Background(), asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Spot)
-		assert.NoError(t, err)
+		require.NoError(t, err, "GetTicker must not error")
 	}
-
 	ap, err = k.GetAvailablePairs(asset.Futures)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	err = k.UpdateTickers(context.Background(), asset.Futures)
-	assert.NoError(t, err)
+	require.NoError(t, err, "UpdateTickers must not error")
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
-		assert.NoError(t, err)
+		require.NoError(t, err, "GetTicker must not error")
 	}
 
 	err = k.UpdateTickers(context.Background(), asset.Index)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateTickers should error correctly on Index asset")
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -1219,10 +1216,10 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe([]subscription.Subscription{
+	err := k.Subscribe(subscription.List{
 		{
 			Channel: defaultSubscribedChannels[0],
-			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
 		},
 	})
 	if err != nil {
@@ -1827,73 +1824,68 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	n := new(Kraken)
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, k)
-	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
-	seen := 0
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-n.Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *order.Detail:
-				switch seen {
-				case 1:
-					assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-					assert.Equal(t, order.Limit, v.Type, "order type")
-					assert.Equal(t, order.Sell, v.Side, "order side")
-					assert.Equal(t, order.Open, v.Status, "order status")
-					assert.Equal(t, 34.5, v.Price, "price")
-					assert.Equal(t, 10.00345345, v.Amount, "amount")
-				case 2:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.Market, v.Type, "order type")
-					assert.Equal(t, order.Buy, v.Side, "order side")
-					assert.Equal(t, order.Pending, v.Status, "order status")
-					assert.Equal(t, 0.0, v.Price, "price")
-					assert.Equal(t, 0.0001, v.Amount, "amount")
-					assert.Equal(t, time.UnixMicro(1692851641361371), v.Date, "Date")
-				case 3:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.Open, v.Status, "order status")
-				case 4:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-					assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-					assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
-					assert.Equal(t, 0.00687, v.Fee, "Fee")
-				case 5:
-					assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-					assert.Equal(t, order.Closed, v.Status, "order status")
-					assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-					assert.Equal(t, 0.00687, v.Fee, "Fee")
-					assert.Equal(t, time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
-				case 6:
-					assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-					assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-					assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.001, v.Fee, "Fee")
-					assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-				case 7:
-					assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-					assert.Equal(t, order.Closed, v.Status, "order status")
-					assert.Equal(t, time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
-					assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.001, v.Fee, "Fee")
-					assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-					reading = false
-				}
-			default:
-				t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", k.wsHandleData)
+	close(k.Websocket.DataHandler)
+	assert.Len(t, k.Websocket.DataHandler, 7, "Should see 7 orders")
+	for resp := range k.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *order.Detail:
+			switch len(k.Websocket.DataHandler) {
+			case 6:
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert.Equal(t, order.Limit, v.Type, "order type")
+				assert.Equal(t, order.Sell, v.Side, "order side")
+				assert.Equal(t, order.Open, v.Status, "order status")
+				assert.Equal(t, 34.5, v.Price, "price")
+				assert.Equal(t, 10.00345345, v.Amount, "amount")
+			case 5:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.Market, v.Type, "order type")
+				assert.Equal(t, order.Buy, v.Side, "order side")
+				assert.Equal(t, order.Pending, v.Status, "order status")
+				assert.Equal(t, 0.0, v.Price, "price")
+				assert.Equal(t, 0.0001, v.Amount, "amount")
+				assert.Equal(t, time.UnixMicro(1692851641361371), v.Date, "Date")
+			case 4:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.Open, v.Status, "order status")
+			case 3:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
+				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
+				assert.Equal(t, 0.00687, v.Fee, "Fee")
+			case 2:
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert.Equal(t, order.Closed, v.Status, "order status")
+				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, 0.00687, v.Fee, "Fee")
+				assert.Equal(t, time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
+			case 1:
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
+				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.001, v.Fee, "Fee")
+				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+			case 0:
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert.Equal(t, order.Closed, v.Status, "order status")
+				assert.Equal(t, time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.001, v.Fee, "Fee")
+				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
 		}
 	}
-
-	assert.Equal(t, 7, seen, "number of DataHandler emissions")
 }
 
 func TestWsAddOrderJSON(t *testing.T) {

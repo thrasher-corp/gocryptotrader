@@ -3,9 +3,11 @@ package binance
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -18,19 +20,21 @@ func TestRateLimit_Limit(t *testing.T) {
 		Limit    request.EndpointLimit
 		Deadline time.Time
 	}{
-		"All Orderbooks Ticker": {Expected: spotOrderbookTickerAllRate, Limit: bestPriceLimit("")},
-		"Orderbook Ticker":      {Expected: spotDefaultRate, Limit: bestPriceLimit(symbol)},
-		"Open Orders":           {Expected: spotOpenOrdersSpecificRate, Limit: openOrdersLimit(symbol)},
-		"Orderbook Depth 5":     {Expected: spotDefaultRate, Limit: orderbookLimit(5)},
-		"Orderbook Depth 10":    {Expected: spotDefaultRate, Limit: orderbookLimit(10)},
-		"Orderbook Depth 20":    {Expected: spotDefaultRate, Limit: orderbookLimit(20)},
-		"Orderbook Depth 50":    {Expected: spotDefaultRate, Limit: orderbookLimit(50)},
-		"Orderbook Depth 100":   {Expected: spotDefaultRate, Limit: orderbookLimit(100)},
-		"Orderbook Depth 500":   {Expected: spotOrderbookDepth500Rate, Limit: orderbookLimit(500)},
-		"Orderbook Depth 1000":  {Expected: spotOrderbookDepth1000Rate, Limit: orderbookLimit(1000)},
-		"Orderbook Depth 5000":  {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000)},
-		"Exceeds deadline":      {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000), Deadline: time.Now().Add(time.Nanosecond)},
+		"Open Orders":          {Expected: spotOpenOrdersSpecificRate, Limit: openOrdersLimit(symbol)},
+		"Orderbook Depth 5":    {Expected: spotDefaultRate, Limit: orderbookLimit(5)},
+		"Orderbook Depth 10":   {Expected: spotDefaultRate, Limit: orderbookLimit(10)},
+		"Orderbook Depth 20":   {Expected: spotDefaultRate, Limit: orderbookLimit(20)},
+		"Orderbook Depth 50":   {Expected: spotDefaultRate, Limit: orderbookLimit(50)},
+		"Orderbook Depth 100":  {Expected: spotDefaultRate, Limit: orderbookLimit(100)},
+		"Orderbook Depth 500":  {Expected: spotOrderbookDepth500Rate, Limit: orderbookLimit(500)},
+		"Orderbook Depth 1000": {Expected: spotOrderbookDepth1000Rate, Limit: orderbookLimit(1000)},
+		"Orderbook Depth 5000": {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000)},
+		"Exceeds deadline":     {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000), Deadline: time.Now().Add(time.Nanosecond)},
 	}
+
+	rl, err := request.New("rateLimitTest", &http.Client{}, request.WithLimiter(GetRateLimits()))
+	require.NoError(t, err)
+
 	for name, tt := range testTable {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
@@ -48,8 +52,7 @@ func TestRateLimit_Limit(t *testing.T) {
 				defer cancel()
 			}
 
-			l := SetRateLimit()
-			if err := l.Limit(ctx, tt.Limit); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+			if err := rl.InitiateRateLimit(ctx, tt.Limit); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
@@ -64,13 +67,16 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"All Price Changes": spotPriceChangeAllRate,
 		"All Orders":        spotAllOrdersRate,
 	}
+
+	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimits()))
+	require.NoError(t, err)
+
 	for name, tt := range testTable {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			l := SetRateLimit()
-			if err := l.Limit(context.Background(), tt); err != nil {
+			if err := rl.InitiateRateLimit(context.Background(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
