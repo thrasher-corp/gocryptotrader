@@ -40,7 +40,7 @@ func (a *Time) UnmarshalJSON(data []byte) error {
 		}
 		standard = int64(parsedValue)
 	default:
-		return fmt.Errorf("cannot unmarshal %T into GateioTime", val)
+		return fmt.Errorf("cannot unmarshal %T into Time", val)
 	}
 	if standard > 9999999999 {
 		*a = Time(time.UnixMilli(standard))
