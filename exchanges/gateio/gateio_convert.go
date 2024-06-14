@@ -8,10 +8,11 @@ import (
 	"time"
 )
 
-type gateioTime time.Time
+// Time represents a time.Time object that can be unmarshalled from a float64 or string.
+type Time time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
-func (a *gateioTime) UnmarshalJSON(data []byte) error {
+func (a *Time) UnmarshalJSON(data []byte) error {
 	var value interface{}
 	err := json.Unmarshal(data, &value)
 	if err != nil {
@@ -34,20 +35,20 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		if math.Trunc(parsedValue) != parsedValue {
-			*a = gateioTime(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
+			*a = Time(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
 			return nil
 		}
 		standard = int64(parsedValue)
 	default:
-		return fmt.Errorf("cannot unmarshal %T into gateioTime", val)
+		return fmt.Errorf("cannot unmarshal %T into Time", val)
 	}
 	if standard > 9999999999 {
-		*a = gateioTime(time.UnixMilli(standard))
+		*a = Time(time.UnixMilli(standard))
 	} else {
-		*a = gateioTime(time.Unix(standard, 0))
+		*a = Time(time.Unix(standard, 0))
 	}
 	return nil
 }
 
 // Time represents a time instance.
-func (a gateioTime) Time() time.Time { return time.Time(a) }
+func (a Time) Time() time.Time { return time.Time(a) }

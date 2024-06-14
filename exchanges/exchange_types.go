@@ -152,7 +152,7 @@ type WithdrawalHistory struct {
 type Features struct {
 	Supports            FeaturesSupported
 	Enabled             FeaturesEnabled
-	Subscriptions       []*subscription.Subscription
+	Subscriptions       subscription.List
 	TradingRequirements protocol.TradingRequirements
 }
 

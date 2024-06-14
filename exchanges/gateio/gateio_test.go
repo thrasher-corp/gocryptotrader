@@ -3147,7 +3147,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	float64JSON := `{"number": 1684981731.098}`
 
 	time := time.UnixMilli(timeWhenTesting)
-	var in gateioTime
+	var in Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3156,7 +3156,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), time)
 	}
 	inInteger := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3167,7 +3167,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3178,7 +3178,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	}
 }
 
-func TestParseGateioTimeUnmarshal(t *testing.T) {
+func TestParseTimeUnmarshal(t *testing.T) {
 	t.Parallel()
 	var timeWhenTesting int64 = 1684981731
 	timeWhenTestingString := `"1684981731"`
@@ -3187,7 +3187,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
 
 	whenTime := time.Unix(timeWhenTesting, 0)
-	var in gateioTime
+	var in Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3196,7 +3196,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
 	}
 	inInteger := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3207,7 +3207,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3218,7 +3218,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
 	}
 
-	var microSeconds gateioTime
+	var microSeconds Time
 	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
 	if err != nil {
 		t.Fatal(err)
