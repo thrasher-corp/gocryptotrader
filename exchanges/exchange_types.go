@@ -153,7 +153,7 @@ type Features struct {
 	Supports      FeaturesSupported
 	Enabled       FeaturesEnabled
 	Subscriptions []*subscription.Subscription
-	Translation   currency.Translations
+	CurrencyTranslations   currency.Translations
 }
 
 // FeaturesEnabled stores the exchange enabled features
