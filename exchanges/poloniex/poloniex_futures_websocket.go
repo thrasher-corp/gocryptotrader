@@ -10,8 +10,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -97,18 +99,7 @@ func (p *Poloniex) WsFuturesConnect() error {
 	})
 	p.Websocket.Wg.Add(1)
 	go p.wsFuturesReadData(p.Websocket.Conn)
-	input := &FuturesSubscriptionInput{
-		ID:       "1545910660740",
-		Type:     "subscribe",
-		Topic:    "/contractMarket/level2:BTCUSDTPERP",
-		Response: true,
-	}
-
-	val, _ := json.Marshal(input)
-	println("Input: " + string(val))
-
-	return p.Websocket.Conn.SendJSONMessage(input)
-	// return nil
+	return nil
 }
 
 // wsFuturesReadData handles data from the websocket connection for futures instruments subscriptions.
@@ -143,7 +134,7 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		return nil
 	}
 	topicSplit := strings.Split(result.Topic, ":")
-	if len(topicSplit) != 2 {
+	if len(topicSplit) != 1 && len(topicSplit) != 2 {
 		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
@@ -163,14 +154,14 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		switch result.Subject {
 		case "mark.index.price":
 			var resp *InstrumentMarkAndIndexPrice
-			err := json.Unmarshal(result.Data, resp)
+			err := json.Unmarshal(result.Data, &resp)
 			if err != nil {
 				return err
 			}
 			p.Websocket.DataHandler <- resp
 		case "funding.rate":
 			var resp *WsFuturesInstrumentFundingRate
-			err := json.Unmarshal(result.Data, resp)
+			err := json.Unmarshal(result.Data, &resp)
 			if err != nil {
 				return err
 			}
@@ -181,7 +172,7 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		switch result.Subject {
 		case "funding.end", "funding.begin":
 			var resp *WsSystemAnnouncement
-			err := json.Unmarshal(result.Data, resp)
+			err := json.Unmarshal(result.Data, &resp)
 			if err != nil {
 				return err
 			}
@@ -193,18 +184,144 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 
 		// Private channels.
 	case fCnlTradeOrders:
-		// TODO:
+		return p.processFuturesUserTrades(result)
 	case fCnlAdvancedOrders:
-		// TODO:
+		return p.processFuturesStopOrderLifecycleEvent(result)
 	case fCnlWallet:
-		// TODO:
+		return p.processFuturesAccountBalance(result)
 	case fCnlContractPositions:
-		// TODO:
+		return p.processFuturesPositionChange(topicSplit[1], result)
 	case fCnlCrossPositionInfo:
-		// TODO:
+		return p.processFuturesPositionInfo(result)
 	default:
 		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
+	}
+	return nil
+}
+
+func (p *Poloniex) processFuturesPositionInfo(resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesPositionInfo
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- result
+	return nil
+}
+
+func (p *Poloniex) processFuturesPositionChange(pairString string, resp *FuturesSubscriptionResp) error {
+	cp, err := currency.NewPairFromString(pairString)
+	if err != nil {
+		return err
+	}
+	switch resp.Subject {
+	case "position.change":
+		var result *WsFuturesPositionChange
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		result.Symbol = cp
+		p.Websocket.DataHandler <- result
+	case "position.settlement":
+		var result *WsFuturesFundingSettlement
+		err := json.Unmarshal(resp.Data, &result)
+		if err != nil {
+			return err
+		}
+		result.Symbol = cp
+		p.Websocket.DataHandler <- result
+	}
+	return nil
+}
+
+func (p *Poloniex) processFuturesAccountBalance(resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesAccountBalance
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- account.Change{
+		Exchange: p.Name,
+		Currency: currency.NewCode(result.Currency),
+		Asset:    asset.Futures,
+		Amount:   result.AvailableBalance,
+	}
+	return nil
+}
+
+func (p *Poloniex) processFuturesStopOrderLifecycleEvent(resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesStopOrderLifecycleEvent
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(result.Symbol)
+	if err != nil {
+		return err
+	}
+	oSide, err := order.StringToOrderSide(result.Side)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- &order.Detail{
+		Price:       result.OrderPrice.Float64(),
+		Amount:      result.Size.Float64(),
+		Exchange:    p.Name,
+		OrderID:     result.OrderID,
+		Type:        order.Stop,
+		Side:        oSide,
+		AssetType:   asset.Futures,
+		CloseTime:   result.CreatedAt.Time(),
+		LastUpdated: result.Timestamp.Time(),
+		Pair:        cp,
+	}
+	return nil
+}
+
+func (p *Poloniex) processFuturesUserTrades(resp *FuturesSubscriptionResp) error {
+	var result *WsFuturesTradeOrders
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(result.Symbol)
+	if err != nil {
+		return err
+	}
+	oType, err := order.StringToOrderType(result.OrderType)
+	if err != nil {
+		return err
+	}
+	oStatus, err := order.StringToOrderStatus(result.Status)
+	if err != nil {
+		return err
+	}
+	oSide, err := order.StringToOrderSide(result.Side)
+	if err != nil {
+		return err
+	}
+	oMarginType := margin.Isolated
+	if result.MarginType == 0 {
+		oMarginType = margin.Multi
+	}
+	p.Websocket.DataHandler <- &order.Detail{
+		Price:                result.Price.Float64(),
+		Amount:               result.Size.Float64(),
+		AverageExecutedPrice: result.MatchPrice.Float64(),
+		ExecutedAmount:       result.FilledSize.Float64(),
+		RemainingAmount:      result.RemainSize.Float64(),
+		Exchange:             p.Name,
+		OrderID:              result.OrderID,
+		ClientOrderID:        result.ClientOid,
+		Type:                 oType,
+		Side:                 oSide,
+		Status:               oStatus,
+		AssetType:            asset.Futures,
+		CloseTime:            result.Timestamp.Time(),
+		Pair:                 cp,
+		MarginType:           oMarginType,
 	}
 	return nil
 }
@@ -275,49 +392,26 @@ func (p *Poloniex) processOrderbookLvl2Depth5(pairString string, resp *FuturesSu
 }
 
 func (p *Poloniex) processV3FuturesLevel3Orderbook(resp *FuturesSubscriptionResp) error {
-	// cp, err := currency.NewPairFromString(result.Symbol)
-	// if err != nil {
-	// 	return err
-	// }
+	var result interface{}
 	switch resp.Subject {
 	case "received":
-		var result *WsOrderbookLevel3V2
-		err := json.Unmarshal(resp.Data, &result)
-		if err != nil {
-			return err
-		}
-		p.Websocket.DataHandler <- result
+		result = &WsOrderbookLevel3V2{}
 	case "open":
-		var result *WsOrderbookOpen
-		err := json.Unmarshal(resp.Data, &result)
-		if err != nil {
-			return err
-		}
-		p.Websocket.DataHandler <- result
+		result = &WsOrderbookOpen{}
 	case "update":
-		var result *WsOrderbookUpdateOrder
-		err := json.Unmarshal(resp.Data, &result)
-		if err != nil {
-			return err
-		}
-		p.Websocket.DataHandler <- result
+		result = &WsOrderbookUpdateOrder{}
 	case "match":
-		var result *WsOrderbookMatch
-		err := json.Unmarshal(resp.Data, &result)
-		if err != nil {
-			return err
-		}
-		p.Websocket.DataHandler <- result
+		result = &WsOrderbookMatch{}
 	case "done":
-		var result *WsOrderbookMatchDone
-		err := json.Unmarshal(resp.Data, &result)
-		if err != nil {
-			return err
-		}
-		p.Websocket.DataHandler <- result
+		result = &WsOrderbookMatchDone{}
 	default:
 		return fmt.Errorf("unhandled websocket data %s", string(resp.Data))
 	}
+	err := json.Unmarshal(resp.Data, &result)
+	if err != nil {
+		return err
+	}
+	p.Websocket.DataHandler <- result
 	return nil
 }
 

@@ -1199,3 +1199,115 @@ type WsFuturesTicker struct {
 	PriceChgPct  float64              `json:"priceChgPct"`
 	SnapshotTime convert.ExchangeTime `json:"ts"`
 }
+
+// WsFuturesTradeOrders represents a trade order
+type WsFuturesTradeOrders struct {
+	OrderID      string               `json:"orderId"`
+	Symbol       string               `json:"symbol"`
+	MesageType   string               `json:"type"`
+	MarginType   int64                `json:"marginType"`
+	Status       string               `json:"status"`
+	MatchSize    types.Number         `json:"matchSize"`
+	MatchPrice   types.Number         `json:"matchPrice"`
+	OrderType    string               `json:"orderType"`
+	Side         string               `json:"side"`
+	Price        types.Number         `json:"price"`
+	Size         types.Number         `json:"size"`
+	RemainSize   types.Number         `json:"remainSize"`
+	FilledSize   types.Number         `json:"filledSize"`
+	CanceledSize types.Number         `json:"canceledSize"`
+	TradeID      string               `json:"tradeId"`
+	ClientOid    string               `json:"clientOid"`
+	OrderTime    convert.ExchangeTime `json:"orderTime"`
+	OldSize      types.Number         `json:"oldSize "`
+	Liquidity    string               `json:"liquidity"`
+	Timestamp    convert.ExchangeTime `json:"ts"`
+}
+
+// WsFuturesStopOrderLifecycleEvent represents an advanced orders stop order lifecycle
+type WsFuturesStopOrderLifecycleEvent struct {
+	OrderID        string               `json:"orderId"`
+	Symbol         string               `json:"symbol"`
+	MessageType    string               `json:"type"`
+	MarginType     int64                `json:"marginType"`
+	OrderType      string               `json:"orderType"`
+	Side           string               `json:"side"`
+	Size           types.Number         `json:"size"`
+	OrderPrice     types.Number         `json:"orderPrice"`
+	Stop           string               `json:"stop"`
+	StopPrice      types.Number         `json:"stopPrice"`
+	StopPriceType  string               `json:"stopPriceType"`
+	TriggerSuccess bool                 `json:"triggerSuccess"`
+	Error          string               `json:"error"`
+	CreatedAt      convert.ExchangeTime `json:"createdAt"`
+	Timestamp      convert.ExchangeTime `json:"ts"`
+}
+
+// WsFuturesAccountBalance represents a futures account balance.
+type WsFuturesAccountBalance struct {
+	OrderMargin float64 `json:"orderMargin"`
+
+	AvailableBalance float64              `json:"availableBalance"`
+	Currency         string               `json:"currency"`
+	Timestamp        convert.ExchangeTime `json:"timestamp"`
+}
+
+// WsFuturesPositionChange represents a futures position change information.
+type WsFuturesPositionChange struct {
+	Symbol            currency.Pair        `json:"symbol"`
+	RealisedGrossPnl  float64              `json:"realisedGrossPnl"`
+	MarginType        int64                `json:"marginType"`
+	LiquidationPrice  float64              `json:"liquidationPrice"`
+	PosLoss           float64              `json:"posLoss"`
+	AvgEntryPrice     float64              `json:"avgEntryPrice"`
+	UnrealisedPnl     float64              `json:"unrealisedPnl"`
+	MarkPrice         float64              `json:"markPrice"`
+	PosMargin         float64              `json:"posMargin"`
+	RiskLimit         float64              `json:"riskLimit"`
+	UnrealisedCost    float64              `json:"unrealisedCost"`
+	PosComm           float64              `json:"posComm"`
+	PosMaint          float64              `json:"posMaint"`
+	PosCost           float64              `json:"posCost"`
+	MaintMarginReq    float64              `json:"maintMarginReq"`
+	BankruptPrice     float64              `json:"bankruptPrice"`
+	RealisedCost      float64              `json:"realisedCost"`
+	MarkValue         float64              `json:"markValue"`
+	PosInit           float64              `json:"posInit"`
+	RealisedPnl       float64              `json:"realisedPnl"`
+	MaintMargin       float64              `json:"maintMargin"`
+	RealLeverage      float64              `json:"realLeverage"`
+	CurrentCost       float64              `json:"currentCost"`
+	OpeningTimestamp  convert.ExchangeTime `json:"openingTimestamp"`
+	CurrentQty        float64              `json:"currentQty"`
+	DelevPercentage   float64              `json:"delevPercentage"`
+	CurrentComm       float64              `json:"currentComm"`
+	RealisedGrossCost float64              `json:"realisedGrossCost"`
+	IsOpen            bool                 `json:"isOpen"`
+	PosCross          float64              `json:"posCross"`
+	CurrentTimestamp  convert.ExchangeTime `json:"currentTimestamp"`
+	UnrealisedRoePcnt float64              `json:"unrealisedRoePcnt"`
+	UnrealisedPnlPcnt float64              `json:"unrealisedPnlPcnt"`
+	SettleCurrency    string               `json:"settleCurrency"`
+}
+
+// WsFuturesFundingSettlement represents a futures settlement
+type WsFuturesFundingSettlement struct {
+	Symbol         currency.Pair
+	FundingTime    convert.ExchangeTime `json:"fundingTime"`
+	Qty            float64              `json:"qty"`
+	MarkPrice      float64              `json:"markPrice"`
+	FundingRate    float64              `json:"fundingRate"`
+	FundingFee     float64              `json:"fundingFee"`
+	Timestamp      convert.ExchangeTime `json:"ts"`
+	SettleCurrency string               `json:"settleCurrency"`
+}
+
+// WsFuturesPositionInfo represents a position cross change information.
+type WsFuturesPositionInfo struct {
+	MaintainMargin   float64 `json:"maintainMargin"`
+	MarginAvailable  float64 `json:"marginAvailable"`
+	MaintainRate     float64 `json:"maintainRate"`
+	UnreleaseSum     float64 `json:"unreleaseSum"`
+	FundingSum       float64 `json:"fundingSum"`
+	AccountAvailable float64 `json:"accountAvailable"`
+}
