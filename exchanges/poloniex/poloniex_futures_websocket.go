@@ -67,6 +67,7 @@ func (p *Poloniex) WsFuturesConnect() error {
 	default:
 		instanceServers, err = p.GetPublicFuturesWebsocketServerInstances(context.Background())
 		if err != nil {
+			panic(err)
 			return err
 		}
 	}
@@ -381,14 +382,13 @@ func (p *Poloniex) processOrderbookLvl2Depth5(pairString string, resp *FuturesSu
 		}
 		return p.Websocket.Orderbook.LoadSnapshot(base)
 	}
-	update := &orderbook.Update{
+	return p.Websocket.Orderbook.Update(&orderbook.Update{
 		UpdateTime: result.Timestamp.Time(),
 		Asset:      asset.Futures,
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
-	}
-	return p.Websocket.Orderbook.Update(update)
+	})
 }
 
 func (p *Poloniex) processV3FuturesLevel3Orderbook(resp *FuturesSubscriptionResp) error {

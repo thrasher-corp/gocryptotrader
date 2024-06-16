@@ -14,13 +14,13 @@ import (
 )
 
 const (
-	poloniexFuturesAPIURL = "https://futures-api.poloniex.com/api"
+	poloniexFuturesAPIURL = "https://futures-api.poloniex.com"
 )
 
 // GetOpenContractList retrieves the info of all open contracts.
 func (p *Poloniex) GetOpenContractList(ctx context.Context) (*Contracts, error) {
 	var resp *Contracts
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/contracts/active", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/contracts/active", &resp)
 }
 
 // GetOrderInfoOfTheContract info of the specified contract.
@@ -29,7 +29,7 @@ func (p *Poloniex) GetOrderInfoOfTheContract(ctx context.Context, symbol string)
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *ContractItem
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/contracts/"+symbol, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/contracts/"+symbol, &resp)
 }
 
 // GetRealTimeTicker real-time ticker 1.0 includes the last traded price, the last traded size, transaction ID,
@@ -39,13 +39,13 @@ func (p *Poloniex) GetRealTimeTicker(ctx context.Context, symbol string) (*Ticke
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *TickerDetail
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/ticker?symbol="+symbol, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/ticker?symbol="+symbol, &resp)
 }
 
-// TestGetRealTimeTickersOfSymbols retrieves real-time tickers includes tickers of all trading symbols.
-func (p *Poloniex) TestGetRealTimeTickersOfSymbols(ctx context.Context) ([]TickerInfo, error) {
-	var resp []TickerInfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v2/tickers", &resp)
+// GetFuturesRealTimeTickersOfSymbols retrieves real-time tickers includes tickers of all trading symbols.
+func (p *Poloniex) GetFuturesRealTimeTickersOfSymbols(ctx context.Context) (*TickersDetail, error) {
+	var resp *TickersDetail
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v2/tickers", &resp)
 }
 
 // GetFullOrderbookLevel2 retrieves a snapshot of aggregated open orders for a symbol.
@@ -57,7 +57,7 @@ func (p *Poloniex) GetFullOrderbookLevel2(ctx context.Context, symbol string) (*
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *Orderbook
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/level2/snapshot", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v1/level2/snapshot", params), &resp)
 }
 
 // GetPartialOrderbookLevel2 represents partial snapshot of aggregated open orders for a symbol.
@@ -73,7 +73,7 @@ func (p *Poloniex) GetPartialOrderbookLevel2(ctx context.Context, symbol, depth 
 	params.Set("symbol", symbol)
 	params.Set("depth", depth)
 	var resp *Orderbook
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/level2/depth", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v1/level2/depth", params), &resp)
 }
 
 // Level2PullingMessages if the messages pushed by Websocket are not continuous, you can submit the following request and re-pull the data to ensure that the sequence is not missing.
@@ -92,7 +92,7 @@ func (p *Poloniex) Level2PullingMessages(ctx context.Context, symbol string, sta
 	params.Set("start", strconv.FormatInt(startSequence, 10))
 	params.Set("end", strconv.FormatInt(endSequence, 10))
 	var resp *OrderbookChanges
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/level2/message/query", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v1/level2/message/query", params), &resp)
 }
 
 // GetFullOrderBookLevel3 a snapshot of all the open orders for a symbol. The Level 3 order book includes all bids and asks (the data is non-aggregated, and each item means a single order).
@@ -104,13 +104,13 @@ func (p *Poloniex) GetFullOrderBookLevel3(ctx context.Context, symbol string) (*
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *Orderbook
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v2/level3/snapshot", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v2/level3/snapshot", params), &resp)
 }
 
 // Level3PullingMessages If the messages pushed by the Websocket is not continuous, you can submit the following request and re-pull the data to ensure that the sequence is not missing.
 func (p *Poloniex) Level3PullingMessages(ctx context.Context) (*Level3PullingMessageResponse, error) {
 	var resp *Level3PullingMessageResponse
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v2/level3/snapshot", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v2/level3/snapshot", &resp)
 }
 
 // ----------------------------------------------------   Historical Data  ---------------------------------------------------------------
@@ -121,7 +121,7 @@ func (p *Poloniex) GetTransactionHistory(ctx context.Context, symbol string) (*T
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *TransactionHistory
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/trade/history?symbol="+symbol, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/trade/history?symbol="+symbol, &resp)
 }
 
 func (p *Poloniex) populateIndexParams(symbol string, startAt, endAt time.Time, reverse, forward bool, maxCount int64) url.Values {
@@ -151,7 +151,7 @@ func (p *Poloniex) populateIndexParams(symbol string, startAt, endAt time.Time, 
 func (p *Poloniex) GetInterestRateList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, maxCount int64) (*IndexInfo, error) {
 	params := p.populateIndexParams(symbol, startAt, endAt, reverse, forward, maxCount)
 	var resp *IndexInfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/interest/query", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v1/interest/query", params), &resp)
 }
 
 // GetIndexList check index list
@@ -161,7 +161,7 @@ func (p *Poloniex) GetIndexList(ctx context.Context, symbol string, startAt, end
 	}
 	params := p.populateIndexParams(symbol, startAt, endAt, reverse, forward, maxCount)
 	var resp *IndexInfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/index/query", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v1/index/query", params), &resp)
 }
 
 // GetCurrentMarkPrice retrieves the current mark price.
@@ -170,7 +170,7 @@ func (p *Poloniex) GetCurrentMarkPrice(ctx context.Context, symbol string) (*Mar
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *MarkPriceDetail
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/mark-price/"+symbol+"/current", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/mark-price/"+symbol+"/current", &resp)
 }
 
 // GetPremiumIndex request to get premium index.
@@ -180,7 +180,7 @@ func (p *Poloniex) GetPremiumIndex(ctx context.Context, symbol string, startAt, 
 	}
 	params := p.populateIndexParams(symbol, startAt, endAt, reverse, forward, maxCount)
 	var resp *IndexInfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues("/v1/premium/query", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues("/api/v1/premium/query", params), &resp)
 }
 
 // GetCurrentFundingRate request to check the current mark price.
@@ -189,19 +189,19 @@ func (p *Poloniex) GetCurrentFundingRate(ctx context.Context, symbol string) (*F
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *FundingRate
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/funding-rate/"+symbol+"/current", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/funding-rate/"+symbol+"/current", &resp)
 }
 
 // GetFuturesServerTime get the API server time. This is the Unix timestamp.
 func (p *Poloniex) GetFuturesServerTime(ctx context.Context) (*ServerTimeResponse, error) {
 	var resp *ServerTimeResponse
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/timestamp", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/timestamp", &resp)
 }
 
 // GetServiceStatus the service status.
 func (p *Poloniex) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) {
 	var resp *ServiceStatus
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/status", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/status", &resp)
 }
 
 // GetKlineDataOfContract retrieves candlestick information
@@ -222,7 +222,7 @@ func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, gr
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	var resp *KlineChartResponse
-	err := p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
+	err := p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/api/v1/kline/query", params), &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -232,11 +232,11 @@ func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, gr
 // GetPublicFuturesWebsocketServerInstances retrieves the server list and temporary public token.
 func (p *Poloniex) GetPublicFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
 	var resp *FuturesWebsocketServerInstances
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/bullet-public", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/bullet-public", &resp)
 }
 
 // GetPrivateFuturesWebsocketServerInstances retrieves authenticated list of servers and temporary token.
 func (p *Poloniex) GetPrivateFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
 	var resp *FuturesWebsocketServerInstances
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, unauthEPL, http.MethodPost, "/v1/bullet-private", nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, unauthEPL, http.MethodPost, "/api/v1/bullet-private", nil, nil, &resp)
 }

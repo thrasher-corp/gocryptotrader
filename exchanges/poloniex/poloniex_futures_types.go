@@ -22,7 +22,7 @@ type ContractItem struct {
 	TakerFixFee             float64              `json:"takerFixFee"`
 	NextFundingRateTime     convert.ExchangeTime `json:"nextFundingRateTime"`
 	MakerFixFee             float64              `json:"makerFixFee"`
-	Type                    string               `json:"type"`
+	ContractType            string               `json:"type"`
 	PredictedFundingFeeRate float64              `json:"predictedFundingFeeRate"`
 	TurnoverOf24H           float64              `json:"turnoverOf24h"`
 	InitialMargin           float64              `json:"initialMargin"`
@@ -52,30 +52,30 @@ type ContractItem struct {
 		ContractNameZhCN string `json:"contractName_zh-CN"`
 		ContractNameEnUS string `json:"contractName_en-US"`
 	} `json:"displayNameMap"`
-	OpenInterest      string  `json:"openInterest"`
-	HighPriceOf24H    float64 `json:"highPriceOf24h"`
-	FundingFeeRate    float64 `json:"fundingFeeRate"`
-	VolumeOf24H       float64 `json:"volumeOf24h"`
-	RiskStep          float64 `json:"riskStep"`
-	IsQuanto          bool    `json:"isQuanto"`
-	MaxRiskLimit      float64 `json:"maxRiskLimit"`
-	RootSymbol        string  `json:"rootSymbol"`
-	BaseCurrency      string  `json:"baseCurrency"`
-	FirstOpenDate     int64   `json:"firstOpenDate"`
-	TickSize          float64 `json:"tickSize"`
-	MarkMethod        string  `json:"markMethod"`
-	IndexSymbol       string  `json:"indexSymbol"`
-	MarkPrice         float64 `json:"markPrice"`
-	MinRiskLimit      float64 `json:"minRiskLimit"`
-	SettlementFixFee  float64 `json:"settlementFixFee"`
-	SettlementSymbol  string  `json:"settlementSymbol"`
-	PriceChgPctOf24H  float64 `json:"priceChgPctOf24h"`
-	FundingRateSymbol string  `json:"fundingRateSymbol"`
-	MakerFeeRate      float64 `json:"makerFeeRate"`
-	IsInverse         bool    `json:"isInverse"`
-	LotSize           float64 `json:"lotSize"`
-	SettleCurrency    string  `json:"settleCurrency"`
-	SettlementFeeRate float64 `json:"settlementFeeRate"`
+	OpenInterest      string               `json:"openInterest"`
+	HighPriceOf24H    float64              `json:"highPriceOf24h"`
+	FundingFeeRate    float64              `json:"fundingFeeRate"`
+	VolumeOf24H       float64              `json:"volumeOf24h"`
+	RiskStep          float64              `json:"riskStep"`
+	IsQuanto          bool                 `json:"isQuanto"`
+	MaxRiskLimit      float64              `json:"maxRiskLimit"`
+	RootSymbol        string               `json:"rootSymbol"`
+	BaseCurrency      string               `json:"baseCurrency"`
+	FirstOpenDate     convert.ExchangeTime `json:"firstOpenDate"`
+	TickSize          float64              `json:"tickSize"`
+	MarkMethod        string               `json:"markMethod"`
+	IndexSymbol       string               `json:"indexSymbol"`
+	MarkPrice         float64              `json:"markPrice"`
+	MinRiskLimit      float64              `json:"minRiskLimit"`
+	SettlementFixFee  float64              `json:"settlementFixFee"`
+	SettlementSymbol  string               `json:"settlementSymbol"`
+	PriceChgPctOf24H  float64              `json:"priceChgPctOf24h"`
+	FundingRateSymbol string               `json:"fundingRateSymbol"`
+	MakerFeeRate      float64              `json:"makerFeeRate"`
+	IsInverse         bool                 `json:"isInverse"`
+	LotSize           float64              `json:"lotSize"`
+	SettleCurrency    string               `json:"settleCurrency"`
+	SettlementFeeRate float64              `json:"settlementFeeRate"`
 }
 
 // TickerInfo represents a ticker information for a single symbol.
@@ -97,6 +97,12 @@ type TickerInfo struct {
 type TickerDetail struct {
 	Code string     `json:"code"`
 	Data TickerInfo `json:"data"`
+}
+
+// TickersDetail represents a list of tickers detail.
+type TickersDetail struct {
+	Code string       `json:"code"`
+	Data []TickerInfo `json:"data"`
 }
 
 // Orderbook item detail for a single symbol

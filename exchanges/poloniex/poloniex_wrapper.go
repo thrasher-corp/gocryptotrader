@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -198,79 +199,135 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
-	// TODO: Upgrade to new API version for fetching operational pairs.
-	resp, err := p.GetSymbolInformation(ctx, currency.EMPTYPAIR)
-	if err != nil {
-		return nil, err
-	}
-
-	pairs := make([]currency.Pair, 0, len(resp))
-	for x := range resp {
-		if strings.EqualFold(resp[x].State, "PAUSE") {
-			continue
-		}
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(resp[x].Symbol)
+func (p *Poloniex) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
+	switch assetType {
+	case asset.Spot, asset.Margin:
+		// TODO: Upgrade to new API version for fetching operational pairs.
+		resp, err := p.GetSymbolInformation(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
-		pairs = append(pairs, pair)
+
+		pairs := make([]currency.Pair, 0, len(resp))
+		for x := range resp {
+			if strings.EqualFold(resp[x].State, "PAUSE") {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(resp[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		}
+		return pairs, nil
+	case asset.Futures:
+		instruments, err := p.GetOpenContractList(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs := make(currency.Pairs, 0, len(instruments.Data))
+		var cp currency.Pair
+		for i := range instruments.Data {
+			if !strings.EqualFold(instruments.Data[i].Status, "Open") {
+				continue
+			}
+			cp, err = currency.NewPairFromString(instruments.Data[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
+		}
+		return pairs, nil
 	}
-	return pairs, nil
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) error {
-	pairs, err := p.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
-	if err != nil {
-		return err
+	enabledAssets := p.GetAssetTypes(true)
+	for _, assetType := range enabledAssets {
+		pairs, err := p.FetchTradablePairs(ctx, assetType)
+		if err != nil {
+			return err
+		}
+		err = p.UpdatePairs(pairs, assetType, false, forceUpgrade)
+		if err != nil {
+			return err
+		}
 	}
 	return p.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	ticks, err := p.GetTickers(ctx)
+func (p *Poloniex) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	enabledPairs, err := p.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
 	}
-
-	enabledPairs, err := p.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-
-	for i := range ticks {
-		pair, err := currency.NewPairFromString(ticks[i].Symbol)
+	switch assetType {
+	case asset.Spot:
+		ticks, err := p.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
+		for i := range ticks {
+			pair, err := currency.NewPairFromString(ticks[i].Symbol)
+			if err != nil {
+				return err
+			}
 
-		if !enabledPairs.Contains(pair, true) {
-			continue
+			if !enabledPairs.Contains(pair, true) {
+				continue
+			}
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				AssetType:    assetType,
+				Pair:         pair,
+				ExchangeName: p.Name,
+				Last:         ticks[i].MarkPrice.Float64(),
+				Low:          ticks[i].Low.Float64(),
+				Ask:          ticks[i].Ask.Float64(),
+				Bid:          ticks[i].Bid.Float64(),
+				High:         ticks[i].High.Float64(),
+				QuoteVolume:  ticks[i].Amount.Float64(),
+				Volume:       ticks[i].Quantity.Float64(),
+			})
+			if err != nil {
+				return err
+			}
 		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			AssetType:    a,
-			Pair:         pair,
-			ExchangeName: p.Name,
-			Last:         ticks[i].MarkPrice.Float64(),
-			Low:          ticks[i].Low.Float64(),
-			Ask:          ticks[i].Ask.Float64(),
-			Bid:          ticks[i].Bid.Float64(),
-			High:         ticks[i].High.Float64(),
-			QuoteVolume:  ticks[i].Amount.Float64(),
-			Volume:       ticks[i].Quantity.Float64(),
-		})
+	case asset.Futures:
+		ticks, err := p.GetFuturesRealTimeTickersOfSymbols(context.Background())
 		if err != nil {
 			return err
 		}
+		for i := range ticks.Data {
+			pair, err := currency.NewPairFromString(ticks.Data[i].Symbol)
+			if err != nil {
+				return err
+			}
+			if !enabledPairs.Contains(pair, true) {
+				continue
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				AssetType:    assetType,
+				Pair:         pair,
+				ExchangeName: p.Name,
+				LastUpdated:  ticks.Data[i].Timestamp.Time(),
+				Volume:       ticks.Data[i].Size,
+				BidSize:      ticks.Data[i].BestBidSize,
+				Bid:          ticks.Data[i].BestBidPrice.Float64(),
+				AskSize:      ticks.Data[i].BestAskSize,
+				Ask:          ticks.Data[i].BestAskPrice.Float64(),
+			})
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return nil
 }
@@ -461,7 +518,63 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return p.GetHistoricTrades(ctx, pair, assetType, time.Now().Add(-time.Minute*15), time.Now())
+	var err error
+	pair, err = p.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []trade.Data
+	switch assetType {
+	case asset.Spot:
+		tradeData, err := p.GetTrades(ctx, pair, 0)
+		if err != nil {
+			return nil, err
+		}
+		var side order.Side
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].TakerSide)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     p.Name,
+				CurrencyPair: pair,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price.Float64(),
+				Amount:       tradeData[i].Amount.Float64(),
+				Timestamp:    tradeData[i].Timestamp.Time(),
+			})
+		}
+	case asset.Futures:
+		tradeData, err := p.GetTransactionHistory(ctx, pair.String())
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData.Data {
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData.Data[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     p.Name,
+				CurrencyPair: pair,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData.Data[i].Price.Float64(),
+				Amount:       tradeData.Data[i].Size.Float64(),
+				Timestamp:    tradeData.Data[i].Timestamp.Time(),
+			})
+		}
+	}
+	err = p.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -476,21 +589,55 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 	}
 
 	var resp []trade.Data
-	ts := timestampStart
-allTrades:
-	for {
-		var tradeData []TradeHistoryItem
-		tradeData, err = p.GetTradeHistory(ctx, currency.Pairs{pair}, "", 0, 0, ts, timestampEnd)
+	switch assetType {
+	case asset.Spot:
+		ts := timestampStart
+	allTrades:
+		for {
+			var tradeData []TradeHistoryItem
+			tradeData, err = p.GetTradeHistory(ctx, currency.Pairs{pair}, "", 0, 0, ts, timestampEnd)
+			if err != nil {
+				return nil, err
+			}
+			for i := range tradeData {
+				var tt time.Time
+				if (tradeData[i].CreateTime.Time().Before(timestampStart) && !timestampStart.IsZero()) || (tradeData[i].CreateTime.Time().After(timestampEnd) && !timestampEnd.IsZero()) {
+					break allTrades
+				}
+				var side order.Side
+				side, err = order.StringToOrderSide(tradeData[i].Type)
+				if err != nil {
+					return nil, err
+				}
+				resp = append(resp, trade.Data{
+					Exchange:     p.Name,
+					CurrencyPair: pair,
+					AssetType:    assetType,
+					Side:         side,
+					Price:        tradeData[i].Price.Float64(),
+					Amount:       tradeData[i].Amount.Float64(),
+					Timestamp:    tt,
+				})
+				if i == len(tradeData)-1 {
+					if ts.Equal(tt) {
+						// reached end of trades to crawl
+						break allTrades
+					}
+					if timestampStart.IsZero() {
+						break allTrades
+					}
+					ts = tt
+				}
+			}
+		}
+	case asset.Futures:
+		tradeData, err := p.GetTransactionHistory(ctx, pair.String())
 		if err != nil {
 			return nil, err
 		}
-		for i := range tradeData {
-			var tt time.Time
-			if (tradeData[i].CreateTime.Time().Before(timestampStart) && !timestampStart.IsZero()) || (tradeData[i].CreateTime.Time().After(timestampEnd) && !timestampEnd.IsZero()) {
-				break allTrades
-			}
+		for i := range tradeData.Data {
 			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Type)
+			side, err = order.StringToOrderSide(tradeData.Data[i].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -499,23 +646,12 @@ allTrades:
 				CurrencyPair: pair,
 				AssetType:    assetType,
 				Side:         side,
-				Price:        tradeData[i].Price.Float64(),
-				Amount:       tradeData[i].Amount.Float64(),
-				Timestamp:    tt,
+				Price:        tradeData.Data[i].Price.Float64(),
+				Amount:       tradeData.Data[i].Size.Float64(),
+				Timestamp:    tradeData.Data[i].Timestamp.Time(),
 			})
-			if i == len(tradeData)-1 {
-				if ts.Equal(tt) {
-					// reached end of trades to crawl
-					break allTrades
-				}
-				if timestampStart.IsZero() {
-					break allTrades
-				}
-				ts = tt
-			}
 		}
 	}
-
 	err = p.AddTradesToBuffer(resp...)
 	if err != nil {
 		return nil, err
@@ -1172,22 +1308,43 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.GetCandlesticks(ctx, req.RequestFormatted, req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
-	if err != nil {
-		return nil, err
-	}
-	timeSeries := make([]kline.Candle, len(resp))
-	for x := range resp {
-		timeSeries[x] = kline.Candle{
-			Time:   resp[x].StartTime,
-			Open:   resp[x].Open,
-			High:   resp[x].High,
-			Low:    resp[x].Low,
-			Close:  resp[x].Close,
-			Volume: resp[x].Quantity,
+	switch a {
+	case asset.Spot:
+		resp, err := p.GetCandlesticks(ctx, req.RequestFormatted, req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
+		if err != nil {
+			return nil, err
 		}
+		timeSeries := make([]kline.Candle, len(resp))
+		for x := range resp {
+			timeSeries[x] = kline.Candle{
+				Time:   resp[x].StartTime,
+				Open:   resp[x].Open,
+				High:   resp[x].High,
+				Low:    resp[x].Low,
+				Close:  resp[x].Close,
+				Volume: resp[x].Quantity,
+			}
+		}
+		return req.ProcessResponse(timeSeries)
+	case asset.Futures:
+		resp, err := p.GetKlineDataOfContract(ctx, req.RequestFormatted.String(), 0, req.Start, req.End)
+		if err != nil {
+			return nil, err
+		}
+		timeSeries := make([]kline.Candle, len(resp))
+		for x := range resp {
+			timeSeries[x] = kline.Candle{
+				Time:   resp[x].Timestamp,
+				Open:   resp[x].EntryPrice,
+				High:   resp[x].HighestPrice,
+				Low:    resp[x].LowestPrice,
+				Volume: resp[x].TradingVolume,
+			}
+		}
+		return req.ProcessResponse(timeSeries)
 	}
-	return req.ProcessResponse(timeSeries)
+
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1196,29 +1353,55 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	if err != nil {
 		return nil, err
 	}
-
-	timeSeries := make([]kline.Candle, 0, req.Size())
-	for i := range req.RangeHolder.Ranges {
-		resp, err := p.GetCandlesticks(ctx,
-			req.RequestFormatted,
-			req.ExchangeInterval,
-			req.RangeHolder.Ranges[i].Start.Time,
-			req.RangeHolder.Ranges[i].End.Time,
-			req.RequestLimit,
-		)
-		if err != nil {
-			return nil, err
+	var timeSeries []kline.Candle
+	switch a {
+	case asset.Spot:
+		for i := range req.RangeHolder.Ranges {
+			resp, err := p.GetCandlesticks(ctx,
+				req.RequestFormatted,
+				req.ExchangeInterval,
+				req.RangeHolder.Ranges[i].Start.Time,
+				req.RangeHolder.Ranges[i].End.Time,
+				req.RequestLimit,
+			)
+			if err != nil {
+				return nil, err
+			}
+			for x := range resp {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   resp[x].StartTime,
+					Open:   resp[x].Open,
+					High:   resp[x].High,
+					Low:    resp[x].Low,
+					Close:  resp[x].Close,
+					Volume: resp[x].Quantity,
+				})
+			}
 		}
-		for x := range resp {
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   resp[x].StartTime,
-				Open:   resp[x].Open,
-				High:   resp[x].High,
-				Low:    resp[x].Low,
-				Close:  resp[x].Close,
-				Volume: resp[x].Quantity,
-			})
+	case asset.Futures:
+		for i := range req.RangeHolder.Ranges {
+			resp, err := p.GetKlineDataOfContract(ctx,
+				req.RequestFormatted.String(),
+				// req.ExchangeInterval
+				0,
+				req.RangeHolder.Ranges[i].Start.Time,
+				req.RangeHolder.Ranges[i].End.Time,
+			)
+			if err != nil {
+				return nil, err
+			}
+			for x := range resp {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   resp[x].Timestamp,
+					Open:   resp[x].EntryPrice,
+					High:   resp[x].HighestPrice,
+					Low:    resp[x].LowestPrice,
+					Volume: resp[x].TradingVolume,
+				})
+			}
 		}
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(timeSeries)
 }
@@ -1244,24 +1427,204 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 }
 
 // GetServerTime returns the current exchange server time.
-func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	sysServerTime, err := p.GetSystemTimestamp(ctx)
-	if err != nil {
-		return time.Time{}, err
+func (p *Poloniex) GetServerTime(ctx context.Context, assetType asset.Item) (time.Time, error) {
+	switch assetType {
+	case asset.Spot:
+		sysServerTime, err := p.GetSystemTimestamp(ctx)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return sysServerTime.ServerTime.Time(), nil
+	case asset.Futures:
+		sysServerTime, err := p.GetFuturesServerTime(ctx)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return sysServerTime.Data.Time(), nil
+	default:
+		return time.Time{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return sysServerTime.ServerTime.Time(), nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	// TODO: implement with API upgrade
-	return nil, common.ErrFunctionNotSupported
+func (p *Poloniex) GetFuturesContractDetails(ctx context.Context, assetType asset.Item) ([]futures.Contract, error) {
+	if !assetType.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !p.SupportsAsset(assetType) || assetType != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
+
+	contracts, err := p.GetOpenContractList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]futures.Contract, len(contracts.Data))
+	for i := range contracts.Data {
+		var cp, underlying currency.Pair
+		underlying, err = currency.NewPairFromStrings(contracts.Data[i].BaseCurrency, contracts.Data[i].QuoteCurrency)
+		if err != nil {
+			return nil, err
+		}
+		cp, err = currency.NewPairFromStrings(contracts.Data[i].BaseCurrency, contracts.Data[i].Symbol[len(contracts.Data[i].BaseCurrency):])
+		if err != nil {
+			return nil, err
+		}
+		settleCurr := currency.NewCode(contracts.Data[i].SettleCurrency)
+		var ct futures.ContractType
+		if contracts.Data[i].ContractType == "FFWCSX" {
+			ct = futures.Perpetual
+		} else {
+			ct = futures.Quarterly
+		}
+		contractSettlementType := futures.Linear
+		if contracts.Data[i].IsInverse {
+			contractSettlementType = futures.Inverse
+		}
+		resp[i] = futures.Contract{
+			Exchange:             p.Name,
+			Name:                 cp,
+			Underlying:           underlying,
+			SettlementCurrencies: currency.Currencies{settleCurr},
+			MarginCurrency:       settleCurr,
+			Asset:                assetType,
+			StartDate:            contracts.Data[i].FirstOpenDate.Time(),
+			IsActive:             !strings.EqualFold(contracts.Data[i].Status, "closed"),
+			Status:               contracts.Data[i].Status,
+			Multiplier:           contracts.Data[i].Multiplier,
+			MaxLeverage:          contracts.Data[i].MaxLeverage,
+			SettlementType:       contractSettlementType,
+			LatestRate: fundingrate.Rate{
+				Rate: decimal.NewFromFloat(contracts.Data[i].FundingFeeRate),
+				Time: contracts.Data[i].NextFundingRateTime.Time(),
+			},
+			Type: ct,
+		}
+	}
+	return resp, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	// TODO: implement with API upgrade
-	return nil, common.ErrFunctionNotSupported
+func (p *Poloniex) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	var fri time.Duration
+	if len(p.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+		for k := range p.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+			fri = k.Duration()
+		}
+	}
+	if r.Pair.IsEmpty() {
+		contracts, err := p.GetOpenContractList(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if r.IncludePredictedRate {
+			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", p.Name, len(contracts.Data))
+		}
+		timeChecked := time.Now()
+		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts.Data))
+		for i := range contracts.Data {
+			// timeOfNextFundingRate := time.Now().Add(time.Duration() * time.Millisecond).Truncate(time.Hour).UTC()
+			var cp currency.Pair
+			cp, err = currency.NewPairFromStrings(contracts.Data[i].BaseCurrency, contracts.Data[i].Symbol[len(contracts.Data[i].BaseCurrency):])
+			if err != nil {
+				return nil, err
+			}
+			var isPerp bool
+			isPerp, err = p.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
+				continue
+			}
+
+			rate := fundingrate.LatestRateResponse{
+				Exchange: p.Name,
+				Asset:    r.Asset,
+				Pair:     cp,
+				LatestRate: fundingrate.Rate{
+					Time: contracts.Data[i].NextFundingRateTime.Time().Add(-fri),
+					Rate: decimal.NewFromFloat(contracts.Data[i].FundingFeeRate),
+				},
+				TimeOfNextRate: contracts.Data[i].NextFundingRateTime.Time(),
+				TimeChecked:    timeChecked,
+			}
+			if r.IncludePredictedRate {
+				fr, err := p.GetCurrentFundingRate(ctx, contracts.Data[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				rate.PredictedUpcomingRate = fundingrate.Rate{
+					Time: contracts.Data[i].NextFundingRateTime.Time(),
+					Rate: decimal.NewFromFloat(fr.PredictedValue),
+				}
+			}
+			resp = append(resp, rate)
+		}
+		return resp, nil
+	}
+	resp := make([]fundingrate.LatestRateResponse, 1)
+	is, err := p.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+	if err != nil {
+		return nil, err
+	}
+	if !is {
+		return nil, fmt.Errorf("%w %s %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+	}
+	fPair, err := p.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	fr, err := p.GetCurrentFundingRate(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	rate := fundingrate.LatestRateResponse{
+		Exchange: p.Name,
+		Asset:    r.Asset,
+		Pair:     r.Pair,
+		LatestRate: fundingrate.Rate{
+			Time: fr.TimePoint.Time(),
+			Rate: decimal.NewFromFloat(fr.Value),
+		},
+		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
+		TimeChecked:    time.Now(),
+	}
+	if r.IncludePredictedRate {
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: rate.TimeOfNextRate,
+			Rate: decimal.NewFromFloat(fr.PredictedValue),
+		}
+	}
+	resp[0] = rate
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (p *Poloniex) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	switch {
+	case cp.IsEmpty() || a != asset.Futures:
+		return false, nil
+	case strings.HasSuffix(cp.Quote.String(), "PERP"):
+		return true, nil
+	default:
+		pairString, err := p.FormatSymbol(cp, asset.Futures)
+		if err != nil {
+			return false, err
+		}
+		info, err := p.GetOrderInfoOfTheContract(context.Background(), pairString)
+		if err != nil {
+			return false, err
+		}
+		if info.ContractType == "FFWCSX" {
+			return true, nil
+		}
+		return false, nil
+	}
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
