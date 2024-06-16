@@ -134,3 +134,12 @@ func TestSetPairs(t *testing.T) {
 	s.SetPairs(currency.Pairs{btcusdtPair})
 	assert.Equal(t, "BTCUSDT", s.Pairs.Join(), "SetPairs should set a key correctly")
 }
+
+// TestAddPairs exercises AddPairs
+func TestAddPairs(t *testing.T) {
+	s := &Subscription{}
+	s.AddPairs()
+	assert.Empty(t, s.Pairs, "Should not have added any pairs")
+	s.AddPairs(btcusdtPair)
+	assert.Len(t, s.Pairs, 1, "Should not have added any pairs")
+}
