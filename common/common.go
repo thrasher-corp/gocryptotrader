@@ -666,7 +666,7 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 
 var runtimeCaller = runtime.Caller
 var runtimeFuncForPC = runtime.FuncForPC
-var errorContext = errors.New("")
+var errContext = errors.New("")
 
 // ErrorWithContext adds contextual information to an error, including the
 // function name and line number.
@@ -675,7 +675,7 @@ func ErrorWithContext(err error) error {
 		return nil
 	}
 
-	if errors.Is(err, errorContext) {
+	if errors.Is(err, errContext) {
 		return err // Already has context
 	}
 
@@ -684,7 +684,7 @@ func ErrorWithContext(err error) error {
 		return err // Unable to get caller information
 	}
 
-	err = AppendError(err, errorContext)
+	err = AppendError(err, errContext)
 
 	fn := runtimeFuncForPC(pc)
 	if fn == nil {

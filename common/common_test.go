@@ -859,7 +859,7 @@ func TestErrorCollector(t *testing.T) {
 
 func TestErrorWithContext(t *testing.T) {
 	t.Parallel()
-	require.ErrorIs(t, ErrorWithContext(nil), nil)
+	require.NoError(t, ErrorWithContext(nil))
 	err := errors.New("internal test error")
 
 	require.ErrorIs(t, ErrorWithContext(err), err)
