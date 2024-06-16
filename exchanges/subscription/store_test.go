@@ -43,11 +43,19 @@ func TestNewStoreFromList(t *testing.T) {
 
 // TestAdd exercises Add and add methods
 func TestAdd(t *testing.T) {
-	assert.ErrorIs(t, (*Store)(nil).Add(&Subscription{}), common.ErrNilPointer, "Should error nil pointer correctly")
-	assert.ErrorIs(t, (&Store{}).Add(nil), common.ErrNilPointer, "Should error nil pointer correctly")
-	assert.ErrorIs(t, (&Store{}).Add(&Subscription{}), common.ErrNilPointer, "Should error nil pointer correctly")
+	err := (*Store)(nil).Add(&Subscription{})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
+	assert.ErrorContains(t, err, "called on nil Store", "Should error correctly")
+
+	err = new(Store).Add(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
+	assert.ErrorContains(t, err, "called on an Uninitialised Store", "Should error correctly")
 
 	s := NewStore()
+	err = s.Add(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
+	assert.ErrorContains(t, err, "Subscription param", "Should error correctly")
+
 	sub := &Subscription{Channel: TickerChannel}
 	require.NoError(t, s.Add(sub), "Should not error on a standard add")
 	assert.NotNil(t, s.get(sub), "Should have stored the sub")
@@ -81,11 +89,19 @@ func TestGet(t *testing.T) {
 
 // TestRemove exercises the Remove method
 func TestRemove(t *testing.T) {
-	assert.ErrorIs(t, (*Store)(nil).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called on nil")
-	assert.ErrorIs(t, (&Store{}).Remove(nil), common.ErrNilPointer, "Should error correctly when called passing nil")
-	assert.ErrorIs(t, (&Store{}).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called with no subscription map")
+	err := (*Store)(nil).Remove(&Subscription{})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when called on nil")
+	assert.ErrorContains(t, err, "Remove called on nil Store", "Should error correctly when called on nil")
+
+	err = new(Store).Remove(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when called on an uninit store")
+	assert.ErrorContains(t, err, "Remove called on an Uninitialised Store", "Should error correctly when called on an uninit store")
 
 	s := NewStore()
+	err = s.Remove(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when called with nil")
+	assert.ErrorContains(t, err, "key param", "Should error correctly when called with nil")
+
 	require.NoError(t, s.Add(&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Adding subscription must not error")
 	assert.NotNil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should have added the sub")
 	assert.ErrorIs(t, s.Remove(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}}), ErrNotFound, "Should error correctly when called with a non-matching key")
