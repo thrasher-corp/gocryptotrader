@@ -1606,7 +1606,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					continue
 				}
 				var side order.Side
-				side, err = order.StringToOrderSide(spotOrders[x].Orders[x].Side)
+				side, err = order.StringToOrderSide(spotOrders[x].Orders[y].Side)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 				}
