@@ -91,17 +91,17 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	})
 
 	expected := map[keyPair]Pair{
-		NewPair(BTC, USD).KeyPair(): NewPair(XBT, USDM),
-		NewPair(ETH, USD).KeyPair(): NewPair(XETH, USDM),
-		NewPair(ETH, BTC).KeyPair(): NewPair(XETH, BTCM),
-		ltcusd.KeyPair():            ltcusd,
+		NewPair(BTC, USD).keyPair(): NewPair(XBT, USDM),
+		NewPair(ETH, USD).keyPair(): NewPair(XETH, USDM),
+		NewPair(ETH, BTC).keyPair(): NewPair(XETH, BTCM),
+		ltcusd.keyPair():            ltcusd,
 	}
 
 	matchingPairs = FindMatchingPairsBetween(PairsWithTranslation{spotPairs, nil}, PairsWithTranslation{futuresPairs, translationsTest})
 	require.Len(t, matchingPairs, 4)
 
 	for k, v := range matchingPairs {
-		if !expected[k.KeyPair()].Equal(v) {
+		if !expected[k.keyPair()].Equal(v) {
 			t.Error("FindMatchingPairsBetween: translation failed")
 		}
 	}
@@ -110,26 +110,26 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	require.Len(t, matchingPairs, 4)
 
 	for k, v := range matchingPairs {
-		if !expected[k.KeyPair()].Equal(v) {
+		if !expected[k.keyPair()].Equal(v) {
 			t.Error("FindMatchingPairsBetween: translation failed")
 		}
 	}
 
 	expected = map[keyPair]Pair{
-		ltcusd.KeyPair(): ltcusd,
+		ltcusd.keyPair(): ltcusd,
 	}
 
 	matchingPairs = FindMatchingPairsBetween(PairsWithTranslation{spotPairs, translationsTest}, PairsWithTranslation{futuresPairs, nil})
 	require.Len(t, matchingPairs, 1)
 
 	for k, v := range matchingPairs {
-		if !expected[k.KeyPair()].Equal(v) {
+		if !expected[k.keyPair()].Equal(v) {
 			t.Error("FindMatchingPairsBetween: translation failed")
 		}
 	}
 }
 
-func (p Pair) KeyPair() keyPair {
+func (p Pair) keyPair() keyPair {
 	return keyPair{Base: p.Base.Item, Quote: p.Quote.Item}
 }
 
