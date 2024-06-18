@@ -509,7 +509,7 @@ func (b *Binance) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
-// GetSubscriptionTemplateFuncs does what it says on the tin
+// GetSubscriptionTemplateFuncs returns functions available for subscription channel templating
 func (b *Binance) GetSubscriptionTemplateFuncs() template.FuncMap {
 	return template.FuncMap{
 		"interval": formatChannelInterval,
