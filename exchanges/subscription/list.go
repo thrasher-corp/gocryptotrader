@@ -151,7 +151,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 		l = n
 	}
 
-	ap, err := l.AssetPairs(e)
+	ap, err := l.assetPairs(e)
 	if err != nil {
 		return nil, err
 	}
