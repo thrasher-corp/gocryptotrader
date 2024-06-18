@@ -82,15 +82,15 @@ func TestListSetStates(t *testing.T) {
 	assert.Equal(t, SubscribedState, l[1].State(), "SetState should set State correctly after the error")
 }
 
-// TestAssetPairs exercises AssetPairs error handling
+// TestAssetPairs exercises assetPairs error handling
 // All other code is covered under TestExpandTemplates
 func TestAssetPairs(t *testing.T) {
 	expErr := errors.New("Krypton is gone")
 	for _, a := range []asset.Item{asset.Spot, asset.All} {
 		l := &List{{Channel: CandlesChannel, Asset: a}}
-		_, err := l.AssetPairs(&mockEx{false, expErr, nil})
+		_, err := l.assetPairs(&mockEx{false, expErr, nil})
 		assert.ErrorIs(t, err, expErr, "Should error correctly on GetEnabledPairs")
-		_, err = l.AssetPairs(&mockEx{false, nil, expErr})
+		_, err = l.assetPairs(&mockEx{false, nil, expErr})
 		assert.ErrorIs(t, err, expErr, "Should error correctly on GetPairFormat")
 	}
 }

@@ -95,8 +95,8 @@ func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
 	return nil
 }
 
-// AssetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
-func (l List) AssetPairs(e iExchange) (assetPairs, error) { //nolint:revive // unexported-return is acceptable since it's a undecorated primitive
+// assetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
+func (l List) assetPairs(e iExchange) (assetPairs, error) {
 	at := e.GetAssetTypes(true)
 	ap := assetPairs{}
 	for _, s := range l {
