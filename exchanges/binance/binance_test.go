@@ -2463,6 +2463,7 @@ func TestFormatChannelInterval(t *testing.T) {
 
 // TestFormatChannelLevels exercises formatChannelLevels
 func TestFormatChannelLevels(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "10", formatChannelLevels(&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10}), "Levels should format correctly")
 	assert.Empty(t, formatChannelLevels(&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 0}), "Levels should format correctly")
 }
