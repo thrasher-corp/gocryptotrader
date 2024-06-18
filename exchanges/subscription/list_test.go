@@ -85,6 +85,7 @@ func TestListSetStates(t *testing.T) {
 // TestAssetPairs exercises assetPairs error handling
 // All other code is covered under TestExpandTemplates
 func TestAssetPairs(t *testing.T) {
+	t.Parallel()
 	expErr := errors.New("Krypton is gone")
 	for _, a := range []asset.Item{asset.Spot, asset.All} {
 		l := &List{{Channel: CandlesChannel, Asset: a}}
