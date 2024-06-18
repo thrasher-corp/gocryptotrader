@@ -865,10 +865,12 @@ func TestErrorWithContext(t *testing.T) {
 	require.ErrorIs(t, ErrorWithContext(err), err)
 
 	got := ErrorWithContext(err)
-	exp := []string{"common_test.go", "867", "common.TestErrorWithContext", "internal test error"}
+	exp := []string{"common_test.go", "common.TestErrorWithContext", "internal test error"}
 	for _, e := range exp {
 		require.Contains(t, got.Error(), e)
 	}
+
+	require.NotEmpty(t, got.(*contextError).Line)
 
 	runtimeCaller = func(int) (pc uintptr, file string, line int, ok bool) {
 		return 0, "", 0, false
@@ -881,10 +883,12 @@ func TestErrorWithContext(t *testing.T) {
 	}
 
 	got = ErrorWithContext(err)
-	exp = []string{"common_test.go", "883", "internal test error"}
+	exp = []string{"common_test.go", "internal test error"}
 	for _, e := range exp {
 		require.Contains(t, got.Error(), e)
 	}
+
+	require.NotEmpty(t, got.(*contextError).Line)
 
 	// Test so we don't add context with more context
 	require.Equal(t, got, ErrorWithContext(got))
