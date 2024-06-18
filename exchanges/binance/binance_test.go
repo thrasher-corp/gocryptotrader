@@ -2455,6 +2455,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 // TestFormatChannelInterval exercises formatChannelInterval
 func TestFormatChannelInterval(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "@1000ms", formatChannelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}), "1s should format correctly for Orderbook")
 	assert.Equal(t, "@1m", formatChannelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}), "Orderbook should format correctly")
 	assert.Equal(t, "_15m", formatChannelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}), "Candles should format correctly")
