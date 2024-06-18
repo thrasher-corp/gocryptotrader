@@ -2001,7 +2001,6 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "Subscribe should not error")
 	err = b.Unsubscribe(channels)
 	require.NoError(t, err, "Unsubscribe should not error")
-	b.Verbose = false
 }
 
 func TestSubscribeBadResp(t *testing.T) {
