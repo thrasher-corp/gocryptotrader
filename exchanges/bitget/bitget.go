@@ -80,6 +80,9 @@ const (
 	bitgetBatchCreateSubAccApi     = "batch-create-subaccount-and-apikey"
 	bitgetList                     = "list"
 	bitgetAPIKey                   = "apikey"
+	bitgetFundingAssets            = "/funding-assets"
+	bitgetBotAssets                = "/bot-assets"
+	bitgetAllAccountBalance        = "/all-account-balance"
 	bitgetConvert                  = "convert/"
 	bitgetCurrencies               = "currencies"
 	bitgetQuotedPrice              = "quoted-price"
@@ -116,8 +119,10 @@ const (
 	bitgetWithdrawal               = "withdrawal"
 	bitgetSubaccountTransferRecord = "/sub-main-trans-record"
 	bitgetTransferRecord           = "/transferRecords"
+	bitgetSwitchDeduct             = "/switch-deduct"
 	bitgetDepositAddress           = "deposit-address"
 	bitgetSubaccountDepositAddress = "subaccount-deposit-address"
+	bitgetDeductInfo               = "/deduct-info"
 	bitgetCancelWithdrawal         = "cancel-withdrawal"
 	bitgetSubaccountDepositRecord  = "subaccount-deposit-records"
 	bitgetWithdrawalRecord         = "withdrawal-records"
@@ -594,6 +599,33 @@ func (bi *Bitget) GetAPIKeys(ctx context.Context, subaccountID string) (*GetAPIK
 }
 
 // GetFundingAssets returns the user's assets
+func (bi *Bitget) GetFundingAssets(ctx context.Context, currency string) (*FundingAssetsResp, error) {
+	vals := url.Values{}
+	if currency != "" {
+		vals.Set("coin", currency)
+	}
+	var resp *FundingAssetsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
+		bitgetAccount+bitgetFundingAssets, vals, nil, &resp)
+}
+
+// GetBotAccountAssets returns the user's bot account assets
+func (bi *Bitget) GetBotAccountAssets(ctx context.Context, accountType string) (*BotAccAssetsResp, error) {
+	vals := url.Values{}
+	if accountType != "" {
+		vals.Set("accountType", accountType)
+	}
+	var resp *BotAccAssetsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
+		bitgetAccount+bitgetBotAssets, vals, nil, &resp)
+}
+
+// GetAssetOverview returns an overview of the user's assets across various account types
+func (bi *Bitget) GetAssetOverview(ctx context.Context) (*AssetOverviewResp, error) {
+	var resp *AssetOverviewResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
+		bitgetAccount+bitgetAllAccountBalance, nil, nil, &resp)
+}
 
 // GetConvertCoins returns a list of supported currencies, your balance in those currencies, and the maximum and
 // minimum tradable amounts of those currencies
@@ -1445,6 +1477,20 @@ func (bi *Bitget) GetTransferRecord(ctx context.Context, currency, fromType, cli
 		nil, &resp)
 }
 
+// SwitchBGBDeductionStatus switches the deduction of BGB for trading fees on and off
+func (bi *Bitget) SwitchBGBDeductionStatus(ctx context.Context, deduct bool) (*BoolData, error) {
+	req := make(map[string]interface{})
+	if deduct {
+		req["deduct"] = "on"
+	} else {
+		req["deduct"] = "off"
+	}
+	path := bitgetSpot + bitgetAccount + bitgetSwitchDeduct
+	var resp *BoolData
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
 // GetDepositAddressForCurrency returns the user's deposit address for a particular currency
 func (bi *Bitget) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddressResp, error) {
 	if currency == "" {
@@ -1474,6 +1520,14 @@ func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID,
 	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositAddress
 	var resp *DepositAddressResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetBGBDeductionStatus returns the user's current BGB deduction status
+func (bi *Bitget) GetBGBDeductionStatus(ctx context.Context) (*BGBDeductResp, error) {
+	path := bitgetSpot + bitgetAccount + bitgetDeductInfo
+	var resp *BGBDeductResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil,
 		&resp)
 }
 

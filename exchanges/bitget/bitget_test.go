@@ -324,6 +324,26 @@ func TestGetAPIKeys(t *testing.T) {
 	assert.NotEmpty(t, resp.Data)
 }
 
+func TestGetFundingAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err := bi.GetFundingAssets(context.Background(), "BTC")
+	assert.NoError(t, err)
+}
+
+func TestGetBotAccountAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err := bi.GetBotAccountAssets(context.Background(), "spot")
+	assert.NoError(t, err)
+}
+
+func TestGetAssetOverview(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	testGetNoArgs(t, bi.GetAssetOverview)
+}
+
 func TestGetConvertCoints(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -841,6 +861,15 @@ func TestGetTransferRecord(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSwitchBGBDeductionStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err := bi.SwitchBGBDeductionStatus(context.Background(), false)
+	assert.NoError(t, err)
+	_, err = bi.SwitchBGBDeductionStatus(context.Background(), true)
+	assert.NoError(t, err)
+}
+
 func TestGetDepositAddressForCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetDepositAddressForCurrency(context.Background(), "", "")
@@ -863,6 +892,12 @@ func TestGetSubaccountDepositAddress(t *testing.T) {
 	// last week.
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
+}
+
+func TestGetBGBDeductionStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	testGetNoArgs(t, bi.GetBGBDeductionStatus)
 }
 
 func TestGetSubaccountDepositRecords(t *testing.T) {
@@ -2367,9 +2402,19 @@ func TestGetLiquidationRecords(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := bi.FetchTradablePairs(context.Background(), asset.Spot)
+	_, err := bi.FetchTradablePairs(context.Background(), asset.Empty)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = bi.FetchTradablePairs(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	_, err = bi.FetchTradablePairs(context.Background(), asset.Futures)
 	assert.NoError(t, err)
 	_, err = bi.FetchTradablePairs(context.Background(), asset.Margin)
+	assert.NoError(t, err)
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := bi.UpdateTradablePairs(context.Background(), false)
 	assert.NoError(t, err)
 }
 
@@ -2533,7 +2578,7 @@ func TestRepayLoan(t *testing.T) {
 
 type getNoArgsResp interface {
 	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp | *SupCurrencyResp |
-		*RiskRateCross | *SavingsBalance | *SharkFinBalance | *DebtsResp
+		*RiskRateCross | *SavingsBalance | *SharkFinBalance | *DebtsResp | *AssetOverviewResp | *BGBDeductResp
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)

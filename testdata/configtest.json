@@ -2661,6 +2661,12 @@
           "assetEnabled": true,
           "enabled": "BTC-USDT",
           "available": "BTC-USDT"
+        },
+        "futures": {
+          "assetEnabled": true
+        },
+        "margin": {
+          "assetEnabled": true
         }
         }
    },

@@ -62,8 +62,8 @@ func (bi *Bitget) SetDefaults() {
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	// Config format denotes what the pair as a string will be, when saved to
 	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
+	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures, asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -159,50 +159,70 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	// This doesn't work; those endpoints only return currencies, not pairs
-	// switch a {
-	// case asset.Spot:
-	// 	resp, err := bi.GetCoinInfo(ctx, "")
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	pairs := make(currency.Pairs, len(resp.Data))
-	// 	for x := range resp.Data {
-	// 		pair, err := currency.NewPairFromString(resp.Data[x].Coin)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		pairs[x] = pair
-	// 	}
-	// 	return pairs, nil
-	// case asset.Margin, asset.Futures:
-	// 	resp, err := bi.GetSupportedCurrencies(ctx)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	pairs := make(currency.Pairs, len(resp.Data))
-	// 	for x := range resp.Data {
-	// 		pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		pairs[x] = pair
-	// 	}
-	// 	return pairs, nil
-	// }
+	switch a {
+	case asset.Spot:
+		resp, err := bi.GetSymbolInfo(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+		pairs := make(currency.Pairs, len(resp.Data))
+		for x := range resp.Data {
+			pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
+		}
+		return pairs, nil
+	case asset.Futures:
+		resp, err := bi.GetAllFuturesTickers(ctx, "USDT-FUTURES")
+		if err != nil {
+			return nil, err
+		}
+		req := []string{"COIN-FUTURES", "USDC-FUTURES"}
+		for x := range req {
+			resp2, err := bi.GetAllFuturesTickers(ctx, req[x])
+			if err != nil {
+				return nil, err
+			}
+			resp.Data = append(resp.Data, resp2.Data...)
+		}
+		pairs := make(currency.Pairs, len(resp.Data))
+		for x := range resp.Data {
+			pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
+		}
+		return pairs, nil
+	case asset.Margin:
+		resp, err := bi.GetSupportedCurrencies(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs := make(currency.Pairs, len(resp.Data))
+		for x := range resp.Data {
+			pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
+		}
+		return pairs, nil
+	}
 	return nil, asset.ErrNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := bi.GetAssetTypes(false)
+	assetTypes := bi.GetAssetTypes(true)
 	for x := range assetTypes {
 		pairs, err := bi.FetchTradablePairs(ctx, assetTypes[x])
 		if err != nil {
 			return err
 		}
-
 		err = bi.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
 		if err != nil {
 			return err

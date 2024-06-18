@@ -312,6 +312,36 @@ type GetAPIKeyResp struct {
 	} `json:"data"`
 }
 
+// FundingAssetsResp contains information on the user's funding assets
+type FundingAssetsResp struct {
+	Data []struct {
+		Coin      string  `json:"coin"`
+		Available float64 `json:"available,string"`
+		Frozen    float64 `json:"frozen,string"`
+		USDTValue float64 `json:"usdtValue,string"`
+	} `json:"data"`
+}
+
+// BotAccAssetsResp contains information on the user's bot account assets
+type BotAccAssetsResp struct {
+	Data []struct {
+		Coin      string  `json:"coin"`
+		Available float64 `json:"available,string"`
+		Equity    float64 `json:"equity,string"`
+		Bonus     float64 `json:"bonus,string"`
+		Frozen    float64 `json:"frozen,string"`
+		USDTValue float64 `json:"usdtValue,string"`
+	} `json:"data"`
+}
+
+// AssetOverviewResp contains information on the user's assets
+type AssetOverviewResp struct {
+	Data []struct {
+		AccountType string  `json:"accountType"`
+		USDTBalance float64 `json:"usdtBalance,string"`
+	} `json:"data"`
+}
+
 // ConvertCoinsResp contains information on the user's available currencies
 type ConvertCoinsResp struct {
 	Data []struct {
@@ -860,6 +890,11 @@ type TransferRecResp struct {
 	} `json:"data"`
 }
 
+// BoolData contains a boolean value returned by the exchange
+type BoolData struct {
+	Data bool `json:"data"`
+}
+
 // DepositAddressResp contains information on a deposit address
 type DepositAddressResp struct {
 	Data struct {
@@ -868,6 +903,13 @@ type DepositAddressResp struct {
 		Coin    string `json:"coin"`
 		Tag     string `json:"tag"`
 		URL     string `json:"url"`
+	} `json:"data"`
+}
+
+// BGBDeductResp contains information on the BGB deduction status
+type BGBDeductResp struct {
+	Data struct {
+		Deduct string `json:"deduct"`
 	} `json:"data"`
 }
 
