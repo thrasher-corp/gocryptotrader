@@ -10,45 +10,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Public errors for order limits
 var (
-	// ErrExchangeLimitNotLoaded defines if an exchange does not have minmax
-	// values
-	ErrExchangeLimitNotLoaded = errors.New("exchange limits not loaded")
-	// ErrPriceBelowMin is when the price is lower than the minimum price
-	// limit accepted by the exchange
-	ErrPriceBelowMin = errors.New("price below minimum limit")
-	// ErrPriceExceedsMax is when the price is higher than the maximum price
-	// limit accepted by the exchange
-	ErrPriceExceedsMax = errors.New("price exceeds maximum limit")
-	// ErrPriceExceedsStep is when the price is not divisible by its step
-	ErrPriceExceedsStep = errors.New("price exceeds step limit")
-	// ErrAmountBelowMin is when the amount is lower than the minimum amount
-	// limit accepted by the exchange
-	ErrAmountBelowMin = errors.New("amount below minimum limit")
-	// ErrAmountExceedsMax is when the amount is higher than the maximum amount
-	// limit accepted by the exchange
-	ErrAmountExceedsMax = errors.New("amount exceeds maximum limit")
-	// ErrAmountExceedsStep is when the amount is not divisible by its step
-	ErrAmountExceedsStep = errors.New("amount exceeds step limit")
-	// ErrNotionalValue is when the notional value does not exceed currency pair
-	// requirements
-	ErrNotionalValue = errors.New("total notional value is under minimum limit")
-	// ErrMarketAmountBelowMin is when the amount is lower than the minimum
-	// amount limit accepted by the exchange for a market order
-	ErrMarketAmountBelowMin = errors.New("market order amount below minimum limit")
-	// ErrMarketAmountExceedsMax is when the amount is higher than the maximum
-	// amount limit accepted by the exchange for a market order
-	ErrMarketAmountExceedsMax = errors.New("market order amount exceeds maximum limit")
-	// ErrMarketAmountExceedsStep is when the amount is not divisible by its
-	// step for a market order
-	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step limit")
-	// ErrCannotValidateAsset is thrown when the asset is not loaded
-	ErrCannotValidateAsset = errors.New("cannot check limit, asset not loaded")
-	// ErrCannotValidateBaseCurrency is thrown when the base currency is not loaded
-	ErrCannotValidateBaseCurrency = errors.New("cannot check limit, base currency not loaded")
-	// ErrCannotValidateQuoteCurrency is thrown when the quote currency is not loaded
+	ErrLoadLimitsFailed            = errors.New("failed to load exchange limits")
+	ErrExchangeLimitNotLoaded      = errors.New("exchange limits not loaded")
+	ErrPriceBelowMin               = errors.New("price below minimum limit")
+	ErrPriceExceedsMax             = errors.New("price exceeds maximum limit")
+	ErrPriceExceedsStep            = errors.New("price exceeds step limit") // price is not divisible by its step
+	ErrAmountBelowMin              = errors.New("amount below minimum limit")
+	ErrAmountExceedsMax            = errors.New("amount exceeds maximum limit")
+	ErrAmountExceedsStep           = errors.New("amount exceeds step limit") // amount is not divisible by its step
+	ErrNotionalValue               = errors.New("total notional value is under minimum limit")
+	ErrMarketAmountBelowMin        = errors.New("market order amount below minimum limit")
+	ErrMarketAmountExceedsMax      = errors.New("market order amount exceeds maximum limit")
+	ErrMarketAmountExceedsStep     = errors.New("market order amount exceeds step limit") // amount is not divisible by its step for a market order
+	ErrCannotValidateAsset         = errors.New("cannot check limit, asset not loaded")
+	ErrCannotValidateBaseCurrency  = errors.New("cannot check limit, base currency not loaded")
 	ErrCannotValidateQuoteCurrency = errors.New("cannot check limit, quote currency not loaded")
+)
 
+var (
 	errExchangeLimitBase   = errors.New("exchange limits not found for base currency")
 	errExchangeLimitQuote  = errors.New("exchange limits not found for quote currency")
 	errCannotLoadLimit     = errors.New("cannot load limit, levels not supplied")
@@ -105,9 +86,7 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 
 	for x := range levels {
 		if !levels[x].Asset.IsValid() {
-			return fmt.Errorf("cannot load levels for '%s': %w",
-				levels[x].Asset,
-				asset.ErrNotSupported)
+			return fmt.Errorf("cannot load levels for '%s': %w", levels[x].Asset, asset.ErrNotSupported)
 		}
 		m1, ok := e.m[levels[x].Asset]
 		if !ok {
