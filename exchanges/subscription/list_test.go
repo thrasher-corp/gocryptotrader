@@ -153,7 +153,7 @@ func TestExpandTemplates(t *testing.T) {
 	)
 	equalLists(t, exp, got)
 
-	expErr := errors.New("Krypton is gone")
+	expErr := errors.New("the planet Krypton is gone")
 	_, err = l.ExpandTemplates(&mockEx{false, nil, expErr})
 	assert.ErrorIs(t, err, expErr, "Should error correctly on GetPairFormat")
 
