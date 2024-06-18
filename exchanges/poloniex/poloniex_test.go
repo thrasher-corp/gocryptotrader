@@ -559,6 +559,10 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	result, err := p.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	result, err = p.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -1504,4 +1508,20 @@ func TestWsFuturesConnect(t *testing.T) {
 	err := p.WsFuturesConnect()
 	require.NoError(t, err)
 	time.Sleep(time.Second * 23)
+}
+
+func TestGetFuturesAccountOverview(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesAccountOverview(context.Background(), currency.USDT)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesAccountTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesAccountTransactionHistory(context.Background(), time.Now().Add(-time.Hour*50), time.Now(), "RealisedPNL", 0, 100, currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

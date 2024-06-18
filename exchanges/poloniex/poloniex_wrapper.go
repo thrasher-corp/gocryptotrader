@@ -371,28 +371,45 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	orderbookNew, err := p.GetOrderbook(ctx, pair, 0, 0)
-	if err != nil {
-		return nil, err
-	}
-
 	book := &orderbook.Base{
 		Exchange:        p.Name,
 		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
+	switch assetType {
+	case asset.Spot:
+		orderbookNew, err := p.GetOrderbook(ctx, pair, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids)/2)
+		for y := range book.Bids {
+			book.Bids[y].Price = orderbookNew.Bids[y*2].Float64()
+			book.Bids[y].Amount = orderbookNew.Bids[y*2+1].Float64()
+		}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids)/2)
-	for y := range book.Bids {
-		book.Bids[y].Price = orderbookNew.Bids[y*2].Float64()
-		book.Bids[y].Amount = orderbookNew.Bids[y*2+1].Float64()
-	}
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks)/2)
+		for y := range book.Asks {
+			book.Asks[y].Price = orderbookNew.Asks[y*2].Float64()
+			book.Asks[y].Amount = orderbookNew.Asks[y*2+1].Float64()
+		}
+	case asset.Futures:
+		orderbookNew, err := p.GetFullOrderbookLevel2(ctx, pair.String())
+		if err != nil {
+			return nil, err
+		}
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Data.Bids))
+		for y := range book.Bids {
+			book.Bids[y].Price = orderbookNew.Data.Bids[y][0].Float64()
+			book.Bids[y].Amount = orderbookNew.Data.Bids[y][1].Float64()
+		}
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks)/2)
-	for y := range book.Asks {
-		book.Asks[y].Price = orderbookNew.Asks[y*2].Float64()
-		book.Asks[y].Amount = orderbookNew.Asks[y*2+1].Float64()
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Data.Asks))
+		for y := range book.Asks {
+			book.Asks[y].Price = orderbookNew.Data.Asks[y][0].Float64()
+			book.Asks[y].Amount = orderbookNew.Data.Asks[y][1].Float64()
+		}
 	}
 	err = book.Process()
 	if err != nil {

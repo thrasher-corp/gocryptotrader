@@ -998,18 +998,28 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err != nil {
 		return err
 	}
+	var rawResponse *ResponseResult
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
-		Result:        result,
+		Result:        rawResponse,
 		Verbose:       p.Verbose,
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,
 	}
 
-	return p.SendPayload(ctx, epl, func() (*request.Item, error) {
+	err = p.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
+	if err != nil {
+		return err
+	} else if rawResponse == nil {
+		return fmt.Errorf("%w no data in the response", common.ErrNilPointer)
+	}
+	if rawResponse.Code != 0 {
+		return fmt.Errorf("error code: %d message: %s", rawResponse.Code.Int64(), rawResponse.Message)
+	}
+	return json.Unmarshal(rawResponse.Data, result)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -1022,7 +1032,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
-	var rawResponse = &json.RawMessage{}
+	var rawResponse *ResponseResult
 	requestFunc := func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
@@ -1068,7 +1078,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		req := &request.Item{
 			Method:        method,
 			Path:          path,
-			Result:        rawResponse,
+			Result:        &rawResponse,
 			Headers:       headers,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,
@@ -1082,13 +1092,13 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	err = p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
 	if err != nil {
 		return err
+	} else if rawResponse == nil {
+		return fmt.Errorf("%w no data in the response", common.ErrNilPointer)
 	}
-	errorResp := &errorResponse{}
-	err = json.Unmarshal(*rawResponse, errorResp)
-	if err == nil && errorResp.Code != 0 {
-		return fmt.Errorf("error code: %d message: %s", errorResp.Code, errorResp.Message)
+	if rawResponse.Code != 0 {
+		return fmt.Errorf("error code: %d message: %s", rawResponse.Code, rawResponse.Message)
 	}
-	return json.Unmarshal(*rawResponse, result)
+	return json.Unmarshal(rawResponse.Data, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

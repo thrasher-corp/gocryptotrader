@@ -7,11 +7,17 @@ import (
 )
 
 const (
-	rateInterval                 = time.Second
+	rateInterval         = time.Second
+	threeSecondsInterval = time.Second * 3
+
 	unauthRate                   = 200
 	authNonResourceIntensiveRate = 50
 	authResourceIntensiveRate    = 10
 	referenceDataRate            = 10
+
+	// used with futures account endpoint calls.
+	accountOverviewRate     = 3
+	fTransactionHistoryRate = 9
 )
 
 const (
@@ -19,6 +25,9 @@ const (
 	authResourceIntensiveEPL
 	unauthEPL
 	referenceDataEPL
+
+	accountOverviewEPL
+	fTransactionHistoryEPL
 )
 
 // GetRateLimit returns the rate limit for the exchange
@@ -32,5 +41,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		authResourceIntensiveEPL:    request.NewRateLimitWithWeight(rateInterval, authResourceIntensiveRate, 1),
 		unauthEPL:                   request.NewRateLimitWithWeight(rateInterval, unauthRate, 1),
 		referenceDataEPL:            request.NewRateLimitWithWeight(rateInterval, referenceDataRate, 1),
+		accountOverviewEPL:          request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
+		fTransactionHistoryEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
 	}
 }

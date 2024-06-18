@@ -402,9 +402,11 @@ type AccountTransferResponse struct {
 	TransferID string `json:"transferId"`
 }
 
-type errorResponse struct {
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
+// ResponseResult represents a generic response structure of an API call response.
+type ResponseResult struct {
+	Code    types.Number    `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data"`
 }
 
 // AccountTransferRecord represents an account transfer record.
@@ -1310,4 +1312,33 @@ type WsFuturesPositionInfo struct {
 	UnreleaseSum     float64 `json:"unreleaseSum"`
 	FundingSum       float64 `json:"fundingSum"`
 	AccountAvailable float64 `json:"accountAvailable"`
+}
+
+// FuturesAccountOverview represents an account overview information.
+type FuturesAccountOverview struct {
+	AccountEquity    float64 `json:"accountEquity"`
+	UnrealisedPNL    float64 `json:"unrealisedPNL"`
+	MarginBalance    float64 `json:"marginBalance"`
+	PositionMargin   float64 `json:"positionMargin"`
+	OrderMargin      float64 `json:"orderMargin"`
+	FrozenFunds      float64 `json:"frozenFunds"`
+	AvailableBalance float64 `json:"availableBalance"`
+	Currency         string  `json:"currency"`
+	PNL              float64 `json:"pnl"`
+}
+
+// FuturesTransactionHistory represents a futures account transaction history information.
+type FuturesTransactionHistory struct {
+	HasMore  bool `json:"hasMore"`
+	DataList []struct {
+		EventTime       convert.ExchangeTime `json:"ts"`
+		TransactionType string               `json:"type"`
+		Amount          float64              `json:"amount"`
+		Fee             float64              `json:"fee"`
+		AccountEquity   float64              `json:"accountEquity"`
+		Status          string               `json:"status"`
+		Remark          string               `json:"remark"`
+		Offset          int64                `json:"offset"`
+		Currency        string               `json:"currency"`
+	} `json:"dataList"`
 }

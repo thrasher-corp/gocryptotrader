@@ -213,11 +213,11 @@ func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, gr
 		return nil, errors.New("granularity is required")
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("granularity", strconv.FormatInt(granularity, 10))
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
 	}
+	params.Set("symbol", symbol)
+	params.Set("granularity", strconv.FormatInt(granularity, 10))
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
@@ -239,4 +239,44 @@ func (p *Poloniex) GetPublicFuturesWebsocketServerInstances(ctx context.Context)
 func (p *Poloniex) GetPrivateFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
 	var resp *FuturesWebsocketServerInstances
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, unauthEPL, http.MethodPost, "/api/v1/bullet-private", nil, nil, &resp)
+}
+
+// GetFuturesAccountOverview retrieves futures account overview information.
+func (p *Poloniex) GetFuturesAccountOverview(ctx context.Context, ccy currency.Code) (*FuturesAccountOverview, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp *FuturesAccountOverview
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, accountOverviewEPL, http.MethodGet, "/api/v1/account-overview", params, nil, &resp)
+}
+
+// GetFuturesAccountTransactionHistory retrieves the futures account transaciton history.
+// If there are open positions, the status of the first page returned will be Pending, indicating the realized profit and loss in the current 8-hour settlement period.
+// Please specify the minimum offset number of the current page into the offset field to turn the page.
+// Ccy: [Optional] Currency of transaction history XBT or USDT
+// type possible values:	RealisedPNL, Deposit, TransferIn, TransferOut
+// status possible values: Completed, Pending
+func (p *Poloniex) GetFuturesAccountTransactionHistory(ctx context.Context, startAt, endAt time.Time, transactionType string, offset, maxCount int64, ccy currency.Code) (*FuturesTransactionHistory, error) {
+	params := url.Values{}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if transactionType != "" {
+		params.Set("type", transactionType)
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if maxCount > 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp *FuturesTransactionHistory
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fTransactionHistoryRate, http.MethodGet, "/api/v1/transaction-history", params, nil, &resp)
 }
