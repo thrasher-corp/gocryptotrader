@@ -7,12 +7,10 @@ import (
 	"strings"
 )
 
+// Public errors related to assets
 var (
-	// ErrNotSupported is an error for an unsupported asset type
 	ErrNotSupported = errors.New("unsupported asset type")
-	// ErrNotEnabled is an error for an asset not enabled
-	ErrNotEnabled = errors.New("asset type not enabled")
-	// ErrInvalidAsset is returned when the assist isn't valid
+	ErrNotEnabled   = errors.New("asset type not enabled")
 	ErrInvalidAsset = errors.New("asset is invalid")
 )
 

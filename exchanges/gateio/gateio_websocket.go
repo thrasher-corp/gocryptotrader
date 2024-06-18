@@ -125,7 +125,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.Time)
+		return g.processTicker(push.Result, push.Time.Time())
 	case spotTradesChannel:
 		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
@@ -160,7 +160,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
+func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 	var data WsTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -177,7 +177,7 @@ func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
 		Ask:          data.LowestAsk.Float64(),
 		AssetType:    asset.Spot,
 		Pair:         data.CurrencyPair,
-		LastUpdated:  time.Unix(pushTime, 0),
+		LastUpdated:  pushTime,
 	}
 	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	if assetPairEnabled[asset.Spot] {
@@ -253,7 +253,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 		Pair:       currencyPair,
 		AssetType:  asset.Spot,
 		Exchange:   g.Name,
-		StartTime:  time.Unix(data.Timestamp, 0),
+		StartTime:  data.Timestamp.Time(),
 		Interval:   icp[0],
 		OpenPrice:  data.OpenPrice.Float64(),
 		ClosePrice: data.ClosePrice.Float64(),
@@ -289,7 +289,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		Exchange:    g.Name,
 		Pair:        data.CurrencyPair,
 		Asset:       asset.Spot,
-		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
+		LastUpdated: data.UpdateTimeMS.Time(),
 		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
 		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
