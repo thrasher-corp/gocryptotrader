@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -1522,6 +1523,148 @@ func TestGetFuturesAccountTransactionHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetFuturesAccountTransactionHistory(context.Background(), time.Now().Add(-time.Hour*50), time.Now(), "RealisedPNL", 0, 100, currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesMaxActiveOrderLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesMaxActiveOrderLimit(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesMaxRiskLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesMaxRiskLimit(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesUserFeeRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesUserFeeRate(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesMarginMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesMarginMode(context.Background(), futuresTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeMarginMode(t *testing.T) {
+	t.Parallel()
+	err := p.ChangeMarginMode(context.Background(), "", margin.Isolated)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	err = p.ChangeMarginMode(context.Background(), "BTCUSDTPERP", margin.Unknown)
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	err = p.ChangeMarginMode(context.Background(), "BTCUSDTPERP", margin.Isolated)
+	assert.NotNil(t, err)
+}
+
+func TestPlaceFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{
+		OrderType:   "limit",
+		VisibleSize: 0,
+	})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{
+		Symbol:      "BTCUSDTPERP",
+		OrderType:   "limit",
+		VisibleSize: 0,
+	})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{
+		Side:        "buy",
+		Symbol:      "BTCUSDTPERP",
+		VisibleSize: 0,
+	})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	_, err = p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{
+		Side:        "buy",
+		Symbol:      "BTCUSDTPERP",
+		OrderType:   "limit",
+		VisibleSize: 0,
+	})
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	_, err = p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{
+		ClientOrderID: "5c52e11203aa677f33e493fb",
+		Leverage:      20,
+		PostOnly:      false,
+		// Price:         8000,
+		Remark:      "remark",
+		Side:        "buy",
+		Size:        20,
+		Symbol:      "BTCUSDTPERP",
+		OrderType:   "limit",
+		VisibleSize: 0,
+	})
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.PlaceFuturesOrder(context.Background(), &FuturesOrderParams{
+		ClientOrderID: "5c52e11203aa677f33e493fb",
+		Leverage:      20,
+		PostOnly:      false,
+		Price:         8000,
+		Remark:        "remark",
+		Side:          "buy",
+		Size:          20,
+		Symbol:        "BTCUSDTPERP",
+		OrderType:     "limit",
+		VisibleSize:   0,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceMultipleFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := p.PlaceMultipleFuturesOrder(context.Background(), []FuturesOrderParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.PlaceMultipleFuturesOrder(context.Background(), []FuturesOrderParams{{
+		ClientOrderID: "5c52e11203aa677f33e493fb",
+		Leverage:      20,
+		Price:         8000,
+		Remark:        "remark",
+		Side:          "buy",
+		Size:          20,
+		Symbol:        "BTCUSDTPERP",
+		OrderType:     "limit",
+	},
+		{
+			ClientOrderID: "5c52e11203aa677f33e493fc",
+			Leverage:      20,
+			PostOnly:      false,
+			Price:         1200,
+			Remark:        "remark",
+			Side:          "buy",
+			Size:          20,
+			Symbol:        "ETHUSDTPERP",
+			OrderType:     "limit",
+		}})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFuturesCancelOrderByID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.FuturesCancelOrderByID(context.Background(), "5c52e11203aa677f33e493fc")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

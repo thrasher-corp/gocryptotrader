@@ -11,6 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -279,4 +281,125 @@ func (p *Poloniex) GetFuturesAccountTransactionHistory(ctx context.Context, star
 	}
 	var resp *FuturesTransactionHistory
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fTransactionHistoryRate, http.MethodGet, "/api/v1/transaction-history", params, nil, &resp)
+}
+
+// Trade Config endpoints.
+
+// GetFuturesMaxActiveOrderLimit this endpoint to get the maximum active order and stop order quantity limit.
+func (p *Poloniex) GetFuturesMaxActiveOrderLimit(ctx context.Context) (*MaxActiveOrderLimit, error) {
+	var resp *MaxActiveOrderLimit
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodGet, "/api/v1/maxRiskLimit", nil, nil, &resp)
+}
+
+// GetFuturesMaxRiskLimit query this endpoint to get the maximum of risk limit.
+func (p *Poloniex) GetFuturesMaxRiskLimit(ctx context.Context, symbol string) (*FuturesMaxRiskLimit, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *FuturesMaxRiskLimit
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodGet, "/api/v1/maxRiskLimit", params, nil, &resp)
+}
+
+// GetFuturesUserFeeRate retrieves user fee rate.
+func (p *Poloniex) GetFuturesUserFeeRate(ctx context.Context) (*FuturesUserFeeRate, error) {
+	var resp *FuturesUserFeeRate
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodGet, "/api/v1/userFeeRate", nil, nil, &resp)
+}
+
+// Margin Mode endpoints
+
+// GetFuturesMarginMode retrieves a margin mode.
+func (p *Poloniex) GetFuturesMarginMode(ctx context.Context, symbol string) (int64, error) {
+	if symbol == "" {
+		return 0, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp int64
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodGet, "/api/v1/marginType/query", params, nil, &resp)
+}
+
+// ChangeMarginMode changes the margin mode of the account.
+func (p *Poloniex) ChangeMarginMode(ctx context.Context, symbol string, marginType margin.Type) error {
+	if symbol == "" {
+		return currency.ErrSymbolStringEmpty
+	}
+	if marginType != margin.Isolated && marginType != margin.Multi {
+		return margin.ErrInvalidMarginType
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if marginType == margin.Isolated {
+		params.Set("marginType", "0")
+	}
+	if marginType == margin.Multi {
+		params.Set("marginType", "1")
+	}
+	return p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodPost, "/api/v1/marginType/change", params, nil, nil)
+}
+
+// Order endpoints.
+
+func futuresOrderParamsFilter(arg *FuturesOrderParams) error {
+	if arg == nil || *arg == (FuturesOrderParams{}) {
+		return common.ErrNilPointer
+	}
+	if arg.Symbol == "" {
+		return currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return order.ErrTypeIsInvalid
+	}
+	if arg.OrderType == "limit" {
+		if arg.Price <= 0 {
+			return order.ErrPriceBelowMin
+		}
+		if arg.Size <= 0 {
+			return order.ErrAmountBelowMin
+		}
+	}
+	return nil
+}
+
+// PlaceFuturesOrder places a futures order.
+func (p *Poloniex) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderParams) (*OrderIDResponse, error) {
+	err := futuresOrderParamsFilter(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fOrderEPL, http.MethodPost, "/api/v1/orders", nil, arg, &resp)
+}
+
+// PlaceMultipleFuturesOrder places a batch of orders.
+func (p *Poloniex) PlaceMultipleFuturesOrder(ctx context.Context, args []FuturesOrderParams) ([]OrderIDResponse, error) {
+	if len(args) == 0 {
+		return nil, common.ErrNilPointer
+	}
+	for _, arg := range args {
+		err := futuresOrderParamsFilter(&arg)
+		if err != nil {
+			return nil, err
+		}
+	}
+	input := &struct {
+		BatchOrders []FuturesOrderParams `json:"batchOrders"`
+	}{
+		BatchOrders: args,
+	}
+	var resp []OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authResourceIntensiveEPL, http.MethodPost, "/api/v1/batchOrders", nil, input, &resp)
+}
+
+// FuturesCancelOrderByID cancels a single futures order by ID.
+func (p *Poloniex) FuturesCancelOrderByID(ctx context.Context, orderID string) (*FuturesCancelOrderResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *FuturesCancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelOrderEPL, http.MethodGet, "/api/v1/orders/"+orderID, nil, nil, &resp)
 }

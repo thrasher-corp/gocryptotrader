@@ -1096,7 +1096,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return fmt.Errorf("%w no data in the response", common.ErrNilPointer)
 	}
 	if rawResponse.Code != 0 {
-		return fmt.Errorf("error code: %d message: %s", rawResponse.Code, rawResponse.Message)
+		return fmt.Errorf("error code: %d message: %s", rawResponse.Code.Int64(), rawResponse.Message)
 	}
 	return json.Unmarshal(rawResponse.Data, result)
 }

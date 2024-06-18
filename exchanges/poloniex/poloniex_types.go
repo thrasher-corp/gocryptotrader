@@ -1342,3 +1342,62 @@ type FuturesTransactionHistory struct {
 		Currency        string               `json:"currency"`
 	} `json:"dataList"`
 }
+
+// MaxActiveOrderLimit represents futures max active orders count information.
+type MaxActiveOrderLimit struct {
+	MaxOrder     int64 `json:"maxOrder"`
+	MaxStopOrder int64 `json:"maxStopOrder"`
+}
+
+// FuturesMaxRiskLimit represents a futures maximum risk limit response.
+type FuturesMaxRiskLimit []struct {
+	MaxLot float64 `json:"maxLot"`
+	Symbol string  `json:"symbol"`
+}
+
+// FuturesUserFeeRate represents user fee rate information.
+type FuturesUserFeeRate struct {
+	MakerFeeRate float64 `json:"makerFeeRate"` // in ratio
+	TakerFeeRate float64 `json:"takerFeeRate"` // in ratio
+}
+
+// FuturesOrderParams represents a request parameter for futures order.
+type FuturesOrderParams struct {
+	ClientOrderID string  `json:"clientOid"`
+	Side          string  `json:"side"`
+	Symbol        string  `json:"symbol"`
+	OrderType     string  `json:"type,omitempty"`
+	Leverage      int64   `json:"leverage"`
+	Stop          string  `json:"stop"`
+	StopPrice     float64 `json:"stopPrice"`
+	StopPriceType string  `json:"stopPriceType"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	CloseOrder    bool    `json:"closeOrder"`
+	ForceHold     bool    `json:"forceHold"`
+
+	Hidden      bool    `json:"hidden,omitempty"`
+	Iceberg     bool    `json:"iceberg,omitempty"`
+	PostOnly    bool    `json:"postOnly,omitempty"`
+	Price       float64 `json:"price,omitempty"`
+	Remark      string  `json:"remark,omitempty"`
+	Size        float64 `json:"size"` // amount of contract to buy or sell
+	Quantity    float64 `json:"quantity,omitempty"`
+	TimeInForce string  `json:"timeInForce,omitempty"`
+	VisibleSize float64 `json:"visibleSize,omitempty"`
+}
+
+// OrderIDResponse represents an order ID instance.
+type OrderIDResponse struct {
+	OrderID string `json:"orderId,omitempty"`
+
+	// Added as in placing a batch orders response
+	ClientOid string `json:"clientOid"`
+	Code      string `json:"code"`
+	Msg       string `json:"msg,omitempty"`
+}
+
+// FuturesCancelOrderResponse represents an order cancellation response.
+type FuturesCancelOrderResponse struct {
+	CancelFailedOrderIds []string `json:"cancelFailedOrderIds"`
+	CancelledOrderIds    []string `json:"cancelledOrderIds"`
+}

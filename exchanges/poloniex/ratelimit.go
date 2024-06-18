@@ -18,6 +18,8 @@ const (
 	// used with futures account endpoint calls.
 	accountOverviewRate     = 3
 	fTransactionHistoryRate = 9
+	fOrderRate              = 30
+	fCancelOrderRate        = 40
 )
 
 const (
@@ -28,6 +30,8 @@ const (
 
 	accountOverviewEPL
 	fTransactionHistoryEPL
+	fOrderEPL
+	fCancelOrderEPL
 )
 
 // GetRateLimit returns the rate limit for the exchange
@@ -43,5 +47,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		referenceDataEPL:            request.NewRateLimitWithWeight(rateInterval, referenceDataRate, 1),
 		accountOverviewEPL:          request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
 		fTransactionHistoryEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
+		fOrderEPL:                   request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
+		fCancelOrderEPL:             request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
 	}
 }
