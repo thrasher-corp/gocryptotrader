@@ -30,6 +30,6 @@ func TestMockHTTPInstance(t *testing.T) {
 
 // TestMockWsInstance exercises MockWsInstance
 func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Binance](t, CurryWsMockUpgrader(t, func(_ []byte, _ *websocket.Conn) error { return nil }))
+	b := MockWsInstance[binance.Binance](t, CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *websocket.Conn) error { return nil }))
 	require.NotNil(t, b, "MockWsInstance must not be nil")
 }
