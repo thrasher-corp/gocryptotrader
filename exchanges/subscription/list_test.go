@@ -99,7 +99,7 @@ func TestAssetPairs(t *testing.T) {
 // TestExpandTemplates exercises ExpandTemplates
 func TestExpandTemplates(t *testing.T) {
 	t.Parallel()
-	l := &List{
+	l := List{
 		{Channel: CandlesChannel,
 			Template: "ohlc.{{$asset}}.{{$s.Interval.Short}}",
 			Asset:    asset.All,
@@ -124,6 +124,9 @@ func TestExpandTemplates(t *testing.T) {
 			Pairs:         currency.Pairs{btcusdtPair, ethusdcPair},
 			Authenticated: true,
 		},
+		{Channel: AllTradesChannel,
+			QualifiedChannel: "already happy",
+			Template:         "{{breakThings}}"},
 	}
 	got, err := l.ExpandTemplates(&mockEx{false, nil, nil})
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -140,6 +143,7 @@ func TestExpandTemplates(t *testing.T) {
 			Params: map[string]any{"color": "green"}},
 		{Channel: CandlesChannel, QualifiedChannel: "candles.future.USDCETH.red.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin,
 			Params: map[string]any{"color": "green"}},
+		{Channel: AllTradesChannel, QualifiedChannel: "already happy"},
 	}
 
 	if !equalLists(t, exp, got) {
@@ -186,6 +190,13 @@ func TestExpandTemplates(t *testing.T) {
 
 	_, err = List{{Template: "{{breakThings}}"}}.ExpandTemplates(&mockEx{false, nil, nil})
 	assert.ErrorContains(t, err, "did not generate the expected number of lines", "Should error correctly too many lines")
+
+	l = List{{QualifiedChannel: "already happy", Template: "{{breakThings}}"}}
+	got, err = l.ExpandTemplates(&mockEx{false, nil, nil})
+	require.NoError(t, err, "did not generate the expected number of lines", "Must not error on a list of processed entries")
+	require.Len(t, got, 1, "Must get back the one sub")
+	assert.Equal(t, "already happy", l[0].QualifiedChannel, "Should get back the one sub")
+	assert.NotSame(t, got, l, "Should get back a different actual list")
 }
 
 type mockEx struct {
