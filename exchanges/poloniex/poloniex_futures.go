@@ -3,6 +3,7 @@ package poloniex
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -395,11 +396,314 @@ func (p *Poloniex) PlaceMultipleFuturesOrder(ctx context.Context, args []Futures
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authResourceIntensiveEPL, http.MethodPost, "/api/v1/batchOrders", nil, input, &resp)
 }
 
-// FuturesCancelOrderByID cancels a single futures order by ID.
-func (p *Poloniex) FuturesCancelOrderByID(ctx context.Context, orderID string) (*FuturesCancelOrderResponse, error) {
+// CancelFuturesOrderByID cancels a single futures order by ID.
+func (p *Poloniex) CancelFuturesOrderByID(ctx context.Context, orderID string) (*FuturesCancelOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *FuturesCancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelOrderEPL, http.MethodGet, "/api/v1/orders/"+orderID, nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelOrderEPL, http.MethodDelete, "/api/v1/orders/"+orderID, nil, nil, &resp)
+}
+
+// CancelAllFuturesLimitOrders cancels all open orders(excluding stop orders). The response is a list of orderIDs of the canceled orders.
+func (p *Poloniex) CancelAllFuturesLimitOrders(ctx context.Context, symbol, side string) (*FuturesCancelOrderResponse, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	var resp *FuturesCancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelAllLimitOrdersEPL, http.MethodDelete, "/api/v1/orders", params, nil, &resp)
+}
+
+// CancelAllFuturesStopOrders cancel all untriggered stop orders. The response is a list of orderIDs of the canceled stop orders. To cancel triggered stop orders, please use 'Limit Order Mass Cancelation'.
+func (p *Poloniex) CancelAllFuturesStopOrders(ctx context.Context, symbol string) (*FuturesCancelOrderResponse, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *FuturesCancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelAllStopOrdersEPL, http.MethodDelete, "/api/v1/stopOrders", params, nil, &resp)
+}
+
+// GetFuturesOrderList retrieves list of current orders.
+func (p *Poloniex) GetFuturesOrderList(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (interface{}, error) {
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() && !endAt.IsZero() {
+		err := common.StartEndTimeCheck(startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	switch marginType {
+	case margin.Multi:
+		params.Set("marginType", "0")
+	case margin.Isolated:
+		params.Set("marginType", "1")
+	}
+	var resp *FuturesOrders
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetOrdersEPL, http.MethodGet, "/api/v1/orders", params, nil, &resp)
+}
+
+// GetFuturesUntriggeredStopOrderList retrieves list of untriggered futures orders.
+func (p *Poloniex) GetFuturesUntriggeredStopOrderList(ctx context.Context, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (*FuturesOrders, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() && !endAt.IsZero() {
+		err := common.StartEndTimeCheck(startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	switch marginType {
+	case margin.Multi:
+		params.Set("marginType", "0")
+	case margin.Isolated:
+		params.Set("marginType", "1")
+	}
+	var resp *FuturesOrders
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetUntriggeredStopOrderEPL, http.MethodGet, "/api/v1/stopOrders", params, nil, &resp)
+}
+
+// GetFuturesCompletedOrdersIn24Hour gets list of 1000 completed orders in the last 24 hours.
+func (p *Poloniex) GetFuturesCompletedOrdersIn24Hour(ctx context.Context) ([]FuturesOrder, error) {
+	var resp []FuturesOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetCompleted24HrEPL, http.MethodGet, "/api/v1/recentDoneOrders", nil, nil, &resp)
+}
+
+// GetFuturesSingleOrderDetail retrieves a single order detail.
+func (p *Poloniex) GetFuturesSingleOrderDetailByOrderID(ctx context.Context, orderID string) (*FuturesOrder, error) {
+	return p.getFuturesByID(ctx, "/api/v1/orders/", orderID)
+}
+
+// GetFuturesSingleOrderDetailByClientOrderID retrieves a single order detail by client supplied order id.
+func (p *Poloniex) GetFuturesSingleOrderDetailByClientOrderID(ctx context.Context, clientOrderID string) (*FuturesOrder, error) {
+	return p.getFuturesByID(ctx, "/api/v1/clientOrderId/", clientOrderID)
+}
+
+func (p *Poloniex) getFuturesByID(ctx context.Context, path, orderID string) (*FuturesOrder, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *FuturesOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetSingleOrderDetailEPL, http.MethodGet, path+orderID, nil, nil, &resp)
+}
+
+// GetFuturesOrderListV2 retrieves futures orders.
+func (p *Poloniex) GetFuturesOrderListV2(ctx context.Context, status, symbol, side, orderType,
+	direct string, startAt, endAt time.Time, limit int64) (*FuturesOrdersV2, error) {
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() && !endAt.IsZero() {
+		err := common.StartEndTimeCheck(startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if direct != "" {
+		params.Set("direct", direct)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *FuturesOrdersV2
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFuturesOrdersV2EPL, http.MethodGet, "/api/v2/orders", params, nil, &resp)
+}
+
+// ----------------------------------------------------------------- Fills Endpoints ----------------------------------------------------------------
+
+// GetFuturesOrderFills retrieves futures order fills.
+func (p *Poloniex) GetFuturesOrderFills(ctx context.Context, orderID, symbol, side, orderType string, startAt, endAt time.Time) (*FuturesOrderFills, error) {
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() && !endAt.IsZero() {
+		err := common.StartEndTimeCheck(startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	var resp *FuturesOrderFills
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFuturesFillsEPL, http.MethodGet, "/api/v1/fills", params, nil, &resp)
+}
+
+// GetFuturesActiveOrderValueCalculation query this endpoint to get the the total number and value of the all your active orders.
+func (p *Poloniex) GetFuturesActiveOrderValueCalculation(ctx context.Context, symbol string) (*FuturesActiveOrdersValue, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *FuturesActiveOrdersValue
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetActiveOrderValueCalculationEPL, http.MethodGet, "/api/v1/openOrderStatistics", params, nil, &resp)
+}
+
+// GetFuturesFillsV2 retrieves futures orders fills v2.
+func (p *Poloniex) GetFuturesFillsV2(ctx context.Context, status, symbol, side, orderType, from, direct string, startAt, endAt time.Time, marginType margin.Type, limit int64) (*FuturesOrderFillsV2, error) {
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if from != "" {
+		params.Set("from", from)
+	}
+	if direct != "" {
+		params.Set("direct", direct)
+	}
+	if !startAt.IsZero() && !endAt.IsZero() {
+		err := common.StartEndTimeCheck(startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	switch marginType {
+	case margin.Isolated:
+		params.Set("marginType", "0")
+	case margin.Multi:
+		params.Set("marginType", "1")
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *FuturesOrderFillsV2
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFillsV2EPL, http.MethodGet, "/api/v2/fills", params, nil, &resp)
+}
+
+// -----------------------------------------------------------------------------------   Positions  -------------------------------------------------------------------------------------------
+
+// GetFuturesPositionDetails retrieves futures positions details.
+func (p *Poloniex) GetFuturesPositionDetails(ctx context.Context, symbol string) (*FuturesPositionDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *FuturesPositionDetail
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFuturesPositionDetailsEPL, http.MethodGet, "/api/v1/position", params, nil, &resp)
+}
+
+// GetFuturesPositionList get the position details of a specified position.
+func (p *Poloniex) GetFuturesPositionList(ctx context.Context) ([]FuturesPositionDetail, error) {
+	var resp []FuturesPositionDetail
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetPositionListEPL, http.MethodGet, "/api/v1/positions", nil, nil, &resp)
+}
+
+func filterManualMarginParams(arg *AlterMarginManuallyParams) error {
+	if arg == nil || *arg == (AlterMarginManuallyParams{}) {
+		return common.ErrNilPointer
+	}
+	if arg.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.MarginAmount <= 0 {
+		return fmt.Errorf("%w, margin amount is required", order.ErrAmountBelowMin)
+	}
+	if arg.BizNo == "" {
+		return errors.New("bizNo is required")
+	}
+	return nil
+}
+
+// FuturesAddMarginManually adds a margin manually.
+func (p *Poloniex) FuturesAddMarginManually(ctx context.Context, arg *AlterMarginManuallyParams) error {
+	if err := filterManualMarginParams(arg); err != nil {
+		return err
+	}
+	return p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodPost, "/api/v1/position/margin/deposit-margin", nil, arg, nil)
+}
+
+// FuturesRemoveMarginManually removed a margin manually.
+func (p *Poloniex) FuturesRemoveMarginManually(ctx context.Context, arg *AlterMarginManuallyParams) error {
+	if err := filterManualMarginParams(arg); err != nil {
+		return err
+	}
+	return p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodPost, "/api/v1/position/margin/withdraw-margin", nil, arg, nil)
+}
+
+// GetFuturesLeverage allows users to query the leverage level
+func (p *Poloniex) GetFuturesLeverage(ctx context.Context, symbol string) (*FuturesLeverageResp, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *FuturesLeverageResp
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodGet, "/api/v2/position/leverage", params, nil, &resp)
+}
+
+// SetFuturesLeverage allows users to set the leverage level
+func (p *Poloniex) SetFuturesLeverage(ctx context.Context, symbol string, leverage float64) (*FuturesLeverageResp, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if leverage <= 0 {
+		return nil, fmt.Errorf("%w leverage %f", order.ErrSubmitLeverageNotSupported, leverage)
+	}
+	var resp *FuturesLeverageResp
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodPost, "/api/v2/position/leverage", nil, map[string]interface{}{
+		"symbol": symbol,
+		"lever":  leverage,
+	}, &resp)
 }

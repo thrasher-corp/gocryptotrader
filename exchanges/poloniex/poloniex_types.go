@@ -1401,3 +1401,163 @@ type FuturesCancelOrderResponse struct {
 	CancelFailedOrderIds []string `json:"cancelFailedOrderIds"`
 	CancelledOrderIds    []string `json:"cancelledOrderIds"`
 }
+
+// FuturesOrders represents a paginated list of Futures orders.
+type FuturesOrders struct {
+	CurrentPage int64          `json:"currentPage"`
+	PageSize    int64          `json:"pageSize"`
+	TotalNum    int64          `json:"totalNum"`
+	TotalPage   int64          `json:"totalPage"`
+	Items       []FuturesOrder `json:"items"`
+}
+
+// FuturesOrder represents a futures order detail.
+type FuturesOrder struct {
+	OrderID             string               `json:"id"`
+	Symbol              string               `json:"symbol"`
+	OrderType           string               `json:"type"`
+	Side                string               `json:"side"`
+	Price               types.Number         `json:"price"`
+	Size                float64              `json:"size"`
+	Value               types.Number         `json:"value"`
+	FilledValue         types.Number         `json:"filledValue"`
+	FilledSize          float64              `json:"filledSize"`
+	SelfTradePrevention string               `json:"stp"`
+	Stop                string               `json:"stop"`
+	StopPriceType       string               `json:"stopPriceType"`
+	StopTriggered       bool                 `json:"stopTriggered"`
+	StopPrice           float64              `json:"stopPrice"`
+	TimeInForce         string               `json:"timeInForce"`
+	PostOnly            bool                 `json:"postOnly"`
+	Hidden              bool                 `json:"hidden"`
+	Iceberg             bool                 `json:"iceberg"`
+	VisibleSize         float64              `json:"visibleSize"`
+	Leverage            string               `json:"leverage"`
+	ForceHold           bool                 `json:"forceHold"`
+	CloseOrder          bool                 `json:"closeOrder"`
+	ReduceOnly          bool                 `json:"reduceOnly"`
+	ClientOid           string               `json:"clientOid"`
+	Remark              string               `json:"remark"`
+	IsActive            bool                 `json:"isActive"`
+	CancelExist         bool                 `json:"cancelExist"`
+	CreatedAt           convert.ExchangeTime `json:"createdAt"`
+	SettleCurrency      string               `json:"settleCurrency"`
+	Status              string               `json:"status"`
+	UpdatedAt           convert.ExchangeTime `json:"updatedAt"`
+	OrderTime           convert.ExchangeTime `json:"orderTime"`
+
+	MarginType int64 `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
+	Trades     []struct {
+		FeePay  float64 `json:"feePay"`
+		TradeID string  `json:"tradeId"`
+	} `json:"trades"`
+}
+
+// FuturesOrdersV2 represents a paginated list of Futures orders.
+type FuturesOrdersV2 struct {
+	BeforeID string         `json:"beforeId"`
+	HasMore  bool           `json:"hasMore"`
+	NextID   string         `json:"nextId"`
+	Items    []FuturesOrder `json:"items"`
+}
+
+// FuturesOrderFill represents a futures order fill information.
+type FuturesOrderFill struct {
+	Symbol         string               `json:"symbol"`
+	TradeID        string               `json:"tradeId"`
+	OrderID        string               `json:"orderId"`
+	Side           string               `json:"side"`
+	Liquidity      string               `json:"liquidity"`
+	Price          types.Number         `json:"price"`
+	Size           float64              `json:"size"`
+	Value          string               `json:"value"`
+	FeeRate        types.Number         `json:"feeRate"`
+	FixFee         types.Number         `json:"fixFee"`
+	FeeCurrency    string               `json:"feeCurrency"`
+	Stop           string               `json:"stop"`
+	Fee            types.Number         `json:"fee"`
+	OrderType      string               `json:"orderType"`
+	TradeType      string               `json:"tradeType"`
+	CreatedAt      convert.ExchangeTime `json:"createdAt"`
+	SettleCurrency string               `json:"settleCurrency"`
+	TradeTime      convert.ExchangeTime `json:"tradeTime"`
+}
+
+// FuturesOrderFills represents a futures order fill information as a list.
+type FuturesOrderFills struct {
+	CurrentPage int64              `json:"currentPage"`
+	PageSize    int64              `json:"pageSize"`
+	TotalNum    int64              `json:"totalNum"`
+	TotalPage   int64              `json:"totalPage"`
+	Items       []FuturesOrderFill `json:"items"`
+}
+
+// FuturesActiveOrdersValue represents active orders total value.
+type FuturesActiveOrdersValue struct {
+	OpenOrderBuySize  int64        `json:"openOrderBuySize"`
+	OpenOrderSellSize int64        `json:"openOrderSellSize"`
+	OpenOrderBuyCost  types.Number `json:"openOrderBuyCost"`
+	OpenOrderSellCost types.Number `json:"openOrderSellCost"`
+	SettleCurrency    string       `json:"settleCurrency"`
+}
+
+// FuturesOrderFillsV2 represents a futures order fill data for v2 api.
+type FuturesOrderFillsV2 struct {
+	BeforeID string              `json:"beforeId"`
+	HasMore  bool                `json:"hasMore"`
+	NextID   string              `json:"nextId"`
+	Items    []FuturesOrderFills `json:"items"`
+}
+
+// FuturesPositionDetail represents a futures position detail.
+type FuturesPositionDetail struct {
+	PositionID        string               `json:"id"`
+	Symbol            string               `json:"symbol"`
+	AutoDeposit       bool                 `json:"autoDeposit"`
+	MaintMarginReq    float64              `json:"maintMarginReq"`
+	RiskLimit         int64                `json:"riskLimit"`
+	RealLeverage      float64              `json:"realLeverage"`
+	MarginType        int64                `json:"marginType"`
+	DelevPercentage   float64              `json:"delevPercentage"`
+	OpeningTimestamp  convert.ExchangeTime `json:"openingTimestamp"`
+	CurrentTimestamp  convert.ExchangeTime `json:"currentTimestamp"`
+	CurrentQty        float64              `json:"currentQty"`
+	CurrentCost       float64              `json:"currentCost"`
+	CurrentComm       float64              `json:"currentComm"`
+	UnrealisedCost    float64              `json:"unrealisedCost"`
+	RealisedGrossCost float64              `json:"realisedGrossCost"`
+	RealisedCost      float64              `json:"realisedCost"`
+	IsOpen            bool                 `json:"isOpen"`
+	MarkPrice         float64              `json:"markPrice"`
+	MarkValue         float64              `json:"markValue"`
+	PosCost           float64              `json:"posCost"`
+	PosCross          float64              `json:"posCross"`
+	PosInit           float64              `json:"posInit"`
+	PosComm           float64              `json:"posComm"`
+	PosLoss           float64              `json:"posLoss"`
+	PosMargin         float64              `json:"posMargin"`
+	PosMaint          float64              `json:"posMaint"`
+	MaintMargin       float64              `json:"maintMargin"`
+	RealisedGrossPNL  float64              `json:"realisedGrossPnl"`
+	RealisedPnl       float64              `json:"realisedPnl"`
+	UnrealisedPnl     float64              `json:"unrealisedPnl"`
+	UnrealisedPnlPcnt float64              `json:"unrealisedPnlPcnt"`
+	UnrealisedRoePcnt float64              `json:"unrealisedRoePcnt"`
+	AvgEntryPrice     float64              `json:"avgEntryPrice"`
+	LiquidationPrice  float64              `json:"liquidationPrice"`
+	BankruptPrice     float64              `json:"bankruptPrice"`
+	SettleCurrency    string               `json:"settleCurrency"`
+}
+
+// AlterMarginManuallyParams represents a request parameter to add/remove a margin parameter manually.
+type AlterMarginManuallyParams struct {
+	Symbol       currency.Pair `json:"symbol"`
+	MarginAmount float64       `json:"margin"`
+	BizNo        string        `json:"bizNo"`
+}
+
+// FuturesLeverageResp represents a futures leverage response.
+type FuturesLeverageResp struct {
+	Symbol   string  `json:"symbol"`
+	Leverage float64 `json:"leverage"`
+}

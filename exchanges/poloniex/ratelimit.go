@@ -9,6 +9,7 @@ import (
 const (
 	rateInterval         = time.Second
 	threeSecondsInterval = time.Second * 3
+	tenSecondsInterval   = time.Second * 10
 
 	unauthRate                   = 200
 	authNonResourceIntensiveRate = 50
@@ -32,6 +33,18 @@ const (
 	fTransactionHistoryEPL
 	fOrderEPL
 	fCancelOrderEPL
+	fCancelAllLimitOrdersEPL
+	fCancelAllStopOrdersEPL
+	fGetOrdersEPL
+	fGetUntriggeredStopOrderEPL
+	fGetCompleted24HrEPL
+	fGetSingleOrderDetailEPL
+	fGetFuturesOrdersV2EPL
+	fGetFuturesFillsEPL
+	fGetActiveOrderValueCalculationEPL
+	fGetFillsV2EPL
+	fGetFuturesPositionDetailsEPL
+	fGetPositionListEPL
 )
 
 // GetRateLimit returns the rate limit for the exchange
@@ -41,13 +54,25 @@ const (
 // As per https://docs.poloniex.com/#http-api
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		authNonResourceIntensiveEPL: request.NewRateLimitWithWeight(rateInterval, authNonResourceIntensiveRate, 1),
-		authResourceIntensiveEPL:    request.NewRateLimitWithWeight(rateInterval, authResourceIntensiveRate, 1),
-		unauthEPL:                   request.NewRateLimitWithWeight(rateInterval, unauthRate, 1),
-		referenceDataEPL:            request.NewRateLimitWithWeight(rateInterval, referenceDataRate, 1),
-		accountOverviewEPL:          request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
-		fTransactionHistoryEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
-		fOrderEPL:                   request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
-		fCancelOrderEPL:             request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
+		authNonResourceIntensiveEPL:        request.NewRateLimitWithWeight(rateInterval, authNonResourceIntensiveRate, 1),
+		authResourceIntensiveEPL:           request.NewRateLimitWithWeight(rateInterval, authResourceIntensiveRate, 1),
+		unauthEPL:                          request.NewRateLimitWithWeight(rateInterval, unauthRate, 1),
+		referenceDataEPL:                   request.NewRateLimitWithWeight(rateInterval, referenceDataRate, 1),
+		accountOverviewEPL:                 request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
+		fTransactionHistoryEPL:             request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
+		fOrderEPL:                          request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
+		fCancelOrderEPL:                    request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
+		fCancelAllLimitOrdersEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 1, 1),
+		fCancelAllStopOrdersEPL:            request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),
+		fGetOrdersEPL:                      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
+		fGetUntriggeredStopOrderEPL:        request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+		fGetCompleted24HrEPL:               request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
+		fGetSingleOrderDetailEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 40, 1),
+		fGetFuturesOrdersV2EPL:             request.NewRateLimitWithWeight(threeSecondsInterval, 30, 1),
+		fGetFuturesFillsEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+		fGetActiveOrderValueCalculationEPL: request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+		fGetFillsV2EPL:                     request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+		fGetFuturesPositionDetailsEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+		fGetPositionListEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
 	}
 }

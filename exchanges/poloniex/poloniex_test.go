@@ -1664,7 +1664,172 @@ func TestPlaceMultipleFuturesOrder(t *testing.T) {
 func TestFuturesCancelOrderByID(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.FuturesCancelOrderByID(context.Background(), "5c52e11203aa677f33e493fc")
+	result, err := p.CancelFuturesOrderByID(context.Background(), "5c52e11203aa677f33e493fc")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllFuturesLimitOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CancelAllFuturesLimitOrders(context.Background(), "BTCUSDTPERP", "sell")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllFuturesStopOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CancelAllFuturesStopOrders(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesOrderList(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetFuturesOrderList(context.Background(), "active", "", "Sell", "limit", time.Now(), time.Now().Add(-time.Hour*5), margin.Isolated)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesOrderList(context.Background(), "active", "", "Sell", "limit", time.Time{}, time.Time{}, margin.Unknown)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesUntriggeredStopOrderList(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetFuturesUntriggeredStopOrderList(context.Background(), "", "Sell", "limit", time.Now(), time.Now().Add(-time.Hour*5), margin.Isolated)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesUntriggeredStopOrderList(context.Background(), "", "Sell", "limit", time.Time{}, time.Time{}, margin.Unknown)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesCompletedOrdersIn24Hour(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesCompletedOrdersIn24Hour(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesSingleOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesSingleOrderDetailByOrderID(context.Background(), "5cdfc138b21023a909e5ad55")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesSingleOrderDetailByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesSingleOrderDetailByClientOrderID(context.Background(), "5cdfc138b21023a909e5ad55")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesOrderListV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesOrderListV2(context.Background(), "done", futuresTradablePair.String(), "buy", "market", "PREV", time.Time{}, time.Time{}, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesOrderFills(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesOrderFills(context.Background(), "5ce24c1f0c19fc3c58edc47c", futuresTradablePair.String(), "", "limit", time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesActiveOrderValueCalculation(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetFuturesActiveOrderValueCalculation(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesActiveOrderValueCalculation(context.Background(), futuresTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesFillsV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesFillsV2(context.Background(), "active", futuresTradablePair.String(), "buy", "", "1231312321", "orderNEXT", time.Time{}, time.Time{}, margin.Unset, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesPositionDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesPositionDetails(context.Background(), futuresTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesPositionList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesPositionList(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFuturesRemoveMarginManually(t *testing.T) {
+	t.Parallel()
+	err := p.FuturesRemoveMarginManually(context.Background(), &AlterMarginManuallyParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	err = p.FuturesRemoveMarginManually(context.Background(), &AlterMarginManuallyParams{
+		Symbol:       futuresTradablePair,
+		MarginAmount: 123,
+		BizNo:        "31312312",
+	})
+	assert.NotNil(t, err)
+}
+
+func TestFuturesAddMarginManually(t *testing.T) {
+	t.Parallel()
+	err := p.FuturesAddMarginManually(context.Background(), &AlterMarginManuallyParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	err = p.FuturesAddMarginManually(context.Background(), &AlterMarginManuallyParams{
+		Symbol:       futuresTradablePair,
+		MarginAmount: 123,
+		BizNo:        "31312312",
+	})
+	assert.NotNil(t, err)
+}
+
+func TestGetFuturesLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetFuturesLeverage(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesLeverage(context.Background(), futuresTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetFuturesLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := p.SetFuturesLeverage(context.Background(), "", 0)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = p.SetFuturesLeverage(context.Background(), futuresTradablePair.String(), 0)
+	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.SetFuturesLeverage(context.Background(), futuresTradablePair.String(), 3)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
