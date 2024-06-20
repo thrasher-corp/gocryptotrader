@@ -529,9 +529,8 @@ func formatChannelInterval(s *subscription.Subscription) string {
 	case subscription.OrderbookChannel:
 		if s.Interval.Duration() == time.Second {
 			return "@1000ms"
-		} else {
-			return "@" + s.Interval.Short()
 		}
+		return "@" + s.Interval.Short()
 	case subscription.CandlesChannel:
 		return "_" + s.Interval.Short()
 	}
