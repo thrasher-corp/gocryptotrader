@@ -47,7 +47,6 @@ var (
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
 	errUnknownError       = errors.New("unknown error")
-	wsPairFmt             = currency.PairFormat{Uppercase: false, Delimiter: ""}
 )
 
 // WsConnect initiates a websocket connection
@@ -514,7 +513,7 @@ func (b *Binance) GetSubscriptionTemplateFuncs() template.FuncMap {
 	return template.FuncMap{
 		"interval": formatChannelInterval,
 		"levels":   formatChannelLevels,
-		"fmt":      wsPairFmt.Format,
+		"fmt":      currency.EMPTYFORMAT.Format,
 	}
 }
 
