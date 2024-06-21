@@ -56,7 +56,6 @@ type Subscription struct {
 	Interval         kline.Interval `json:"interval,omitempty"`
 	Levels           int            `json:"levels,omitempty"`
 	Authenticated    bool           `json:"authenticated,omitempty"`
-	Template         string         `json:"template,omitempty"`
 	QualifiedChannel string         `json:"-"`
 	state            State
 	m                sync.RWMutex
@@ -139,7 +138,6 @@ func (s *Subscription) Clone() *Subscription {
 		Authenticated:    s.Authenticated,
 		state:            s.state,
 		Pairs:            s.Pairs,
-		Template:         s.Template,
 		QualifiedChannel: s.QualifiedChannel,
 	}
 	s.Pairs = slices.Clone(s.Pairs)

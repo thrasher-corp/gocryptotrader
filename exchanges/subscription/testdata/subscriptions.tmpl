@@ -1,0 +1,25 @@
+{{- with $ctx := . }}
+{{- with $s := $ctx.Sub }}
+{{- if eq $s.Channel "feature1" -}}
+  {{/* Case 1: One channel to rule them all */}}
+  feature1
+{{- else if eq $s.Channel "feature2" -}}
+  {{/* Case 2: One channel per asset */}}
+  {{- range $asset, $pairs := $ctx.AssetPairs }}
+    {{ assetName $asset }}-feature2@ {{- $s.Interval.Short }}
+    {{- $ctx.AssetSeparator }}
+  {{- end }}
+{{- else if eq $s.Channel "feature3" }}
+  {{/* Case 3: One channel per pair per asset */}}
+  {{- range $asset, $pairs := $ctx.AssetPairs }}
+    {{- range $pair := $pairs -}}
+      {{ assetName $asset }}-{{ $pair.Swap.String -}} -feature3@ {{- $s.Levels }}
+      {{- $ctx.PairSeparator -}}
+    {{- end -}}
+    {{- $ctx.AssetSeparator -}}
+  {{- end -}}
+{{- else if eq $s.Channel "feature4" }}
+  feature4-authed
+{{- end -}}
+{{- end -}}
+{{- end -}}
