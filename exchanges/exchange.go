@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -172,13 +171,6 @@ func (b *Base) SetSubscriptionsFromConfig() {
 	if len(b.Config.Features.Subscriptions) == 0 {
 		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
-	}
-	if slices.ContainsFunc(b.Features.Subscriptions, func(s *subscription.Subscription) bool { return s.Template != "" }) {
-		if slices.ContainsFunc(b.Config.Features.Subscriptions, func(s *subscription.Subscription) bool { return s.Template == "" }) {
-			// Defaults use templating, but user config does not
-			log.Warnf(log.ExchangeSys, "%s: user subscription config missing templates; Replacing with defaults. Previously: %s", b.Name, b.Config.Features.Subscriptions.Strings())
-			b.Config.Features.Subscriptions = b.Features.Subscriptions
-		}
 	}
 	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
@@ -1159,9 +1151,9 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 
-// GetSubscriptionTemplateFuncs returns a list of functions available to customise the subscription channel formatting
-func (b *Base) GetSubscriptionTemplateFuncs() template.FuncMap {
-	return nil
+// GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
+func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

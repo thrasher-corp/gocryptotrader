@@ -79,7 +79,7 @@ type IBotExchange interface {
 	SubscribeToWebsocketChannels(channels subscription.List) error
 	UnsubscribeToWebsocketChannels(channels subscription.List) error
 	GetSubscriptions() (subscription.List, error)
-	GetSubscriptionTemplateFuncs() template.FuncMap
+	GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool

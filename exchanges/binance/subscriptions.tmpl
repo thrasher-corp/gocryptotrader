@@ -1,0 +1,12 @@
+{{/* Directive: expand $pairs */}}
+{{- with $ctx := . }}
+{{- with $s := $ctx.Sub }}
+{{- range $pair := index $ctx.AssetPairs $s.Asset }}
+  {{- fmt $pair -}} @
+  {{- if eq $s.Channel "ticker"         -}} ticker
+  {{- else if eq $s.Channel "allTrades" -}} trade
+  {{- else if eq $s.Channel "candles"   -}} kline       {{- interval $s}}
+  {{- else if eq $s.Channel "orderbook" -}} depth       {{- levels $s}}{{- interval $s}}
+  {{- end -}}
+  {{ $ctx.PairSeparator }}
+{{- end}}{{end}}{{end -}}

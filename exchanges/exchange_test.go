@@ -2836,17 +2836,6 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	b.SetSubscriptionsFromConfig()
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
 	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Subscriptions should only contain Enabled from Config")
-
-	b.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Enabled: true, Template: "default template"}}
-	b.Config.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Enabled: true}}
-	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, b.Features.Subscriptions, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
-
-	b.Config.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Enabled: true, Template: "user template"}}
-	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, b.Features.Subscriptions, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
-	require.Len(t, b.Features.Subscriptions, 1, "Must get correct number of subscriptions")
-	assert.Equal(t, "user template", b.Features.Subscriptions[0].Template, "Template should not be overloaded if populated")
 }
 
 // TestParallelChanOp unit tests the helper func ParallelChanOp

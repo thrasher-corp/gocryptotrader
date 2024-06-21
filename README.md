@@ -143,11 +143,11 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 690 |
-| [shazbert](https://github.com/shazbert) | 326 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 276 |
-| [gloriousCode](https://github.com/gloriousCode) | 233 |
+| [shazbert](https://github.com/shazbert) | 330 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 287 |
+| [gloriousCode](https://github.com/gloriousCode) | 234 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
-| [gbjk](https://github.com/gbjk) | 72 |
+| [gbjk](https://github.com/gbjk) | 76 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Beadko](https://github.com/Beadko) | 17 |
@@ -157,8 +157,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [samuael](https://github.com/samuael) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
-| [samuael](https://github.com/samuael) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |

@@ -508,13 +508,18 @@ func (b *Binance) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
-// GetSubscriptionTemplateFuncs returns functions available for subscription channel templating
-func (b *Binance) GetSubscriptionTemplateFuncs() template.FuncMap {
-	return template.FuncMap{
+var subTemplate *template.Template
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (t *template.Template, err error) {
+	t = template.New("subscriptions.tmpl")
+	t.Funcs(template.FuncMap{
 		"interval": formatChannelInterval,
 		"levels":   formatChannelLevels,
 		"fmt":      currency.EMPTYFORMAT.Format,
-	}
+	})
+	t, err = t.ParseFiles("subscriptions.tmpl")
+	return
 }
 
 func formatChannelLevels(s *subscription.Subscription) string {

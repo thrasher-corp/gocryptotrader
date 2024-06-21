@@ -224,16 +224,14 @@ func (b *Binance) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Binance) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
+	if err := b.SetupDefaults(exch); err != nil {
 		return err
 	}
 	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
