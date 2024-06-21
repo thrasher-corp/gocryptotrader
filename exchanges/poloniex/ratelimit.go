@@ -45,6 +45,7 @@ const (
 	fGetFillsV2EPL
 	fGetFuturesPositionDetailsEPL
 	fGetPositionListEPL
+	fGetFundingRateEPL
 )
 
 // GetRateLimit returns the rate limit for the exchange
@@ -74,5 +75,6 @@ func GetRateLimit() request.RateLimitDefinitions {
 		fGetFillsV2EPL:                     request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
 		fGetFuturesPositionDetailsEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
 		fGetPositionListEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+		fGetFundingRateEPL:                 request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
 	}
 }

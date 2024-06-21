@@ -1833,3 +1833,14 @@ func TestSetFuturesLeverage(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetFuturesFundingHistory(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetFuturesFundingHistory(context.Background(), "", time.Time{}, time.Time{}, false, false, 0, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetFuturesFundingHistory(context.Background(), futuresTradablePair.String(), time.Time{}, time.Time{}, true, false, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

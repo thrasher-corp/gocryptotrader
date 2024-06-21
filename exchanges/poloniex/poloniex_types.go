@@ -1370,7 +1370,7 @@ type FuturesOrderParams struct {
 	Leverage      int64   `json:"leverage"`
 	Stop          string  `json:"stop"`
 	StopPrice     float64 `json:"stopPrice"`
-	StopPriceType string  `json:"stopPriceType"`
+	StopPriceType string  `json:"stopPriceType"` // possible values are TP (Trade Price), IP (Index Price), and MP (Mark Price)
 	ReduceOnly    bool    `json:"reduceOnly"`
 	CloseOrder    bool    `json:"closeOrder"`
 	ForceHold     bool    `json:"forceHold"`
@@ -1380,8 +1380,8 @@ type FuturesOrderParams struct {
 	PostOnly    bool    `json:"postOnly,omitempty"`
 	Price       float64 `json:"price,omitempty"`
 	Remark      string  `json:"remark,omitempty"`
-	Size        float64 `json:"size"` // amount of contract to buy or sell
-	Quantity    float64 `json:"quantity,omitempty"`
+	Size        float64 `json:"size"`               // Amount of contract to buy or sell
+	Quantity    float64 `json:"quantity,omitempty"` // [optional] Order quantity. Must be a positive number. Only takes effect when size is empty
 	TimeInForce string  `json:"timeInForce,omitempty"`
 	VisibleSize float64 `json:"visibleSize,omitempty"`
 }
@@ -1432,11 +1432,11 @@ type FuturesOrder struct {
 	Hidden              bool                 `json:"hidden"`
 	Iceberg             bool                 `json:"iceberg"`
 	VisibleSize         float64              `json:"visibleSize"`
-	Leverage            string               `json:"leverage"`
+	Leverage            types.Number         `json:"leverage"`
 	ForceHold           bool                 `json:"forceHold"`
 	CloseOrder          bool                 `json:"closeOrder"`
 	ReduceOnly          bool                 `json:"reduceOnly"`
-	ClientOid           string               `json:"clientOid"`
+	ClientOrderID       string               `json:"clientOid"`
 	Remark              string               `json:"remark"`
 	IsActive            bool                 `json:"isActive"`
 	CancelExist         bool                 `json:"cancelExist"`
@@ -1560,4 +1560,20 @@ type AlterMarginManuallyParams struct {
 type FuturesLeverageResp struct {
 	Symbol   string  `json:"symbol"`
 	Leverage float64 `json:"leverage"`
+}
+
+// FuturesFundingHistory represents a futures funding history list.
+type FuturesFundingHistory struct {
+	DataList []struct {
+		ID             int64   `json:"id"`
+		Symbol         string  `json:"symbol"`
+		TimePoint      int64   `json:"timePoint"`
+		FundingRate    float64 `json:"fundingRate"`
+		MarkPrice      float64 `json:"markPrice"`
+		PositionQty    float64 `json:"positionQty"`
+		PositionCost   float64 `json:"positionCost"`
+		Funding        float64 `json:"funding"`
+		SettleCurrency string  `json:"settleCurrency"`
+	} `json:"dataList"`
+	HasMore bool `json:"hasMore"`
 }

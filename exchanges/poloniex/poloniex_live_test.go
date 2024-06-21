@@ -36,11 +36,10 @@ func TestMain(m *testing.M) {
 	}
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	// err = p.Websocket.Enable()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	p.HTTPRecording = true
+	err = p.Websocket.Enable()
+	if err != nil {
+		log.Fatal(err)
+	}
 	populateTradablepairs()
 	setupWS()
 	os.Exit(m.Run())

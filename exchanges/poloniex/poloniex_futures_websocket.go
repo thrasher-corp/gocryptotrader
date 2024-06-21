@@ -67,7 +67,6 @@ func (p *Poloniex) WsFuturesConnect() error {
 	default:
 		instanceServers, err = p.GetPublicFuturesWebsocketServerInstances(context.Background())
 		if err != nil {
-			panic(err)
 			return err
 		}
 	}

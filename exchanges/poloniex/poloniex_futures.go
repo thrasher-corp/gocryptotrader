@@ -429,7 +429,7 @@ func (p *Poloniex) CancelAllFuturesStopOrders(ctx context.Context, symbol string
 }
 
 // GetFuturesOrderList retrieves list of current orders.
-func (p *Poloniex) GetFuturesOrderList(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (interface{}, error) {
+func (p *Poloniex) GetFuturesOrderList(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (*FuturesOrders, error) {
 	params := url.Values{}
 	if status != "" {
 		params.Set("status", status)
@@ -706,4 +706,32 @@ func (p *Poloniex) SetFuturesLeverage(ctx context.Context, symbol string, levera
 		"symbol": symbol,
 		"lever":  leverage,
 	}, &resp)
+}
+
+// GetFuturesFundingHistory retrieves the funding history of a symbol.
+func (p *Poloniex) GetFuturesFundingHistory(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) (*FuturesFundingHistory, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startAt.IsZero() && !endAt.IsZero() {
+		err := common.StartEndTimeCheck(startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if !reverse {
+		params.Set("reverse", "false")
+	}
+	if !forward {
+		params.Set("forward", "false")
+	}
+	if maxCount > 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	var resp *FuturesFundingHistory
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFundingRateEPL, http.MethodGet, "/api/v1/funding-history", params, nil, &resp)
 }

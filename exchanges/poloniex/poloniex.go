@@ -1002,7 +1002,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
-		Result:        rawResponse,
+		Result:        &rawResponse,
 		Verbose:       p.Verbose,
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,

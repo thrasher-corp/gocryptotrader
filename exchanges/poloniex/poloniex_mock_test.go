@@ -60,9 +60,9 @@ func TestMain(m *testing.M) {
 	}
 	spotTradablePair = currency.NewPairWithDelimiter("ETH", "USDT", "_")
 	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDTPERP", "")
-	// err = p.Websocket.Enable()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	err = p.Websocket.Enable()
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
