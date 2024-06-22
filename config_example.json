@@ -1132,70 +1132,6 @@
    ]
   },
   {
-    "name": "CoinbaseInternational",
-    "enabled": true,
-    "verbose": false,
-    "httpTimeout": 15000000000,
-    "websocketResponseCheckTimeout": 30000000,
-    "websocketResponseMaxLimit": 150000000000000000,
-    "websocketTrafficTimeout": 30000000000,
-    "websocketOrderbookBufferLimit": 5,
-    "baseCurrencies": "USD",
-    "currencyPairs": {
-        "requestFormat": {
-            "uppercase": true,
-            "delimiter": "-"
-        },
-        "configFormat": {
-            "uppercase": true,
-            "delimiter": "-"
-        },
-        "useGlobalFormat": true,
-        "assetTypes": [
-            "spot"
-        ],
-        "pairs": {
-            "spot":{
-                "assetEnabled": true,
-                "enabled": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP",
-                "available": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP"
-            }
-        }
-    },
-    "api": {
-        "authenticatedSupport": true,
-        "authenticatedWebsocketApiSupport": false,
-        "credentials": {
-        "key": "Key",
-        "secret": "Secret"
-        },
-        "urlEndpoints": null
-    },
-    "features": {
-        "supports": {
-            "restAPI": true,
-            "restCapabilities": {
-                "autoPairUpdates": true
-            },
-            "websocketAPI": false,
-            "websocketCapabilities": {}
-        },
-        "enabled": {
-            "autoPairUpdates": true,
-            "websocketAPI": true,
-            "saveTradeData": false,
-            "tradeFeed": false,
-            "fillsFeed": false
-        }
-    },
-    "orderbook": {
-        "verificationBypass": false,
-        "websocketBufferLimit": 0,
-        "websocketBufferEnabled": false,
-        "publishPeriod": null
-    }
-  },
-  {
    "name": "COINUT",
    "enabled": true,
    "verbose": false,
@@ -1271,6 +1207,70 @@
      "supportedCurrencies": ""
     }
    ]
+  },
+  {
+   "name": "CoinbaseInternational",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 15000000000,
+   "websocketResponseCheckTimeout": 30000000,
+   "websocketResponseMaxLimit": 150000000000000000,
+   "websocketTrafficTimeout": 30000000000,
+   "websocketOrderbookBufferLimit": 5,
+   "baseCurrencies": "USD",
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP",
+      "available": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP"
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": true,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "urlEndpoints": null
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": false,
+     "fillsFeed": false
+    }
+   },
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 0,
+    "websocketBufferEnabled": false,
+    "publishPeriod": null
+   }
   },
   {
    "name": "CoinbasePro",
