@@ -95,39 +95,42 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	var pairs currency.Pairs
 	switch resp.Type {
 	case "SUBSCRIBE":
-		subsccefulySubscribedChannels := []subscription.Subscription{}
+		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
-			pairs, err := currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
+			pairs, err = currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
 			if err != nil {
 				return err
 			}
-			for p := range pairs {
-				subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
-					subscription.Subscription{
-						Channel: resp.Channels[x].Name,
-						Pair:    pairs[p],
-					})
-			}
+			subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
+				&subscription.Subscription{
+					Channel: resp.Channels[x].Name,
+					Pairs:   pairs,
+				})
 		}
-		co.Websocket.AddSuccessfulSubscriptions(subsccefulySubscribedChannels...)
+		err = co.Websocket.AddSuccessfulSubscriptions(subsccefulySubscribedChannels...)
+		if err != nil {
+			return err
+		}
 	case "UNSUBSCRIBE":
-		subsccefulySubscribedChannels := []subscription.Subscription{}
+		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
-			pairs, err := currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
+			pairs, err = currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
 			if err != nil {
 				return err
 			}
-			for p := range pairs {
-				subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
-					subscription.Subscription{
-						Channel: resp.Channels[x].Name,
-						Pair:    pairs[p],
-					})
-			}
+			subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
+				&subscription.Subscription{
+					Channel: resp.Channels[x].Name,
+					Pairs:   pairs,
+				})
 		}
-		co.Websocket.RemoveSubscriptions(subsccefulySubscribedChannels...)
+		err = co.Websocket.RemoveSubscriptions(subsccefulySubscribedChannels...)
+		if err != nil {
+			return err
+		}
 	case "REJECT":
 		return fmt.Errorf("%s %v message: %s, reason: %s  ", resp.Channel, resp.Type, resp.Message, resp.Reason)
 	default: //  SNAPSHOT and UPDATE
@@ -164,12 +167,12 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		asks := make([]orderbook.Item, len(resp[x].Asks))
+		asks := make([]orderbook.Tranche, len(resp[x].Asks))
 		for a := range resp[x].Asks {
 			asks[a].Price = resp[x].Asks[a][0].Float64()
 			asks[a].Amount = resp[x].Asks[a][1].Float64()
 		}
-		bids := make([]orderbook.Item, len(resp[x].Bids))
+		bids := make([]orderbook.Tranche, len(resp[x].Bids))
 		for b := range resp[x].Bids {
 			bids[b].Price = resp[x].Bids[b][0].Float64()
 			bids[b].Amount = resp[x].Bids[b][1].Float64()
@@ -222,8 +225,8 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 				UpdateTime: resp[x].Time,
 				Action:     orderbook.Amend,
 				UpdateID:   resp[x].Sequence,
-				Asks:       []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-				Bids:       []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+				Asks:       []orderbook.Tranche{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+				Bids:       []orderbook.Tranche{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
 			})
 			if err != nil {
 				return err
@@ -235,8 +238,8 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
 			LastUpdateID: resp[x].Sequence,
-			Asks:         []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-			Bids:         []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+			Asks:         []orderbook.Tranche{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+			Bids:         []orderbook.Tranche{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
 		})
 		if err != nil {
 			return err
@@ -293,7 +296,7 @@ func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
 }
 
 // GenerateSubscriptionPayload generates a subscription payloads list.
-func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []subscription.Subscription, operation string) ([]SubscriptionInput, error) {
+func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
 	if len(subscriptions) == 0 {
 		return nil, errEmptyArgument
 	}
@@ -307,7 +310,9 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []sub
 		if !okay {
 			channelPairsMap[subscriptions[x].Channel] = currency.Pairs{}
 		}
-		channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Pair.Format(format))
+		for p := range subscriptions[x].Pairs {
+			channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Pairs[p].Format(format))
+		}
 	}
 	payloads := make([]SubscriptionInput, 0, len(channelPairsMap))
 	var payload *SubscriptionInput
@@ -404,26 +409,24 @@ func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credenti
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (co *CoinbaseInternational) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (co *CoinbaseInternational) GenerateDefaultSubscriptions() (subscription.List, error) {
 	enabledPairs, err := co.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	subscriptions := make([]subscription.Subscription, 0, len(enabledPairs))
-	for p := range enabledPairs {
-		for x := range defaultSubscriptions {
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: defaultSubscriptions[x],
-				Pair:    enabledPairs[p],
-				Asset:   asset.Spot,
-			})
-		}
+	subscriptions := make(subscription.List, 0, len(enabledPairs))
+	for x := range defaultSubscriptions {
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: defaultSubscriptions[x],
+			Pairs:   enabledPairs,
+			Asset:   asset.Spot,
+		})
 	}
 	return subscriptions, nil
 }
 
 // Subscribe subscribe to channels
-func (co *CoinbaseInternational) Subscribe(subscriptions []subscription.Subscription) error {
+func (co *CoinbaseInternational) Subscribe(subscriptions subscription.List) error {
 	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
 	if err != nil {
 		return err
@@ -432,7 +435,7 @@ func (co *CoinbaseInternational) Subscribe(subscriptions []subscription.Subscrip
 }
 
 // Unsubscribe unsubscribe to channels
-func (co *CoinbaseInternational) Unsubscribe(subscriptions []subscription.Subscription) error {
+func (co *CoinbaseInternational) Unsubscribe(subscriptions subscription.List) error {
 	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
 	if err != nil {
 		return err

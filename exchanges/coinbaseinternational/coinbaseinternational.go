@@ -204,6 +204,9 @@ func (co *CoinbaseInternational) CancelOrders(ctx context.Context, portfolioID, 
 
 // ModifyOpenOrder modifies an open order.
 func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID string, arg *ModifyOrderParam) (*OrderItem, error) {
+	if arg == nil || *arg == (ModifyOrderParam{}) {
+		return nil, common.ErrNilPointer
+	}
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}

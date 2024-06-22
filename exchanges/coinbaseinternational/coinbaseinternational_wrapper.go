@@ -352,11 +352,11 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 	if err != nil {
 		return book, err
 	}
-	book.Bids = []orderbook.Item{{
+	book.Bids = orderbook.Tranches{{
 		Amount: orderbookNew.BestBidSize.Float64(),
 		Price:  orderbookNew.BestBidPrice.Float64(),
 	}}
-	book.Asks = []orderbook.Item{{
+	book.Asks = orderbook.Tranches{{
 		Amount: orderbookNew.BestAskSize.Float64(),
 		Price:  orderbookNew.BestAskPrice.Float64(),
 	}}
