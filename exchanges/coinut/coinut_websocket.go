@@ -580,18 +580,18 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	for i := range channels {
 		for j := range enabledPairs {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
-				Pair:    enabledPairs[j],
+				Pairs:   currency.Pairs{enabledPairs[j]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -600,46 +600,50 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (c *COINUT) Subscribe(subs subscription.List) error {
 	var errs error
-	for i := range channelsToSubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
+	for _, s := range subs {
+		if len(s.Pairs) != 1 {
+			return subscription.ErrNotSinglePair
+		}
+		fPair, err := c.FormatExchangeCurrency(s.Pairs[0], asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
 
 		subscribe := wsRequest{
-			Request:      channelsToSubscribe[i].Channel,
+			Request:      s.Channel,
 			InstrumentID: c.instrumentMap.LookupID(fPair.String()),
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
 		err = c.Websocket.Conn.SendJSONMessage(subscribe)
+		if err == nil {
+			err = c.Websocket.AddSuccessfulSubscriptions(s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) error {
+func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 	var errs error
-	for i := range channelToUnsubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pair, asset.Spot)
+	for _, s := range channelToUnsubscribe {
+		if len(s.Pairs) != 1 {
+			return subscription.ErrNotSinglePair
+		}
+		fPair, err := c.FormatExchangeCurrency(s.Pairs[0], asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
 
 		subscribe := wsRequest{
-			Request:      channelToUnsubscribe[i].Channel,
+			Request:      s.Channel,
 			InstrumentID: c.instrumentMap.LookupID(fPair.String()),
 			Subscribe:    false,
 			Nonce:        getNonce(),
@@ -651,22 +655,20 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) e
 		}
 		var response map[string]interface{}
 		err = json.Unmarshal(resp, &response)
+		if err == nil {
+			val, ok := response["status"].([]any)
+			switch {
+			case !ok:
+				err = common.GetTypeAssertError("[]any", response["status"])
+			case len(val) == 0, val[0] != "OK":
+				err = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, s.Channel))
+			default:
+				err = c.Websocket.RemoveSubscriptions(s)
+			}
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-
-		val, ok := response["status"].([]interface{})
-		if !ok {
-			errs = common.AppendError(errs, errors.New("unable to type assert response status"))
-		}
-		if val[0] != "OK" {
-			errs = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
-				c.Name,
-				channelToUnsubscribe[i].Channel))
-			continue
-		}
-		c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
 	}
 	return errs
 }

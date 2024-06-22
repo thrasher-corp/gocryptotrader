@@ -68,8 +68,9 @@ func (b *BTSE) FetchFundingHistory(ctx context.Context, symbol string) (map[stri
 	return resp, b.SendHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, btseFuturesFunding+params.Encode(), &resp, false, queryFunc)
 }
 
-// GetMarketSummary stores market summary data
-func (b *BTSE) GetMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
+// GetRawMarketSummary returns an unfiltered list of market pairs
+// Consider using the wrapper function GetMarketSummary instead
+func (b *BTSE) GetRawMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
 	var m MarketSummary
 	path := btseMarketOverview
 	if symbol != "" {
@@ -619,23 +620,7 @@ func parseOrderTime(timeStr string) (time.Time, error) {
 	return time.Parse(time.DateTime, timeStr)
 }
 
-// MillionPairs returns a map of symbol names which have a IsMillion equivalent
-func (m *MarketSummary) MillionPairs() map[string]bool {
-	pairs := map[string]bool{}
-	for _, s := range *m {
-		if s.Active && s.HasLiquidity() && s.IsMillions() {
-			pairs[strings.TrimPrefix(s.Symbol, "M_")] = true
-		}
-	}
-	return pairs
-}
-
 // HasLiquidity returns if a market pair has a bid or ask != 0
 func (m *MarketPair) HasLiquidity() bool {
 	return m.LowestAsk != 0 || m.HighestBid != 0
-}
-
-// IsMillions returns if a market pair represents a million of Base / Quote
-func (m *MarketPair) IsMillions() bool {
-	return strings.HasPrefix(m.Symbol, "M_")
 }

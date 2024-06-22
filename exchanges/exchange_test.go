@@ -880,8 +880,8 @@ func TestSetupDefaults(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
-		Subscriber:            func([]subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
+		Subscriber:            func(subscription.List) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1207,8 +1207,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },
-		Subscriber:            func([]subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(subscription.List) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -1645,15 +1645,11 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 func TestUnsubscribeToWebsocketChannels(t *testing.T) {
 	b := Base{}
 	err := b.UnsubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
 
 	b.Websocket = &stream.Websocket{}
 	err = b.UnsubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
 
 func TestGetSubscriptions(t *testing.T) {
@@ -2827,27 +2823,29 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 			Features: &config.FeaturesConfig{},
 		},
 	}
-	subs := []*subscription.Subscription{
+	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
+		{Channel: subscription.OrderbookChannel, Enabled: false},
 	}
 	b.Features.Subscriptions = subs
 	b.SetSubscriptionsFromConfig()
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
-	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be the same")
+	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Actual Subscriptions should only contain Enabled")
 
-	subs = []*subscription.Subscription{
-		{Channel: subscription.OrderbookChannel, Interval: kline.OneDay, Enabled: true},
+	subs = subscription.List{
+		{Channel: subscription.OrderbookChannel, Enabled: true},
+		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: false},
 	}
 	b.Config.Features.Subscriptions = subs
 	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be updated from Config")
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
+	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Subscriptions should only contain Enabled from Config")
 }
 
 // TestParallelChanOp unit tests the helper func ParallelChanOp
 func TestParallelChanOp(t *testing.T) {
 	t.Parallel()
-	c := []subscription.Subscription{
+	c := subscription.List{
 		{Channel: "red"},
 		{Channel: "blue"},
 		{Channel: "violent"},
@@ -2858,7 +2856,7 @@ func TestParallelChanOp(t *testing.T) {
 	b := Base{}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- b.ParallelChanOp(c, func(c []subscription.Subscription) error {
+		errC <- b.ParallelChanOp(c, func(c subscription.List) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c[0].Channel {
