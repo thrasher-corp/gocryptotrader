@@ -144,6 +144,10 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	r := b.Requester
+	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
+	b.Requester = r
 	start := time.Now().AddDate(0, 0, -3)
 	_, err := b.GetHistoricCandles(context.Background(), spotPair, asset.Spot, kline.OneHour, start, time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
@@ -154,6 +158,10 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+	r := b.Requester
+	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
+	b.Requester = r
 	err := b.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresPair}, true)
 	assert.NoError(t, err, "StorePairs should not error")
 
@@ -542,80 +550,28 @@ func TestMatchType(t *testing.T) {
 	assert.True(t, ret, "matchType should match")
 }
 
-func TestSeedOrderSizeLimits(t *testing.T) {
-	t.Parallel()
-	err := b.seedOrderSizeLimits(context.Background())
-	assert.NoError(t, err, "seedOrderSizeLimits should not error")
-}
-
-func TestOrderSizeLimits(t *testing.T) {
-	t.Parallel()
-	seedOrderSizeLimitMap()
-	_, ok := OrderSizeLimits(spotPair.String())
-	assert.True(t, ok, "OrderSizeLimits should find BTC-USD")
-
-	_, ok = OrderSizeLimits("XRP-GARBAGE")
-	assert.False(t, ok, "OrderSizeLimits should not find XRP-GARBAGE until the next bull market")
-}
-
-func seedOrderSizeLimitMap() {
-	testOrderSizeLimits := []struct {
-		name string
-		o    OrderSizeLimit
-	}{
-		{
-			name: "XRP-USD",
-			o: OrderSizeLimit{
-				MinSizeIncrement: 1,
-				MinOrderSize:     1,
-				MaxOrderSize:     1000000,
-			},
-		},
-		{
-			name: "LTC-USD",
-			o: OrderSizeLimit{
-				MinSizeIncrement: 0.01,
-				MinOrderSize:     0.01,
-				MaxOrderSize:     5000,
-			},
-		},
-		{
-			name: "BTC-USD",
-			o: OrderSizeLimit{
-				MinSizeIncrement: 0.0001,
-				MinOrderSize:     1,
-				MaxOrderSize:     1000000,
-			},
-		},
-	}
-
-	orderSizeLimitMap.Range(func(key interface{}, _ interface{}) bool {
-		orderSizeLimitMap.Delete(key)
-		return true
-	})
-
-	for x := range testOrderSizeLimits {
-		orderSizeLimitMap.Store(testOrderSizeLimits[x].name, testOrderSizeLimits[x].o)
-	}
-}
-
-func TestWithinLimits(t *testing.T) {
+// TestUpdateOrderExecutionLimits exercises UpdateOrderExecutionLimits
+func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, b)
-	seedOrderSizeLimitMap()
-	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
-	assert.NoError(t, b.withinLimits(p, 1.0), "withinLimits should not error")
-	assert.NoError(t, b.withinLimits(p, 5.0000001), "withinLimits should not error")
-	assert.NoError(t, b.withinLimits(p, 100), "withinLimits should not error")
-	assert.NoError(t, b.withinLimits(p, 10.1), "withinLimits should not error")
+	for _, a := range b.GetAssetTypes(false) {
+		err := b.UpdateOrderExecutionLimits(context.Background(), a)
+		require.NoErrorf(t, err, "UpdateOrderExecutionLimits must not error for %s", a)
 
-	p.Base = currency.LTC
-	assert.NoError(t, b.withinLimits(p, 10), "withinLimits should not error")
-	assert.ErrorIs(t, b.withinLimits(p, 0.009), order.ErrAmountBelowMin, "withinLimits should error correctly")
+		pairs, err := b.GetAvailablePairs(a)
+		require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+		require.NotEmpty(t, pairs, "GetAvailablePairs must return some pairs")
 
-	p.Base = currency.BTC
-	assert.NoError(t, b.withinLimits(p, 10), "withinLimits should not error")
-	assert.ErrorIs(t, b.withinLimits(p, 0.001), order.ErrAmountBelowMin, "withinLimits should error correctly")
+		for _, p := range pairs {
+			limits, err := b.GetOrderExecutionLimits(a, p)
+			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, p)
+			assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s %s", a, p)
+			assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s %s", a, p)
+			assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s %s", a, p)
+			assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s %s", a, p)
+			assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s %s", a, p)
+		}
+	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -718,7 +674,11 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	r := b.Requester
+	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
 	testexch.UpdatePairsOnce(t, b)
+	b.Requester = r
 	cp1 := currency.NewPair(currency.BTC, currency.PFC)
 	cp2 := currency.NewPair(currency.ETH, currency.PFC)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)
@@ -768,4 +728,24 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+// TestStripExponent exercises StripExponent
+func TestStripExponent(t *testing.T) {
+	t.Parallel()
+	s, err := (&MarketPair{Symbol: "BTC-ETH"}).StripExponent()
+	assert.NoError(t, err, "Should not error on a symbol without exponent")
+	assert.Empty(t, s, "Should return an empty symbol without exponent")
+
+	for _, p := range []string{"B", "M", "K"} {
+		s, err = (&MarketPair{Symbol: p + "_BTC-ETH"}).StripExponent()
+		assert.NoError(t, err, "Should not error on a symbol with exponent")
+		assert.Equal(t, "BTC-ETH", s, "Should return the symbol without the exponent")
+	}
+
+	_, err = (&MarketPair{Symbol: "Z_BTC-ETH"}).StripExponent()
+	assert.ErrorIs(t, err, errInvalidPairSymbol, "Should error on a symbol with unknown exponent")
+
+	_, err = (&MarketPair{Symbol: "M_BTC_ETH"}).StripExponent()
+	assert.ErrorIs(t, err, errInvalidPairSymbol, "Should error on a symbol with too many underscores")
 }
