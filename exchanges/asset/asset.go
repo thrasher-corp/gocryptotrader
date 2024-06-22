@@ -41,12 +41,14 @@ const (
 	Options
 	OptionCombo
 	FutureCombo
+	OTC // Over-the-counter(OTC)
+
 	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5
 	All
 
 	optionsFlag   = OptionCombo | Options
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract | OptionCombo | FutureCombo
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract | OptionCombo | FutureCombo | OTC
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -67,11 +69,12 @@ const (
 	options                = "options"
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
+	otc                    = "otc"
 	all                    = "all"
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, OTC}
 )
 
 // Supported returns a list of supported asset types
@@ -118,6 +121,8 @@ func (a Item) String() string {
 		return optionCombo
 	case FutureCombo:
 		return futureCombo
+	case OTC:
+		return otc
 	case All:
 		return all
 	default:
@@ -225,6 +230,8 @@ func New(input string) (Item, error) {
 		return OptionCombo, nil
 	case futureCombo:
 		return FutureCombo, nil
+	case otc:
+		return OTC, nil
 	case all:
 		return All, nil
 	default:

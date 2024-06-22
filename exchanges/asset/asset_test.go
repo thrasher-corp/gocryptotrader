@@ -98,6 +98,8 @@ func TestNew(t *testing.T) {
 		{Input: "Future", Error: ErrNotSupported},
 		{Input: "future_combo", Expected: FutureCombo},
 		{Input: "option_combo", Expected: OptionCombo},
+		{Input: "otc", Expected: OTC},
+		{Input: "OTC", Expected: OTC},
 	}
 
 	for x := range cases {
