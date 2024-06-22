@@ -623,7 +623,7 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	orderSubmission = &order.Submit{
+	result, err = cr.SubmitOrder(context.Background(), &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
 			Quote: currency.BTC,
@@ -635,27 +635,25 @@ func TestSubmitOrder(t *testing.T) {
 		Amount:    1000000000,
 		ClientID:  "myOwnOrder",
 		AssetType: asset.Spot,
-	}
-	result, err = cr.SubmitOrder(context.Background(), orderSubmission)
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	err := cr.CancelOrder(context.Background(), &order.Cancel{
 		OrderID:   "1",
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),
 		AssetType: asset.Spot,
-	}
-	err := cr.CancelOrder(context.Background(), orderCancellation)
+	})
 	assert.NoError(t, err)
 }
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	var orderCancellationParams = []order.Cancel{
+	result, err := cr.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID: "1",
 			Pair:    currency.NewPair(currency.LTC, currency.BTC),
@@ -664,8 +662,7 @@ func TestCancelBatchOrders(t *testing.T) {
 			OrderID: "1",
 			Pair:    currency.NewPair(currency.LTC, currency.BTC),
 		},
-	}
-	result, err := cr.CancelBatchOrders(context.Background(), orderCancellationParams)
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
