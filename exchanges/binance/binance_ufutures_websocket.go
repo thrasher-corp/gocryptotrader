@@ -639,16 +639,16 @@ func (b *Binance) processTrades(respRaw []byte) error {
 }
 
 // SubscribeFutures subscribes to a set of channels
-func (b *Binance) SubscribeFutures(channelsToSubscribe []subscription.Subscription) error {
+func (b *Binance) SubscribeFutures(channelsToSubscribe subscription.List) error {
 	return b.handleSubscriptions("SUBSCRIBE", channelsToSubscribe)
 }
 
 // UnsubscribeFutures unsubscribes from a set of channels
-func (b *Binance) UnsubscribeFutures(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *Binance) UnsubscribeFutures(channelsToUnsubscribe subscription.List) error {
 	return b.handleSubscriptions("UNSUBSCRIBE", channelsToUnsubscribe)
 }
 
-func (b *Binance) handleSubscriptions(operation string, subscriptionChannels []subscription.Subscription) error {
+func (b *Binance) handleSubscriptions(operation string, subscriptionChannels subscription.List) error {
 	payload := WsPayload{
 		ID:     b.Websocket.Conn.GenerateMessageID(false),
 		Method: operation,
@@ -670,19 +670,19 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels []s
 			return err
 		}
 	}
-	switch operation {
-	case "UNSUBSCRIBE":
-		b.Websocket.RemoveSubscriptions(subscriptionChannels...)
-	case "SUBSCRIBE":
-		b.Websocket.AddSuccessfulSubscriptions(subscriptionChannels...)
+	if operation == "UNSUBSCRIBE" {
+		err := b.Websocket.RemoveSubscriptions(subscriptionChannels...)
+		if err != nil {
+			return err
+		}
 	}
-	return nil
+	return b.Websocket.AddSuccessfulSubscriptions(subscriptionChannels...)
 }
 
 // GenerateUFuturesDefaultSubscriptions generates the default subscription set
-func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *Binance) GenerateUFuturesDefaultSubscriptions() (subscription.List, error) {
 	var channels = defaultSubscriptions
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	pairs, err := b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -691,14 +691,14 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]subscription.Subscri
 		pairs = pairs[:3]
 	}
 	for z := range channels {
-		var chSubscription subscription.Subscription
+		var chSubscription *subscription.Subscription
 		switch channels[z] {
 		case assetIndexAllChan, contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan, markPriceAllChan:
 			if channels[z] == markPriceAllChan {
 				channels[z] += "@1s"
 			}
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[z],
 			})
 		case aggTradeChan, depthChan, markPriceChan, tickerChan, klineChan,
@@ -706,7 +706,7 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]subscription.Subscri
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				chSubscription = subscription.Subscription{
+				chSubscription = &subscription.Subscription{
 					Channel: lp.String() + channels[z],
 				}
 				switch channels[z] {
@@ -721,7 +721,7 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]subscription.Subscri
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				chSubscription = subscription.Subscription{
+				chSubscription = &subscription.Subscription{
 					// Contract types:"PERPETUAL", "CURRENT_MONTH", "NEXT_MONTH", "CURRENT_QUARTER", "NEXT_QUARTER"
 					// by default we are subscribing to PERPETUAL contract types
 					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FifteenMin),

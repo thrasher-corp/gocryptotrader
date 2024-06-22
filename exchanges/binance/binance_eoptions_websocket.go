@@ -102,7 +102,7 @@ func (b *Binance) WsOptionsConnect() error {
 	return b.OptionSubscribe(subscriptions)
 }
 
-func (b *Binance) handleEOptionsSubscriptions(operation string, subscs []subscription.Subscription) error {
+func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscription.List) error {
 	if len(subscs) == 0 {
 		return errNilArgument
 	}
@@ -114,15 +114,21 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs []subscri
 	for s := range subscs {
 		switch subscs[s].Channel {
 		case cnlTrade, cnlIndex, cnlTicker: // subscriptions with <symbol>@channel pattern
-			params.Params = append(params.Params, subscs[s].Pair.String()+"@"+subscs[s].Channel)
+			for p := range subscs[s].Pairs {
+				params.Params = append(params.Params, subscs[s].Pairs[p].String()+"@"+subscs[s].Channel)
+			}
 		case cnlTradeWithUnderlyingAsset, cnlMarkPrice: // subscriptions with <underlyingAsset>@channel
-			params.Params = append(params.Params, subscs[s].Pair.Base.String()+"@"+subscs[s].Channel)
+			for p := range subscs[s].Pairs {
+				params.Params = append(params.Params, subscs[s].Pairs[p].Base.String()+"@"+subscs[s].Channel)
+			}
 		case cnlKline: // subscriptions with <symbol>@channel<interval> pattern
 			intervalString := b.intervalToString(subscs[s].Interval)
 			if intervalString == "" {
 				intervalString = "15m"
 			}
-			params.Params = append(params.Params, subscs[s].Pair.String()+"@"+subscs[s].Channel+"_"+intervalString)
+			for p := range subscs[s].Pairs {
+				params.Params = append(params.Params, subscs[s].Pairs[p].String()+"@"+subscs[s].Channel+"_"+intervalString)
+			}
 		case cnlTickerWithExpiration, cnlOpenInterest: // subscriptions with <underlyingAsset>@channel@<expirationDate>
 			var expirationTime time.Time
 			expirationTimeInterface, okay := subscs[s].Params["expiration"]
@@ -137,7 +143,9 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs []subscri
 				}
 			}
 			expirationTimeString := fmt.Sprintf("%2d%2d%2d", expirationTime.Year(), expirationTime.Month(), expirationTime.Day())
-			params.Params = append(params.Params, subscs[s].Pair.String()+subscs[s].Channel+expirationTimeString)
+			for p := range subscs[s].Pairs {
+				params.Params = append(params.Params, subscs[s].Pairs[p].String()+subscs[s].Channel+expirationTimeString)
+			}
 		case cnlDepth:
 			level, okay := subscs[s].Params["level"].(string)
 			if !okay {
@@ -148,7 +156,9 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs []subscri
 			if subscs[s].Interval != kline.Interval(0) {
 				intervalString = "@" + b.intervalToString(subscs[s].Interval)
 			}
-			params.Params = append(params.Params, subscs[s].Pair.String()+"@"+subscs[s].Channel+"@"+level+intervalString)
+			for p := range subscs[s].Pairs {
+				params.Params = append(params.Params, subscs[s].Pairs[p].String()+"@"+subscs[s].Channel+"@"+level+intervalString)
+			}
 		case cnlOptionPair:
 			params.Params = append(params.Params, subscs[s].Channel)
 		default:
@@ -168,27 +178,28 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs []subscri
 		return fmt.Errorf("err: code: %d, msg: %s", resp.Error.Code, resp.Error.Message)
 	}
 	if operation == "SUBSCRIBE" {
-		b.Websocket.AddSuccessfulSubscriptions(subscs...)
-	} else {
-		b.Websocket.RemoveSubscriptions(subscs...)
+		err = b.Websocket.AddSuccessfulSubscriptions(subscs...)
+		if err != nil {
+			return err
+		}
 	}
-	return nil
+	return b.Websocket.RemoveSubscriptions(subscs...)
 }
 
 // OptionSubscribe sends an european option subscription messages.
-func (b *Binance) OptionSubscribe(subscs []subscription.Subscription) error {
+func (b *Binance) OptionSubscribe(subscs subscription.List) error {
 	return b.handleEOptionsSubscriptions("SUBSCRIBE", subscs)
 }
 
 // OptionUnsubscribe unsubscribes an option un-subscription messages.
-func (b *Binance) OptionUnsubscribe(subscs []subscription.Subscription) error {
+func (b *Binance) OptionUnsubscribe(subscs subscription.List) error {
 	return b.handleEOptionsSubscriptions("UNSUBSCRIBE", subscs)
 }
 
 // GenerateEOptionsDefaultSubscriptions generates the default subscription set
-func (b *Binance) GenerateEOptionsDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *Binance) GenerateEOptionsDefaultSubscriptions() (subscription.List, error) {
 	channels := defaultEOptionsSubscriptions
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	pairs, err := b.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		return nil, err
@@ -200,47 +211,39 @@ func (b *Binance) GenerateEOptionsDefaultSubscriptions() ([]subscription.Subscri
 	for z := range channels {
 		switch channels[z] {
 		case cnlTrade, cnlMarkPrice, cnlIndex, cnlTicker, cnlTradeWithUnderlyingAsset:
-			for p := range pairs {
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel: channels[z],
-					Pair:    pairs[p],
-					Asset:   asset.Options,
-				})
-			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[z],
+				Pairs:   pairs,
+				Asset:   asset.Options,
+			})
 		case cnlKline:
-			for p := range pairs {
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  cnlKline,
-					Pair:     pairs[p],
-					Asset:    asset.Options,
-					Interval: kline.FiveMin,
-				})
-			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel:  cnlKline,
+				Pairs:    pairs,
+				Asset:    asset.Options,
+				Interval: kline.FiveMin,
+			})
 		case cnlTickerWithExpiration, cnlOpenInterest:
-			for p := range pairs {
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel: channels[z],
-					Pair:    pairs[p],
-					Asset:   asset.Options,
-					Params: map[string]interface{}{
-						"expiration": time.Now().Add(time.Hour * 24 * 5),
-					},
-				})
-			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[z],
+				Pairs:   pairs,
+				Asset:   asset.Options,
+				Params: map[string]interface{}{
+					"expiration": time.Now().Add(time.Hour * 24 * 5),
+				},
+			})
 		case cnlDepth:
-			for p := range pairs {
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  cnlDepth,
-					Pair:     pairs[p],
-					Asset:    asset.Options,
-					Interval: kline.FiveHundredMilliseconds,
-					Params: map[string]interface{}{
-						"level": 50, // Valid levels are 10, 20, 50, 100.
-					},
-				})
-			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel:  cnlDepth,
+				Pairs:    pairs,
+				Asset:    asset.Options,
+				Interval: kline.FiveHundredMilliseconds,
+				Params: map[string]interface{}{
+					"level": 50, // Valid levels are 10, 20, 50, 100.
+				},
+			})
 		case cnlOptionPair:
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: cnlOptionPair,
 			})
 		default:

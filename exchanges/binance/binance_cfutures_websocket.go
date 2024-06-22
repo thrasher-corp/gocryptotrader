@@ -63,9 +63,9 @@ func (b *Binance) WsCFutureConnect() error {
 }
 
 // GenerateDefaultCFuturesSubscriptions generates a list of subscription instances.
-func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscription, error) {
+func (b *Binance) GenerateDefaultCFuturesSubscriptions() (subscription.List, error) {
 	var channels = defaultCFuturesSubscriptions
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	pairs, err := b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -74,11 +74,11 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscri
 		pairs = pairs[:3]
 	}
 	for z := range channels {
-		var chSubscription subscription.Subscription
+		var chSubscription *subscription.Subscription
 		switch channels[z] {
 		case contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan:
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[z],
 			})
 		case aggTradeChan, depthChan, markPriceChan, tickerChan,
@@ -87,7 +87,7 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscri
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				chSubscription = subscription.Subscription{
+				chSubscription = &subscription.Subscription{
 					Channel: lp.String() + channels[z],
 				}
 				switch channels[z] {
@@ -102,7 +102,7 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscri
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				chSubscription = subscription.Subscription{
+				chSubscription = &subscription.Subscription{
 					// Contract types:""perpetual", "current_quarter", "next_quarter""
 					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
 				}

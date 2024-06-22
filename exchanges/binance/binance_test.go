@@ -2114,7 +2114,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	} else if mockTests {
 		expected = 1002
 	}
-	require.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries") //nolint:testifylint // assert.Len doesn't produce clear messages on result
+	require.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries")
 	for _, r := range result {
 		if !assert.WithinRange(t, r.Timestamp, start, end, "All trades should be within time range") {
 			break
