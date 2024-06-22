@@ -1462,7 +1462,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	if mockTests {
 		expected = 1002
 	}
-	assert.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries") //nolint:testifylint // assert.Len doesn't produce clear messages on result
+	assert.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries")
 	for _, r := range result {
 		if !assert.WithinRange(t, r.Timestamp, start, end, "All trades should be within time range") {
 			break
@@ -1982,7 +1982,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	b := b
-	channels := []subscription.Subscription{
+	channels := subscription.List{
 		{Channel: "btcusdt@ticker"},
 		{Channel: "btcusdt@trade"},
 	}
@@ -2008,7 +2008,7 @@ func TestSubscribe(t *testing.T) {
 
 func TestSubscribeBadResp(t *testing.T) {
 	t.Parallel()
-	channels := []subscription.Subscription{
+	channels := subscription.List{
 		{Channel: "moons@ticker"},
 	}
 	mock := func(msg []byte, w *websocket.Conn) error {
@@ -2434,19 +2434,19 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	expected := []subscription.Subscription{}
+	expected := subscription.List{}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
 	for _, p := range pairs {
 		for _, c := range []string{"kline_1m", "depth@100ms", "ticker", "trade"} {
-			expected = append(expected, subscription.Subscription{
+			expected = append(expected, &subscription.Subscription{
 				Channel: p.Format(currency.PairFormat{Delimiter: "", Uppercase: false}).String() + "@" + c,
-				Pair:    p,
+				Pairs:   currency.Pairs{p},
 				Asset:   asset.Spot,
 			})
 		}
 	}
-	subs, err := b.GenerateSubscriptions()
+	subs, err := b.generateSubscriptions()
 	assert.NoError(t, err, "GenerateSubscriptions should not error")
 	if assert.Len(t, subs, len(expected), "Should have the correct number of subs") {
 		assert.ElementsMatch(t, subs, expected, "Should get the correct subscriptions")

@@ -205,18 +205,18 @@ func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 }
 
 // Subscribe sends a websocket subscription to a channel message through the websocket connection handlers.
-func (cr *Cryptodotcom) Subscribe(subscriptions []subscription.Subscription) error {
+func (cr *Cryptodotcom) Subscribe(subscriptions subscription.List) error {
 	return cr.handleSubscriptions("subscribe", subscriptions)
 }
 
 // Unsubscribe sends a websocket unsubscription to a channel message through the websocket connection handlers.
-func (cr *Cryptodotcom) Unsubscribe(subscriptions []subscription.Subscription) error {
+func (cr *Cryptodotcom) Unsubscribe(subscriptions subscription.List) error {
 	return cr.handleSubscriptions("unsubscribe", subscriptions)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (cr *Cryptodotcom) GenerateDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	channels := defaultSubscriptions
 	if cr.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(
@@ -231,7 +231,7 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]subscription.Subscript
 	}
 	for x := range channels {
 		if channels[x] == userBalanceCnl {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[x],
 			})
 			continue
@@ -240,35 +240,33 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]subscription.Subscript
 		if err != nil {
 			return nil, err
 		}
-		for p := range enabledPairs {
-			switch channels[x] {
-			case instrumentOrderbookCnl,
-				tickerCnl,
-				userOrderCnl,
-				userTradeCnl,
-				tradeCnl,
-				otcBooksCnl:
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel: channels[x],
-					Pair:    enabledPairs[p],
-				})
-			case candlestickCnl:
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel: channels[x],
-					Pair:    enabledPairs[p],
-					Params: map[string]interface{}{
-						"interval": "5m",
-					},
-				})
-			default:
-				continue
-			}
+		switch channels[x] {
+		case instrumentOrderbookCnl,
+			tickerCnl,
+			userOrderCnl,
+			userTradeCnl,
+			tradeCnl,
+			otcBooksCnl:
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[x],
+				Pairs:   enabledPairs,
+			})
+		case candlestickCnl:
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[x],
+				Pairs:   enabledPairs,
+				Params: map[string]interface{}{
+					"interval": "5m",
+				},
+			})
+		default:
+			continue
 		}
 	}
 	return subscriptions, nil
 }
 
-func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []subscription.Subscription) error {
+func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions subscription.List) error {
 	subscriptionPayloads, err := cr.generatePayload(operation, subscriptions)
 	if err != nil {
 		return err
@@ -286,7 +284,7 @@ func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []su
 	return nil
 }
 
-func (cr *Cryptodotcom) generatePayload(operation string, subscription []subscription.Subscription) ([]SubscriptionPayload, error) {
+func (cr *Cryptodotcom) generatePayload(operation string, subscription subscription.List) ([]SubscriptionPayload, error) {
 	subscriptionPayloads := make([]SubscriptionPayload, len(subscription))
 	timestamp := time.Now()
 	for x := range subscription {
@@ -302,13 +300,17 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []subscri
 			tickerCnl,
 			tradeCnl,
 			otcBooksCnl:
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Pair.String()}}
+			for p := range subscription[x].Pairs {
+				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Pairs[p].String()}}
+			}
 		case candlestickCnl:
 			interval, okay := subscription[x].Params["interval"].(string)
 			if !okay {
 				return nil, kline.ErrInvalidInterval
 			}
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Pair.String()}}
+			for p := range subscription[x].Pairs {
+				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Pairs[p].String()}}
+			}
 		case userBalanceCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		}

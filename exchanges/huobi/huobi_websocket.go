@@ -515,15 +515,15 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (h *HUOBI) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{wsMarketKline,
 		wsMarketDepth,
 		wsMarketTrade,
 		wsMarketTicker}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
-		subscriptions = append(subscriptions, subscription.Subscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: "accounts",
 		})
 	}
@@ -536,9 +536,9 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, err
 			enabledCurrencies[j].Delimiter = ""
 			channel := fmt.Sprintf(channels[i],
 				enabledCurrencies[j].Lower().String())
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channel,
-				Pair:    enabledCurrencies[j],
+				Pairs:   currency.Pairs{enabledCurrencies[j]},
 			})
 		}
 	}
@@ -546,7 +546,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, err
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (h *HUOBI) Subscribe(channelsToSubscribe subscription.List) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
@@ -557,36 +557,30 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error
 	}
 	var errs error
 	for i := range channelsToSubscribe {
+		var err error
 		if (strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToSubscribe[i].Channel, "accounts")) && creds != nil {
-			err := h.wsAuthenticatedSubscribe(creds,
+			err = h.wsAuthenticatedSubscribe(creds,
 				"sub",
 				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
 				channelsToSubscribe[i].Channel)
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-			continue
+		} else {
+			err = h.Websocket.Conn.SendJSONMessage(WsRequest{
+				Subscribe: channelsToSubscribe[i].Channel,
+			})
 		}
-		err := h.Websocket.Conn.SendJSONMessage(WsRequest{
-			Subscribe: channelsToSubscribe[i].Channel,
-		})
+		if err == nil {
+			err = h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (h *HUOBI) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
@@ -597,32 +591,26 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) e
 	}
 	var errs error
 	for i := range channelsToUnsubscribe {
+		var err error
 		if (strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts")) && creds != nil {
-			err := h.wsAuthenticatedSubscribe(creds,
+			err = h.wsAuthenticatedSubscribe(creds,
 				"unsub",
 				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,
 				channelsToUnsubscribe[i].Channel)
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			h.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
-			continue
+		} else {
+			err = h.Websocket.Conn.SendJSONMessage(WsRequest{
+				Unsubscribe: channelsToUnsubscribe[i].Channel,
+			})
 		}
-		err := h.Websocket.Conn.SendJSONMessage(WsRequest{
-			Unsubscribe: channelsToUnsubscribe[i].Channel,
-		})
+		if err == nil {
+			err = h.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		h.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {

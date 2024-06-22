@@ -540,9 +540,9 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (bi *Binanceus) GenerateSubscriptions() ([]subscription.Subscription, error) {
+func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -558,9 +558,9 @@ subs:
 				log.Warnf(log.WebsocketMgr, "BinanceUS has 1024 subscription limit, only subscribing within limit. Requested %v", len(pairs)*len(channels))
 				break subs
 			}
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: lp.String() + channels[z],
-				Pair:    pairs[y],
+				Pairs:   currency.Pairs{pairs[y]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -570,7 +570,7 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -590,12 +590,11 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) 
 			return err
 		}
 	}
-	bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
 	}
@@ -615,8 +614,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscripti
 			return err
 		}
 	}
-	bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 }
 
 func (bi *Binanceus) setupOrderbookManager() {

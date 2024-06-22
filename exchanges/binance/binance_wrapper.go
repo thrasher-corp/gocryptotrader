@@ -188,7 +188,7 @@ func (b *Binance) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
+		Subscriptions: subscription.List{
 			{Enabled: true, Channel: subscription.TickerChannel},
 			{Enabled: true, Channel: subscription.AllTradesChannel},
 			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
@@ -245,7 +245,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,

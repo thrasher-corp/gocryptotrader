@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -62,16 +63,14 @@ func (d *Deribit) SetDefaults() {
 	d.API.CredentialsValidator.RequiresKey = true
 	d.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}})
+	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
+		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
 	}
@@ -208,6 +207,10 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
+	// setup option decimal regex at startup to make constant checks more efficient
+	optionRegex = regexp.MustCompile(optionDecimalRegex)
+
 	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -238,16 +241,9 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 				continue
 			}
 			var cp currency.Pair
-			if assetType == asset.Options {
-				cp, err = currency.NewPairDelimiter(instrumentsData[y].InstrumentName, currency.DashDelimiter)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
-				if err != nil {
-					return nil, err
-				}
+			cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
+			if err != nil {
+				return nil, err
 			}
 			resp = resp.Add(cp)
 		}
@@ -259,17 +255,19 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 // them in the exchanges config
 func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := d.GetAssetTypes(false)
+	errs := common.CollectErrors(len(assets))
 	for x := range assets {
-		pairs, err := d.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
+		go func(x int) {
+			defer errs.Wg.Done()
+			pairs, err := d.FetchTradablePairs(ctx, assets[x])
+			if err != nil {
+				errs.C <- err
+				return
+			}
+			errs.C <- d.UpdatePairs(pairs, assets[x], false, forceUpdate)
+		}(x)
 	}
-	return nil
+	return errs.Collect()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -1091,7 +1089,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if err != nil {
 		return nil, err
 	}
-	intervalString, err := d.GetResolutionFromInterval(interval)
+	intervalString, err := d.GetResolutionFromInterval(req.ExchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1149,7 +1147,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	switch a {
 	case asset.Futures, asset.Spot:
 		for x := range req.RangeHolder.Ranges {
-			intervalString, err := d.GetResolutionFromInterval(interval)
+			intervalString, err := d.GetResolutionFromInterval(req.ExchangeInterval)
 			if err != nil {
 				return nil, err
 			}
@@ -1262,59 +1260,6 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Multiplier:           marketSummary[i].ContractSize,
 			})
 		}
-	}
-	return resp, nil
-}
-
-// GetLatestFundingRates returns the latest funding rates data
-func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
-	}
-	if !d.SupportsAsset(r.Asset) {
-		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
-	}
-	isPerpetual, err := d.IsPerpetualFutureCurrency(r.Asset, r.Pair)
-	if !isPerpetual || err != nil {
-		return nil, futures.ErrNotPerpetualFuture
-	}
-	available, err := d.GetAvailablePairs(r.Asset)
-	if err != nil {
-		return nil, err
-	}
-	if !available.Contains(r.Pair, true) && r.Pair.Quote.String() != "PERPETUAL" && !strings.HasSuffix(r.Pair.String(), "PERP") {
-		return nil, fmt.Errorf("%w pair: %v", futures.ErrNotPerpetualFuture, r.Pair)
-	}
-	r.Pair, err = d.FormatExchangeCurrency(r.Pair, r.Asset)
-	if err != nil {
-		return nil, err
-	}
-	var fri []FundingRateHistory
-	fri, err = d.GetFundingRateHistory(ctx, r.Pair.String(), time.Now().Add(-time.Hour*16), time.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	resp := make([]fundingrate.LatestRateResponse, 1)
-	latestTime := fri[0].Timestamp.Time()
-	for i := range fri {
-		if fri[i].Timestamp.Time().Before(latestTime) {
-			continue
-		}
-		resp[0] = fundingrate.LatestRateResponse{
-			TimeChecked: time.Now(),
-			Exchange:    d.Name,
-			Asset:       r.Asset,
-			Pair:        r.Pair,
-			LatestRate: fundingrate.Rate{
-				Time: fri[i].Timestamp.Time(),
-				Rate: decimal.NewFromFloat(fri[i].Interest8H),
-			},
-		}
-		latestTime = fri[i].Timestamp.Time()
-	}
-	if len(resp) == 0 {
-		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 	}
 	return resp, nil
 }
@@ -1449,26 +1394,23 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		}
 	}
 	result := make([]futures.OpenInterest, 0, len(k))
-	var err error
-	var pair currency.Pair
 	for i := range k {
-		pair, err = d.FormatExchangeCurrency(k[i].Pair(), k[i].Asset)
+		pFmt, err := d.CurrencyPairs.GetFormat(k[i].Asset, true)
 		if err != nil {
 			return nil, err
 		}
+		cp := k[i].Pair().Format(pFmt)
+		p := d.formatPairString(k[i].Asset, cp)
 		var oi []BookSummaryData
 		if d.Websocket.IsConnected() {
-			oi, err = d.WSRetrieveBookBySummary(pair.Base, d.GetAssetKind(k[i].Asset))
+			oi, err = d.WSRetrieveBookSummaryByInstrument(p)
 		} else {
-			oi, err = d.GetBookSummaryByCurrency(ctx, pair.Base, d.GetAssetKind(k[i].Asset))
+			oi, err = d.GetBookSummaryByInstrument(ctx, p)
 		}
 		if err != nil {
 			return nil, err
 		}
 		for a := range oi {
-			if oi[a].InstrumentName != pair.String() {
-				continue
-			}
 			result = append(result, futures.OpenInterest{
 				Key: key.ExchangePairAsset{
 					Exchange: d.Name,
@@ -1487,28 +1429,105 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	return result, nil
 }
 
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (d *Deribit) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	if cp.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
+	switch a {
+	case asset.Futures:
+		isPerp, err := d.IsPerpetualFutureCurrency(a, cp)
+		if err != nil {
+			return "", err
+		}
+		if isPerp {
+			return tradeBaseURL + tradeFutures + cp.Base.Upper().String() + currency.UnderscoreDelimiter + cp.Quote.Upper().String(), nil
+		}
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	case asset.Spot:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Options:
+		baseString := cp.Base.Upper().String()
+		quoteString := cp.Quote.Upper().String()
+		quoteSplit := strings.Split(quoteString, currency.DashDelimiter)
+		if len(quoteSplit) > 1 &&
+			(quoteSplit[len(quoteSplit)-1] == "C" || quoteSplit[len(quoteSplit)-1] == "P") {
+			return tradeBaseURL + tradeOptions + baseString + "/" + baseString + currency.DashDelimiter + quoteSplit[0], nil
+		}
+		return tradeBaseURL + tradeOptions + baseString, nil
+	case asset.FutureCombo:
+		return tradeBaseURL + tradeFuturesCombo + cp.Upper().String(), nil
+	case asset.OptionCombo:
+		return tradeBaseURL + tradeOptionsCombo + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}
+
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 // differs by exchange
 func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
-	if !assetType.IsFutures() {
-		return false, futures.ErrNotPerpetualFuture
-	} else if strings.EqualFold(pair.Quote.String(), "PERPETUAL") || strings.HasSuffix(pair.String(), "PERP") {
-		return true, nil
+	if pair.IsEmpty() {
+		return false, currency.ErrCurrencyPairEmpty
 	}
-	pair, err := d.FormatExchangeCurrency(pair, assetType)
+	if assetType != asset.Futures {
+		// deribit considers future combo, even if ending in "PERP" to not be a perpetual
+		return false, nil
+	}
+	pqs := strings.Split(pair.Quote.Upper().String(), currency.DashDelimiter)
+	return pqs[len(pqs)-1] == perpString, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if !d.SupportsAsset(r.Asset) {
+		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+	}
+	isPerpetual, err := d.IsPerpetualFutureCurrency(r.Asset, r.Pair)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	var instrumentInfo *InstrumentData
-	if d.Websocket.IsConnected() {
-		instrumentInfo, err = d.WSRetrieveInstrumentData(pair.String())
-	} else {
-		instrumentInfo, err = d.GetInstrument(context.Background(), pair.String())
+	if !isPerpetual {
+		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
 	}
+	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return strings.EqualFold(instrumentInfo.SettlementPeriod, "perpetual"), nil
+	cp := r.Pair.Format(pFmt)
+	p := d.formatPairString(r.Asset, cp)
+	var fri []FundingRateHistory
+	fri, err = d.GetFundingRateHistory(ctx, p, time.Now().Add(-time.Hour*16), time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 1)
+	latestTime := fri[0].Timestamp.Time()
+	for i := range fri {
+		if fri[i].Timestamp.Time().Before(latestTime) {
+			continue
+		}
+		resp[0] = fundingrate.LatestRateResponse{
+			TimeChecked: time.Now(),
+			Exchange:    d.Name,
+			Asset:       r.Asset,
+			Pair:        r.Pair,
+			LatestRate: fundingrate.Rate{
+				Time: fri[i].Timestamp.Time(),
+				Rate: decimal.NewFromFloat(fri[i].Interest8H),
+			},
+		}
+		latestTime = fri[i].Timestamp.Time()
+	}
+	if len(resp) == 0 {
+		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+	}
+	return resp, nil
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a future
@@ -1532,10 +1551,12 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
-	fPair, err := d.FormatExchangeCurrency(r.Pair, r.Asset)
+	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
 	}
+	cp := r.Pair.Format(pFmt)
+	p := d.formatPairString(r.Asset, cp)
 	ed := r.EndDate
 
 	var fundingRates []fundingrate.Rate
@@ -1546,9 +1567,9 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		}
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
-			records, err = d.WSRetrieveFundingRateHistory(fPair.String(), r.StartDate, ed)
+			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)
 		} else {
-			records, err = d.GetFundingRateHistory(ctx, fPair.String(), r.StartDate, ed)
+			records, err = d.GetFundingRateHistory(ctx, p, r.StartDate, ed)
 		}
 		if err != nil {
 			return nil, err

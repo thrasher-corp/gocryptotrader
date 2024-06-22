@@ -809,7 +809,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 				}
 			}(&subscription.Subscription{
 				Channel: krakenWsOrderbook,
-				Pair:    outbound,
+				Pairs:   currency.Pairs{outbound},
 				Asset:   asset.Spot,
 			})
 			return err
@@ -1160,25 +1160,25 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (k *Kraken) GenerateDefaultSubscriptions() (subscription.List, error) {
 	enabledPairs, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	for i := range defaultSubscribedChannels {
 		for j := range enabledPairs {
 			enabledPairs[j].Delimiter = "/"
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: defaultSubscribedChannels[i],
-				Pair:    enabledPairs[j],
+				Pairs:   currency.Pairs{enabledPairs[j]},
 				Asset:   asset.Spot,
 			})
 		}
 	}
 	if k.Websocket.CanUseAuthenticatedEndpoints() {
 		for i := range authenticatedChannels {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: authenticatedChannels[i],
 			})
 		}
@@ -1187,7 +1187,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (k *Kraken) Subscribe(channelsToSubscribe subscription.List) error {
 	var subscriptions = make(map[string]*[]WebsocketSubscriptionEventRequest)
 channels:
 	for i := range channelsToSubscribe {
@@ -1198,7 +1198,7 @@ channels:
 		}
 
 		for j := range *s {
-			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pair.String())
+			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pairs.Strings()...)
 			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
 			continue channels
 		}
@@ -1214,8 +1214,8 @@ channels:
 		if channelsToSubscribe[i].Channel == "book" {
 			outbound.Subscription.Depth = krakenWsOrderbookDepth
 		}
-		if !channelsToSubscribe[i].Pair.IsEmpty() {
-			outbound.Pairs = []string{channelsToSubscribe[i].Pair.String()}
+		for _, p := range channelsToSubscribe[i].Pairs {
+			outbound.Pairs = append(outbound.Pairs, p.String())
 		}
 		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
@@ -1228,37 +1228,32 @@ channels:
 	var errs error
 	for _, subs := range subscriptions {
 		for i := range *subs {
+			var err error
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
-				_, err := k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
-				if err != nil {
-					errs = common.AppendError(errs, err)
-					continue
-				}
-				k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
-				continue
+				_, err = k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+			} else {
+				_, err = k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 			}
-			_, err := k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+			if err == nil {
+				err = k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
+			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
-				continue
 			}
-			k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 		}
 	}
 	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (k *Kraken) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var unsubs []WebsocketSubscriptionEventRequest
 channels:
 	for x := range channelsToUnsubscribe {
 		for y := range unsubs {
 			if unsubs[y].Subscription.Name == channelsToUnsubscribe[x].Channel {
-				unsubs[y].Pairs = append(unsubs[y].Pairs,
-					channelsToUnsubscribe[x].Pair.String())
-				unsubs[y].Channels = append(unsubs[y].Channels,
-					channelsToUnsubscribe[x])
+				unsubs[y].Pairs = append(unsubs[y].Pairs, channelsToUnsubscribe[x].Pairs.Strings()...)
+				unsubs[y].Channels = append(unsubs[y].Channels, channelsToUnsubscribe[x])
 				continue channels
 			}
 		}
@@ -1276,7 +1271,7 @@ channels:
 
 		unsub := WebsocketSubscriptionEventRequest{
 			Event: krakenWsUnsubscribe,
-			Pairs: []string{channelsToUnsubscribe[x].Pair.String()},
+			Pairs: []string{channelsToUnsubscribe[x].Pairs[0].String()},
 			Subscription: WebsocketSubscriptionData{
 				Name:  channelsToUnsubscribe[x].Channel,
 				Depth: depth,
@@ -1292,22 +1287,18 @@ channels:
 
 	var errs error
 	for i := range unsubs {
+		var err error
 		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
-			_, err := k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
-			continue
+			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+		} else {
+			_, err = k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
 		}
-
-		_, err := k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+		if err == nil {
+			err = k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
 	}
 	return errs
 }

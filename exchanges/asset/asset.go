@@ -7,12 +7,10 @@ import (
 	"strings"
 )
 
+// Public errors related to assets
 var (
-	// ErrNotSupported is an error for an unsupported asset type
 	ErrNotSupported = errors.New("unsupported asset type")
-	// ErrNotEnabled is an error for an asset not enabled
-	ErrNotEnabled = errors.New("asset type not enabled")
-	// ErrInvalidAsset is returned when the assist isn't valid
+	ErrNotEnabled   = errors.New("asset type not enabled")
 	ErrInvalidAsset = errors.New("asset is invalid")
 )
 
@@ -45,8 +43,8 @@ const (
 	FutureCombo
 	OTC // Over-the-counter(OTC)
 
-	// Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5.
-	LinearContract
+	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5
+	All
 
 	optionsFlag   = OptionCombo | Options
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
@@ -72,6 +70,7 @@ const (
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
 	otc                    = "otc"
+	all                    = "all"
 )
 
 var (
@@ -124,6 +123,8 @@ func (a Item) String() string {
 		return futureCombo
 	case OTC:
 		return otc
+	case All:
+		return all
 	default:
 		return ""
 	}
@@ -231,11 +232,10 @@ func New(input string) (Item, error) {
 		return FutureCombo, nil
 	case otc:
 		return OTC, nil
+	case all:
+		return All, nil
 	default:
-		return 0, fmt.Errorf("%w '%v', only supports %s",
-			ErrNotSupported,
-			input,
-			supportedList)
+		return 0, fmt.Errorf("%w '%v', only supports %s", ErrNotSupported, input, supportedList)
 	}
 }
 

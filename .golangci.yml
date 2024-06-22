@@ -146,6 +146,8 @@ linters-settings:
     disable:
       - require-error
       - float-compare
+      # We deliberately use Equal over Len to avoid spamming the contents of large Slices
+      - len
 
 issues:
   max-issues-per-linter: 0
