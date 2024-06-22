@@ -35,28 +35,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (ku *Kucoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	ku.SetDefaults()
-	exchCfg, err := ku.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = ku.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if ku.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := ku.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Kucoin
 func (ku *Kucoin) SetDefaults() {
 	ku.Name = "Kucoin"
@@ -163,7 +141,7 @@ func (ku *Kucoin) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
+		Subscriptions: subscription.List{
 			// Where we can we use generic names
 			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
 			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
@@ -181,7 +159,7 @@ func (ku *Kucoin) SetDefaults() {
 	}
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -228,7 +206,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			Connector:             ku.WsConnect,
 			Subscriber:            ku.Subscribe,
 			Unsubscriber:          ku.Unsubscribe,
-			GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
+			GenerateSubscriptions: ku.generateSubscriptions,
 			Features:              &ku.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
@@ -2027,4 +2005,24 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		})
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := ku.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Margin:
+		return tradeBaseURL + tradeSpot + tradeMargin + cp.Upper().String(), nil
+	case asset.Futures, asset.CoinMarginedFutures:
+		cp.Delimiter = ""
+		return tradeBaseURL + tradeFutures + tradeSpot + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

@@ -26,16 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config for Alphapoint
-func (a *Alphapoint) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// Bootstrap loads the exchange and performs initialisation tasks
-func (a *Alphapoint) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
-	return false, common.ErrNotYetImplemented
-}
-
 // SetDefaults sets current default settings
 func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
@@ -222,17 +212,17 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return orderBook, err
 	}
 
-	orderBook.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	orderBook.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		orderBook.Bids[x] = orderbook.Item{
+		orderBook.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 
-	orderBook.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	orderBook.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		orderBook.Asks[x] = orderbook.Item{
+		orderBook.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}

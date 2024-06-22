@@ -55,8 +55,8 @@ type Exchange struct {
 	ID uuid.UUID
 }
 
-// Item stores the amount and price values
-type Item struct {
+// Tranche defines a segmented portions of an order or options book
+type Tranche struct {
 	Amount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
 	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
@@ -77,13 +77,10 @@ type Item struct {
 	OrderCount        int64
 }
 
-// Items defines a slice of orderbook items
-type Items []Item
-
 // Base holds the fields for the orderbook base
 type Base struct {
-	Bids Items
-	Asks Items
+	Bids Tranches
+	Asks Tranches
 
 	Exchange string
 	Pair     currency.Pair
@@ -114,12 +111,6 @@ type Base struct {
 	// potential rounding issues.
 	ChecksumStringRequired bool
 }
-
-type byOBPrice []Item
-
-func (a byOBPrice) Len() int           { return len(a) }
-func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
 type options struct {
 	exchange               string
@@ -158,8 +149,8 @@ type Update struct {
 	UpdateTime time.Time
 	Asset      asset.Item
 	Action
-	Bids []Item
-	Asks []Item
+	Bids []Tranche
+	Asks []Tranche
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32

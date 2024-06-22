@@ -134,11 +134,11 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (by *Bybit) Subscribe(channelsToSubscribe subscription.List) error {
 	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
 }
 
-func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe []subscription.Subscription) ([]SubscriptionArgument, error) {
+func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
@@ -166,17 +166,21 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 		return nil, err
 	}
 	for i := range channelsToSubscribe {
+		if len(channelsToSubscribe[i].Pairs) != 1 {
+			return nil, subscription.ErrNotSinglePair
+		}
+		pair := channelsToSubscribe[i].Pairs[0]
 		switch channelsToSubscribe[i].Channel {
 		case chanOrderbook:
-			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, channelsToSubscribe[i].Pair.Format(pairFormat).String()))
+			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, pair.Format(pairFormat).String()))
 		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+channelsToSubscribe[i].Pair.Format(pairFormat).String())
+			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+pair.Format(pairFormat).String())
 		case chanKline, chanLeverageTokenKline:
 			interval, err := intervalToString(kline.FiveMin)
 			if err != nil {
 				return nil, err
 			}
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+channelsToSubscribe[i].Pair.Format(pairFormat).String())
+			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+pair.Format(pairFormat).String())
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
 			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
 				continue
@@ -204,11 +208,11 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (by *Bybit) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	return by.handleSpotSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []subscription.Subscription) error {
+func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.Spot, operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -239,8 +243,8 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (by *Bybit) GenerateDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	var channels = []string{
 		chanPublicTicker,
 		chanOrderbook,
@@ -266,16 +270,16 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			chanDCP,
 			chanWallet:
 			subscriptions = append(subscriptions,
-				subscription.Subscription{
+				&subscription.Subscription{
 					Channel: channels[x],
 					Asset:   asset.Spot,
 				})
 		default:
 			for z := range pairs {
 				subscriptions = append(subscriptions,
-					subscription.Subscription{
+					&subscription.Subscription{
 						Channel: channels[x],
-						Pair:    pairs[z],
+						Pairs:   currency.Pairs{pairs[z]},
 						Asset:   asset.Spot,
 					})
 			}
@@ -823,7 +827,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-	asks := make([]orderbook.Item, len(result.Asks))
+	asks := make([]orderbook.Tranche, len(result.Asks))
 	for i := range result.Asks {
 		asks[i].Price, err = strconv.ParseFloat(result.Asks[i][0], 64)
 		if err != nil {
@@ -834,7 +838,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 			return err
 		}
 	}
-	bids := make([]orderbook.Item, len(result.Bids))
+	bids := make([]orderbook.Tranche, len(result.Bids))
 	for i := range result.Bids {
 		bids[i].Price, err = strconv.ParseFloat(result.Bids[i][0], 64)
 		if err != nil {

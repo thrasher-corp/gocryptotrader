@@ -1,7 +1,6 @@
 package btse
 
 import (
-	"sync"
 	"time"
 )
 
@@ -353,16 +352,6 @@ type ErrorResponse struct {
 	Message   string `json:"message"`
 	Status    int    `json:"status"`
 }
-
-// OrderSizeLimit holds accepted minimum, maximum, and size increment when submitting new orders
-type OrderSizeLimit struct {
-	MinOrderSize     float64
-	MaxOrderSize     float64
-	MinSizeIncrement float64
-}
-
-// orderSizeLimitMap map of OrderSizeLimit per currency
-var orderSizeLimitMap sync.Map
 
 // WsSubscriptionAcknowledgement contains successful subscription messages
 type WsSubscriptionAcknowledgement struct {

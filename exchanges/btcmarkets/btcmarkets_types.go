@@ -441,4 +441,4 @@ type CandleResponse [][6]string
 
 // WebsocketOrderbook defines a specific websocket orderbook type to directly
 // unmarshal json.
-type WebsocketOrderbook orderbook.Items
+type WebsocketOrderbook orderbook.Tranches

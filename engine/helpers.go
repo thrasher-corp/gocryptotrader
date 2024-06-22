@@ -41,6 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
@@ -1016,6 +1017,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bybit.Bybit), nil
 	case "coinut":
 		return new(coinut.COINUT), nil
+	case "deribit":
+		return new(deribit.Deribit), nil
 	case "exmo":
 		return new(exmo.EXMO), nil
 	case "coinbaseinternational":
@@ -1057,7 +1060,7 @@ func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.I
 	if err != nil {
 		return nil, err
 	}
-	defaultConfig, err := exch.GetDefaultConfig(ctx)
+	defaultConfig, err := exchange.GetDefaultConfig(ctx, exch)
 	if err != nil {
 		return nil, err
 	}

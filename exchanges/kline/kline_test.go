@@ -155,6 +155,10 @@ func TestDurationToWord(t *testing.T) {
 		interval Interval
 	}{
 		{
+			"raw",
+			Raw,
+		},
+		{
 			"hundredmillisec",
 			HundredMilliseconds,
 		},

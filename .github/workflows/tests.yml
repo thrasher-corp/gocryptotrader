@@ -40,7 +40,7 @@ jobs:
 
     - name: Setup Postgres
       if: matrix.psql == true
-      uses: ikalnytskyi/action-setup-postgres@v5
+      uses: ikalnytskyi/action-setup-postgres@v6
       with:
         database: gct_dev_ci
       id: postgres
@@ -74,9 +74,14 @@ jobs:
     - name: Additional steps for 386 architecture
       if: matrix.goarch == '386'
       run: |
-        echo "CGO_ENABLED=1" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install gcc-multilib g++-multilib
+        sudo apt-get install -y gcc-multilib
+      shell: bash
+
+    - name: Set CGO_ENABLED for 386 and macos-latest
+      if: matrix.goarch == '386' || matrix.os == 'macos-latest'
+      run: |
+        echo "CGO_ENABLED=1" >> $GITHUB_ENV
       shell: bash
 
     - name: Test

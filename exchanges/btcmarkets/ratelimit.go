@@ -1,11 +1,9 @@
 package btcmarkets
 
 import (
-	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 // BTCMarkets Rate limit consts
@@ -25,42 +23,14 @@ const (
 	newReportFunc
 )
 
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	Auth            *rate.Limiter
-	UnAuth          *rate.Limiter
-	OrderPlacement  *rate.Limiter
-	BatchOrders     *rate.Limiter
-	WithdrawRequest *rate.Limiter
-	CreateNewReport *rate.Limiter
-}
-
-// Limit limits the outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	switch f {
-	case request.Auth:
-		return r.Auth.Wait(ctx)
-	case orderFunc:
-		return r.OrderPlacement.Wait(ctx)
-	case batchFunc:
-		return r.BatchOrders.Wait(ctx)
-	case withdrawFunc:
-		return r.WithdrawRequest.Wait(ctx)
-	case newReportFunc:
-		return r.CreateNewReport.Wait(ctx)
-	default:
-		return r.UnAuth.Wait(ctx)
-	}
-}
-
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		Auth:            request.NewRateLimit(btcmarketsRateInterval, btcmarketsAuthLimit),
-		UnAuth:          request.NewRateLimit(btcmarketsRateInterval, btcmarketsUnauthLimit),
-		OrderPlacement:  request.NewRateLimit(btcmarketsRateInterval, btcmarketsOrderLimit),
-		BatchOrders:     request.NewRateLimit(btcmarketsRateInterval, btcmarketsBatchOrderLimit),
-		WithdrawRequest: request.NewRateLimit(btcmarketsRateInterval, btcmarketsWithdrawLimit),
-		CreateNewReport: request.NewRateLimit(btcmarketsRateInterval, btcmarketsCreateNewReportLimit),
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
+	return request.RateLimitDefinitions{
+		request.Auth:   request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsAuthLimit, 1),
+		request.UnAuth: request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsUnauthLimit, 1),
+		orderFunc:      request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsOrderLimit, 1),
+		batchFunc:      request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsBatchOrderLimit, 1),
+		withdrawFunc:   request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsWithdrawLimit, 1),
+		newReportFunc:  request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsCreateNewReportLimit, 1),
 	}
 }

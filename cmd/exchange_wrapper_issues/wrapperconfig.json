@@ -107,6 +107,11 @@
    "clientID": "ClientID",
    "otpSecret": "-"
   },
+  "deribit": {
+    "key": "Key",
+    "secret": "Secret",
+    "otpSecret": "-"
+   },
   "exmo": {
    "key": "Key",
    "secret": "Secret",
