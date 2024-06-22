@@ -379,7 +379,7 @@ func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
 		optionsUnderlyingCandlesticksChannel:
 		return g.processOptionsCandlestickPushData(respRaw)
 	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
+		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time.Time())
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
@@ -531,7 +531,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Pair:       currencyPair,
 			AssetType:  asset.Options,
 			Exchange:   g.Name,
-			StartTime:  time.Unix(resp.Result[x].Timestamp, 0),
+			StartTime:  resp.Result[x].Timestamp.Time(),
 			Interval:   icp[0],
 			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
 			ClosePrice: resp.Result[x].ClosePrice.Float64(),
@@ -554,7 +554,7 @@ func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, pushTime int64) error {
+func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, pushTime time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -618,7 +618,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     time.Unix(pushTime, 0),
+			LastUpdated:     pushTime,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
