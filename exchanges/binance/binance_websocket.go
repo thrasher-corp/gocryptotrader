@@ -505,21 +505,30 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 }
 
 func (b *Binance) generateSubscriptions() (subscription.List, error) {
+	for _, s := range b.Features.Subscriptions {
+		if s.Asset == asset.Empty {
+			// Handle backwards compatibility with config without assets, all binance subs are spot
+			s.Asset = asset.Spot
+		}
+	}
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 var subTemplate *template.Template
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (t *template.Template, err error) {
-	t = template.New("subscriptions.tmpl")
-	t.Funcs(template.FuncMap{
-		"interval": formatChannelInterval,
-		"levels":   formatChannelLevels,
-		"fmt":      currency.EMPTYFORMAT.Format,
-	})
-	t, err = t.ParseFiles("subscriptions.tmpl")
-	return
+func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	var err error
+	if subTemplate == nil {
+		subTemplate, err = template.New("subscriptions.tmpl").
+			Funcs(template.FuncMap{
+				"interval": formatChannelInterval,
+				"levels":   formatChannelLevels,
+				"fmt":      currency.EMPTYFORMAT.Format,
+			}).
+			Parse(subTplText)
+	}
+	return subTemplate, err
 }
 
 func formatChannelLevels(s *subscription.Subscription) string {
@@ -1005,3 +1014,16 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	state.needsFetchingBook = false
 	return nil
 }
+
+const subTplText = `
+{{ range $pair := index $.AssetPairs $.S.Asset }}
+  {{ fmt $pair -}} @
+  {{- with $c := $.S.Channel -}}
+  {{ if eq $c "ticker"         -}} ticker
+  {{ else if eq $c "allTrades" -}} trade
+  {{ else if eq $c "candles"   -}} kline  {{- interval $.S }}
+  {{ else if eq $c "orderbook" -}} depth  {{- levels $.S }}{{ interval $.S }}
+  {{- end }}{{ end }}
+  {{ $.PairSeparator }}
+{{end}}
+`
