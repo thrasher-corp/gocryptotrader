@@ -511,15 +511,29 @@ func (b *Binance) generateSubscriptions() (subscription.List, error) {
 var subTemplate *template.Template
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (t *template.Template, err error) {
-	t = template.New("subscriptions.tmpl")
-	t.Funcs(template.FuncMap{
-		"interval": formatChannelInterval,
-		"levels":   formatChannelLevels,
-		"fmt":      currency.EMPTYFORMAT.Format,
-	})
-	t, err = t.ParseFiles("subscriptions.tmpl")
-	return
+func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	var err error
+	if subTemplate == nil {
+		subTemplate, err = template.New("subscriptions.tmpl").
+			Funcs(template.FuncMap{
+				"interval": formatChannelInterval,
+				"levels":   formatChannelLevels,
+				"fmt":      currency.EMPTYFORMAT.Format,
+			}).
+			Parse(`
+{{ with $ctx := . }}{{ with $s := $ctx.Sub }}
+{{ range $pair := index $ctx.AssetPairs $s.Asset }}
+  {{ fmt $pair -}} @
+  {{- if eq $s.Channel "ticker"         -}} ticker
+  {{- else if eq $s.Channel "allTrades" -}} trade
+  {{- else if eq $s.Channel "candles"   -}} kline       {{- interval $s}}
+  {{- else if eq $s.Channel "orderbook" -}} depth       {{- levels $s}}{{- interval $s}}
+  {{ end }}
+  {{ $ctx.PairSeparator }}
+{{end}}{{end}}{{end}}
+			`)
+	}
+	return subTemplate, err
 }
 
 func formatChannelLevels(s *subscription.Subscription) string {
