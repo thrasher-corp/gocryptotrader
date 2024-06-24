@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -652,4 +653,56 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 		description = " for: " + strings.Join(fieldDescription, ", ")
 	}
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
+}
+
+var runtimeCaller = runtime.Caller
+var runtimeFuncForPC = runtime.FuncForPC
+var errContext = errors.New("")
+
+// contextError is an error with contextual information, including the function
+// name and line number.
+type contextError struct {
+	Err          error
+	File         string
+	Line         int
+	FunctionName string
+}
+
+// Error returns the error message with contextual information.
+func (e contextError) Error() string {
+	if e.FunctionName == "" {
+		return fmt.Sprintf("%s: %d: %v", e.File, e.Line, e.Err)
+	}
+	return fmt.Sprintf("%s: %d %s: %v", e.File, e.Line, e.FunctionName, e.Err)
+}
+
+// Unwrap returns the wrapped error.
+func (e contextError) Unwrap() error {
+	return e.Err
+}
+
+// ErrorWithContext adds contextual information to an error, including the
+// function name and line number.
+func ErrorWithContext(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, errContext) {
+		return err // Already has context
+	}
+
+	pc, file, line, ok := runtimeCaller(1)
+	if !ok {
+		return err // Unable to get caller information
+	}
+
+	outbound := &contextError{Err: AppendError(err, errContext)}
+	outbound.File = file
+	outbound.Line = line
+	fn := runtimeFuncForPC(pc)
+	if fn != nil {
+		outbound.FunctionName = fn.Name()
+	}
+	return outbound
 }
