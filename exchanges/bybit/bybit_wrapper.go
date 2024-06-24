@@ -91,30 +91,30 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	by.Features = exchange.Features{
-		Translation: currency.NewTranslations(
+		CurrencyTranslations: currency.NewTranslations(
 			map[currency.Code]currency.Code{
-				currency.NewCode("10000000AIDOGE"):  currency.NewCode("AIDOGE"),
-				currency.NewCode("1000000BABYDOGE"): currency.NewCode("BABYDOGE"),
+				currency.NewCode("10000000AIDOGE"):  currency.AIDOGE,
+				currency.NewCode("1000000BABYDOGE"): currency.BABYDOGE,
 				currency.NewCode("1000000MOG"):      currency.NewCode("MOG"),
 				currency.NewCode("10000COQ"):        currency.NewCode("COQ"),
 				currency.NewCode("10000LADYS"):      currency.NewCode("LADYS"),
-				currency.NewCode("10000NFT"):        currency.NewCode("NFT"),
+				currency.NewCode("10000NFT"):        currency.NFT,
 				currency.NewCode("10000SATS"):       currency.NewCode("SATS"),
-				currency.NewCode("10000STARL"):      currency.NewCode("STARL"),
+				currency.NewCode("10000STARL"):      currency.STARL,
 				currency.NewCode("10000WEN"):        currency.NewCode("WEN"),
 				currency.NewCode("1000APU"):         currency.NewCode("APU"),
 				currency.NewCode("1000BEER"):        currency.NewCode("BEER"),
-				currency.NewCode("1000BONK"):        currency.NewCode("BONK"),
-				currency.NewCode("1000BTT"):         currency.NewCode("BTT"),
-				currency.NewCode("1000FLOKI"):       currency.NewCode("FLOKI"),
+				currency.NewCode("1000BONK"):        currency.BONK,
+				currency.NewCode("1000BTT"):         currency.BTT,
+				currency.NewCode("1000FLOKI"):       currency.FLOKI,
 				currency.NewCode("1000IQ50"):        currency.NewCode("IQ50"),
-				currency.NewCode("1000LUNC"):        currency.NewCode("LUNC"),
-				currency.NewCode("1000PEPE"):        currency.NewCode("PEPE"),
+				currency.NewCode("1000LUNC"):        currency.LUNC,
+				currency.NewCode("1000PEPE"):        currency.PEPE,
 				currency.NewCode("1000RATS"):        currency.NewCode("RATS"),
 				currency.NewCode("1000TURBO"):       currency.NewCode("TURBO"),
-				currency.NewCode("1000XEC"):         currency.NewCode("XEC"),
-				currency.NewCode("LUNA2"):           currency.NewCode("LUNA"),
-				currency.NewCode("SHIB1000"):        currency.NewCode("SHIB"),
+				currency.NewCode("1000XEC"):         currency.XEC,
+				currency.NewCode("LUNA2"):           currency.LUNA,
+				currency.NewCode("SHIB1000"):        currency.SHIB,
 			},
 		),
 		Supports: exchange.FeaturesSupported{
@@ -1913,9 +1913,9 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	// if r.IncludePredictedRate {
-	// 	return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
-	// }
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
+	}
 	switch r.Asset {
 	case asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -1968,10 +1968,6 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: lrt,
-					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
-				},
-				PredictedUpcomingRate: fundingrate.Rate{
-					Time: lrt.Add(fundingInterval),
 					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
