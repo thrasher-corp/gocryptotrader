@@ -210,17 +210,14 @@ func (p Pairs) Remove(pair Pair) (Pairs, error) {
 	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
 }
 
-// Add adds a specified pair to the list of pairs if it doesn't exist
+// Add adds pairs to the list of pairs ignoring duplicates
 func (p Pairs) Add(pairs ...Pair) Pairs {
-	merge := append(slices.Clone(p), pairs...)
-	var filterInt int
-	for x := len(p); x < len(merge); x++ {
-		if !merge[:len(p)+filterInt].Contains(merge[x], true) {
-			merge[len(p)+filterInt] = merge[x]
-			filterInt++
+	for _, a := range pairs {
+		if !p.Contains(a, true) {
+			p = append(p, a)
 		}
 	}
-	return merge[:len(p)+filterInt]
+	return p
 }
 
 // GetMatch returns either the pair that is equal including the reciprocal for
