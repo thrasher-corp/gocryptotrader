@@ -41,8 +41,12 @@ func (b *BTCMarkets) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -58,9 +62,12 @@ func (b *BTCMarkets) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTCMarkets) wsReadData() {
 	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -373,10 +380,13 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 
 		r.Channels = []string{s.Channel}
 		r.MarketIDs = s.Pairs.Strings()
-
-		err := b.Websocket.Conn.SendJSONMessage(r)
+		spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+		if err != nil {
+			return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+		}
+		err = spotWebsocket.Conn.SendJSONMessage(r)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = spotWebsocket.AddSuccessfulSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -414,9 +424,13 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 			MarketIDs:   s.Pairs.Strings(),
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+		if err != nil {
+			return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+		}
+		err = spotWebsocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(s)
+			err = spotWebsocket.RemoveSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

@@ -47,15 +47,19 @@ func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     hbMsg,
 		Delay:       hbInterval,
@@ -65,7 +69,6 @@ func (b *Bitstamp) WsConnect() error {
 		b.Websocket.DataHandler <- err
 	}
 
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	return nil
@@ -73,15 +76,26 @@ func (b *Bitstamp) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitstamp) wsReadData() {
-	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+		return
+	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		if err := b.wsHandleData(resp.Raw); err != nil {
-			b.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := b.wsHandleData(resp.Raw)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
 		}
 	}
 }
@@ -267,6 +281,10 @@ func (b *Bitstamp) generateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	var auth *WebsocketAuthResponse
 
@@ -292,9 +310,9 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
 			req.Data.Auth = auth.Token
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := spotWebsocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = spotWebsocket.AddSuccessfulSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -306,6 +324,10 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	for _, s := range channelsToUnsubscribe {
 		req := websocketEventRequest{
@@ -314,9 +336,9 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 				Channel: s.Channel,
 			},
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := spotWebsocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(s)
+			err = spotWebsocket.RemoveSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

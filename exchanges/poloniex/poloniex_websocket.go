@@ -57,8 +57,12 @@ func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -68,9 +72,7 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	p.Websocket.Wg.Add(1)
 	go p.wsReadData()
-
 	return nil
 }
 
@@ -101,15 +103,26 @@ func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
 
 // wsReadData handles data from the websocket connection
 func (p *Poloniex) wsReadData() {
-	defer p.Websocket.Wg.Done()
+	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+		return
+	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := p.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := p.wsHandleData(resp.Raw)
-		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("%s: %w", p.Name, err)
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := p.wsHandleData(resp.Raw)
+			if err != nil {
+				p.Websocket.DataHandler <- fmt.Errorf("%s: %w", p.Name, err)
+			}
 		}
 	}
 }
@@ -580,6 +593,10 @@ func (p *Poloniex) Unsubscribe(subs subscription.List) error {
 }
 
 func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
+	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
@@ -604,13 +621,13 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 				}
 				req.Channel = s.Pairs[0].String()
 			}
-			err = p.Websocket.Conn.SendJSONMessage(req)
+			err = spotWebsocket.Conn.SendJSONMessage(req)
 		}
 		if err == nil {
 			if op == wsSubscribeOp {
-				err = p.Websocket.AddSuccessfulSubscriptions(s)
+				err = spotWebsocket.AddSuccessfulSubscriptions(s)
 			} else {
-				err = p.Websocket.RemoveSubscriptions(s)
+				err = spotWebsocket.RemoveSubscriptions(s)
 			}
 		}
 		if err != nil {
@@ -621,6 +638,10 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 }
 
 func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
+	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(nonce),
@@ -635,7 +656,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(request)
+	return spotWebsocket.Conn.SendJSONMessage(request)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []interface{}) error {

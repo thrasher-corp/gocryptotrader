@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -17,25 +18,29 @@ func (by *Bybit) WsOptionsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Options) {
 		return stream.ErrWebsocketNotEnabled
 	}
-	by.Websocket.Conn.SetURL(optionPublic)
+	optionsWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Options)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Options)
+	}
+	optionsWebsocket.Conn.SetURL(optionPublic)
 	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = optionsWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	pingMessage := PingMessage{Operation: "ping", RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10)}
+	pingMessage := PingMessage{Operation: "ping", RequestID: strconv.FormatInt(optionsWebsocket.Conn.GenerateMessageID(false), 10)}
 	pingData, err := json.Marshal(pingMessage)
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	optionsWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingData,
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Options, by.Websocket.Conn)
+	go by.wsReadData(asset.Options, optionsWebsocket.Conn)
 	return nil
 }
 
@@ -75,10 +80,14 @@ func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubsc
 	if err != nil {
 		return err
 	}
+	optionsWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Options)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Options)
+	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		err = optionsWebsocket.Conn.SendJSONMessage(payloads[a])
 		if err != nil {
 			return err
 		}

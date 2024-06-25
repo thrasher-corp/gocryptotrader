@@ -39,6 +39,7 @@ type ConnectionSetup struct {
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+	AssetType               asset.Item
 }
 
 // PingHandler container for ping handler settings

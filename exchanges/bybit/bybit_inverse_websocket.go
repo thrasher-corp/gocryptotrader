@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -15,20 +16,24 @@ func (by *Bybit) WsInverseConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return stream.ErrWebsocketNotEnabled
 	}
-	by.Websocket.Conn.SetURL(inversePublic)
+	inverseWebsocket, err := by.Websocket.GetAssetWebsocket(asset.LinearContract)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.LinearContract)
+	}
+	inverseWebsocket.Conn.SetURL(inversePublic)
 	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = inverseWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	inverseWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.CoinMarginedFutures, by.Websocket.Conn)
+	go by.wsReadData(asset.CoinMarginedFutures, inverseWebsocket.Conn)
 	return nil
 }
 
@@ -68,10 +73,14 @@ func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubsc
 	if err != nil {
 		return err
 	}
+	inverseWebsocket, err := by.Websocket.GetAssetWebsocket(asset.LinearContract)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.LinearContract)
+	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		err = inverseWebsocket.Conn.SendJSONMessage(payloads[a])
 		if err != nil {
 			return err
 		}

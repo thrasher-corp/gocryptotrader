@@ -186,7 +186,7 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = stream.NewWebsocket()
+	k.Websocket = stream.NewWrapper()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -216,22 +216,30 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = k.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig:  buffer.Config{SortBuffer: true},
+		Features:               &k.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+
+	spotWebsocket, err := k.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
 		Connector:             k.WsConnect,
 		Subscriber:            k.Subscribe,
 		Unsubscriber:          k.Unsubscribe,
 		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
-		Features:              &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -241,7 +249,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

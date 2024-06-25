@@ -170,7 +170,7 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	d.Websocket = stream.NewWebsocket()
+	d.Websocket = stream.NewWrapper()
 	d.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	d.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	d.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -190,15 +190,10 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = d.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            deribitWebsocketAddress,
-		RunningURL:            deribitWebsocketAddress,
-		Connector:             d.WsConnect,
-		Subscriber:            d.Subscribe,
-		Unsubscriber:          d.Unsubscribe,
-		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
-		Features:              &d.Features.Supports.WebsocketCapabilities,
+	err = d.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &d.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -208,10 +203,22 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	spotWebsocket, err := d.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            deribitWebsocketAddress,
+		RunningURL:            deribitWebsocketAddress,
+		Connector:             d.WsConnect,
+		Subscriber:            d.Subscribe,
+		Unsubscriber:          d.Unsubscribe,
+		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
+	})
+	if err != nil {
+		return err
+	}
+
 	// setup option decimal regex at startup to make constant checks more efficient
 	optionRegex = regexp.MustCompile(optionDecimalRegex)
 
-	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

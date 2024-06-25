@@ -175,7 +175,7 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = stream.NewWrapper()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -201,24 +201,30 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig: buffer.Config{
+			UpdateEntriesByID: true,
+		},
+		Features: &b.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            publicBitfinexWebsocketEndpoint,
 		RunningURL:            wsEndpoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			UpdateEntriesByID: true,
-		},
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
-
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  publicBitfinexWebsocketEndpoint,
@@ -227,7 +233,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,

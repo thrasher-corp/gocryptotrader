@@ -130,7 +130,7 @@ func (c *CoinbasePro) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = stream.NewWebsocket()
+	c.Websocket = stream.NewWrapper()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -156,25 +156,30 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = c.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer: true,
+		},
+		Features: &c.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	spotWebsocket, err := c.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            coinbaseproWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             c.WsConnect,
 		Subscriber:            c.Subscribe,
 		Unsubscriber:          c.Unsubscribe,
 		GenerateSubscriptions: c.generateSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer: true,
-		},
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
-		fmt.Println("COINBASE ISSUE")
 		return err
 	}
-
-	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

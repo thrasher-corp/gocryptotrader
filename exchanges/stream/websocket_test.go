@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -66,16 +66,6 @@ type testSubKey struct {
 }
 
 var defaultSetup = &WebsocketSetup{
-	ExchangeConfig: &config.Exchange{
-		Features: &config.FeaturesConfig{
-			Enabled: config.FeaturesEnabledConfig{Websocket: true},
-		},
-		API: config.APIConfig{
-			AuthenticatedWebsocketSupport: true,
-		},
-		WebsocketTrafficTimeout: time.Second * 5,
-		Name:                    "GTX",
-	},
 	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
 	Connector:    func() error { return nil },
@@ -89,7 +79,6 @@ var defaultSetup = &WebsocketSetup{
 			{Channel: "TestSub4", Key: 42},
 		}, nil
 	},
-	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
 }
 
 type dodgyConnection struct {
@@ -112,83 +101,86 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestSetup(t *testing.T) {
+func TestAddWebsocket(t *testing.T) {
 	t.Parallel()
-	var w *Websocket
-	err := w.Setup(nil)
-	assert.ErrorIs(t, err, errWebsocketIsNil, "Setup should error correctly")
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	w = &Websocket{DataHandler: make(chan interface{})}
-	err = w.Setup(nil)
-	assert.ErrorIs(t, err, errWebsocketSetupIsNil, "Setup should error correctly")
+	_, err = ((*WrapperWebsocket)(nil)).AddWebsocket(nil)
+	require.ErrorIs(t, err, errWebsocketWrapperIsNil)
+
+	// A successful Spot websocket initialization by using the default websocket setup.
+	// So that, we can test instantiating an already existing asset's websocket instance and assert the error message.
+	_, err = websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
+	_, err = websocketWrapper.AddWebsocket(nil)
+	require.ErrorIs(t, err, errWebsocketSetupIsNil)
 
 	websocketSetup := &WebsocketSetup{}
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errExchangeConfigIsNil, "Setup should error correctly")
+	websocketSetup = &WebsocketSetup{AssetType: asset.Spot}
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errWebsocketAlreadyInitialised)
 
-	websocketSetup.ExchangeConfig = &config.Exchange{}
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errExchangeConfigNameEmpty, "Setup should error correctly")
-
-	websocketSetup.ExchangeConfig.Name = "testname"
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketFeaturesIsUnset, "Setup should error correctly")
-
-	websocketSetup.Features = &protocol.Features{}
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errConfigFeaturesIsNil, "Setup should error correctly")
-
-	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketConnectorUnset, "Setup should error correctly")
+	websocketSetup.AssetType = asset.Margin
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errWebsocketConnectorUnset)
 
 	websocketSetup.Connector = func() error { return nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketSubscriberUnset, "Setup should error correctly")
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
-	websocketSetup.Subscriber = func(subscription.List) error { return nil }
-	websocketSetup.Features.Unsubscribe = true
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketUnsubscriberUnset, "Setup should error correctly")
+	websocketSetup.GenerateSubscriptions = func() (subscription.List, error) { return subscription.List{}, nil }
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
 
-	websocketSetup.Unsubscriber = func(subscription.List) error { return nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset, "Setup should error correctly")
+	websocketSetup.Subscriber = func(cs subscription.List) error { return nil }
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errWebsocketUnsubscriberUnset)
 
-	websocketSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errDefaultURLIsEmpty, "Setup should error correctly")
+	websocketSetup.Unsubscriber = func(cs subscription.List) error { return nil }
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errDefaultURLIsEmpty)
 
 	websocketSetup.DefaultURL = "test"
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errRunningURLIsEmpty, "Setup should error correctly")
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errRunningURLIsEmpty)
 
 	websocketSetup.RunningURL = "http://www.google.com"
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errInvalidWebsocketURL, "Setup should error correctly")
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errInvalidWebsocketURL)
 
 	websocketSetup.RunningURL = "wss://www.google.com"
 	websocketSetup.RunningURLAuth = "http://www.google.com"
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errInvalidWebsocketURL, "Setup should error correctly")
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errInvalidWebsocketURL)
 
 	websocketSetup.RunningURLAuth = "wss://www.google.com"
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errInvalidTrafficTimeout, "Setup should error correctly")
+	websocketSetup.MaxWebsocketSubscriptionsPerConnection = -1
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.ErrorIs(t, err, errInvalidMaxSubscriptions)
 
-	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
-	err = w.Setup(websocketSetup)
-	assert.NoError(t, err, "Setup should not error")
+	websocketSetup.RunningURLAuth = "wss://www.google.com"
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	require.NoError(t, err)
 }
 
 // TestTrafficMonitorTrafficAlerts ensures multiple traffic alerts work and only process one trafficAlert per interval
 // ensures shutdown works after traffic alerts
 func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
-	err := ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
 
 	signal := struct{}{}
 	patience := 10 * time.Millisecond
@@ -196,6 +188,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	ws.state.Store(connectedState)
 
 	thenish := time.Now()
+	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
 
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
@@ -233,9 +226,12 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 // TestTrafficMonitorConnecting ensures connecting status doesn't trigger shutdown
 func TestTrafficMonitorConnecting(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
-	err := ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
 
 	ws.state.Store(connectingState)
 	ws.trafficTimeout = 50 * time.Millisecond
@@ -254,9 +250,12 @@ func TestTrafficMonitorConnecting(t *testing.T) {
 // TestTrafficMonitorShutdown ensures shutdown is processed and waitgroup is cleared
 func TestTrafficMonitorShutdown(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
-	err := ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
 
 	ws.state.Store(connectedState)
 	ws.trafficTimeout = time.Minute
@@ -319,9 +318,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = wsWrong.Connect()
 	assert.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
 
-	ws := NewWebsocket()
-	err = ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
+	websocketWrapper := NewWrapper()
+	err = websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
 	ws.trafficTimeout = time.Minute
 	ws.connector = connect
 
@@ -330,7 +332,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	c := func(tb *assert.CollectT) {
 		select {
-		case v, ok := <-ws.ToRoutine:
+		case v, ok := <-websocketWrapper.ToRoutine:
 			require.True(tb, ok, "ToRoutine should not be closed on us")
 			switch err := v.(type) {
 			case *websocket.CloseError:
@@ -356,19 +358,20 @@ func TestConnectionMessageErrors(t *testing.T) {
 func TestWebsocket(t *testing.T) {
 	t.Parallel()
 
-	ws := NewWebsocket()
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
 
-	err := ws.SetProxyAddress("garbagio")
-	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
+	err = ws.SetProxyAddress("garbagio")
+	require.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
-	ws.Conn = &dodgyConnection{}
+	ws.Conn = &WebsocketConnection{}
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setEnabled(true)
 
-	err = ws.Setup(defaultSetup) // Sets to enabled again
-	require.NoError(t, err, "Setup may not error")
-
-	err = ws.Setup(defaultSetup)
+	ws, err = websocketWrapper.AddWebsocket(DefaultTestSetup)
 	assert.ErrorIs(t, err, errWebsocketAlreadyInitialised, "Setup should error correctly if called twice")
 
 	assert.Equal(t, "GTX", ws.GetName(), "GetName should return correctly")
@@ -381,9 +384,13 @@ func TestWebsocket(t *testing.T) {
 	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by setEnabled(true)")
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
-	assert.NoError(t, err, "SetProxyAddress should not error when not yet connected")
+	require.NoError(t, err)
 
 	ws.setState(connectedState)
+	ws.ShutdownC = make(chan struct{})
+	ws.Wg = sync.WaitGroup{}
+	err = ws.SetProxyAddress("https://192.168.0.1:1336")
+	require.NoError(t, err)
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
 	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Connect and error from there")
@@ -412,7 +419,9 @@ func TestWebsocket(t *testing.T) {
 	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy authConn")
 	assert.ErrorIs(t, err, errCannotShutdown, "Shutdown should error correctly with a dodgy authConn")
 
-	ws.AuthConn = &WebsocketConnection{}
+	ws.AuthConn = &WebsocketConnection{
+		ShutdownC: make(chan struct{}, 5),
+	}
 	ws.setState(disconnectedState)
 
 	err = ws.Connect()
@@ -431,8 +440,9 @@ func TestWebsocket(t *testing.T) {
 	assert.NoError(t, err, "SetWebsocketURL should not error")
 
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, false)
-	assert.NoError(t, err, "SetWebsocketURL should not error")
-
+	require.NoError(t, err)
+	ws.ShutdownC = make(chan struct{}, 5)
+	// Attempt reconnect
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, true)
 	assert.NoError(t, err, "SetWebsocketURL should not error on reconnect")
 
@@ -463,8 +473,11 @@ func currySimpleUnsub(w *Websocket) func(subscription.List) error {
 // TestSubscribe logic test
 func TestSubscribeUnsubscribe(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
-	assert.NoError(t, ws.Setup(defaultSetup), "WS Setup should not error")
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
 
 	ws.Subscriber = currySimpleSub(ws)
 	ws.Unsubscriber = currySimpleUnsub(ws)
@@ -507,15 +520,18 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 // TestResubscribe tests Resubscribing to existing subscriptions
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
+	websocketWrapper := NewWrapper()
+	DefaultWrapperSetup.MaxWebsocketSubscriptionsPerConnection = -1
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
 
-	wackedOutSetup := *defaultSetup
+	wackedOutSetup := *DefaultTestSetup
 	wackedOutSetup.MaxWebsocketSubscriptionsPerConnection = -1
-	err := ws.Setup(&wackedOutSetup)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
 	assert.ErrorIs(t, err, errInvalidMaxSubscriptions, "Invalid MaxWebsocketSubscriptionsPerConnection should error")
 
-	err = ws.Setup(defaultSetup)
-	assert.NoError(t, err, "WS Setup should not error")
+	ws, err = websocketWrapper.AddWebsocket(DefaultTestSetup)
+	assert.NoError(t, err)
 
 	ws.Subscriber = currySimpleSub(ws)
 	ws.Unsubscriber = currySimpleUnsub(ws)
@@ -572,11 +588,16 @@ func TestSuccessfulSubscriptions(t *testing.T) {
 // TestConnectionMonitorNoConnection logic test
 func TestConnectionMonitorNoConnection(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
 	ws.connectionMonitorDelay = 500
 	ws.exchangeName = "hello"
 	ws.setEnabled(true)
-	err := ws.connectionMonitor()
+	err = ws.connectionMonitor()
 	require.NoError(t, err, "connectionMonitor must not error")
 	assert.True(t, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
 	err = ws.connectionMonitor()
@@ -588,7 +609,13 @@ func TestGetSubscription(t *testing.T) {
 	t.Parallel()
 	assert.Nil(t, (*Websocket).GetSubscription(nil, "imaginary"), "GetSubscription on a nil Websocket should return nil")
 	assert.Nil(t, (&Websocket{}).GetSubscription("empty"), "GetSubscription on a Websocket with no sub store should return nil")
-	w := NewWebsocket()
+
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	w, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
 	assert.Nil(t, w.GetSubscription(nil), "GetSubscription with a nil key should return nil")
 	s := &subscription.Subscription{Key: 42, Channel: "hello3"}
 	require.NoError(t, w.AddSubscriptions(s), "AddSubscriptions must not error")
@@ -600,12 +627,19 @@ func TestGetSubscriptions(t *testing.T) {
 	t.Parallel()
 	assert.Nil(t, (*Websocket).GetSubscriptions(nil), "GetSubscription on a nil Websocket should return nil")
 	assert.Nil(t, (&Websocket{}).GetSubscriptions(), "GetSubscription on a Websocket with no sub store should return nil")
-	w := NewWebsocket()
+
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	w, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
 	s := subscription.List{
 		{Key: 42, Channel: "hello3"},
 		{Key: 45, Channel: "hello4"},
 	}
-	err := w.AddSubscriptions(s...)
+
+	err = w.AddSubscriptions(s...)
 	require.NoError(t, err, "AddSubscriptions must not error")
 	assert.ElementsMatch(t, s, w.GetSubscriptions(), "GetSubscriptions should return the correct channel details")
 }
@@ -613,7 +647,7 @@ func TestGetSubscriptions(t *testing.T) {
 // TestSetCanUseAuthenticatedEndpoints logic test
 func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
 	t.Parallel()
-	ws := NewWebsocket()
+	ws := Websocket{}
 	assert.False(t, ws.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should return false")
 	ws.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, ws.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should return true")
@@ -920,6 +954,7 @@ func BenchmarkGenerateMessageID_Low(b *testing.B) {
 }
 
 func TestCheckWebsocketURL(t *testing.T) {
+	t.Parallel()
 	err := checkWebsocketURL("")
 	assert.ErrorIs(t, err, errInvalidWebsocketURL, "checkWebsocketURL should error correctly on empty string")
 
@@ -1001,7 +1036,10 @@ func TestFlushChannels(t *testing.T) {
 		currency.NewPair(currency.BTC, currency.USDT),
 	}}
 
-	dodgyWs := Websocket{}
+	shutdownC := make(chan asset.Item, 10)
+	dodgyWs := Websocket{
+		AssetShutdownC: shutdownC,
+	}
 	err := dodgyWs.FlushChannels()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "FlushChannels should error correctly")
 
@@ -1009,7 +1047,12 @@ func TestFlushChannels(t *testing.T) {
 	err = dodgyWs.FlushChannels()
 	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
 
-	w := NewWebsocket()
+	websocketWrapper := NewWrapper()
+	err = websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	w, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
 	w.connector = connect
 	w.Subscriber = newgen.SUBME
 	w.Unsubscriber = newgen.UNSUBME
@@ -1021,6 +1064,20 @@ func TestFlushChannels(t *testing.T) {
 
 	problemFunc := func() (subscription.List, error) {
 		return nil, errDastardlyReason
+	}
+	w = &Websocket{
+		connector:      connect,
+		ShutdownC:      make(chan struct{}),
+		Subscriber:     newgen.SUBME,
+		Unsubscriber:   newgen.UNSUBME,
+		Wg:             sync.WaitGroup{},
+		AssetShutdownC: shutdownC,
+		features:       &protocol.Features{
+			// No features
+		},
+		trafficTimeout: time.Second * 30, // Added for when we utilise connect()
+		// in FlushChannels() so the traffic monitor doesn't time out and turn
+		// this to an unconnected state
 	}
 
 	noSub := func() (subscription.List, error) {
@@ -1080,7 +1137,13 @@ func TestFlushChannels(t *testing.T) {
 
 func TestDisable(t *testing.T) {
 	t.Parallel()
-	w := NewWebsocket()
+	websocketWrapper := NewWrapper()
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+
+	w, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
+
 	w.setEnabled(true)
 	w.setState(connectedState)
 	require.NoError(t, w.Disable(), "Disable must not error")
@@ -1089,13 +1152,17 @@ func TestDisable(t *testing.T) {
 
 func TestEnable(t *testing.T) {
 	t.Parallel()
-	w := NewWebsocket()
-	w.connector = connect
-	w.Subscriber = func(subscription.List) error { return nil }
-	w.Unsubscriber = func(subscription.List) error { return nil }
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
-	require.NoError(t, w.Enable(), "Enable must not error")
-	assert.ErrorIs(t, w.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
+	web := Websocket{
+		connector: connect,
+		Wg:        sync.WaitGroup{},
+		ShutdownC: make(chan struct{}),
+		GenerateSubs: func() (subscription.List, error) {
+			return subscription.List{{Channel: "test"}}, nil
+		},
+		Subscriber: func(cs subscription.List) error { return nil },
+	}
+	require.NoError(t, web.Enable(), "Enable must not error")
+	assert.ErrorIs(t, web.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {
@@ -1116,10 +1183,11 @@ func TestSetupNewConnection(t *testing.T) {
 	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errReadMessageErrorsNil, "SetupNewConnection should error correctly")
 
-	web := NewWebsocket()
-
-	err = web.Setup(defaultSetup)
-	assert.NoError(t, err, "Setup should not error")
+	websocketWrapper := NewWrapper()
+	err = websocketWrapper.Setup(DefaultWrapperSetup)
+	require.NoError(t, err)
+	web, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	require.NoError(t, err)
 
 	err = web.SetupNewConnection(ConnectionSetup{})
 	assert.ErrorIs(t, err, errExchangeConfigEmpty, "SetupNewConnection should error correctly")

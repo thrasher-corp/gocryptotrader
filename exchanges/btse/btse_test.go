@@ -51,8 +51,17 @@ func TestMain(m *testing.M) {
 	btseConfig.API.AuthenticatedSupport = true
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err = b.Setup(btseConfig); err != nil {
+	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
+	err = b.Setup(btseConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = b.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = b.CurrencyPairs.EnablePair(asset.Futures, futuresPair)
+	if err != nil {
 		log.Fatal(err)
 	}
 

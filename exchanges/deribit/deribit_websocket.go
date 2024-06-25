@@ -99,8 +99,12 @@ func (d *Deribit) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := d.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -113,7 +117,11 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	spotWebsocket, err = d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	return spotWebsocket.Conn.SendJSONMessage(setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -134,11 +142,15 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 
 	request := wsInput{
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
-		ID:             d.Websocket.Conn.GenerateMessageID(false),
+		ID:             spotWebsocket.Conn.GenerateMessageID(false),
 		Params: map[string]interface{}{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
@@ -147,7 +159,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"signature":  crypto.HexEncodeToString(hmac),
 		},
 	}
-	resp, err := d.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -166,9 +178,12 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 // wsReadData receives and passes on websocket messages for processing
 func (d *Deribit) wsReadData() {
 	defer d.Websocket.Wg.Done()
-
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := d.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -186,8 +201,12 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	if response.Method == "heartbeat" {
-		return d.Websocket.Conn.SendJSONMessage(pingMessage)
+		return spotWebsocket.Conn.SendJSONMessage(pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
@@ -979,6 +998,10 @@ func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs subscription.List) ([]WsSubscriptionInput, error) {
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	subscriptionPayloads := make([]WsSubscriptionInput, len(subscs))
 	for x := range subscs {
 		if len(subscs[x].Pairs) > 1 {
@@ -986,7 +1009,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 		}
 		sub := WsSubscriptionInput{
 			JSONRPCVersion: rpcVersion,
-			ID:             d.Websocket.Conn.GenerateMessageID(false),
+			ID:             spotWebsocket.Conn.GenerateMessageID(false),
 			Method:         "public/" + operation,
 			Params:         map[string][]string{},
 		}
@@ -1160,12 +1183,16 @@ func filterSubscriptionPayloads(subscription []WsSubscriptionInput) []WsSubscrip
 }
 
 func (d *Deribit) handleSubscription(operation string, channels subscription.List) error {
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	payloads, err := d.generatePayloadFromSubscriptionInfos(operation, channels)
 	if err != nil {
 		return err
 	}
 	for x := range payloads {
-		data, err := d.Websocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
+		data, err := spotWebsocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
 		if err != nil {
 			return err
 		}

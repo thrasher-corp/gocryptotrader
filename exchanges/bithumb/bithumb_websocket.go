@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -35,8 +36,11 @@ func (b *Bithumb) WsConnect() error {
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
-
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w",
 			b.Name,
@@ -59,11 +63,15 @@ func (b *Bithumb) wsReadData() {
 		case <-b.Websocket.ShutdownC:
 			return
 		default:
-			resp := b.Websocket.Conn.ReadMessage()
+			spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+			}
+			resp := spotWebsocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}
-			err := b.wsHandleData(resp.Raw)
+			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -203,9 +211,13 @@ func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
 		if s.Channel == "ticker" {
 			req.TickTypes = wsDefaultTickTypes
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+		if err != nil {
+			return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+		}
+		err = spotWebsocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = spotWebsocket.AddSuccessfulSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

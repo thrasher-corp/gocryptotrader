@@ -127,7 +127,7 @@ func (b *Bithumb) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = stream.NewWrapper()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -156,20 +156,26 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            wsEndpoint,
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		GenerateSubscriptions: b.generateSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
-
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMillisecond,

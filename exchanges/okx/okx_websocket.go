@@ -222,17 +222,21 @@ func (ok *Okx) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
+	go ok.wsReadData(spotWebsocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -255,13 +259,17 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
 	}
-	err := ok.Websocket.AuthConn.Dial(dialer, http.Header{})
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
+	err = spotWebsocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	go ok.wsReadData(spotWebsocket.AuthConn)
+	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -292,7 +300,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = spotWebsocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
@@ -360,6 +368,10 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions subscription.List) error {
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
 	request := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
@@ -481,14 +493,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
+				err = spotWebsocket.AuthConn.SendJSONMessage(authRequests)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(channels...)
+					err = spotWebsocket.RemoveSubscriptions(channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = spotWebsocket.AddSuccessfulSubscriptions(channels...)
 				}
 				if err != nil {
 					return err
@@ -505,14 +517,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(request)
+				err = spotWebsocket.Conn.SendJSONMessage(request)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(channels...)
+					err = spotWebsocket.RemoveSubscriptions(channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = spotWebsocket.AddSuccessfulSubscriptions(channels...)
 				}
 				if err != nil {
 					return err
@@ -525,23 +537,23 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 	}
 
 	if len(request.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(request); err != nil {
+		if err := spotWebsocket.Conn.SendJSONMessage(request); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(authRequests); err != nil {
+		if err := spotWebsocket.AuthConn.SendJSONMessage(authRequests); err != nil {
 			return err
 		}
 	}
 
 	channels = append(channels, authChannels...)
 	if operation == operationUnsubscribe {
-		return ok.Websocket.RemoveSubscriptions(channels...)
+		return spotWebsocket.RemoveSubscriptions(channels...)
 	}
 
-	return ok.Websocket.AddSuccessfulSubscriptions(channels...)
+	return spotWebsocket.AddSuccessfulSubscriptions(channels...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
@@ -1369,7 +1381,11 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: okxOpOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	err = spotWebsocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1428,7 +1444,11 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		Arguments: args,
 		Operation: okxOpBatchOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	err = spotWebsocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1498,7 +1518,11 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		Arguments: []CancelOrderRequestParam{arg},
 		Operation: okxOpCancelOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	err = spotWebsocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1558,7 +1582,11 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		Arguments: args,
 		Operation: okxOpBatchCancelOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	err = spotWebsocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1634,7 +1662,11 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		Operation: okxOpAmendOrder,
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	err = spotWebsocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1696,7 +1728,11 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		Operation: okxOpBatchAmendOrders,
 		Arguments: args,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	err = spotWebsocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1849,7 +1885,11 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
+	return spotWebsocket.Conn.SendJSONMessage(input)
 }
 
 // Private Channel Websocket methods
@@ -1915,7 +1955,11 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.AuthConn.SendJSONMessage(input)
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
+	return spotWebsocket.AuthConn.SendJSONMessage(input)
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by

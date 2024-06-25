@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -2359,14 +2360,18 @@ func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params
 	if authenticated && !d.Websocket.CanUseAuthenticatedEndpoints() {
 		return errWebsocketConnectionNotAuthenticated
 	}
+	spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	input := &WsRequest{
 		JSONRPCVersion: rpcVersion,
-		ID:             d.Websocket.Conn.GenerateMessageID(true),
+		ID:             spotWebsocket.Conn.GenerateMessageID(true),
 		Method:         method,
 		Params:         params,
 	}
 	resp := &wsResponse{Result: response}
-	err := d.sendWsPayload(epl, input, resp)
+	err = d.sendWsPayload(epl, input, resp)
 	if err != nil {
 		return err
 	}
@@ -2395,6 +2400,7 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 			cancelFunc()
 		}
 	}()
+
 	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := d.Requester.InitiateRateLimit(ctx, ep)
@@ -2405,8 +2411,12 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 		if d.Verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d", d.Name, attempt)
 		}
+		spotWebsocket, err := d.Websocket.GetAssetWebsocket(asset.Spot)
+		if err != nil {
+			return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+		}
 		var payload []byte
-		payload, err = d.Websocket.Conn.SendMessageReturnResponse(input.ID, input)
+		payload, err = spotWebsocket.Conn.SendMessageReturnResponse(input.ID, input)
 		if err != nil {
 			return err
 		}

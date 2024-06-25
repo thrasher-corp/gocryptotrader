@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -31,8 +32,12 @@ func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -45,9 +50,12 @@ func (c *CoinbasePro) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
 	defer c.Websocket.Wg.Done()
-
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := c.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -423,9 +431,13 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(r)
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(r)
 	if err == nil {
-		err = c.Websocket.AddSuccessfulSubscriptions(subs...)
+		err = spotWebsocket.AddSuccessfulSubscriptions(subs...)
 	}
 	return err
 }
@@ -459,9 +471,13 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(r)
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(r)
 	if err == nil {
-		err = c.Websocket.RemoveSubscriptions(subs...)
+		err = spotWebsocket.RemoveSubscriptions(subs...)
 	}
 	return err
 }

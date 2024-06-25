@@ -140,7 +140,7 @@ func (bi *Binanceus) SetDefaults() {
 			"%s setting default endpoints error %v",
 			bi.Name, err)
 	}
-	bi.Websocket = stream.NewWebsocket()
+	bi.Websocket = stream.NewWrapper()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -166,26 +166,34 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = bi.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = bi.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+		TradeFeed: bi.Features.Enabled.TradeFeed,
+		Features:  &bi.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	var spotWebsocket *stream.Websocket
+	spotWebsocket, err = bi.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            binanceusDefaultWebsocketURL,
 		RunningURL:            ePoint,
 		Connector:             bi.WsConnect,
 		Subscriber:            bi.Subscribe,
 		Unsubscriber:          bi.Unsubscribe,
 		GenerateSubscriptions: bi.GenerateSubscriptions,
-		Features:              &bi.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-		TradeFeed: bi.Features.Enabled.TradeFeed,
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMilliseconds,

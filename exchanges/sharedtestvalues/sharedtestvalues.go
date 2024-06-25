@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -51,11 +52,25 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 }
 
 // NewTestWebsocket returns a test websocket object
-func NewTestWebsocket() *stream.Websocket {
-	w := stream.NewWebsocket()
+func NewTestWebsocket() *stream.WrapperWebsocket {
+	w := stream.NewWrapper()
 	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
 	w.ToRoutine = make(chan interface{}, 1000)
 	return w
+}
+
+// NewTestWrapperWebsocket returns a test websocket object
+func NewTestWrapperWebsocket() *stream.WrapperWebsocket {
+	return &stream.WrapperWebsocket{
+		DataHandler:         make(chan interface{}, 100),
+		ToRoutine:           make(chan interface{}, 100),
+		TrafficAlert:        make(chan struct{}),
+		ReadMessageErrors:   make(chan error),
+		AssetTypeWebsockets: make(map[asset.Item]*stream.Websocket),
+		ShutdownC:           make(chan asset.Item, 10),
+		Match:               stream.NewMatch(),
+		Wg:                  &sync.WaitGroup{},
+	}
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the

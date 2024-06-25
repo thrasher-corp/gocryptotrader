@@ -25,10 +25,6 @@ const (
 	// delivery real trading urls
 	deliveryRealUSDTTradingURL = "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt"
 	deliveryRealBTCTradingURL  = "wss://fx-ws.gateio.ws/v4/ws/delivery/btc"
-
-	// delivery testnet urls
-	deliveryTestNetBTCTradingURL  = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"
-	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt"
 )
 
 var defaultDeliveryFuturesSubscriptions = []string{
@@ -38,30 +34,31 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-// responseDeliveryFuturesStream a channel thought which the data coming from the two websocket connection will go through.
-var responseDeliveryFuturesStream = make(chan stream.Response)
-
 var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+	if !g.Websocket.IsEnabled() || !g.IsEnabled() || !g.IsAssetWebsocketSupported(asset.DeliveryFutures) {
+		return fmt.Errorf("%w for asset type %s", stream.ErrWebsocketNotEnabled, asset.DeliveryFutures)
 	}
-	err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
+	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.DeliveryFutures)
+	}
+	err = g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
 	if err != nil {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(deliveryRealUSDTTradingURL, false, true)
+	err = deliveryFuturesWebsocket.SetWebsocketURL(deliveryRealUSDTTradingURL, false, true)
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = deliveryFuturesWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = deliveryFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  deliveryRealBTCTradingURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
@@ -71,27 +68,25 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = deliveryFuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(3)
-	go g.wsReadDeliveryFuturesData()
-	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.Conn)
-	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AuthConn)
+	go g.wsReadDeliveryFuturesData(deliveryFuturesWebsocket.Conn)
+	go g.wsReadDeliveryFuturesData(deliveryFuturesWebsocket.AuthConn)
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		ID:      deliveryFuturesWebsocket.Conn.GenerateMessageID(false),
 		Time:    time.Now().Unix(),
 		Channel: futuresPingChannel,
 	})
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	deliveryFuturesWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
@@ -101,43 +96,27 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 }
 
 // wsReadDeliveryFuturesData read coming messages thought the websocket connection and pass the data to wsHandleFuturesData for further process.
-func (g *Gateio) wsReadDeliveryFuturesData() {
-	defer g.Websocket.Wg.Done()
+func (g *Gateio) wsReadDeliveryFuturesData(ws stream.Connection) {
+	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.DeliveryFutures)
+	}
+	deliveryFuturesWebsocket.Wg.Add(1)
+	defer deliveryFuturesWebsocket.Wg.Done()
 	for {
 		select {
-		case <-g.Websocket.ShutdownC:
-			select {
-			case resp := <-responseDeliveryFuturesStream:
-				err := g.wsHandleFuturesData(resp.Raw, asset.DeliveryFutures)
-				if err != nil {
-					select {
-					case g.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
-					}
-				}
-			default:
-			}
+		case <-deliveryFuturesWebsocket.ShutdownC:
 			return
-		case resp := <-responseDeliveryFuturesStream:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			err := g.wsHandleFuturesData(resp.Raw, asset.DeliveryFutures)
 			if err != nil {
 				g.Websocket.DataHandler <- err
 			}
 		}
-	}
-}
-
-// wsFunnelDeliveryFuturesConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (g *Gateio) wsFunnelDeliveryFuturesConnectionData(ws stream.Connection) {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		responseDeliveryFuturesStream <- stream.Response{Raw: resp.Raw}
 	}
 }
 
@@ -179,6 +158,7 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fpair.Upper()},
 				Params:  params,
+				Asset:   asset.DeliveryFutures,
 			})
 		}
 	}
@@ -197,6 +177,10 @@ func (g *Gateio) DeliveryFuturesUnsubscribe(channelsToUnsubscribe subscription.L
 
 // handleDeliveryFuturesSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleDeliveryFuturesSubscription(event string, channelsToSubscribe subscription.List) error {
+	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.DeliveryFutures)
+	}
 	payloads, err := g.generateDeliveryFuturesPayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -207,9 +191,9 @@ func (g *Gateio) handleDeliveryFuturesSubscription(event string, channelsToSubsc
 	for con, val := range payloads {
 		for k := range val {
 			if con == 0 {
-				respByte, err = g.Websocket.Conn.SendMessageReturnResponse(val[k].ID, val[k])
+				respByte, err = deliveryFuturesWebsocket.Conn.SendMessageReturnResponse(val[k].ID, val[k])
 			} else {
-				respByte, err = g.Websocket.AuthConn.SendMessageReturnResponse(val[k].ID, val[k])
+				respByte, err = deliveryFuturesWebsocket.AuthConn.SendMessageReturnResponse(val[k].ID, val[k])
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -223,7 +207,7 @@ func (g *Gateio) handleDeliveryFuturesSubscription(event string, channelsToSubsc
 					errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))
 					continue
 				}
-				if err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k]); err != nil {
+				if err = deliveryFuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[k]); err != nil {
 					errs = common.AppendError(errs, err)
 				}
 			}
@@ -237,8 +221,11 @@ func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscrib
 	if len(channelsToSubscribe) == 0 {
 		return payloads, errors.New("cannot generate payload, no channels supplied")
 	}
+	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
+	if err != nil {
+		return [2][]WsInput{}, fmt.Errorf("%w asset type: %v", err, asset.DeliveryFutures)
+	}
 	var creds *account.Credentials
-	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())
 		if err != nil {
@@ -316,7 +303,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscrib
 		}
 		if strings.HasPrefix(channelsToSubscribe[i].Pairs[0].Quote.Upper().String(), "USDT") {
 			payloads[0] = append(payloads[0], WsInput{
-				ID:      g.Websocket.Conn.GenerateMessageID(false),
+				ID:      deliveryFuturesWebsocket.Conn.GenerateMessageID(false),
 				Event:   event,
 				Channel: channelsToSubscribe[i].Channel,
 				Payload: params,
@@ -325,7 +312,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscrib
 			})
 		} else {
 			payloads[1] = append(payloads[1], WsInput{
-				ID:      g.Websocket.Conn.GenerateMessageID(false),
+				ID:      deliveryFuturesWebsocket.Conn.GenerateMessageID(false),
 				Event:   event,
 				Channel: channelsToSubscribe[i].Channel,
 				Payload: params,

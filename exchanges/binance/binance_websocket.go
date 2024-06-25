@@ -76,8 +76,11 @@ func (b *Binance) WsConnect() error {
 			}
 		}
 	}
-
-	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			b.Name,
@@ -88,7 +91,7 @@ func (b *Binance) WsConnect() error {
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -151,9 +154,12 @@ func (b *Binance) KeepAuthKeyAlive() {
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
 	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -563,13 +569,17 @@ func (b *Binance) Subscribe(channels subscription.List) error {
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
 func (b *Binance) subscribeToChan(chans subscription.List) error {
-	id := b.Websocket.Conn.GenerateMessageID(false)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	id := spotWebsocket.Conn.GenerateMessageID(false)
 
 	cNames := make([]string, len(chans))
 	for i := range chans {
 		c := chans[i]
 		cNames[i] = c.Channel
-		if err := b.Websocket.AddSubscriptions(c); err != nil {
+		if err := spotWebsocket.AddSubscriptions(c); err != nil {
 			return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 		}
 	}
@@ -580,7 +590,7 @@ func (b *Binance) subscribeToChan(chans subscription.List) error {
 		ID:     id,
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(id, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
@@ -590,7 +600,7 @@ func (b *Binance) subscribeToChan(chans subscription.List) error {
 	}
 
 	if err != nil {
-		if err2 := b.Websocket.RemoveSubscriptions(chans...); err2 != nil {
+		if err2 := spotWebsocket.RemoveSubscriptions(chans...); err2 != nil {
 			err = common.AppendError(err, err2)
 		}
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
@@ -613,7 +623,11 @@ func (b *Binance) Unsubscribe(channels subscription.List) error {
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
 func (b *Binance) unsubscribeFromChan(chans subscription.List) error {
-	id := b.Websocket.Conn.GenerateMessageID(false)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	id := spotWebsocket.Conn.GenerateMessageID(false)
 
 	cNames := make([]string, len(chans))
 	for i := range chans {
@@ -626,7 +640,7 @@ func (b *Binance) unsubscribeFromChan(chans subscription.List) error {
 		ID:     id,
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(id, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
@@ -639,7 +653,7 @@ func (b *Binance) unsubscribeFromChan(chans subscription.List) error {
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
 	} else {
-		err = b.Websocket.RemoveSubscriptions(chans...)
+		err = spotWebsocket.RemoveSubscriptions(chans...)
 	}
 
 	return err

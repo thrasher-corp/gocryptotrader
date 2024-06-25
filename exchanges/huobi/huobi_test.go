@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	hConfig.API.AuthenticatedWebsocketSupport = true
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
-	h.Websocket = sharedtestvalues.NewTestWebsocket()
+	h.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = h.Setup(hConfig)
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
@@ -81,8 +81,8 @@ func setupWsTests(t *testing.T) {
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
-	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	go h.wsReadData()
+
 	var dialer websocket.Dialer
 	err := h.wsAuthenticatedDial(&dialer)
 	if err != nil {

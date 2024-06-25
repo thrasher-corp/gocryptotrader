@@ -168,7 +168,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.NewWebsocket()
+	ok.Websocket = stream.NewWrapper()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -199,35 +199,40 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:                         exch,
-		DefaultURL:                             okxAPIWebsocketPublicURL,
-		RunningURL:                             wsRunningEndpoint,
-		Connector:                              ok.WsConnect,
-		Subscriber:                             ok.Subscribe,
-		Unsubscriber:                           ok.Unsubscribe,
-		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
-		Features:                               &ok.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
+	err = ok.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
-	}); err != nil {
+		Features: &ok.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
 		return err
 	}
-
+	spotWebsocket, err := ok.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            okxAPIWebsocketPublicURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             ok.WsConnect,
+		Subscriber:            ok.Subscribe,
+		Unsubscriber:          ok.Unsubscribe,
+		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
+	if err != nil {
+		return err
+	}
 	go ok.WsResponseMultiplexer.Run()
-
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
-
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,

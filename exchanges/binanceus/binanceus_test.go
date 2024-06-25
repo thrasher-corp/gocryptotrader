@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	bi.SetDefaults()
-	bi.Websocket = sharedtestvalues.NewTestWebsocket()
+	bi.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	err = bi.Setup(exchCfg)
 	if err != nil {

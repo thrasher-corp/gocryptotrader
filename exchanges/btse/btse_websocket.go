@@ -32,12 +32,16 @@ func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
@@ -78,7 +82,11 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, sign},
 	}
-	return b.Websocket.Conn.SendJSONMessage(req)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	return spotWebsocket.Conn.SendJSONMessage(req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -105,9 +113,12 @@ func stringToOrderStatus(status string) (order.Status, error) {
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTSE) wsReadData() {
 	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -392,9 +403,13 @@ func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 	for i := range channelsToSubscribe {
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(sub)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(sub)
 	if err == nil {
-		err = b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+		err = spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	}
 	return err
 }
@@ -407,9 +422,13 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 		unSub.Arguments = append(unSub.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(unSub)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(unSub)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
+		err = spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}
 	return err
 }

@@ -76,10 +76,14 @@ func (o *Okcoin) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
-	err := o.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -87,14 +91,14 @@ func (o *Okcoin) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
-	o.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Second * 25,
 		Message:     []byte("ping"),
 		MessageType: websocket.TextMessage,
 	})
 
 	o.Websocket.Wg.Add(1)
-	go o.WsReadData(o.Websocket.Conn)
+	go o.WsReadData(spotWebsocket.Conn)
 
 	if o.IsWebsocketAuthenticationSupported() {
 		err = o.WsLogin(context.TODO(), &dialer)
@@ -115,13 +119,17 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	err = o.Websocket.AuthConn.Dial(dialer, http.Header{})
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	o.Websocket.Wg.Add(1)
-	go o.WsReadData(o.Websocket.AuthConn)
-	o.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	go o.WsReadData(spotWebsocket.AuthConn)
+	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Second * 25,
 		Message:     []byte("ping"),
 		MessageType: websocket.TextMessage,
@@ -147,7 +155,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", authRequest)
+	_, err = spotWebsocket.AuthConn.SendMessageReturnResponse("login", authRequest)
 	if err != nil {
 		return err
 	}
@@ -858,11 +866,14 @@ func (o *Okcoin) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 }
 
 func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) error {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	subscriptionRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
-	var err error
 	var channels subscription.List
 	var authChannels subscription.List
 	for i := 0; i < len(subs); i++ {
@@ -921,9 +932,9 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
 			if authenticatedChannelSubscription {
-				err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
+				err = spotWebsocket.AuthConn.SendJSONMessage(authRequest)
 			} else {
-				err = o.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+				err = spotWebsocket.Conn.SendJSONMessage(subscriptionRequest)
 			}
 			if err != nil {
 				return err
@@ -931,15 +942,15 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 
 			if operation == "unsubscribe" {
 				if authenticatedChannelSubscription {
-					err = o.Websocket.RemoveSubscriptions(authChannels...)
+					err = spotWebsocket.RemoveSubscriptions(authChannels...)
 				} else {
-					err = o.Websocket.RemoveSubscriptions(channels...)
+					err = spotWebsocket.RemoveSubscriptions(channels...)
 				}
 			} else {
 				if authenticatedChannelSubscription {
-					err = o.Websocket.AddSuccessfulSubscriptions(authChannels...)
+					err = spotWebsocket.AddSuccessfulSubscriptions(authChannels...)
 				} else {
-					err = o.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = spotWebsocket.AddSuccessfulSubscriptions(channels...)
 				}
 			}
 			if err != nil {
@@ -964,19 +975,19 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 		}
 	}
 	if len(subscriptionRequest.Arguments) > 0 {
-		if err := o.Websocket.Conn.SendJSONMessage(subscriptionRequest); err != nil {
+		if err := spotWebsocket.Conn.SendJSONMessage(subscriptionRequest); err != nil {
 			return err
 		}
 	}
 	if len(authRequest.Arguments) > 0 {
-		if err := o.Websocket.AuthConn.SendJSONMessage(authRequest); err != nil {
+		if err := spotWebsocket.AuthConn.SendJSONMessage(authRequest); err != nil {
 			return err
 		}
 	}
 	if operation == "unsubscribe" {
-		return o.Websocket.RemoveSubscriptions(channels...)
+		return spotWebsocket.RemoveSubscriptions(channels...)
 	}
-	return o.Websocket.AddSuccessfulSubscriptions(channels...)
+	return spotWebsocket.AddSuccessfulSubscriptions(channels...)
 }
 
 // GetCandlesData represents a candlestick instances list.

@@ -124,7 +124,7 @@ func (h *HitBTC) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.NewWebsocket()
+	h.Websocket = stream.NewWrapper()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -150,25 +150,33 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = h.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+		Features: &h.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+
+	spotWebsocket, err := h.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            hitbtcWebsocketAddress,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
 		Unsubscriber:          h.Unsubscribe,
 		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

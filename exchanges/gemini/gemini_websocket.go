@@ -40,16 +40,19 @@ func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
-
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
 	g.Websocket.Wg.Add(2)
 	go g.wsReadData()
-	go g.wsFunnelConnectionData(g.Websocket.Conn)
+	go g.wsFunnelConnectionData(spotWebsocket.Conn)
 
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		err := g.WsAuth(context.TODO(), &dialer)
@@ -111,16 +114,19 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 			Symbols: s.Pairs.Format(format).Strings(),
 		})
 	}
-
-	if err := g.Websocket.Conn.SendJSONMessage(req); err != nil {
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	if err := spotWebsocket.Conn.SendJSONMessage(req); err != nil {
 		return err
 	}
 
 	if op == wsUnsubscribeOp {
-		return g.Websocket.RemoveSubscriptions(subs...)
+		return spotWebsocket.RemoveSubscriptions(subs...)
 	}
 
-	return g.Websocket.AddSuccessfulSubscriptions(subs...)
+	return spotWebsocket.AddSuccessfulSubscriptions(subs...)
 }
 
 // WsAuth will connect to Gemini's secure endpoint
@@ -161,11 +167,15 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = g.Websocket.AuthConn.Dial(dialer, headers)
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.AuthConn.Dial(dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
-	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsFunnelConnectionData(spotWebsocket.AuthConn)
 	return nil
 }
 

@@ -179,7 +179,7 @@ func (h *HUOBI) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.NewWebsocket()
+	h.Websocket = stream.NewWrapper()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -205,21 +205,29 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = h.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &h.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+
+	spotWebsocket, err := h.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            wsMarketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
 		Unsubscriber:          h.Unsubscribe,
 		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -228,7 +236,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

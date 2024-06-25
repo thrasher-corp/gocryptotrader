@@ -127,7 +127,7 @@ func (b *BTCMarkets) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = stream.NewWrapper()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -153,26 +153,32 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:          true,
+			UpdateIDProgression: true,
+			Checksum:            checksum,
+		},
+		Features: &b.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            btcMarketsWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:          true,
-			UpdateIDProgression: true,
-			Checksum:            checksum,
-		},
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
-
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
@@ -38,7 +39,6 @@ type Websocket struct {
 	verbose                      bool
 	connectionMonitorRunning     atomic.Bool
 	trafficMonitorRunning        atomic.Bool
-	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -52,6 +52,10 @@ type Websocket struct {
 
 	subscriptions *subscription.Store
 
+	Subscribe   chan subscription.List
+	Unsubscribe chan subscription.List
+	AssetType   asset.Item
+
 	// Subscriber function for exchange specific subscribe implementation
 	Subscriber func(subscription.List) error
 	// Subscriber function for exchange specific unsubscribe implementation
@@ -59,24 +63,26 @@ type Websocket struct {
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() (subscription.List, error)
 
+	// SubscriptionFilter filters a channel subscription by its associated asset type
+	SubscriptionFilter func(subscription.List, asset.Item) (subscription.List, error)
+
 	DataHandler chan interface{}
-	ToRoutine   chan interface{}
+	// ToRoutine   chan interface{} is this necessary?
 
 	Match *Match
 
 	// shutdown synchronises shutdown event across routines
-	ShutdownC chan struct{}
-	Wg        sync.WaitGroup
+	ShutdownC      chan struct{}
+	AssetShutdownC chan asset.Item
+	Wg             sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
-
 	// Trade is a notifier of occurring trades
 	Trade trade.Trade
 
 	// Fills is a notifier of occurring fills
 	Fills fill.Fills
-
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
@@ -99,16 +105,26 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
-	Subscriber            func(subscription.List) error
-	Unsubscriber          func(subscription.List) error
-	GenerateSubscriptions func() (subscription.List, error)
-	Features              *protocol.Features
+	DefaultURL                   string
+	RunningURL                   string
+	RunningURLAuth               string
+	Connector                    func() error
+	Subscriber                   func(subscription.List) error
+	Unsubscriber                 func(subscription.List) error
+	GenerateSubscriptions        func() (subscription.List, error)
+	AssetType                    asset.Item
+	CanUseAuthenticatedEndpoints bool
 
+	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
+	// subscriptions per connection that is allowed by the exchange.
+	MaxWebsocketSubscriptionsPerConnection int
+}
+
+// WebsocketWrapperSetup defines variables for setting up the websocket wrapper instance
+type WebsocketWrapperSetup struct {
+	ExchangeConfig         *config.Exchange
+	Features               *protocol.Features
+	ConnectionMonitorDelay time.Duration
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config
 

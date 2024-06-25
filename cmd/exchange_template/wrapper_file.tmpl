@@ -106,7 +106,11 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
+<<<<<<< HEAD
+	{{.Variable}}.Websocket = stream.NewWrapper()
+=======
 	{{.Variable}}.Websocket = stream.NewWebsocket()
+>>>>>>> 59469331ff29a7bfa2e586733d25503dab29e6e1
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -128,34 +132,47 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	}
 
 	/*
-	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+	if {{.Variable}}.IsAssetWebsocketSupported(asset.Spot) {
+		wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	// If websocket is supported, please fill out the following
+		// If websocket is supported, please fill out the following
 
-	err = {{.Variable}}.Websocket.Setup(
-		&stream.WebsocketSetup{
-			ExchangeConfig:  exch,
-			DefaultURL:      {{.Name}}WSAPIURL,
-			RunningURL:      wsRunningEndpoint,
-			Connector:       {{.Variable}}.WsConnect,
-			Subscriber:      {{.Variable}}.Subscribe,
-			UnSubscriber:    {{.Variable}}.Unsubscribe,
-			Features:        &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+		err = {{.Variable}}.Websocket.Setup(&stream.WebsocketWrapperSetup{
+			ExchangeConfig:         exch,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+			Features:               &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer:            true,
+				SortBufferByUpdateIDs: true,
+			},
+			TradeFeed: {{.Variable}}.Features.Enabled.TradeFeed,
 		})
-	if err != nil {
-		return err
-	}
-
-	{{.Variable}}.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         {{.Variable}}.Name,
-		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
-		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
-		Verbose:              {{.Variable}}.Verbose,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		if err != nil {
+			return err
+		}
+		var spotWebsocket *stream.Websocket
+		spotWebsocket, err = {{.Variable}}.Websocket.AddWebsocket(&stream.WebsocketSetup{
+			DefaultURL:            {{.Name}}DefaultWebsocketURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             {{.Variable}}.WsConnect,
+			Subscriber:            {{.Variable}}.Subscribe,
+			Unsubscriber:          {{.Variable}}.Unsubscribe,
+			GenerateSubscriptions: {{.Variable}}.GenerateSubscriptions,
+			AssetType:             asset.Spot,
+		})
+		if err != nil {
+			return err
+		}
+		return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  {{.Name}}DefaultWebsocketURL,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            wsRateLimitMilliseconds,
+			AssetType:            asset.Spot,
+		})
 	}
 	*/
 	return nil

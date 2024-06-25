@@ -36,8 +36,12 @@ func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -58,9 +62,12 @@ func (h *HitBTC) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (h *HitBTC) wsReadData() {
 	defer h.Websocket.Wg.Done()
-
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := h.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -502,6 +509,10 @@ func (h *HitBTC) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	for _, s := range channelsToSubscribe {
 		if len(s.Pairs) != 1 {
@@ -511,7 +522,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
 
 		r := WsRequest{
 			Method: "subscribe" + s.Channel,
-			ID:     h.Websocket.Conn.GenerateMessageID(false),
+			ID:     spotWebsocket.Conn.GenerateMessageID(false),
 			Params: WsParams{
 				Symbol: pair.String(),
 			},
@@ -524,9 +535,9 @@ func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
 			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(r)
+		err := spotWebsocket.Conn.SendJSONMessage(r)
 		if err == nil {
-			err = h.Websocket.AddSuccessfulSubscriptions(s)
+			err = spotWebsocket.AddSuccessfulSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -537,6 +548,10 @@ func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) Unsubscribe(subs subscription.List) error {
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	for _, s := range subs {
 		if len(s.Pairs) != 1 {
@@ -560,9 +575,9 @@ func (h *HitBTC) Unsubscribe(subs subscription.List) error {
 			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(r)
+		err := spotWebsocket.Conn.SendJSONMessage(r)
 		if err == nil {
-			err = h.Websocket.RemoveSubscriptions(s)
+			err = spotWebsocket.RemoveSubscriptions(s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -588,7 +603,10 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsLoginRequest{
 		Method: "login",
 		Params: WsLoginData{
@@ -597,10 +615,10 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 			Nonce:     n,
 			Signature: crypto.HexEncodeToString(hmac),
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(false),
+		ID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
 
-	err = h.Websocket.Conn.SendJSONMessage(request)
+	err = spotWebsocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -614,8 +632,11 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-
-	id := h.Websocket.Conn.GenerateMessageID(false)
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	id := spotWebsocket.Conn.GenerateMessageID(false)
 	fPair, err := h.FormatExchangeCurrency(pair, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -632,7 +653,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		},
 		ID: id,
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(id, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(id, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -652,14 +673,18 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsCancelOrderRequest{
 		Method: "cancelOrder",
 		Params: WsCancelOrderRequestData{
 			ClientOrderID: clientOrderID,
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(false),
+		ID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -679,6 +704,10 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsReplaceOrderRequest{
 		Method: "cancelReplaceOrder",
 		Params: WsReplaceOrderRequestData{
@@ -687,9 +716,9 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 			Quantity:        quantity,
 			Price:           price,
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(false),
+		ID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -709,12 +738,16 @@ func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot get active orders", h.Name)
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsReplaceOrderRequest{
 		Method: "getOrders",
 		Params: WsReplaceOrderRequestData{},
-		ID:     h.Websocket.Conn.GenerateMessageID(false),
+		ID:     spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -734,12 +767,16 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsReplaceOrderRequest{
 		Method: "getTradingBalance",
 		Params: WsReplaceOrderRequestData{},
-		ID:     h.Websocket.Conn.GenerateMessageID(false),
+		ID:     spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -756,14 +793,18 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 
 // wsGetCurrencies sends a websocket message to get trading balance
 func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesResponse, error) {
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsGetCurrenciesRequest{
 		Method: "getCurrency",
 		Params: WsGetCurrenciesRequestParameters{
 			Currency: currencyItem,
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(false),
+		ID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -784,15 +825,18 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsGetSymbolsRequest{
 		Method: "getSymbol",
 		Params: WsGetSymbolsRequestParameters{
 			Symbol: fPair.String(),
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(false),
+		ID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -813,7 +857,10 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 	if err != nil {
 		return nil, err
 	}
-
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WsGetTradesRequest{
 		Method: "getTrades",
 		Params: WsGetTradesRequestParameters{
@@ -822,9 +869,9 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 			Sort:   sort,
 			By:     by,
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(false),
+		ID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := spotWebsocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}

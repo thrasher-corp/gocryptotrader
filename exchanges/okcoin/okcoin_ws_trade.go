@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -128,6 +129,10 @@ func (o *Okcoin) WsAmendMultipleOrder(args []AmendTradeOrderRequestParam) ([]Ame
 
 // SendWebsocketRequest send a request through the websocket connection.
 func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}, authenticated bool) error {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	switch {
 	case !o.Websocket.IsEnabled():
 		return stream.ErrWebsocketNotEnabled
@@ -141,7 +146,7 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 		Operation string      `json:"op"`
 		Arguments interface{} `json:"args"`
 	}{
-		ID:        strconv.FormatInt(o.Websocket.Conn.GenerateMessageID(false), 10),
+		ID:        strconv.FormatInt(spotWebsocket.Conn.GenerateMessageID(false), 10),
 		Operation: operation,
 	}
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
@@ -150,12 +155,11 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 		req.Arguments = []interface{}{data}
 	}
 	var byteData []byte
-	var err error
 	// TODO: ratelimits for websocket
 	if authenticated {
-		byteData, err = o.Websocket.AuthConn.SendMessageReturnResponse(req.ID, req)
+		byteData, err = spotWebsocket.AuthConn.SendMessageReturnResponse(req.ID, req)
 	} else {
-		byteData, err = o.Websocket.Conn.SendMessageReturnResponse(req.ID, req)
+		byteData, err = spotWebsocket.Conn.SendMessageReturnResponse(req.ID, req)
 	}
 	if err != nil {
 		return err

@@ -43,6 +43,8 @@ func TestMain(m *testing.M) {
 	}
 
 	b.setupOrderbookManager()
+	request.MaxRequestJobs = 100
+	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {

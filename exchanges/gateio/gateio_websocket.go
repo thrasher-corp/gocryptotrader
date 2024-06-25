@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -59,14 +60,19 @@ var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
+	if !g.Websocket.IsEnabled() || !g.IsEnabled() || !g.IsAssetWebsocketSupported(asset.Spot) {
 		return stream.ErrWebsocketNotEnabled
 	}
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{})
+	var dialer websocket.Dialer
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -74,13 +80,12 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
-	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
 	return nil
 }
@@ -96,15 +101,26 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 
 // wsReadConnData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadConnData() {
-	defer g.Websocket.Wg.Done()
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+		return
+	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := g.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := g.wsHandleData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := g.wsHandleData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
 		}
 	}
 }
@@ -691,13 +707,17 @@ func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscription.List) error {
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := spotWebsocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -711,9 +731,9 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscripti
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				err = spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				err = g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+				err = spotWebsocket.RemoveSubscriptions(channelsToSubscribe[k])
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -727,8 +747,11 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var creds *account.Credentials
-	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())
 		if err != nil {
@@ -814,9 +837,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 			}
 			params = append(params, intervalString)
 		}
-
 		payload := WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			ID:      spotWebsocket.Conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

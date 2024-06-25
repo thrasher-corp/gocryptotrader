@@ -123,7 +123,7 @@ func (b *Bitstamp) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = stream.NewWrapper()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -149,22 +149,30 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	var spotWebsocket *stream.Websocket
+	spotWebsocket, err = b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            bitstampWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  b.Websocket.GetWebsocketURL(),
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  bitstampWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

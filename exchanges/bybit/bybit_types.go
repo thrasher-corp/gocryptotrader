@@ -18,8 +18,8 @@ var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
 	Symbol    string               `json:"s"`
-	Asks      [][2]string          `json:"a"`
-	Bids      [][2]string          `json:"b"`
+	Asks      [][2]types.Number    `json:"a"`
+	Bids      [][2]types.Number    `json:"b"`
 	Timestamp convert.ExchangeTime `json:"ts"`
 	UpdateID  int64                `json:"u"`
 }
@@ -136,26 +136,6 @@ type MarkPriceKlineResponse struct {
 	Symbol   string     `json:"symbol"`
 	Category string     `json:"category"`
 	List     [][]string `json:"list"`
-}
-
-func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Symbol:         o.Symbol,
-			UpdateID:       o.UpdateID,
-			GenerationTime: o.Timestamp.Time(),
-		}
-		err error
-	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
-	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
 }
 
 // TickerData represents a list of ticker detailed information.
@@ -1743,11 +1723,11 @@ type Orderbook struct {
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string     `json:"s"`
-	Bids     [][]string `json:"b"`
-	Asks     [][]string `json:"a"`
-	UpdateID int64      `json:"u"`
-	Sequence int64      `json:"seq"`
+	Symbol   string           `json:"s"`
+	Bids     [][]types.Number `json:"b"`
+	Asks     [][]types.Number `json:"a"`
+	UpdateID int64            `json:"u"`
+	Sequence int64            `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.

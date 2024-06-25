@@ -76,12 +76,16 @@ func (b *Bitmex) WsConnect() error {
 		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	resp := b.Websocket.Conn.ReadMessage()
+	resp := spotWebsocket.Conn.ReadMessage()
 	if resp.Raw == nil {
 		return errors.New("connection closed")
 	}
@@ -118,11 +122,15 @@ func (b *Bitmex) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		}
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
+		err = b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
@@ -599,9 +607,13 @@ func (b *Bitmex) Subscribe(subs subscription.List) error {
 			req.Arguments = append(req.Arguments, cName+":"+p.String())
 		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(req)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(req)
 	if err == nil {
-		err = b.Websocket.AddSuccessfulSubscriptions(subs...)
+		err = spotWebsocket.AddSuccessfulSubscriptions(subs...)
 	}
 	return err
 }
@@ -618,9 +630,13 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 			req.Arguments = append(req.Arguments, cName+":"+p.String())
 		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(req)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(req)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(subs...)
+		err = spotWebsocket.RemoveSubscriptions(subs...)
 	}
 	return err
 }
@@ -655,7 +671,11 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
 		signature)
-	err = b.Websocket.Conn.SendJSONMessage(sendAuth)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = spotWebsocket.Conn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

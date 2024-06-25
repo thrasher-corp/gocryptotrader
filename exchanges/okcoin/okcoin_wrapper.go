@@ -129,7 +129,7 @@ func (o *Okcoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	o.Websocket = stream.NewWebsocket()
+	o.Websocket = stream.NewWrapper()
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -154,29 +154,37 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = o.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &o.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	spotWebsocket, err := o.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            wsEndpoint,
 		RunningURL:            wsEndpoint,
-		RunningURLAuth:        okcoinPrivateWebsocketURL,
 		Connector:             o.WsConnect,
 		Subscriber:            o.Subscribe,
 		Unsubscriber:          o.Unsubscribe,
+		RunningURLAuth:        okcoinPrivateWebsocketURL,
 		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
-		Features:              &o.Features.Supports.WebsocketCapabilities,
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
-	err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okcoinWsRateLimit,
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  wsEndpoint,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            okcoinWsRateLimit,
 	})
 	if err != nil {
 		return err
 	}
-	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  okcoinPrivateWebsocketURL,
@@ -353,8 +361,12 @@ func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (*o
 			ClientOrderID: args[x].ClientOrderID,
 		}
 	}
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w asset type: %v", o.Name, err, asset.Spot)
+	}
 	var responses []TradeOrderResponse
-	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		responses, err = o.WsCancelMultipleOrders(params)
 	} else {
 		responses, err = o.CancelMultipleOrders(ctx, params)
@@ -604,7 +616,11 @@ func (o *Okcoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, fmt.Errorf("%w, price is required for order types %v,%v,%v, and %v", errInvalidPrice, order.Limit, order.PostOnly, order.ImmediateOrCancel, order.FillOrKill)
 	}
 	var orderResponse *TradeOrderResponse
-	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w asset type: %v", o.Name, err, asset.Spot)
+	}
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		orderResponse, err = o.WsPlaceOrder(&req)
 	} else {
 		orderResponse, err = o.PlaceOrder(ctx, &req)
@@ -639,7 +655,11 @@ func (o *Okcoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.Mod
 		ClientOrderID: req.ClientOrderID,
 		NewSize:       req.Amount,
 		NewPrice:      req.Price}
-	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w asset type: %v", o.Name, err, asset.Spot)
+	}
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = o.WsAmendOrder(amendRequest)
 	} else {
 		_, err = o.AmendOrder(ctx, amendRequest)
@@ -665,7 +685,11 @@ func (o *Okcoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 		OrderID:       cancel.OrderID,
 		ClientOrderID: cancel.ClientOrderID,
 	}
-	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%s %w asset type: %v", o.Name, err, asset.Spot)
+	}
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = o.WsCancelTradeOrder(amendRequest)
 	} else {
 		_, err = o.CancelTradeOrder(ctx, amendRequest)

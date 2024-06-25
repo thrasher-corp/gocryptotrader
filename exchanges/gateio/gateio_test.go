@@ -53,7 +53,10 @@ func TestMain(m *testing.M) {
 	gConf.API.AuthenticatedWebsocketSupport = true
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	if apiKey == "" || apiSecret == "" {
+		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	g.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	gConf.Features.Enabled.FillsFeed = true
 	gConf.Features.Enabled.TradeFeed = true
 	err = g.Setup(gConf)

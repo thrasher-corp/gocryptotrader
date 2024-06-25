@@ -104,7 +104,7 @@ func (c *COINUT) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = stream.NewWebsocket()
+	c.Websocket = stream.NewWrapper()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -130,25 +130,33 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
+	err = c.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+		Features: &c.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	var spotWebsocket *stream.Websocket
+	spotWebsocket, err = c.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            coinutWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             c.WsConnect,
 		Subscriber:            c.Subscribe,
 		Unsubscriber:          c.Unsubscribe,
 		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
+		AssetType:             asset.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitInMilliseconds,

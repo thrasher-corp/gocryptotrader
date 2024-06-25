@@ -124,14 +124,18 @@ func (ku *Kucoin) WsConnect() error {
 	if len(instances.InstanceServers) == 0 {
 		return errors.New("no websocket instance server found")
 	}
-	ku.Websocket.Conn.SetURL(instances.InstanceServers[0].Endpoint + "?token=" + instances.Token)
-	err = ku.Websocket.Conn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := ku.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	spotWebsocket.Conn.SetURL(instances.InstanceServers[0].Endpoint + "?token=" + instances.Token)
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", ku.Name, err)
 	}
 	ku.Websocket.Wg.Add(1)
 	go ku.wsReadData()
-	ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: websocket.TextMessage,
@@ -178,8 +182,12 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 // wsReadData receives and passes on websocket messages for processing
 func (ku *Kucoin) wsReadData() {
 	defer ku.Websocket.Wg.Done()
+	spotWebsocket, err := ku.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := ku.Websocket.Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -985,10 +993,14 @@ func (ku *Kucoin) expandManualSubscriptions(in subscription.List) (subscription.
 }
 
 func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) error {
+	spotWebsocket, err := ku.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	subs, errs = ku.expandManualSubscriptions(subs)
 	for _, s := range subs {
-		msgID := strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10)
+		msgID := strconv.FormatInt(spotWebsocket.Conn.GenerateMessageID(false), 10)
 		req := WsSubscriptionInput{
 			ID:             msgID,
 			Type:           operation,
@@ -996,7 +1008,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse("msgID:"+msgID, req); err != nil {
+		if respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse("msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
@@ -1007,9 +1019,9 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
 				if operation == "unsubscribe" {
-					err = ku.Websocket.RemoveSubscriptions(s)
+					err = spotWebsocket.RemoveSubscriptions(s)
 				} else {
-					err = ku.Websocket.AddSuccessfulSubscriptions(s)
+					err = spotWebsocket.AddSuccessfulSubscriptions(s)
 					if ku.Verbose {
 						log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", ku.Name, s.Channel)
 					}

@@ -1185,12 +1185,17 @@ func setupWsTests(t *testing.T) {
 	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(k) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		t.Skipf("%v asset type: %v", err, asset.Spot)
+		return
+	}
 	var dialer websocket.Dialer
-	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1200,10 +1205,8 @@ func setupWsTests(t *testing.T) {
 		t.Error(err)
 	}
 	authToken = token
-	comms := make(chan stream.Response)
-	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
-	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
-	go k.wsReadData(comms)
+	go k.wsReadData(spotWebsocket.Conn)
+	go k.wsReadData(spotWebsocket.AuthConn)
 	go func() {
 		err := k.wsPingHandler()
 		if err != nil {

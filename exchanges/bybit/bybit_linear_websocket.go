@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -16,20 +17,24 @@ func (by *Bybit) WsLinearConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.LinearContract) {
 		return stream.ErrWebsocketNotEnabled
 	}
-	by.Websocket.Conn.SetURL(linearPublic)
+	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.LinearContract)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.LinearContract)
+	}
+	linearWebsocket.Conn.SetURL(linearPublic)
 	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = linearWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	linearWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.LinearContract, by.Websocket.Conn)
+	go by.wsReadData(asset.LinearContract, linearWebsocket.Conn)
 	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
@@ -87,10 +92,14 @@ func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscr
 	if err != nil {
 		return err
 	}
+	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.LinearContract)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.LinearContract)
+	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		err = linearWebsocket.Conn.SendJSONMessage(payloads[a])
 		if err != nil {
 			return err
 		}

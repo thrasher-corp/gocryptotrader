@@ -113,12 +113,17 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
 func (b *Bithumb) SynchroniseWebsocketOrderbook() {
-	b.Websocket.Wg.Add(1)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+		return
+	}
+	spotWebsocket.Wg.Add(1)
 	go func() {
-		defer b.Websocket.Wg.Done()
+		defer spotWebsocket.Wg.Done()
 		for {
 			select {
-			case <-b.Websocket.ShutdownC:
+			case <-spotWebsocket.ShutdownC:
 				for {
 					select {
 					case <-b.obm.jobs:
