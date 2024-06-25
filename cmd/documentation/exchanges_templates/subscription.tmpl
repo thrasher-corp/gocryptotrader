@@ -15,7 +15,7 @@ Exchange Contributors should implement `GetSubscriptionTemplate` to return a tex
 Exchanges are free to implement template caching, a map or a mono-template, inline or file templates.
 
 The template is provided with a single context structure:
-```
+```go
   Sub            *subscription.Subscription
   AssetPairs     map[asset.Item]currency.Pairs
   AssetSeparator string
