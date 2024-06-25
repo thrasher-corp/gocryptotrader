@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -32,29 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (h *HUOBI) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	h.SetDefaults()
-	exchCfg, err := h.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = h.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets default values for the exchange
 func (h *HUOBI) SetDefaults() {
@@ -189,7 +165,7 @@ func (h *HUOBI) SetDefaults() {
 
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -267,107 +243,6 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		URL:                  wsAccountsOrdersURL,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the HUOBI go routine
-func (h *HUOBI) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		h.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the HUOBI wrapper
-func (h *HUOBI) Run(ctx context.Context) {
-	if h.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s (url: %s).\n",
-			h.Name,
-			common.IsEnabled(h.Websocket.IsEnabled()),
-			wsMarketURL)
-		h.PrintEnabledPairs()
-	}
-
-	var forceUpdate bool
-	enabled, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies. Err:%s\n",
-			h.Name,
-			err)
-	}
-
-	avail, err := h.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies. Err:%s\n",
-			h.Name,
-			err)
-	}
-
-	if common.StringDataContains(enabled.Strings(), currency.CNY.String()) ||
-		common.StringDataContains(avail.Strings(), currency.CNY.String()) {
-		forceUpdate = true
-	}
-
-	if common.StringDataContains(h.BaseCurrencies.Strings(), currency.CNY.String()) {
-		cfg := config.GetConfig()
-		var exchCfg *config.Exchange
-		exchCfg, err = cfg.GetExchangeConfig(h.Name)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to get exchange config. %s\n",
-				h.Name,
-				err)
-			return
-		}
-		exchCfg.BaseCurrencies = currency.Currencies{currency.USD}
-		h.BaseCurrencies = currency.Currencies{currency.USD}
-	}
-
-	if forceUpdate {
-		var format currency.PairFormat
-		format, err = h.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to get exchange config. %s\n",
-				h.Name,
-				err)
-			return
-		}
-		enabledPairs := currency.Pairs{
-			currency.Pair{
-				Base:      currency.BTC.Lower(),
-				Quote:     currency.USDT.Lower(),
-				Delimiter: format.Delimiter,
-			},
-		}
-		log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
-		err = h.UpdatePairs(enabledPairs, asset.Spot, true, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s Failed to update enabled currencies. Err:%s\n",
-				h.Name,
-				err)
-		}
-	}
-
-	if !h.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err = h.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -624,10 +499,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		}
 
 		if len(marketData.Tick.Bid) == 0 {
-			return nil, fmt.Errorf("invalid data for bid")
+			return nil, errors.New("invalid data for bid")
 		}
 		if len(marketData.Tick.Ask) == 0 {
-			return nil, fmt.Errorf("invalid data for Ask")
+			return nil, errors.New("invalid data for Ask")
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -715,16 +590,16 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			return book, err
 		}
 
-		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x][1],
 				Price:  orderbookNew.Bids[x][0],
 			}
 		}
-		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[x][1],
 				Price:  orderbookNew.Asks[x][0],
 			}
@@ -737,16 +612,16 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			return book, err
 		}
 
-		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[x].Quantity,
 				Price:  orderbookNew.Asks[x].Price,
 			}
 		}
-		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for y := range orderbookNew.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[y].Quantity,
 				Price:  orderbookNew.Bids[y].Price,
 			}
@@ -759,17 +634,17 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			return book, err
 		}
 
-		book.Asks = make(orderbook.Items, len(orderbookNew.Tick.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Tick.Asks))
 		for x := range orderbookNew.Tick.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Tick.Asks[x][1],
 				Price:  orderbookNew.Tick.Asks[x][0],
 			}
 		}
 
-		book.Bids = make(orderbook.Items, len(orderbookNew.Tick.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Tick.Bids))
 		for y := range orderbookNew.Tick.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Amount: orderbookNew.Tick.Bids[y][1],
 				Price:  orderbookNew.Tick.Bids[y][0],
 			}
@@ -804,8 +679,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Exchange = h.Name
 	switch assetType {
 	case asset.Spot:
-		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetAccountsList(ctx)
 			if err != nil {
 				return info, err
@@ -1363,7 +1237,7 @@ func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 					cancelAllOrdersResponse.Status[split[x]] = "success"
 				}
 				for y := range a.Errors {
-					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = fmt.Sprintf("fail: %s", a.Errors[y].ErrMsg)
+					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
 				}
 			}
 		} else {
@@ -1376,7 +1250,7 @@ func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 				cancelAllOrdersResponse.Status[split[x]] = "success"
 			}
 			for y := range a.Errors {
-				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = fmt.Sprintf("fail: %s", a.Errors[y].ErrMsg)
+				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
 			}
 		}
 	case asset.Futures:
@@ -1395,7 +1269,7 @@ func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 					cancelAllOrdersResponse.Status[split[x]] = "success"
 				}
 				for y := range a.Data.Errors {
-					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = fmt.Sprintf("fail: %s", a.Data.Errors[y].ErrMsg)
+					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
 				}
 			}
 		} else {
@@ -1408,7 +1282,7 @@ func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 				cancelAllOrdersResponse.Status[split[x]] = "success"
 			}
 			for y := range a.Data.Errors {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = fmt.Sprintf("fail: %s", a.Data.Errors[y].ErrMsg)
+				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
 			}
 		}
 	}
@@ -1428,22 +1302,18 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	switch assetType {
 	case asset.Spot:
 		var respData *OrderInfo
-		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
-			var resp *WsAuthenticatedOrderDetailResponse
-			resp, err = h.wsGetOrderDetails(ctx, orderID)
+		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			resp, err := h.wsGetOrderDetails(ctx, orderID)
 			if err != nil {
 				return nil, err
 			}
 			respData = &resp.Data
 		} else {
-			var oID int64
-			oID, err = strconv.ParseInt(orderID, 10, 64)
+			oID, err := strconv.ParseInt(orderID, 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			var resp OrderInfo
-			resp, err = h.GetOrder(ctx, oID)
+			resp, err := h.GetOrder(ctx, oID)
 			if err != nil {
 				return nil, err
 			}
@@ -1594,7 +1464,7 @@ func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.C
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("unable to match deposit address currency or chain")
+	return nil, errors.New("unable to match deposit address currency or chain")
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -1658,8 +1528,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
-		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			for i := range req.Pairs {
 				resp, err := h.wsGetOrdersList(ctx, -1, req.Pairs[i])
 				if err != nil {
@@ -2201,7 +2070,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case "sell":
 		resp.Side = order.Sell
 	default:
-		return resp, fmt.Errorf("invalid orderSide")
+		return resp, errors.New("invalid orderSide")
 	}
 	switch orderPriceType {
 	case "limit":
@@ -2211,7 +2080,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case "post_only":
 		resp.OrderType = order.PostOnly
 	default:
-		return resp, fmt.Errorf("invalid orderPriceType")
+		return resp, errors.New("invalid orderPriceType")
 	}
 	switch status {
 	case 1, 2, 11:
@@ -2227,7 +2096,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case 7:
 		resp.Status = order.Cancelled
 	default:
-		return resp, fmt.Errorf("invalid orderStatus")
+		return resp, errors.New("invalid orderStatus")
 	}
 	return resp, nil
 }
@@ -2611,4 +2480,32 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 		}
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the UR˜L to the exchange's trade page for the given asset and currency pair
+func (h *HUOBI) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := h.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + tradeSpot + cp.Lower().String(), nil
+	case asset.Futures:
+		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
+			// todo: support long dated currencies
+			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		}
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	case asset.CoinMarginedFutures:
+		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
+			// todo: support long dated currencies
+			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		}
+		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

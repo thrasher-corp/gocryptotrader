@@ -76,11 +76,14 @@ const (
 	DefaultUnsetAccountPlan       = "accountPlan"
 )
 
-// Variables here are used for configuration
+// Public errors exported by this package
 var (
-	Cfg                 Config
-	m                   sync.Mutex
 	ErrExchangeNotFound = errors.New("exchange not found")
+)
+
+var (
+	cfg Config
+	m   sync.Mutex
 )
 
 // Config is the overarching object that holds all the information for
@@ -314,9 +317,9 @@ type FeaturesEnabledConfig struct {
 
 // FeaturesConfig stores the exchanges supported and enabled features
 type FeaturesConfig struct {
-	Supports      FeaturesSupportedConfig      `json:"supports"`
-	Enabled       FeaturesEnabledConfig        `json:"enabled"`
-	Subscriptions []*subscription.Subscription `json:"subscriptions,omitempty"`
+	Supports      FeaturesSupportedConfig `json:"supports"`
+	Enabled       FeaturesEnabledConfig   `json:"enabled"`
+	Subscriptions subscription.List       `json:"subscriptions,omitempty"`
 }
 
 // APIEndpointsConfig stores the API endpoint addresses

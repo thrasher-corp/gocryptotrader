@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -21,29 +23,24 @@ func TestWebsocketWrapperSetup(t *testing.T) {
 	}
 	websocketWrapper = NewWrapper()
 	err = websocketWrapper.Setup(nil)
-	if !errors.Is(err, errWebsocketSetupIsNil) {
-		t.Fatalf("found %v, but expected %v", err, errWebsocketSetupIsNil)
-	}
+	require.ErrorIs(t, err, errWebsocketSetupIsNil)
+
 	var wsSetup WebsocketWrapperSetup
 	err = websocketWrapper.Setup(&wsSetup)
-	if !errors.Is(err, errExchangeConfigIsNil) {
-		t.Errorf("found %v, but expected %v", err, errExchangeConfigIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeConfigIsNil)
+
 	wsSetup.ExchangeConfig = &config.Exchange{}
 	err = websocketWrapper.Setup(&wsSetup)
-	if !errors.Is(err, errExchangeConfigNameUnset) {
-		t.Errorf("found %v, but expected %v", err, errExchangeConfigIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeConfigNameEmpty)
+
 	wsSetup.ExchangeConfig = &config.Exchange{Name: "test_exchange_name"}
 	err = websocketWrapper.Setup(&wsSetup)
-	if !errors.Is(err, errWebsocketFeaturesIsUnset) {
-		t.Errorf("found %v, but expected %v", err, errWebsocketFeaturesIsUnset)
-	}
+	require.ErrorIs(t, err, errWebsocketFeaturesIsUnset)
+
 	wsSetup.Features = &protocol.Features{}
 	err = websocketWrapper.Setup(&wsSetup)
-	if !errors.Is(err, errConfigFeaturesIsNil) {
-		t.Errorf("found %v, but expected %v", err, errConfigFeaturesIsNil)
-	}
+	require.ErrorIs(t, err, errConfigFeaturesIsNil)
+
 	wsSetup.ExchangeConfig.Features = &config.FeaturesConfig{
 		Enabled: config.FeaturesEnabledConfig{
 			SaveTradeData: true,
@@ -51,54 +48,46 @@ func TestWebsocketWrapperSetup(t *testing.T) {
 		},
 	}
 	err = websocketWrapper.Setup(&wsSetup)
-	if !errors.Is(err, errInvalidTrafficTimeout) {
-		t.Errorf("found %v, but expected %v", err, errInvalidTrafficTimeout)
-	}
+	require.ErrorIs(t, err, errInvalidTrafficTimeout)
 	wsSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Second * 10
 	err = websocketWrapper.Setup(&wsSetup)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+
 	err = websocketWrapper.Setup(DefaultWrapperSetup)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAssetWebsocket(t *testing.T) {
 	websocketWrapper := NewWrapper()
 	err := websocketWrapper.Setup(DefaultWrapperSetup)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	_, err = websocketWrapper.AddWebsocket(&WebsocketSetup{
 		DefaultURL:   "testDefaultURL",
 		RunningURL:   "wss://testRunningURL",
 		Connector:    func() error { return nil },
-		Subscriber:   func(_ []subscription.Subscription) error { return nil },
-		Unsubscriber: func(_ []subscription.Subscription) error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) {
-			return []subscription.Subscription{
+		Subscriber:   func(_ subscription.List) error { return nil },
+		Unsubscriber: func(_ subscription.List) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return subscription.List{
 				{Channel: "TestSub"},
 			}, nil
 		},
 		AssetType: asset.Spot,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := websocketWrapper.GetAssetWebsocket(asset.Empty); !errors.Is(err, ErrAssetWebsocketNotFound) {
-		t.Errorf("found %v, but expected %v", err, ErrAssetWebsocketNotFound)
-	}
-	if _, err := websocketWrapper.GetAssetWebsocket(asset.Spot); err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+
+	_, err = websocketWrapper.GetAssetWebsocket(asset.Empty)
+	require.ErrorIs(t, err, ErrAssetWebsocketNotFound)
+
+	result, err := websocketWrapper.GetAssetWebsocket(asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestWebsocketWrapper(t *testing.T) {
 	t.Parallel()
 	ws := &WrapperWebsocket{
-		Init:                true,
 		DataHandler:         make(chan interface{}, 100),
 		ToRoutine:           make(chan interface{}, 100),
 		TrafficAlert:        make(chan struct{}),
@@ -114,7 +103,7 @@ func TestWebsocketWrapper(t *testing.T) {
 				Enabled: config.FeaturesEnabledConfig{Websocket: true},
 			},
 			Name:                    "test",
-			WebsocketTrafficTimeout: defaultTrafficPeriod,
+			WebsocketTrafficTimeout: time.Second * 5,
 		},
 		Features: &protocol.Features{
 			Subscribe:   true,
@@ -132,10 +121,10 @@ func TestWebsocketWrapper(t *testing.T) {
 		DefaultURL:   "testDefaultURL",
 		RunningURL:   "wss://testRunningURL",
 		Connector:    func() error { return nil },
-		Subscriber:   func(_ []subscription.Subscription) error { return nil },
-		Unsubscriber: func(_ []subscription.Subscription) error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) {
-			return []subscription.Subscription{
+		Subscriber:   func(_ subscription.List) error { return nil },
+		Unsubscriber: func(_ subscription.List) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return subscription.List{
 				{Channel: "TestSub"},
 			}, nil
 		},
@@ -207,3 +196,4 @@ func TestWebsocketWrapper(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+

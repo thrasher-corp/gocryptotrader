@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -36,29 +35,6 @@ import (
 const wsRateLimitMillisecond = 1000
 
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
-
-// GetDefaultConfig returns a default exchange config
-func (b *Bithumb) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Bithumb
 func (b *Bithumb) SetDefaults() {
@@ -138,7 +114,7 @@ func (b *Bithumb) SetDefaults() {
 	}
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -193,7 +169,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		AssetType:             asset.Spot,
 	})
 	if err != nil {
@@ -204,43 +180,6 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMillisecond,
 	})
-}
-
-// Start starts the Bithumb go routine
-func (b *Bithumb) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bithumb wrapper
-func (b *Bithumb) Run(ctx context.Context) {
-	if b.Verbose {
-		b.PrintEnabledPairs()
-	}
-
-	err := b.UpdateOrderExecutionLimits(ctx, asset.Empty)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to set exchange order execution limits. Err: %v",
-			b.Name,
-			err)
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err = b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -358,17 +297,17 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Data.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Data.Bids))
 	for i := range orderbookNew.Data.Bids {
-		book.Bids[i] = orderbook.Item{
+		book.Bids[i] = orderbook.Tranche{
 			Amount: orderbookNew.Data.Bids[i].Quantity,
 			Price:  orderbookNew.Data.Bids[i].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Data.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Data.Asks))
 	for i := range orderbookNew.Data.Asks {
-		book.Asks[i] = orderbook.Item{
+		book.Asks[i] = orderbook.Tranche{
 			Amount: orderbookNew.Data.Asks[i].Quantity,
 			Price:  orderbookNew.Data.Asks[i].Price,
 		}
@@ -930,4 +869,14 @@ func (b *Bithumb) GetFuturesContractDetails(context.Context, asset.Item) ([]futu
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bithumb) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bithumb) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

@@ -2,15 +2,15 @@ package hitbtc
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -63,20 +64,6 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := h.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = h.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -476,14 +463,13 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-//nolint:gocritic // Only used as a testing helper function in this package
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
 		return
 	}
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 
 	var dialer websocket.Dialer
@@ -1089,5 +1075,18 @@ func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	if _, err := h.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, h)
+	for _, a := range h.GetAssetTypes(false) {
+		pairs, err := h.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

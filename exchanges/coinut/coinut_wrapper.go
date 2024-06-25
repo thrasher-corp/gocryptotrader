@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,29 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (c *COINUT) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	c.SetDefaults()
-	exchCfg, err := c.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets current default values
 func (c *COINUT) SetDefaults() {
@@ -187,90 +163,6 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the COINUT go routine
-func (c *COINUT) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		c.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the COINUT wrapper
-func (c *COINUT) Run(ctx context.Context) {
-	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
-		c.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !c.BypassConfigFormatUpgrades {
-		format, err := c.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-		avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.LTC.String() +
-				format.Delimiter +
-				currency.USDT.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					c.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
-				forceUpdate = true
-
-				err = c.UpdatePairs(p, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						c.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := c.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
-	}
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (c *COINUT) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	var resp Instruments
@@ -319,8 +211,8 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var bal *UserBalance
-	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
-	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+	var err error
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *UserBalance
 		resp, err = c.wsGetAccountBalance()
 		if err != nil {
@@ -526,17 +418,17 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Buy))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Buy))
 	for x := range orderbookNew.Buy {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Buy[x].Quantity,
 			Price:  orderbookNew.Buy[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Sell))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Sell))
 	for x := range orderbookNew.Sell {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Sell[x].Quantity,
 			Price:  orderbookNew.Sell[x].Price,
 		}
@@ -619,10 +511,10 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		return nil, fmt.Errorf("%s - ClientID must be a number, received: %s",
 			c.Name, o.ClientID)
 	}
+
 	var orderID string
 	status := order.New
-	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
-	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *order.Detail
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
 			Currency: o.Pair,
@@ -708,12 +600,11 @@ func (c *COINUT) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyR
 
 // CancelOrder cancels an order by its corresponding ID number
 func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
-	err := o.Validate(o.StandardCancel())
-	if err != nil {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 
-	err = c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return err
 	}
@@ -728,9 +619,8 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 
 	currencyID := c.instrumentMap.LookupID(fPair.String())
-	var spotWebsocket *stream.Websocket
-	spotWebsocket, err = c.Websocket.GetAssetWebsocket(asset.Spot)
-	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
 		resp, err = c.wsCancelOrder(&WsCancelOrderParameters{
 			Currency: o.Pair,
@@ -807,9 +697,7 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 		return cancelAllOrdersResponse, err
 	}
 	cancelAllOrdersResponse.Status = make(map[string]string)
-	var spotWebsocket *stream.Websocket
-	spotWebsocket, err = c.Websocket.GetAssetWebsocket(asset.Spot)
-	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		openOrders, err := c.wsGetOpenOrders(details.Pair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -947,8 +835,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			currenciesToCheck = append(currenciesToCheck, k)
 		}
 	}
-	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
-	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {
 			var openOrders *WsUserOpenOrdersResponse
 			openOrders, err = c.wsGetOpenOrders(currenciesToCheck[x])
@@ -1063,9 +950,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 		return nil, err
 	}
 	var allOrders []order.Detail
-	var spotWebsocket *stream.Websocket
-	spotWebsocket, err = c.Websocket.GetAssetWebsocket(asset.Spot)
-	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := range req.Pairs {
 			for j := int64(0); ; j += 100 {
 				var trades *WsTradeHistoryResponse
@@ -1224,4 +1109,14 @@ func (c *COINUT) GetLatestFundingRates(context.Context, *fundingrate.LatestRateR
 // UpdateOrderExecutionLimits updates order execution limits
 func (c *COINUT) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (c *COINUT) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := c.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = ""
+	return tradeBaseURL + cp.Upper().String() + "/", nil
 }

@@ -50,9 +50,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 		return payload, nil
 	case <-timer.C:
 		timer.Stop()
-		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v",
-			w.ExchangeName,
-			signature)
+		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
 	}
 }
 
@@ -72,25 +70,14 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %v",
-				w.ExchangeName,
-				w.URL,
-				conStatus,
-				conStatus.StatusCode,
-				err)
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %v",
-			w.ExchangeName,
-			w.URL,
-			err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
 	}
 	defer conStatus.Body.Close()
 
 	if w.Verbose {
-		log.Infof(log.WebsocketMgr,
-			"%v Websocket connected to %s\n",
-			w.ExchangeName,
-			w.URL)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
 	}
 	select {
 	case w.Traffic <- struct{}{}:
@@ -103,25 +90,22 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket",
-			w.ExchangeName)
+		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%s websocket connection: sending message to websocket %+v\n",
-			w.ExchangeName,
-			data)
+		if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
+			log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.ExchangeName, msg)
+		}
 	}
 
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-				w.ExchangeName)
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 		}
 	}
 	return w.Connection.WriteJSON(data)
@@ -130,29 +114,23 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-			w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection: sending message [%s]\n",
-			w.ExchangeName,
-			message)
+		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
 	}
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-				w.ExchangeName)
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 		}
 	}
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
-			w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 	return w.Connection.WriteMessage(messageType, message)
 }
@@ -240,7 +218,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 
 	select {
 	case w.Traffic <- struct{}{}:
-	default: // causes contention, just bypass if there is no receiver.
+	default: // Non-Blocking write ensures 1 buffered signal per trafficCheckInterval to avoid flooding
 	}
 
 	var standardMessage []byte
@@ -285,7 +263,7 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	return standardMessage, reader.Close()
 }
 
-// GenerateMessageID Creates a messageID to checkout
+// GenerateMessageID Creates a random message ID
 func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 	var min int64 = 1e8
 	var max int64 = 2e8

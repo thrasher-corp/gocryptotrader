@@ -5,11 +5,12 @@ import (
 	"errors"
 	"net/url"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/log"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -32,20 +33,6 @@ const (
 const testCurrency = "btcusd"
 
 var g = &Gemini{}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := g.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = g.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
-}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -572,15 +559,10 @@ func TestWsAuth(t *testing.T) {
 	if !g.Websocket.IsEnabled() &&
 		!g.API.AuthenticatedWebsocketSupport ||
 		!sharedtestvalues.AreAPICredentialsSet(g) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer websocket.Dialer
-	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
-	}
-	go g.wsReadData(spotWebsocket.AuthConn)
+	go g.wsReadData()
 	err = g.WsAuth(context.Background(), &dialer)
 	if err != nil {
 		t.Error(err)
@@ -1302,5 +1284,18 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		if limit == (order.MinMaxLevel{}) {
 			t.Fatal("exchange limit should be loaded")
 		}
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, g)
+	for _, a := range g.GetAssetTypes(false) {
+		pairs, err := g.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

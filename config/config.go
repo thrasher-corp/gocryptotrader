@@ -448,22 +448,9 @@ func (c *Config) CheckPairConfigFormats(exchName string) error {
 			}
 
 			for y := range loadedPairs {
-				if pairFmt.Delimiter != "" && pairFmt.Index != "" {
-					return fmt.Errorf(
-						"exchange %s %s %s cannot have an index and delimiter set at the same time",
-						exchName, pairsType, assetType)
-				}
 				if pairFmt.Delimiter != "" {
 					if !strings.Contains(loadedPairs[y].String(), pairFmt.Delimiter) {
-						return fmt.Errorf(
-							"exchange %s %s %s pairs does not contain delimiter",
-							exchName, pairsType, assetType)
-					}
-				}
-				if pairFmt.Index != "" {
-					if !strings.Contains(loadedPairs[y].String(), pairFmt.Index) {
-						return fmt.Errorf("exchange %s %s %s pairs does not contain an index",
-							exchName, pairsType, assetType)
+						return fmt.Errorf("exchange %s %s %s pairs does not contain delimiter", exchName, pairsType, assetType)
 					}
 				}
 			}
@@ -1850,9 +1837,18 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	return c.LoadConfig(configPath, dryrun)
 }
 
-// GetConfig returns a pointer to a configuration object
+// GetConfig returns the global shared config instance
 func GetConfig() *Config {
-	return &Cfg
+	m.Lock()
+	defer m.Unlock()
+	return &cfg
+}
+
+// SetConfig sets the global shared config instance
+func SetConfig(c *Config) {
+	m.Lock()
+	defer m.Unlock()
+	cfg = *c
 }
 
 // RemoveExchange removes an exchange config

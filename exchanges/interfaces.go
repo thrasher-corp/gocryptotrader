@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -30,7 +29,7 @@ import (
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch *config.Exchange) error
-	Start(ctx context.Context, wg *sync.WaitGroup) error
+	Bootstrap(context.Context) (continueBootstrap bool, err error)
 	SetDefaults()
 	Shutdown() error
 	GetName() string
@@ -64,7 +63,6 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
-	GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
@@ -72,15 +70,19 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	GetWebsocket() (*stream.WrapperWebsocket, error)
-	SubscribeToWebsocketChannels(channels []subscription.Subscription) error
-	UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error
-	GetSubscriptions() ([]subscription.Subscription, error)
+	SubscribeToWebsocketChannels(channels subscription.List) error
+	UnsubscribeToWebsocketChannels(channels subscription.List) error
+	GetSubscriptions() (subscription.List, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)
+	EnsureOnePairEnabled() error
+	PrintEnabledPairs()
+	IsVerbose() bool
+	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.

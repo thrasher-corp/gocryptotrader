@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -36,29 +35,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (b *Binance) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Binance
 func (b *Binance) SetDefaults() {
@@ -212,7 +188,7 @@ func (b *Binance) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
+		Subscriptions: subscription.List{
 			{Enabled: true, Channel: subscription.TickerChannel},
 			{Enabled: true, Channel: subscription.AllTradesChannel},
 			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
@@ -222,7 +198,7 @@ func (b *Binance) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimits()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -282,7 +258,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		AssetType:             asset.Spot,
 	})
 	if err != nil {
@@ -295,100 +271,6 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		RateLimit:            wsRateLimitMilliseconds,
 		AssetType:            asset.Spot,
 	})
-}
-
-// Start starts the Binance go routine
-func (b *Binance) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Binance wrapper
-func (b *Binance) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s. (url: %s).\n",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()),
-			b.Websocket.GetWebsocketURL())
-		b.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	a := b.GetAssetTypes(true)
-	for x := range a {
-		if err := b.UpdateOrderExecutionLimits(ctx, a[x]); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				b.Name,
-				err)
-		}
-		if a[x] == asset.USDTMarginedFutures && !b.BypassConfigFormatUpgrades {
-			format, err := b.GetPairFormat(asset.USDTMarginedFutures, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-					b.Name,
-					err)
-				return
-			}
-			var enabled, avail currency.Pairs
-			enabled, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-					b.Name,
-					err)
-				return
-			}
-
-			avail, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-					b.Name,
-					err)
-				return
-			}
-			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-				!common.StringDataContains(avail.Strings(), format.Delimiter) {
-				var enabledPairs currency.Pairs
-				enabledPairs, err = currency.NewPairsFromStrings([]string{
-					currency.BTC.String() + format.Delimiter + currency.USDT.String(),
-				})
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-						b.Name,
-						err)
-				} else {
-					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, a[x], enabledPairs)
-					forceUpdate = true
-					err = b.UpdatePairs(enabledPairs, a[x], true, true)
-					if err != nil {
-						log.Errorf(log.ExchangeSys,
-							"%s failed to update currencies. Err: %s\n",
-							b.Name,
-							err)
-					}
-				}
-			}
-		}
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -719,16 +601,16 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -750,6 +632,14 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	info.Exchange = b.Name
 	switch assetType {
 	case asset.Spot:
+		creds, err := b.GetCredentials(ctx)
+		if err != nil {
+			return info, err
+		}
+		if creds.SubAccount != "" {
+			// TODO: implement sub-account endpoints
+			return info, common.ErrNotYetImplemented
+		}
 		raw, err := b.GetAccount(ctx)
 		if err != nil {
 			return info, err
@@ -1069,7 +959,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return nil, fmt.Errorf("invalid side")
+			return nil, errors.New("invalid side")
 		}
 
 		var (
@@ -1122,7 +1012,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return nil, fmt.Errorf("invalid side")
+			return nil, errors.New("invalid side")
 		}
 		var oType string
 		switch s.Type {
@@ -1653,7 +1543,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("endTime cannot be before startTime")
 				}
 				if time.Since(req.StartTime) > time.Hour*24*30 {
-					return nil, fmt.Errorf("can only fetch orders 30 days out")
+					return nil, errors.New("can only fetch orders 30 days out")
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
 					req.Pairs[i], currency.EMPTYPAIR, req.StartTime, req.EndTime, 0, 0)
@@ -1671,7 +1561,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("invalid combination of input params")
+				return nil, errors.New("invalid combination of input params")
 			}
 			for y := range orderHistory {
 				var feeBuilder exchange.FeeBuilder
@@ -1711,7 +1601,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("endTime cannot be before startTime")
 				}
 				if time.Since(req.StartTime) > time.Hour*24*7 {
-					return nil, fmt.Errorf("can only fetch orders 7 days out")
+					return nil, errors.New("can only fetch orders 7 days out")
 				}
 				orderHistory, err = b.UAllAccountOrders(ctx,
 					req.Pairs[i], 0, 0, req.StartTime, req.EndTime)
@@ -1729,7 +1619,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("invalid combination of input params")
+				return nil, errors.New("invalid combination of input params")
 			}
 			for y := range orderHistory {
 				var feeBuilder exchange.FeeBuilder
@@ -1998,17 +1888,13 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	var err error
 	switch a {
 	case asset.Spot:
-		limits, err = b.FetchSpotExchangeLimits(ctx)
+		limits, err = b.FetchExchangeLimits(ctx, asset.Spot)
 	case asset.USDTMarginedFutures:
 		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
 		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
-		if err = b.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
-			limits, err = b.FetchSpotExchangeLimits(ctx)
-		} else {
-			return nil
-		}
+		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -3168,4 +3054,68 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		}
 	}
 	return result, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := b.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.USDTMarginedFutures:
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.UExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "futures/" + symbol + ct, nil
+	case asset.CoinMarginedFutures:
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.FuturesExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "delivery/" + symbol + ct, nil
+	case asset.Spot:
+		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
+	case asset.Margin:
+		return tradeBaseURL + "trade/" + symbol + "?type=cross", nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

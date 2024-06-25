@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -26,6 +27,7 @@ import (
 
 const (
 	bitfinexAPIURLBase = "https://api.bitfinex.com"
+	tradeBaseURL       = "https://trading.bitfinex.com"
 	// Version 1 API endpoints
 	bitfinexAPIVersion         = "/v1/"
 	bitfinexStats              = "stats/"
@@ -1814,7 +1816,7 @@ func (b *Bitfinex) GetBalanceHistory(ctx context.Context, symbol string, timeSin
 	if limit > 0 {
 		req["limit"] = limit
 	}
-	if len(wallet) > 0 {
+	if wallet != "" {
 		req["wallet"] = wallet
 	}
 
@@ -1831,7 +1833,7 @@ func (b *Bitfinex) GetMovementHistory(ctx context.Context, symbol, method string
 	req := make(map[string]interface{})
 	req["currency"] = symbol
 
-	if len(method) > 0 {
+	if method != "" {
 		req["method"] = method
 	}
 	if !timeSince.IsZero() {
@@ -2092,10 +2094,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	fullPath := ePoint + bitfinexAPIVersion + path
 	return b.SendPayload(ctx, endpoint, func() (*request.Item, error) {
-		n := b.Requester.GetNonce(true)
 		req := make(map[string]interface{})
 		req["request"] = bitfinexAPIVersion + path
-		req["nonce"] = n.String()
+		req["nonce"] = b.Requester.GetNonce(nonce.UnixNano).String()
 
 		for key, value := range params {
 			req[key] = value
@@ -2301,22 +2302,22 @@ func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
 	storeData := make(map[string][]string)
 	for x := range data {
 		if len(data[x]) == 0 {
-			return fmt.Errorf("data should not be empty")
+			return errors.New("data should not be empty")
 		}
 		name, ok := data[x][0].(string)
 		if !ok {
-			return fmt.Errorf("unable to type assert name")
+			return errors.New("unable to type assert name")
 		}
 
 		var availOptions []string
 		options, ok := data[x][1].([]interface{})
 		if !ok {
-			return fmt.Errorf("unable to type assert options")
+			return errors.New("unable to type assert options")
 		}
 		for x := range options {
 			o, ok := options[x].(string)
 			if !ok {
-				return fmt.Errorf("unable to type assert option to string")
+				return errors.New("unable to type assert option to string")
 			}
 			availOptions = append(availOptions, o)
 		}

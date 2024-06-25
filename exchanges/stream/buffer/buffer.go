@@ -87,7 +87,7 @@ func (w *Orderbook) validate(u *orderbook.Update) error {
 }
 
 // Update updates a stored pointer to an orderbook.Depth struct containing a
-// linked list, this switches between the usage of a buffered update
+// bid and ask Tranches, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *orderbook.Update) error {
 	if err := w.validate(u); err != nil {
 		return err
@@ -304,7 +304,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *orderbook.Update) error {
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
-	// Checks if book can deploy to linked list
+	// Checks if book can deploy to depth
 	err := book.Verify()
 	if err != nil {
 		return err

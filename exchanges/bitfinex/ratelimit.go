@@ -1,12 +1,9 @@
 package bitfinex
 
 import (
-	"context"
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -175,316 +172,84 @@ const (
 	lends
 )
 
-// RateLimit implements the rate.Limiter interface
-type RateLimit struct {
-	PlatformStatus       *rate.Limiter
-	TickerBatch          *rate.Limiter
-	Ticker               *rate.Limiter
-	Trade                *rate.Limiter
-	Orderbook            *rate.Limiter
-	Stats                *rate.Limiter
-	Candle               *rate.Limiter
-	Configs              *rate.Limiter
-	Status               *rate.Limiter
-	Liquid               *rate.Limiter
-	LeaderBoard          *rate.Limiter
-	MarketAveragePrice   *rate.Limiter
-	Fx                   *rate.Limiter
-	AccountWalletBalance *rate.Limiter
-	AccountWalletHistory *rate.Limiter
-	// Orders -
-	RetrieveOrder  *rate.Limiter
-	SubmitOrder    *rate.Limiter
-	UpdateOrder    *rate.Limiter
-	CancelOrder    *rate.Limiter
-	OrderBatch     *rate.Limiter
-	CancelBatch    *rate.Limiter
-	OrderHistory   *rate.Limiter
-	GetOrderTrades *rate.Limiter
-	GetTrades      *rate.Limiter
-	GetLedgers     *rate.Limiter
-	// Positions -
-	GetAccountMarginInfo       *rate.Limiter
-	GetActivePositions         *rate.Limiter
-	ClaimPosition              *rate.Limiter
-	GetPositionHistory         *rate.Limiter
-	GetPositionAudit           *rate.Limiter
-	UpdateCollateralOnPosition *rate.Limiter
-	// Margin funding -
-	GetActiveFundingOffers   *rate.Limiter
-	SubmitFundingOffer       *rate.Limiter
-	CancelFundingOffer       *rate.Limiter
-	CancelAllFundingOffer    *rate.Limiter
-	CloseFunding             *rate.Limiter
-	FundingAutoRenew         *rate.Limiter
-	KeepFunding              *rate.Limiter
-	GetOffersHistory         *rate.Limiter
-	GetFundingLoans          *rate.Limiter
-	GetFundingLoanHistory    *rate.Limiter
-	GetFundingCredits        *rate.Limiter
-	GetFundingCreditsHistory *rate.Limiter
-	GetFundingTrades         *rate.Limiter
-	GetFundingInfo           *rate.Limiter
-	// Account actions
-	GetUserInfo               *rate.Limiter
-	TransferBetweenWallets    *rate.Limiter
-	GetDepositAddress         *rate.Limiter
-	Withdrawal                *rate.Limiter
-	GetMovements              *rate.Limiter
-	GetAlertList              *rate.Limiter
-	SetPriceAlert             *rate.Limiter
-	DeletePriceAlert          *rate.Limiter
-	GetBalanceForOrdersOffers *rate.Limiter
-	UserSettingsWrite         *rate.Limiter
-	UserSettingsRead          *rate.Limiter
-	UserSettingsDelete        *rate.Limiter
-	// Account V1 endpoints
-	GetAccountFees    *rate.Limiter
-	GetWithdrawalFees *rate.Limiter
-	GetAccountSummary *rate.Limiter
-	NewDepositAddress *rate.Limiter
-	GetKeyPermissions *rate.Limiter
-	GetMarginInfo     *rate.Limiter
-	GetAccountBalance *rate.Limiter
-	WalletTransfer    *rate.Limiter
-	WithdrawV1        *rate.Limiter
-	OrderV1           *rate.Limiter
-	OrderMulti        *rate.Limiter
-	StatsV1           *rate.Limiter
-	Fundingbook       *rate.Limiter
-	Lends             *rate.Limiter
-}
-
-// Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	switch f {
-	case platformStatus:
-		return r.PlatformStatus.Wait(ctx)
-	case tickerBatch:
-		return r.TickerBatch.Wait(ctx)
-	case tickerFunction:
-		return r.Ticker.Wait(ctx)
-	case tradeRateLimit:
-		return r.Trade.Wait(ctx)
-	case orderbookFunction:
-		return r.Orderbook.Wait(ctx)
-	case stats:
-		return r.Stats.Wait(ctx)
-	case candle:
-		return r.Candle.Wait(ctx)
-	case configs:
-		return r.Configs.Wait(ctx)
-	case status:
-		return r.Stats.Wait(ctx)
-	case liquid:
-		return r.Liquid.Wait(ctx)
-	case leaderBoard:
-		return r.LeaderBoard.Wait(ctx)
-	case marketAveragePrice:
-		return r.MarketAveragePrice.Wait(ctx)
-	case fx:
-		return r.Fx.Wait(ctx)
-	case accountWalletBalance:
-		return r.AccountWalletBalance.Wait(ctx)
-	case accountWalletHistory:
-		return r.AccountWalletHistory.Wait(ctx)
-	case retrieveOrder:
-		return r.RetrieveOrder.Wait(ctx)
-	case submitOrder:
-		return r.SubmitOrder.Wait(ctx)
-	case updateOrder:
-		return r.UpdateOrder.Wait(ctx)
-	case cancelOrder:
-		return r.CancelOrder.Wait(ctx)
-	case orderBatch:
-		return r.OrderBatch.Wait(ctx)
-	case cancelBatch:
-		return r.CancelBatch.Wait(ctx)
-	case orderHistory:
-		return r.OrderHistory.Wait(ctx)
-	case getOrderTrades:
-		return r.GetOrderTrades.Wait(ctx)
-	case getTrades:
-		return r.GetTrades.Wait(ctx)
-	case getLedgers:
-		return r.GetLedgers.Wait(ctx)
-	case getAccountMarginInfo:
-		return r.GetAccountMarginInfo.Wait(ctx)
-	case getActivePositions:
-		return r.GetActivePositions.Wait(ctx)
-	case claimPosition:
-		return r.ClaimPosition.Wait(ctx)
-	case getPositionHistory:
-		return r.GetPositionHistory.Wait(ctx)
-	case getPositionAudit:
-		return r.GetPositionAudit.Wait(ctx)
-	case updateCollateralOnPosition:
-		return r.UpdateCollateralOnPosition.Wait(ctx)
-	case getActiveFundingOffers:
-		return r.GetActiveFundingOffers.Wait(ctx)
-	case submitFundingOffer:
-		return r.SubmitFundingOffer.Wait(ctx)
-	case cancelFundingOffer:
-		return r.CancelFundingOffer.Wait(ctx)
-	case cancelAllFundingOffer:
-		return r.CancelAllFundingOffer.Wait(ctx)
-	case closeFunding:
-		return r.CloseFunding.Wait(ctx)
-	case fundingAutoRenew:
-		return r.FundingAutoRenew.Wait(ctx)
-	case keepFunding:
-		return r.KeepFunding.Wait(ctx)
-	case getOffersHistory:
-		return r.GetOffersHistory.Wait(ctx)
-	case getFundingLoans:
-		return r.GetFundingLoans.Wait(ctx)
-	case getFundingLoanHistory:
-		return r.GetFundingLoanHistory.Wait(ctx)
-	case getFundingCredits:
-		return r.GetFundingCredits.Wait(ctx)
-	case getFundingCreditsHistory:
-		return r.GetFundingCreditsHistory.Wait(ctx)
-	case getFundingTrades:
-		return r.GetFundingTrades.Wait(ctx)
-	case getFundingInfo:
-		return r.GetFundingInfo.Wait(ctx)
-	case getUserInfo:
-		return r.GetUserInfo.Wait(ctx)
-	case transferBetweenWallets:
-		return r.TransferBetweenWallets.Wait(ctx)
-	case getDepositAddress:
-		return r.GetDepositAddress.Wait(ctx)
-	case withdrawal:
-		return r.Withdrawal.Wait(ctx)
-	case getMovements:
-		return r.GetMovements.Wait(ctx)
-	case getAlertList:
-		return r.GetAlertList.Wait(ctx)
-	case setPriceAlert:
-		return r.SetPriceAlert.Wait(ctx)
-	case deletePriceAlert:
-		return r.DeletePriceAlert.Wait(ctx)
-	case getBalanceForOrdersOffers:
-		return r.GetBalanceForOrdersOffers.Wait(ctx)
-	case userSettingsWrite:
-		return r.UserSettingsWrite.Wait(ctx)
-	case userSettingsRead:
-		return r.UserSettingsRead.Wait(ctx)
-	case userSettingsDelete:
-		return r.UserSettingsDelete.Wait(ctx)
-
-		//  Bitfinex V1 API
-	case getAccountFees:
-		return r.GetAccountFees.Wait(ctx)
-	case getWithdrawalFees:
-		return r.GetWithdrawalFees.Wait(ctx)
-	case getAccountSummary:
-		return r.GetAccountSummary.Wait(ctx)
-	case newDepositAddress:
-		return r.NewDepositAddress.Wait(ctx)
-	case getKeyPermissions:
-		return r.GetKeyPermissions.Wait(ctx)
-	case getMarginInfo:
-		return r.GetMarginInfo.Wait(ctx)
-	case getAccountBalance:
-		return r.GetAccountBalance.Wait(ctx)
-	case walletTransfer:
-		return r.WalletTransfer.Wait(ctx)
-	case withdrawV1:
-		return r.WithdrawV1.Wait(ctx)
-	case orderV1:
-		return r.OrderV1.Wait(ctx)
-	case orderMulti:
-		return r.OrderMulti.Wait(ctx)
-	case statsV1:
-		return r.Stats.Wait(ctx)
-	case fundingbook:
-		return r.Fundingbook.Wait(ctx)
-	case lends:
-		return r.Lends.Wait(ctx)
-	default:
-		return errors.New("endpoint rate limit functionality not found")
-	}
-}
-
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		PlatformStatus:       request.NewRateLimit(requestLimitInterval, platformStatusReqRate),
-		TickerBatch:          request.NewRateLimit(requestLimitInterval, tickerBatchReqRate),
-		Ticker:               request.NewRateLimit(requestLimitInterval, tickerReqRate),
-		Trade:                request.NewRateLimit(requestLimitInterval, tradeReqRate),
-		Orderbook:            request.NewRateLimit(requestLimitInterval, orderbookReqRate),
-		Stats:                request.NewRateLimit(requestLimitInterval, statsReqRate),
-		Candle:               request.NewRateLimit(requestLimitInterval, candleReqRate),
-		Configs:              request.NewRateLimit(requestLimitInterval, configsReqRate),
-		Status:               request.NewRateLimit(requestLimitInterval, statusReqRate),
-		Liquid:               request.NewRateLimit(requestLimitInterval, liquidReqRate),
-		LeaderBoard:          request.NewRateLimit(requestLimitInterval, leaderBoardReqRate),
-		MarketAveragePrice:   request.NewRateLimit(requestLimitInterval, marketAveragePriceReqRate),
-		Fx:                   request.NewRateLimit(requestLimitInterval, fxReqRate),
-		AccountWalletBalance: request.NewRateLimit(requestLimitInterval, accountWalletBalanceReqRate),
-		AccountWalletHistory: request.NewRateLimit(requestLimitInterval, accountWalletHistoryReqRate),
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
+	return request.RateLimitDefinitions{
+		platformStatus:       request.NewRateLimitWithWeight(requestLimitInterval, platformStatusReqRate, 1),
+		tickerBatch:          request.NewRateLimitWithWeight(requestLimitInterval, tickerBatchReqRate, 1),
+		tickerFunction:       request.NewRateLimitWithWeight(requestLimitInterval, tickerReqRate, 1),
+		tradeRateLimit:       request.NewRateLimitWithWeight(requestLimitInterval, tradeReqRate, 1),
+		orderbookFunction:    request.NewRateLimitWithWeight(requestLimitInterval, orderbookReqRate, 1),
+		stats:                request.NewRateLimitWithWeight(requestLimitInterval, statsReqRate, 1),
+		candle:               request.NewRateLimitWithWeight(requestLimitInterval, candleReqRate, 1),
+		configs:              request.NewRateLimitWithWeight(requestLimitInterval, configsReqRate, 1),
+		status:               request.NewRateLimitWithWeight(requestLimitInterval, statusReqRate, 1),
+		liquid:               request.NewRateLimitWithWeight(requestLimitInterval, liquidReqRate, 1),
+		leaderBoard:          request.NewRateLimitWithWeight(requestLimitInterval, leaderBoardReqRate, 1),
+		marketAveragePrice:   request.NewRateLimitWithWeight(requestLimitInterval, marketAveragePriceReqRate, 1),
+		fx:                   request.NewRateLimitWithWeight(requestLimitInterval, fxReqRate, 1),
+		accountWalletBalance: request.NewRateLimitWithWeight(requestLimitInterval, accountWalletBalanceReqRate, 1),
+		accountWalletHistory: request.NewRateLimitWithWeight(requestLimitInterval, accountWalletHistoryReqRate, 1),
 		// Orders -
-		RetrieveOrder:  request.NewRateLimit(requestLimitInterval, retrieveOrderReqRate),
-		SubmitOrder:    request.NewRateLimit(requestLimitInterval, submitOrderReqRate),
-		UpdateOrder:    request.NewRateLimit(requestLimitInterval, updateOrderReqRate),
-		CancelOrder:    request.NewRateLimit(requestLimitInterval, cancelOrderReqRate),
-		OrderBatch:     request.NewRateLimit(requestLimitInterval, orderBatchReqRate),
-		CancelBatch:    request.NewRateLimit(requestLimitInterval, cancelBatchReqRate),
-		OrderHistory:   request.NewRateLimit(requestLimitInterval, orderHistoryReqRate),
-		GetOrderTrades: request.NewRateLimit(requestLimitInterval, getOrderTradesReqRate),
-		GetTrades:      request.NewRateLimit(requestLimitInterval, getTradesReqRate),
-		GetLedgers:     request.NewRateLimit(requestLimitInterval, getLedgersReqRate),
+		retrieveOrder:  request.NewRateLimitWithWeight(requestLimitInterval, retrieveOrderReqRate, 1),
+		submitOrder:    request.NewRateLimitWithWeight(requestLimitInterval, submitOrderReqRate, 1),
+		updateOrder:    request.NewRateLimitWithWeight(requestLimitInterval, updateOrderReqRate, 1),
+		cancelOrder:    request.NewRateLimitWithWeight(requestLimitInterval, cancelOrderReqRate, 1),
+		orderBatch:     request.NewRateLimitWithWeight(requestLimitInterval, orderBatchReqRate, 1),
+		cancelBatch:    request.NewRateLimitWithWeight(requestLimitInterval, cancelBatchReqRate, 1),
+		orderHistory:   request.NewRateLimitWithWeight(requestLimitInterval, orderHistoryReqRate, 1),
+		getOrderTrades: request.NewRateLimitWithWeight(requestLimitInterval, getOrderTradesReqRate, 1),
+		getTrades:      request.NewRateLimitWithWeight(requestLimitInterval, getTradesReqRate, 1),
+		getLedgers:     request.NewRateLimitWithWeight(requestLimitInterval, getLedgersReqRate, 1),
 		// Positions -
-		GetAccountMarginInfo:       request.NewRateLimit(requestLimitInterval, getAccountMarginInfoReqRate),
-		GetActivePositions:         request.NewRateLimit(requestLimitInterval, getActivePositionsReqRate),
-		ClaimPosition:              request.NewRateLimit(requestLimitInterval, claimPositionReqRate),
-		GetPositionHistory:         request.NewRateLimit(requestLimitInterval, getPositionAuditReqRate),
-		GetPositionAudit:           request.NewRateLimit(requestLimitInterval, getPositionAuditReqRate),
-		UpdateCollateralOnPosition: request.NewRateLimit(requestLimitInterval, updateCollateralOnPositionReqRate),
+		getAccountMarginInfo:       request.NewRateLimitWithWeight(requestLimitInterval, getAccountMarginInfoReqRate, 1),
+		getActivePositions:         request.NewRateLimitWithWeight(requestLimitInterval, getActivePositionsReqRate, 1),
+		claimPosition:              request.NewRateLimitWithWeight(requestLimitInterval, claimPositionReqRate, 1),
+		getPositionHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
+		getPositionAudit:           request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
+		updateCollateralOnPosition: request.NewRateLimitWithWeight(requestLimitInterval, updateCollateralOnPositionReqRate, 1),
 		// Margin funding -
-		GetActiveFundingOffers:   request.NewRateLimit(requestLimitInterval, getActiveFundingOffersReqRate),
-		SubmitFundingOffer:       request.NewRateLimit(requestLimitInterval, submitFundingOfferReqRate),
-		CancelFundingOffer:       request.NewRateLimit(requestLimitInterval, cancelFundingOfferReqRate),
-		CancelAllFundingOffer:    request.NewRateLimit(requestLimitInterval, cancelAllFundingOfferReqRate),
-		CloseFunding:             request.NewRateLimit(requestLimitInterval, closeFundingReqRate),
-		FundingAutoRenew:         request.NewRateLimit(requestLimitInterval, fundingAutoRenewReqRate),
-		KeepFunding:              request.NewRateLimit(requestLimitInterval, keepFundingReqRate),
-		GetOffersHistory:         request.NewRateLimit(requestLimitInterval, getOffersHistoryReqRate),
-		GetFundingLoans:          request.NewRateLimit(requestLimitInterval, getOffersHistoryReqRate),
-		GetFundingLoanHistory:    request.NewRateLimit(requestLimitInterval, getFundingLoanHistoryReqRate),
-		GetFundingCredits:        request.NewRateLimit(requestLimitInterval, getFundingCreditsReqRate),
-		GetFundingCreditsHistory: request.NewRateLimit(requestLimitInterval, getFundingCreditsHistoryReqRate),
-		GetFundingTrades:         request.NewRateLimit(requestLimitInterval, getFundingTradesReqRate),
-		GetFundingInfo:           request.NewRateLimit(requestLimitInterval, getFundingInfoReqRate),
+		getActiveFundingOffers:   request.NewRateLimitWithWeight(requestLimitInterval, getActiveFundingOffersReqRate, 1),
+		submitFundingOffer:       request.NewRateLimitWithWeight(requestLimitInterval, submitFundingOfferReqRate, 1),
+		cancelFundingOffer:       request.NewRateLimitWithWeight(requestLimitInterval, cancelFundingOfferReqRate, 1),
+		cancelAllFundingOffer:    request.NewRateLimitWithWeight(requestLimitInterval, cancelAllFundingOfferReqRate, 1),
+		closeFunding:             request.NewRateLimitWithWeight(requestLimitInterval, closeFundingReqRate, 1),
+		fundingAutoRenew:         request.NewRateLimitWithWeight(requestLimitInterval, fundingAutoRenewReqRate, 1),
+		keepFunding:              request.NewRateLimitWithWeight(requestLimitInterval, keepFundingReqRate, 1),
+		getOffersHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
+		getFundingLoans:          request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
+		getFundingLoanHistory:    request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoanHistoryReqRate, 1),
+		getFundingCredits:        request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsReqRate, 1),
+		getFundingCreditsHistory: request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsHistoryReqRate, 1),
+		getFundingTrades:         request.NewRateLimitWithWeight(requestLimitInterval, getFundingTradesReqRate, 1),
+		getFundingInfo:           request.NewRateLimitWithWeight(requestLimitInterval, getFundingInfoReqRate, 1),
 		// Account actions
-		GetUserInfo:               request.NewRateLimit(requestLimitInterval, getUserInfoReqRate),
-		TransferBetweenWallets:    request.NewRateLimit(requestLimitInterval, transferBetweenWalletsReqRate),
-		GetDepositAddress:         request.NewRateLimit(requestLimitInterval, getDepositAddressReqRate),
-		Withdrawal:                request.NewRateLimit(requestLimitInterval, withdrawalReqRate),
-		GetMovements:              request.NewRateLimit(requestLimitInterval, getMovementsReqRate),
-		GetAlertList:              request.NewRateLimit(requestLimitInterval, getAlertListReqRate),
-		SetPriceAlert:             request.NewRateLimit(requestLimitInterval, setPriceAlertReqRate),
-		DeletePriceAlert:          request.NewRateLimit(requestLimitInterval, deletePriceAlertReqRate),
-		GetBalanceForOrdersOffers: request.NewRateLimit(requestLimitInterval, getBalanceForOrdersOffersReqRate),
-		UserSettingsWrite:         request.NewRateLimit(requestLimitInterval, userSettingsWriteReqRate),
-		UserSettingsRead:          request.NewRateLimit(requestLimitInterval, userSettingsReadReqRate),
-		UserSettingsDelete:        request.NewRateLimit(requestLimitInterval, userSettingsDeleteReqRate),
+		getUserInfo:               request.NewRateLimitWithWeight(requestLimitInterval, getUserInfoReqRate, 1),
+		transferBetweenWallets:    request.NewRateLimitWithWeight(requestLimitInterval, transferBetweenWalletsReqRate, 1),
+		getDepositAddress:         request.NewRateLimitWithWeight(requestLimitInterval, getDepositAddressReqRate, 1),
+		withdrawal:                request.NewRateLimitWithWeight(requestLimitInterval, withdrawalReqRate, 1),
+		getMovements:              request.NewRateLimitWithWeight(requestLimitInterval, getMovementsReqRate, 1),
+		getAlertList:              request.NewRateLimitWithWeight(requestLimitInterval, getAlertListReqRate, 1),
+		setPriceAlert:             request.NewRateLimitWithWeight(requestLimitInterval, setPriceAlertReqRate, 1),
+		deletePriceAlert:          request.NewRateLimitWithWeight(requestLimitInterval, deletePriceAlertReqRate, 1),
+		getBalanceForOrdersOffers: request.NewRateLimitWithWeight(requestLimitInterval, getBalanceForOrdersOffersReqRate, 1),
+		userSettingsWrite:         request.NewRateLimitWithWeight(requestLimitInterval, userSettingsWriteReqRate, 1),
+		userSettingsRead:          request.NewRateLimitWithWeight(requestLimitInterval, userSettingsReadReqRate, 1),
+		userSettingsDelete:        request.NewRateLimitWithWeight(requestLimitInterval, userSettingsDeleteReqRate, 1),
 		// Account V1 endpoints
-		GetAccountFees:    request.NewRateLimit(requestLimitInterval, getAccountFeesReqRate),
-		GetWithdrawalFees: request.NewRateLimit(requestLimitInterval, getWithdrawalFeesReqRate),
-		GetAccountSummary: request.NewRateLimit(requestLimitInterval, getAccountSummaryReqRate),
-		NewDepositAddress: request.NewRateLimit(requestLimitInterval, newDepositAddressReqRate),
-		GetKeyPermissions: request.NewRateLimit(requestLimitInterval, getKeyPermissionsReqRate),
-		GetMarginInfo:     request.NewRateLimit(requestLimitInterval, getMarginInfoReqRate),
-		GetAccountBalance: request.NewRateLimit(requestLimitInterval, getAccountBalanceReqRate),
-		WalletTransfer:    request.NewRateLimit(requestLimitInterval, walletTransferReqRate),
-		WithdrawV1:        request.NewRateLimit(requestLimitInterval, withdrawV1ReqRate),
-		OrderV1:           request.NewRateLimit(requestLimitInterval, orderV1ReqRate),
-		OrderMulti:        request.NewRateLimit(requestLimitInterval, orderMultiReqRate),
-		StatsV1:           request.NewRateLimit(requestLimitInterval, statsV1ReqRate),
-		Fundingbook:       request.NewRateLimit(requestLimitInterval, fundingbookReqRate),
-		Lends:             request.NewRateLimit(requestLimitInterval, lendsReqRate),
+		getAccountFees:    request.NewRateLimitWithWeight(requestLimitInterval, getAccountFeesReqRate, 1),
+		getWithdrawalFees: request.NewRateLimitWithWeight(requestLimitInterval, getWithdrawalFeesReqRate, 1),
+		getAccountSummary: request.NewRateLimitWithWeight(requestLimitInterval, getAccountSummaryReqRate, 1),
+		newDepositAddress: request.NewRateLimitWithWeight(requestLimitInterval, newDepositAddressReqRate, 1),
+		getKeyPermissions: request.NewRateLimitWithWeight(requestLimitInterval, getKeyPermissionsReqRate, 1),
+		getMarginInfo:     request.NewRateLimitWithWeight(requestLimitInterval, getMarginInfoReqRate, 1),
+		getAccountBalance: request.NewRateLimitWithWeight(requestLimitInterval, getAccountBalanceReqRate, 1),
+		walletTransfer:    request.NewRateLimitWithWeight(requestLimitInterval, walletTransferReqRate, 1),
+		withdrawV1:        request.NewRateLimitWithWeight(requestLimitInterval, withdrawV1ReqRate, 1),
+		orderV1:           request.NewRateLimitWithWeight(requestLimitInterval, orderV1ReqRate, 1),
+		orderMulti:        request.NewRateLimitWithWeight(requestLimitInterval, orderMultiReqRate, 1),
+		statsV1:           request.NewRateLimitWithWeight(requestLimitInterval, statsV1ReqRate, 1),
+		fundingbook:       request.NewRateLimitWithWeight(requestLimitInterval, fundingbookReqRate, 1),
+		lends:             request.NewRateLimitWithWeight(requestLimitInterval, lendsReqRate, 1),
 	}
 }

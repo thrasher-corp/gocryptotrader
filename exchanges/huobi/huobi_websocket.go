@@ -56,10 +56,13 @@ const (
 	rateLimit  = 20
 )
 
+// Instantiates a communications channel between websocket connections
+var comms = make(chan WsMessage)
+
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := h.wsDial(&dialer)
@@ -85,6 +88,8 @@ func (h *HUOBI) WsConnect() error {
 		}
 	}
 
+	h.Websocket.Wg.Add(1)
+	go h.wsReadData()
 	return nil
 }
 
@@ -97,7 +102,8 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	go h.wsReadData(spotWebsocket.Conn)
+	h.Websocket.Wg.Add(1)
+	go h.wsFunnelConnectionData(spotWebsocket.Conn, wsMarketURL)
 	return nil
 }
 
@@ -115,37 +121,50 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 		return err
 	}
 
-	go h.wsReadData(spotWebsocket.AuthConn)
+	h.Websocket.Wg.Add(1)
+	go h.wsFunnelConnectionData(spotWebsocket.AuthConn, wsAccountsOrdersURL)
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (h *HUOBI) wsReadData(ws stream.Connection) {
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+// wsFunnelConnectionData manages data from multiple endpoints and passes it to
+// a channel
+func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
+	defer h.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		comms <- WsMessage{Raw: resp.Raw, URL: url}
 	}
-	spotWebsocket.Wg.Add(1)
-	defer spotWebsocket.Wg.Done()
+}
+
+// wsReadData receives and passes on websocket messages for processing
+func (h *HUOBI) wsReadData() {
+	defer h.Websocket.Wg.Done()
 	for {
 		select {
-		case <-spotWebsocket.ShutdownC:
-			return
-		default:
-			resp := ws.ReadMessage()
-			if resp.Raw == nil {
-				return
+		case <-h.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := h.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case h.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							h.Name,
+							err)
+					}
+				}
+			default:
 			}
+			return
+		case resp := <-comms:
 			err := h.wsHandleData(resp.Raw)
 			if err != nil {
-				select {
-				case h.Websocket.DataHandler <- err:
-				default:
-					log.Errorf(log.WebsocketMgr,
-						"%s websocket handle data error: %v",
-						h.Name,
-						err)
-				}
+				h.Websocket.DataHandler <- err
 			}
 		}
 	}
@@ -192,12 +211,8 @@ func stringToOrderType(oType string) (order.Type, error) {
 }
 
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
 	var init WsResponse
-	err = json.Unmarshal(respRaw, &init)
+	err := json.Unmarshal(respRaw, &init)
 	if err != nil {
 		return err
 	}
@@ -218,7 +233,11 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			OP: "pong",
 			TS: init.TS,
 		}
-		err := spotWebsocket.AuthConn.SendJSONMessage(authPing)
+		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+		if err != nil {
+			return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+		}
+		err = spotWebsocket.AuthConn.SendJSONMessage(authPing)
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
@@ -440,7 +459,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 func (h *HUOBI) sendPingResponse(pong int64) {
 	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
 	}
 	err = spotWebsocket.Conn.SendJSONMessage(WsPong{Pong: pong})
 	if err != nil {
@@ -467,7 +486,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 		return err
 	}
 
-	bids := make(orderbook.Items, len(update.Tick.Bids))
+	bids := make(orderbook.Tranches, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
 		price, ok := update.Tick.Bids[i][0].(float64)
 		if !ok {
@@ -477,13 +496,13 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 		if !ok {
 			return errors.New("unable to type assert bid amount")
 		}
-		bids[i] = orderbook.Item{
+		bids[i] = orderbook.Tranche{
 			Price:  price,
 			Amount: amount,
 		}
 	}
 
-	asks := make(orderbook.Items, len(update.Tick.Asks))
+	asks := make(orderbook.Tranches, len(update.Tick.Asks))
 	for i := range update.Tick.Asks {
 		price, ok := update.Tick.Asks[i][0].(float64)
 		if !ok {
@@ -493,7 +512,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 		if !ok {
 			return errors.New("unable to type assert ask amount")
 		}
-		asks[i] = orderbook.Item{
+		asks[i] = orderbook.Tranche{
 			Price:  price,
 			Amount: amount,
 		}
@@ -512,15 +531,15 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (h *HUOBI) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{wsMarketKline,
 		wsMarketDepth,
 		wsMarketTrade,
 		wsMarketTicker}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
-		subscriptions = append(subscriptions, subscription.Subscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: "accounts",
 		})
 	}
@@ -533,9 +552,9 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, err
 			enabledCurrencies[j].Delimiter = ""
 			channel := fmt.Sprintf(channels[i],
 				enabledCurrencies[j].Lower().String())
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channel,
-				Pair:    enabledCurrencies[j],
+				Pairs:   currency.Pairs{enabledCurrencies[j]},
 			})
 		}
 	}
@@ -543,11 +562,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, err
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
+func (h *HUOBI) Subscribe(channelsToSubscribe subscription.List) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
@@ -556,42 +571,36 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error
 			return err
 		}
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	for i := range channelsToSubscribe {
+		var err error
 		if (strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToSubscribe[i].Channel, "accounts")) && creds != nil {
-			err := h.wsAuthenticatedSubscribe(creds,
+			err = h.wsAuthenticatedSubscribe(creds,
 				"sub",
 				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
 				channelsToSubscribe[i].Channel)
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-			continue
+		} else {
+			err = spotWebsocket.Conn.SendJSONMessage(WsRequest{
+				Subscribe: channelsToSubscribe[i].Channel,
+			})
 		}
-		err := spotWebsocket.Conn.SendJSONMessage(WsRequest{
-			Subscribe: channelsToSubscribe[i].Channel,
-		})
+		if err == nil {
+			err = spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
+func (h *HUOBI) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
@@ -600,34 +609,32 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) e
 			return err
 		}
 	}
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	for i := range channelsToUnsubscribe {
+		var err error
 		if (strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts")) && creds != nil {
-			err := h.wsAuthenticatedSubscribe(creds,
+			err = h.wsAuthenticatedSubscribe(creds,
 				"unsub",
 				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,
 				channelsToUnsubscribe[i].Channel)
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
-			continue
+		} else {
+			err = spotWebsocket.Conn.SendJSONMessage(WsRequest{
+				Unsubscribe: channelsToUnsubscribe[i].Channel,
+			})
 		}
-		err := spotWebsocket.Conn.SendJSONMessage(WsRequest{
-			Unsubscribe: channelsToUnsubscribe[i].Channel,
-		})
+		if err == nil {
+			err = spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {
@@ -645,10 +652,6 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpo
 func (h *HUOBI) wsLogin(ctx context.Context) error {
 	if !h.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
-	}
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
@@ -669,6 +672,10 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	err = spotWebsocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -680,10 +687,6 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 }
 
 func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, endpoint, topic string) error {
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,
@@ -698,16 +701,16 @@ func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, 
 		return err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	return spotWebsocket.AuthConn.SendJSONMessage(request)
 }
 
 func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
-	}
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
@@ -728,6 +731,10 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 		return nil, err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request.ClientID = spotWebsocket.AuthConn.GenerateMessageID(true)
 	resp, err := spotWebsocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
@@ -750,10 +757,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
 	}
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
+
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
@@ -782,6 +786,10 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 		return nil, err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request.ClientID = spotWebsocket.AuthConn.GenerateMessageID(true)
 
 	resp, err := spotWebsocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
@@ -806,10 +814,6 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get order details", h.Name)
 	}
-	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
@@ -829,6 +833,10 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		return nil, err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request.ClientID = spotWebsocket.AuthConn.GenerateMessageID(true)
 	resp, err := spotWebsocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {

@@ -34,9 +34,7 @@ func (w *WrapperWebsocket) GetName() string {
 
 // IsEnabled returns status of enable
 func (w *WrapperWebsocket) IsEnabled() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.enabled
+	return w.enabled.Load()
 }
 
 // Connect connects to all websocket connections
@@ -48,16 +46,15 @@ func (w *WrapperWebsocket) Connect() error {
 	defer w.m.Unlock()
 
 	if !w.IsEnabled() {
-		return errors.New(WebsocketNotEnabled)
+		return ErrWebsocketNotEnabled
 	}
 	if w.IsConnecting() {
-		return fmt.Errorf("%v Websocket already attempting to connect",
-			w.exchangeName)
+		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyReconnecting)
 	}
 	if w.IsConnected() {
-		return fmt.Errorf("%v Websocket already connected",
-			w.exchangeName)
+		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyConnected)
 	}
+
 	var errs error
 	var err error
 
@@ -84,21 +81,16 @@ func (w *WrapperWebsocket) Connect() error {
 	if errs != nil {
 		return errs
 	}
-	w.setInit(true)
 	return nil
 }
 
 func (w *WrapperWebsocket) setDataMonitorRunning(b bool) {
-	w.connectionMutex.Lock()
-	w.dataMonitorRunning = b
-	w.connectionMutex.Unlock()
+	w.dataMonitorRunning.Store(b)
 }
 
 // IsDataMonitorRunning returns status of data monitor
 func (w *WrapperWebsocket) IsDataMonitorRunning() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.dataMonitorRunning
+	return w.dataMonitorRunning.Load()
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -121,6 +113,7 @@ func (w *WrapperWebsocket) dataMonitor() {
 				}
 			}
 		}()
+		dropped := 0
 		for {
 			select {
 			case a := <-w.ShutdownC:
@@ -136,11 +129,11 @@ func (w *WrapperWebsocket) dataMonitor() {
 				}
 				ws, ok := w.AssetTypeWebsockets[a]
 				if !ok {
-					ws.setConnectedStatus(false)
+					ws.setState(disconnectedState)
 					w.connectedAssetTypesLocker.Unlock()
 					break
 				}
-				ws.setConnectedStatus(false)
+				ws.setState(disconnectedState)
 
 				if w.connectedAssetTypesFlag&a == a {
 					w.connectedAssetTypesFlag ^= a
@@ -155,6 +148,10 @@ func (w *WrapperWebsocket) dataMonitor() {
 			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
+					if dropped != 0 {
+						log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
+						dropped = 0
+					}
 				case a := <-w.ShutdownC:
 					w.connectedAssetTypesLocker.Lock()
 					if a == asset.Empty || a > w.connectedAssetTypesFlag {
@@ -167,7 +164,7 @@ func (w *WrapperWebsocket) dataMonitor() {
 						return
 					}
 					if ws, ok := w.AssetTypeWebsockets[a]; ok {
-						ws.setConnectedStatus(false)
+						ws.setState(disconnectedState)
 						w.connectedAssetTypesLocker.Unlock()
 						break
 					}
@@ -181,10 +178,11 @@ func (w *WrapperWebsocket) dataMonitor() {
 					}
 					w.connectedAssetTypesLocker.Unlock()
 				default:
-					log.Warnf(log.WebsocketMgr,
-						"%s exchange backlog in websocket processing detected",
-						w.exchangeName)
-					w.ToRoutine <- d
+					if dropped == 0 {
+						// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
+						log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
+					}
+					dropped++
 				}
 			}
 		}
@@ -208,10 +206,10 @@ func (w *WrapperWebsocket) FlushChannels() error {
 
 // GetSubscriptions returns a copied list of subscriptions of all asset type websocket connections
 // and is a private member that cannot be manipulated
-func (w *WrapperWebsocket) GetSubscriptions() []subscription.Subscription {
+func (w *WrapperWebsocket) GetSubscriptions() subscription.List {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
-	subscriptions := []subscription.Subscription{}
+	subscriptions := subscription.List{}
 	for x := range w.AssetTypeWebsockets {
 		subscriptions = append(subscriptions, w.AssetTypeWebsockets[x].GetSubscriptions()...)
 	}
@@ -219,13 +217,13 @@ func (w *WrapperWebsocket) GetSubscriptions() []subscription.Subscription {
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *WrapperWebsocket) SubscribeToChannels(channels []subscription.Subscription) error {
+func (w *WrapperWebsocket) SubscribeToChannels(channels subscription.List) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
 			w.exchangeName)
 	}
 	var err error
-	var filteredChannels []subscription.Subscription
+	var filteredChannels subscription.List
 	for x := range w.AssetTypeWebsockets {
 		filteredChannels, err = w.AssetTypeWebsockets[x].SubscriptionFilter(channels, x)
 		if err != nil {
@@ -260,7 +258,7 @@ func (w *WrapperWebsocket) Enable() error {
 }
 
 // UnsubscribeChannels unsubscribes from a websocket channel
-func (w *WrapperWebsocket) UnsubscribeChannels(channels []subscription.Subscription) error {
+func (w *WrapperWebsocket) UnsubscribeChannels(channels subscription.List) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: channels not populated cannot remove",
 			w.exchangeName)
@@ -289,14 +287,11 @@ func (w *WrapperWebsocket) Setup(s *WebsocketWrapperSetup) error {
 	if s == nil {
 		return errWebsocketSetupIsNil
 	}
-	if !w.Init {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
-	}
 	if s.ExchangeConfig == nil {
 		return errExchangeConfigIsNil
 	}
 	if s.ExchangeConfig.Name == "" {
-		return errExchangeConfigNameUnset
+		return errExchangeConfigNameEmpty
 	}
 	w.exchangeName = s.ExchangeConfig.Name
 	w.verbose = s.ExchangeConfig.Verbose
@@ -307,7 +302,7 @@ func (w *WrapperWebsocket) Setup(s *WebsocketWrapperSetup) error {
 	if s.ExchangeConfig.Features == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errConfigFeaturesIsNil)
 	}
-	w.enabled = s.ExchangeConfig.Features.Enabled.Websocket
+	w.enabled.Store(s.ExchangeConfig.Features.Enabled.Websocket)
 	w.connectionMonitorDelay = s.ConnectionMonitorDelay
 	if w.connectionMonitorDelay <= 0 {
 		w.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
@@ -403,8 +398,6 @@ func (w *WrapperWebsocket) SetProxyAddress(proxyAddr string) error {
 
 // IsConnected returns status of connection
 func (w *WrapperWebsocket) IsConnected() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
 	var connected bool
 	for a := range w.AssetTypeWebsockets {
 		connected = connected || w.AssetTypeWebsockets[a].IsConnected()
@@ -475,8 +468,6 @@ func (w *WrapperWebsocket) IsConnecting() bool {
 	if w.IsConnected() {
 		return false
 	}
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
 	var connecting bool
 	for a := range w.AssetTypeWebsockets {
 		connecting = connecting || w.AssetTypeWebsockets[a].IsConnecting()
@@ -484,23 +475,10 @@ func (w *WrapperWebsocket) IsConnecting() bool {
 	return connecting
 }
 
-// IsInit returns status of init
-func (w *WrapperWebsocket) IsInit() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.Init
-}
-
-func (w *WrapperWebsocket) setInit(b bool) {
-	w.connectionMutex.Lock()
-	w.Init = b
-	w.connectionMutex.Unlock()
-}
-
 func (w *WrapperWebsocket) setEnabled(b bool) {
-	w.connectionMutex.Lock()
-	w.enabled = b
-	w.connectionMutex.Unlock()
+	for _, ws := range w.AssetTypeWebsockets {
+		ws.enabled.Store(b)
+	}
 }
 
 // Disable disables the exchange websocket protocol
@@ -534,14 +512,11 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 	if s == nil {
 		return nil, errWebsocketSetupIsNil
 	}
-	if !w.Init {
-		return nil, ErrWebsocketWrapperNotInitialized
-	}
 	if s.AssetType == asset.Empty || !s.AssetType.IsValid() {
 		return nil, asset.ErrNotSupported
 	}
 	ws, okay := w.AssetTypeWebsockets[s.AssetType]
-	if okay && ws != nil {
+	if okay && ws.IsInitialised() {
 		return ws, fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 	if s.Connector == nil {
@@ -570,15 +545,14 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		connectionMonitorDelay = config.DefaultConnectionMonitorDelay
 	}
 	assetWebsocket := &Websocket{
-		Init:                   true,
-		Subscribe:              make(chan []subscription.Subscription),
-		Unsubscribe:            make(chan []subscription.Subscription),
+		Subscribe:              make(chan subscription.List),
+		Unsubscribe:            make(chan subscription.List),
 		GenerateSubs:           s.GenerateSubscriptions,
 		Subscriber:             s.Subscriber,
 		Unsubscriber:           s.Unsubscriber,
-		Wg:                     &sync.WaitGroup{},
+		Wg:                     sync.WaitGroup{},
+		subscriptions:          subscription.NewStore(),
 		DataHandler:            w.DataHandler,
-		ToRoutine:              w.ToRoutine,
 		TrafficAlert:           w.TrafficAlert,
 		ReadMessageErrors:      w.ReadMessageErrors,
 		Match:                  w.Match,
@@ -587,16 +561,15 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		defaultURL:             s.DefaultURL,
 		exchangeName:           w.exchangeName,
 		verbose:                w.verbose,
-		enabled:                w.enabled,
 		connector:              s.Connector,
-		canUseAuthenticatedEndpoints: s.CanUseAuthenticatedEndpoints ||
-			w.canUseAuthenticatedEndpoints,
-		features:       w.features,
-		runningURLAuth: s.RunningURLAuth,
-		ShutdownC:      make(chan struct{}),
-		AssetShutdownC: w.ShutdownC,
-		AssetType:      s.AssetType,
+		features:               w.features,
+		runningURLAuth:         s.RunningURLAuth,
+		ShutdownC:              make(chan struct{}),
+		AssetShutdownC:         w.ShutdownC,
+		AssetType:              s.AssetType,
 	}
+	assetWebsocket.enabled.Store(w.enabled.Load())
+	assetWebsocket.SetCanUseAuthenticatedEndpoints(w.canUseAuthenticatedEndpoints)
 	err := assetWebsocket.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", w.exchangeName, err)
@@ -608,6 +581,17 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 			return nil, fmt.Errorf("%s %w", w.exchangeName, err)
 		}
 	}
+	if s.MaxWebsocketSubscriptionsPerConnection < 0 {
+		return nil, fmt.Errorf("%s %w", w.exchangeName, errInvalidMaxSubscriptions)
+	}
+	assetWebsocket.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
+	assetWebsocket.setState(disconnectedState)
+
 	w.AssetTypeWebsockets[s.AssetType] = assetWebsocket
 	return w.AssetTypeWebsockets[s.AssetType], nil
+}
+
+// TODO: ...
+func (w *WrapperWebsocket) CanUseAuthenticatedWebsocketForWrapper() bool {
+	return false
 }

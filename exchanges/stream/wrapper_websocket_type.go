@@ -2,6 +2,7 @@ package stream
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -18,10 +19,10 @@ var DefaultTestSetup = &WebsocketSetup{
 	DefaultURL:   "ws://something.com",
 	RunningURL:   "ws://something.com",
 	Connector:    func() error { return nil },
-	Subscriber:   func(_ []subscription.Subscription) error { return nil },
-	Unsubscriber: func(_ []subscription.Subscription) error { return nil },
-	GenerateSubscriptions: func() ([]subscription.Subscription, error) {
-		return []subscription.Subscription{
+	Subscriber:   func(_ subscription.List) error { return nil },
+	Unsubscriber: func(_ subscription.List) error { return nil },
+	GenerateSubscriptions: func() (subscription.List, error) {
+		return subscription.List{
 			{Channel: "TestSub"},
 			{Channel: "TestSub2"},
 			{Channel: "TestSub3"},
@@ -56,21 +57,20 @@ var DefaultWrapperSetup = &WebsocketWrapperSetup{
 // wrapper for routine processing
 type WrapperWebsocket struct {
 	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	Init                         bool
+	enabled                      atomic.Bool
 	verbose                      bool
-	dataMonitorRunning           bool
+	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
 	runningURL                   string
 	exchangeName                 string
 	m                            sync.Mutex
-	connectionMutex              sync.RWMutex
-	subscriptionMutex            sync.Mutex
-	DataHandler                  chan interface{}
-	ToRoutine                    chan interface{}
-	Match                        *Match
+
+	subscriptionMutex sync.Mutex
+	DataHandler       chan interface{}
+	ToRoutine         chan interface{}
+	Match             *Match
 
 	connectedAssetTypesLocker sync.Mutex
 	// connectedAssetTypesFlag holds a list of asset type connections
@@ -100,14 +100,15 @@ type WrapperWebsocket struct {
 
 	// AssetTypeWebsockets defines a map of asset type item to corresponding websocket class
 	AssetTypeWebsockets map[asset.Item]*Websocket
+	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
+	GenerateSubs func() (subscription.List, error)
 }
 
 // NewWrapper creates a new websocket wrapper instance
 func NewWrapper() *WrapperWebsocket {
 	return &WrapperWebsocket{
-		Init:                true,
-		DataHandler:         make(chan interface{}),
-		ToRoutine:           make(chan interface{}, defaultJobBuffer),
+		DataHandler:         make(chan interface{}, jobBuffer),
+		ToRoutine:           make(chan interface{}, jobBuffer),
 		TrafficAlert:        make(chan struct{}),
 		ReadMessageErrors:   make(chan error),
 		AssetTypeWebsockets: make(map[asset.Item]*Websocket),

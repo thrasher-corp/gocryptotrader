@@ -2,12 +2,12 @@ package bithumb
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -30,16 +30,16 @@ var (
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return err
-	}
+
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w",
@@ -47,6 +47,7 @@ func (b *Bithumb) WsConnect() error {
 			err)
 	}
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
@@ -55,23 +56,22 @@ func (b *Bithumb) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bithumb) wsReadData() {
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
-	}
-	spotWebsocket.Wg.Add(1)
-	defer spotWebsocket.Wg.Done()
+	defer b.Websocket.Wg.Done()
+
 	for {
 		select {
-		case <-spotWebsocket.ShutdownC:
+		case <-b.Websocket.ShutdownC:
 			return
 		default:
+			spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+			}
 			resp := spotWebsocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}
-			err := b.wsHandleData(resp.Raw)
+			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -86,7 +86,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		return err
 	}
 
-	if len(resp.Status) > 0 {
+	if resp.Status != "" {
 		if resp.Status == "0000" {
 			return nil
 		}
@@ -175,10 +175,10 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-// GenerateSubscriptions generates the default subscription set
-func (b *Bithumb) GenerateSubscriptions() ([]subscription.Subscription, error) {
+// generateSubscriptions generates the default subscription set
+func (b *Bithumb) generateSubscriptions() (subscription.List, error) {
 	var channels = []string{"ticker", "transaction", "orderbookdepth"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -188,48 +188,40 @@ func (b *Bithumb) GenerateSubscriptions() ([]subscription.Subscription, error) {
 	if err != nil {
 		return nil, err
 	}
+	pairs = pairs.Format(pFmt)
 
-	for x := range pairs {
-		for y := range channels {
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: channels[y],
-				Pair:    pairs[x].Format(pFmt),
-				Asset:   asset.Spot,
-			})
-		}
+	for y := range channels {
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: channels[y],
+			Pairs:   pairs,
+			Asset:   asset.Spot,
+		})
 	}
 	return subscriptions, nil
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return err
-	}
-	subs := make(map[string]*WsSubscribe)
-	for i := range channelsToSubscribe {
-		s, ok := subs[channelsToSubscribe[i].Channel]
-		if !ok {
-			s = &WsSubscribe{
-				Type: channelsToSubscribe[i].Channel,
-			}
-			subs[channelsToSubscribe[i].Channel] = s
+func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
+	var errs error
+	for _, s := range channelsToSubscribe {
+		req := &WsSubscribe{
+			Type:    s.Channel,
+			Symbols: s.Pairs,
 		}
-		s.Symbols = append(s.Symbols, channelsToSubscribe[i].Pair)
-	}
-
-	tSub, ok := subs["ticker"]
-	if ok {
-		tSub.TickTypes = wsDefaultTickTypes
-	}
-
-	for _, s := range subs {
-		err := spotWebsocket.Conn.SendJSONMessage(s)
+		if s.Channel == "ticker" {
+			req.TickTypes = wsDefaultTickTypes
+		}
+		spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+		}
+		err = spotWebsocket.Conn.SendJSONMessage(req)
+		if err == nil {
+			err = spotWebsocket.AddSuccessfulSubscriptions(s)
+		}
+		if err != nil {
+			errs = common.AppendError(errs, err)
 		}
 	}
-	spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return errs
 }

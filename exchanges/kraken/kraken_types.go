@@ -396,7 +396,7 @@ type TradeVolumeFee struct {
 // AddOrderResponse type
 type AddOrderResponse struct {
 	Description    OrderDescription `json:"descr"`
-	TransactionIds []string         `json:"txid"`
+	TransactionIDs []string         `json:"txid"`
 }
 
 // WithdrawInformation Used to check withdrawal fees
@@ -500,11 +500,11 @@ type WithdrawStatusResponse struct {
 
 // WebsocketSubscriptionEventRequest handles WS subscription events
 type WebsocketSubscriptionEventRequest struct {
-	Event        string                      `json:"event"`           // subscribe
-	RequestID    int64                       `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs        []string                    `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
-	Subscription WebsocketSubscriptionData   `json:"subscription,omitempty"`
-	Channels     []subscription.Subscription `json:"-"` // Keeps track of associated subscriptions in batched outgoings
+	Event        string                    `json:"event"`           // subscribe
+	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Pairs        []string                  `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
+	Channels     subscription.List         `json:"-"` // Keeps track of associated subscriptions in batched outgoings
 }
 
 // WebsocketBaseEventRequest Just has an "event" property

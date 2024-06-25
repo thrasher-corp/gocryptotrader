@@ -40,12 +40,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
@@ -107,7 +107,7 @@ func (bot *Engine) GetRPCEndpoints() (map[string]RPCEndpoint, error) {
 		},
 		grpcProxyName: {
 			Started:    bot.Settings.EnableGRPCProxy,
-			ListenAddr: "http://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ListenAddr: "https://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 		},
 		DeprecatedName: {
 			Started:    bot.Settings.EnableDeprecatedRPC,
@@ -639,7 +639,7 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[curre
 func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, a asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, a, true)
 	if len(result) == 0 {
-		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
+		return "", errors.New("no stats for supplied currency pair and asset type")
 	}
 
 	return result[0].Exchange, nil
@@ -650,7 +650,7 @@ func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, a asset.Item) (strin
 func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, false)
 	if len(result) == 0 {
-		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
+		return "", errors.New("no stats for supplied currency pair and asset type")
 	}
 
 	return result[0].Exchange, nil
@@ -962,7 +962,7 @@ func genCert(targetDir string) error {
 
 	certData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	if certData == nil {
-		return fmt.Errorf("cert data is nil")
+		return errors.New("cert data is nil")
 	}
 
 	b, err := x509.MarshalECPrivateKey(privKey)
@@ -972,7 +972,7 @@ func genCert(targetDir string) error {
 
 	keyData := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
 	if keyData == nil {
-		return fmt.Errorf("key pem data is nil")
+		return errors.New("key pem data is nil")
 	}
 
 	err = file.Write(filepath.Join(targetDir, "key.pem"), keyData)
@@ -1016,6 +1016,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bybit.Bybit), nil
 	case "coinut":
 		return new(coinut.COINUT), nil
+	case "deribit":
+		return new(deribit.Deribit), nil
 	case "exmo":
 		return new(exmo.EXMO), nil
 	case "coinbasepro":
@@ -1028,8 +1030,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(hitbtc.HitBTC), nil
 	case "huobi":
 		return new(huobi.HUOBI), nil
-	case "itbit":
-		return new(itbit.ItBit), nil
 	case "kraken":
 		return new(kraken.Kraken), nil
 	case "kucoin":
@@ -1057,7 +1057,7 @@ func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.I
 	if err != nil {
 		return nil, err
 	}
-	defaultConfig, err := exch.GetDefaultConfig(ctx)
+	defaultConfig, err := exchange.GetDefaultConfig(ctx, exch)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -25,6 +27,10 @@ import (
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
+
+	wsSubscribeMethod         = "SUBSCRIBE"
+	wsUnsubscribeMethod       = "UNSUBSCRIBE"
+	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
 )
 
 var listenKey string
@@ -39,12 +45,13 @@ var (
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
+	errUnknownError       = errors.New("unknown error")
 )
 
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 
 	var dialer websocket.Dialer
@@ -90,7 +97,9 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	return nil
 }
@@ -123,17 +132,12 @@ func (b *Binance) setupOrderbookManager() {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (b *Binance) KeepAuthKeyAlive() {
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
-	}
-	spotWebsocket.Wg.Add(1)
-	defer spotWebsocket.Wg.Done()
+	b.Websocket.Wg.Add(1)
+	defer b.Websocket.Wg.Done()
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
-		case <-spotWebsocket.ShutdownC:
+		case <-b.Websocket.ShutdownC:
 			ticks.Stop()
 			return
 		case <-ticks.C:
@@ -149,14 +153,11 @@ func (b *Binance) KeepAuthKeyAlive() {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
+	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
 	}
-	spotWebsocket.Wg.Add(1)
-	defer spotWebsocket.Wg.Done()
-
 	for {
 		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
@@ -170,297 +171,258 @@ func (b *Binance) wsReadData() {
 }
 
 func (b *Binance) wsHandleData(respRaw []byte) error {
-	var multiStreamData map[string]interface{}
-	err := json.Unmarshal(respRaw, &multiStreamData)
+	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
+		if b.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
+	}
+
+	if resultString, err := jsonparser.GetUnsafeString(respRaw, "result"); err == nil {
+		if resultString == "null" {
+			return nil
+		}
+	}
+	jsonData, _, _, err := jsonparser.Get(respRaw, "data")
+	if err != nil {
+		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+	}
+	var event string
+	event, err = jsonparser.GetUnsafeString(jsonData, "e")
+	if err == nil {
+		switch event {
+		case "outboundAccountPosition":
+			var data wsAccountPosition
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "balanceUpdate":
+			var data wsBalanceUpdate
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "executionReport":
+			var data wsOrderUpdate
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to executionReport structure %s",
+					b.Name,
+					err)
+			}
+			avgPrice := 0.0
+			if data.Data.CumulativeFilledQuantity != 0 {
+				avgPrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+			}
+			remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+			var pair currency.Pair
+			var assetType asset.Item
+			pair, assetType, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+			if err != nil {
+				return err
+			}
+			var feeAsset currency.Code
+			if data.Data.CommissionAsset != "" {
+				feeAsset = currency.NewCode(data.Data.CommissionAsset)
+			}
+			orderID := strconv.FormatInt(data.Data.OrderID, 10)
+			var orderStatus order.Status
+			orderStatus, err = stringToOrderStatus(data.Data.OrderStatus)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			clientOrderID := data.Data.ClientOrderID
+			if orderStatus == order.Cancelled {
+				clientOrderID = data.Data.CancelledClientOrderID
+			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(data.Data.OrderType)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(data.Data.Side)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			b.Websocket.DataHandler <- &order.Detail{
+				Price:                data.Data.Price,
+				Amount:               data.Data.Quantity,
+				AverageExecutedPrice: avgPrice,
+				ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+				RemainingAmount:      remainingAmount,
+				Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
+				CostAsset:            pair.Quote,
+				Fee:                  data.Data.Commission,
+				FeeAsset:             feeAsset,
+				Exchange:             b.Name,
+				OrderID:              orderID,
+				ClientOrderID:        clientOrderID,
+				Type:                 orderType,
+				Side:                 orderSide,
+				Status:               orderStatus,
+				AssetType:            assetType,
+				Date:                 data.Data.OrderCreationTime,
+				LastUpdated:          data.Data.TransactionTime,
+				Pair:                 pair,
+			}
+			return nil
+		case "listStatus":
+			var data wsListStatus
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		}
+	}
+
+	streamStr, err := jsonparser.GetUnsafeString(respRaw, "stream")
+	if err != nil {
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		}
+		return err
+	}
+	streamType := strings.Split(streamStr, "@")
+	if len(streamType) <= 1 {
+		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+	}
+	var (
+		pair      currency.Pair
+		isEnabled bool
+		symbol    string
+	)
+	symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
+	if err != nil {
+		// there should be a symbol returned for all data types below
+		return err
+	}
+	pair, isEnabled, err = b.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
 	if err != nil {
 		return err
 	}
-
-	if r, ok := multiStreamData["result"]; ok {
-		if r == nil {
-			return nil
-		}
+	if !isEnabled {
+		return nil
 	}
+	switch streamType[1] {
+	case "trade":
+		saveTradeData := b.IsSaveTradeDataEnabled()
+		if !saveTradeData &&
+			!b.IsTradeFeedEnabled() {
+			return nil
+		}
 
-	if method, ok := multiStreamData["method"].(string); ok {
-		// TODO handle subscription handling
-		if strings.EqualFold(method, "subscribe") {
-			return nil
+		var t TradeStream
+		err = json.Unmarshal(jsonData, &t)
+		if err != nil {
+			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
+				b.Name,
+				err)
 		}
-		if strings.EqualFold(method, "unsubscribe") {
-			return nil
+		return b.Websocket.Trade.Update(saveTradeData,
+			trade.Data{
+				CurrencyPair: pair,
+				Timestamp:    t.TimeStamp,
+				Price:        t.Price.Float64(),
+				Amount:       t.Quantity.Float64(),
+				Exchange:     b.Name,
+				AssetType:    asset.Spot,
+				TID:          strconv.FormatInt(t.TradeID, 10),
+			})
+	case "ticker":
+		var t TickerStream
+		err = json.Unmarshal(jsonData, &t)
+		if err != nil {
+			return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
+				b.Name,
+				err.Error())
 		}
-	}
-	if newdata, ok := multiStreamData["data"].(map[string]interface{}); ok {
-		if e, ok := newdata["e"].(string); ok {
-			switch e {
-			case "outboundAccountInfo":
-				var data wsAccountInfo
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
-				return nil
-			case "outboundAccountPosition":
-				var data wsAccountPosition
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
-				return nil
-			case "balanceUpdate":
-				var data wsBalanceUpdate
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
-				return nil
-			case "executionReport":
-				var data wsOrderUpdate
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to executionReport structure %s",
-						b.Name,
-						err)
-				}
-				averagePrice := 0.0
-				if data.Data.CumulativeFilledQuantity != 0 {
-					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
-				}
-				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
-				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
-				if err != nil {
-					return err
-				}
-				var feeAsset currency.Code
-				if data.Data.CommissionAsset != "" {
-					feeAsset = currency.NewCode(data.Data.CommissionAsset)
-				}
-				orderID := strconv.FormatInt(data.Data.OrderID, 10)
-				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				clientOrderID := data.Data.ClientOrderID
-				if orderStatus == order.Cancelled {
-					clientOrderID = data.Data.CancelledClientOrderID
-				}
-				orderType, err := order.StringToOrderType(data.Data.OrderType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				orderSide, err := order.StringToOrderSide(data.Data.Side)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				b.Websocket.DataHandler <- &order.Detail{
-					Price:                data.Data.Price,
-					Amount:               data.Data.Quantity,
-					AverageExecutedPrice: averagePrice,
-					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
-					RemainingAmount:      remainingAmount,
-					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
-					CostAsset:            pair.Quote,
-					Fee:                  data.Data.Commission,
-					FeeAsset:             feeAsset,
-					Exchange:             b.Name,
-					OrderID:              orderID,
-					ClientOrderID:        clientOrderID,
-					Type:                 orderType,
-					Side:                 orderSide,
-					Status:               orderStatus,
-					AssetType:            assetType,
-					Date:                 data.Data.OrderCreationTime,
-					LastUpdated:          data.Data.TransactionTime,
-					Pair:                 pair,
-				}
-				return nil
-			case "listStatus":
-				var data wsListStatus
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to listStatus structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
+		b.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: b.Name,
+			Open:         t.OpenPrice.Float64(),
+			Close:        t.ClosePrice.Float64(),
+			Volume:       t.TotalTradedVolume.Float64(),
+			QuoteVolume:  t.TotalTradedQuoteVolume.Float64(),
+			High:         t.HighPrice.Float64(),
+			Low:          t.LowPrice.Float64(),
+			Bid:          t.BestBidPrice.Float64(),
+			Ask:          t.BestAskPrice.Float64(),
+			Last:         t.LastPrice.Float64(),
+			LastUpdated:  t.EventTime,
+			AssetType:    asset.Spot,
+			Pair:         pair,
+		}
+		return nil
+	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
+		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
+		var kline KlineStream
+		err = json.Unmarshal(jsonData, &kline)
+		if err != nil {
+			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
+				b.Name,
+				err)
+		}
+		b.Websocket.DataHandler <- stream.KlineData{
+			Timestamp:  kline.EventTime,
+			Pair:       pair,
+			AssetType:  asset.Spot,
+			Exchange:   b.Name,
+			StartTime:  kline.Kline.StartTime,
+			CloseTime:  kline.Kline.CloseTime,
+			Interval:   kline.Kline.Interval,
+			OpenPrice:  kline.Kline.OpenPrice.Float64(),
+			ClosePrice: kline.Kline.ClosePrice.Float64(),
+			HighPrice:  kline.Kline.HighPrice.Float64(),
+			LowPrice:   kline.Kline.LowPrice.Float64(),
+			Volume:     kline.Kline.Volume.Float64(),
+		}
+		return nil
+	case "depth":
+		var depth WebsocketDepthStream
+		err = json.Unmarshal(jsonData, &depth)
+		if err != nil {
+			return fmt.Errorf("%v - Could not convert to depthStream structure %s",
+				b.Name,
+				err)
+		}
+		var init bool
+		init, err = b.UpdateLocalBuffer(&depth)
+		if err != nil {
+			if init {
 				return nil
 			}
+			return fmt.Errorf("%v - UpdateLocalCache error: %s",
+				b.Name,
+				err)
 		}
+		return nil
+	default:
+		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
 	}
-	if wsStream, ok := multiStreamData["stream"].(string); ok {
-		streamType := strings.Split(wsStream, "@")
-		if len(streamType) > 1 {
-			if data, ok := multiStreamData["data"]; ok {
-				rawData, err := json.Marshal(data)
-				if err != nil {
-					return err
-				}
-
-				pairs, err := b.GetEnabledPairs(asset.Spot)
-				if err != nil {
-					return err
-				}
-
-				format, err := b.GetPairFormat(asset.Spot, true)
-				if err != nil {
-					return err
-				}
-
-				switch streamType[1] {
-				case "trade":
-					saveTradeData := b.IsSaveTradeDataEnabled()
-
-					if !saveTradeData &&
-						!b.IsTradeFeedEnabled() {
-						return nil
-					}
-
-					var t TradeStream
-					err := json.Unmarshal(rawData, &t)
-					if err != nil {
-						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
-							b.Name,
-							err)
-					}
-
-					price, err := strconv.ParseFloat(t.Price, 64)
-					if err != nil {
-						return fmt.Errorf("%v - price conversion error: %s",
-							b.Name,
-							err)
-					}
-
-					amount, err := strconv.ParseFloat(t.Quantity, 64)
-					if err != nil {
-						return fmt.Errorf("%v - amount conversion error: %s",
-							b.Name,
-							err)
-					}
-
-					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
-					if err != nil {
-						return err
-					}
-
-					return b.Websocket.Trade.Update(saveTradeData,
-						trade.Data{
-							CurrencyPair: pair,
-							Timestamp:    t.TimeStamp,
-							Price:        price,
-							Amount:       amount,
-							Exchange:     b.Name,
-							AssetType:    asset.Spot,
-							TID:          strconv.FormatInt(t.TradeID, 10),
-						})
-				case "ticker":
-					var t TickerStream
-					err := json.Unmarshal(rawData, &t)
-					if err != nil {
-						return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
-							b.Name,
-							err.Error())
-					}
-
-					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
-					if err != nil {
-						return err
-					}
-
-					b.Websocket.DataHandler <- &ticker.Price{
-						ExchangeName: b.Name,
-						Open:         t.OpenPrice,
-						Close:        t.ClosePrice,
-						Volume:       t.TotalTradedVolume,
-						QuoteVolume:  t.TotalTradedQuoteVolume,
-						High:         t.HighPrice,
-						Low:          t.LowPrice,
-						Bid:          t.BestBidPrice,
-						Ask:          t.BestAskPrice,
-						Last:         t.LastPrice,
-						LastUpdated:  t.EventTime,
-						AssetType:    asset.Spot,
-						Pair:         pair,
-					}
-					return nil
-				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
-					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-					var kline KlineStream
-					err := json.Unmarshal(rawData, &kline)
-					if err != nil {
-						return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
-							b.Name,
-							err)
-					}
-
-					pair, err := currency.NewPairFromFormattedPairs(kline.Symbol, pairs, format)
-					if err != nil {
-						return err
-					}
-
-					b.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  kline.EventTime,
-						Pair:       pair,
-						AssetType:  asset.Spot,
-						Exchange:   b.Name,
-						StartTime:  kline.Kline.StartTime,
-						CloseTime:  kline.Kline.CloseTime,
-						Interval:   kline.Kline.Interval,
-						OpenPrice:  kline.Kline.OpenPrice,
-						ClosePrice: kline.Kline.ClosePrice,
-						HighPrice:  kline.Kline.HighPrice,
-						LowPrice:   kline.Kline.LowPrice,
-						Volume:     kline.Kline.Volume,
-					}
-					return nil
-				case "depth":
-					var depth WebsocketDepthStream
-					err := json.Unmarshal(rawData, &depth)
-					if err != nil {
-						return fmt.Errorf("%v - Could not convert to depthStream structure %s",
-							b.Name,
-							err)
-					}
-					init, err := b.UpdateLocalBuffer(&depth)
-					if err != nil {
-						if init {
-							return nil
-						}
-						return fmt.Errorf("%v - UpdateLocalCache error: %s",
-							b.Name,
-							err)
-					}
-					return nil
-				default:
-					b.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-						Message: b.Name + stream.UnhandledMessage + string(respRaw),
-					}
-				}
-			}
-		}
-	}
-	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -505,18 +467,18 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 		Exchange:        b.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Items, len(orderbookNew.Asks)),
+		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
 		LastUpdated:     time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[i].Quantity,
 			Price:  orderbookNew.Bids[i].Price,
 		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[i].Quantity,
 			Price:  orderbookNew.Asks[i].Price,
 		}
@@ -526,42 +488,29 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
 func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
-	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
+	pair, err := b.MatchSymbolWithAvailablePairs(wsdp.Pair, asset.Spot, false)
 	if err != nil {
 		return false, err
 	}
-
-	format, err := b.GetPairFormat(asset.Spot, true)
+	err = b.obm.stageWsUpdate(wsdp, pair, asset.Spot)
 	if err != nil {
-		return false, err
-	}
-
-	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
-		enabledPairs,
-		format)
-	if err != nil {
-		return false, err
-	}
-
-	err = b.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
-	if err != nil {
-		init, err2 := b.obm.checkIsInitialSync(currencyPair)
+		init, err2 := b.obm.checkIsInitialSync(pair)
 		if err2 != nil {
 			return false, err2
 		}
 		return init, err
 	}
 
-	err = b.applyBufferUpdate(currencyPair)
+	err = b.applyBufferUpdate(pair)
 	if err != nil {
-		b.flushAndCleanup(currencyPair)
+		b.flushAndCleanup(pair)
 	}
 
 	return false, err
 }
 
-// GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
+// generateSubscriptions generates the default subscription set
+func (b *Binance) generateSubscriptions() (subscription.List, error) {
 	var channels = make([]string, 0, len(b.Features.Subscriptions))
 	for i := range b.Features.Subscriptions {
 		name, err := channelName(b.Features.Subscriptions[i])
@@ -570,7 +519,7 @@ func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
 		}
 		channels = append(channels, name)
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -579,9 +528,9 @@ func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
 		for z := range channels {
 			lp := pairs[y].Lower()
 			lp.Delimiter = ""
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: lp.String() + "@" + channels[z],
-				Pair:    pairs[y],
+				Pairs:   currency.Pairs{pairs[y]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -613,107 +562,119 @@ func channelName(s *subscription.Subscription) (string, error) {
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	payload := WsPayload{
-		Method: "SUBSCRIBE",
-	}
+func (b *Binance) Subscribe(channels subscription.List) error {
+	return b.ParallelChanOp(channels, b.subscribeToChan, 50)
+}
+
+// subscribeToChan handles a single subscription and parses the result
+// on success it adds the subscription to the websocket
+func (b *Binance) subscribeToChan(chans subscription.List) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
-	for i := range channelsToSubscribe {
-		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
-		if i%50 == 0 && i != 0 {
-			err := spotWebsocket.Conn.SendJSONMessage(payload)
-			if err != nil {
-				return err
+	id := spotWebsocket.Conn.GenerateMessageID(false)
+
+	cNames := make([]string, len(chans))
+	for i := range chans {
+		c := chans[i]
+		cNames[i] = c.Channel
+		if err := spotWebsocket.AddSubscriptions(c); err != nil {
+			return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
+		}
+	}
+
+	req := WsPayload{
+		Method: wsSubscribeMethod,
+		Params: cNames,
+		ID:     id,
+	}
+
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(id, req)
+	if err == nil {
+		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
+			err = rErr
+		} else if d != jsonparser.Null { // null is the only expected and acceptable response
+			err = fmt.Errorf("%w: %s", errUnknownError, v)
+		}
+	}
+
+	if err != nil {
+		if err2 := spotWebsocket.RemoveSubscriptions(chans...); err2 != nil {
+			err = common.AppendError(err, err2)
+		}
+		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
+		b.Websocket.DataHandler <- err
+	} else {
+		for _, s := range chans {
+			if sErr := s.SetState(subscription.SubscribedState); sErr != nil {
+				err = common.AppendError(err, sErr)
 			}
-			payload.Params = []string{}
 		}
 	}
-	if len(payload.Params) > 0 {
-		err := spotWebsocket.Conn.SendJSONMessage(payload)
-		if err != nil {
-			return err
-		}
-	}
-	spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+
+	return err
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	payload := WsPayload{
-		Method: "UNSUBSCRIBE",
-	}
+func (b *Binance) Unsubscribe(channels subscription.List) error {
+	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 50)
+}
+
+// unsubscribeFromChan sends a websocket message to stop receiving data from a channel
+func (b *Binance) unsubscribeFromChan(chans subscription.List) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
-	for i := range channelsToUnsubscribe {
-		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
-		if i%50 == 0 && i != 0 {
-			err := spotWebsocket.Conn.SendJSONMessage(payload)
-			if err != nil {
-				return err
-			}
-			payload.Params = []string{}
+	id := spotWebsocket.Conn.GenerateMessageID(false)
+
+	cNames := make([]string, len(chans))
+	for i := range chans {
+		cNames[i] = chans[i].Channel
+	}
+
+	req := WsPayload{
+		Method: wsUnsubscribeMethod,
+		Params: cNames,
+		ID:     id,
+	}
+
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(id, req)
+	if err == nil {
+		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
+			err = rErr
+		} else if d != jsonparser.Null { // null is the only expected and acceptable response
+			err = fmt.Errorf("%w: %s", errUnknownError, v)
 		}
 	}
-	if len(payload.Params) > 0 {
-		err := spotWebsocket.Conn.SendJSONMessage(payload)
-		if err != nil {
-			return err
-		}
+
+	if err != nil {
+		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
+		b.Websocket.DataHandler <- err
+	} else {
+		err = spotWebsocket.RemoveSubscriptions(chans...)
 	}
-	spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+
+	return err
 }
 
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
+	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		price, ok := ws.UpdateBids[i][0].(string)
-		if !ok {
-			return errors.New("type assertion failed for bid price")
+		updateBid[i] = orderbook.Tranche{
+			Price:  ws.UpdateBids[i][0].Float64(),
+			Amount: ws.UpdateBids[i][1].Float64(),
 		}
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
-		}
-		amount, ok := ws.UpdateBids[i][1].(string)
-		if !ok {
-			return errors.New("type assertion failed for bid amount")
-		}
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateBid[i] = orderbook.Item{Price: p, Amount: a}
 	}
-
-	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
+	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		price, ok := ws.UpdateAsks[i][0].(string)
-		if !ok {
-			return errors.New("type assertion failed for ask price")
+		updateAsk[i] = orderbook.Tranche{
+			Price:  ws.UpdateAsks[i][0].Float64(),
+			Amount: ws.UpdateAsks[i][1].Float64(),
 		}
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
-		}
-		amount, ok := ws.UpdateAsks[i][1].(string)
-		if !ok {
-			return errors.New("type assertion failed for ask amount")
-		}
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateAsk[i] = orderbook.Item{Price: p, Amount: a}
 	}
-
 	return b.Websocket.Orderbook.Update(&orderbook.Update{
 		Bids:       updateBid,
 		Asks:       updateAsk,
@@ -785,17 +746,12 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
 func (b *Binance) SynchroniseWebsocketOrderbook() {
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
-	}
-	spotWebsocket.Wg.Add(1)
+	b.Websocket.Wg.Add(1)
 	go func() {
-		defer spotWebsocket.Wg.Done()
+		defer b.Websocket.Wg.Done()
 		for {
 			select {
-			case <-spotWebsocket.ShutdownC:
+			case <-b.Websocket.ShutdownC:
 				for {
 					select {
 					case <-b.obm.jobs:

@@ -89,7 +89,7 @@ func TestGetHistoricalData(t *testing.T) {
 	r, err := c.GetHistoricalData("2022-09-26", []string{"USD"}, "EUR")
 	if assert.NoError(t, err, "GetHistoricalData should not error") {
 		assert.Contains(t, r, "EURUSD", "Should find rate")
-		assert.Equal(t, r["EURUSD"], 0.962232, "Rate should be exactly correct")
+		assert.Equal(t, 0.962232, r["EURUSD"], "Rate should be exactly correct")
 	}
 }
 
@@ -110,7 +110,7 @@ func TestQueryTimeFrame(t *testing.T) {
 		assert.Len(t, r, 5, "Should get correct number of days")
 		a, ok := r["2020-03-16"].(map[string]any)
 		assert.True(t, ok, "Has final date entry")
-		assert.Equal(t, a["USDAUD"], 1.6397, "And it was a bad week")
+		assert.Equal(t, 1.6397, a["USDAUD"], "And it was a bad week")
 	}
 }
 

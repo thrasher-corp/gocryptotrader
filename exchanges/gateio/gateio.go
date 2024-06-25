@@ -28,6 +28,10 @@ const (
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
+	tradeBaseURL                        = "https://www.gate.io/"
+	tradeSpot                           = "trade/"
+	tradeFutures                        = "futures/usdt/"
+	tradeDelivery                       = "futures-delivery/usdt/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -156,7 +160,6 @@ var (
 	errTooManyOrderRequest           = errors.New("too many order creation request")
 	errInvalidTimeout                = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                  = errors.New("no ticker data available")
-	errOnlyLimitOrderType            = errors.New("only order type 'limit' is allowed")
 	errNilArgument                   = errors.New("null argument")
 	errInvalidTimezone               = errors.New("invalid timezone")
 	errMultipleOrders                = errors.New("multiple orders passed")
@@ -164,6 +167,7 @@ var (
 	errInvalidSubAccountUserID       = errors.New("sub-account user id is required")
 	errCannotParseSettlementCurrency = errors.New("cannot derive settlement currency")
 	errMissingAPIKey                 = errors.New("missing API key information")
+	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
 )
 
 // Gateio is the overarching type across this package
@@ -554,7 +558,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
-	var err error
 	for x := range args {
 		if (x != 0) && args[x-1].Account != args[x].Account {
 			return nil, errDifferentAccount
@@ -573,13 +576,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
 			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
-		}
-		if args[x].Text == "" {
-			args[x].Text, err = common.GenerateRandomString(10, common.NumberCharacters)
-			if err != nil {
-				return nil, err
-			}
-			args[x].Text = "t-" + args[x].Text
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -639,9 +635,6 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.CurrencyPair.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Type != "limit" {
-		return nil, errOnlyLimitOrderType
-	}
 	arg.Side = strings.ToLower(arg.Side)
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, errInvalidOrderSide
@@ -651,19 +644,10 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
-	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price <= 0 {
+	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -1168,28 +1152,26 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !strings.EqualFold(arg.From, asset.Spot.String()) {
-		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", asset.ErrNotSupported, asset.Spot)
+	if arg.From == "" {
+		return nil, errors.New("from account is required")
 	}
-	if !g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", asset.ErrNotSupported, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+	if arg.To == "" {
+		return nil, errors.New("to account is required")
 	}
-	if arg.Amount < 0 {
+	if arg.To == arg.From {
+		return nil, errors.New("from and to account cannot be the same")
+	}
+	if (arg.To == "margin" || arg.From == "margin") && arg.CurrencyPair.IsEmpty() {
+		return nil, errors.New("currency pair is required for margin account transfer")
+	}
+	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
+		return nil, errors.New("settle is required for futures account transfer")
+	}
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	var response *TransactionIDResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodPost, walletTransfer, nil, &arg, &response)
-}
-
-func (g *Gateio) isAccountAccepted(account string) bool {
-	if account == "" {
-		return false
-	}
-	acc, err := asset.New(account)
-	if err != nil {
-		return false
-	}
-	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Options
 }
 
 func (g *Gateio) assetTypeToString(acc asset.Item) string {
@@ -2155,12 +2137,16 @@ func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle string, limi
 }
 
 // GetAllFuturesPositionsOfUsers list all positions of users.
-func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle string) (*Position, error) {
+func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle string, realPositionsOnly bool) ([]Position, error) {
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	var response *Position
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, futuresPath+settle+"/positions", nil, nil, &response)
+	params := url.Values{}
+	if realPositionsOnly {
+		params.Set("holding", "true")
+	}
+	var response []Position
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, futuresPath+settle+"/positions", params, nil, &response)
 }
 
 // GetSinglePosition returns a single position
@@ -2275,7 +2261,7 @@ func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle stri
 	params := url.Values{}
 	params.Set("change", strconv.FormatFloat(change, 'f', -1, 64))
 	if dualSide != "dual_long" && dualSide != "dual_short" {
-		return nil, fmt.Errorf("invalid 'dual_side' should be 'dual_short' or 'dual_long'")
+		return nil, errors.New("invalid 'dual_side' should be 'dual_short' or 'dual_long'")
 	}
 	params.Set("dual_side", dualSide)
 	var response []Position
@@ -2342,20 +2328,14 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != focTIF {
+	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price < 0 {
+	if arg.Price == "" {
 		return nil, errInvalidPrice
 	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
+	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
+		return nil, errInvalidTimeInForce
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2366,10 +2346,13 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
+		exchange.RestSpot,
+		perpetualSwapPlaceOrdersEPL,
 		http.MethodPost,
 		futuresPath+arg.Settle+ordersPath,
-		nil, &arg, &response)
+		nil,
+		&arg,
+		&response)
 }
 
 // GetFuturesOrders retrieves list of futures orders
@@ -2378,11 +2361,10 @@ func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, s
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w, only 'open' and 'finished' status are supported", errInvalidOrderStatus)
 	}
@@ -2448,17 +2430,17 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle string, arg
 		if args[x].TimeInForce != gtcTIF &&
 			args[x].TimeInForce != iocTIF &&
 			args[x].TimeInForce != pocTIF &&
-			args[x].TimeInForce != focTIF {
+			args[x].TimeInForce != fokTIF {
 			return nil, errInvalidTimeInForce
 		}
-		if args[x].Price > 0 && args[x].TimeInForce == iocTIF {
-			args[x].Price = 0
-		}
-		if args[x].Price < 0 {
+		if args[x].Price == "" {
 			return nil, errInvalidPrice
 		}
+		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
+			return nil, errInvalidTimeInForce
+		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
-			args[x].Text = "t-" + args[x].Text
+			return nil, errInvalidTextValue
 		}
 		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
 			return nil, errInvalidAutoSizeValue
@@ -2980,20 +2962,11 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != focTIF {
+	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price < 0 {
+	if arg.Price == "" {
 		return nil, errInvalidPrice
-	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -3013,11 +2986,10 @@ func (g *Gateio) GetDeliveryOrders(ctx context.Context, contract currency.Pair, 
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w, only 'open' and 'finished' status are supported", errInvalidOrderStatus)
 	}
@@ -3204,13 +3176,13 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle stri
 		return nil, fmt.Errorf("%w, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
 	}
 	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
-		return nil, fmt.Errorf("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
+		return nil, errors.New("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
 	}
 	if arg.Trigger.Rule != 1 && arg.Trigger.Rule != 2 {
-		return nil, fmt.Errorf("invalid trigger condition('rule') value, rule must be 1 or 2")
+		return nil, errors.New("invalid trigger condition('rule') value, rule must be 1 or 2")
 	}
 	if arg.Trigger.PriceType != 0 && arg.Trigger.PriceType != 1 && arg.Trigger.PriceType != 2 {
-		return nil, fmt.Errorf("price type must be 0 or 1 or 2")
+		return nil, errors.New("price type must be 0 or 1 or 2")
 	}
 	if arg.Trigger.Price <= 0 {
 		return nil, errors.New("invalid argument: trigger.price")
@@ -3482,7 +3454,7 @@ func (g *Gateio) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Co
 }
 
 // PlaceOptionOrder creates an options order
-func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*OptionOrderResponse, error) {
+func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*OptionOrderResponse, error) {
 	if arg.Contract == "" {
 		return nil, errInvalidOrMissingContractParam
 	}
@@ -3498,12 +3470,6 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*O
 	if arg.TimeInForce == iocTIF || arg.Price < 0 {
 		arg.Price = 0
 	}
-	var err error
-	arg.Text, err = common.GenerateRandomString(10, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	arg.Text = "t-" + arg.Text
 	var response *OptionOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
 		gateioOptionsOrders, nil, &arg, &response)
@@ -3785,8 +3751,12 @@ func (g *Gateio) IsValidPairString(currencyPair string) bool {
 	if len(currencyPair) < 3 {
 		return false
 	}
-	if strings.Contains(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter) {
-		result := strings.Split(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter)
+	pf, err := g.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(currencyPair, pf.Delimiter) {
+		result := strings.Split(currencyPair, pf.Delimiter)
 		return len(result) >= 2
 	}
 	return false

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -33,27 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	by.SetDefaults()
-	exchCfg, err := by.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-	err = by.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := by.UpdateTradablePairs(ctx, false)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Bybit
 func (by *Bybit) SetDefaults() {
@@ -200,7 +178,7 @@ func (by *Bybit) SetDefaults() {
 
 	by.Requester, err = request.New(by.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -238,7 +216,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	err = by.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
@@ -370,44 +347,11 @@ func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
 	return by.WsAuth(ctx)
 }
 
-// Start starts the Bybit go routine
-func (by *Bybit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		by.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bybit wrapper
-func (by *Bybit) Run(ctx context.Context) {
-	if by.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			by.Name,
-			common.IsEnabled(by.Websocket.IsEnabled()))
-		by.PrintEnabledPairs()
-	}
-
-	if !by.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := by.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			by.Name,
-			err)
-	}
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !by.SupportsAsset(a) {
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
 	var pair currency.Pair
 	var category string
 	format, err := by.GetPairFormat(a, false)
@@ -429,13 +373,19 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		allPairs = response.List
 	case asset.Options:
 		category = getCategoryName(a)
-		baseCoins := []string{"BTC", "ETH"}
-		for x := range baseCoins {
-			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", baseCoins[x], "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
-			if err != nil {
-				return nil, err
+		for x := range supportedOptionsTypes {
+			var bookmark = ""
+			for {
+				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], bookmark, int64(by.Features.Enabled.Kline.GlobalResultLimit))
+				if err != nil {
+					return nil, err
+				}
+				allPairs = append(allPairs, response.List...)
+				if response.NextPageCursor == "" || (bookmark != "" && bookmark == response.NextPageCursor) || len(response.List) == 0 {
+					break
+				}
+				bookmark = response.NextPageCursor
 			}
-			allPairs = append(allPairs, response.List...)
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
@@ -574,9 +524,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.Options:
-		baseCoins := []string{"BTC", "ETH"}
-		for x := range baseCoins {
-			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", baseCoins[x], time.Time{})
+		for x := range supportedOptionsTypes {
+			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", supportedOptionsTypes[x], time.Time{})
 			if err != nil {
 				return err
 			}
@@ -679,17 +628,17 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Item, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Item, len(orderbookNew.Asks)),
+		Bids:            make([]orderbook.Tranche, len(orderbookNew.Bids)),
+		Asks:            make([]orderbook.Tranche, len(orderbookNew.Asks)),
 	}
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -2165,4 +2114,59 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 		}
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := by.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.ForwardSlashDelimiter
+		return tradeBaseURL + "en/trade/spot/" + cp.Upper().String(), nil
+	case asset.CoinMarginedFutures:
+		if cp.Quote.Equal(currency.USD) {
+			cp.Delimiter = ""
+			return tradeBaseURL + "trade/inverse/" + cp.Upper().String(), nil
+		}
+		var symbol string
+		symbol, err = by.FormatSymbol(cp, a)
+		if err != nil {
+			return "", err
+		}
+		// convert long-dated to static contracts
+		var io *InstrumentsInfo
+		io, err = by.GetInstrumentInfo(ctx, getCategoryName(a), symbol, "", "", "", 1000)
+		if err != nil {
+			return "", err
+		}
+		if len(io.List) != 1 {
+			return "", fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, cp)
+		}
+		var length futures.ContractType
+		length, err = getContractLength(io.List[0].DeliveryTime.Time().Sub(io.List[0].LaunchTime.Time()))
+		if err != nil {
+			return "", err
+		}
+		// bybit inverse long-dated contracts are currently only quarterly or bi-quarterly
+		if length == futures.Quarterly {
+			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("Q"))
+		} else {
+			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("BIQ"))
+		}
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + "trade/inverse/futures/" + cp.Upper().String(), nil
+	case asset.USDTMarginedFutures:
+		cp.Delimiter = ""
+		return tradeBaseURL + "trade/usdt/" + cp.Upper().String(), nil
+	case asset.USDCMarginedFutures:
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + "trade/futures/usdc/" + cp.Upper().String(), nil
+	case asset.Options:
+		return tradeBaseURL + "trade/option/usdc/" + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

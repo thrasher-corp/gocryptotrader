@@ -135,7 +135,7 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 	}
 	switch {
 	case !o.Websocket.IsEnabled():
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	case !o.Websocket.IsConnected():
 		return stream.ErrNotConnected
 	case !o.Websocket.CanUseAuthenticatedEndpoints() && authenticated:

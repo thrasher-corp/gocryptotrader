@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,6 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -40,20 +41,6 @@ var (
 
 	spotTradablePair, usdcMarginedTradablePair, usdtMarginedTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
 )
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
-}
 
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
@@ -3080,7 +3067,7 @@ func TestWsLinearConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsLinearConnect()
-	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3090,7 +3077,7 @@ func TestWsInverseConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsInverseConnect()
-	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3100,7 +3087,7 @@ func TestWsOptionsConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsOptionsConnect()
-	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3544,4 +3531,17 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	is, err = b.IsPerpetualFutureCurrency(asset.USDCMarginedFutures, usdcMarginedTradablePair)
 	assert.NoError(t, err)
 	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair))
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }

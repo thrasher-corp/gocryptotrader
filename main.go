@@ -135,7 +135,7 @@ func main() {
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
 	}
-	config.Cfg = *engine.Bot.Config
+	config.SetConfig(engine.Bot.Config)
 
 	gctscript.Setup()
 

@@ -912,6 +912,12 @@ type WsAuthenticationRequest struct {
 	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
+// WsMessage defines read data from the websocket connection
+type WsMessage struct {
+	Raw []byte
+	URL string
+}
+
 // WsAuthenticatedSubscriptionRequest request for subscription on authenticated connection
 type WsAuthenticatedSubscriptionRequest struct {
 	Op               string `json:"op"`

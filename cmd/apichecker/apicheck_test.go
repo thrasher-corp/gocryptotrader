@@ -317,21 +317,6 @@ func TestHTMLPoloniex(t *testing.T) {
 	}
 }
 
-func TestHTMLItBit(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{TokenData: "a",
-		Key:           "href",
-		Val:           "changelog",
-		TokenDataEnd:  "div",
-		TextTokenData: "h2",
-		DateFormat:    "2006-01-02",
-		RegExp:        `^https://api.itbit.com/v\d{1}/$`,
-		Path:          "https://api.itbit.com/docs"}
-	if _, err := htmlScrapeItBit(&data); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestHTMLScrapeExmo(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,

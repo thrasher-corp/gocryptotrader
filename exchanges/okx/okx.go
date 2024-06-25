@@ -40,8 +40,14 @@ type Okx struct {
 }
 
 const (
-	okxAPIURL     = "https://www.okx.com/" + okxAPIPath
+	baseURL       = "https://www.okx.com/"
+	okxAPIURL     = baseURL + okxAPIPath
 	okxAPIVersion = "/v5/"
+	tradeSpot     = "trade-spot/"
+	tradeMargin   = "trade-margin/"
+	tradeFutures  = "trade-futures/"
+	tradePerps    = "trade-swap/"
+	tradeOptions  = "trade-option/"
 
 	okxAPIPath      = "api" + okxAPIVersion
 	okxWebsocketURL = "wss://ws.okx.com:8443/ws" + okxAPIVersion
@@ -484,7 +490,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, fmt.Errorf("either order id or client id is required")
+		return nil, errors.New("either order id or client id is required")
 	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
@@ -509,7 +515,7 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, fmt.Errorf("either order id or client id is required")
+			return nil, errors.New("either order id or client id is required")
 		}
 	}
 	var resp []OrderData
@@ -2079,7 +2085,7 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrument
 }
 
 // IncreaseDecreaseMargin Increase or decrease the margin of the isolated position. Margin reduction may result in the change of the actual leverage.
-func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseMarginInput) (*IncreaseDecreaseMargin, error) {
+func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecreaseMarginInput) (*IncreaseDecreaseMargin, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -2499,7 +2505,7 @@ func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, currency, subacc
 }
 
 // MasterAccountsManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
-func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, arg SubAccountAssetTransferParams) ([]TransferIDInfo, error) {
+func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, arg *SubAccountAssetTransferParams) ([]TransferIDInfo, error) {
 	if arg.Currency == "" {
 		return nil, errInvalidCurrencyValue
 	}
@@ -3059,15 +3065,6 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
 
-// GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
-func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
-	if len(codes) >= 2 {
-		instrumentID = codes[0] + ok.CurrencyPairs.RequestFormat.Delimiter + strings.Join(codes[1:], ok.CurrencyPairs.RequestFormat.Delimiter)
-	}
-	return currency.NewPairFromString(instrumentID)
-}
-
 // GetOrderBookDepth returns the recent order asks and bids before specified timestamp.
 func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth int64) (*OrderBookResponse, error) {
 	params := url.Values{}
@@ -3143,7 +3140,7 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles, getCandlesticksEPL)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles, getCandlestickEPL)
 }
 
 // GetCandlesticksHistory Retrieve history candlestick charts from recent years.
@@ -3154,7 +3151,7 @@ func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, 
 // GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 // the response is a list of Candlestick data.
 func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex, getIndexCandlesticksEPL)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex, getIndexCandlestickEPL)
 }
 
 // GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
@@ -3491,7 +3488,7 @@ func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID strin
 		return nil, errMissingRequiredParamInstID
 	}
 	params.Set("instId", instrumentID)
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryPriceEPL, http.MethodGet, common.EncodeURLValues(publicEstimatedPrice, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryExercisePriceEPL, http.MethodGet, common.EncodeURLValues(publicEstimatedPrice, params), nil, &resp, false)
 }
 
 // GetDiscountRateAndInterestFreeQuota retrieves discount rate level and interest-free quota.
@@ -4314,11 +4311,15 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 	if instrumentID == "" {
 		return nil, fmt.Errorf("%w instrumentID", errEmptyArgument)
 	}
-	splitSymbol := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	pf, err := ok.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	splitSymbol := strings.Split(instrumentID, pf.Delimiter)
 	if len(splitSymbol) <= 1 {
 		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
 	}
-	pair, err := currency.NewPairDelimiter(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
 		return nil, err
 	}

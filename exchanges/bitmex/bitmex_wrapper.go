@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -29,34 +28,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (b *Bitmex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Bitmex
 func (b *Bitmex) SetDefaults() {
@@ -160,11 +137,24 @@ func (b *Bitmex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 		},
+		Subscriptions: subscription.List{
+			{Enabled: true, Channel: bitmexWSAnnouncement},
+			{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+			{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+			{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSPrivateNotifications, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+			{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
+		},
 	}
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -201,7 +191,6 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
@@ -219,7 +208,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		AssetType:             asset.Spot,
 	})
 	if err != nil {
@@ -230,44 +219,6 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  bitmexWSURL,
 	})
-}
-
-// Start starts the Bitmex go routine
-func (b *Bitmex) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bitmex wrapper
-func (b *Bitmex) Run(ctx context.Context) {
-	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s. (url: %s).\n",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()),
-			wsEndpoint)
-		b.PrintEnabledPairs()
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -527,17 +478,17 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Asks = make(orderbook.Items, 0, len(orderbookNew))
-	book.Bids = make(orderbook.Items, 0, len(orderbookNew))
+	book.Asks = make(orderbook.Tranches, 0, len(orderbookNew))
+	book.Bids = make(orderbook.Tranches, 0, len(orderbookNew))
 	for i := range orderbookNew {
 		switch {
 		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Tranche{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
 		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Tranche{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
@@ -1429,4 +1380,14 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 		OpenInterest: instrument[0].OpenInterest,
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitmex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

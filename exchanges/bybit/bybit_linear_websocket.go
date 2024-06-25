@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -14,11 +15,11 @@ import (
 // WsLinearConnect connects to linear a websocket feed
 func (by *Bybit) WsLinearConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.LinearContract) {
-		return errWebsocketNotEnabled
+		return stream.ErrWebsocketNotEnabled
 	}
-	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
+	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.LinearContract)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w asset type: %v", err, asset.LinearContract)
 	}
 	linearWebsocket.Conn.SetURL(linearPublic)
 	var dialer websocket.Dialer
@@ -45,8 +46,8 @@ func (by *Bybit) WsLinearConnect() error {
 }
 
 // GenerateLinearDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (by *Bybit) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
@@ -65,9 +66,9 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 		for p := range linearPairMap[a] {
 			for x := range channels {
 				subscriptions = append(subscriptions,
-					subscription.Subscription{
+					&subscription.Subscription{
 						Channel: channels[x],
-						Pair:    pairs[p],
+						Pairs:   currency.Pairs{pairs[p]},
 						Asset:   a,
 					})
 			}
@@ -77,23 +78,23 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) LinearSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) LinearSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleLinearPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) LinearUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) LinearUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleLinearPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
-	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
+func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.USDTMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err
+	}
+	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.LinearContract)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.LinearContract)
 	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload

@@ -91,7 +91,7 @@ func TestWsHandleData(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	sub, err := b.GenerateSubscriptions()
+	sub, err := b.generateSubscriptions()
 	if err != nil {
 		t.Fatal(err)
 	}

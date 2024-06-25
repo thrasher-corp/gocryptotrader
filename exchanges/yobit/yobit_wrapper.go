@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,29 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (y *Yobit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	y.SetDefaults()
-	exchCfg, err := y.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = y.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if y.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = y.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets current default value for Yobit
 func (y *Yobit) SetDefaults() {
@@ -101,7 +77,7 @@ func (y *Yobit) SetDefaults() {
 	y.Requester, err = request.New(y.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
-		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
+		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -125,38 +101,6 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	return y.SetupDefaults(exch)
-}
-
-// Start starts the WEX go routine
-func (y *Yobit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		y.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Yobit wrapper
-func (y *Yobit) Run(ctx context.Context) {
-	if y.Verbose {
-		y.PrintEnabledPairs()
-	}
-
-	if !y.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := y.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			y.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -290,7 +234,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Bids {
 		book.Bids = append(book.Bids,
-			orderbook.Item{
+			orderbook.Tranche{
 				Price:  orderbookNew.Bids[i][0],
 				Amount: orderbookNew.Bids[i][1],
 			})
@@ -298,7 +242,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Asks {
 		book.Asks = append(book.Asks,
-			orderbook.Item{
+			orderbook.Tranche{
 				Price:  orderbookNew.Asks[i][0],
 				Amount: orderbookNew.Asks[i][1],
 			})
@@ -588,7 +532,7 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Error) > 0 {
+	if resp.Error != "" {
 		return nil, errors.New(resp.Error)
 	}
 	return &withdraw.ExchangeResponse{}, nil
@@ -776,4 +720,14 @@ func (y *Yobit) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRe
 // UpdateOrderExecutionLimits updates order execution limits
 func (y *Yobit) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (y *Yobit) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := y.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.ForwardSlashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

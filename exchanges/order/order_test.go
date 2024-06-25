@@ -1513,7 +1513,7 @@ func TestMatchFilter(t *testing.T) {
 	for num, tt := range tests {
 		num := num
 		tt := tt
-		t.Run(fmt.Sprintf("%v", num), func(t *testing.T) {
+		t.Run(strconv.Itoa(num), func(t *testing.T) {
 			t.Parallel()
 			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
 				t.Errorf("tests[%v] failed", num)
@@ -2056,7 +2056,7 @@ func TestAdjustQuoteAmount(t *testing.T) {
 func TestSideUnmarshal(t *testing.T) {
 	t.Parallel()
 	var s Side
-	assert.Nil(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
+	assert.NoError(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
 	assert.Equal(t, Sell, s, "Correctly set order Side")
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError

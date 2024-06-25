@@ -2,6 +2,7 @@ package stream
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,27 +17,28 @@ import (
 
 // Websocket functionality list and state consts
 const (
-	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled                = "exchange_websocket_not_enabled"
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]*subscription.Subscription
+const (
+	uninitialisedState uint32 = iota
+	disconnectedState
+	connectingState
+	connectedState
+)
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
-	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	Init                         bool
-	connected                    bool
-	connecting                   bool
+	canUseAuthenticatedEndpoints atomic.Bool
+	enabled                      atomic.Bool
+	state                        atomic.Uint32
 	verbose                      bool
-	connectionMonitorRunning     bool
-	trafficMonitorRunning        bool
+	connectionMonitorRunning     atomic.Bool
+	trafficMonitorRunning        atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -46,37 +48,33 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
-	subscriptionMutex sync.RWMutex
-	subscriptions     subscriptionMap
-	Subscribe         chan []subscription.Subscription
-	Unsubscribe       chan []subscription.Subscription
-	AssetType         asset.Item
+	subscriptions *subscription.Store
 
-	// Subscriber function for package defined websocket subscriber
-	// functionality
-	Subscriber func([]subscription.Subscription) error
-	// Unsubscriber function for packaged defined websocket unsubscriber
-	// functionality
-	Unsubscriber func([]subscription.Subscription) error
-	// GenerateSubs function for package defined websocket generate
-	// subscriptions functionality
-	GenerateSubs func() ([]subscription.Subscription, error)
+	Subscribe   chan subscription.List
+	Unsubscribe chan subscription.List
+	AssetType   asset.Item
+
+	// Subscriber function for exchange specific subscribe implementation
+	Subscriber func(subscription.List) error
+	// Subscriber function for exchange specific unsubscribe implementation
+	Unsubscriber func(subscription.List) error
+	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
+	GenerateSubs func() (subscription.List, error)
 
 	// SubscriptionFilter filters a channel subscription by its associated asset type
-	SubscriptionFilter func([]subscription.Subscription, asset.Item) ([]subscription.Subscription, error)
+	SubscriptionFilter func(subscription.List, asset.Item) (subscription.List, error)
 
 	DataHandler chan interface{}
-	ToRoutine   chan interface{}
+	// ToRoutine   chan interface{} is this necessary?
 
 	Match *Match
 
-	// ShutdownC synchronises shutdown event across routines
+	// shutdown synchronises shutdown event across routines
 	ShutdownC      chan struct{}
 	AssetShutdownC chan asset.Item
-	Wg             *sync.WaitGroup
+	Wg             sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
@@ -111,11 +109,15 @@ type WebsocketSetup struct {
 	RunningURL                   string
 	RunningURLAuth               string
 	Connector                    func() error
-	Subscriber                   func([]subscription.Subscription) error
-	Unsubscriber                 func([]subscription.Subscription) error
-	GenerateSubscriptions        func() ([]subscription.Subscription, error)
+	Subscriber                   func(subscription.List) error
+	Unsubscriber                 func(subscription.List) error
+	GenerateSubscriptions        func() (subscription.List, error)
 	AssetType                    asset.Item
 	CanUseAuthenticatedEndpoints bool
+
+	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
+	// subscriptions per connection that is allowed by the exchange.
+	MaxWebsocketSubscriptionsPerConnection int
 }
 
 // WebsocketWrapperSetup defines variables for setting up the websocket wrapper instance

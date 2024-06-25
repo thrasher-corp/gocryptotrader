@@ -1531,6 +1531,60 @@
         ]
       }
     },
+    "/v1/getcurrencytradeurl": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetCurrencyTradeURL",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCurrencyTradeURLResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getdatahistoryjobdetails": {
       "get": {
         "operationId": "GoCryptoTraderService_GetDataHistoryJobDetails",
@@ -5976,6 +6030,14 @@
         }
       }
     },
+    "gctrpcGetCurrencyTradeURLResponse": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGetEventsResponse": {
       "type": "object",
       "properties": {
@@ -7580,7 +7642,7 @@
         "channel": {
           "type": "string"
         },
-        "pair": {
+        "pairs": {
           "type": "string"
         },
         "asset": {

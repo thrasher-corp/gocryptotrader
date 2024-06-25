@@ -7,14 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -97,6 +100,64 @@ func (ku *Kucoin) GetFuturesTicker(ctx context.Context, symbol string) (*Futures
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesTicker, params), &resp)
 }
 
+// GetFuturesTickers does n * REST requests based on enabled pairs of the futures asset type
+func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error) {
+	pairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	tickersC := make(chan *ticker.Price, len(pairs))
+	errC := make(chan error, len(pairs))
+
+	for i := range pairs {
+		var p currency.Pair
+		if p, err = ku.FormatExchangeCurrency(pairs[i], asset.Futures); err != nil {
+			errC <- err
+			break
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if tick, err2 := ku.GetFuturesTicker(ctx, p.String()); err2 != nil {
+				errC <- err2
+			} else {
+				tickersC <- &ticker.Price{
+					Last:         tick.Price.Float64(),
+					Bid:          tick.BestBidPrice.Float64(),
+					Ask:          tick.BestAskPrice.Float64(),
+					BidSize:      tick.BestBidSize,
+					AskSize:      tick.BestAskSize,
+					Volume:       tick.Size,
+					Pair:         p,
+					LastUpdated:  tick.FilledTime.Time(),
+					ExchangeName: ku.Name,
+					AssetType:    asset.Futures,
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(tickersC)
+	close(errC)
+	var errs error
+	for err := range errC {
+		errs = common.AppendError(errs, err)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	tickers := make([]*ticker.Price, 0, len(pairs))
+	for tick := range tickersC {
+		tickers = append(tickers, tick)
+	}
+	return tickers, nil
+}
+
 // GetFuturesOrderbook gets full orderbook for a specified symbol
 func (ku *Kucoin) GetFuturesOrderbook(ctx context.Context, symbol string) (*Orderbook, error) {
 	if symbol == "" {
@@ -109,7 +170,7 @@ func (ku *Kucoin) GetFuturesOrderbook(ctx context.Context, symbol string) (*Orde
 	if err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o)
+	return constructFuturesOrderbook(&o), nil
 }
 
 // GetFuturesPartOrderbook20 gets orderbook for a specified symbol with depth 20
@@ -124,7 +185,7 @@ func (ku *Kucoin) GetFuturesPartOrderbook20(ctx context.Context, symbol string) 
 	if err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o)
+	return constructFuturesOrderbook(&o), nil
 }
 
 // GetFuturesPartOrderbook100 gets orderbook for a specified symbol with depth 100
@@ -139,7 +200,7 @@ func (ku *Kucoin) GetFuturesPartOrderbook100(ctx context.Context, symbol string)
 	if err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o)
+	return constructFuturesOrderbook(&o), nil
 }
 
 // GetFuturesTradeHistory get last 100 trades for symbol
@@ -791,10 +852,10 @@ func (ku *Kucoin) CancelFuturesTransferOut(ctx context.Context, applyID string) 
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodDelete, common.EncodeURLValues(kucoinFuturesCancelTransferOut, params), nil, &resp)
 }
 
-func processFuturesOB(ob [][2]float64) []orderbook.Item {
-	o := make([]orderbook.Item, len(ob))
+func processFuturesOB(ob [][2]float64) []orderbook.Tranche {
+	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
-		o[x] = orderbook.Item{
+		o[x] = orderbook.Tranche{
 			Price:  ob[x][0],
 			Amount: ob[x][1],
 		}
@@ -802,20 +863,11 @@ func processFuturesOB(ob [][2]float64) []orderbook.Item {
 	return o
 }
 
-func constructFuturesOrderbook(o *futuresOrderbookResponse) (*Orderbook, error) {
-	var (
-		s   Orderbook
-		err error
-	)
-	s.Bids = processFuturesOB(o.Bids)
-	if err != nil {
-		return nil, err
+func constructFuturesOrderbook(o *futuresOrderbookResponse) *Orderbook {
+	return &Orderbook{
+		Bids:     processFuturesOB(o.Bids),
+		Asks:     processFuturesOB(o.Asks),
+		Sequence: o.Sequence,
+		Time:     o.Time.Time(),
 	}
-	s.Asks = processFuturesOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	s.Sequence = o.Sequence
-	s.Time = o.Time.Time()
-	return &s, err
 }

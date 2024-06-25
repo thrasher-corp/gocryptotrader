@@ -293,7 +293,7 @@ func (c Code) Upper() Code {
 	return c
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the umarshaler interface
 func (c *Code) UnmarshalJSON(d []byte) error {
 	var newcode string
 	err := json.Unmarshal(d, &newcode)

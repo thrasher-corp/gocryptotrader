@@ -24,15 +24,18 @@ var errWSPairParsingError = errors.New("unable to parse currency pair from wsRes
 
 // Ticker holds ticker information
 type Ticker struct {
-	Last      float64 `json:"last,string"`
-	High      float64 `json:"high,string"`
-	Low       float64 `json:"low,string"`
-	Vwap      float64 `json:"vwap,string"`
-	Volume    float64 `json:"volume,string"`
-	Bid       float64 `json:"bid,string"`
-	Ask       float64 `json:"ask,string"`
-	Timestamp int64   `json:"timestamp,string"`
-	Open      float64 `json:"open,string"`
+	Last            float64   `json:"last,string"`
+	High            float64   `json:"high,string"`
+	Low             float64   `json:"low,string"`
+	Vwap            float64   `json:"vwap,string"`
+	Volume          float64   `json:"volume,string"`
+	Bid             float64   `json:"bid,string"`
+	Ask             float64   `json:"ask,string"`
+	Timestamp       int64     `json:"timestamp,string"`
+	Open            float64   `json:"open,string"`
+	Open24          float64   `json:"open_24,string"`
+	Side            orderSide `json:"side,string"`
+	PercentChange24 float64   `json:"percent_change_24,string"`
 }
 
 // OrderbookBase holds singular price information
@@ -113,28 +116,35 @@ type UserTransactions struct {
 
 // Order holds current open order data
 type Order struct {
-	ID       int64   `json:"id,string"`
-	DateTime string  `json:"datetime"`
-	Type     int     `json:"type,string"`
-	Price    float64 `json:"price,string"`
-	Amount   float64 `json:"amount,string"`
-	Currency string  `json:"currency_pair"`
+	ID             int64   `json:"id,string"`
+	DateTime       string  `json:"datetime"`
+	Type           int     `json:"type,string"`
+	Price          float64 `json:"price,string"`
+	Amount         float64 `json:"amount,string"`
+	AmountAtCreate float64 `json:"amount_at_create,string"`
+	Currency       string  `json:"currency_pair"`
+	LimitPrice     float64 `json:"limit_price,string"`
+	ClientOrderID  string  `json:"client_order_id"`
+	Market         string  `json:"market"`
 }
 
 // OrderStatus holds order status information
 type OrderStatus struct {
-	Price        float64 `json:"price,string"`
-	Amount       float64 `json:"amount,string"`
-	Type         int     `json:"type"`
-	ID           string  `json:"id"`
-	DateTime     string  `json:"datetime"`
-	Status       string
-	Transactions []struct {
-		TradeID int64   `json:"tid"`
-		USD     float64 `json:"usd,string"`
-		Price   float64 `json:"price,string"`
-		Fee     float64 `json:"fee,string"`
-		BTC     float64 `json:"btc,string"`
+	AmountRemaining float64 `json:"amount_remaining,string"`
+	Type            int     `json:"type"`
+	ID              string  `json:"id"`
+	DateTime        string  `json:"datetime"`
+	Status          string  `json:"status"`
+	ClientOrderID   string  `json:"client_order_id"`
+	Market          string  `json:"market"`
+	Transactions    []struct {
+		TradeID      int64   `json:"tid"`
+		FromCurrency float64 `json:"{from_currency},string"`
+		ToCurrency   float64 `json:"{to_currency},string"`
+		Price        float64 `json:"price,string"`
+		Fee          float64 `json:"fee,string"`
+		DateTime     string  `json:"datetime"`
+		Type         int     `json:"type"`
 	}
 }
 
@@ -162,24 +172,26 @@ type WithdrawalRequests struct {
 	Currency      currency.Code `json:"currency"`
 	Address       string        `json:"address"`
 	TransactionID string        `json:"transaction_id"`
+	Network       string        `json:"network"`
+	TxID          int64         `json:"txid"`
 }
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request
 type CryptoWithdrawalResponse struct {
-	ID int64 `json:"id"`
+	ID int64 `json:"withdrawal_id"`
 }
 
 // FIATWithdrawalResponse response from a fiat withdrawal request
 type FIATWithdrawalResponse struct {
-	ID int64 `json:"id"`
+	ID int64 `json:"withdrawal_id"`
 }
 
 // UnconfirmedBTCTransactions holds address information about unconfirmed
 // transactions
 type UnconfirmedBTCTransactions struct {
-	Amount        float64 `json:"amount,string"`
-	Address       string  `json:"address"`
-	Confirmations int     `json:"confirmations"`
+	Address        string `json:"address"`
+	DestinationTag int    `json:"destination_tag"`
+	MemoID         string `json:"memo_id"`
 }
 
 // CaptureError is used to capture unmarshalled errors

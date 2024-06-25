@@ -6,11 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -23,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -62,20 +64,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("CoinbasePro setup error", err)
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := c.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = c.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetProducts(t *testing.T) {
@@ -696,7 +684,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
@@ -709,15 +697,8 @@ func TestWsAuth(t *testing.T) {
 	}
 	go c.wsReadData()
 
-	err = c.Subscribe([]subscription.Subscription{
-		{
-			Channel: "user",
-			Pair:    testPair,
-		},
-	})
-	if err != nil {
-		t.Error(err)
-	}
+	err = c.Subscribe(subscription.List{{Channel: "user", Pairs: currency.Pairs{testPair}}})
+	require.NoError(t, err, "Subscribe must not error")
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case badResponse := <-c.Websocket.DataHandler:
@@ -1073,5 +1054,18 @@ func TestGetTransfers(t *testing.T) {
 	_, err := c.GetTransfers(context.Background(), "", "", 100, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, c)
+	for _, a := range c.GetAssetTypes(false) {
+		pairs, err := c.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := c.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

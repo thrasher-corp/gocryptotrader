@@ -23,6 +23,7 @@ import (
 const (
 	coinbaseproAPIURL                  = "https://api.pro.coinbase.com/"
 	coinbaseproSandboxAPIURL           = "https://api-public.sandbox.pro.coinbase.com/"
+	tradeBaseURL                       = "https://www.coinbase.com/advanced-trade/spot/"
 	coinbaseproAPIVersion              = "0"
 	coinbaseproProducts                = "products"
 	coinbaseproOrderbook               = "book"
@@ -211,13 +212,13 @@ func (c *CoinbasePro) GetTrades(ctx context.Context, currencyPair string) ([]Tra
 func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start, end string, granularity int64) ([]History, error) {
 	values := url.Values{}
 
-	if len(start) > 0 {
+	if start != "" {
 		values.Set("start", start)
 	} else {
 		values.Set("start", "")
 	}
 
-	if len(end) > 0 {
+	if end != "" {
 		values.Set("end", end)
 	} else {
 		values.Set("end", "")
@@ -469,7 +470,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(ctx context.Context, currencyPair 
 	var resp []string
 	req := make(map[string]interface{})
 
-	if len(currencyPair) > 0 {
+	if currencyPair != "" {
 		req["product_id"] = currencyPair
 	}
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, coinbaseproOrders, req, &resp)
@@ -766,7 +767,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 		HTTPRecording: c.HTTPRecording,
 	}
 
-	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return c.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

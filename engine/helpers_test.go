@@ -40,8 +40,8 @@ import (
 
 var testExchange = "Bitstamp"
 
-func CreateTestBot(t *testing.T) *Engine {
-	t.Helper()
+func CreateTestBot(tb testing.TB) *Engine {
+	tb.Helper()
 	cFormat := &currency.PairFormat{Uppercase: true}
 	cp1 := currency.NewPair(currency.BTC, currency.USD)
 	cp2 := currency.NewPair(currency.BTC, currency.USDT)
@@ -92,9 +92,9 @@ func CreateTestBot(t *testing.T) *Engine {
 				},
 			},
 		}}}
-	if err := bot.LoadExchange(testExchange, nil); err != nil {
-		t.Fatalf("SetupTest: Failed to load exchange: %s", err)
-	}
+	err := bot.LoadExchange(testExchange)
+	assert.NoError(tb, err, "LoadExchange should not error")
+
 	return bot
 }
 
@@ -759,7 +759,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 
 	base := orderbook.Base{
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Bids:     []orderbook.Item{{Price: 1000, Amount: 1}},
+		Bids:     []orderbook.Tranche{{Price: 1000, Amount: 1}},
 		Exchange: "Bitstamp",
 		Asset:    asset.Spot,
 	}

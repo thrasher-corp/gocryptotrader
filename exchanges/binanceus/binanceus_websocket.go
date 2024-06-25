@@ -45,7 +45,7 @@ var (
 // WsConnect initiates a websocket connection
 func (bi *Binanceus) WsConnect() error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = bi.Config.HTTPTimeout
@@ -55,7 +55,7 @@ func (bi *Binanceus) WsConnect() error {
 		listenKey, err = bi.GetWsAuthStreamKey(context.TODO())
 		if err != nil {
 			bi.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.WebsocketMgr,
+			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",
 				bi.Name,
 				err)
@@ -71,7 +71,7 @@ func (bi *Binanceus) WsConnect() error {
 	}
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
 	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -81,6 +81,7 @@ func (bi *Binanceus) WsConnect() error {
 	}
 
 	if bi.Websocket.CanUseAuthenticatedEndpoints() {
+		bi.Websocket.Wg.Add(1)
 		go bi.KeepAuthKeyAlive()
 	}
 
@@ -90,7 +91,7 @@ func (bi *Binanceus) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
-	spotWebsocket.Wg.Add(1)
+	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData()
 
 	bi.setupOrderbookManager()
@@ -100,6 +101,7 @@ func (bi *Binanceus) WsConnect() error {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (bi *Binanceus) KeepAuthKeyAlive() {
+	defer bi.Websocket.Wg.Done()
 	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer func() {
 		er := bi.CloseUserDataStream(context.Background())
@@ -108,26 +110,18 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 				bi.Name, er)
 		}
 	}()
-
-	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
-		return
-	}
-	spotWebsocket.Wg.Add(1)
-	defer spotWebsocket.Wg.Done()
 	// Looping in 30 Minutes and updating the listenKey
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
-		case <-spotWebsocket.ShutdownC:
+		case <-bi.Websocket.ShutdownC:
 			ticks.Stop()
 			return
 		case <-ticks.C:
 			err := bi.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				bi.Websocket.DataHandler <- err
-				log.Warnf(log.WebsocketMgr,
+				log.Warnf(log.ExchangeSys,
 					bi.Name+" - Unable to renew auth websocket token, may experience shutdown")
 			}
 		}
@@ -136,12 +130,11 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 
 // wsReadData receives and passes on websocket messages for processing
 func (bi *Binanceus) wsReadData() {
+	defer bi.Websocket.Wg.Done()
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
-		return
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
 	}
-	defer spotWebsocket.Wg.Done()
 	for {
 		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
@@ -554,9 +547,9 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (bi *Binanceus) GenerateSubscriptions() ([]subscription.Subscription, error) {
+func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -572,9 +565,9 @@ subs:
 				log.Warnf(log.WebsocketMgr, "BinanceUS has 1024 subscription limit, only subscribing within limit. Requested %v", len(pairs)*len(channels))
 				break subs
 			}
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: lp.String() + channels[z],
-				Pair:    pairs[y],
+				Pairs:   currency.Pairs{pairs[y]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -584,7 +577,7 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -608,12 +601,11 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) 
 			return err
 		}
 	}
-	spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -637,8 +629,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscripti
 			return err
 		}
 	}
-	spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
 }
 
 func (bi *Binanceus) setupOrderbookManager() {
@@ -667,17 +658,12 @@ func (bi *Binanceus) setupOrderbookManager() {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair asset
 func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
-	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
-		return
-	}
-	spotWebsocket.Wg.Add(1)
+	bi.Websocket.Wg.Add(1)
 	go func() {
-		defer spotWebsocket.Wg.Done()
+		defer bi.Websocket.Wg.Done()
 		for {
 			select {
-			case <-spotWebsocket.ShutdownC:
+			case <-bi.Websocket.ShutdownC:
 				for {
 					select {
 					case <-bi.obm.jobs:
@@ -699,7 +685,7 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 
 // ProcessUpdate processes the websocket orderbook update
 func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
+	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
 		price := ws.UpdateBids[i][0]
 		p, err := strconv.ParseFloat(price, 64)
@@ -711,10 +697,10 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 		if err != nil {
 			return err
 		}
-		updateBid[i] = orderbook.Item{Price: p, Amount: a}
+		updateBid[i] = orderbook.Tranche{Price: p, Amount: a}
 	}
 
-	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
+	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
 		price := ws.UpdateAsks[i][0]
 		p, err := strconv.ParseFloat(price, 64)
@@ -726,7 +712,7 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 		if err != nil {
 			return err
 		}
-		updateAsk[i] = orderbook.Item{Price: p, Amount: a}
+		updateAsk[i] = orderbook.Tranche{Price: p, Amount: a}
 	}
 
 	return bi.Websocket.Orderbook.Update(&orderbook.Update{
@@ -871,18 +857,18 @@ func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Order
 		Exchange:        bi.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: bi.CanVerifyOrderbook,
-		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Items, len(orderbookNew.Asks)),
+		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
 		LastUpdated:     time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[i].Quantity,
 			Price:  orderbookNew.Bids[i].Price,
 		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[i].Quantity,
 			Price:  orderbookNew.Asks[i].Price,
 		}

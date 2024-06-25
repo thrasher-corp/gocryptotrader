@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -35,6 +37,7 @@ const (
 	spotAPIURL     = "https://sapi.binance.com"
 	cfuturesAPIURL = "https://dapi.binance.com"
 	ufuturesAPIURL = "https://fapi.binance.com"
+	tradeBaseURL   = "https://www.binance.com/en/"
 
 	testnetSpotURL = "https://testnet.binance.vision/api"
 	testnetFutures = "https://testnet.binancefuture.com"
@@ -139,7 +142,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
+	params.Set("limit", strconv.Itoa(obd.Limit))
 
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
@@ -200,7 +203,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
+	params.Set("limit", strconv.Itoa(rtr.Limit))
 
 	path := recentTrades + "?" + params.Encode()
 
@@ -219,10 +222,10 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	params := url.Values{}
 
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("limit", strconv.Itoa(limit))
 	// else return most recent trades
 	if fromID > 0 {
-		params.Set("fromId", fmt.Sprintf("%d", fromID))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 
 	path := historicalTrades + "?" + params.Encode()
@@ -1209,41 +1212,36 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 	}, request.AuthenticatedRequest)
 }
 
-// FetchSpotExchangeLimits fetches spot order execution limits
-func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
-	var limits []order.MinMaxLevel
-	spot, err := b.GetExchangeInfo(ctx)
+// FetchExchangeLimits fetches order execution limits filtered by asset
+func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]order.MinMaxLevel, error) {
+	if a != asset.Spot && a != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	resp, err := b.GetExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for x := range spot.Symbols {
+	aUpper := strings.ToUpper(a.String())
+
+	limits := make([]order.MinMaxLevel, 0, len(resp.Symbols))
+	for _, s := range resp.Symbols {
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(spot.Symbols[x].BaseAsset,
-			spot.Symbols[x].QuoteAsset)
+		cp, err = currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
 		if err != nil {
 			return nil, err
 		}
-		var assets []asset.Item
-		for y := range spot.Symbols[x].Permissions {
-			switch spot.Symbols[x].Permissions[y] {
-			case "SPOT":
-				assets = append(assets, asset.Spot)
-			case "MARGIN":
-				assets = append(assets, asset.Margin)
-			default:
-				// "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005" etc are unused permissions
-				// for spot exchange limits
-			}
-		}
 
-		for z := range assets {
+		for i := range s.PermissionSets {
+			if !slices.Contains(s.PermissionSets[i], aUpper) {
+				continue
+			}
 			l := order.MinMaxLevel{
 				Pair:  cp,
-				Asset: assets[z],
+				Asset: a,
 			}
-
-			for _, f := range spot.Symbols[x].Filters {
+			for _, f := range s.Filters {
 				// TODO: Unhandled filters:
 				// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
 				switch f.FilterType {
@@ -1272,8 +1270,8 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 					l.MaxAlgoOrders = f.MaxNumAlgoOrders
 				}
 			}
-
 			limits = append(limits, l)
+			break
 		}
 	}
 	return limits, nil

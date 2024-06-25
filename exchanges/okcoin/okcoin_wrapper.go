@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,27 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	o.SetDefaults()
-	exchCfg, err := o.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = o.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
 
 // SetDefaults method assigns the default values for Okcoin
 func (o *Okcoin) SetDefaults() {
@@ -138,7 +116,7 @@ func (o *Okcoin) SetDefaults() {
 	}
 	o.Requester, err = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()),
+		request.WithLimiter(GetRateLimit()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -213,99 +191,6 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		RateLimit:            okcoinWsRateLimit,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Okcoin go routine
-func (o *Okcoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		o.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Okcoin wrapper
-func (o *Okcoin) Run(ctx context.Context) {
-	if o.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			o.Name,
-			common.IsEnabled(o.Websocket.IsEnabled()))
-		o.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	var err error
-	if !o.BypassConfigFormatUpgrades {
-		for _, a := range o.GetAssetTypes(true) {
-			var format currency.PairFormat
-			format, err = o.GetPairFormat(a, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
-			}
-			var enabled, avail currency.Pairs
-			enabled, err = o.CurrencyPairs.GetPairs(a, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
-			}
-
-			avail, err = o.CurrencyPairs.GetPairs(a, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
-			}
-
-			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-				!common.StringDataContains(avail.Strings(), format.Delimiter) {
-				var p currency.Pairs
-				p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-					format.Delimiter +
-					currency.USD.String()})
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies.\n",
-						o.Name)
-				} else {
-					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, o.Name, a, p)
-					forceUpdate = true
-
-					err = o.UpdatePairs(p, a, true, true)
-					if err != nil {
-						log.Errorf(log.ExchangeSys,
-							"%s failed to update currencies. Err: %s\n",
-							o.Name,
-							err)
-						return
-					}
-				}
-			}
-		}
-	}
-	if !o.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-	err = o.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			o.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -538,7 +423,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderbookList.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookList.Bids))
 	for x := range orderbookList.Bids {
 		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookList.Bids[x][1], 64)
 		if err != nil {
@@ -549,7 +434,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 			return book, err
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookList.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookList.Asks))
 	for x := range orderbookList.Asks {
 		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookList.Asks[x][1], 64)
 		if err != nil {

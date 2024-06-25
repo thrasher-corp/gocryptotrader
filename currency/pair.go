@@ -77,21 +77,6 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 	}
 }
 
-// NewPairFromIndex returns a CurrencyPair via a currency string and specific
-// index
-func NewPairFromIndex(currencyPair, index string) (Pair, error) {
-	i := strings.Index(currencyPair, index)
-	if i == -1 {
-		return EMPTYPAIR,
-			fmt.Errorf("index %s not found in currency pair string", index)
-	}
-	if i == 0 {
-		return NewPairFromStrings(currencyPair[0:len(index)],
-			currencyPair[len(index):])
-	}
-	return NewPairFromStrings(currencyPair[0:i], currencyPair[i:])
-}
-
 // NewPairFromString converts currency string into a new CurrencyPair
 // with or without delimiter
 func NewPairFromString(currencyPair string) (Pair, error) {
@@ -131,6 +116,15 @@ func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFor
 // Format formats the given pair as a string
 func (f PairFormat) Format(pair Pair) string {
 	return pair.Format(f).String()
+}
+
+// clone returns a clone of the PairFormat
+func (f *PairFormat) clone() *PairFormat {
+	if f == nil {
+		return nil
+	}
+	c := *f
+	return &c
 }
 
 // MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair

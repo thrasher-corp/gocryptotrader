@@ -1,7 +1,7 @@
 package file
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -70,7 +70,7 @@ func TestMove(t *testing.T) {
 		}
 
 		if !strings.Contains(string(contents), "GoCryptoTrader") {
-			return fmt.Errorf("unable to find previously written data")
+			return errors.New("unable to find previously written data")
 		}
 
 		return os.Remove(out)

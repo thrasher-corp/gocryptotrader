@@ -1,11 +1,9 @@
 package btse
 
 import (
-	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -17,26 +15,10 @@ const (
 	orderFunc
 )
 
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	Query  *rate.Limiter
-	Orders *rate.Limiter
-}
-
-// Limit executes rate limiting functionality for exchange
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	switch f {
-	case orderFunc:
-		return r.Orders.Wait(ctx)
-	default:
-		return r.Query.Wait(ctx)
-	}
-}
-
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		Orders: request.NewRateLimit(btseRateInterval, btseOrdersLimit),
-		Query:  request.NewRateLimit(btseRateInterval, btseQueryLimit),
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
+	return request.RateLimitDefinitions{
+		orderFunc: request.NewRateLimitWithWeight(btseRateInterval, btseOrdersLimit, 1),
+		queryFunc: request.NewRateLimitWithWeight(btseRateInterval, btseQueryLimit, 1),
 	}
 }

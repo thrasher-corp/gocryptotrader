@@ -2,13 +2,13 @@ package bitflyer
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -50,20 +51,6 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetLatestBlockCA(t *testing.T) {
@@ -171,24 +158,14 @@ func TestCheckFXString(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	var p currency.Pair
-
+	testexch.UpdatePairsOnce(t, b)
 	currencies, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	for i := range currencies {
-		if currencies[i].String() == "FXBTC_JPY" {
-			p = currencies[i]
-			break
-		}
-	}
-
-	_, err = b.FetchTicker(context.Background(), p, asset.Spot)
-	if err != nil {
-		t.Error("Bitflyer - FetchTicker() error", err)
-	}
+	require.GreaterOrEqual(t, len(currencies), 1)
+	_, err = b.FetchTicker(context.Background(), currencies[0], asset.Spot)
+	assert.NoError(t, err)
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -467,5 +444,25 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Fatal(err)
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	err := b.CurrencyPairs.SetAssetEnabled(asset.Futures, false)
+	require.NoError(t, err, "SetAssetEnabled must not error")
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err, "GetCurrencyTradeURL must not error")
+		assert.NotEmpty(t, resp, "GetCurrencyTradeURL should return an url")
 	}
 }

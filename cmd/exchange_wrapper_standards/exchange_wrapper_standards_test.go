@@ -185,17 +185,15 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		var assetLen int
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
-			if input.AssignableTo(assetParam) ||
-				input.AssignableTo(orderSubmitParam) ||
-				input.AssignableTo(orderModifyParam) ||
-				input.AssignableTo(orderCancelParam) ||
-				input.AssignableTo(orderCancelsParam) ||
-				input.AssignableTo(pairKeySliceParam) ||
-				input.AssignableTo(getOrdersRequestParam) ||
-				input.AssignableTo(pairKeySliceParam) {
-				// this allows wrapper functions that support assets types
-				// to be tested with all supported assets
-				assetLen = len(assetParams) - 1
+			for _, t := range []reflect.Type{
+				assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
+			} {
+				if input.AssignableTo(t) {
+					// this allows wrapper functions that support assets types
+					// to be tested with all supported assets
+					assetLen = len(assetParams) - 1
+					break
+				}
 			}
 		}
 		tt := time.Now()
@@ -244,6 +242,11 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]interface{}, len(methodValues))
 			for j := range methodValues {
+				if methodValues[j].Kind() == reflect.Ptr {
+					// dereference pointers just to add a bit more clarity
+					literalInputs[j] = methodValues[j].Elem().Interface()
+					continue
+				}
 				literalInputs[j] = methodValues[j].Interface()
 			}
 			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
@@ -448,6 +451,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
+			Leverage:          1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
@@ -602,7 +606,6 @@ var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"itbit",    // itbit has no way of retrieving pair data
 	"btse",     // 	TODO rm once timeout issues resolved
 	"poloniex", // 	outdated API // TODO rm once updated
 }

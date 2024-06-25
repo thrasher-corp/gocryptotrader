@@ -2,10 +2,12 @@ package bybit
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -14,11 +16,11 @@ import (
 // WsOptionsConnect connects to options a websocket feed
 func (by *Bybit) WsOptionsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Options) {
-		return errWebsocketNotEnabled
+		return stream.ErrWebsocketNotEnabled
 	}
 	optionsWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Options)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w asset type: %v", err, asset.Options)
 	}
 	optionsWebsocket.Conn.SetURL(optionPublic)
 	var dialer websocket.Dialer
@@ -43,8 +45,8 @@ func (by *Bybit) WsOptionsConnect() error {
 }
 
 // GenerateOptionsDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.Options)
 	if err != nil {
@@ -53,9 +55,9 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscript
 	for z := range pairs {
 		for x := range channels {
 			subscriptions = append(subscriptions,
-				subscription.Subscription{
+				&subscription.Subscription{
 					Channel: channels[x],
-					Pair:    pairs[z],
+					Pairs:   currency.Pairs{pairs[z]},
 					Asset:   asset.Options,
 				})
 		}
@@ -64,23 +66,23 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscript
 }
 
 // OptionSubscribe sends a subscription message to options public channels.
-func (by *Bybit) OptionSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) OptionSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleOptionsPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
-func (by *Bybit) OptionUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) OptionUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleOptionsPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
-	optionsWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Options)
-	if err != nil {
-		return err
-	}
+func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.Options, operation, channelSubscriptions)
 	if err != nil {
 		return err
+	}
+	optionsWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Options)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Options)
 	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload

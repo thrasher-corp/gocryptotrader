@@ -3,7 +3,6 @@ package huobi
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -138,7 +137,7 @@ func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period
 		return resp, err
 	}
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -250,14 +249,14 @@ func (h *HUOBI) GetOpenInterestInfo(ctx context.Context, code currency.Pair, per
 		return resp, err
 	}
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided, only values between 1-1200 are supported")
+		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
 	}
 	aType, ok := validAmountType[amountType]
 	if !ok {
-		return resp, fmt.Errorf("invalid trade type")
+		return resp, errors.New("invalid trade type")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -289,7 +288,7 @@ func (h *HUOBI) GetTraderSentimentIndexAccount(ctx context.Context, code currenc
 		return resp, err
 	}
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -307,7 +306,7 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(ctx context.Context, code curren
 	}
 
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -325,7 +324,7 @@ func (h *HUOBI) GetLiquidationOrders(ctx context.Context, contract currency.Pair
 	}
 	tType, ok := validTradeTypes[tradeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid trade type")
+		return resp, errors.New("invalid trade type")
 	}
 	params := url.Values{}
 	params.Set("contract", formattedContract)
@@ -374,10 +373,10 @@ func (h *HUOBI) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair
 		return resp, err
 	}
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided, only values between 1-1200 are supported")
+		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -395,10 +394,10 @@ func (h *HUOBI) GetEstimatedFundingRates(ctx context.Context, code currency.Pair
 		return resp, err
 	}
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided, only values between 1-1200 are supported")
+		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -416,13 +415,13 @@ func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, ba
 		return resp, err
 	}
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided, only values between 1-1200 are supported")
+		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
 	}
 	if !common.StringDataCompareInsensitive(validBasisPriceTypes, basisPriceType) {
-		return resp, fmt.Errorf("invalid period value received")
+		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -583,7 +582,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 	}
 	req["contract_code"] = codeValue
 	if !common.StringDataCompareInsensitive(validOrderTypes, orderType) {
-		return resp, fmt.Errorf("invalid ordertype provided")
+		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp)
@@ -637,7 +636,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("invalid transferType received")
+		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp)
@@ -653,11 +652,11 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 	}
 	req["contract_code"] = codeValue
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("invalid transferType received")
+		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
 	if createDate > 90 {
-		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
+		return resp, errors.New("invalid create date value: only supports up to 90 days")
 	}
 	req["create_date"] = strconv.FormatInt(createDate, 10)
 	if pageIndex != 0 {
@@ -684,7 +683,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 	req["direction"] = direction
 	req["offset"] = offset
 	if !common.StringDataCompareInsensitive(validOrderTypes, orderPriceType) {
-		return resp, fmt.Errorf("invalid ordertype provided")
+		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderPriceType
 	req["price"] = price
@@ -698,7 +697,7 @@ func (h *HUOBI) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequest
 	var resp BatchOrderData
 	req := make(map[string]interface{})
 	if len(data.Data) > 10 || len(data.Data) == 0 {
-		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
+		return resp, errors.New("invalid data provided: maximum of 10 batch orders supported")
 	}
 	for x := range data.Data {
 		if data.Data[x].ContractCode == "" {
@@ -752,7 +751,7 @@ func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode curre
 	}
 	if orderPriceType != "" {
 		if !common.StringDataCompareInsensitive(validLightningOrderPriceType, orderPriceType) {
-			return resp, fmt.Errorf("invalid orderPriceType")
+			return resp, errors.New("invalid orderPriceType")
 		}
 		req["order_price_type"] = orderPriceType
 	}
@@ -768,7 +767,7 @@ func (h *HUOBI) GetSwapOrderDetails(ctx context.Context, contractCode currency.P
 	req["created_at"] = createdAt
 	oType, ok := validOrderType[orderType]
 	if !ok {
-		return resp, fmt.Errorf("invalid ordertype")
+		return resp, errors.New("invalid ordertype")
 	}
 	req["order_type"] = oType
 	if pageIndex != 0 {
@@ -829,12 +828,12 @@ func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.P
 	req["contract_code"] = codeValue
 	tType, ok := validFuturesTradeType[tradeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid tradeType")
+		return resp, errors.New("invalid tradeType")
 	}
 	req["trade_type"] = tType
 	rType, ok := validFuturesReqType[reqType]
 	if !ok {
-		return resp, fmt.Errorf("invalid reqType")
+		return resp, errors.New("invalid reqType")
 	}
 	req["type"] = rType
 	reqStatus := "0"
@@ -843,7 +842,7 @@ func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.P
 		for x := range status {
 			sType, ok := validOrderStatus[status[x]]
 			if !ok {
-				return resp, fmt.Errorf("invalid status")
+				return resp, errors.New("invalid status")
 			}
 			if firstTime {
 				firstTime = false
@@ -855,7 +854,7 @@ func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.P
 	}
 	req["status"] = reqStatus
 	if createDate < 0 || createDate > 90 {
-		return resp, fmt.Errorf("invalid createDate")
+		return resp, errors.New("invalid createDate")
 	}
 	req["create_date"] = createDate
 	if pageIndex != 0 {
@@ -877,11 +876,11 @@ func (h *HUOBI) GetSwapTradeHistory(ctx context.Context, contractCode currency.P
 	}
 	req["contract_code"] = codeValue
 	if createDate > 90 {
-		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
+		return resp, errors.New("invalid create date value: only supports up to 90 days")
 	}
 	tType, ok := validTradeType[tradeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid trade type")
+		return resp, errors.New("invalid trade type")
 	}
 	req["trade_type"] = tType
 	req["create_date"] = strconv.FormatInt(createDate, 10)
@@ -905,7 +904,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency
 	req["contract_code"] = codeValue
 	tType, ok := validTriggerType[triggerType]
 	if !ok {
-		return resp, fmt.Errorf("invalid trigger type")
+		return resp, errors.New("invalid trigger type")
 	}
 	req["trigger_type"] = tType
 	req["direction"] = direction
@@ -915,7 +914,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
 	if !common.StringDataCompareInsensitive(validOrderPriceType, orderPriceType) {
-		return resp, fmt.Errorf("invalid order price type")
+		return resp, errors.New("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTriggerOrder, nil, req, &resp)
@@ -954,11 +953,11 @@ func (h *HUOBI) GetSwapTriggerOrderHistory(ctx context.Context, contractCode cur
 	req["status"] = status
 	tType, ok := validTradeType[tradeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid trade type")
+		return resp, errors.New("invalid trade type")
 	}
 	req["trade_type"] = tType
 	if createDate > 90 {
-		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
+		return resp, errors.New("invalid create date value: only supports up to 90 days")
 	}
 	req["create_date"] = strconv.FormatInt(createDate, 10)
 	if pageIndex != 0 {

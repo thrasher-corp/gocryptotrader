@@ -8,11 +8,11 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -83,20 +84,6 @@ func contextGenerate() context.Context {
 		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
 	}
 	return ctx
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := ok.Start(contextGenerate(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = ok.Start(contextGenerate(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetTickers(t *testing.T) {
@@ -221,7 +208,7 @@ func TestGetBlockTrade(t *testing.T) {
 		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
 
-	updatePairsOnce(t)
+	testexch.UpdatePairsOnce(t, ok)
 
 	pairs, err := ok.GetAvailablePairs(asset.Options)
 	assert.NoError(t, err, "GetAvailablePairs should not error")
@@ -1002,7 +989,7 @@ func TestCancelAllQuotes(t *testing.T) {
 	switch {
 	case err != nil:
 		t.Error("Okx CancelAllQuotes() error", err)
-	case err == nil && time.IsZero():
+	case time.IsZero():
 		t.Error("Okx CancelAllQuotes() zero timestamp message ")
 	}
 }
@@ -1419,7 +1406,7 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.IncreaseDecreaseMargin(contextGenerate(), IncreaseDecreaseMarginInput{
+	if _, err := ok.IncreaseDecreaseMargin(contextGenerate(), &IncreaseDecreaseMarginInput{
 		InstrumentID: "BTC-USDT",
 		PositionSide: "long",
 		Type:         "add",
@@ -1634,13 +1621,13 @@ func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
 }
@@ -1934,17 +1921,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
-}
-
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := ok.UpdateTradablePairs(context.Background(), true)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
+	testexch.UpdatePairsOnce(t, ok)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -2229,24 +2206,6 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func TestGetPairFromInstrumentID(t *testing.T) {
-	t.Parallel()
-	instruments := []string{
-		"BTC-USDT",
-		"BTC-USDT-SWAP",
-		"BTC-USDT-ER33234",
-	}
-	if _, err := ok.GetPairFromInstrumentID(instruments[0]); err != nil {
-		t.Error("Okx GetPairFromInstrumentID() error", err)
-	}
-	if _, ere := ok.GetPairFromInstrumentID(instruments[1]); ere != nil {
-		t.Error("Okx GetPairFromInstrumentID() error", ere)
-	}
-	if _, erf := ok.GetPairFromInstrumentID(instruments[2]); erf != nil {
-		t.Error("Okx GetPairFromInstrumentID() error", erf)
-	}
-}
-
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
@@ -2278,7 +2237,7 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
 	if err == nil {
 		t.Errorf("Okx GetOrderHistory() Expected: %v. received nil", err)
-	} else if err != nil && !errors.Is(err, errMissingAtLeast1CurrencyPair) {
+	} else if !errors.Is(err, errMissingAtLeast1CurrencyPair) {
 		t.Errorf("Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
 	}
 	getOrdersRequest.Pairs = []currency.Pair{
@@ -2557,68 +2516,63 @@ func TestBalanceAndPosition(t *testing.T) {
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	n := new(Okx)
-	sharedtestvalues.TestFixtureToDataHandler(t, ok, n, "testdata/wsOrders.json", n.WsHandleData)
-	seen := 0
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *order.Detail:
-				switch seen {
-				case 1:
-					assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
-					assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, order.Sell, v.Side, "Side")
-					assert.Equal(t, order.Filled, v.Status, "Status")
-					assert.Equal(t, order.Limit, v.Type, "Type")
-					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
-					assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
-					assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
-					assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
-					assert.Equal(t, 0.001, v.Amount, "Amount")
-					assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 31527.1, v.Price, "Price")
-					assert.Equal(t, 0.02522168, v.Fee, "Fee")
-					assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
-				case 2:
-					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, order.Market, v.Type, "Type")
-					assert.Equal(t, order.Sell, v.Side, "Side")
-					assert.Equal(t, order.Active, v.Status, "Status")
-					assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
-					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				case 3:
-					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-					assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
-					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
-				case 4:
-					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
-					assert.Equal(t, order.Filled, v.Status, "Status")
-				}
-			case error:
-				t.Error(v)
-			default:
-				t.Errorf("Got unexpected data: %T %v", v, v)
+	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", ok.WsHandleData)
+	close(ok.Websocket.DataHandler)
+	assert.Len(t, ok.Websocket.DataHandler, 4, "Should see 4 orders")
+	for resp := range ok.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *order.Detail:
+			switch len(ok.Websocket.DataHandler) {
+			case 3:
+				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
+				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, order.Limit, v.Type, "Type")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
+				assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
+				assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
+				assert.Equal(t, 0.001, v.Amount, "Amount")
+				assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 31527.1, v.Price, "Price")
+				assert.Equal(t, 0.02522168, v.Fee, "Fee")
+				assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+			case 2:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Market, v.Type, "Type")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Active, v.Status, "Status")
+				assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+			case 1:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
+			case 0:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
+				assert.Equal(t, order.Filled, v.Status, "Status")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
 	}
-	assert.Equal(t, 4, seen, "Saw 4 records")
 }
 
 const algoOrdersPushDataJSON = `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`
@@ -3789,4 +3743,17 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = ok.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, ok)
+	for _, a := range ok.GetAssetTypes(false) {
+		pairs, err := ok.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := ok.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }

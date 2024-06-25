@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -34,29 +33,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	k.SetDefaults()
-	exchCfg, err := k.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = k.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
@@ -196,7 +172,7 @@ func (k *Kraken) SetDefaults() {
 
 	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -280,96 +256,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		URL:                  krakenAuthWSURL,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Kraken go routine
-func (k *Kraken) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		k.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kraken wrapper
-func (k *Kraken) Run(ctx context.Context) {
-	if k.Verbose {
-		k.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !k.BypassConfigFormatUpgrades {
-		format, err := k.GetPairFormat(asset.UseDefault(), false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-		enabled, err := k.GetEnabledPairs(asset.UseDefault())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-
-		avail, err := k.GetAvailablePairs(asset.UseDefault())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) ||
-			common.StringDataContains(avail.Strings(), "ZUSD") {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
-				format.Delimiter +
-				currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					k.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, k.Name, asset.UseDefault(), p)
-				forceUpdate = true
-
-				err = k.UpdatePairs(p, asset.UseDefault(), true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						k.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if k.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
-		if err := k.UpdateTradablePairs(ctx, forceUpdate); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-		}
-	}
-
-	for _, a := range k.GetAssetTypes(true) {
-		if err := k.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
@@ -619,16 +505,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
+		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
 			}
 		}
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
+		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks[y] = orderbook.Item{
+			book.Asks[y] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[y].Amount,
 				Price:  orderbookNew.Asks[y].Price,
 			}
@@ -639,16 +525,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Asks = make([]orderbook.Item, len(futuresOB.Orderbook.Asks))
+		book.Asks = make([]orderbook.Tranche, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			}
 		}
-		book.Bids = make([]orderbook.Item, len(futuresOB.Orderbook.Bids))
+		book.Bids = make([]orderbook.Tranche, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
@@ -851,9 +737,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if s.ImmediateOrCancel {
 			timeInForce = RequestParamsTimeIOC
 		}
-		var spotWebsocket *stream.Websocket
-		spotWebsocket, err = k.Websocket.GetAssetWebsocket(asset.Spot)
-		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
@@ -881,8 +765,8 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			if err != nil {
 				return nil, err
 			}
-			if len(response.TransactionIds) > 0 {
-				orderID = strings.Join(response.TransactionIds, ", ")
+			if len(response.TransactionIDs) > 0 {
+				orderID = strings.Join(response.TransactionIDs, ", ")
 			}
 		}
 		if s.Type == order.Market {
@@ -935,11 +819,10 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot:
-		spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
-		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			return k.wsCancelOrders([]string{o.OrderID})
 		}
-		_, err = k.CancelExistingOrder(ctx, o.OrderID)
+		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
 	case asset.Futures:
 		_, err := k.FuturesCancelOrder(ctx, o.OrderID, "")
@@ -954,25 +837,20 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(_ context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
-	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
-	if !spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
 
-	ordersList := make([]string, len(orders))
-	for i := range orders {
-		err = orders[i].Validate(orders[i].StandardCancel())
-		if err != nil {
+	ordersList := make([]string, len(o))
+	for i := range o {
+		if err := o[i].Validate(o[i].StandardCancel()); err != nil {
 			return nil, err
 		}
-		ordersList[i] = orders[i].OrderID
+		ordersList[i] = o[i].OrderID
 	}
 
-	err = k.wsCancelOrders(ordersList)
+	err := k.wsCancelOrders(ordersList)
 	return nil, err
 }
 
@@ -984,10 +862,9 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
 	switch req.AssetType {
 	case asset.Spot:
-		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := k.wsCancelAllOrders()
 			if err != nil {
 				return cancelAllOrdersResponse, err
@@ -1004,7 +881,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 		}
 		for orderID := range openOrders.Open {
 			var err error
-			if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				err = k.wsCancelOrders([]string{orderID})
 			} else {
 				_, err = k.CancelExistingOrder(ctx, orderID)
@@ -1582,7 +1459,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						Pair:      pairs[p],
 					})
 				default:
-					return orders, fmt.Errorf("invalid orderHistory data")
+					return orders, errors.New("invalid orderHistory data")
 				}
 			}
 		}
@@ -1674,7 +1551,7 @@ func compatibleOrderSide(side string) (order.Side, error) {
 	case strings.EqualFold(order.Sell.String(), side):
 		return order.Sell, nil
 	}
-	return order.AnySide, fmt.Errorf("invalid side received")
+	return order.AnySide, errors.New("invalid side received")
 }
 
 func compatibleOrderType(orderType string) (order.Type, error) {
@@ -1687,7 +1564,7 @@ func compatibleOrderType(orderType string) (order.Type, error) {
 	case "take_profit":
 		resp = order.TakeProfit
 	default:
-		return resp, fmt.Errorf("invalid orderType")
+		return resp, errors.New("invalid orderType")
 	}
 	return resp, nil
 }
@@ -1702,7 +1579,7 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 	case "liquidation":
 		resp = order.Liquidation
 	default:
-		return resp, fmt.Errorf("invalid orderPriceType")
+		return resp, errors.New("invalid orderPriceType")
 	}
 	return resp, nil
 }
@@ -1826,12 +1703,10 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		if ok, err := k.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
 			return nil, err
-		}
-		if !isEnabled {
-			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
+		} else if !ok {
+			return nil, currency.ErrPairNotContainedInAvailablePairs
 		}
 	}
 
@@ -1924,4 +1799,22 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		})
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := k.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + cp.Lower().String(), nil
+	case asset.Futures:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeFuturesURL + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

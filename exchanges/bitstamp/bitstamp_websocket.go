@@ -45,7 +45,7 @@ var (
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
@@ -245,30 +245,30 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *Bitstamp) generateDefaultSubscriptions() (subscription.List, error) {
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	for i := range enabledCurrencies {
 		p, err := b.FormatExchangeCurrency(enabledCurrencies[i], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		for j := range defaultSubChannels {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: defaultSubChannels[j] + "_" + p.String(),
 				Asset:   asset.Spot,
-				Pair:    p,
+				Pairs:   currency.Pairs{p},
 			})
 		}
 		if b.Websocket.CanUseAuthenticatedEndpoints() {
 			for j := range defaultAuthSubChannels {
-				subscriptions = append(subscriptions, subscription.Subscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
 					Asset:   asset.Spot,
-					Pair:    p,
+					Pairs:   currency.Pairs{p},
 					Params: map[string]interface{}{
 						"auth": struct{}{},
 					},
@@ -280,7 +280,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -299,48 +299,50 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) er
 		}
 	}
 
-	for i := range channelsToSubscribe {
+	for _, s := range channelsToSubscribe {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
 			Data: websocketData{
-				Channel: channelsToSubscribe[i].Channel,
+				Channel: s.Channel,
 			},
 		}
-		if _, ok := channelsToSubscribe[i].Params["auth"]; ok && auth != nil {
+		if _, ok := s.Params["auth"]; ok && auth != nil {
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
 			req.Data.Auth = auth.Token
 		}
 		err := spotWebsocket.Conn.SendJSONMessage(req)
+		if err == nil {
+			err = spotWebsocket.AddSuccessfulSubscriptions(s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 
 	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
 	var errs error
-	for i := range channelsToUnsubscribe {
+	for _, s := range channelsToUnsubscribe {
 		req := websocketEventRequest{
 			Event: "bts:unsubscribe",
 			Data: websocketData{
-				Channel: channelsToUnsubscribe[i].Channel,
+				Channel: s.Channel,
 			},
 		}
 		err := spotWebsocket.Conn.SendJSONMessage(req)
+		if err == nil {
+			err = spotWebsocket.RemoveSubscriptions(s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -351,8 +353,8 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 	}
 
 	obUpdate := &orderbook.Base{
-		Bids:            make(orderbook.Items, len(update.Bids)),
-		Asks:            make(orderbook.Items, len(update.Asks)),
+		Bids:            make(orderbook.Tranches, len(update.Bids)),
+		Asks:            make(orderbook.Tranches, len(update.Asks)),
 		Pair:            p,
 		LastUpdated:     time.UnixMicro(update.Microtimestamp),
 		Asset:           assetType,
@@ -369,7 +371,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		if err != nil {
 			return err
 		}
-		obUpdate.Asks[i] = orderbook.Item{Price: target, Amount: amount}
+		obUpdate.Asks[i] = orderbook.Tranche{Price: target, Amount: amount}
 	}
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
@@ -380,7 +382,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		if err != nil {
 			return err
 		}
-		obUpdate.Bids[i] = orderbook.Item{Price: target, Amount: amount}
+		obUpdate.Bids[i] = orderbook.Tranche{Price: target, Amount: amount}
 	}
 	filterOrderbookZeroBidPrice(obUpdate)
 	return b.Websocket.Orderbook.LoadSnapshot(obUpdate)
@@ -407,19 +409,19 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			Asset:           asset.Spot,
 			Exchange:        b.Name,
 			VerifyOrderbook: b.CanVerifyOrderbook,
-			Bids:            make(orderbook.Items, len(orderbookSeed.Bids)),
-			Asks:            make(orderbook.Items, len(orderbookSeed.Asks)),
+			Bids:            make(orderbook.Tranches, len(orderbookSeed.Bids)),
+			Asks:            make(orderbook.Tranches, len(orderbookSeed.Asks)),
 			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
 		}
 
 		for i := range orderbookSeed.Asks {
-			newOrderBook.Asks[i] = orderbook.Item{
+			newOrderBook.Asks[i] = orderbook.Tranche{
 				Price:  orderbookSeed.Asks[i].Price,
 				Amount: orderbookSeed.Asks[i].Amount,
 			}
 		}
 		for i := range orderbookSeed.Bids {
-			newOrderBook.Bids[i] = orderbook.Item{
+			newOrderBook.Bids[i] = orderbook.Tranche{
 				Price:  orderbookSeed.Bids[i].Price,
 				Amount: orderbookSeed.Bids[i].Amount,
 			}

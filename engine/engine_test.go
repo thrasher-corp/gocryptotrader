@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -242,9 +243,9 @@ func TestDryRunParamInteraction(t *testing.T) {
 			},
 		},
 	}
-	if err := bot.LoadExchange(testExchange, nil); err != nil {
-		t.Error(err)
-	}
+	err := bot.LoadExchange(testExchange)
+	assert.NoError(t, err, "LoadExchange should not error")
+
 	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
@@ -262,9 +263,9 @@ func TestDryRunParamInteraction(t *testing.T) {
 	bot.Settings.EnableDryRun = true
 	bot.Settings.CheckParamInteraction = true
 	bot.Settings.EnableExchangeVerbose = true
-	if err = bot.LoadExchange(testExchange, nil); err != nil {
-		t.Error(err)
-	}
+
+	err = bot.LoadExchange(testExchange)
+	assert.NoError(t, err, "LoadExchange should not error")
 
 	exchCfg, err = bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
@@ -354,7 +355,6 @@ func TestSettingsPrint(t *testing.T) {
 }
 
 var unsupportedDefaultConfigExchanges = []string{
-	"itbit",    // due to unsupported API
 	"poloniex", // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
 }
 
@@ -378,7 +378,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 
-			defaultCfg, err := exch.GetDefaultConfig(context.Background())
+			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 			if err != nil {
 				t.Fatal(err)
 			}

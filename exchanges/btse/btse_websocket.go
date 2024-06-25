@@ -30,7 +30,7 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
@@ -46,6 +46,7 @@ func (b *BTSE) WsConnect() error {
 		Delay:       btseWebsocketTimer,
 	})
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	if b.IsWebsocketAuthenticationSupported() {
@@ -61,10 +62,6 @@ func (b *BTSE) WsConnect() error {
 
 // WsAuthenticate Send an authentication message to receive auth data
 func (b *BTSE) WsAuthenticate(ctx context.Context) error {
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -84,6 +81,10 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 	req := wsSub{
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, sign},
+	}
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
 	return spotWebsocket.Conn.SendJSONMessage(req)
 }
@@ -111,26 +112,19 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTSE) wsReadData() {
+	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
 	}
-	spotWebsocket.Wg.Add(1)
-	defer spotWebsocket.Wg.Done()
 	for {
-		select {
-		case <-spotWebsocket.ShutdownC:
+		resp := spotWebsocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
-		default:
-			resp := spotWebsocket.Conn.ReadMessage()
-			if resp.Raw == nil {
-				return
-			}
-			err := b.wsHandleData(resp.Raw)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-			}
+		}
+		err := b.wsHandleData(resp.Raw)
+		if err != nil {
+			b.Websocket.DataHandler <- err
 		}
 	}
 }
@@ -294,8 +288,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		newOB := orderbook.Base{
-			Bids: make(orderbook.Items, 0, len(t.Data.BuyQuote)),
-			Asks: make(orderbook.Items, 0, len(t.Data.SellQuote)),
+			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
@@ -312,7 +306,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Item{
+			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			})
@@ -331,7 +325,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Bids = append(newOB.Bids, orderbook.Item{
+			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			})
@@ -378,23 +372,23 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *BTSE) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, subscription.Subscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: "notificationApi",
 		})
 	}
 	for i := range channels {
 		for j := range pairs {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: fmt.Sprintf(channels[i], pairs[j]),
-				Pair:    pairs[j],
+				Pairs:   currency.Pairs{pairs[j]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -403,40 +397,38 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, erro
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
-	}
+func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 	var sub wsSub
 	sub.Operation = "subscribe"
 	for i := range channelsToSubscribe {
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	err = spotWebsocket.Conn.SendJSONMessage(sub)
-	if err != nil {
-		return err
-	}
-	spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
+	err = spotWebsocket.Conn.SendJSONMessage(sub)
+	if err == nil {
+		err = spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	}
+	return err
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	for i := range channelsToUnsubscribe {
 		unSub.Arguments = append(unSub.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err = spotWebsocket.Conn.SendJSONMessage(unSub)
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
 	}
-	spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	err = spotWebsocket.Conn.SendJSONMessage(unSub)
+	if err == nil {
+		err = spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
+	}
+	return err
 }

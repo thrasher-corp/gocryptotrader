@@ -13,6 +13,9 @@ import (
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
 
+// supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
+var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
+
 type orderbookResponse struct {
 	Symbol    string               `json:"s"`
 	Asks      [][2]types.Number    `json:"a"`
@@ -1086,8 +1089,8 @@ type TransferResponse struct {
 
 // SubUID represents a sub-users ID
 type SubUID struct {
-	SubMemberIds             []string `json:"subMemberIds"`
-	TransferableSubMemberIds []string `json:"transferableSubMemberIds"`
+	SubMemberIDs             []string `json:"subMemberIds"`
+	TransferableSubMemberIDs []string `json:"transferableSubMemberIds"`
 }
 
 // AllowedDepositCoinInfo represents coin deposit information.
@@ -1535,7 +1538,7 @@ type CoinRepaymentResponse struct {
 	RepayID            string               `json:"repayId"`
 	RepayMarginOrderID string               `json:"repayMarginOrderId"`
 	RepayTime          convert.ExchangeTime `json:"repayTime"`
-	TransactIds        []struct {
+	TransactIDs        []struct {
 		RepaidAmount       types.Number `json:"repaidAmount"`
 		RepaidInterest     types.Number `json:"repaidInterest"`
 		RepaidPrincipal    types.Number `json:"repaidPrincipal"`
@@ -1712,8 +1715,8 @@ type ServerTime struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	UpdateID       int64
-	Bids           []orderbook.Item
-	Asks           []orderbook.Item
+	Bids           []orderbook.Tranche
+	Asks           []orderbook.Tranche
 	Symbol         string
 	GenerationTime time.Time
 }
