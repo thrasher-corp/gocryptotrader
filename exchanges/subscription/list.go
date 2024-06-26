@@ -1,26 +1,12 @@
 package subscription
 
 import (
-	"errors"
 	"slices"
 	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-)
-
-const (
-	groupSeparator  = "\x1D"
-	recordSeparator = "\x1E"
-)
-
-var (
-	errInvalidAssetExpandPairs = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
-	errAssetRecords            = errors.New("subscription template did not generate the expected number of asset records")
-	errPairRecords             = errors.New("subscription template did not generate the expected number of pair records")
-	errAssetTemplateWithoutAll = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
-	errNoTemplateContent       = errors.New("subscription template did not generate content")
 )
 
 // List is a container of subscription pointers

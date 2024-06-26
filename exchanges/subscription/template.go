@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,6 +10,20 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+const (
+	groupSeparator  = "\x1D"
+	recordSeparator = "\x1E"
+)
+
+var (
+	errInvalidAssetExpandPairs = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
+	errAssetRecords            = errors.New("subscription template did not generate the expected number of asset records")
+	errPairRecords             = errors.New("subscription template did not generate the expected number of pair records")
+	errAssetTemplateWithoutAll = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
+	errNoTemplateContent       = errors.New("subscription template did not generate content")
+	errInvalidTemplate         = errors.New("GetSubscriptionTemplate did not return a template")
 )
 
 type tplCtx struct {
@@ -67,6 +82,9 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 		t, err := e.GetSubscriptionTemplate(s)
 		if err != nil {
 			return nil, err
+		}
+		if t == nil {
+			return nil, errInvalidTemplate
 		}
 
 		buf := &bytes.Buffer{}
