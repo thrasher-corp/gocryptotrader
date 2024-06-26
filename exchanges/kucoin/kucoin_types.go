@@ -1079,8 +1079,8 @@ type WsFuturesTicker struct {
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
 
-// WsFuturesOrderbokInfo represents Level 2 order book information.
-type WsFuturesOrderbokInfo struct {
+// WsFuturesOrderbookInfo represents Level 2 order book information.
+type WsFuturesOrderbookInfo struct {
 	Sequence  int64                `json:"sequence"`
 	Change    string               `json:"change"`
 	Timestamp convert.ExchangeTime `json:"timestamp"`
