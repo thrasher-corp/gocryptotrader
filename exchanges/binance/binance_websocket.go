@@ -520,18 +520,7 @@ func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 				"levels":   formatChannelLevels,
 				"fmt":      currency.EMPTYFORMAT.Format,
 			}).
-			Parse(`
-{{ with $ctx := . }}{{ with $s := $ctx.Sub }}
-{{ range $pair := index $ctx.AssetPairs $s.Asset }}
-  {{ fmt $pair -}} @
-  {{- if eq $s.Channel "ticker"         -}} ticker
-  {{- else if eq $s.Channel "allTrades" -}} trade
-  {{- else if eq $s.Channel "candles"   -}} kline       {{- interval $s}}
-  {{- else if eq $s.Channel "orderbook" -}} depth       {{- levels $s}}{{- interval $s}}
-  {{ end }}
-  {{ $ctx.PairSeparator }}
-{{end}}{{end}}{{end}}
-			`)
+			Parse(subTplText)
 	}
 	return subTemplate, err
 }
@@ -1019,3 +1008,16 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	state.needsFetchingBook = false
 	return nil
 }
+
+const subTplText = `
+{{ with $ctx := . }}{{ with $s := $ctx.Sub }}
+{{ range $pair := index $ctx.AssetPairs $s.Asset }}
+  {{ fmt $pair -}} @
+  {{- if eq $s.Channel "ticker"         -}} ticker
+  {{- else if eq $s.Channel "allTrades" -}} trade
+  {{- else if eq $s.Channel "candles"   -}} kline       {{- interval $s}}
+  {{- else if eq $s.Channel "orderbook" -}} depth       {{- levels $s}}{{- interval $s}}
+  {{ end }}
+  {{ $ctx.PairSeparator }}
+{{end}}{{end}}{{end}}
+`
