@@ -505,6 +505,12 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 }
 
 func (b *Binance) generateSubscriptions() (subscription.List, error) {
+	for _, s := range b.Features.Subscriptions {
+		if s.Asset == asset.Empty {
+			// Handle backwards compatibility with config without assets, all binance subs are spot
+			s.Asset = asset.Spot
+		}
+	}
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
