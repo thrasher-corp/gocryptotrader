@@ -231,6 +231,87 @@ type P2PAdListResp struct {
 	} `json:"data"`
 }
 
+// WhaleNetFlowResp holds information on whale trading volumes
+type WhaleNetFlowResp struct {
+	Data []struct {
+		Volume float64       `json:"volume,string"`
+		Date   UnixTimestamp `json:"date"`
+	} `json:"data"`
+}
+
+// ActiveVolumeResp holds information on active trading volumes
+type ActiveVolumeResp struct {
+	Data []struct {
+		BuyVolume  float64       `json:"buyVolume,string"`
+		SellVolume float64       `json:"sellVolume,string"`
+		Timestamp  UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// PositionRatioResp holds information on position ratios
+type PositionRatioResp struct {
+	Data []struct {
+		LongPositionRatio      float64       `json:"longPositionRatio,string"`
+		ShortPositionRatio     float64       `json:"shortPositionRatio,string"`
+		LongShortPositionRatio float64       `json:"longShortPositionRatio,string"`
+		Timestamp              UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// RatioResp holds information on ratios
+type RatioResp struct {
+	Data []struct {
+		LongRatio      float64       `json:"longRatio,string"`
+		ShortRatio     float64       `json:"shortRatio,string"`
+		LongShortRatio float64       `json:"longShortRatio,string"`
+		Timestamp      UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// FundFlowResp holds information on fund flows
+type FundFlowResp struct {
+	Data struct {
+		WhaleBuyVolume    float64 `json:"whaleBuyVolume,string"`
+		DolphinBuyVolume  float64 `json:"dolphinBuyVolume,string"`
+		FishBuyVolume     float64 `json:"fishBuyVolume,string"`
+		WhaleSellVolume   float64 `json:"whaleSellVolume,string"`
+		DolphinSellVolume float64 `json:"dolphinSellVolume,string"`
+		FishSellVolume    float64 `json:"fishSellVolume,string"`
+		WhaleBuyRatio     float64 `json:"whaleBuyRatio,string"`
+		DolphinBuyRatio   float64 `json:"dolphinBuyRatio,string"`
+		FishBuyRatio      float64 `json:"fishBuyRatio,string"`
+		WhaleSellRatio    float64 `json:"whaleSellRatio,string"`
+		DolphinSellRatio  float64 `json:"dolphinSellRatio,string"`
+		FishSellRatio     float64 `json:"fishSellRatio,string"`
+	} `json:"data"`
+}
+
+// SymbolsResp holds information on supported symbols
+type SymbolsResp struct {
+	Data struct {
+		SpotList   []string `json:"spotList"`
+		FutureList []string `json:"futureList"`
+	} `json:"data"`
+}
+
+// WhaleFundFlowResp holds information on whale fund flows
+type WhaleFundFlowResp struct {
+	Data []struct {
+		NetFlow   float64       `json:"netFlow,string"`
+		Timestamp UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// AccountRatioResp holds information on ratios
+type AccountRatioResp struct {
+	Data []struct {
+		LongAccountRatio      float64       `json:"longAccountRatio,string"`
+		ShortAccountRatio     float64       `json:"shortAccountRatio,string"`
+		LongShortAccountRatio float64       `json:"longShortAccountRatio,string"`
+		Timestamp             UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
 // CrVirSubResp contains information returned when creating virtual sub-accounts
 type CrVirSubResp struct {
 	Data struct {

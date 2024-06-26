@@ -29,9 +29,17 @@ const (
 	bitgetPublic              = "public/"
 	bitgetAnnouncements       = "annoucements" // sic
 	bitgetTime                = "time"
+	bitgetMarket              = "market/"
+	bitgetWhaleNetFlow        = "whale-net-flow"
+	bitgetTakerBuySell        = "taker-buy-sell"
+	bitgetPositionLongShort   = "position-long-short"
+	bitgetLongShort           = "long-short"
+	bitgetFundFlow            = "fund-flow"
+	bitgetSupportSymbols      = "support-symbols"
+	bitgetFundNetFlow         = "fund-net-flow"
+	bitgetAccountLongShort    = "account-long-short"
 	bitgetCoins               = "coins"
 	bitgetSymbols             = "symbols"
-	bitgetMarket              = "market/"
 	bitgetVIPFeeRate          = "vip-fee-rate"
 	bitgetTickers             = "tickers"
 	bitgetMergeDepth          = "merge-depth"
@@ -54,8 +62,8 @@ const (
 
 	// Mixed endpoints
 	bitgetSpot   = "spot/"
-	bitgetFills  = "fills"
 	bitgetMix    = "mix/"
+	bitgetFills  = "fills"
 	bitgetMargin = "margin/"
 	bitgetEarn   = "earn/"
 	bitgetLoan   = "loan"
@@ -383,7 +391,7 @@ func (bi *Bitget) GetP2PTransactionRecords(ctx context.Context, currency string,
 		bitgetTax+bitgetP2PRecord, params.Values, nil, &resp)
 }
 
-// GetP2PMerchantList returns detailed information on a particular merchant
+// GetP2PMerchantList returns detailed information on merchants
 func (bi *Bitget) GetP2PMerchantList(ctx context.Context, online, merchantID string, limit, pagination int64) (*P2PMerListResp, error) {
 	vals := url.Values{}
 	vals.Set("online", online)
@@ -458,6 +466,106 @@ func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, e
 	var resp *P2PAdListResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
 		bitgetP2P+bitgetAdvList, params.Values, nil, &resp)
+}
+
+// GetSpotWhaleNetFlow returns the amount whales have been trading in a specified pair recently
+func (bi *Bitget) GetSpotWhaleNetFlow(ctx context.Context, pair string) (*WhaleNetFlowResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	path := bitgetSpot + bitgetMarket + bitgetWhaleNetFlow
+	var resp *WhaleNetFlowResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
+
+// GetFuturesActiveVolume returns the active volume of a specified pair
+func (bi *Bitget) GetFuturesActiveVolume(ctx context.Context, pair, period string) (*ActiveVolumeResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	// See whether this can be unset without causing issues
+	vals.Set("period", period)
+	path := bitgetMix + bitgetMarket + bitgetTakerBuySell
+	var resp *ActiveVolumeResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
+
+// GetFuturesPositionRatios returns the ratio of long to short positions for a specified pair
+func (bi *Bitget) GetFuturesPositionRatios(ctx context.Context, pair, period string) (*PositionRatioResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	// See whether this can be unset without causing issues
+	vals.Set("period", period)
+	path := bitgetMix + bitgetMarket + bitgetPositionLongShort
+	var resp *PositionRatioResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
+
+// GetFuturesRatios returns the ratio of long to short positions for a specified pair
+func (bi *Bitget) GetFuturesRatios(ctx context.Context, pair, period string) (*RatioResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	// See whether this can be unset without causing issues
+	vals.Set("period", period)
+	path := bitgetMix + bitgetMarket + bitgetLongShort
+	var resp *RatioResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
+
+// GetSpotFundFlows returns information on volumes and buy/sell ratios for whales, dolphins, and fish for a
+// particular pair
+func (bi *Bitget) GetSpotFundFlows(ctx context.Context, pair string) (*FundFlowResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	path := bitgetSpot + bitgetMarket + bitgetFundFlow
+	var resp *FundFlowResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
+
+// GetTradeSupportSymbols returns a list of supported symbols
+func (bi *Bitget) GetTradeSupportSymbols(ctx context.Context) (*SymbolsResp, error) {
+	path := bitgetSpot + bitgetMarket + bitgetSupportSymbols
+	var resp *SymbolsResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, nil, &resp)
+}
+
+// GetSpotWhaleFundFlows returns the amount whales have been trading in a specified pair recently
+func (bi *Bitget) GetSpotWhaleFundFlows(ctx context.Context, pair string) (*WhaleFundFlowResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	path := bitgetSpot + bitgetMarket + bitgetFundNetFlow
+	var resp *WhaleFundFlowResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
+
+// GetFuturesAccountRatios returns the ratio of long to short positions for a specified pair
+func (bi *Bitget) GetFuturesAccountRatios(ctx context.Context, pair, period string) (*AccountRatioResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	// See whether this can be unset without causing issues
+	vals.Set("period", period)
+	path := bitgetMix + bitgetMarket + bitgetAccountLongShort
+	var resp *AccountRatioResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
 
 // CreateVirtualSubaccounts creates a batch of virtual subaccounts. These names must use English letters,

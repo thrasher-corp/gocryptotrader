@@ -49,12 +49,12 @@ const (
 // User-defined variables to aid testing
 var (
 	testCrypto  = currency.BTC   // Used for endpoints which don't support demo trading
-	testCrpyo2  = currency.SBTC  // Used for endpoints which support demo trading
+	testCrpyto2 = currency.SBTC  // Used for endpoints which support demo trading
 	testCrypto3 = currency.DOGE  // Used for endpoints which consume all available funds
 	testFiat    = currency.USDT  // Used for endpoints which don't support demo trading
 	testFiat2   = currency.SUSDT // Used for endpoints which support demo trading
 	testPair    = currency.NewPair(testCrypto, testFiat)
-	testPair2   = currency.NewPair(testCrpyo2, testFiat2)
+	testPair2   = currency.NewPair(testCrpyto2, testFiat2)
 )
 
 // Developer-defined constants to aid testing
@@ -182,8 +182,7 @@ func TestGetP2PTransactionRecords(t *testing.T) {
 func TestGetP2PMerchantList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	// Can't currently be properly tested due to not knowing any p2p merchant IDs
-	_, err := bi.GetP2PMerchantList(context.Background(), "", "1", 5, 1<<62)
+	_, err := bi.GetP2PMerchantList(context.Background(), "", "", 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -215,14 +214,72 @@ func TestGetMerchantAdvertisementList(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCreateVirtualSubaccounts(t *testing.T) {
+func TestGetSpotWhaleNetFlow(t *testing.T) {
 	t.Parallel()
-	_, err := bi.CreateVirtualSubaccounts(context.Background(), []string{})
-	assert.ErrorIs(t, err, errSubaccountEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.CreateVirtualSubaccounts(context.Background(), []string{testSubaccountName})
+	testGetOneArg(t, bi.GetSpotWhaleNetFlow, "", testPair.String(), errPairEmpty, true, false, false)
+}
+
+func TestGetFuturesActiveVolume(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesActiveVolume(context.Background(), "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	// Inexplicably fails with the error "The data fetched by {pair} is empty". The pair is valid, and seems to be
+	// undergoing trades on the futures market according to their website.
+	resp, err := bi.GetFuturesActiveVolume(context.Background(), "BTCUSDT", "1d")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
+}
+
+func TestGetFuturesPositionRatios(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesPositionRatios(context.Background(), "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	// Inexplicably fails with the error "The data fetched by {pair} is empty". The pair is valid, and seems to be
+	// undergoing trades on the futures market according to their website.
+	resp, err := bi.GetFuturesPositionRatios(context.Background(), "BTCUSDT", "12h")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestGetFuturesRatios(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesRatios(context.Background(), "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	// Inexplicably fails with the error "The data fetched by {pair} is empty". The pair is valid, and seems to be
+	// undergoing trades on the futures market according to their website.
+	resp, err := bi.GetFuturesRatios(context.Background(), "BTCUSDT", "12h")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestGetSpotFundFlows(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetSpotFundFlows, "", testPair.String(), errPairEmpty, true, false, false)
+}
+
+func TestGetTradeSupportSymbols(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, bi.GetTradeSupportSymbols)
+}
+
+func TestGetSpotWhaleFundFlows(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetSpotWhaleFundFlows, "", testPair.String(), errPairEmpty, true, false, false)
+}
+
+func TestGetFuturesAccountRatios(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesAccountRatios(context.Background(), "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := bi.GetFuturesAccountRatios(context.Background(), testPair.String(), "12h")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestCreateVirtualSubaccounts(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.CreateVirtualSubaccounts, nil, []string{testSubaccountName}, errSubaccountEmpty,
+		true, true, true)
 }
 
 func TestModifyVirtualSubaccount(t *testing.T) {
@@ -315,27 +372,21 @@ func TestModifyAPIKey(t *testing.T) {
 
 func TestGetAPIKeys(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetAPIKeys(context.Background(), "")
-	assert.ErrorIs(t, err, errSubaccountEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
-	resp, err := bi.GetAPIKeys(context.Background(), tarID)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	var tarID string
+	if sharedtestvalues.AreAPICredentialsSet(bi) {
+		tarID = subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	}
+	testGetOneArg(t, bi.GetAPIKeys, "", tarID, errSubaccountEmpty, true, true, true)
 }
 
 func TestGetFundingAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetFundingAssets(context.Background(), "BTC")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetFundingAssets, "", testCrypto.String(), nil, false, true, true)
 }
 
 func TestGetBotAccountAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetBotAccountAssets(context.Background(), "spot")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetBotAccountAssets, "", "spot", nil, false, true, true)
 }
 
 func TestGetAssetOverview(t *testing.T) {
@@ -381,15 +432,10 @@ func TestGetBGBConvertCoins(t *testing.T) {
 
 func TestConvertBGB(t *testing.T) {
 	t.Parallel()
-	var currencies []string
-	_, err := bi.ConvertBGB(context.Background(), currencies)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	currencies = append(currencies, testCrypto3.String())
-	// No matter what currency I use, this returns the error "currency does not support convert"; possibly a bad error
-	// message, with the true issue being lack of funds?
-	_, err = bi.ConvertBGB(context.Background(), currencies)
-	assert.NoError(t, err)
+	// No matter what currency I use, this returns the error "currency does not support convert"; possibly a bad
+	// error message, with the true issue being lack of funds?
+	testGetOneArg(t, bi.ConvertBGB, nil, []string{testCrypto3.String()}, errCurrencyEmpty, false, true,
+		canManipulateRealOrders)
 }
 
 func TestGetBGBConvertHistory(t *testing.T) {
@@ -403,16 +449,12 @@ func TestGetBGBConvertHistory(t *testing.T) {
 
 func TestGetCoinInfo(t *testing.T) {
 	t.Parallel()
-	resp, err := bi.GetCoinInfo(context.Background(), "")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetCoinInfo, "", "", nil, true, false, false)
 }
 
 func TestGetSymbolInfo(t *testing.T) {
 	t.Parallel()
-	resp, err := bi.GetSymbolInfo(context.Background(), "")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetSymbolInfo, "", "", nil, true, false, false)
 }
 
 func TestGetSpotVIPFeeRate(t *testing.T) {
@@ -422,9 +464,7 @@ func TestGetSpotVIPFeeRate(t *testing.T) {
 
 func TestGetSpotTickerInformation(t *testing.T) {
 	t.Parallel()
-	resp, err := bi.GetSpotTickerInformation(context.Background(), testPair.String())
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetSpotTickerInformation, "", testPair.String(), nil, true, false, false)
 }
 
 func TestGetSpotMergeDepth(t *testing.T) {
@@ -573,12 +613,8 @@ func TestBatchCancelOrders(t *testing.T) {
 
 func TestCancelOrderBySymbol(t *testing.T) {
 	t.Parallel()
-	_, err := bi.CancelOrderBySymbol(context.Background(), "")
-	assert.ErrorIs(t, err, errPairEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.CancelOrderBySymbol(context.Background(), testPair.String())
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.CancelOrderBySymbol, "", testPair.String(), errPairEmpty, true, true,
+		canManipulateRealOrders)
 }
 
 func TestGetSpotOrderDetails(t *testing.T) {
@@ -698,15 +734,14 @@ func TestGetCurrentSpotPlanOrders(t *testing.T) {
 
 func TestSpotGetPlanSubOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetSpotPlanSubOrder(context.Background(), "")
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	ordIDs := getPlanOrdIDHelper(t, true)
-	resp, err := bi.GetSpotPlanSubOrder(context.Background(), strconv.FormatInt(ordIDs.OrderID, 10))
+	var ordIDs OrderIDStruct
+	if sharedtestvalues.AreAPICredentialsSet(bi) {
+		ordIDs = getPlanOrdIDHelper(t, true)
+	}
 	// This gets the error "the current plan order does not exist or has not been triggered" even when using
 	// a plan order that definitely exists and has definitely been triggered
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetSpotPlanSubOrder, "", strconv.FormatInt(ordIDs.OrderID, 10), errOrderIDEmpty, true,
+		true, true)
 }
 
 func TestGetSpotPlanOrderHistory(t *testing.T) {
@@ -723,14 +758,15 @@ func TestGetSpotPlanOrderHistory(t *testing.T) {
 
 func TestBatchCancelSpotPlanOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err := bi.BatchCancelSpotPlanOrders(context.Background(), []string{testPair.String()})
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.BatchCancelSpotPlanOrders, nil, []string{testPair.String()}, nil, false, true,
+		canManipulateRealOrders)
 }
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	// Not chucked into testGetNoArgs due to checking the presence of resp.Data, refactoring that generic for that
+	// would waste too many lines to do so just for this
 	resp, err := bi.GetAccountInfo(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
@@ -746,8 +782,7 @@ func TestGetAccountAssets(t *testing.T) {
 func TestGetSpotSubaccountAssets(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetSpotSubaccountAssets(context.Background())
-	assert.NoError(t, err)
+	testGetNoArgs(t, bi.GetSpotSubaccountAssets)
 }
 
 func TestModifyDepositAccount(t *testing.T) {
@@ -863,11 +898,8 @@ func TestGetTransferRecord(t *testing.T) {
 
 func TestSwitchBGBDeductionStatus(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err := bi.SwitchBGBDeductionStatus(context.Background(), false)
-	assert.NoError(t, err)
-	_, err = bi.SwitchBGBDeductionStatus(context.Background(), true)
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.SwitchBGBDeductionStatus, false, false, nil, false, true, canManipulateRealOrders)
+	testGetOneArg(t, bi.SwitchBGBDeductionStatus, false, true, nil, false, true, canManipulateRealOrders)
 }
 
 func TestGetDepositAddressForCurrency(t *testing.T) {
@@ -946,11 +978,7 @@ func TestGetFuturesTicker(t *testing.T) {
 
 func TestGetAllFuturesTickers(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetAllFuturesTickers(context.Background(), "")
-	assert.ErrorIs(t, err, errProductTypeEmpty)
-	resp, err := bi.GetAllFuturesTickers(context.Background(), "COIN-FUTURES")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetAllFuturesTickers, "", "COIN-FUTURES", errProductTypeEmpty, true, false, false)
 }
 
 func TestGetRecentFuturesFills(t *testing.T) {
@@ -1060,22 +1088,12 @@ func TestGetOneFuturesAccount(t *testing.T) {
 
 func TestGetAllFuturesAccounts(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetAllFuturesAccounts(context.Background(), "")
-	assert.ErrorIs(t, err, errProductTypeEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetAllFuturesAccounts(context.Background(), "COIN-FUTURES")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetAllFuturesAccounts, "", "COIN-FUTURES", errProductTypeEmpty, true, true, true)
 }
 
 func TestGetFuturesSubaccountAssets(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetFuturesSubaccountAssets(context.Background(), "")
-	assert.ErrorIs(t, err, errProductTypeEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetFuturesSubaccountAssets(context.Background(), "USDT-FUTURES")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
+	testGetOneArg(t, bi.GetFuturesSubaccountAssets, "", "USDT-FUTURES", errProductTypeEmpty, true, true, true)
 }
 
 func TestGetEstimatedOpenCount(t *testing.T) {
@@ -1613,9 +1631,7 @@ func TestGetCrossFinancialHistory(t *testing.T) {
 
 func TestGetCrossAccountAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetCrossAccountAssets(context.Background(), "")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetCrossAccountAssets, "", "", nil, false, true, true)
 }
 
 func TestCrossBorrow(t *testing.T) {
@@ -1647,45 +1663,28 @@ func TestGetCrossRiskRate(t *testing.T) {
 
 func TestGetCrossMaxBorrowable(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetCrossMaxBorrowable(context.Background(), "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetCrossMaxBorrowable(context.Background(), testFiat.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetCrossMaxBorrowable, "", testFiat.String(), errCurrencyEmpty, false, true, true)
 }
 
 func TestGetCrossMaxTransferable(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetCrossMaxTransferable(context.Background(), "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetCrossMaxTransferable(context.Background(), testFiat.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetCrossMaxTransferable, "", testFiat.String(), errCurrencyEmpty, false, true, true)
 }
 
 func TestGetCrossInterestRateAndMaxBorrowable(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetCrossInterestRateAndMaxBorrowable(context.Background(), "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetCrossInterestRateAndMaxBorrowable(context.Background(), testFiat.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetCrossInterestRateAndMaxBorrowable, "", testFiat.String(), errCurrencyEmpty, false, true,
+		true)
 }
 
 func TestGetCrossTierConfiguration(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetCrossTierConfiguration(context.Background(), "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetCrossTierConfiguration(context.Background(), testFiat.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetCrossTierConfiguration, "", testFiat.String(), errCurrencyEmpty, false, true, true)
 }
 
 func TestCrossFlashRepay(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err := bi.CrossFlashRepay(context.Background(), testFiat.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.CrossFlashRepay, "", testFiat.String(), nil, false, true, canManipulateRealOrders)
 }
 
 func TestGetCrossFlashRepayResult(t *testing.T) {
@@ -1856,9 +1855,7 @@ func TestGetIsolatedFinancialHistory(t *testing.T) {
 
 func TestGetIsolatedAccoutnAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetIsolatedAccountAssets(context.Background(), "")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetIsolatedAccountAssets, "", "", nil, false, true, true)
 }
 
 func TestIsolatedBorrow(t *testing.T) {
@@ -1895,36 +1892,24 @@ func TestIsolatedRiskRate(t *testing.T) {
 
 func TestGetIsolatedInterestRateAndMaxBorrowable(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetIsolatedInterestRateAndMaxBorrowable(context.Background(), "")
-	assert.ErrorIs(t, err, errPairEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetIsolatedInterestRateAndMaxBorrowable(context.Background(), testPair.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetIsolatedInterestRateAndMaxBorrowable, "", testPair.String(), errPairEmpty, false, true,
+		true)
 }
 
 func TestGetIsolatedMaxborrowable(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetIsolatedMaxBorrowable(context.Background(), "")
-	assert.ErrorIs(t, err, errPairEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetIsolatedMaxBorrowable(context.Background(), testPair.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetIsolatedMaxBorrowable, "", testPair.String(), errPairEmpty, false, true, true)
 }
 
 func TestGetIsolatedMaxTransferable(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetIsolatedMaxTransferable(context.Background(), "")
-	assert.ErrorIs(t, err, errPairEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetIsolatedMaxTransferable(context.Background(), testPair.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetIsolatedMaxTransferable, "", testPair.String(), errPairEmpty, false, true, true)
 }
 
 func TestIsolatedFlashRepay(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err := bi.IsolatedFlashRepay(context.Background(), []string{testPair.String()})
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.IsolatedFlashRepay, nil, []string{testPair.String()}, nil, false, true,
+		canManipulateRealOrders)
 }
 
 func TestGetIsolatedFlashRepayResult(t *testing.T) {
@@ -2197,9 +2182,7 @@ func TestGetSavingsRedemptionResult(t *testing.T) {
 
 func TestGetEarnAccountAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetEarnAccountAssets(context.Background(), "")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetEarnAccountAssets, "", "", nil, false, true, true)
 }
 
 func TestGetSharkFinProducts(t *testing.T) {
@@ -2286,10 +2269,7 @@ func TestGetSharkFinSubscriptionResult(t *testing.T) {
 
 func TestGetLoanCurrencyList(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetLoanCurrencyList(context.Background(), "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	_, err = bi.GetLoanCurrencyList(context.Background(), testFiat.String())
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetLoanCurrencyList, "", testFiat.String(), errCurrencyEmpty, false, true, true)
 }
 
 func TestGetEstimatedInterestAndBorrowable(t *testing.T) {
@@ -2402,14 +2382,9 @@ func TestGetLiquidationRecords(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := bi.FetchTradablePairs(context.Background(), asset.Empty)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = bi.FetchTradablePairs(context.Background(), asset.Spot)
-	assert.NoError(t, err)
-	_, err = bi.FetchTradablePairs(context.Background(), asset.Futures)
-	assert.NoError(t, err)
-	_, err = bi.FetchTradablePairs(context.Background(), asset.Margin)
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.FetchTradablePairs, asset.Empty, asset.Spot, asset.ErrNotSupported, false, false, false)
+	testGetOneArg(t, bi.FetchTradablePairs, 0, asset.Futures, nil, false, false, false)
+	testGetOneArg(t, bi.FetchTradablePairs, 0, asset.Margin, nil, false, false, false)
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
@@ -2430,7 +2405,19 @@ func TestCommitConversion(t *testing.T) {
 	assert.ErrorIs(t, err, errPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), testAmount, 0)
+	require.NoError(t, err)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), resp.Data.TraceID,
+		resp.Data.FromCoinSize, resp.Data.ToCoinSize, resp.Data.ConvertPrice)
 	assert.NoError(t, err)
+}
+
+func TestCommitConversionAbomination(t *testing.T) {
+	testGenAbomination(t, bi.CommitConversion, 3, canManipulateRealOrders, []genAbominationStruct[string, string,
+		string, float64, float64, float64]{{"", "", "", 0, 0, 0, errCurrencyEmpty}, {testCrypto.String(),
+		testFiat.String(), "", 0, 0, 0, errTraceIDEmpty}, {testCrypto.String(), testFiat.String(), "1", 0, 0, 0,
+		errAmountEmpty}, {testCrypto.String(), testFiat.String(), "1", 1, 1, 0, errPriceEmpty}})
+	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), testAmount, 0)
+	require.NoError(t, err)
 	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), resp.Data.TraceID,
 		resp.Data.FromCoinSize, resp.Data.ToCoinSize, resp.Data.ConvertPrice)
 	assert.NoError(t, err)
@@ -2578,7 +2565,8 @@ func TestRepayLoan(t *testing.T) {
 
 type getNoArgsResp interface {
 	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp | *SupCurrencyResp |
-		*RiskRateCross | *SavingsBalance | *SharkFinBalance | *DebtsResp | *AssetOverviewResp | *BGBDeductResp
+		*RiskRateCross | *SavingsBalance | *SharkFinBalance | *DebtsResp | *AssetOverviewResp | *BGBDeductResp |
+		*SymbolsResp | *SubaccountAssetsResp
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
@@ -2587,6 +2575,69 @@ func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) 
 	t.Helper()
 	_, err := f(context.Background())
 	assert.NoError(t, err)
+}
+
+type getOneArgResp interface {
+	*WhaleNetFlowResp | *FundFlowResp | *WhaleFundFlowResp | *CrVirSubResp | *GetAPIKeyResp | *FundingAssetsResp |
+		*BotAccAssetsResp | *ConvertBGBResp | *CoinInfoResp | *SymbolInfoResp | *TickerResp | *SymbolResp |
+		*SubOrderResp | *BatchOrderResp | *BoolData | *FutureTickerResp | *AllAccResp | *SubaccountFuturesResp |
+		*CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | *IntRateMaxBorrowCross | *TierConfigCross |
+		*FlashRepayCross | *IsoAssetResp | *IntRateMaxBorrowIso | *MaxBorrowIso | *MaxTransferIso | *FlashRepayIso |
+		*EarnAssets | *LoanCurList | currency.Pairs
+}
+
+type getOneArgParam interface {
+	string | []string | int64 | bool | asset.Item | float64
+}
+
+type getOneArgGen[R getOneArgResp, P getOneArgParam] func(context.Context, P) (R, error)
+
+func testGetOneArg[R getOneArgResp, P getOneArgParam](t *testing.T, f getOneArgGen[R, P], callErrCheck, callNoEErr P, tarErr error, checkResp, checkCreds, canManipOrders bool) {
+	t.Helper()
+	if tarErr != nil {
+		_, err := f(context.Background(), callErrCheck)
+		assert.ErrorIs(t, err, tarErr)
+	}
+	if checkCreds {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipOrders)
+	}
+	resp, err := f(context.Background(), callNoEErr)
+	require.NoError(t, err)
+	if checkResp {
+		assert.NotEmpty(t, resp)
+	}
+}
+
+type genAbominationResp interface {
+	*CommitConvResp
+}
+
+type genAbominationType[R genAbominationResp, P1, P2, P3, P4, P5, P6 getOneArgParam] func(context.Context, P1, P2, P3, P4, P5, P6) (R, error)
+
+type genAbominationStruct[P1, P2, P3, P4, P5, P6 getOneArgParam] struct {
+	arg1        P1
+	arg2        P2
+	arg3        P3
+	arg4        P4
+	arg5        P5
+	arg6        P6
+	expectedErr error
+}
+
+func testGenAbomination[R genAbominationResp, P1, P2, P3, P4, P5, P6 getOneArgParam](t *testing.T, f genAbominationType[R, P1, P2, P3, P4, P5, P6], checkCredsAfter int, canManipOrders bool, callStack []genAbominationStruct[P1, P2, P3, P4, P5, P6]) {
+	t.Helper()
+	for i := range callStack {
+		_, err := f(context.Background(), callStack[i].arg1, callStack[i].arg2, callStack[i].arg3, callStack[i].arg4,
+			callStack[i].arg5, callStack[i].arg6)
+		if callStack[i].expectedErr != nil {
+			assert.ErrorIs(t, err, callStack[i].expectedErr)
+		} else {
+			assert.NoError(t, err)
+		}
+		if i == checkCredsAfter {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipOrders)
+		}
+	}
 }
 
 type getTwoArgsResp interface {
