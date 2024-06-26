@@ -693,80 +693,97 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	var smartOrder bool
-	var response *PlaceOrderResponse
-	switch s.Type {
-	case order.Stop, order.StopLimit:
-		smartOrder = true
-	case order.Limit, order.Market, order.LimitMaker:
-	default:
-		return nil, fmt.Errorf("%v order type %v is not supported", order.ErrTypeIsInvalid, s.Type)
-	}
-	if smartOrder {
-		var sOrder *PlaceOrderResponse
-		sOrder, err = p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
-			Symbol:        fPair,
-			Side:          orderSideString(s.Side),
-			Type:          orderTypeString(s.Type),
-			AccountType:   accountTypeString(s.AssetType),
-			Price:         s.Price,
-			StopPrice:     s.TriggerPrice,
-			Quantity:      s.Amount,
-			ClientOrderID: s.ClientOrderID,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return s.DeriveSubmitResponse(sOrder.ID)
-	}
 	switch s.AssetType {
 	case asset.Spot:
+		var smartOrder bool
+		var response *PlaceOrderResponse
+		switch s.Type {
+		case order.Stop, order.StopLimit, order.TrailingStop:
+			smartOrder = true
+		case order.Limit, order.Market, order.LimitMaker:
+		default:
+			return nil, fmt.Errorf("%v order type %v is not supported", order.ErrTypeIsInvalid, s.Type)
+		}
+		if smartOrder {
+			var sOrder *PlaceOrderResponse
+			sOrder, err = p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
+				Symbol:        fPair,
+				Side:          orderSideString(s.Side),
+				Type:          orderTypeString(s.Type),
+				AccountType:   accountTypeString(s.AssetType),
+				Price:         s.Price,
+				StopPrice:     s.TriggerPrice,
+				Quantity:      s.Amount,
+				ClientOrderID: s.ClientOrderID,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return s.DeriveSubmitResponse(sOrder.ID)
+		}
+		arg := &PlaceOrderParams{
+			Symbol:      fPair,
+			Price:       s.Price,
+			Amount:      s.Amount,
+			AllowBorrow: false,
+			Type:        s.Type.String(),
+			Side:        s.Side.String(),
+		}
 		if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			response, err = p.WsCreateOrder(&PlaceOrderParams{
-				Symbol:      fPair,
-				Price:       s.Price,
-				Amount:      s.Amount,
-				AllowBorrow: false,
-				Type:        s.Type.String(),
-				Side:        s.Side.String(),
-			})
+			response, err = p.WsCreateOrder(arg)
 		} else {
-			response, err = p.PlaceOrder(ctx, &PlaceOrderParams{
-				Symbol:      fPair,
-				Price:       s.Price,
-				Amount:      s.Amount,
-				AllowBorrow: false,
-				Type:        s.Type.String(),
-				Side:        s.Side.String(),
-			})
+			response, err = p.PlaceOrder(ctx, arg)
 		}
 		if err != nil {
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(response.ID)
 	case asset.Futures:
-		// switch s.RiskManagementModes.StopLoss
+		var stopOrderType, stopOrderBoundary string
+		switch s.Type {
+		case order.Stop, order.StopLimit, order.TrailingStop:
+			if s.TriggerPrice == 0 {
+				break
+			}
+			switch s.TriggerPriceType {
+			case order.IndexPrice:
+				stopOrderType = "IP"
+			case order.MarkPrice:
+				stopOrderType = "MP"
+			case order.LastPrice:
+				stopOrderType = "TP"
+			}
+			switch s.Type {
+			case order.StopLimit:
+				switch s.Side {
+				case order.Sell:
+					stopOrderBoundary = "up"
+				case order.Buy:
+					stopOrderBoundary = "down"
+				}
+			case order.TrailingStop:
+				switch s.Side {
+				case order.Sell:
+					stopOrderBoundary = "down"
+				case order.Buy:
+					stopOrderBoundary = "up"
+				}
+			}
+		}
 		response, err := p.PlaceFuturesOrder(ctx, &FuturesOrderParams{
 			ClientOrderID: s.ClientOrderID,
 			Side:          orderSideString(s.Side),
 			Symbol:        s.Pair.String(),
 			OrderType:     orderTypeString(s.Type),
 			Leverage:      int64(s.Leverage),
-			// Stop:
-			// StopPrice
-			// StopPriceType:
-			ReduceOnly: s.ReduceOnly,
-			// CloseOrder: s.Clse
-			// ForceHold
-			Hidden: s.Hidden,
-			// Iceberg: s.Ice
-			PostOnly: s.PostOnly,
-			Price:    s.Price,
-			// Remark
-			Size: s.Amount,
-			// Quantity
-			// TimeInForce:
-			// VisibleSize
+			Stop:          stopOrderBoundary,
+			StopPrice:     s.TriggerPrice,
+			StopPriceType: stopOrderType,
+			ReduceOnly:    s.ReduceOnly,
+			Hidden:        s.Hidden,
+			PostOnly:      s.PostOnly,
+			Price:         s.Price,
+			Size:          s.Amount,
 		})
 		if err != nil {
 			return nil, err
@@ -785,42 +802,49 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-
-	var orderID string
-	resp, err := p.CancelReplaceOrder(ctx, &CancelReplaceOrderParam{
-		orderID:       action.OrderID,
-		ClientOrderID: action.ClientOrderID,
-		Price:         action.Price,
-		Quantity:      action.Amount,
-		AmendedType:   action.Type.String(),
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "Couldn't locate order") {
-			var smartOResponse *CancelReplaceSmartOrderResponse
-			smartOResponse, err = p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
-				orderID:       action.OrderID,
-				ClientOrderID: action.ClientOrderID,
-				Price:         action.Price,
-				StopPrice:     action.TriggerPrice,
-				Quantity:      action.Amount,
-				AmendedType:   orderTypeString(action.Type),
-			})
-			if err != nil {
-				return nil, err
-			}
-			orderID = smartOResponse.ID
-		} else {
+	if action.AssetType != asset.Spot {
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, action.AssetType)
+	}
+	switch action.Type {
+	case order.Market, order.Limit, order.LimitMaker:
+		resp, err := p.CancelReplaceOrder(ctx, &CancelReplaceOrderParam{
+			orderID:       action.OrderID,
+			ClientOrderID: action.ClientOrderID,
+			Price:         action.Price,
+			Quantity:      action.Amount,
+			AmendedType:   action.Type.String(),
+		})
+		if err != nil {
 			return nil, err
 		}
-	} else {
-		orderID = resp.ID
+		modResp, err := action.DeriveModifyResponse()
+		if err != nil {
+			return nil, err
+		}
+		modResp.OrderID = resp.ID
+		return modResp, nil
+	case order.Stop, order.StopLimit:
+		oResp, err := p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
+			orderID:          action.OrderID,
+			ClientOrderID:    action.ClientOrderID,
+			Price:            action.Price,
+			StopPrice:        action.TriggerPrice,
+			Amount:           action.Amount,
+			AmendedType:      orderTypeString(action.Type),
+			ProceedOnFailure: !action.ImmediateOrCancel,
+		})
+		if err != nil {
+			return nil, err
+		}
+		modResp, err := action.DeriveModifyResponse()
+		if err != nil {
+			return nil, err
+		}
+		modResp.OrderID = oResp.ID
+		return modResp, nil
+	default:
+		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, action.Type)
 	}
-	modResp, err := action.DeriveModifyResponse()
-	if err != nil {
-		return nil, err
-	}
-	modResp.OrderID = orderID
-	return modResp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -850,7 +874,15 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	orderIDs := make([]string, 0, len(o))
 	clientOrderIDs := make([]string, 0, len(o))
+	assetType := o[0].AssetType
+	commonOrderType := o[0].Type
 	for i := range o {
+		if assetType != o[i].AssetType {
+			return nil, fmt.Errorf("order asset type mismatch detected")
+		}
+		if commonOrderType != o[i].Type {
+			commonOrderType = order.AnyType
+		}
 		switch {
 		case o[i].ClientOrderID != "":
 			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
@@ -863,31 +895,73 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
-		if err != nil {
-			return nil, err
-		}
-		for i := range wsCancelledOrders {
-			if wsCancelledOrders[i].ClientOrderID != "" {
-				resp.Status[wsCancelledOrders[i].ClientOrderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
-				continue
+	switch assetType {
+	case asset.Spot:
+		switch commonOrderType {
+		case order.Market, order.Limit:
+			if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
+				if err != nil {
+					return nil, err
+				}
+				for i := range wsCancelledOrders {
+					if wsCancelledOrders[i].ClientOrderID != "" {
+						resp.Status[wsCancelledOrders[i].ClientOrderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
+						continue
+					}
+					orderID := strconv.FormatInt(wsCancelledOrders[i].OrderID, 10)
+					resp.Status[orderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
+				}
+			} else {
+				cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
+				if err != nil {
+					return nil, err
+				}
+				for i := range cancelledOrders {
+					if cancelledOrders[i].ClientOrderID != "" {
+						resp.Status[cancelledOrders[i].ClientOrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+						continue
+					}
+					resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+				}
 			}
-			orderID := strconv.FormatInt(wsCancelledOrders[i].OrderID, 10)
-			resp.Status[orderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
-		}
-	} else {
-		cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
-		if err != nil {
-			return nil, err
-		}
-		for i := range cancelledOrders {
-			if cancelledOrders[i].ClientOrderID != "" {
-				resp.Status[cancelledOrders[i].ClientOrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
-				continue
+		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+			cancelledOrders, err := p.CancelMultipleSmartOrders(ctx, &OrderCancellationParams{
+				OrderIDs:       orderIDs,
+				ClientOrderIDs: clientOrderIDs,
+			})
+			if err != nil {
+				return nil, err
 			}
-			resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+			for i := range cancelledOrders {
+				if cancelledOrders[i].ClientOrderID != "" {
+					resp.Status[cancelledOrders[i].ClientOrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+					continue
+				}
+				resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+			}
+		default:
+			return nil, fmt.Errorf("%w %s", order.ErrUnsupportedOrderType, commonOrderType.String())
 		}
+	case asset.Futures:
+		switch commonOrderType {
+		case order.Limit, order.Market:
+			cancelledOrders, err := p.CancelMultipleFuturesLimitOrders(ctx, orderIDs, clientOrderIDs)
+			if err != nil {
+				return nil, err
+			}
+			resp.Status = make(map[string]string, len(cancelledOrders.CancelFailedOrderIDs)+len(cancelledOrders.CancelledOrderIDs))
+			for x := range cancelledOrders.CancelledOrderIDs {
+				resp.Status[cancelledOrders.CancelledOrderIDs[x]] = "Cancelled"
+			}
+			for x := range cancelledOrders.CancelFailedOrderIDs {
+				resp.Status[cancelledOrders.CancelFailedOrderIDs[x]] = "Failed"
+			}
+		default:
+			return nil, fmt.Errorf("futures order cancellation for %s orders is not supported", commonOrderType.String())
+		}
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	return resp, nil
 }
@@ -908,23 +982,44 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	var resp []CancelOrderResponse
 	switch cancelOrd.AssetType {
 	case asset.Spot:
-		if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			var wsResponse []WsCancelOrderResponse
-			wsResponse, err = p.WsCancelAllTradeOrders(pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
-			if err != nil {
-				return cancelAllOrdersResponse, err
+		switch cancelOrd.Type {
+		case order.Market, order.Limit:
+			if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				var wsResponse []WsCancelOrderResponse
+				wsResponse, err = p.WsCancelAllTradeOrders(pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+				for x := range wsResponse {
+					cancelAllOrdersResponse.Status[strconv.FormatInt(wsResponse[x].OrderID, 10)] = wsResponse[x].State
+				}
+			} else {
+				resp, err = p.CancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+				for x := range resp {
+					cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+				}
 			}
-			for x := range wsResponse {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(wsResponse[x].OrderID, 10)] = wsResponse[x].State
+		case order.TrailingStop, order.TrailingStopLimit, order.StopLimit, order.Stop:
+			pairsString := []string{}
+			if !cancelOrd.Pair.IsEmpty() {
+				pairsString = append(pairsString, cancelOrd.Pair.String())
 			}
-		} else {
-			resp, err = p.CancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+			orderTypes := []string{}
+			if cancelOrd.Type != order.UnknownType {
+				orderTypes = append(orderTypes, orderTypeString(cancelOrd.Type))
+			}
+			resp, err := p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
 			for x := range resp {
 				cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
 			}
+		default:
+			return cancelAllOrdersResponse, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, cancelOrd.Type)
 		}
 	case asset.Futures:
 		var result *FuturesCancelOrderResponse
@@ -934,31 +1029,23 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-		case order.Stop:
+		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			result, err = p.CancelAllFuturesStopOrders(ctx, cancelOrd.Pair.String())
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
 		default:
-			return cancelAllOrdersResponse, order.ErrTypeIsInvalid
+			return cancelAllOrdersResponse, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, cancelOrd.Type)
 		}
-		for x := range result.CancelledOrderIds {
-			cancelAllOrdersResponse.Status[result.CancelledOrderIds[x]] = "Cancelled"
+		for x := range result.CancelledOrderIDs {
+			cancelAllOrdersResponse.Status[result.CancelledOrderIDs[x]] = "Cancelled"
 		}
-		for x := range result.CancelFailedOrderIds {
-			cancelAllOrdersResponse.Status[result.CancelFailedOrderIds[x]] = "Failed"
+		for x := range result.CancelFailedOrderIDs {
+			cancelAllOrdersResponse.Status[result.CancelFailedOrderIDs[x]] = "Failed"
 		}
 	default:
 		return cancelAllOrdersResponse, asset.ErrNotSupported
 	}
-	// resp, err = p.CancelAllSmartOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
-	//	if err != nil {
-	//		return cancelAllOrdersResponse, err
-	//	}
-	//
-	//	for x := range resp {
-	//		cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
-	//	}
 	return cancelAllOrdersResponse, nil
 }
 
@@ -1404,58 +1491,112 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := p.GetOrdersHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType), orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
-		if err != nil {
-			return nil, err
-		}
+		switch req.Type {
+		case order.Market, order.Limit:
+			resp, err := p.GetOrdersHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType), orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
+			if err != nil {
+				return nil, err
+			}
 
-		var oSide order.Side
-		var oType order.Type
-		orders := make([]order.Detail, 0, len(resp))
-		for i := range resp {
-			var pair currency.Pair
-			pair, err = currency.NewPairFromString(resp[i].Symbol)
+			var oSide order.Side
+			var oType order.Type
+			orders := make([]order.Detail, 0, len(resp))
+			for i := range resp {
+				var pair currency.Pair
+				pair, err = currency.NewPairFromString(resp[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
+					continue
+				}
+				oSide, err = order.StringToOrderSide(resp[i].Side)
+				if err != nil {
+					return nil, err
+				}
+				oType, err = order.StringToOrderType(resp[i].Type)
+				if err != nil {
+					return nil, err
+				}
+				var assetType asset.Item
+				assetType, err = asset.New(resp[i].AccountType)
+				if err != nil {
+					return nil, err
+				}
+				detail := order.Detail{
+					Side:                 oSide,
+					Amount:               resp[i].Amount.Float64(),
+					ExecutedAmount:       resp[i].FilledAmount.Float64(),
+					Price:                resp[i].Price.Float64(),
+					AverageExecutedPrice: resp[i].AvgPrice.Float64(),
+					Pair:                 pair,
+					Type:                 oType,
+					Exchange:             p.Name,
+					QuoteAmount:          resp[i].Amount.Float64() * resp[i].AvgPrice.Float64(),
+					RemainingAmount:      resp[i].Quantity.Float64() - resp[i].FilledQuantity.Float64(),
+					OrderID:              resp[i].ID,
+					ClientOrderID:        resp[i].ClientOrderID,
+					Status:               order.Filled,
+					AssetType:            assetType,
+					Date:                 resp[i].CreateTime.Time(),
+					LastUpdated:          resp[i].UpdateTime.Time(),
+				}
+				detail.InferCostsAndTimes()
+				orders = append(orders, detail)
+			}
+			return req.Filter(p.Name, orders), nil
+		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+			smartOrders, err := p.GetSmartOrderHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType),
+				orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
 			if err != nil {
 				return nil, err
 			}
-			if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
-				continue
+			var oSide order.Side
+			var oType order.Type
+			orders := make([]order.Detail, 0, len(smartOrders))
+			for i := range smartOrders {
+				var pair currency.Pair
+				pair, err = currency.NewPairFromString(smartOrders[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
+					continue
+				}
+				oSide, err = order.StringToOrderSide(smartOrders[i].Side)
+				if err != nil {
+					return nil, err
+				}
+				oType, err = order.StringToOrderType(smartOrders[i].Type)
+				if err != nil {
+					return nil, err
+				}
+				assetType, err := asset.New(smartOrders[i].AccountType)
+				if err != nil {
+					return nil, err
+				}
+				detail := order.Detail{
+					Side:          oSide,
+					Amount:        smartOrders[i].Amount.Float64(),
+					Price:         smartOrders[i].Price.Float64(),
+					TriggerPrice:  smartOrders[i].StopPrice.Float64(),
+					Pair:          pair,
+					Type:          oType,
+					Exchange:      p.Name,
+					OrderID:       smartOrders[i].ID,
+					ClientOrderID: smartOrders[i].ClientOrderID,
+					Status:        order.Filled,
+					AssetType:     assetType,
+					Date:          smartOrders[i].CreateTime.Time(),
+					LastUpdated:   smartOrders[i].UpdateTime.Time(),
+				}
+				detail.InferCostsAndTimes()
+				orders = append(orders, detail)
 			}
-			oSide, err = order.StringToOrderSide(resp[i].Side)
-			if err != nil {
-				return nil, err
-			}
-			oType, err = order.StringToOrderType(resp[i].Type)
-			if err != nil {
-				return nil, err
-			}
-			var assetType asset.Item
-			assetType, err = asset.New(resp[i].AccountType)
-			if err != nil {
-				return nil, err
-			}
-			detail := order.Detail{
-				Side:                 oSide,
-				Amount:               resp[i].Amount.Float64(),
-				ExecutedAmount:       resp[i].FilledAmount.Float64(),
-				Price:                resp[i].Price.Float64(),
-				AverageExecutedPrice: resp[i].AvgPrice.Float64(),
-				Pair:                 pair,
-				Type:                 oType,
-				Exchange:             p.Name,
-				QuoteAmount:          resp[i].Amount.Float64() * resp[i].AvgPrice.Float64(),
-				RemainingAmount:      resp[i].Quantity.Float64() - resp[i].FilledQuantity.Float64(),
-				OrderID:              resp[i].ID,
-				ClientOrderID:        resp[i].ClientOrderID,
-				Status:               order.Filled,
-				AssetType:            assetType,
-				Date:                 resp[i].CreateTime.Time(),
-				LastUpdated:          resp[i].UpdateTime.Time(),
-			}
-			detail.InferCostsAndTimes()
-			orders = append(orders, detail)
+			return orders, nil
+		default:
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Type)
 		}
-		return req.Filter(p.Name, orders), nil
 	case asset.Futures:
 		orderHistory, err := p.GetFuturesOrderListV2(ctx, "", "", orderSideString(req.Side), orderTypeString(req.Type), "", req.StartTime, req.EndTime, 0)
 		if err != nil {
@@ -1496,8 +1637,6 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				AssetType:       asset.Futures,
 				Date:            orderHistory.Items[i].CreatedAt.Time(),
 				LastUpdated:     orderHistory.Items[i].UpdatedAt.Time(),
-				// AverageExecutedPrice: orderHistory.Items[i].AvgPrice.Float64(),
-				// QuoteAmount:          orderHistory.Items[i].Size * orderHistory.Items[i].AvgPrice.Float64(),
 			}
 			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
@@ -1506,50 +1645,6 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	default:
 		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, req.AssetType)
 	}
-	// smartOrders, err := p.GetSmartOrderHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType),
-	// 	orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// for i := range smartOrders {
-	// 	var pair currency.Pair
-	// 	pair, err = currency.NewPairFromString(smartOrders[i].Symbol)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
-	// 		continue
-	// 	}
-	// 	oSide, err = order.StringToOrderSide(smartOrders[i].Side)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	oType, err = order.StringToOrderType(smartOrders[i].Type)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	assetType, err := asset.New(smartOrders[i].AccountType)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	detail := order.Detail{
-	// 		Side:          oSide,
-	// 		Amount:        smartOrders[i].Amount.Float64(),
-	// 		Price:         smartOrders[i].Price.Float64(),
-	// 		TriggerPrice:  smartOrders[i].StopPrice.Float64(),
-	// 		Pair:          pair,
-	// 		Type:          oType,
-	// 		Exchange:      p.Name,
-	// 		OrderID:       smartOrders[i].ID,
-	// 		ClientOrderID: smartOrders[i].ClientOrderID,
-	// 		Status:        order.Filled,
-	// 		AssetType:     assetType,
-	// 		Date:          smartOrders[i].CreateTime.Time(),
-	// 		LastUpdated:   smartOrders[i].UpdateTime.Time(),
-	// 	}
-	// 	detail.InferCostsAndTimes()
-	// 	orders = append(orders, detail)
-	// }
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
@@ -1784,7 +1879,6 @@ func (p *Poloniex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		timeChecked := time.Now()
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts.Data))
 		for i := range contracts.Data {
-			// timeOfNextFundingRate := time.Now().Add(time.Duration() * time.Millisecond).Truncate(time.Hour).UTC()
 			var cp currency.Pair
 			cp, err = currency.NewPairFromStrings(contracts.Data[i].BaseCurrency, contracts.Data[i].Symbol[len(contracts.Data[i].BaseCurrency):])
 			if err != nil {

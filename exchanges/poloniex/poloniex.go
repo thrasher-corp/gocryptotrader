@@ -877,13 +877,16 @@ func (p *Poloniex) CancelMultipleSmartOrders(ctx context.Context, args *OrderCan
 }
 
 // CancelAllSmartOrders batch cancel all smart orders in an account.
-func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTypes []string) ([]CancelOrderResponse, error) {
+func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTypes, orderTypes []string) ([]CancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) > 0 {
 		args["symbols"] = symbols
 	}
 	if len(accountTypes) > 0 {
 		args["accountTypes"] = accountTypes
+	}
+	if len(orderTypes) > 0 {
+		args["orderTypes"] = orderTypes
 	}
 	var resp []CancelOrderResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)

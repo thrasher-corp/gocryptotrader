@@ -350,6 +350,7 @@ const (
 	TakeProfit
 	TakeProfitMarket
 	TrailingStop
+	TrailingStopLimit
 	FillOrKill
 	IOS
 	AnyType

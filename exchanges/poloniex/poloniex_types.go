@@ -745,7 +745,7 @@ type CancelReplaceSmartOrderParam struct {
 	Amount           float64 `json:"amount,omitempty,string"`
 	AmendedType      string  `json:"type,omitempty,string"`
 	TimeInForce      string  `json:"timeInForce,omitempty"`
-	ProceedOnFailure bool    `json:"proceedOnFailure,omitempty,string"`
+	ProceedOnFailure bool    `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancelation of the existing smart order fails.
 }
 
 // CancelReplaceSmartOrderResponse represents a response parameter for order cancellation and replacement operation.
@@ -1398,8 +1398,8 @@ type OrderIDResponse struct {
 
 // FuturesCancelOrderResponse represents an order cancellation response.
 type FuturesCancelOrderResponse struct {
-	CancelFailedOrderIds []string `json:"cancelFailedOrderIds"`
-	CancelledOrderIds    []string `json:"cancelledOrderIds"`
+	CancelFailedOrderIDs []string `json:"cancelFailedOrderIds"`
+	CancelledOrderIDs    []string `json:"cancelledOrderIds"`
 }
 
 // FuturesOrders represents a paginated list of Futures orders.

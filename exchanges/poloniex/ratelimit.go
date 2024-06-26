@@ -34,6 +34,7 @@ const (
 	fOrderEPL
 	fCancelOrderEPL
 	fCancelAllLimitOrdersEPL
+	fCancelMultipleLimitOrdersEPL
 	fCancelAllStopOrdersEPL
 	fGetOrdersEPL
 	fGetUntriggeredStopOrderEPL
@@ -64,6 +65,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		fOrderEPL:                          request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
 		fCancelOrderEPL:                    request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
 		fCancelAllLimitOrdersEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 1, 1),
+		fCancelMultipleLimitOrdersEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
 		fCancelAllStopOrdersEPL:            request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),
 		fGetOrdersEPL:                      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
 		fGetUntriggeredStopOrderEPL:        request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),

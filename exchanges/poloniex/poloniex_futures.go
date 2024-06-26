@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -340,8 +341,6 @@ func (p *Poloniex) ChangeMarginMode(ctx context.Context, symbol string, marginTy
 	return p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authNonResourceIntensiveEPL, http.MethodPost, "/api/v1/marginType/change", params, nil, nil)
 }
 
-// Order endpoints.
-
 func futuresOrderParamsFilter(arg *FuturesOrderParams) error {
 	if arg == nil || *arg == (FuturesOrderParams{}) {
 		return common.ErrNilPointer
@@ -416,6 +415,31 @@ func (p *Poloniex) CancelAllFuturesLimitOrders(ctx context.Context, symbol, side
 	}
 	var resp *FuturesCancelOrderResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelAllLimitOrdersEPL, http.MethodDelete, "/api/v1/orders", params, nil, &resp)
+}
+
+// CancelMultipleFuturesLimitOrders cancel multiple open orders (excluding stop orders).
+// The response is a list of orderIDs (or clientOids) of the canceled orders.
+func (p *Poloniex) CancelMultipleFuturesLimitOrders(ctx context.Context, orderIDs, clientOrderIDs []string) (*FuturesCancelOrderResponse, error) {
+	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
+		return nil, errClientOrderIDOROrderIDsRequired
+	}
+	params := url.Values{}
+	if len(orderIDs) > 0 {
+		valString, err := json.Marshal(orderIDs)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("orderIds", string(valString))
+	}
+	if len(clientOrderIDs) > 0 {
+		valString, err := json.Marshal(clientOrderIDs)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("clientOids", string(valString))
+	}
+	var resp *FuturesCancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelMultipleLimitOrdersEPL, http.MethodDelete, "/api/v1/batchOrders", params, nil, &resp)
 }
 
 // CancelAllFuturesStopOrders cancel all untriggered stop orders. The response is a list of orderIDs of the canceled stop orders. To cancel triggered stop orders, please use 'Limit Order Mass Cancelation'.

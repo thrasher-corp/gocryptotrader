@@ -141,12 +141,11 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	var getOrdersRequest = order.MultiOrderRequest{
+	result, err := p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
-	}
-	result, err := p.GetOrderHistory(context.Background(), &getOrdersRequest)
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -154,7 +153,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	var orderSubmission = &order.Submit{
+	result, err := p.SubmitOrder(context.Background(), &order.Submit{
 		Exchange: p.Name,
 		Pair: currency.Pair{
 			Delimiter: currency.UnderscoreDelimiter,
@@ -167,8 +166,7 @@ func TestSubmitOrder(t *testing.T) {
 		Amount:    10000000,
 		ClientID:  "hi",
 		AssetType: asset.Spot,
-	}
-	result, err := p.SubmitOrder(context.Background(), orderSubmission)
+	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -194,29 +192,26 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	err := p.CancelOrder(context.Background(), &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          spotTradablePair,
 		AssetType:     asset.Spot,
-	}
-	err := p.CancelOrder(context.Background(), orderCancellation)
+	})
 	assert.NoError(t, err)
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	result, err := p.CancelAllOrders(context.Background(), &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          spotTradablePair,
 		AssetType:     asset.Spot,
-	}
-
-	result, err := p.CancelAllOrders(context.Background(), orderCancellation)
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1149,7 +1144,7 @@ func TestCancelMultipleSmartOrders(t *testing.T) {
 func TestCancelAllSmartOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.CancelAllSmartOrders(context.Background(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	result, err := p.CancelAllSmartOrders(context.Background(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1673,6 +1668,14 @@ func TestCancelAllFuturesLimitOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CancelAllFuturesLimitOrders(context.Background(), "BTCUSDTPERP", "sell")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelMultipleFuturesLimitOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CancelMultipleFuturesLimitOrders(context.Background(), []string{"12345", "67867"}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
