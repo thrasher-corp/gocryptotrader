@@ -1016,14 +1016,14 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 }
 
 const subTplText = `
-{{ with $ctx := . }}{{ with $s := $ctx.Sub }}
-{{ range $pair := index $ctx.AssetPairs $s.Asset }}
+{{ range $pair := index $.AssetPairs $.S.Asset }}
   {{ fmt $pair -}} @
-  {{- if eq $s.Channel "ticker"         -}} ticker
-  {{- else if eq $s.Channel "allTrades" -}} trade
-  {{- else if eq $s.Channel "candles"   -}} kline       {{- interval $s}}
-  {{- else if eq $s.Channel "orderbook" -}} depth       {{- levels $s}}{{- interval $s}}
-  {{ end }}
-  {{ $ctx.PairSeparator }}
-{{end}}{{end}}{{end}}
+  {{- with $c := $.S.Channel -}}
+  {{ if eq $c "ticker"         -}} ticker
+  {{ else if eq $c "allTrades" -}} trade
+  {{ else if eq $c "candles"   -}} kline  {{- interval $.S }}
+  {{ else if eq $c "orderbook" -}} depth  {{- levels $.S }}{{ interval $.S }}
+  {{- end }}{{ end }}
+  {{ $.PairSeparator }}
+{{end}}
 `
