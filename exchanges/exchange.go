@@ -776,10 +776,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			if err != nil {
 				continue
 			}
-			diff.Remove, err = diff.Remove.Remove(enabledPairs[x])
-			if err != nil {
-				return err
-			}
+			diff.Remove = diff.Remove.Remove(enabledPairs[x])
 			enabledPairs[target] = match.Format(pFmt)
 		}
 		target++

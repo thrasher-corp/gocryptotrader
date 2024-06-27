@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -202,62 +203,18 @@ func TestRemove(t *testing.T) {
 		NewPair(LTC, USDT),
 	}
 
-	compare := make(Pairs, len(oldPairs))
-	copy(compare, oldPairs)
+	compare := slices.Clone(oldPairs)
 
-	p := NewPair(BTC, USD)
-	newPairs, err := oldPairs.Remove(p)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	newPairs := oldPairs.Remove(oldPairs[:2]...)
 
-	err = compare.ContainsAll(oldPairs, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := compare.ContainsAll(oldPairs, true)
+	assert.NoError(t, err, "Remove should not affect the original pairs")
 
-	if newPairs.Contains(p, true) || len(newPairs) != 2 {
-		t.Error("TestRemove unexpected result")
-	}
+	require.Len(t, newPairs, 1, "Remove should remove a pair")
+	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
 
-	_, err = newPairs.Remove(p)
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
-
-	newPairs, err = oldPairs.Remove(p)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	newPairs, err = newPairs.Remove(NewPair(LTC, USD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	err = compare.ContainsAll(oldPairs, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = newPairs.Remove(NewPair(LTC, USD))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
-
-	newPairs, err = newPairs.Remove(NewPair(LTC, USDT))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	if len(newPairs) != 0 {
-		t.Error("unexpected value")
-	}
-
-	_, err = newPairs.Remove(NewPair(LTC, USDT))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
+	newPairs = newPairs.Remove(oldPairs[0])
+	assert.Len(t, newPairs, 1, newPairs, "Remove have no effect on non-included pairs")
 }
 
 func TestAdd(t *testing.T) {
