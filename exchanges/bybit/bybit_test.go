@@ -618,6 +618,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)

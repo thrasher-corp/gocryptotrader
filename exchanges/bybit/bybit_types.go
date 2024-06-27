@@ -94,6 +94,7 @@ type InstrumentInfo struct {
 		QuotePrecision      types.Number `json:"quotePrecision"`
 		MinOrderAmt         types.Number `json:"minOrderAmt"`
 		MaxOrderAmt         types.Number `json:"maxOrderAmt"`
+		MinNotionalValue    types.Number `json:"minNotionalValue"`
 	} `json:"lotSizeFilter"`
 	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
 	FundingInterval    int64  `json:"fundingInterval"`
