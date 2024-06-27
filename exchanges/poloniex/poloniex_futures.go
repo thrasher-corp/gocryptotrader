@@ -208,8 +208,8 @@ func (p *Poloniex) GetServiceStatus(ctx context.Context) (*ServiceStatus, error)
 	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/status", &resp)
 }
 
-// GetKlineDataOfContract retrieves candlestick information
-func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, granularity int64, from, to time.Time) ([]KlineChartData, error) {
+// GetFuturesKlineDataOfContract retrieves candlestick information
+func (p *Poloniex) GetFuturesKlineDataOfContract(ctx context.Context, symbol string, granularity int64, from, to time.Time) ([]KlineChartData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -236,7 +236,7 @@ func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, gr
 // GetPublicFuturesWebsocketServerInstances retrieves the server list and temporary public token.
 func (p *Poloniex) GetPublicFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
 	var resp *FuturesWebsocketServerInstances
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/bullet-public", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/bullet-public", &resp, http.MethodPost)
 }
 
 // GetPrivateFuturesWebsocketServerInstances retrieves authenticated list of servers and temporary token.

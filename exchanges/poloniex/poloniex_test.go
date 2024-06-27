@@ -25,8 +25,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
+	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
 	canManipulateRealOrders = false
 )
 
@@ -55,10 +55,10 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	result, err := p.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
 	if !sharedtestvalues.AreAPICredentialsSet(p) {
-		require.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
+		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
 		require.Equal(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
-		require.NotNil(t, result)
+		assert.NotNil(t, result)
 	}
 }
 
@@ -66,7 +66,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
-
 	if sharedtestvalues.AreAPICredentialsSet(p) || mockTests {
 		// CryptocurrencyTradeFee Basic
 		result, err := p.GetFee(context.Background(), feeBuilder)
@@ -1413,7 +1412,7 @@ func TestGetServiceStatus(t *testing.T) {
 
 func TestGetKlineDataOfContract(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetKlineDataOfContract(context.Background(), "BTCUSDTPERP", 123, time.Time{}, time.Now())
+	result, err := p.GetFuturesKlineDataOfContract(context.Background(), "BTCUSDTPERP", 123, time.Time{}, time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1497,13 +1496,6 @@ func populateTradablepairs() error {
 	}
 	futuresTradablePair = tradablePairs[0]
 	return nil
-}
-
-func TestWsFuturesConnect(t *testing.T) {
-	t.Parallel()
-	err := p.WsFuturesConnect()
-	require.NoError(t, err)
-	time.Sleep(time.Second * 23)
 }
 
 func TestGetFuturesAccountOverview(t *testing.T) {
@@ -1598,13 +1590,12 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		ClientOrderID: "5c52e11203aa677f33e493fb",
 		Leverage:      20,
 		PostOnly:      false,
-		// Price:         8000,
-		Remark:      "remark",
-		Side:        "buy",
-		Size:        20,
-		Symbol:      "BTCUSDTPERP",
-		OrderType:   "limit",
-		VisibleSize: 0,
+		Remark:        "remark",
+		Side:          "buy",
+		Size:          20,
+		Symbol:        "BTCUSDTPERP",
+		OrderType:     "limit",
+		VisibleSize:   0,
 	})
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 

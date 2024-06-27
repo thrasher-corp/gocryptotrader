@@ -277,11 +277,9 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-
 			if !enabledPairs.Contains(pair, true) {
 				continue
 			}
-
 			err = ticker.ProcessTicker(&ticker.Price{
 				AssetType:    assetType,
 				Pair:         pair,
@@ -388,7 +386,6 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			book.Bids[y].Price = orderbookNew.Bids[y*2].Float64()
 			book.Bids[y].Amount = orderbookNew.Bids[y*2+1].Float64()
 		}
-
 		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks)/2)
 		for y := range book.Asks {
 			book.Asks[y].Price = orderbookNew.Asks[y*2].Float64()
@@ -404,12 +401,13 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			book.Bids[y].Price = orderbookNew.Data.Bids[y][0].Float64()
 			book.Bids[y].Amount = orderbookNew.Data.Bids[y][1].Float64()
 		}
-
 		book.Asks = make(orderbook.Tranches, len(orderbookNew.Data.Asks))
 		for y := range book.Asks {
 			book.Asks[y].Price = orderbookNew.Data.Asks[y][0].Float64()
 			book.Asks[y].Amount = orderbookNew.Data.Asks[y][1].Float64()
 		}
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	err = book.Process()
 	if err != nil {
@@ -587,6 +585,8 @@ func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				Timestamp:    tradeData.Data[i].Timestamp.Time(),
 			})
 		}
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	err = p.AddTradesToBuffer(resp...)
 	if err != nil {
@@ -671,8 +671,7 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 			})
 		}
 	}
-	err = p.AddTradesToBuffer(resp...)
-	if err != nil {
+	if err = p.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
 	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
@@ -688,8 +687,8 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-
-	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
+	var err error
+	s.Pair, err = p.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +706,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if smartOrder {
 			var sOrder *PlaceOrderResponse
 			sOrder, err = p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
-				Symbol:        fPair,
+				Symbol:        s.Pair,
 				Side:          orderSideString(s.Side),
 				Type:          orderTypeString(s.Type),
 				AccountType:   accountTypeString(s.AssetType),
@@ -722,7 +721,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return s.DeriveSubmitResponse(sOrder.ID)
 		}
 		arg := &PlaceOrderParams{
-			Symbol:      fPair,
+			Symbol:      s.Pair,
 			Price:       s.Price,
 			Amount:      s.Amount,
 			AllowBorrow: false,
@@ -761,11 +760,13 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				case order.Buy:
 					stopOrderBoundary = "down"
 				}
-			case order.TrailingStop:
+			case order.TrailingStop, order.Stop:
 				switch s.Side {
 				case order.Sell:
+					// Stop-loss when order type is order.Stop
 					stopOrderBoundary = "down"
 				case order.Buy:
+					// Take Profit when order type is order.Stop
 					stopOrderBoundary = "up"
 				}
 			}
@@ -789,8 +790,9 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(response.OrderID)
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	return nil, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -858,11 +860,18 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	var err error
 	switch o.AssetType {
 	case asset.Spot:
-		_, err = p.CancelOrderByID(ctx, o.OrderID)
+		switch o.Type {
+		case order.Limit, order.Market:
+			_, err = p.CancelOrderByID(ctx, o.OrderID)
+		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+			_, err = p.CancelSmartOrderByID(ctx, o.OrderID, o.ClientOrderID)
+		default:
+			return fmt.Errorf("%w order type: %v", order.ErrUnsupportedOrderType, o.Type)
+		}
 	case asset.Futures:
 		_, err = p.CancelFuturesOrderByID(ctx, o.OrderID)
 	default:
-		return asset.ErrNotSupported
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
 }
@@ -1044,7 +1053,7 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			cancelAllOrdersResponse.Status[result.CancelFailedOrderIDs[x]] = "Failed"
 		}
 	default:
-		return cancelAllOrdersResponse, asset.ErrNotSupported
+		return cancelAllOrdersResponse, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, cancelOrd.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -1202,17 +1211,16 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			QuoteAmount:     fResults.Value.Float64(),
 			ExecutedAmount:  fResults.FilledSize,
 			RemainingAmount: fResults.Size - fResults.FilledSize,
-			// Cost:            fResults.FilledQuantity.Float64() * resp.AvgPrice.Float64(),
-			OrderID:       fResults.OrderID,
-			Exchange:      p.Name,
-			ClientOrderID: fResults.ClientOrderID,
-			Type:          oType,
-			Side:          oSide,
-			Status:        oStatus,
-			AssetType:     asset.Futures,
-			Date:          fResults.CreatedAt.Time(),
-			LastUpdated:   fResults.UpdatedAt.Time(),
-			Pair:          dPair,
+			OrderID:         fResults.OrderID,
+			Exchange:        p.Name,
+			ClientOrderID:   fResults.ClientOrderID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       asset.Futures,
+			Date:            fResults.CreatedAt.Time(),
+			LastUpdated:     fResults.UpdatedAt.Time(),
+			Pair:            dPair,
 		}, nil
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
@@ -1679,7 +1687,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		}
 		return req.ProcessResponse(timeSeries)
 	case asset.Futures:
-		resp, err := p.GetKlineDataOfContract(ctx, req.RequestFormatted.String(), 0, req.Start, req.End)
+		resp, err := p.GetFuturesKlineDataOfContract(ctx, req.RequestFormatted.String(), 0, req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}
@@ -1732,7 +1740,7 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 	case asset.Futures:
 		for i := range req.RangeHolder.Ranges {
-			resp, err := p.GetKlineDataOfContract(ctx,
+			resp, err := p.GetFuturesKlineDataOfContract(ctx,
 				req.RequestFormatted.String(),
 				// req.ExchangeInterval
 				0,

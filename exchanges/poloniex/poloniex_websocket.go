@@ -583,10 +583,6 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.Lis
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(subs subscription.List) error {
-	var canUseAuthenticate bool
-	if p.Websocket.CanUseAuthenticatedEndpoints() {
-		canUseAuthenticate = true
-	}
 	payloads, err := p.handleSubscriptions("subscribe", subs)
 	if err != nil {
 		return err
@@ -597,7 +593,7 @@ func (p *Poloniex) Subscribe(subs subscription.List) error {
 
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
-			if canUseAuthenticate {
+			if p.Websocket.CanUseAuthenticatedEndpoints() {
 				err = p.Websocket.AuthConn.SendJSONMessage(payloads[i])
 				if err != nil {
 					return err
@@ -615,10 +611,6 @@ func (p *Poloniex) Subscribe(subs subscription.List) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub subscription.List) error {
-	var canUseAuthenticate bool
-	if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
-		canUseAuthenticate = true
-	}
 	payloads, err := p.handleSubscriptions("unsubscribe", unsub)
 	if err != nil {
 		return err
@@ -626,7 +618,7 @@ func (p *Poloniex) Unsubscribe(unsub subscription.List) error {
 	for i := range payloads {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
-			if canUseAuthenticate {
+			if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
 				err = p.Websocket.AuthConn.SendJSONMessage(payloads[i])
 				if err != nil {
 					return err

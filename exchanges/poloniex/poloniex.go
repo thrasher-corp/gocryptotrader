@@ -835,11 +835,11 @@ func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]Smart
 
 // GetSmartOrderDetail get a smart order’s status. {id} can be smart order’s id or its clientOrderId (prefix with cid: ).
 // If smart order’s state is TRIGGERED, the response will include the triggered order’s data
-func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, id, clientSuppliedID string) ([]SmartOrderDetail, error) {
+func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppliedID string) ([]SmartOrderDetail, error) {
 	var path string
 	switch {
-	case id != "":
-		path = "/smartorders/" + id
+	case orderID != "":
+		path = "/smartorders/" + orderID
 	case clientSuppliedID != "":
 		path = "/smartorders/cid:" + clientSuppliedID
 	default:
@@ -996,14 +996,18 @@ func (p *Poloniex) GetTradesByOrderID(ctx context.Context, orderID string) ([]Tr
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}, methods ...string) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
+	method := http.MethodGet
+	if len(methods) == 1 {
+		method = methods[0]
+	}
 	var rawResponse *ResponseResult
 	item := &request.Item{
-		Method:        http.MethodGet,
+		Method:        method,
 		Path:          endpoint + path,
 		Result:        &rawResponse,
 		Verbose:       p.Verbose,
