@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -27,7 +26,7 @@ var (
 )
 
 type tplCtx struct {
-	Sub            *Subscription
+	S              *Subscription
 	AssetPairs     assetPairs
 	PairSeparator  string
 	AssetSeparator string
@@ -73,7 +72,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 		}
 
 		subCtx := &tplCtx{
-			Sub:            s,
+			S:              s,
 			AssetPairs:     ap,
 			PairSeparator:  recordSeparator,
 			AssetSeparator: groupSeparator,
@@ -126,7 +125,6 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 					return nil, fmt.Errorf("%w: %s", asset.ErrInvalidAsset, a)
 				}
 				if len(pairLines) != len(pairs) {
-					spew.Dump(pairLines)
 					return nil, fmt.Errorf("%w: Got %d; Expected %d", errPairRecords, len(pairLines), len(pairs))
 				}
 			}
