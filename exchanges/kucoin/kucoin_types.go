@@ -1459,6 +1459,13 @@ type WsMarginTradeOrderDoneEvent struct {
 	Timestamp convert.ExchangeTime `json:"ts"`
 }
 
+// WsFuturesKline represents a futures kline data.
+type WsFuturesKline struct {
+	Symbol  string               `json:"symbol"`
+	Candles [7]types.Number      `json:"candles"` // Start Time, Open Price, Close Price, High Price, Low Price, Transaction Volume, and Transaction Amount respectively.
+	Time    convert.ExchangeTime `json:"time"`
+}
+
 // WsStopOrder represents a stop order.
 // When a stop order is received by the system, you will receive a message with "open" type.
 // It means that this order entered the system and waited to be triggered.
