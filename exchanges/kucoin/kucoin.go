@@ -2498,3 +2498,148 @@ func (ku *Kucoin) orderSideString(side order.Side) (string, error) {
 		return "", fmt.Errorf("%w, side:%s", order.ErrSideIsInvalid, side.String())
 	}
 }
+
+// GetTradingPairActualFees retrieves list of trading pairs and fees.
+func (ku *Kucoin) GetTradingPairActualFees(ctx context.Context, symbols []string) ([]TradingPairFee, error) {
+	params := url.Values{}
+	if len(symbols) > 0 {
+		params.Set("symbols", strings.Join(symbols, ","))
+	}
+	var resp []TradingPairFee
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, tradingPairActualFeeEPL, http.MethodGet, common.EncodeURLValues("/v1/trade-fees", params), nil, &resp)
+}
+
+// -----------------------------------------------------------  Earn Endpoints  ----------------------------------------------------------------
+
+// SubscribeToEarnFixedIncomeProduct allows subscribing to fixed income products. If the subscription fails, it returns the corresponding error code.
+func (ku *Kucoin) SubscribeToEarnFixedIncomeProduct(ctx context.Context, productID, accountType string, amount float64) (*SusbcribeEarn, error) {
+	if productID == "" {
+		return nil, errors.New("product ID is missing")
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if accountType == "" {
+		return nil, errors.New("account type is required, with possible values of MAIN and TRADE")
+	}
+	arg := map[string]interface{}{
+		"productId":   productID,
+		"accountType": accountType,
+		"amount":      amount,
+	}
+	var resp *SusbcribeEarn
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, subscribeToEarnEPL, http.MethodPost, "/v1/earn/orders", arg, &resp)
+}
+
+// RedeemByEarnHoldingID allows initiating redemption by holding ID.
+// If the current holding is fully redeemed or in the process of being redeemed, it indicates that the holding does not exist.
+// Confirmation field for early redemption penalty: 1 (confirm early redemption, and the current holding will be fully redeemed).
+// This parameter is valid only for fixed-term products
+func (ku *Kucoin) RedeemByEarnHoldingID(ctx context.Context, orderID, fromAccountType, confirmPunishRedeem string, amount float64) (*EarnRedeem, error) {
+	params := url.Values{}
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params.Set("orderId", orderID)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if fromAccountType != "" {
+		params.Set("fromAccountType", fromAccountType)
+	}
+	if confirmPunishRedeem != "" {
+		params.Set("confirmPunishRedeem", confirmPunishRedeem)
+	}
+	var resp *EarnRedeem
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, earnRedemptionEPL, http.MethodDelete, common.EncodeURLValues("/v1/earn/orders", params), nil, &resp)
+}
+
+// GetEarnRedeemPreviewByHoldingID retrieves redemption preview information by holding ID.
+// If the current holding is fully redeemed or in the process of being redeemed, it indicates that the holding does not exist.
+func (ku *Kucoin) GetEarnRedeemPreviewByHoldingID(ctx context.Context, orderID, fromAccountType string) (*EarnRedemptionPreview, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("orderId", orderID)
+	if fromAccountType != "" {
+		params.Set("fromAccountType", fromAccountType)
+	}
+	var resp *EarnRedemptionPreview
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, earnRedemptionPreviewEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/redeem-preview", params), nil, &resp)
+}
+
+// ---------------------------------------------------------------- Kucoin Earn ----------------------------------------------------------------
+
+// GetEarnSavingsProducts retrieves savings products. If no savings products are available, an empty list is returned.
+func (ku *Kucoin) GetEarnSavingsProducts(ctx context.Context, ccy currency.Code) ([]EarnSavingProduct, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []EarnSavingProduct
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, kucoinEarnSavingsProductsEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/saving/products", params), nil, &resp)
+}
+
+// GetEarnFixedIncomeCurrentHoldings retrieves current holding assets of fixed income products. If no current holding assets are available, an empty list is returned.
+func (ku *Kucoin) GetEarnFixedIncomeCurrentHoldings(ctx context.Context, productID, productCategory string, ccy currency.Code, currentPage, pageSize int64) (*FixedIncomeEarnHoldings, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if productCategory != "" {
+		params.Set("productCategory", productCategory)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if currentPage > 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *FixedIncomeEarnHoldings
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, kucoinEarnFixedIncomeCurrentHoldingEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/hold-assets", params), nil, &resp)
+}
+
+// GetLimitedTimePromotionProducts retrieves limited-time promotion products. If no products are available, an empty list is returned.
+func (ku *Kucoin) GetLimitedTimePromotionProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []EarnProduct
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, earnLimitedTimePromotionProductEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/promotion/products", params), nil, &resp)
+}
+
+// ---------------------------------------------------------------- Staking Endpoints ----------------------------------------------------------------
+
+// GetEarnKCSStakingProducts retrieves KCS Staking products. If no KCS Staking products are available, an empty list is returned.
+func (ku *Kucoin) GetEarnKCSStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []EarnProduct
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, earnKCSStakingProductEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/kcs-staking/products", params), nil, &resp)
+}
+
+// GetEarnStakingProducts retrieves staking products. If no staking products are available, an empty list is returned.
+func (ku *Kucoin) GetEarnStakingProducts(ctx context.Context, ccy currency.Code) ([]EarnProduct, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []EarnProduct
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, earnStakingProductEPL, http.MethodGet, common.EncodeURLValues("/v1/earn/staking/products", params), nil, &resp)
+}
+
+// GetEarnETHStakingProducts retrieves ETH Staking products. If no ETH Staking products are available, an empty list is returned.
+func (ku *Kucoin) GetEarnETHStakingProducts(ctx context.Context) ([]EarnProduct, error) {
+	var resp []EarnProduct
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, earnStakingProductEPL, http.MethodGet, "/v1/earn/eth-staking/products", nil, &resp)
+}
+
+// ---------------------------------------------------------------- VIP Lending ----------------------------------------------------------------

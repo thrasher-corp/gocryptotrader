@@ -32,7 +32,10 @@ const (
 	crossMarginAccountsDetailEPL
 	isolatedMarginAccountDetailEPL
 	futuresAccountsDetailEPL
+	tradingPairActualFeeEPL
 	allFuturesSubAccountBalancesEPL
+	futuresTradingPairFeeEPL
+	futuresPositionHistoryEPL
 	createDepositAddressEPL
 	depositAddressesV2EPL
 	depositAddressesV1EPL
@@ -186,6 +189,16 @@ const (
 	transferOutToMainEPL
 	transferFundToFuturesAccountEPL
 	futuresTransferOutListEPL
+
+	subscribeToEarnEPL
+	earnRedemptionEPL
+	earnRedemptionPreviewEPL
+
+	kucoinEarnSavingsProductsEPL
+	kucoinEarnFixedIncomeCurrentHoldingEPL
+	earnLimitedTimePromotionProductEPL
+	earnKCSStakingProductEPL
+	earnStakingProductEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -218,7 +231,10 @@ func GetRateLimit() request.RateLimitDefinitions {
 		crossMarginAccountsDetailEPL:                  request.GetRateLimiterWithWeight(spotRate, 15),
 		isolatedMarginAccountDetailEPL:                request.GetRateLimiterWithWeight(spotRate, 15),
 		futuresAccountsDetailEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
+		tradingPairActualFeeEPL:                       request.GetRateLimiterWithWeight(spotRate, 3),
 		allFuturesSubAccountBalancesEPL:               request.GetRateLimiterWithWeight(futuresRate, 6),
+		futuresTradingPairFeeEPL:                      request.GetRateLimiterWithWeight(futuresRate, 3),
+		futuresPositionHistoryEPL:                     request.GetRateLimiterWithWeight(futuresRate, 2),
 		createDepositAddressEPL:                       request.GetRateLimiterWithWeight(managementRate, 20),
 		depositAddressesV2EPL:                         request.GetRateLimiterWithWeight(managementRate, 5),
 		depositAddressesV1EPL:                         request.GetRateLimiterWithWeight(managementRate, 5),
@@ -372,5 +388,16 @@ func GetRateLimit() request.RateLimitDefinitions {
 		transferOutToMainEPL:                          request.GetRateLimiterWithWeight(managementRate, 20),
 		transferFundToFuturesAccountEPL:               request.GetRateLimiterWithWeight(managementRate, 20),
 		futuresTransferOutListEPL:                     request.GetRateLimiterWithWeight(managementRate, 20),
+
+		subscribeToEarnEPL:       request.GetRateLimiterWithWeight(spotRate, 5),
+		earnRedemptionEPL:        request.GetRateLimiterWithWeight(spotRate, 5),
+		earnRedemptionPreviewEPL: request.GetRateLimiterWithWeight(spotRate, 5),
+
+		kucoinEarnSavingsProductsEPL:           request.GetRateLimiterWithWeight(spotRate, 5),
+		kucoinEarnFixedIncomeCurrentHoldingEPL: request.GetRateLimiterWithWeight(spotRate, 5),
+		earnLimitedTimePromotionProductEPL:     request.GetRateLimiterWithWeight(spotRate, 5),
+
+		earnKCSStakingProductEPL: request.GetRateLimiterWithWeight(spotRate, 5),
+		earnStakingProductEPL:    request.GetRateLimiterWithWeight(spotRate, 5),
 	}
 }

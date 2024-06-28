@@ -78,11 +78,12 @@ const (
 )
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
-	subscription.OrderbookChannel: marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
-	subscription.CandlesChannel:   marketCandlesChannel,
-	subscription.AllTradesChannel: marketMatchChannel,
+	// subscription.TickerChannel:    marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
+	// subscription.OrderbookChannel: marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
+	// subscription.CandlesChannel:   marketCandlesChannel,
+	// subscription.AllTradesChannel: marketMatchChannel,
 	// No equivalents for: AllOrders, MyTrades, MyOrders
+	subscription.CandlesChannel: futuresLimitCandles,
 }
 
 var (

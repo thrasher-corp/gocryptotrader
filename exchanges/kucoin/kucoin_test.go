@@ -35,9 +35,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passPhrase              = ""
+	apiKey                  = "65e7f22077172b0001f9ee41"
+	apiSecret               = "4c903fe0-b041-4ecc-9978-9fea08c50e12"
+	passPhrase              = "PNqRwhUgifU5N5jseq94"
 	canManipulateRealOrders = false
 )
 
@@ -3063,4 +3063,100 @@ func testInstance(tb testing.TB) *Kucoin {
 		jobs:  make(chan job, maxWSOrderbookJobs),
 	}
 	return ku
+}
+
+func TestGetTradingPairActualFees(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetTradingPairActualFees(context.Background(), []string{spotTradablePair.String()})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesTradingPairsActualFees(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetFuturesTradingPairsActualFees(context.Background(), futuresTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPositionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetPositionHistory(context.Background(), futuresTradablePair.String(), time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubscribeToEarnFixedIncomeProduct(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	result, err := ku.SubscribeToEarnFixedIncomeProduct(context.Background(), "1232412", "MAIN", 12.2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemByEarnHoldingID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	result, err := ku.RedeemByEarnHoldingID(context.Background(), "123231", "TRADE", "1", 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarnRedeemPreviewByHoldingID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetEarnRedeemPreviewByHoldingID(context.Background(), "12345", "MAIN")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarnSavingsProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetEarnSavingsProducts(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarnFixedIncomeCurrentHoldings(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetEarnFixedIncomeCurrentHoldings(context.Background(), "12312", "", currency.EMPTYCODE, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLimitedTimePromotionProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetLimitedTimePromotionProducts(context.Background(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarnKCSStakingProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetEarnKCSStakingProducts(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarnStakingProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetEarnStakingProducts(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarnETHStakingProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetEarnETHStakingProducts(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

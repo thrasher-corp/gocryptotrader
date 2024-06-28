@@ -2140,3 +2140,145 @@ type Level2Depth5Or20 struct {
 	Bids      [][2]types.Number `json:"bids"`
 	Timestamp int64             `json:"timestamp"`
 }
+
+// TradingPairFee represents actual fee information of a trading fee.
+type TradingPairFee struct {
+	Symbol       string       `json:"symbol"`
+	TakerFeeRate types.Number `json:"takerFeeRate"`
+	MakerFeeRate types.Number `json:"makerFeeRate"`
+}
+
+// FuturesPositionHistory represents a position history of futures asset.
+type FuturesPositionHistory struct {
+	CurrentPage int `json:"currentPage"`
+	PageSize    int `json:"pageSize"`
+	TotalNum    int `json:"totalNum"`
+	TotalPage   int `json:"totalPage"`
+	Items       []struct {
+		CloseID            string               `json:"closeId"`
+		PositionID         string               `json:"positionId"`
+		UID                int64                `json:"uid"`
+		UserID             string               `json:"userId"`
+		Symbol             string               `json:"symbol"`
+		SettleCurrency     string               `json:"settleCurrency"`
+		Leverage           types.Number         `json:"leverage"`
+		Type               string               `json:"type"`
+		Side               string               `json:"side"`
+		CloseSize          string               `json:"closeSize"`
+		PNL                types.Number         `json:"pnl"`
+		RealisedGrossCost  string               `json:"realisedGrossCost"`
+		WithdrawPNL        string               `json:"withdrawPnl"`
+		ReturnOnEquityRate types.Number         `json:"roe"`
+		TradeFee           types.Number         `json:"tradeFee"`
+		FundingFee         types.Number         `json:"fundingFee"`
+		OpenTime           convert.ExchangeTime `json:"openTime"`
+		CloseTime          convert.ExchangeTime `json:"closeTime"`
+		OpenPrice          types.Number         `json:"openPrice"`
+		ClosePrice         types.Number         `json:"closePrice"`
+	} `json:"items"`
+}
+
+// SusbcribeEarn represents a subscription to earn
+type SusbcribeEarn struct {
+	OrderID             string `json:"orderId"`
+	SubscriptionOrderID string `json:"orderTxId"`
+}
+
+// EarnRedeem represents an earn redeem by holding id.
+type EarnRedeem struct {
+	RedemptionOrderID string               `json:"orderTxId"`
+	DeliverTime       convert.ExchangeTime `json:"deliverTime"`
+	Status            string               `json:"status"`
+	Amount            types.Number         `json:"amount"`
+}
+
+// EarnRedemptionPreview represents a redemption information of a holding.
+type EarnRedemptionPreview struct {
+	Currency              string               `json:"currency"`
+	RedeemAmount          types.Number         `json:"redeemAmount"`
+	PenaltyInterestAmount types.Number         `json:"penaltyInterestAmount"`
+	RedeemPeriod          int64                `json:"redeemPeriod"`
+	DeliverTime           convert.ExchangeTime `json:"deliverTime"`
+	ManualRedeemable      bool                 `json:"manualRedeemable"`
+	RedeemAll             bool                 `json:"redeemAll"`
+}
+
+// EarnSavingProduct represents a saving product instance.
+type EarnSavingProduct struct {
+	ID                   string               `json:"id"`
+	Currency             string               `json:"currency"`
+	Category             string               `json:"category"`
+	Type                 string               `json:"type"`
+	Precision            int64                `json:"precision"`
+	ProductUpperLimit    string               `json:"productUpperLimit"`
+	UserUpperLimit       string               `json:"userUpperLimit"`
+	UserLowerLimit       string               `json:"userLowerLimit"`
+	RedeemPeriod         int64                `json:"redeemPeriod"`
+	LockStartTime        convert.ExchangeTime `json:"lockStartTime"`
+	LockEndTime          convert.ExchangeTime `json:"lockEndTime"`
+	ApplyStartTime       convert.ExchangeTime `json:"applyStartTime"`
+	ApplyEndTime         convert.ExchangeTime `json:"applyEndTime"`
+	ReturnRate           string               `json:"returnRate"`
+	IncomeCurrency       string               `json:"incomeCurrency"`
+	EarlyRedeemSupported int64                `json:"earlyRedeemSupported"`
+	ProductRemainAmount  string               `json:"productRemainAmount"`
+	Status               string               `json:"status"`
+	RedeemType           string               `json:"redeemType"`
+	IncomeReleaseType    string               `json:"incomeReleaseType"`
+	InterestDate         int64                `json:"interestDate"`
+	Duration             int64                `json:"duration"`
+	NewUserOnly          int64                `json:"newUserOnly"`
+}
+
+// FixedIncomeEarnHoldings
+type FixedIncomeEarnHoldings struct {
+	TotalNum int64 `json:"totalNum"`
+	Items    []struct {
+		OrderID              string               `json:"orderId"`
+		ProductID            string               `json:"productId"`
+		ProductCategory      string               `json:"productCategory"`
+		ProductType          string               `json:"productType"`
+		Currency             string               `json:"currency"`
+		IncomeCurrency       string               `json:"incomeCurrency"`
+		ReturnRate           types.Number         `json:"returnRate"`
+		HoldAmount           types.Number         `json:"holdAmount"`
+		RedeemedAmount       types.Number         `json:"redeemedAmount"`
+		RedeemingAmount      types.Number         `json:"redeemingAmount"`
+		LockStartTime        int64                `json:"lockStartTime"`
+		LockEndTime          convert.ExchangeTime `json:"lockEndTime"`
+		PurchaseTime         convert.ExchangeTime `json:"purchaseTime"`
+		RedeemPeriod         int64                `json:"redeemPeriod"`
+		Status               string               `json:"status"`
+		EarlyRedeemSupported int64                `json:"earlyRedeemSupported"`
+	} `json:"items"`
+	CurrentPage int64 `json:"currentPage"`
+	PageSize    int64 `json:"pageSize"`
+	TotalPage   int64 `json:"totalPage"`
+}
+
+// EarnProduct represents a time-limited earn limited product item.
+type EarnProduct struct {
+	ID                   string               `json:"id"`
+	Currency             string               `json:"currency"`
+	Category             string               `json:"category"`
+	Type                 string               `json:"type"`
+	Precision            float64              `json:"precision"`
+	ProductUpperLimit    types.Number         `json:"productUpperLimit"`
+	UserUpperLimit       types.Number         `json:"userUpperLimit"`
+	UserLowerLimit       types.Number         `json:"userLowerLimit"`
+	RedeemPeriod         int64                `json:"redeemPeriod"`
+	LockStartTime        convert.ExchangeTime `json:"lockStartTime"`
+	LockEndTime          convert.ExchangeTime `json:"lockEndTime"`
+	ApplyStartTime       convert.ExchangeTime `json:"applyStartTime"`
+	ApplyEndTime         convert.ExchangeTime `json:"applyEndTime"`
+	ReturnRate           types.Number         `json:"returnRate"`
+	IncomeCurrency       string               `json:"incomeCurrency"`
+	EarlyRedeemSupported int64                `json:"earlyRedeemSupported"`
+	ProductRemainAmount  types.Number         `json:"productRemainAmount"`
+	Status               string               `json:"status"`
+	RedeemType           string               `json:"redeemType"`
+	IncomeReleaseType    string               `json:"incomeReleaseType"`
+	InterestDate         int64                `json:"interestDate"`
+	Duration             int64                `json:"duration"`
+	NewUserOnly          int64                `json:"newUserOnly"`
+}

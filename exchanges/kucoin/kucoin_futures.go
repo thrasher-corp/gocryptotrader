@@ -848,3 +848,38 @@ func constructFuturesOrderbook(o *futuresOrderbookResponse) *Orderbook {
 		Time:     o.Time.Time(),
 	}
 }
+
+// GetFuturesTradingPairsActualFees retrieves the actual fee rate of the trading pair. The fee rate of your sub-account is the same as that of the master account.
+func (ku *Kucoin) GetFuturesTradingPairsActualFees(ctx context.Context, symbol string) (*TradingPairFee, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *TradingPairFee
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTradingPairFeeEPL, http.MethodGet, common.EncodeURLValues("/v1/trade-fees", params), nil, &resp)
+}
+
+// GetPositionHistory query position history information records
+func (ku *Kucoin) GetPositionHistory(ctx context.Context, symbol string, from, to time.Time, limit, pageID int64) (*FuturesPositionHistory, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pageID > 0 {
+		params.Set("pageId", strconv.FormatInt(pageID, 10))
+	}
+	var resp *FuturesPositionHistory
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPositionHistoryEPL, http.MethodGet, common.EncodeURLValues("/v1/history-positions", params), nil, &resp)
+}
