@@ -521,3 +521,17 @@ type WsOrderbookLevel2 struct {
 	// Changes when the data is UPDATE
 	Changes [][3]string `json:"changes"`
 }
+
+// FeeRateInfo represents a fee tier detail of fee rate tiers.
+type FeeRateInfo struct {
+	FeeTierType             string       `json:"fee_tier_type"`
+	InstrumentType          string       `json:"instrument_type"`
+	FeeTierID               string       `json:"fee_tier_id"`
+	FeeTierName             string       `json:"fee_tier_name"`
+	MakerFeeRate            types.Number `json:"maker_fee_rate"`
+	TakerFeeRate            types.Number `json:"taker_fee_rate"`
+	RebateRate              string       `json:"rebate_rate"`
+	MinBalance              types.Number `json:"min_balance"`
+	MinVolume               types.Number `json:"min_volume"`
+	RequireBalanceAndVolume types.Number `json:"require_balance_and_volume"`
+}

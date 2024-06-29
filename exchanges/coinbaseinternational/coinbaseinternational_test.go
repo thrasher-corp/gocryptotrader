@@ -542,3 +542,27 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		require.NotEmpty(t, lim, "limit cannot be empty")
 	}
 }
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = co.GetCurrencyTradeURL(context.Background(), asset.Futures, currency.NewPair(currency.BTC, currency.USDC))
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	pairs, err := co.CurrencyPairs.GetPairs(asset.Spot, false)
+	require.NoError(t, err)
+	require.NotEmpty(t, pairs)
+
+	resp, err := co.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDC))
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetFeeRateTiers(t *testing.T) {
+	t.Parallel()
+	result, err := co.GetFeeRateTiers(context.Background())
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}

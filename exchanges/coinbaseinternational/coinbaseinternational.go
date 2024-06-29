@@ -578,3 +578,9 @@ func (co *CoinbaseInternational) calculateTradingFee(ctx context.Context, base, 
 func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.02 * price * amount
 }
+
+// GetFeeRateTiers return all the fee rate tiers.
+func (co *CoinbaseInternational) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
+	var resp []FeeRateInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, false)
+}

@@ -819,3 +819,15 @@ func (co *CoinbaseInternational) UpdateOrderExecutionLimits(ctx context.Context,
 	}
 	return co.LoadLimits(limits)
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (co *CoinbaseInternational) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	if cp.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
+	if a != asset.Spot {
+		return "", fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return "https://international.coinbase.com/instrument/" + cp.Lower().String() + "?active=price", nil
+}
