@@ -2643,3 +2643,15 @@ func (ku *Kucoin) GetEarnETHStakingProducts(ctx context.Context) ([]EarnProduct,
 }
 
 // ---------------------------------------------------------------- VIP Lending ----------------------------------------------------------------
+
+// GetInformationOnOffExchangeFundingAndLoans retrieves accounts that are currently involved in loans.
+func (ku *Kucoin) GetInformationOnOffExchangeFundingAndLoans(ctx context.Context) (*OffExchangeFundingAndLoan, error) {
+	var resp *OffExchangeFundingAndLoan
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, vipLendingEPL, http.MethodGet, "/v1/otc-loan/loan", nil, &resp)
+}
+
+// GetInformationOnAccountInvolvedInOffExchangeLoans retrieves accounts that are currently involved in off-exchange loans.
+func (ku *Kucoin) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context.Context) ([]VIPLendingAccounts, error) {
+	var resp []VIPLendingAccounts
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, vipLendingEPL, http.MethodGet, "/v1/otc-loan/accounts", nil, &resp)
+}

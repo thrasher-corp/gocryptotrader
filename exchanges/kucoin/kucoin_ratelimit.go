@@ -199,6 +199,8 @@ const (
 	earnLimitedTimePromotionProductEPL
 	earnKCSStakingProductEPL
 	earnStakingProductEPL
+
+	vipLendingEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -399,5 +401,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 
 		earnKCSStakingProductEPL: request.GetRateLimiterWithWeight(spotRate, 5),
 		earnStakingProductEPL:    request.GetRateLimiterWithWeight(spotRate, 5),
+
+		vipLendingEPL: request.GetRateLimiterWithWeight(spotRate, 1),
 	}
 }

@@ -3160,3 +3160,19 @@ func TestGetEarnETHStakingProducts(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetInformationOnOffExchangeFundingAndLoans(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetInformationOnOffExchangeFundingAndLoans(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetInformationOnAccountInvolvedInOffExchangeLoans(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

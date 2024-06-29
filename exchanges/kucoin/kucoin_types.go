@@ -2282,3 +2282,38 @@ type EarnProduct struct {
 	Duration             int64                `json:"duration"`
 	NewUserOnly          int64                `json:"newUserOnly"`
 }
+
+// OffExchangeFundingAndLoan represents information of off-exchange funding and loan
+type OffExchangeFundingAndLoan struct {
+	MasterAccountUID string `json:"parentUid"`
+	Orders           []struct {
+		OrderID   string       `json:"orderId"`
+		Currency  string       `json:"currency"`
+		Principal types.Number `json:"principal"`
+		Interest  types.Number `json:"interest"`
+	} `json:"orders"`
+	LoanToValueRatio struct {
+		TransferLtv           types.Number `json:"transferLtv"`
+		OnlyClosePosLtv       types.Number `json:"onlyClosePosLtv"`
+		DelayedLiquidationLtv types.Number `json:"delayedLiquidationLtv"`
+		InstantLiquidationLtv types.Number `json:"instantLiquidationLtv"`
+		CurrentLtv            types.Number `json:"currentLtv"`
+	} `json:"ltv"`
+	TotalMarginAmount    types.Number `json:"totalMarginAmount"`
+	TransferMarginAmount types.Number `json:"transferMarginAmount"`
+	Margins              []struct {
+		MarginCcy    string       `json:"marginCcy"`
+		MarginQty    types.Number `json:"marginQty"`
+		MarginFactor string       `json:"marginFactor"`
+	} `json:"margins"`
+}
+
+// VIPLendingAccounts represents VIP accounts involved in off-exchange loans.
+type VIPLendingAccounts struct {
+	UID          string       `json:"uid"`
+	MarginCcy    string       `json:"marginCcy"`
+	MarginQty    types.Number `json:"marginQty"`
+	MarginFactor types.Number `json:"marginFactor"`
+	AccountType  string       `json:"accountType"`
+	IsParent     bool         `json:"isParent"`
+}
