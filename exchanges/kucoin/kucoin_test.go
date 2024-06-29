@@ -35,9 +35,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "65e7f22077172b0001f9ee41"
-	apiSecret               = "4c903fe0-b041-4ecc-9978-9fea08c50e12"
-	passPhrase              = "PNqRwhUgifU5N5jseq94"
+	apiKey                  = ""
+	apiSecret               = ""
+	passPhrase              = ""
 	canManipulateRealOrders = false
 )
 
@@ -3056,13 +3056,13 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // testInstance returns a local Kucoin for isolated testing
 func testInstance(tb testing.TB) *Kucoin {
 	tb.Helper()
-	ku := new(Kucoin)
-	require.NoError(tb, testexch.Setup(ku), "Test instance Setup must not error")
-	ku.obm = &orderbookManager{
+	kucoin := new(Kucoin)
+	require.NoError(tb, testexch.Setup(kucoin), "Test instance Setup must not error")
+	kucoin.obm = &orderbookManager{
 		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 		jobs:  make(chan job, maxWSOrderbookJobs),
 	}
-	return ku
+	return kucoin
 }
 
 func TestGetTradingPairActualFees(t *testing.T) {

@@ -262,7 +262,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
 		return ku.processStopOrderEvent(resp.Data)
-	case strings.HasPrefix(topicInfo[1], futuresLimitCandles):
+	case strings.HasPrefix(topicInfo[0], futuresLimitCandles):
 		instrumentInfos := strings.Split(topicInfo[1], "_")
 		if len(instrumentInfos) != 2 {
 			return errors.New("invalid instrument information")

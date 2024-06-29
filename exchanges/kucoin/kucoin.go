@@ -234,10 +234,6 @@ func (ku *Kucoin) GetCurrenciesV3(ctx context.Context) ([]CurrencyDetail, error)
 
 // GetCurrencyDetailV3 V3 endpoint to gets currency detail using currency code and chain information.
 func (ku *Kucoin) GetCurrencyDetailV3(ctx context.Context, ccy, chain string) (*CurrencyDetail, error) {
-	return ku.getCurrencyDetail(ctx, ccy, chain, "/v3/currencies/")
-}
-
-func (ku *Kucoin) getCurrencyDetail(ctx context.Context, ccy, chain, path string) (*CurrencyDetail, error) {
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -246,7 +242,7 @@ func (ku *Kucoin) getCurrencyDetail(ctx context.Context, ccy, chain, path string
 		params.Set("chain", chain)
 	}
 	var resp *CurrencyDetail
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, spotCurrencyDetailEPL, common.EncodeURLValues(path+strings.ToUpper(ccy), params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, spotCurrencyDetailEPL, common.EncodeURLValues("/v3/currencies/"+strings.ToUpper(ccy), params), &resp)
 }
 
 // GetFiatPrice gets fiat prices of currencies, default base currency is USD

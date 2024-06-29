@@ -2230,7 +2230,7 @@ type EarnSavingProduct struct {
 	NewUserOnly          int64                `json:"newUserOnly"`
 }
 
-// FixedIncomeEarnHoldings
+// FixedIncomeEarnHoldings represents a fixed income earn holdings
 type FixedIncomeEarnHoldings struct {
 	TotalNum int64 `json:"totalNum"`
 	Items    []struct {
@@ -2244,7 +2244,7 @@ type FixedIncomeEarnHoldings struct {
 		HoldAmount           types.Number         `json:"holdAmount"`
 		RedeemedAmount       types.Number         `json:"redeemedAmount"`
 		RedeemingAmount      types.Number         `json:"redeemingAmount"`
-		LockStartTime        int64                `json:"lockStartTime"`
+		LockStartTime        convert.ExchangeTime `json:"lockStartTime"`
 		LockEndTime          convert.ExchangeTime `json:"lockEndTime"`
 		PurchaseTime         convert.ExchangeTime `json:"purchaseTime"`
 		RedeemPeriod         int64                `json:"redeemPeriod"`
