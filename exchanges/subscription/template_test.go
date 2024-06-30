@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -15,29 +16,45 @@ import (
 func TestExpandTemplates(t *testing.T) {
 	t.Parallel()
 
+	pairs := currency.Pairs{btcusdtPair, ethusdcPair}
+	for _, b := range []currency.Code{currency.LTC, currency.XRP, currency.TRX} {
+		for _, q := range []currency.Code{currency.USDT, currency.USDC} {
+			pairs = append(pairs, currency.NewPair(b, q))
+		}
+	}
+
 	e := &mockEx{
-		tpl: "subscriptions.tmpl",
+		pairs: pairs,
+		tpl:   "subscriptions.tmpl",
 	}
 
 	// Functionality tests
 	l := List{
 		{Channel: "feature1"},
-		{Channel: "feature2", Asset: asset.All, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "feature3", Asset: asset.All, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Levels: 100},
-		{Channel: "feature4", Authenticated: true},
+		{Channel: "feature2", Asset: asset.All, Interval: kline.FifteenMin},
+		{Channel: "feature3", Asset: asset.All, Levels: 100},
 		{Channel: "feature1", QualifiedChannel: "just one sub already processed"},
+		{Channel: "feature5", Asset: asset.All},
+		{Channel: "feature6", Asset: asset.Spot},
+		{Channel: "feature4", Authenticated: true},
 	}
 	got, err := l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	exp := List{
 		{Channel: "feature1", QualifiedChannel: "feature1"},
-		{Channel: "feature2", QualifiedChannel: "spot-feature2@15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "feature2", QualifiedChannel: "future-feature2@15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "feature3", QualifiedChannel: "spot-USDTBTC-feature3@100", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Levels: 100},
-		{Channel: "feature3", QualifiedChannel: "spot-USDCETH-feature3@100", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Levels: 100},
-		{Channel: "feature3", QualifiedChannel: "future-USDTBTC-feature3@100", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Levels: 100},
-		{Channel: "feature3", QualifiedChannel: "future-USDCETH-feature3@100", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Levels: 100},
+		{Channel: "feature2", QualifiedChannel: "spot-feature2@15m", Asset: asset.Spot, Pairs: pairs, Interval: kline.FifteenMin},
+		{Channel: "feature2", QualifiedChannel: "future-feature2@15m", Asset: asset.Futures, Pairs: pairs, Interval: kline.FifteenMin},
 		{Channel: "feature1", QualifiedChannel: "just one sub already processed"},
+		{Channel: "feature5", QualifiedChannel: "spot-btcusdt-feature5", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}},
+	}
+	for _, p := range pairs {
+		exp = append(exp, List{
+			{Channel: "feature3", QualifiedChannel: "spot-" + p.Swap().String() + "-feature3@100", Asset: asset.Spot, Pairs: currency.Pairs{p}, Levels: 100},
+			{Channel: "feature3", QualifiedChannel: "future-" + p.Swap().String() + "-feature3@100", Asset: asset.Futures, Pairs: currency.Pairs{p}, Levels: 100},
+		}...)
+	}
+	for _, b := range common.Batch(common.SortStrings(pairs), 3) {
+		exp = append(exp, &Subscription{Channel: "feature6", QualifiedChannel: "spot-" + b.Join() + "-feature6", Asset: asset.Spot, Pairs: b})
 	}
 
 	if !equalLists(t, exp, got) {
@@ -52,32 +69,43 @@ func TestExpandTemplates(t *testing.T) {
 	)
 	equalLists(t, exp, got)
 
-	_, err = List{{Channel: "feature2", Asset: asset.Spot}}.ExpandTemplates(e)
-	assert.ErrorIs(t, err, errAssetTemplateWithoutAll, "Should error correctly on xpand assets without All")
+	_, err = List{{Channel: "nil"}}.ExpandTemplates(e)
+	assert.ErrorIs(t, err, errInvalidTemplate, "Should get correct error on nil template")
+
+	_, err = List{{Channel: "feature1", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter("NOPE", "POPE", "🐰")}}}.ExpandTemplates(e)
+	assert.ErrorIs(t, err, currency.ErrPairNotContainedInAvailablePairs, "Should error correctly when pair not available")
 
 	e.tpl = "errors.tmpl"
-	_, err = List{{Channel: "error1", Asset: asset.All}}.ExpandTemplates(e)
-	assert.ErrorIs(t, err, errInvalidAssetExpandPairs, "Should error correctly on xpand pairs but not assets")
 
-	_, err = List{{Channel: "error1"}}.ExpandTemplates(e)
+	_, err = List{{Channel: "error1", Asset: asset.Spot}}.ExpandTemplates(e)
+	assert.ErrorIs(t, err, errAssetTemplateWithoutAll, "Should error correctly on xpand assets without All")
+
+	_, err = List{{Channel: "error2", Asset: asset.All}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errInvalidAssetExpandPairs, "Should error correctly on xpand pairs but not assets")
 
 	_, err = List{{Channel: "error2"}}.ExpandTemplates(e)
+	assert.ErrorIs(t, err, errInvalidAssetExpandPairs, "Should error correctly on xpand pairs but not assets")
+
+	_, err = List{{Channel: "error3"}}.ExpandTemplates(e)
 	assert.ErrorContains(t, err, "wrong number of args for String", "Should error correctly with execution error")
 
-	_, err = List{{Channel: "non-existent"}}.ExpandTemplates(e)
+	_, err = List{{Channel: "empty-content", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errNoTemplateContent, "Should error correctly when no content generated")
-	assert.ErrorContains(t, err, "non-existent", "Should error correctly when no content generated")
+	assert.ErrorContains(t, err, "empty-content", "Should error correctly when no content generated")
 
-	_, err = List{{Channel: "error3", Asset: asset.All}}.ExpandTemplates(e)
+	_, err = List{{Channel: "error4", Asset: asset.All}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errAssetRecords, "Should error correctly when invalid number of asset entries")
 
-	_, err = List{{Channel: "error4", Asset: asset.Spot}}.ExpandTemplates(e)
+	_, err = List{{Channel: "error5", Asset: asset.Spot}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errPairRecords, "Should error correctly when invalid number of pair entries")
 
-	_, err = List{{Channel: "error4", Asset: asset.Margin}}.ExpandTemplates(e)
-	assert.ErrorIs(t, err, asset.ErrInvalidAsset, "Should error correctly when invalid asset")
+	_, err = List{{Channel: "error6", Asset: asset.Spot}}.ExpandTemplates(e)
+	assert.ErrorIs(t, err, errTooManyBatchSize, "Should error correctly when too many BatchSize directives")
 
+	_, err = List{{Channel: "error7", Asset: asset.Spot}}.ExpandTemplates(e)
+	assert.ErrorIs(t, err, common.ErrTypeAssertFailure, "Should error correctly when batch size isn't an int")
+
+	e.tpl = "parse-error.tmpl"
 	e.tpl = "parse-error.tmpl"
 	_, err = l.ExpandTemplates(e)
 	assert.ErrorContains(t, err, "function \"explode\" not defined", "Should error correctly on unparsable template")
