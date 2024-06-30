@@ -1820,19 +1820,14 @@ func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.Li
 		return errBatchSizeZero
 	}
 
-	var j int
-	for i := 0; i < len(channels); i += batchSize {
-		j += batchSize
-		if j >= len(channels) {
-			j = len(channels)
-		}
+	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)
 		go func(c subscription.List) {
 			defer wg.Done()
 			if err := m(c); err != nil {
 				errC <- err
 			}
-		}(channels[i:j])
+		}(b)
 	}
 
 	wg.Wait()
