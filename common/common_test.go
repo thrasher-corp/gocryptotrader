@@ -856,3 +856,13 @@ func TestErrorCollector(t *testing.T) {
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
 }
+
+// TestBatch exercises the Batch function
+func TestBatch(t *testing.T) {
+	s := []int{1, 2, 3, 4, 5, 6, 7}
+	b := Batch(s, 3)
+	require.Len(t, b, 3)
+	require.Len(t, b[0], 3)
+	require.Len(t, b[1], 3)
+	require.Len(t, b[2], 1)
+}

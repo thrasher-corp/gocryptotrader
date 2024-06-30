@@ -653,3 +653,16 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 	}
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
 }
+
+// Batch takes a slice type and converts it into a slice of slices
+func Batch[S ~[]E, E any](blobs S, batchSize int) (batches []S) {
+	var j int
+	for i := 0; i < len(blobs); i += batchSize {
+		j += batchSize
+		if j >= len(blobs) {
+			j = len(blobs)
+		}
+		batches = append(batches, blobs[i:j])
+	}
+	return
+}
