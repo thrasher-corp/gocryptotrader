@@ -552,8 +552,8 @@ func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Spot
 		exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioSpotAccounts, params, nil, &response)
 }
 
-// GetUnifiedAccounts retrieves unified account.
-func (g *Gateio) GetUnifiedAccounts(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
+// GetUnifiedAccount retrieves unified account.
+func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
