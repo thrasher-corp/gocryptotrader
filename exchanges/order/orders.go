@@ -664,6 +664,8 @@ func (t Type) String() string {
 		return "ANY"
 	case Limit:
 		return "LIMIT"
+	case LimitMaker:
+		return "LIMIT_MAKER"
 	case Market:
 		return "MARKET"
 	case PostOnly:
@@ -684,6 +686,8 @@ func (t Type) String() string {
 		return "TAKE PROFIT MARKET"
 	case TrailingStop:
 		return "TRAILING_STOP"
+	case TrailingStopLimit:
+		return "TRAILING_STOP_LIMIT"
 	case FillOrKill:
 		return "FOK"
 	case IOS:
@@ -1091,6 +1095,8 @@ func StringToOrderType(oType string) (Type, error) {
 	switch oType {
 	case Limit.String(), "EXCHANGE LIMIT":
 		return Limit, nil
+	case LimitMaker.String():
+		return LimitMaker, nil
 	case Market.String(), "EXCHANGE MARKET":
 		return Market, nil
 	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
@@ -1103,6 +1109,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return StopMarket, nil
 	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
 		return TrailingStop, nil
+	case TrailingStopLimit.String(), "TRAILING STOP LIMIT":
+		return TrailingStopLimit, nil
 	case FillOrKill.String(), "EXCHANGE FOK":
 		return FillOrKill, nil
 	case IOS.String():
