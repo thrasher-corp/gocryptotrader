@@ -36,14 +36,15 @@ var (
 	ErrUnableToPlaceOrder = errors.New("order not placed")
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
-
-	// ErrUnknownPriceType returned when price type is unknown
+	// ErrUnknownPriceType is returned when price type is unknown
 	ErrUnknownPriceType = errors.New("unknown price type")
+	// ErrIDNotSet is returned when an order ID is not set
+	ErrIDNotSet = errors.New("ID not set")
+	// ErrUnrecognisedOrderType is returned when an order type is not recognised
+	ErrUnrecognisedOrderType = errors.New("unrecognised order type")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
-	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
-	errExchangeNameUnset        = errors.New("exchange name unset")
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
@@ -62,7 +63,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if s.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameUnset
 	}
 
 	if s.Pair.IsEmpty() {
@@ -81,7 +82,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
-	if s.Type != Market && s.Type != Limit {
+	if AllOrderTypes&s.Type != s.Type || s.Type == UnknownType {
 		return ErrTypeIsInvalid
 	}
 
@@ -1120,7 +1121,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case ConditionalStop.String():
 		return ConditionalStop, nil
 	default:
-		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
+		return UnknownType, fmt.Errorf("'%v' %w", oType, ErrUnrecognisedOrderType)
 	}
 }
 
@@ -1193,7 +1194,7 @@ func (o *ClassificationError) Error() string {
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
 		if c.OrderID == "" {
-			return errors.New("ID not set")
+			return ErrIDNotSet
 		}
 		return nil
 	})
@@ -1246,7 +1247,7 @@ func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if g.Type == UnknownType {
-		return errUnrecognisedOrderType
+		return ErrUnrecognisedOrderType
 	}
 
 	var errs error

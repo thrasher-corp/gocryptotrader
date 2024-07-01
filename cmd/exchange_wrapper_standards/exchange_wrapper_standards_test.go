@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -84,20 +85,31 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		t.Fatalf("Cannot setup %v GetExchangeConfig %v", name, err)
 	}
 	exch.SetDefaults()
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.Credentials = getExchangeCredentials(name)
-
 	err = exch.Setup(exchCfg)
 	if err != nil {
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
-
 	err = exch.UpdateTradablePairs(ctx, true)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
 	}
 	b := exch.GetBase()
-
+	// Idiosyncratic execution flow since Setup must be run before UpdateTradablePairs, but Coinbase will fail if
+	// invalid credentials have been set, so we must set them after UpdateTradablePairs
+	creds := getExchangeCredentials(name)
+	b.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.Subaccount,
+		creds.OTPSecret)
+	b.API.AuthenticatedSupport = true
+	// Lbank usually runs this during setup, but if keys aren't set then, it will fail, so we have to manually
+	// recreate that here
+	lbankExch, ok := exch.(*lbank.Lbank)
+	if ok {
+		err = lbankExch.LoadPrivKey(ctx)
+		if err != nil {
+			t.Fatalf("Cannot setup %v LoadPrivKey %v", name, err)
+		}
+		b.API.AuthenticatedSupport = true
+	}
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	if len(assets) == 0 {
 		t.Fatalf("Cannot setup %v, exchange has no assets", name)
@@ -108,7 +120,6 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 			t.Fatalf("Cannot setup %v SetAssetEnabled %v", name, err)
 		}
 	}
-
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
 	assetPairs := make([]assetPair, 0, len(assets)+1)
 assets:
@@ -150,7 +161,6 @@ assets:
 		})
 	}
 	assetPairs = append(assetPairs, assetPair{})
-
 	return exch, assetPairs
 }
 
@@ -181,7 +191,6 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			continue
 		}
 		method := actualExchange.MethodByName(methodName)
-
 		var assetLen int
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
@@ -381,6 +390,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Description:   "1337",
 			Amount:        1,
 			ClientOrderID: "1337",
+			WalletID:      "7331",
 		}
 		if argGenerator.MethodName == "WithdrawCryptocurrencyFunds" {
 			req.Type = withdraw.Crypto
