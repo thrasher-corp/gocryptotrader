@@ -2689,3 +2689,37 @@ type PriceAndAmount struct {
 	Amount types.Number `json:"amount,omitempty"`
 	Price  types.Number `json:"price,omitempty"`
 }
+
+// BalanceDetails represents a user's balance details
+type BalanceDetails struct {
+	Available      types.Number `json:"available"`
+	Freeze         types.Number `json:"freeze"`
+	Borrowed       types.Number `json:"borrowed"`
+	NegativeLiab   types.Number `json:"negative_liab"`
+	FuturesPosLiab types.Number `json:"futures_pos_liab"`
+	Equity         types.Number `json:"equity"`
+	TotalFreeze    types.Number `json:"total_freeze"`
+	TotalLiab      types.Number `json:"total_liab"`
+	SpotInUse      types.Number `json:"spot_in_use"`
+}
+
+// UnifiedUserAccount represents a unified user account
+type UnifiedUserAccount struct {
+	UserID                     int64                            `json:"user_id"`
+	Locked                     bool                             `json:"locked"`
+	Balances                   map[currency.Code]BalanceDetails `json:"balances"`
+	Total                      types.Number                     `json:"total"`
+	Borrowed                   types.Number                     `json:"borrowed"`
+	TotalInitialMargin         types.Number                     `json:"total_initial_margin"`
+	TotalMarginBalance         types.Number                     `json:"total_margin_balance"`
+	TotalMaintenanceMargin     types.Number                     `json:"total_maintenance_margin"`
+	TotalInitialMarginRate     types.Number                     `json:"total_initial_margin_rate"`
+	TotalMaintenanceMarginRate types.Number                     `json:"total_maintenance_margin_rate"`
+	TotalAvailableMargin       types.Number                     `json:"total_available_margin"`
+	UnifiedAccountTotal        types.Number                     `json:"unified_account_total"`
+	UnifiedAccountTotalLiab    types.Number                     `json:"unified_account_total_liab"`
+	UnifiedAccountTotalEquity  types.Number                     `json:"unified_account_total_equity"`
+	Leverage                   types.Number                     `json:"leverage"`
+	SpotOrderLoss              types.Number                     `json:"spot_order_loss"`
+	SpotHedge                  bool                             `json:"spot_hedge"`
+}
