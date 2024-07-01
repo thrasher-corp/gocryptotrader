@@ -269,7 +269,6 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	p.Verbose = true
 	var start, end time.Time
 	if mockTests {
 		start = time.Unix(1719869100, 0)

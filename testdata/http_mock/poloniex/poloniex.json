@@ -20,21 +20,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".1000SHIBUSDTPERPFPI8H",
         "highPriceOf24h": 0.017607,
-        "indexPrice": 0.017227,
+        "indexPrice": 0.017188,
         "indexPriceTickSize": 0.000001,
         "indexSymbol": ".P1000SHIBUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 0.017218,
+        "lastTradePrice": 0.017185,
         "lotSize": 1,
         "lowPriceOf24h": 0.016942,
         "maintainMargin": 0.027,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 0.017218,
+        "markPrice": 0.017185,
         "maxLeverage": 20,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -42,11 +42,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 100,
-        "nextFundingRateTime": 23892662,
+        "nextFundingRateTime": 21506857,
         "openInterest": "156737",
         "order": 7,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0115,
+        "priceChgPctOf24h": 0.0103,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -61,10 +61,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.000001,
-        "turnoverOf24h": 1634246.6896,
+        "turnoverOf24h": 1634852.1722,
         "type": "FFWCSX",
         "updatedAt": 1712739277000,
-        "volumeOf24h": 947740
+        "volumeOf24h": 947806
        },
        {
         "baseCurrency": "DOGE",
@@ -80,21 +80,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".DOGEUSDTPERPFPI8H",
         "highPriceOf24h": 0.12744,
-        "indexPrice": 0.1247,
+        "indexPrice": 0.12439,
         "indexPriceTickSize": 0.00001,
         "indexSymbol": ".PDOGEUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 0.12465,
+        "lastTradePrice": 0.12429,
         "lotSize": 1,
-        "lowPriceOf24h": 0.12284,
+        "lowPriceOf24h": 0.12316,
         "maintainMargin": 0.027,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 0.12465,
+        "markPrice": 0.12432,
         "maxLeverage": 20,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -102,11 +102,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 100,
-        "nextFundingRateTime": 23892659,
+        "nextFundingRateTime": 21506853,
         "openInterest": "22692",
         "order": 7,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0113,
+        "priceChgPctOf24h": 0.0076,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -121,7 +121,7 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.00001,
-        "turnoverOf24h": 1472520.518,
+        "turnoverOf24h": 1472926.236,
         "type": "FFWCSX",
         "updatedAt": 1712739242000,
         "volumeOf24h": 117500
@@ -140,21 +140,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".BTCUSDTPERPFPI8H",
         "highPriceOf24h": 63872.78,
-        "indexPrice": 63211.36,
+        "indexPrice": 63099.98,
         "indexPriceTickSize": 0.01,
         "indexSymbol": ".PXBTUSDT",
         "initialMargin": 0.0133,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 63204.79,
+        "lastTradePrice": 63097.29,
         "lotSize": 1,
-        "lowPriceOf24h": 61852.96,
+        "lowPriceOf24h": 61962.6,
         "maintainMargin": 0.006,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 63210.33,
+        "markPrice": 63104.7,
         "maxLeverage": 75,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -162,11 +162,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 2000000,
         "multiplier": 0.001,
-        "nextFundingRateTime": 23892655,
-        "openInterest": "30807",
+        "nextFundingRateTime": 21506848,
+        "openInterest": "30809",
         "order": null,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0199,
+        "priceChgPctOf24h": 0.0181,
         "quoteCurrency": "USDT",
         "riskStep": 1000000,
         "rootSymbol": "USDT",
@@ -181,10 +181,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.01,
-        "turnoverOf24h": 7629825.8716,
+        "turnoverOf24h": 7617717.07168,
         "type": "FFWCSX",
         "updatedAt": 1712738211000,
-        "volumeOf24h": 120928
+        "volumeOf24h": 120704
        },
        {
         "baseCurrency": "LTC",
@@ -200,21 +200,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".LTCUSDTPERPFPI8H",
         "highPriceOf24h": 75.91,
-        "indexPrice": 74.64,
+        "indexPrice": 74.54,
         "indexPriceTickSize": 0.01,
         "indexSymbol": ".PLTCUSDT",
         "initialMargin": 0.02,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 74.55,
+        "lastTradePrice": 74.52,
         "lotSize": 1,
         "lowPriceOf24h": 74.2,
         "maintainMargin": 0.0115,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 74.56,
+        "markPrice": 74.52,
         "maxLeverage": 50,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -222,11 +222,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 0.01,
-        "nextFundingRateTime": 23892652,
-        "openInterest": "124915",
+        "nextFundingRateTime": 21506844,
+        "openInterest": "123832",
         "order": 7,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": -0.0053,
+        "priceChgPctOf24h": -0.0084,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -241,10 +241,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.01,
-        "turnoverOf24h": 1430504.6058,
+        "turnoverOf24h": 1421683.7356,
         "type": "FFWCSX",
         "updatedAt": 1712739201000,
-        "volumeOf24h": 1904988
+        "volumeOf24h": 1893558
        },
        {
         "baseCurrency": "BNB",
@@ -260,21 +260,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".BNBUSDTPERPFPI8H",
         "highPriceOf24h": 588.653,
-        "indexPrice": 581.072,
+        "indexPrice": 580.329,
         "indexPriceTickSize": 0.001,
         "indexSymbol": ".PBNBUSDT",
         "initialMargin": 0.02,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 581.824,
+        "lastTradePrice": 580.419,
         "lotSize": 1,
         "lowPriceOf24h": 576.687,
         "maintainMargin": 0.0115,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 581.786,
+        "markPrice": 580.419,
         "maxLeverage": 50,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -282,11 +282,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 0.1,
-        "nextFundingRateTime": 23892649,
-        "openInterest": "1181",
+        "nextFundingRateTime": 21506840,
+        "openInterest": "1180",
         "order": 7,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0047,
+        "priceChgPctOf24h": 0.0027,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -301,10 +301,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.001,
-        "turnoverOf24h": 2792154.5464,
+        "turnoverOf24h": 2800920.727,
         "type": "FFWCSX",
         "updatedAt": 1712739265000,
-        "volumeOf24h": 47926
+        "volumeOf24h": 48072
        },
        {
         "baseCurrency": "XRP",
@@ -320,21 +320,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".XRPUSDTPERPFPI8H",
         "highPriceOf24h": 0.4848,
-        "indexPrice": 0.4776,
+        "indexPrice": 0.4786,
         "indexPriceTickSize": 0.0001,
         "indexSymbol": ".PXRPUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 0.4775,
+        "lastTradePrice": 0.4782,
         "lotSize": 1,
-        "lowPriceOf24h": 0.4739,
+        "lowPriceOf24h": 0.4745,
         "maintainMargin": 0.025,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 0.4775,
+        "markPrice": 0.4782,
         "maxLeverage": 20,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -342,11 +342,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 10,
-        "nextFundingRateTime": 23892646,
-        "openInterest": "15818",
+        "nextFundingRateTime": 21506835,
+        "openInterest": "15777",
         "order": 5,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0061,
+        "priceChgPctOf24h": 0.0076,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -361,10 +361,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.0001,
-        "turnoverOf24h": 1341420.984,
+        "turnoverOf24h": 1335068.762,
         "type": "FFWCSX",
         "updatedAt": 1712739191000,
-        "volumeOf24h": 280158
+        "volumeOf24h": 278770
        },
        {
         "baseCurrency": "SOL",
@@ -380,21 +380,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".SOLUSDTPERPFPI8H",
         "highPriceOf24h": 149.173,
-        "indexPrice": 147.969,
+        "indexPrice": 147.468,
         "indexPriceTickSize": 0.001,
         "indexSymbol": ".PSOLUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 147.971,
+        "lastTradePrice": 147.446,
         "lotSize": 1,
-        "lowPriceOf24h": 143.821,
+        "lowPriceOf24h": 144.683,
         "maintainMargin": 0.025,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 147.971,
+        "markPrice": 147.479,
         "maxLeverage": 20,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -402,11 +402,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 0.1,
-        "nextFundingRateTime": 23892642,
+        "nextFundingRateTime": 21506831,
         "openInterest": "7833",
         "order": 7,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0256,
+        "priceChgPctOf24h": 0.0186,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -421,10 +421,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.001,
-        "turnoverOf24h": 1841164.8548,
+        "turnoverOf24h": 1841226.6394,
         "type": "FFWCSX",
         "updatedAt": 1712739296000,
-        "volumeOf24h": 124878
+        "volumeOf24h": 124804
        },
        {
         "baseCurrency": "BCH",
@@ -440,21 +440,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".BCHUSDTPERPFPI8H",
         "highPriceOf24h": 398.86,
-        "indexPrice": 388.6,
+        "indexPrice": 387.03,
         "indexPriceTickSize": 0.01,
         "indexSymbol": ".PBCHUSDT",
         "initialMargin": 0.02,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 388.88,
+        "lastTradePrice": 387.49,
         "lotSize": 1,
         "lowPriceOf24h": 386.14,
         "maintainMargin": 0.0115,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 388.88,
+        "markPrice": 387.4,
         "maxLeverage": 50,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -462,11 +462,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 0.01,
-        "nextFundingRateTime": 23892639,
-        "openInterest": "49947",
+        "nextFundingRateTime": 21506827,
+        "openInterest": "50889",
         "order": 5,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": -0.0061,
+        "priceChgPctOf24h": -0.007,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -481,10 +481,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.01,
-        "turnoverOf24h": 2001921.7408,
+        "turnoverOf24h": 2009340.8676,
         "type": "FFWCSX",
         "updatedAt": 1712739168000,
-        "volumeOf24h": 511336
+        "volumeOf24h": 513314
        },
        {
         "baseCurrency": "ETH",
@@ -500,21 +500,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".ETHUSDTPERPFPI8H",
         "highPriceOf24h": 3522.25,
-        "indexPrice": 3465.22,
+        "indexPrice": 3458.97,
         "indexPriceTickSize": 0.01,
         "indexSymbol": ".PETHUSDT",
         "initialMargin": 0.0133,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 3464.95,
+        "lastTradePrice": 3458.46,
         "lotSize": 1,
-        "lowPriceOf24h": 3408.81,
+        "lowPriceOf24h": 3414.79,
         "maintainMargin": 0.006,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 3465.03,
+        "markPrice": 3458.72,
         "maxLeverage": 75,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -522,11 +522,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 0.01,
-        "nextFundingRateTime": 23892636,
-        "openInterest": "22850",
+        "nextFundingRateTime": 21506822,
+        "openInterest": "22854",
         "order": 5,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0141,
+        "priceChgPctOf24h": 0.0128,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -541,10 +541,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.01,
-        "turnoverOf24h": 2968457.2982,
+        "turnoverOf24h": 2971637.1964,
         "type": "FFWCSX",
         "updatedAt": 1713259630000,
-        "volumeOf24h": 85444
+        "volumeOf24h": 85512
        },
        {
         "baseCurrency": "1000PEPE",
@@ -560,21 +560,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".1000PEPEUSDTPERPFPI8H",
         "highPriceOf24h": 0.0121734,
-        "indexPrice": 0.0116024,
+        "indexPrice": 0.0115106,
         "indexPriceTickSize": 1e-7,
         "indexSymbol": ".P1000PEPEUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 0.0116075,
+        "lastTradePrice": 0.0115092,
         "lotSize": 1,
         "lowPriceOf24h": 0.011307,
         "maintainMargin": 0.027,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 0.0116068,
+        "markPrice": 0.0115115,
         "maxLeverage": 20,
         "maxOrderQty": 100000000,
         "maxPrice": 100000000,
@@ -582,11 +582,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 1000,
-        "nextFundingRateTime": 23892633,
-        "openInterest": "9145",
+        "nextFundingRateTime": 21506818,
+        "openInterest": "8986",
         "order": 102,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0083,
+        "priceChgPctOf24h": 0.0024,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -601,10 +601,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 1e-7,
-        "turnoverOf24h": 3464147.7422,
+        "turnoverOf24h": 3467888.2244,
         "type": "FFWCSX",
         "updatedAt": 1712739392000,
-        "volumeOf24h": 295880
+        "volumeOf24h": 296140
        },
        {
         "baseCurrency": "TRX",
@@ -620,21 +620,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".TRXUSDTPERPFPI8H",
         "highPriceOf24h": 0.12896,
-        "indexPrice": 0.12828,
+        "indexPrice": 0.12825,
         "indexPriceTickSize": 0.00001,
         "indexSymbol": ".PTRXUSDT",
         "initialMargin": 0.02,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 0.12816,
+        "lastTradePrice": 0.12822,
         "lotSize": 1,
         "lowPriceOf24h": 0.12449,
         "maintainMargin": 0.0115,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 0.1282,
+        "markPrice": 0.12822,
         "maxLeverage": 50,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -642,11 +642,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 100,
-        "nextFundingRateTime": 23892630,
+        "nextFundingRateTime": 21506813,
         "openInterest": "1860",
         "order": 5,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0258,
+        "priceChgPctOf24h": 0.0249,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -661,10 +661,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.00001,
-        "turnoverOf24h": 1804195.34,
+        "turnoverOf24h": 1829330.882,
         "type": "FFWCSX",
         "updatedAt": 1712739169000,
-        "volumeOf24h": 142502
+        "volumeOf24h": 144404
        },
        {
         "baseCurrency": "APT",
@@ -680,21 +680,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".APTUSDTPERPFPI8H",
         "highPriceOf24h": 7.235,
-        "indexPrice": 7.151,
+        "indexPrice": 7.13,
         "indexPriceTickSize": 0.001,
         "indexSymbol": ".PAPTUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 7.145,
+        "lastTradePrice": 7.132,
         "lotSize": 1,
-        "lowPriceOf24h": 6.958,
+        "lowPriceOf24h": 6.974,
         "maintainMargin": 0.027,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 7.15,
+        "markPrice": 7.131,
         "maxLeverage": 20,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -702,11 +702,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 1,
-        "nextFundingRateTime": 23892627,
+        "nextFundingRateTime": 21506809,
         "openInterest": "3209",
         "order": 102,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0251,
+        "priceChgPctOf24h": 0.0224,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -721,10 +721,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.001,
-        "turnoverOf24h": 1210031.472,
+        "turnoverOf24h": 1209983.548,
         "type": "FFWCSX",
         "updatedAt": 1712739351000,
-        "volumeOf24h": 169936
+        "volumeOf24h": 169818
        },
        {
         "baseCurrency": "AVAX",
@@ -740,21 +740,21 @@
         "fundingQuoteSymbol": ".USDTINT8H",
         "fundingRateSymbol": ".AVAXUSDTPERPFPI8H",
         "highPriceOf24h": 30.106,
-        "indexPrice": 29.363,
+        "indexPrice": 29.256,
         "indexPriceTickSize": 0.001,
         "indexSymbol": ".PAVAXUSDT",
         "initialMargin": 0.05,
         "isDeleverage": null,
         "isInverse": null,
         "isQuanto": null,
-        "lastTradePrice": 29.349,
+        "lastTradePrice": 29.25,
         "lotSize": 1,
-        "lowPriceOf24h": 28.314,
+        "lowPriceOf24h": 28.521,
         "maintainMargin": 0.027,
         "makerFeeRate": 0.00015,
         "makerFixFee": null,
         "markMethod": null,
-        "markPrice": 29.362,
+        "markPrice": 29.254,
         "maxLeverage": 20,
         "maxOrderQty": 1000000,
         "maxPrice": 1000000,
@@ -762,11 +762,11 @@
         "minOrderQty": 1,
         "minRiskLimit": 1000000,
         "multiplier": 0.1,
-        "nextFundingRateTime": 23892624,
-        "openInterest": "9267",
+        "nextFundingRateTime": 21506805,
+        "openInterest": "9276",
         "order": 7,
         "predictedFundingFeeRate": 0.0001,
-        "priceChgPctOf24h": 0.0291,
+        "priceChgPctOf24h": 0.0252,
         "quoteCurrency": "USDT",
         "riskStep": 500000,
         "rootSymbol": "USDT",
@@ -781,10 +781,10 @@
         "takerFeeRate": 0.0005,
         "takerFixFee": null,
         "tickSize": 0.001,
-        "turnoverOf24h": 1431715.4892,
+        "turnoverOf24h": 1431992.9602,
         "type": "FFWCSX",
         "updatedAt": 1712739324000,
-        "volumeOf24h": 482608
+        "volumeOf24h": 482310
        }
       ],
       "msg": ""
@@ -20987,7 +20987,7 @@
        "displayName": "MONKE/USDT",
        "quoteCurrencyName": "USDT",
        "state": "NORMAL",
-       "symbol": "BTC_USDT",
+       "symbol": "MONKE_USDT",
        "symbolTradeLimit": {
         "amountScale": 6,
         "highestBid": "0",
@@ -20996,7 +20996,7 @@
         "minQuantity": "0.01",
         "priceScale": 6,
         "quantityScale": 2,
-        "symbol": "BTC_USDT"
+        "symbol": "MONKE_USDT"
        },
        "tradableStartTime": 1714392000000,
        "visibleStartTime": 1714363200000
@@ -24792,6 +24792,6975 @@
       ]
      ],
      "queryString": "endTime=1719869100000\u0026interval=MINUTE_5\u0026limit=500\u0026startTime=1719861600000",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/markets/price": {
+   "GET": [
+    {
+     "data": [
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000365",
+       "symbol": "BTS_BTC",
+       "time": 1719677307066,
+       "ts": 1719677307081
+      },
+      {
+       "dailyChange": "-0.0588",
+       "price": "0.000384",
+       "symbol": "DASH_BTC",
+       "time": 1719858347840,
+       "ts": 1719858347847
+      },
+      {
+       "dailyChange": "-0.0199",
+       "price": "0.00000197",
+       "symbol": "DOGE_BTC",
+       "time": 1719869746438,
+       "ts": 1719869746447
+      },
+      {
+       "dailyChange": "-0.0207",
+       "price": "0.00118",
+       "symbol": "LTC_BTC",
+       "time": 1719865802397,
+       "ts": 1719865802407
+      },
+      {
+       "dailyChange": "-0.0444",
+       "price": "0.000001443",
+       "symbol": "XLM_BTC",
+       "time": 1719863292533,
+       "ts": 1719863292543
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000023",
+       "symbol": "XEM_BTC",
+       "time": 1719849271677,
+       "ts": 1719849271689
+      },
+      {
+       "dailyChange": "-0.0189",
+       "price": "0.002643",
+       "symbol": "XMR_BTC",
+       "time": 1719868687695,
+       "ts": 1719868687710
+      },
+      {
+       "dailyChange": "-0.0169",
+       "price": "0.00000756",
+       "symbol": "XRP_BTC",
+       "time": 1719870425938,
+       "ts": 1719870425952
+      },
+      {
+       "dailyChange": "0.0193",
+       "price": "63067.66",
+       "symbol": "BTC_USDT",
+       "time": 1719870853593,
+       "ts": 1719870853608
+      },
+      {
+       "dailyChange": "-0.0004",
+       "price": "24.46",
+       "symbol": "DASH_USDT",
+       "time": 1719858347854,
+       "ts": 1719858347869
+      },
+      {
+       "dailyChange": "-0.0057",
+       "price": "74.627",
+       "symbol": "LTC_USDT",
+       "time": 1719870853900,
+       "ts": 1719870853908
+      },
+      {
+       "dailyChange": "-0.0227",
+       "price": "0.0903",
+       "symbol": "XLM_USDT",
+       "time": 1719863215152,
+       "ts": 1719863215163
+      },
+      {
+       "dailyChange": "0.0002",
+       "price": "168.02",
+       "symbol": "XMR_USDT",
+       "time": 1719870852731,
+       "ts": 1719870852737
+      },
+      {
+       "dailyChange": "0.0089",
+       "price": "0.478",
+       "symbol": "XRP_USDT",
+       "time": 1719870851593,
+       "ts": 1719870851620
+      },
+      {
+       "dailyChange": "-0.0072",
+       "price": "0.0548",
+       "symbol": "ETH_BTC",
+       "time": 1719870801769,
+       "ts": 1719870801776
+      },
+      {
+       "dailyChange": "0.0132",
+       "price": "3458.97",
+       "symbol": "ETH_USDT",
+       "time": 1719870853505,
+       "ts": 1719870853518
+      },
+      {
+       "dailyChange": "-0.0424",
+       "price": "0.00000007",
+       "symbol": "SC_BTC",
+       "time": 1719865244907,
+       "ts": 1719865244916
+      },
+      {
+       "dailyChange": "-0.1081",
+       "price": "0.000231",
+       "symbol": "DCR_BTC",
+       "time": 1719796020607,
+       "ts": 1719796020616
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00001678",
+       "symbol": "LSK_BTC",
+       "time": 1719688723350,
+       "ts": 1719688723361
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000327",
+       "symbol": "STEEM_BTC",
+       "time": 1719568502211,
+       "ts": 1719568502217
+      },
+      {
+       "dailyChange": "-0.0212",
+       "price": "0.00037",
+       "symbol": "ETC_BTC",
+       "time": 1719870295863,
+       "ts": 1719870295870
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00662",
+       "symbol": "ETC_ETH",
+       "time": 1719843552033,
+       "ts": 1719843552044
+      },
+      {
+       "dailyChange": "-0.0062",
+       "price": "23.383",
+       "symbol": "ETC_USDT",
+       "time": 1719870853691,
+       "ts": 1719870853708
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000001",
+       "symbol": "ARDR_BTC",
+       "time": 1719601021295,
+       "ts": 1719601021306
+      },
+      {
+       "dailyChange": "-0.0472",
+       "price": "0.000323",
+       "symbol": "ZEC_BTC",
+       "time": 1719862900004,
+       "ts": 1719862900017
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00607",
+       "symbol": "ZEC_ETH",
+       "time": 1718974867227,
+       "ts": 1719393670450
+      },
+      {
+       "dailyChange": "0.0083",
+       "price": "20.65",
+       "symbol": "ZEC_USDT",
+       "time": 1719870854289,
+       "ts": 1719870854300
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000583",
+       "symbol": "ZRX_BTC",
+       "time": 1719770677940,
+       "ts": 1719770677953
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0001101",
+       "symbol": "ZRX_ETH",
+       "time": 1719613200212,
+       "ts": 1719613200222
+      },
+      {
+       "dailyChange": "-0.0584",
+       "price": "0.000001436",
+       "symbol": "CVC_BTC",
+       "time": 1719862988821,
+       "ts": 1719862988832
+      },
+      {
+       "dailyChange": "-0.0701",
+       "price": "0.0000584",
+       "symbol": "GAS_BTC",
+       "time": 1719847914530,
+       "ts": 1719847914553
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000593",
+       "symbol": "STORJ_BTC",
+       "time": 1719507682169,
+       "ts": 1719507682175
+      },
+      {
+       "dailyChange": "0.0011",
+       "price": "0.00000924",
+       "symbol": "EOS_BTC",
+       "time": 1719797424783,
+       "ts": 1719797424792
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0001681",
+       "symbol": "EOS_ETH",
+       "time": 1719750986782,
+       "ts": 1719750986790
+      },
+      {
+       "dailyChange": "0.0207",
+       "price": "0.5817",
+       "symbol": "EOS_USDT",
+       "time": 1719870853763,
+       "ts": 1719870853791
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000046",
+       "symbol": "SNT_BTC",
+       "time": 1719426162737,
+       "ts": 1719426162751
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000298",
+       "symbol": "BAT_BTC",
+       "time": 1719777603678,
+       "ts": 1719777603689
+      },
+      {
+       "dailyChange": "0.0255",
+       "price": "0.1892",
+       "symbol": "BAT_USDT",
+       "time": 1719807563287,
+       "ts": 1719807563299
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000954",
+       "symbol": "LOOM_BTC",
+       "time": 1719652518414,
+       "ts": 1719652518426
+      },
+      {
+       "dailyChange": "0.0107",
+       "price": "0.124301",
+       "symbol": "DOGE_USDT",
+       "time": 1719870852810,
+       "ts": 1719870852823
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.0046",
+       "symbol": "LSK_USDT",
+       "time": 1719726465586,
+       "ts": 1719726465598
+      },
+      {
+       "dailyChange": "0.0113",
+       "price": "0.004646",
+       "symbol": "SC_USDT",
+       "time": 1719870318722,
+       "ts": 1719870318730
+      },
+      {
+       "dailyChange": "0.0159",
+       "price": "0.351",
+       "symbol": "ZRX_USDT",
+       "time": 1719818138435,
+       "ts": 1719818138450
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000431",
+       "symbol": "QTUM_BTC",
+       "time": 1719763331311,
+       "ts": 1719763331321
+      },
+      {
+       "dailyChange": "-0.0319",
+       "price": "2.489",
+       "symbol": "QTUM_USDT",
+       "time": 1719839785807,
+       "ts": 1719839785816
+      },
+      {
+       "dailyChange": "0.0172",
+       "price": "62981.9",
+       "symbol": "BTC_USDC",
+       "time": 1719863776816,
+       "ts": 1719863776830
+      },
+      {
+       "dailyChange": "0.0195",
+       "price": "3492.52",
+       "symbol": "ETH_USDC",
+       "time": 1719856839223,
+       "ts": 1719856839228
+      },
+      {
+       "dailyChange": "-0.0007",
+       "price": "0.99703",
+       "symbol": "USDT_USDC",
+       "time": 1719869419620,
+       "ts": 1719869419626
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000575",
+       "symbol": "MANA_BTC",
+       "time": 1719688681670,
+       "ts": 1719688681682
+      },
+      {
+       "dailyChange": "0.0323",
+       "price": "0.3423",
+       "symbol": "MANA_USDT",
+       "time": 1719870852283,
+       "ts": 1719870852291
+      },
+      {
+       "dailyChange": "-0.0855",
+       "price": "0.000631",
+       "symbol": "BCHSV_BTC",
+       "time": 1719795678845,
+       "ts": 1719795678852
+      },
+      {
+       "dailyChange": "-0.0315",
+       "price": "0.4552",
+       "symbol": "XRP_USDC",
+       "time": 1719835602476,
+       "ts": 1719835602489
+      },
+      {
+       "dailyChange": "0.0018",
+       "price": "74.14",
+       "symbol": "LTC_USDC",
+       "time": 1719843664497,
+       "ts": 1719843664511
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000001491",
+       "symbol": "POLY_BTC",
+       "time": 1719438308322,
+       "ts": 1719438308338
+      },
+      {
+       "dailyChange": "0.0019",
+       "price": "0.000107",
+       "symbol": "ATOM_BTC",
+       "time": 1719808199824,
+       "ts": 1719808199840
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "6.8",
+       "symbol": "ATOM_USDC",
+       "time": 1719602273971,
+       "ts": 1719602273980
+      },
+      {
+       "dailyChange": "0.0264",
+       "price": "6.806",
+       "symbol": "ATOM_USDT",
+       "time": 1719870854323,
+       "ts": 1719870854330
+      },
+      {
+       "dailyChange": "0.047",
+       "price": "24.07",
+       "symbol": "ETC_USDC",
+       "time": 1719788257067,
+       "ts": 1719788257080
+      },
+      {
+       "dailyChange": "-0.0604",
+       "price": "42.01",
+       "symbol": "BCHSV_USDT",
+       "time": 1719864808764,
+       "ts": 1719864808779
+      },
+      {
+       "dailyChange": "0.0039",
+       "price": "0.000002036",
+       "symbol": "TRX_BTC",
+       "time": 1719868707060,
+       "ts": 1719868707076
+      },
+      {
+       "dailyChange": "0.0365",
+       "price": "0.12379",
+       "symbol": "TRX_USDC",
+       "time": 1719843793392,
+       "ts": 1719843793401
+      },
+      {
+       "dailyChange": "0.0241",
+       "price": "0.12825",
+       "symbol": "TRX_USDT",
+       "time": 1719870852418,
+       "ts": 1719870852426
+      },
+      {
+       "dailyChange": "-0.0134",
+       "price": "26920.01",
+       "symbol": "ETH_TRX",
+       "time": 1719870547611,
+       "ts": 1719870547619
+      },
+      {
+       "dailyChange": "0.0301",
+       "price": "3.761",
+       "symbol": "XRP_TRX",
+       "time": 1719833587150,
+       "ts": 1719833587166
+      },
+      {
+       "dailyChange": "0.0028",
+       "price": "0.0000008712",
+       "symbol": "BTT_USDT",
+       "time": 1719870851404,
+       "ts": 1719870851419
+      },
+      {
+       "dailyChange": "0.0413",
+       "price": "0.0000068",
+       "symbol": "BTT_TRX",
+       "time": 1719834841039,
+       "ts": 1719834841070
+      },
+      {
+       "dailyChange": "-0.0361",
+       "price": "0.00009123",
+       "symbol": "WIN_USDT",
+       "time": 1719870852323,
+       "ts": 1719870852337
+      },
+      {
+       "dailyChange": "-0.0567",
+       "price": "0.000716",
+       "symbol": "WIN_TRX",
+       "time": 1719866944538,
+       "ts": 1719866944548
+      },
+      {
+       "dailyChange": "-0.0944",
+       "price": "1.526",
+       "symbol": "STEEM_TRX",
+       "time": 1719868054764,
+       "ts": 1719868054780
+      },
+      {
+       "dailyChange": "0.0013",
+       "price": "0.0002253",
+       "symbol": "LINK_BTC",
+       "time": 1719857110147,
+       "ts": 1719857110152
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "115.32",
+       "symbol": "LINK_TRX",
+       "time": 1719540651842,
+       "ts": 1719540651852
+      },
+      {
+       "dailyChange": "0.0173",
+       "price": "0.7626",
+       "symbol": "XTZ_USDT",
+       "time": 1719849221549,
+       "ts": 1719849221562
+      },
+      {
+       "dailyChange": "-0.0011",
+       "price": "1.0728",
+       "symbol": "USDJ_USDT",
+       "time": 1719848504832,
+       "ts": 1719848504844
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000333",
+       "symbol": "SNX_BTC",
+       "time": 1719269037821,
+       "ts": 1719393670765
+      },
+      {
+       "dailyChange": "0.0255",
+       "price": "2.011",
+       "symbol": "SNX_USDT",
+       "time": 1719857142794,
+       "ts": 1719857142803
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "16.15",
+       "symbol": "SNX_TRX",
+       "time": 1719222432983,
+       "ts": 1719393670773
+      },
+      {
+       "dailyChange": "-0.0304",
+       "price": "0.00000892",
+       "symbol": "MATIC_BTC",
+       "time": 1719841920273,
+       "ts": 1719841920280
+      },
+      {
+       "dailyChange": "0.0157",
+       "price": "0.56228",
+       "symbol": "MATIC_USDT",
+       "time": 1719870852152,
+       "ts": 1719870852165
+      },
+      {
+       "dailyChange": "0.0023",
+       "price": "4.42",
+       "symbol": "MATIC_TRX",
+       "time": 1719857694938,
+       "ts": 1719857694947
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03795",
+       "symbol": "MKR_BTC",
+       "time": 1719707714699,
+       "ts": 1719707714708
+      },
+      {
+       "dailyChange": "0.0382",
+       "price": "2600.95",
+       "symbol": "MKR_USDT",
+       "time": 1719870852304,
+       "ts": 1719870852315
+      },
+      {
+       "dailyChange": "-0.011",
+       "price": "0.99004",
+       "symbol": "DAI_USDT",
+       "time": 1719858823009,
+       "ts": 1719858823019
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0001756",
+       "symbol": "NEO_BTC",
+       "time": 1719761938462,
+       "ts": 1719761938472
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "10.74",
+       "symbol": "NEO_USDT",
+       "time": 1719762143949,
+       "ts": 1719762143956
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000018",
+       "symbol": "SWFTC_BTC",
+       "time": 1719378953484,
+       "ts": 1719393670832
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001237",
+       "symbol": "SWFTC_USDT",
+       "time": 1719582180370,
+       "ts": 1719582180386
+      },
+      {
+       "dailyChange": "0.0088",
+       "price": "0.029892",
+       "symbol": "JST_USDT",
+       "time": 1719870853380,
+       "ts": 1719870853395
+      },
+      {
+       "dailyChange": "-0.0198",
+       "price": "0.2329",
+       "symbol": "JST_TRX",
+       "time": 1719863959185,
+       "ts": 1719863959194
+      },
+      {
+       "dailyChange": "0.0143",
+       "price": "0.1966",
+       "symbol": "STEEM_USDT",
+       "time": 1719868054780,
+       "ts": 1719868054785
+      },
+      {
+       "dailyChange": "0.0297",
+       "price": "14.4281",
+       "symbol": "LINK_USDT",
+       "time": 1719870853507,
+       "ts": 1719870853516
+      },
+      {
+       "dailyChange": "0.013",
+       "price": "0.0000109",
+       "symbol": "AVA_BTC",
+       "time": 1719865414628,
+       "ts": 1719865414636
+      },
+      {
+       "dailyChange": "0.0353",
+       "price": "0.689",
+       "symbol": "AVA_USDT",
+       "time": 1719866533737,
+       "ts": 1719866533746
+      },
+      {
+       "dailyChange": "-0.0726",
+       "price": "5.24",
+       "symbol": "AVA_TRX",
+       "time": 1719842732283,
+       "ts": 1719842732293
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000323",
+       "symbol": "XRPBULL_USDT",
+       "time": 1668730134574,
+       "ts": 1719393670878
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000003447",
+       "symbol": "CHR_BTC",
+       "time": 1719406323084,
+       "ts": 1719406323098
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2192",
+       "symbol": "CHR_USDT",
+       "time": 1719759470378,
+       "ts": 1719759470387
+      },
+      {
+       "dailyChange": "0.033",
+       "price": "112.48",
+       "symbol": "BTC_BNB",
+       "time": 1719861215002,
+       "ts": 1719861215016
+      },
+      {
+       "dailyChange": "0.0042",
+       "price": "580.38",
+       "symbol": "BNB_USDT",
+       "time": 1719870853633,
+       "ts": 1719870853640
+      },
+      {
+       "dailyChange": "-0.0228",
+       "price": "4522.37",
+       "symbol": "BNB_TRX",
+       "time": 1719864874248,
+       "ts": 1719864874259
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000999",
+       "symbol": "MDT_BTC",
+       "time": 1715651345706,
+       "ts": 1719393670383
+      },
+      {
+       "dailyChange": "0.3251",
+       "price": "0.05499",
+       "symbol": "MDT_USDT",
+       "time": 1719810562615,
+       "ts": 1719810562628
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3071",
+       "symbol": "MDT_TRX",
+       "time": 1719764405833,
+       "ts": 1719764405843
+      },
+      {
+       "dailyChange": "0.0128",
+       "price": "50",
+       "symbol": "COMP_USDT",
+       "time": 1719848915378,
+       "ts": 1719848915385
+      },
+      {
+       "dailyChange": "-0.0007",
+       "price": "0.01448",
+       "symbol": "COMP_ETH",
+       "time": 1719848915394,
+       "ts": 1719848915411
+      },
+      {
+       "dailyChange": "0.2072",
+       "price": "0.0571",
+       "symbol": "REN_USDT",
+       "time": 1719846449525,
+       "ts": 1719846449532
+      },
+      {
+       "dailyChange": "0.0669",
+       "price": "0.00000271",
+       "symbol": "LRC_BTC",
+       "time": 1719847739331,
+       "ts": 1719847739338
+      },
+      {
+       "dailyChange": "-0.0729",
+       "price": "0.1614",
+       "symbol": "LRC_USDT",
+       "time": 1719836667209,
+       "ts": 1719836667217
+      },
+      {
+       "dailyChange": "-0.1007",
+       "price": "2.697",
+       "symbol": "BAL_USDT",
+       "time": 1719851161998,
+       "ts": 1719851162012
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1199",
+       "symbol": "WRX_USDT",
+       "time": 1719829799529,
+       "ts": 1719829799541
+      },
+      {
+       "dailyChange": "-0.0198",
+       "price": "0.942",
+       "symbol": "WRX_TRX",
+       "time": 1719829799489,
+       "ts": 1719829799505
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000371",
+       "symbol": "SXP_BTC",
+       "time": 1719570664469,
+       "ts": 1719570664478
+      },
+      {
+       "dailyChange": "-0.0539",
+       "price": "0.2457",
+       "symbol": "SXP_USDT",
+       "time": 1719845754903,
+       "ts": 1719845754918
+      },
+      {
+       "dailyChange": "0.0194",
+       "price": "6472.05",
+       "symbol": "YFI_USDT",
+       "time": 1719848646368,
+       "ts": 1719848646377
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02712",
+       "symbol": "STPT_USDT",
+       "time": 1719060532003,
+       "ts": 1719393670485
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.426",
+       "symbol": "UMA_USDT",
+       "time": 1719639797936,
+       "ts": 1719639797944
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.002232",
+       "symbol": "RING_USDT",
+       "time": 1719582187786,
+       "ts": 1719582187830
+      },
+      {
+       "dailyChange": "-0.1913",
+       "price": "0.0296",
+       "symbol": "SWAP_USDT",
+       "time": 1719822075569,
+       "ts": 1719822075584
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0649",
+       "symbol": "GEEQ_USDT",
+       "time": 1719649458181,
+       "ts": 1719649458188
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.1516",
+       "symbol": "BAND_USDT",
+       "time": 1719482464722,
+       "ts": 1719482464736
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001011",
+       "symbol": "DOS_USDT",
+       "time": 1673517490627,
+       "ts": 1719393670541
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.4005",
+       "symbol": "DIA_USDT",
+       "time": 1719569178818,
+       "ts": 1719569178832
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "103.03",
+       "symbol": "TRB_USDT",
+       "time": 1719609485329,
+       "ts": 1719609485355
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.29",
+       "symbol": "CRV_USDT",
+       "time": 1719609326559,
+       "ts": 1719609326572
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.70449",
+       "symbol": "OM_USDT",
+       "time": 1719703800587,
+       "ts": 1719703800603
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.6099",
+       "symbol": "OCEAN_USDT",
+       "time": 1719756084692,
+       "ts": 1719756084703
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00051",
+       "symbol": "SWINGBY_USDT",
+       "time": 1719673045326,
+       "ts": 1719673045337
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0353",
+       "symbol": "PRQ_USDT",
+       "time": 1719582191086,
+       "ts": 1719582191100
+      },
+      {
+       "dailyChange": "0.0395",
+       "price": "6.399",
+       "symbol": "DOT_USDT",
+       "time": 1719870850960,
+       "ts": 1719870850967
+      },
+      {
+       "dailyChange": "0.0231",
+       "price": "0.005547",
+       "symbol": "RSR_USDT",
+       "time": 1719823030322,
+       "ts": 1719823030332
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "71.62",
+       "symbol": "WNXM_USDT",
+       "time": 1719661114126,
+       "ts": 1719661114133
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03",
+       "symbol": "FCT2_USDT",
+       "time": 1719589940897,
+       "ts": 1719589940907
+      },
+      {
+       "dailyChange": "0.0144",
+       "price": "0.8356",
+       "symbol": "SUSHI_USDT",
+       "time": 1719836096146,
+       "ts": 1719836096159
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "333",
+       "symbol": "YFII_USDT",
+       "time": 1719744755925,
+       "ts": 1719744755939
+      },
+      {
+       "dailyChange": "0.0571",
+       "price": "0.09097",
+       "symbol": "FUND_USDT",
+       "time": 1719784642364,
+       "ts": 1719784642374
+      },
+      {
+       "dailyChange": "0.0256",
+       "price": "0.7319",
+       "symbol": "FUND_TRX",
+       "time": 1719829855199,
+       "ts": 1719829855214
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000001421",
+       "symbol": "FUND_BTC",
+       "time": 1719864672786,
+       "ts": 1719864672804
+      },
+      {
+       "dailyChange": "-0.1068",
+       "price": "0.005329",
+       "symbol": "AKRO_USDT",
+       "time": 1719831054249,
+       "ts": 1719831054265
+      },
+      {
+       "dailyChange": "0.0133",
+       "price": "9.2724",
+       "symbol": "UNI_USDT",
+       "time": 1719870853988,
+       "ts": 1719870853997
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0551",
+       "symbol": "DHT_USDT",
+       "time": 1718114293317,
+       "ts": 1719393670647
+      },
+      {
+       "dailyChange": "-0.177",
+       "price": "0.2357",
+       "symbol": "CVP_USDT",
+       "time": 1719836821465,
+       "ts": 1719836821476
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.2835",
+       "symbol": "GHST_USDT",
+       "time": 1718907020706,
+       "ts": 1719393670661
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.004",
+       "symbol": "RARI_USDT",
+       "time": 1719655268915,
+       "ts": 1719655268928
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000715",
+       "symbol": "AMP_BTC",
+       "time": 1719292185617,
+       "ts": 1719393670684
+      },
+      {
+       "dailyChange": "-0.2721",
+       "price": "0.003521",
+       "symbol": "AMP_USDT",
+       "time": 1719851291055,
+       "ts": 1719851291070
+      },
+      {
+       "dailyChange": "-0.0808",
+       "price": "0.00000523",
+       "symbol": "SAND_BTC",
+       "time": 1719843500775,
+       "ts": 1719843500780
+      },
+      {
+       "dailyChange": "0.0218",
+       "price": "0.3325",
+       "symbol": "SAND_USDT",
+       "time": 1719870853040,
+       "ts": 1719870853059
+      },
+      {
+       "dailyChange": "-0.1801",
+       "price": "0.5",
+       "symbol": "POLS_USDT",
+       "time": 1719858169498,
+       "ts": 1719858169505
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001505",
+       "symbol": "AAVE_BTC",
+       "time": 1719526732846,
+       "ts": 1719526732854
+      },
+      {
+       "dailyChange": "0.0363",
+       "price": "99.29",
+       "symbol": "AAVE_USDT",
+       "time": 1719870854286,
+       "ts": 1719870854294
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000004874",
+       "symbol": "CVT_BTC",
+       "time": 1673465404852,
+       "ts": 1719393670736
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00125",
+       "symbol": "CVT_USDT",
+       "time": 1673499435734,
+       "ts": 1719393670740
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00035448",
+       "symbol": "INJ_BTC",
+       "time": 1719249360470,
+       "ts": 1719393670744
+      },
+      {
+       "dailyChange": "0.0822",
+       "price": "23.9581",
+       "symbol": "INJ_USDT",
+       "time": 1719849273286,
+       "ts": 1719849273300
+      },
+      {
+       "dailyChange": "-0.0331",
+       "price": "0.006135",
+       "symbol": "BCH_BTC",
+       "time": 1719859401636,
+       "ts": 1719859401648
+      },
+      {
+       "dailyChange": "-0.0047",
+       "price": "387.51",
+       "symbol": "BCH_USDT",
+       "time": 1719870854430,
+       "ts": 1719870854436
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0195",
+       "symbol": "SENSO_USDT",
+       "time": 1719676436769,
+       "ts": 1719676436782
+      },
+      {
+       "dailyChange": "-0.0067",
+       "price": "60.6",
+       "symbol": "KP3R_USDT",
+       "time": 1719850337195,
+       "ts": 1719850337214
+      },
+      {
+       "dailyChange": "-0.0438",
+       "price": "0.00000262",
+       "symbol": "GLM_BTC",
+       "time": 1719856447314,
+       "ts": 1719856447319
+      },
+      {
+       "dailyChange": "0.0198",
+       "price": "0.1599",
+       "symbol": "GLM_USDT",
+       "time": 1719855914184,
+       "ts": 1719855914197
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "4",
+       "symbol": "ZLOT_USDT",
+       "time": 1687336057442,
+       "ts": 1719393670779
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00001275",
+       "symbol": "FRONT_BTC",
+       "time": 1719766179811,
+       "ts": 1719766179816
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.8172",
+       "symbol": "FRONT_USDT",
+       "time": 1719769423623,
+       "ts": 1719769423637
+      },
+      {
+       "dailyChange": "0.0427",
+       "price": "2.2",
+       "symbol": "API3_USDT",
+       "time": 1719831045549,
+       "ts": 1719831045564
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.999",
+       "symbol": "BADGER_USDT",
+       "time": 1719687282292,
+       "ts": 1719687282302
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "50",
+       "symbol": "FARM_USDT",
+       "time": 1718674335268,
+       "ts": 1719393670822
+      },
+      {
+       "dailyChange": "0.0049",
+       "price": "0.0001019",
+       "symbol": "DOT_BTC",
+       "time": 1719869092278,
+       "ts": 1719869092284
+      },
+      {
+       "dailyChange": "0.0303",
+       "price": "0.211",
+       "symbol": "GRT_USDT",
+       "time": 1719870854065,
+       "ts": 1719870854074
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000702",
+       "symbol": "ESD_USDT",
+       "time": 1673213514627,
+       "ts": 1719393670835
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3912",
+       "symbol": "ONEINCH_USDT",
+       "time": 1719598875076,
+       "ts": 1719598875082
+      },
+      {
+       "dailyChange": "-0.1345",
+       "price": "0.0013",
+       "symbol": "REEF_USDT",
+       "time": 1719831500646,
+       "ts": 1719831500669
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2525",
+       "symbol": "LON_USDT",
+       "time": 1719569534663,
+       "ts": 1719569534678
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1255",
+       "symbol": "TRU_USDT",
+       "time": 1719609667022,
+       "ts": 1719609667035
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.6",
+       "symbol": "BOND_USDT",
+       "time": 1719355910616,
+       "ts": 1719393670865
+      },
+      {
+       "dailyChange": "0.0006",
+       "price": "0.9966",
+       "symbol": "TUSD_USDT",
+       "time": 1719865073563,
+       "ts": 1719865073575
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2034.62",
+       "symbol": "WETH_USDT",
+       "time": 1718967409979,
+       "ts": 1719393670895
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000002343",
+       "symbol": "TRU_BTC",
+       "time": 1718836692903,
+       "ts": 1719393670897
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.412",
+       "symbol": "FTT_USDT",
+       "time": 1719763717983,
+       "ts": 1719763718008
+      },
+      {
+       "dailyChange": "0.0677",
+       "price": "16.71",
+       "symbol": "LPT_USDT",
+       "time": 1719786906924,
+       "ts": 1719786906935
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0751",
+       "symbol": "ALPHA_USDT",
+       "time": 1719829544693,
+       "ts": 1719829544702
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.69",
+       "symbol": "TORN_USDT",
+       "time": 1719826864089,
+       "ts": 1719826864102
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02851",
+       "symbol": "ZKS_USDT",
+       "time": 1719582735762,
+       "ts": 1719582735773
+      },
+      {
+       "dailyChange": "0.0431",
+       "price": "7.8624",
+       "symbol": "RNDR_USDT",
+       "time": 1719831594893,
+       "ts": 1719831594907
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "9.07",
+       "symbol": "KCS_USDT",
+       "time": 1719443262951,
+       "ts": 1719443262958
+      },
+      {
+       "dailyChange": "-0.0265",
+       "price": "0.0000697",
+       "symbol": "FIL_BTC",
+       "time": 1719855712680,
+       "ts": 1719855712692
+      },
+      {
+       "dailyChange": "-0.0145",
+       "price": "4.361",
+       "symbol": "FIL_USDT",
+       "time": 1719870851966,
+       "ts": 1719870851975
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000309",
+       "symbol": "XYM_BTC",
+       "time": 1719779023807,
+       "ts": 1719779023815
+      },
+      {
+       "dailyChange": "-0.1009",
+       "price": "0.018",
+       "symbol": "XYM_USDT",
+       "time": 1719864549991,
+       "ts": 1719864550000
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01281",
+       "symbol": "LIVE_USDT",
+       "time": 1668079415742,
+       "ts": 1719393670472
+      },
+      {
+       "dailyChange": "0.0099",
+       "price": "0.000017172",
+       "symbol": "SHIB_USDT",
+       "time": 1719870851014,
+       "ts": 1719870851023
+      },
+      {
+       "dailyChange": "0.006",
+       "price": "0.0000000845",
+       "symbol": "AKITA_USDT",
+       "time": 1719858972527,
+       "ts": 1719858972540
+      },
+      {
+       "dailyChange": "0.0281",
+       "price": "0.00256",
+       "symbol": "KLV_USDT",
+       "time": 1719806779574,
+       "ts": 1719806779587
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.7993",
+       "symbol": "LQTY_USDT",
+       "time": 1719645120251,
+       "ts": 1719645120266
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.599",
+       "symbol": "DEGO_USDT",
+       "time": 1719501627050,
+       "ts": 1719501627058
+      },
+      {
+       "dailyChange": "0.0579",
+       "price": "0.0000000837",
+       "symbol": "ELON_USDT",
+       "time": 1719870854189,
+       "ts": 1719870854200
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.04418",
+       "symbol": "QUICK_USDT",
+       "time": 1719718290274,
+       "ts": 1719718290283
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.003131",
+       "symbol": "MVL_USDT",
+       "time": 1719641397045,
+       "ts": 1719641397059
+      },
+      {
+       "dailyChange": "0.0085",
+       "price": "0.00000045147",
+       "symbol": "NFT_USDT",
+       "time": 1719870854499,
+       "ts": 1719870854523
+      },
+      {
+       "dailyChange": "-0.0272",
+       "price": "0.00000351",
+       "symbol": "NFT_TRX",
+       "time": 1719840908185,
+       "ts": 1719840908201
+      },
+      {
+       "dailyChange": "0.0085",
+       "price": "0.239",
+       "symbol": "HT_USDT",
+       "time": 1719870854464,
+       "ts": 1719870854473
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1701",
+       "symbol": "CTSI_USDT",
+       "time": 1719174000900,
+       "ts": 1719393670556
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.2",
+       "symbol": "RLC_USDT",
+       "time": 1718641419329,
+       "ts": 1719393670560
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00421",
+       "symbol": "ERSDL_USDT",
+       "time": 1719582810380,
+       "ts": 1719582810388
+      },
+      {
+       "dailyChange": "-0.1433",
+       "price": "3.9982",
+       "symbol": "RUNE_USDT",
+       "time": 1719813536434,
+       "ts": 1719813536442
+      },
+      {
+       "dailyChange": "0.089",
+       "price": "0.000000001689",
+       "symbol": "KISHU_TRX",
+       "time": 1719867723446,
+       "ts": 1719867723456
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.999",
+       "symbol": "GTC_USDT",
+       "time": 1719777319066,
+       "ts": 1719777319077
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "28.38",
+       "symbol": "OKB_USDT",
+       "time": 1719645972646,
+       "ts": 1719645972658
+      },
+      {
+       "dailyChange": "0.0074",
+       "price": "0.0115574",
+       "symbol": "SUN_USDT",
+       "time": 1719870852271,
+       "ts": 1719870852286
+      },
+      {
+       "dailyChange": "-0.028",
+       "price": "0.00003189",
+       "symbol": "XEC_USDT",
+       "time": 1719867959152,
+       "ts": 1719867959166
+      },
+      {
+       "dailyChange": "0.0032",
+       "price": "2.177",
+       "symbol": "CAKE_USDT",
+       "time": 1719847570965,
+       "ts": 1719847570973
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "6.665",
+       "symbol": "XVS_USDT",
+       "time": 1719147840676,
+       "ts": 1719393670600
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.4288",
+       "symbol": "BURGER_USDT",
+       "time": 1719670506389,
+       "ts": 1719670506403
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "6.2",
+       "symbol": "AXS_USDT",
+       "time": 1719849168007,
+       "ts": 1719849168014
+      },
+      {
+       "dailyChange": "0.0024",
+       "price": "0.1257",
+       "symbol": "ALPACA_USDT",
+       "time": 1719863102796,
+       "ts": 1719863102811
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1862",
+       "symbol": "C98_USDT",
+       "time": 1719493065596,
+       "ts": 1719493065605
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.9341",
+       "symbol": "PERP_USDT",
+       "time": 1719582813878,
+       "ts": 1719582813889
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02243",
+       "symbol": "ACH1_USDT",
+       "time": 1719513636010,
+       "ts": 1719513636020
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0446",
+       "symbol": "CLV_USDT",
+       "time": 1719748429738,
+       "ts": 1719748429751
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.5681",
+       "symbol": "YGG_USDT",
+       "time": 1719455511104,
+       "ts": 1719455511115
+      },
+      {
+       "dailyChange": "0.0124",
+       "price": "1.063",
+       "symbol": "ALICE_USDT",
+       "time": 1719838059167,
+       "ts": 1719838059178
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1451",
+       "symbol": "AUDIO_USDT",
+       "time": 1719582816277,
+       "ts": 1719582816282
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "578.29",
+       "symbol": "BNB_USDC",
+       "time": 1719773253796,
+       "ts": 1719773253802
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2014",
+       "symbol": "MBOX_USDT",
+       "time": 1719582817443,
+       "ts": 1719582817450
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.9955",
+       "symbol": "AGLD_USDT",
+       "time": 1719759015462,
+       "ts": 1719759015471
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3283",
+       "symbol": "MANA_USDC",
+       "time": 1719156442423,
+       "ts": 1719393670730
+      },
+      {
+       "dailyChange": "0.0341",
+       "price": "0.0000008835",
+       "symbol": "BTT_USDC",
+       "time": 1719843862824,
+       "ts": 1719843862830
+      },
+      {
+       "dailyChange": "0.0896",
+       "price": "0.01471",
+       "symbol": "XEM_USDT",
+       "time": 1719864738870,
+       "ts": 1719864738878
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.649",
+       "symbol": "DYDX_USDT",
+       "time": 1719512262232,
+       "ts": 1719512262248
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.57",
+       "symbol": "XCAD_USDT",
+       "time": 1719404784703,
+       "ts": 1719404784713
+      },
+      {
+       "dailyChange": "0.0114",
+       "price": "0.02749",
+       "symbol": "GALA_USDT",
+       "time": 1719856241830,
+       "ts": 1719856241848
+      },
+      {
+       "dailyChange": "0.044",
+       "price": "2.018",
+       "symbol": "LDO_USDT",
+       "time": 1719870852531,
+       "ts": 1719870852538
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.798",
+       "symbol": "BTRST_USDT",
+       "time": 1719628365892,
+       "ts": 1719628365900
+      },
+      {
+       "dailyChange": "0.0479",
+       "price": "0.00017791",
+       "symbol": "FLOKI_USDT",
+       "time": 1719868563644,
+       "ts": 1719868563659
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.507",
+       "symbol": "TOKE_USDT",
+       "time": 1719668202397,
+       "ts": 1719668202412
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0315",
+       "symbol": "WNCG_USDT",
+       "time": 1719582823092,
+       "ts": 1719582823100
+      },
+      {
+       "dailyChange": "-0.0157",
+       "price": "16.32",
+       "symbol": "MLN_USDT",
+       "time": 1719857731052,
+       "ts": 1719857731064
+      },
+      {
+       "dailyChange": "0.3815",
+       "price": "0.2513",
+       "symbol": "WOO_USDT",
+       "time": 1719786744201,
+       "ts": 1719786744216
+      },
+      {
+       "dailyChange": "0.1683",
+       "price": "0.2221",
+       "symbol": "ENJ_USDT",
+       "time": 1719847571065,
+       "ts": 1719847571077
+      },
+      {
+       "dailyChange": "0.068",
+       "price": "0.07598",
+       "symbol": "CHZ_USDT",
+       "time": 1719868074422,
+       "ts": 1719868074433
+      },
+      {
+       "dailyChange": "0.0195",
+       "price": "0.00293",
+       "symbol": "SLP_USDT",
+       "time": 1719839391404,
+       "ts": 1719839391420
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0901",
+       "symbol": "OGN_USDT",
+       "time": 1719582827227,
+       "ts": 1719582827235
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.11",
+       "symbol": "PLA_USDT",
+       "time": 1719569453514,
+       "ts": 1719569453530
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.012",
+       "symbol": "TLM_USDT",
+       "time": 1719582828272,
+       "ts": 1719582828284
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.6575",
+       "symbol": "SUPER_USDT",
+       "time": 1719390369825,
+       "ts": 1719393670821
+      },
+      {
+       "dailyChange": "0.1109",
+       "price": "65",
+       "symbol": "ILV_USDT",
+       "time": 1719802144257,
+       "ts": 1719802144270
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.2885",
+       "symbol": "ERN_USDT",
+       "time": 1719476107589,
+       "ts": 1719476107599
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00068",
+       "symbol": "SPELL_USDT",
+       "time": 1719602878750,
+       "ts": 1719602878761
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0467",
+       "symbol": "EFI_USDT",
+       "time": 1698133997452,
+       "ts": 1719393670838
+      },
+      {
+       "dailyChange": "-0.0748",
+       "price": "0.0001745",
+       "symbol": "RACA_USDT",
+       "time": 1719857397701,
+       "ts": 1719857397716
+      },
+      {
+       "dailyChange": "0.0319",
+       "price": "29.222",
+       "symbol": "AVAX_USDT",
+       "time": 1719870851351,
+       "ts": 1719870851362
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02594",
+       "symbol": "GMEE_USDT",
+       "time": 1719640137101,
+       "ts": 1719640137111
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.2",
+       "symbol": "CVX_USDT",
+       "time": 1719555159032,
+       "ts": 1719555159039
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000421",
+       "symbol": "AVAX_BTC",
+       "time": 1719450262378,
+       "ts": 1719450262383
+      },
+      {
+       "dailyChange": "0.1063",
+       "price": "31.84",
+       "symbol": "ENS_USDT",
+       "time": 1719862147882,
+       "ts": 1719862147891
+      },
+      {
+       "dailyChange": "0.0393",
+       "price": "1.5939",
+       "symbol": "IMX_USDT",
+       "time": 1719870852047,
+       "ts": 1719870852059
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000044",
+       "symbol": "GN_USDT",
+       "time": 1653071099000,
+       "ts": 1719393670415
+      },
+      {
+       "dailyChange": "-0.1826",
+       "price": "0.0003",
+       "symbol": "SAITAMA_USDT",
+       "time": 1719838550077,
+       "ts": 1719838550087
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.175",
+       "symbol": "BOBA_USDT",
+       "time": 1719643781215,
+       "ts": 1719643781223
+      },
+      {
+       "dailyChange": "0.0456",
+       "price": "0.00000001328",
+       "symbol": "POLYDOGE_USDT",
+       "time": 1719855299198,
+       "ts": 1719855299203
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.586",
+       "symbol": "FXS_USDT",
+       "time": 1719597267763,
+       "ts": 1719597267769
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2501",
+       "symbol": "DYP_USDT",
+       "time": 1714532908925,
+       "ts": 1719393670447
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2203",
+       "symbol": "TRIBE_USDT",
+       "time": 1719582832401,
+       "ts": 1719582832411
+      },
+      {
+       "dailyChange": "0.0189",
+       "price": "147.149",
+       "symbol": "SOL_USDT",
+       "time": 1719870852556,
+       "ts": 1719870852567
+      },
+      {
+       "dailyChange": "-0.0102",
+       "price": "0.00234",
+       "symbol": "SOL_BTC",
+       "time": 1719868587879,
+       "ts": 1719868587894
+      },
+      {
+       "dailyChange": "-0.0056",
+       "price": "143.06",
+       "symbol": "SOL_USDC",
+       "time": 1719859885715,
+       "ts": 1719859885725
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.6",
+       "symbol": "DORA_USDT",
+       "time": 1719503274412,
+       "ts": 1719503274420
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.76",
+       "symbol": "ORCA_USDT",
+       "time": 1718762956856,
+       "ts": 1719393670470
+      },
+      {
+       "dailyChange": "0.0963",
+       "price": "0.09607",
+       "symbol": "PEOPLE_USDT",
+       "time": 1719793354109,
+       "ts": 1719793354114
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02021",
+       "symbol": "PSP_USDT",
+       "time": 1719582833788,
+       "ts": 1719582833797
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.25",
+       "symbol": "NEXO_USDT",
+       "time": 1718777828415,
+       "ts": 1719393670504
+      },
+      {
+       "dailyChange": "0.0424",
+       "price": "0.5897",
+       "symbol": "FTM_USDT",
+       "time": 1719869519517,
+       "ts": 1719869519528
+      },
+      {
+       "dailyChange": "-0.1158",
+       "price": "0.7543",
+       "symbol": "BNX_USDT",
+       "time": 1719823038054,
+       "ts": 1719823038071
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01272",
+       "symbol": "QI_USDT",
+       "time": 1719582835599,
+       "ts": 1719582835609
+      },
+      {
+       "dailyChange": "0.0502",
+       "price": "0.40453",
+       "symbol": "ADA_USDT",
+       "time": 1719870851127,
+       "ts": 1719870851138
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1181",
+       "symbol": "REQ_USDT",
+       "time": 1718714437497,
+       "ts": 1719393670527
+      },
+      {
+       "dailyChange": "0.0541",
+       "price": "0.01033",
+       "symbol": "SAMO_USDT",
+       "time": 1719821305909,
+       "ts": 1719821305924
+      },
+      {
+       "dailyChange": "-0.3461",
+       "price": "0.001504",
+       "symbol": "ATLAS_USDT",
+       "time": 1719848369740,
+       "ts": 1719848369748
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1274",
+       "symbol": "POLIS_USDT",
+       "time": 1719768435468,
+       "ts": 1719768435479
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2733",
+       "symbol": "FIDA_USDT",
+       "time": 1719587706796,
+       "ts": 1719587706812
+      },
+      {
+       "dailyChange": "0.0135",
+       "price": "0.248",
+       "symbol": "BICO_USDT",
+       "time": 1719862061059,
+       "ts": 1719862061072
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0867",
+       "symbol": "GODS_USDT",
+       "time": 1719582838012,
+       "ts": 1719582838024
+      },
+      {
+       "dailyChange": "-0.1433",
+       "price": "0.3169",
+       "symbol": "RBN_USDT",
+       "time": 1719851705780,
+       "ts": 1719851705791
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.06",
+       "symbol": "PYR_USDT",
+       "time": 1718606608267,
+       "ts": 1719393670585
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.9",
+       "symbol": "HIGH_USDT",
+       "time": 1719337962262,
+       "ts": 1719393670597
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1558",
+       "symbol": "VOXEL_USDT",
+       "time": 1719582839699,
+       "ts": 1719582839714
+      },
+      {
+       "dailyChange": "0.0273",
+       "price": "0.0000064",
+       "symbol": "ADA_BTC",
+       "time": 1719831813460,
+       "ts": 1719831813470
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3838",
+       "symbol": "ADA_USDC",
+       "time": 1719783604318,
+       "ts": 1719783604331
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.33",
+       "symbol": "CTC_USDT",
+       "time": 1718388897417,
+       "ts": 1719393670609
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "100.83",
+       "symbol": "METIS_USDT",
+       "time": 1710698931776,
+       "ts": 1719393670611
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.002064",
+       "symbol": "OOKI_USDT",
+       "time": 1719567083559,
+       "ts": 1719567083575
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.039",
+       "symbol": "LOOKS_USDT",
+       "time": 1719646566331,
+       "ts": 1719646566340
+      },
+      {
+       "dailyChange": "0.0242",
+       "price": "0.00000932",
+       "symbol": "FTM_BTC",
+       "time": 1719869519586,
+       "ts": 1719869519595
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00457",
+       "symbol": "SHPING_USDT",
+       "time": 1719582842083,
+       "ts": 1719582842098
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1919",
+       "symbol": "LOKA_USDT",
+       "time": 1719195846137,
+       "ts": 1719393670627
+      },
+      {
+       "dailyChange": "0.2788",
+       "price": "0.003096",
+       "symbol": "VRA_USDT",
+       "time": 1719828117973,
+       "ts": 1719828117980
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03602",
+       "symbol": "SUKU_USDT",
+       "time": 1718831894752,
+       "ts": 1719393670634
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00957",
+       "symbol": "NCT_USDT",
+       "time": 1719582844210,
+       "ts": 1719582844218
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1021",
+       "symbol": "HUNT_USDT",
+       "time": 1719582845205,
+       "ts": 1719582845219
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0019",
+       "symbol": "TITAN_USDT",
+       "time": 1719582846280,
+       "ts": 1719582846293
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00418",
+       "symbol": "UMEE_USDT",
+       "time": 1712734433712,
+       "ts": 1719393670668
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.401",
+       "symbol": "ALPINE_USDT",
+       "time": 1719173805175,
+       "ts": 1719393670681
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.17",
+       "symbol": "GMT_USDT",
+       "time": 1719582847286,
+       "ts": 1719582847297
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0954",
+       "symbol": "AERGO_USDT",
+       "time": 1673433959405,
+       "ts": 1719393670710
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.945",
+       "symbol": "APE_USDT",
+       "time": 1719730288026,
+       "ts": 1719730288041
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01102",
+       "symbol": "NVIR_USDT",
+       "time": 1719582848382,
+       "ts": 1719582848402
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3878",
+       "symbol": "STG_USDT",
+       "time": 1719582849371,
+       "ts": 1719582849381
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000538",
+       "symbol": "CULT_USDT",
+       "time": 1719768947121,
+       "ts": 1719768947128
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "20",
+       "symbol": "KSM_USDT",
+       "time": 1719755030271,
+       "ts": 1719755030284
+      },
+      {
+       "dailyChange": "0.0434",
+       "price": "0.0000866",
+       "symbol": "ZELIX_USDT",
+       "time": 1719857695401,
+       "ts": 1719857695409
+      },
+      {
+       "dailyChange": "-0.048",
+       "price": "0.1231",
+       "symbol": "NYM_USDT",
+       "time": 1719818496348,
+       "ts": 1719818496356
+      },
+      {
+       "dailyChange": "0.0286",
+       "price": "0.1257",
+       "symbol": "DAR_USDT",
+       "time": 1719850451969,
+       "ts": 1719850451991
+      },
+      {
+       "dailyChange": "0.0002",
+       "price": "1.00122",
+       "symbol": "USDD_USDT",
+       "time": 1719870850228,
+       "ts": 1719870850236
+      },
+      {
+       "dailyChange": "-0.0099",
+       "price": "2.099",
+       "symbol": "GAL_USDT",
+       "time": 1719855720365,
+       "ts": 1719855720371
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00548",
+       "symbol": "FITFI_USDT",
+       "time": 1719630538861,
+       "ts": 1719630538876
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.025",
+       "symbol": "USDD_USDC",
+       "time": 1719341061978,
+       "ts": 1719393670759
+      },
+      {
+       "dailyChange": "0.0343",
+       "price": "63609",
+       "symbol": "BTC_USDD",
+       "time": 1719857965611,
+       "ts": 1719857965623
+      },
+      {
+       "dailyChange": "0.0327",
+       "price": "3470",
+       "symbol": "ETH_USDD",
+       "time": 1719816467101,
+       "ts": 1719816467111
+      },
+      {
+       "dailyChange": "0.0229",
+       "price": "0.12799",
+       "symbol": "TRX_USDD",
+       "time": 1719831285304,
+       "ts": 1719831285318
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000008629",
+       "symbol": "BTT_USDD",
+       "time": 1719634564163,
+       "ts": 1719634564180
+      },
+      {
+       "dailyChange": "-0.0065",
+       "price": "0.029401",
+       "symbol": "JST_USDD",
+       "time": 1719829033294,
+       "ts": 1719829033309
+      },
+      {
+       "dailyChange": "-0.0374",
+       "price": "0.00009091",
+       "symbol": "WIN_USDD",
+       "time": 1719867462801,
+       "ts": 1719867462811
+      },
+      {
+       "dailyChange": "0.0128",
+       "price": "0.0116187",
+       "symbol": "SUN_USDD",
+       "time": 1719869212108,
+       "ts": 1719869212121
+      },
+      {
+       "dailyChange": "0.0117",
+       "price": "0.000016299",
+       "symbol": "SHIB_USDD",
+       "time": 1719786934778,
+       "ts": 1719786934792
+      },
+      {
+       "dailyChange": "0.007",
+       "price": "0.4777",
+       "symbol": "XRP_USDD",
+       "time": 1719870652744,
+       "ts": 1719870652752
+      },
+      {
+       "dailyChange": "-0.0196",
+       "price": "74.5",
+       "symbol": "LTC_USDD",
+       "time": 1719843580433,
+       "ts": 1719843580444
+      },
+      {
+       "dailyChange": "0.0465",
+       "price": "6.347",
+       "symbol": "DOT_USDD",
+       "time": 1719847692998,
+       "ts": 1719847693004
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001947",
+       "symbol": "XCN_USDT",
+       "time": 1719853720536,
+       "ts": 1719853720549
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.4513",
+       "symbol": "FRAX_USDT",
+       "time": 1719512206228,
+       "ts": 1719512206241
+      },
+      {
+       "dailyChange": "-0.0034",
+       "price": "1.469",
+       "symbol": "KUB_USDT",
+       "time": 1719870852711,
+       "ts": 1719870852721
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00271",
+       "symbol": "WLKN_USDT",
+       "time": 1719677661215,
+       "ts": 1719677661228
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.63",
+       "symbol": "BNT_USDT",
+       "time": 1719615902580,
+       "ts": 1719615902589
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.05151",
+       "symbol": "LOOM_USDT",
+       "time": 1719740809377,
+       "ts": 1719740809392
+      },
+      {
+       "dailyChange": "0.0435",
+       "price": "0.552",
+       "symbol": "KNC_USDT",
+       "time": 1719795149160,
+       "ts": 1719795149171
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02522",
+       "symbol": "SNT_USDT",
+       "time": 1719582167174,
+       "ts": 1719582167188
+      },
+      {
+       "dailyChange": "0.0095",
+       "price": "0.424",
+       "symbol": "LUNA_USDT",
+       "time": 1719855041789,
+       "ts": 1719855041795
+      },
+      {
+       "dailyChange": "0.1252",
+       "price": "0.00008999",
+       "symbol": "LUNC_USDT",
+       "time": 1719868247766,
+       "ts": 1719868247780
+      },
+      {
+       "dailyChange": "0.0298",
+       "price": "2.52",
+       "symbol": "ETHW_USDD",
+       "time": 1719869509471,
+       "ts": 1719869509480
+      },
+      {
+       "dailyChange": "0.0214",
+       "price": "2.53",
+       "symbol": "ETHW_USDT",
+       "time": 1719869702067,
+       "ts": 1719869702074
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00073",
+       "symbol": "ETHW_ETH",
+       "time": 1719745329262,
+       "ts": 1719745329267
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST2_POLOTEST1",
+       "time": 1710318218787,
+       "ts": 1719393670430
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST3_POLOTEST4",
+       "time": 1710318218516,
+       "ts": 1719393670424
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST2_POLOTEST4",
+       "time": 1710318218451,
+       "ts": 1719393670418
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST2_POLOTEST3",
+       "time": 1710318218681,
+       "ts": 1719393670410
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST1_POLOTEST4",
+       "time": 1710318218779,
+       "ts": 1719393670402
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST1_POLOTEST3",
+       "time": 1710318218655,
+       "ts": 1719393670396
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.5",
+       "symbol": "POLOTEST1_POLOTEST2",
+       "time": 1710318218584,
+       "ts": 1719393670388
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3",
+       "symbol": "SANTOS_USDT",
+       "time": 1719204207337,
+       "ts": 1719393670550
+      },
+      {
+       "dailyChange": "-0.1356",
+       "price": "16.95",
+       "symbol": "NMR_USDT",
+       "time": 1719865579596,
+       "ts": 1719865579610
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0876",
+       "symbol": "CVC_USDT",
+       "time": 1719582163368,
+       "ts": 1719582163385
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3267",
+       "symbol": "STORJ_USDT",
+       "time": 1719507681785,
+       "ts": 1719507681791
+      },
+      {
+       "dailyChange": "0.0129",
+       "price": "0.3212",
+       "symbol": "OMG_USDT",
+       "time": 1719864650921,
+       "ts": 1719864650931
+      },
+      {
+       "dailyChange": "-0.0177",
+       "price": "1",
+       "symbol": "ETHF_USDT",
+       "time": 1719841424373,
+       "ts": 1719841424387
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0866",
+       "symbol": "POLY_USDT",
+       "time": 1719582172869,
+       "ts": 1719582172877
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001088",
+       "symbol": "DC_USDT",
+       "time": 1719582859522,
+       "ts": 1719582859530
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "33",
+       "symbol": "SSV_USDT",
+       "time": 1719594200382,
+       "ts": 1719594200394
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.05902",
+       "symbol": "APX_USDT",
+       "time": 1719582857402,
+       "ts": 1719582857414
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.6251",
+       "symbol": "AFC_USDT",
+       "time": 1719371618013,
+       "ts": 1719393670598
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.313",
+       "symbol": "CITY_USDT",
+       "time": 1719525775604,
+       "ts": 1719525775618
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03614",
+       "symbol": "ZBCN_USDT",
+       "time": 1712238521794,
+       "ts": 1719393670584
+      },
+      {
+       "dailyChange": "-0.2143",
+       "price": "0.00000011",
+       "symbol": "XEN_USDT",
+       "time": 1719826321933,
+       "ts": 1719826321944
+      },
+      {
+       "dailyChange": "-0.1979",
+       "price": "0.00231",
+       "symbol": "BTS_USDT",
+       "time": 1719862807947,
+       "ts": 1719862807959
+      },
+      {
+       "dailyChange": "-0.0206",
+       "price": "15.23",
+       "symbol": "DCR_USDT",
+       "time": 1719857117309,
+       "ts": 1719857117321
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.06",
+       "symbol": "ARDR_USDT",
+       "time": 1719601021278,
+       "ts": 1719601021289
+      },
+      {
+       "dailyChange": "-0.0148",
+       "price": "3.668",
+       "symbol": "GAS_USDT",
+       "time": 1719847914554,
+       "ts": 1719847914568
+      },
+      {
+       "dailyChange": "0.0914",
+       "price": "0.2149",
+       "symbol": "HFT_USDT",
+       "time": 1719856229355,
+       "ts": 1719856229363
+      },
+      {
+       "dailyChange": "0.0091",
+       "price": "1.7762",
+       "symbol": "OP_USDT",
+       "time": 1719870854293,
+       "ts": 1719870854302
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "33.31",
+       "symbol": "GMX_USDT",
+       "time": 1719350103485,
+       "ts": 1719393670637
+      },
+      {
+       "dailyChange": "0.0129",
+       "price": "5.322",
+       "symbol": "NEAR_USDT",
+       "time": 1719870852015,
+       "ts": 1719870852025
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.7242",
+       "symbol": "ACM_USDT",
+       "time": 1719297225854,
+       "ts": 1719393670624
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.0011",
+       "symbol": "JUV_USDT",
+       "time": 1718731206285,
+       "ts": 1719393670617
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.5",
+       "symbol": "ASR_USDT",
+       "time": 1719678012604,
+       "ts": 1719678012615
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.103",
+       "symbol": "PSG_USDT",
+       "time": 1719420663827,
+       "ts": 1719420663834
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "7.55",
+       "symbol": "TONOLD_USDT",
+       "time": 1718102938203,
+       "ts": 1719393670692
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.098",
+       "symbol": "MASK_USDT",
+       "time": 1718643231628,
+       "ts": 1719393670685
+      },
+      {
+       "dailyChange": "0.98",
+       "price": "1.386",
+       "symbol": "ARG_USDT",
+       "time": 1719866087837,
+       "ts": 1719866087850
+      },
+      {
+       "dailyChange": "-0.0208",
+       "price": "2.349",
+       "symbol": "POR_USDT",
+       "time": 1719865913217,
+       "ts": 1719865913226
+      },
+      {
+       "dailyChange": "0.025",
+       "price": "7.142",
+       "symbol": "APT_USDT",
+       "time": 1719870854278,
+       "ts": 1719870854287
+      },
+      {
+       "dailyChange": "0.1127",
+       "price": "0.010014",
+       "symbol": "VELO_USDT",
+       "time": 1719837691792,
+       "ts": 1719837691800
+      },
+      {
+       "dailyChange": "0.0006",
+       "price": "0.00000001673",
+       "symbol": "VINU_USDT",
+       "time": 1719861699692,
+       "ts": 1719861699705
+      },
+      {
+       "dailyChange": "0.2978",
+       "price": "1.948",
+       "symbol": "BAR_USDT",
+       "time": 1719798598631,
+       "ts": 1719798598642
+      },
+      {
+       "dailyChange": "0.0005",
+       "price": "2.099",
+       "symbol": "ATM_USDT",
+       "time": 1719865260748,
+       "ts": 1719865260760
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.4057",
+       "symbol": "CEL_USDT",
+       "time": 1719582861869,
+       "ts": 1719582861884
+      },
+      {
+       "dailyChange": "-0.003",
+       "price": "0.000986",
+       "symbol": "BITCI_USDT",
+       "time": 1719850383319,
+       "ts": 1719850383333
+      },
+      {
+       "dailyChange": "-0.0736",
+       "price": "0.0277",
+       "symbol": "BFT_USDT",
+       "time": 1719810509357,
+       "ts": 1719810509371
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.085",
+       "symbol": "VGX_USDT",
+       "time": 1719596257633,
+       "ts": 1719596257638
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "10",
+       "symbol": "PORTO_USDD",
+       "time": 1719629143521,
+       "ts": 1719629143536
+      },
+      {
+       "dailyChange": "0.5391",
+       "price": "1.73",
+       "symbol": "PORTO_USDT",
+       "time": 1719857749345,
+       "ts": 1719857749355
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.009",
+       "symbol": "LAZIO_USDT",
+       "time": 1719746379284,
+       "ts": 1719746379293
+      },
+      {
+       "dailyChange": "0.0711",
+       "price": "0.02409",
+       "symbol": "FLR_USDT",
+       "time": 1719868492149,
+       "ts": 1719868492165
+      },
+      {
+       "dailyChange": "0.0065",
+       "price": "0.00617",
+       "symbol": "UT_USDT",
+       "time": 1719870511394,
+       "ts": 1719870511401
+      },
+      {
+       "dailyChange": "-0.04",
+       "price": "0.0072",
+       "symbol": "TRR_USDT",
+       "time": 1719838108443,
+       "ts": 1719838108452
+      },
+      {
+       "dailyChange": "0.1456",
+       "price": "0.000025604",
+       "symbol": "BONK_USDT",
+       "time": 1719870413155,
+       "ts": 1719870413166
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3",
+       "symbol": "OG_USDT",
+       "time": 1719004502763,
+       "ts": 1719393670764
+      },
+      {
+       "dailyChange": "-0.0315",
+       "price": "0.00000034182",
+       "symbol": "VOLT_USDT",
+       "time": 1719870853856,
+       "ts": 1719870853868
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2514",
+       "symbol": "DUSK_USDT",
+       "time": 1719582877078,
+       "ts": 1719582877090
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.008",
+       "symbol": "PSI_USDT",
+       "time": 1712738798084,
+       "ts": 1719393670850
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.6",
+       "symbol": "GNS_USDT",
+       "time": 1719585354590,
+       "ts": 1719585354604
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.043",
+       "symbol": "SUDO_USDT",
+       "time": 1718907745661,
+       "ts": 1719393670843
+      },
+      {
+       "dailyChange": "-0.1389",
+       "price": "0.0093",
+       "symbol": "IGU_USDT",
+       "time": 1719819940268,
+       "ts": 1719819940274
+      },
+      {
+       "dailyChange": "0.0244",
+       "price": "0.000000001216",
+       "symbol": "BABYDOGE_USDT",
+       "time": 1719864759471,
+       "ts": 1719864759494
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00022",
+       "symbol": "KON_USDT",
+       "time": 1719542007664,
+       "ts": 1719542007678
+      },
+      {
+       "dailyChange": "0.019",
+       "price": "8.159",
+       "symbol": "ICP_USDT",
+       "time": 1719870854167,
+       "ts": 1719870854178
+      },
+      {
+       "dailyChange": "-0.0485",
+       "price": "0.2",
+       "symbol": "BLUR_USDT",
+       "time": 1719842872457,
+       "ts": 1719842872465
+      },
+      {
+       "dailyChange": "-0.0072",
+       "price": "0.00575878",
+       "symbol": "CARMIN_USDT",
+       "time": 1719870834804,
+       "ts": 1719870834829
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.4527",
+       "symbol": "FET_USDT",
+       "time": 1719730058319,
+       "ts": 1719730058330
+      },
+      {
+       "dailyChange": "0.0229",
+       "price": "1.34",
+       "symbol": "CORE_USDT",
+       "time": 1719861902014,
+       "ts": 1719861902027
+      },
+      {
+       "dailyChange": "0.185",
+       "price": "0.01979",
+       "symbol": "IMGNAI_USDT",
+       "time": 1719819744152,
+       "ts": 1719819744168
+      },
+      {
+       "dailyChange": "-0.0002",
+       "price": "0.5938",
+       "symbol": "AGIX_USDT",
+       "time": 1719802841588,
+       "ts": 1719802841596
+      },
+      {
+       "dailyChange": "0.0304",
+       "price": "19.67",
+       "symbol": "RPL_USDT",
+       "time": 1719844913460,
+       "ts": 1719844913466
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0037",
+       "symbol": "TSUKA_USDT",
+       "time": 1719582879152,
+       "ts": 1719582879158
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.07188",
+       "symbol": "FACTR_USDT",
+       "time": 1717823945743,
+       "ts": 1719393670904
+      },
+      {
+       "dailyChange": "0.8344",
+       "price": "0.00299",
+       "symbol": "GPT_USDT",
+       "time": 1719846206395,
+       "ts": 1719846206407
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.6991",
+       "symbol": "BONE_USDT",
+       "time": 1719749872866,
+       "ts": 1719749872876
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02021",
+       "symbol": "ALI_USDT",
+       "time": 1719582874691,
+       "ts": 1719582874703
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.41",
+       "symbol": "SDAO_USDT",
+       "time": 1718989615776,
+       "ts": 1719393670876
+      },
+      {
+       "dailyChange": "-0.0245",
+       "price": "0.0199",
+       "symbol": "GFT_USDT",
+       "time": 1719861108339,
+       "ts": 1719861108348
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001",
+       "symbol": "LOGT_USDT",
+       "time": 1719866656234,
+       "ts": 1719866656242
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1207",
+       "symbol": "RDNT_USDT",
+       "time": 1719495168026,
+       "ts": 1719495168036
+      },
+      {
+       "dailyChange": "-0.0085",
+       "price": "0.000352",
+       "symbol": "ROCK_USDT",
+       "time": 1719807008617,
+       "ts": 1719807008624
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0501",
+       "symbol": "MUTE_USDT",
+       "time": 1719582884523,
+       "ts": 1719582884535
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0944",
+       "symbol": "RIF_USDT",
+       "time": 1719756221453,
+       "ts": 1719756221462
+      },
+      {
+       "dailyChange": "0.0155",
+       "price": "0.0000001312",
+       "symbol": "BRISE_USDT",
+       "time": 1719812815927,
+       "ts": 1719812815945
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2",
+       "symbol": "POOLX_USDT",
+       "time": 1718733861755,
+       "ts": 1719393670931
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000501",
+       "symbol": "PAW_USDT",
+       "time": 1719781825932,
+       "ts": 1719781825943
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "5.2913",
+       "symbol": "PENDLE_USDT",
+       "time": 1719481941566,
+       "ts": 1719481941573
+      },
+      {
+       "dailyChange": "0.0053",
+       "price": "0.4545",
+       "symbol": "ID_USDT",
+       "time": 1719808648419,
+       "ts": 1719808648431
+      },
+      {
+       "dailyChange": "-0.0005",
+       "price": "0.7894",
+       "symbol": "ARB_USDT",
+       "time": 1719870854198,
+       "ts": 1719870854223
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00559",
+       "symbol": "PERL_USDT",
+       "time": 1719609170815,
+       "ts": 1719609170826
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0006",
+       "symbol": "GDX_USDT",
+       "time": 1711446918862,
+       "ts": 1719393670910
+      },
+      {
+       "dailyChange": "-0.016",
+       "price": "1.0001",
+       "symbol": "RIO_USDT",
+       "time": 1719788641880,
+       "ts": 1719788641902
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0302",
+       "symbol": "USH_USDT",
+       "time": 1719582891794,
+       "ts": 1719582891802
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000007",
+       "symbol": "RUG_USDT",
+       "time": 1712738844188,
+       "ts": 1719393670997
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000001064",
+       "symbol": "BOBOETH_USDT",
+       "time": 1719301860498,
+       "ts": 1719393670994
+      },
+      {
+       "dailyChange": "0.0902",
+       "price": "0.000000000145",
+       "symbol": "BABYPEPE_USDT",
+       "time": 1719860573720,
+       "ts": 1719860573728
+      },
+      {
+       "dailyChange": "0.1247",
+       "price": "0.1687",
+       "symbol": "CGPT_USDT",
+       "time": 1719870665709,
+       "ts": 1719870665729
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000767",
+       "symbol": "CHAD_USDT",
+       "time": 1719870847727,
+       "ts": 1719870847740
+      },
+      {
+       "dailyChange": "0.4788",
+       "price": "0.00037",
+       "symbol": "WOJAK_USDT",
+       "time": 1719869255175,
+       "ts": 1719869255192
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0027",
+       "symbol": "AGI_USDT",
+       "time": 1719294944003,
+       "ts": 1719393670975
+      },
+      {
+       "dailyChange": "0.0128",
+       "price": "0.00001163797",
+       "symbol": "PEPE_USDT",
+       "time": 1719864122829,
+       "ts": 1719864122839
+      },
+      {
+       "dailyChange": "0.0244",
+       "price": "0.0000000003196",
+       "symbol": "AIDOGE_USDT",
+       "time": 1719855354833,
+       "ts": 1719855354841
+      },
+      {
+       "dailyChange": "-0.1839",
+       "price": "0.02916",
+       "symbol": "LZM_USDT",
+       "time": 1719811923289,
+       "ts": 1719811923303
+      },
+      {
+       "dailyChange": "-0.1203",
+       "price": "0.04007",
+       "symbol": "WIFI_USDT",
+       "time": 1719846111667,
+       "ts": 1719846111682
+      },
+      {
+       "dailyChange": "-0.0528",
+       "price": "0.01614",
+       "symbol": "RMV_USDT",
+       "time": 1719870837006,
+       "ts": 1719870837014
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000219",
+       "symbol": "POOH_USDT",
+       "time": 1719831440881,
+       "ts": 1719831440896
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000115",
+       "symbol": "RIBBIT_USDT",
+       "time": 1719638248004,
+       "ts": 1719638248012
+      },
+      {
+       "dailyChange": "-0.0477",
+       "price": "0.0022801",
+       "symbol": "TURBO_USDT",
+       "time": 1719854362614,
+       "ts": 1719854362631
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000097",
+       "symbol": "CLIPS_USDT",
+       "time": 1712738625511,
+       "ts": 1719393671040
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000037",
+       "symbol": "WSB_USDT",
+       "time": 1711447473893,
+       "ts": 1719393671036
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000044",
+       "symbol": "POGAI_USDT",
+       "time": 1719375577880,
+       "ts": 1719393671032
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000000676",
+       "symbol": "FLOKICEO_USDT",
+       "time": 1719634695005,
+       "ts": 1719634695017
+      },
+      {
+       "dailyChange": "0.0124",
+       "price": "0.8168",
+       "symbol": "SUI_USDT",
+       "time": 1719870853513,
+       "ts": 1719870853525
+      },
+      {
+       "dailyChange": "0.1781",
+       "price": "0.00003784",
+       "symbol": "BOB_USDT",
+       "time": 1719841663237,
+       "ts": 1719841663255
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000055",
+       "symbol": "SOV_USDT",
+       "time": 1712738998412,
+       "ts": 1719393671017
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1045",
+       "symbol": "SOLO_USDT",
+       "time": 1719745957682,
+       "ts": 1719745957693
+      },
+      {
+       "dailyChange": "0.0216",
+       "price": "0.1136",
+       "symbol": "COREUM_USDT",
+       "time": 1719855391598,
+       "ts": 1719855391610
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000201",
+       "symbol": "CAPO_USDT",
+       "time": 1719576902867,
+       "ts": 1719576902891
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000017",
+       "symbol": "BAM_USDT",
+       "time": 1712739280803,
+       "ts": 1719393671112
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000045",
+       "symbol": "BEN_USDT",
+       "time": 1719768387566,
+       "ts": 1719768387580
+      },
+      {
+       "dailyChange": "0.0567",
+       "price": "0.0000298",
+       "symbol": "KING_USDT",
+       "time": 1719816749214,
+       "ts": 1719816749222
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000223",
+       "symbol": "WSTREETBABY_USDT",
+       "time": 1711367303307,
+       "ts": 1719393671094
+      },
+      {
+       "dailyChange": "0.0432",
+       "price": "0.000314",
+       "symbol": "SPONGE_USDT",
+       "time": 1719862258535,
+       "ts": 1719862258541
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000161",
+       "symbol": "RFD_USDT",
+       "time": 1719676992402,
+       "ts": 1719676992416
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000039",
+       "symbol": "WEWE_USDT",
+       "time": 1711439194487,
+       "ts": 1719393671157
+      },
+      {
+       "dailyChange": "0.1519",
+       "price": "0.00364",
+       "symbol": "LIMO_USDT",
+       "time": 1719830471446,
+       "ts": 1719830471456
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000004999",
+       "symbol": "OGGY_USDT",
+       "time": 1719694869052,
+       "ts": 1719694869064
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000701",
+       "symbol": "DONS_USDT",
+       "time": 1719582897969,
+       "ts": 1719582897980
+      },
+      {
+       "dailyChange": "0.0876",
+       "price": "0.00000000149",
+       "symbol": "PEPEAI_USDT",
+       "time": 1719796973880,
+       "ts": 1719796973898
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000000041",
+       "symbol": "SIMPSON_USDT",
+       "time": 1719589140718,
+       "ts": 1719589140725
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.053993",
+       "symbol": "HARRY_USDT",
+       "time": 1719853866857,
+       "ts": 1719853866875
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000008",
+       "symbol": "LADYS_USDT",
+       "time": 1719819099367,
+       "ts": 1719819099380
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000901",
+       "symbol": "MONG_USDT",
+       "time": 1719680343936,
+       "ts": 1719680343948
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.153",
+       "symbol": "LBR_USDT",
+       "time": 1718744600040,
+       "ts": 1719393671209
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000402",
+       "symbol": "PAPI_USDT",
+       "time": 1712738743960,
+       "ts": 1719393671201
+      },
+      {
+       "dailyChange": "-0.1996",
+       "price": "0.0397",
+       "symbol": "AMC_USDT",
+       "time": 1719839792263,
+       "ts": 1719839792280
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00004",
+       "symbol": "PSYOP_USDT",
+       "time": 1712729117226,
+       "ts": 1719393671181
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03",
+       "symbol": "DMT_USDT",
+       "time": 1719793629611,
+       "ts": 1719793629620
+      },
+      {
+       "dailyChange": "0.0055",
+       "price": "0.000000182",
+       "symbol": "BNBDADDY_USDT",
+       "time": 1719857974758,
+       "ts": 1719857974769
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000938",
+       "symbol": "BIG_USDT",
+       "time": 1719129688101,
+       "ts": 1719393671265
+      },
+      {
+       "dailyChange": "-0.016",
+       "price": "0.123",
+       "symbol": "LVL_USDT",
+       "time": 1719812420723,
+       "ts": 1719812420737
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000402",
+       "symbol": "DUMMY_USDT",
+       "time": 1712754173881,
+       "ts": 1719393671254
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000645",
+       "symbol": "LOVESNOOPY_USDT",
+       "time": 1719778369865,
+       "ts": 1719778369876
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000001011",
+       "symbol": "INU_USDT",
+       "time": 1712756239237,
+       "ts": 1719393671243
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0199",
+       "symbol": "FERC_USDT",
+       "time": 1719649645124,
+       "ts": 1719649645130
+      },
+      {
+       "dailyChange": "-0.0441",
+       "price": "0.5009",
+       "symbol": "STT_USDT",
+       "time": 1719870845925,
+       "ts": 1719870845937
+      },
+      {
+       "dailyChange": "0.0703",
+       "price": "0.00000007553",
+       "symbol": "JESUS_USDT",
+       "time": 1719856278935,
+       "ts": 1719856278948
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000004108",
+       "symbol": "PEPE2_USDT",
+       "time": 1719743806539,
+       "ts": 1719743806556
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.052",
+       "symbol": "MMT_USDT",
+       "time": 1719503360266,
+       "ts": 1719503360279
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0836",
+       "symbol": "UPP_USDT",
+       "time": 1714849520626,
+       "ts": 1719393671329
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.3",
+       "symbol": "TOKAMAK_USDT",
+       "time": 1718722261371,
+       "ts": 1719393671324
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0002562",
+       "symbol": "MPWR_USDT",
+       "time": 1719151769791,
+       "ts": 1719393671317
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2923",
+       "symbol": "MAV_USDT",
+       "time": 1719184847659,
+       "ts": 1719393671312
+      },
+      {
+       "dailyChange": "0.1429",
+       "price": "0.000000008",
+       "symbol": "TITTY_USDT",
+       "time": 1719851026188,
+       "ts": 1719851026195
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000006",
+       "symbol": "L_USDT",
+       "time": 1719379189722,
+       "ts": 1719393671304
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.181",
+       "symbol": "TOMI_USDT",
+       "time": 1719669348602,
+       "ts": 1719669348615
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.002",
+       "symbol": "OX_USDT",
+       "time": 1719700759430,
+       "ts": 1719700759444
+      },
+      {
+       "dailyChange": "-0.0163",
+       "price": "37.988",
+       "symbol": "ORDI_USDT",
+       "time": 1719831341594,
+       "ts": 1719831341612
+      },
+      {
+       "dailyChange": "-0.1781",
+       "price": "0.024",
+       "symbol": "VMPX_USDT",
+       "time": 1719856175832,
+       "ts": 1719856175846
+      },
+      {
+       "dailyChange": "-0.1478",
+       "price": "0.00001165",
+       "symbol": "PLANET_USDT",
+       "time": 1719848322947,
+       "ts": 1719848322962
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000021",
+       "symbol": "PC_USDT",
+       "time": 1712756446984,
+       "ts": 1719393671401
+      },
+      {
+       "dailyChange": "-0.0548",
+       "price": "0.4377",
+       "symbol": "VOW_USDT",
+       "time": 1719870844575,
+       "ts": 1719870844584
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "58.05",
+       "symbol": "UNIBOT_USDT",
+       "time": 1719488070610,
+       "ts": 1719488070621
+      },
+      {
+       "dailyChange": "0.0042",
+       "price": "0.00000000241",
+       "symbol": "HOPPY_USDT",
+       "time": 1719860702976,
+       "ts": 1719860702987
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.5996",
+       "symbol": "OSMO_USDT",
+       "time": 1719586863403,
+       "ts": 1719586863411
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.0433",
+       "symbol": "WSTUSDT_USDT",
+       "time": 1719870852604,
+       "ts": 1719870852619
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0051",
+       "symbol": "HNTAI_USDT",
+       "time": 1711447537710,
+       "ts": 1719393671378
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000024",
+       "symbol": "JARED_USDT",
+       "time": 1719308185792,
+       "ts": 1719393671374
+      },
+      {
+       "dailyChange": "0.1817",
+       "price": "0.00000000266",
+       "symbol": "HAM_USDT",
+       "time": 1719865679189,
+       "ts": 1719865679205
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00011",
+       "symbol": "POP_USDT",
+       "time": 1712729020585,
+       "ts": 1719393671357
+      },
+      {
+       "dailyChange": "0.0042",
+       "price": "0.00000000024",
+       "symbol": "PEPE20_USDT",
+       "time": 1719834497467,
+       "ts": 1719834497477
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000212",
+       "symbol": "SHIB2_USDT",
+       "time": 1719737738772,
+       "ts": 1719737738788
+      },
+      {
+       "dailyChange": "-0.081",
+       "price": "0.0000000202",
+       "symbol": "DOGE2_USDT",
+       "time": 1719848452233,
+       "ts": 1719848452247
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.31",
+       "symbol": "BSWAP_USDT",
+       "time": 1719304400568,
+       "ts": 1719393671450
+      },
+      {
+       "dailyChange": "0.167",
+       "price": "0.000285499",
+       "symbol": "TOSHI_USDT",
+       "time": 1719868741509,
+       "ts": 1719868741519
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01111",
+       "symbol": "XRP8_USDT",
+       "time": 1719464014926,
+       "ts": 1719464014933
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03",
+       "symbol": "WINR_USDT",
+       "time": 1719847311928,
+       "ts": 1719847311943
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000498",
+       "symbol": "PNDC_USDT",
+       "time": 1718935662964,
+       "ts": 1719393671442
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1359",
+       "symbol": "RLB_USDT",
+       "time": 1719859002714,
+       "ts": 1719859002729
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000033",
+       "symbol": "XTOKEN_USDT",
+       "time": 1719601545121,
+       "ts": 1719601545131
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0003",
+       "symbol": "COCO_USDT",
+       "time": 1711429214527,
+       "ts": 1719393671428
+      },
+      {
+       "dailyChange": "-0.0311",
+       "price": "2.336",
+       "symbol": "WLD_USDT",
+       "time": 1719865249177,
+       "ts": 1719865249196
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000000527",
+       "symbol": "X_USDT",
+       "time": 1719822889117,
+       "ts": 1719822889135
+      },
+      {
+       "dailyChange": "-0.0142",
+       "price": "0.00000002216",
+       "symbol": "BAD_USDT",
+       "time": 1719854782033,
+       "ts": 1719854782044
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0163",
+       "symbol": "HAMS_USDT",
+       "time": 1719490007152,
+       "ts": 1719490007164
+      },
+      {
+       "dailyChange": "0.0728",
+       "price": "0.00000053652",
+       "symbol": "MOG_USDT",
+       "time": 1719852347959,
+       "ts": 1719852347967
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0304",
+       "symbol": "LOOT_USDT",
+       "time": 1719756195975,
+       "ts": 1719756195988
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0152",
+       "symbol": "SG_USDT",
+       "time": 1719781805202,
+       "ts": 1719781805212
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1316",
+       "symbol": "BTP_USDT",
+       "time": 1719492535033,
+       "ts": 1719492535040
+      },
+      {
+       "dailyChange": "0.0517",
+       "price": "0.13199",
+       "symbol": "AITECH_USDT",
+       "time": 1719813901787,
+       "ts": 1719813901797
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0004",
+       "symbol": "SHIA_USDT",
+       "time": 1719335025527,
+       "ts": 1719393671495
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.24",
+       "symbol": "SHARES_USDT",
+       "time": 1711447192539,
+       "ts": 1719393671483
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000206",
+       "symbol": "LL_USDT",
+       "time": 1719781781840,
+       "ts": 1719781781852
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.5",
+       "symbol": "AXE_USDT",
+       "time": 1711367249925,
+       "ts": 1719393671475
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.16",
+       "symbol": "NONE_USDT",
+       "time": 1711447437962,
+       "ts": 1719393671472
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000033",
+       "symbol": "BPD_USDT",
+       "time": 1711447154821,
+       "ts": 1719393671468
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0283",
+       "symbol": "RXT_USDT",
+       "time": 1711429182588,
+       "ts": 1719393671464
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000003197",
+       "symbol": "FOOM_USDT",
+       "time": 1719309195308,
+       "ts": 1719393671461
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "4.999",
+       "symbol": "AIMBOT_USDT",
+       "time": 1719559259429,
+       "ts": 1719559259439
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000794",
+       "symbol": "SPURDO_USDT",
+       "time": 1719693129889,
+       "ts": 1719693129895
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.003871",
+       "symbol": "STMX_USDT",
+       "time": 1719540911354,
+       "ts": 1719540911367
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0101",
+       "symbol": "GMMT_USDT",
+       "time": 1719870814643,
+       "ts": 1719870814659
+      },
+      {
+       "dailyChange": "-0.3627",
+       "price": "0.000121",
+       "symbol": "APX1_USDT",
+       "time": 1719846068574,
+       "ts": 1719846068591
+      },
+      {
+       "dailyChange": "0.0966",
+       "price": "0.00020906",
+       "symbol": "SMURFCAT_USDT",
+       "time": 1719870852389,
+       "ts": 1719870852399
+      },
+      {
+       "dailyChange": "-0.0628",
+       "price": "0.000000173584",
+       "symbol": "SATS_USDT",
+       "time": 1719831278893,
+       "ts": 1719831278909
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.478",
+       "symbol": "HIFI_USDT",
+       "time": 1719309507891,
+       "ts": 1719393671540
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.021",
+       "symbol": "VEXT_USDT",
+       "time": 1719424488618,
+       "ts": 1719424488630
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "20.284",
+       "symbol": "BANANA_USDT",
+       "time": 1719346634816,
+       "ts": 1719393671533
+      },
+      {
+       "dailyChange": "0.0154",
+       "price": "0.00198",
+       "symbol": "CCROWD_USDT",
+       "time": 1719787521734,
+       "ts": 1719787521746
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00161",
+       "symbol": "DOBO_USDT",
+       "time": 1719309110322,
+       "ts": 1719393671525
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001099",
+       "symbol": "DORKL_USDT",
+       "time": 1719539126646,
+       "ts": 1719539126656
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000198",
+       "symbol": "SHIB42069_USDT",
+       "time": 1711395767498,
+       "ts": 1719393671513
+      },
+      {
+       "dailyChange": "-0.25",
+       "price": "0.000015",
+       "symbol": "ETHPEPE2_USDT",
+       "time": 1719838378653,
+       "ts": 1719838378667
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000049",
+       "symbol": "TISM_USDT",
+       "time": 1719674447295,
+       "ts": 1719674447304
+      },
+      {
+       "dailyChange": "0.0015",
+       "price": "0.00649",
+       "symbol": "ETF_USDT",
+       "time": 1719824401288,
+       "ts": 1719824401298
+      },
+      {
+       "dailyChange": "0.2225",
+       "price": "1.2368",
+       "symbol": "NAKA_USDT",
+       "time": 1719870854223,
+       "ts": 1719870854232
+      },
+      {
+       "dailyChange": "-0.3866",
+       "price": "0.00073",
+       "symbol": "NLC_USDT",
+       "time": 1719801569635,
+       "ts": 1719801569644
+      },
+      {
+       "dailyChange": "0.0077",
+       "price": "0.0263",
+       "symbol": "SIX_USDT",
+       "time": 1719870822057,
+       "ts": 1719870822095
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "85222.89",
+       "symbol": "HAY_USDT",
+       "time": 1712738766619,
+       "ts": 1719393671589
+      },
+      {
+       "dailyChange": "0.1297",
+       "price": "0.000000331",
+       "symbol": "APU_USDT",
+       "time": 1719792060241,
+       "ts": 1719792060249
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2",
+       "symbol": "REKT2_USDT",
+       "time": 1718548000041,
+       "ts": 1719393671584
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000005769",
+       "symbol": "NATI_USDT",
+       "time": 1711441018825,
+       "ts": 1719393671583
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1181",
+       "symbol": "BIGTIME_USDT",
+       "time": 1719582910810,
+       "ts": 1719582910817
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000015",
+       "symbol": "SAFEREUM_USDT",
+       "time": 1711383570588,
+       "ts": 1719393671578
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.314",
+       "symbol": "OPOS_USDT",
+       "time": 1719600000815,
+       "ts": 1719600000827
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000011",
+       "symbol": "OCISLY_USDT",
+       "time": 1711428784988,
+       "ts": 1719393671574
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00014821",
+       "symbol": "RATS_USDT",
+       "time": 1719759911879,
+       "ts": 1719759911894
+      },
+      {
+       "dailyChange": "0.0909",
+       "price": "0.279684",
+       "symbol": "PAAL_USDT",
+       "time": 1719870850119,
+       "ts": 1719870850132
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000036",
+       "symbol": "DORK_USDT",
+       "time": 1712738937714,
+       "ts": 1719393671650
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0001914",
+       "symbol": "IO_USDT",
+       "time": 1719769663276,
+       "ts": 1719769663291
+      },
+      {
+       "dailyChange": "0.0413",
+       "price": "0.0048003",
+       "symbol": "GROK_USDT",
+       "time": 1719851469835,
+       "ts": 1719851469856
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02548",
+       "symbol": "VAULT_USDT",
+       "time": 1719812224180,
+       "ts": 1719812224189
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.19414",
+       "symbol": "KAS_USDT",
+       "time": 1719865609738,
+       "ts": 1719865609760
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.001769",
+       "symbol": "AMO_USDT",
+       "time": 1699260067995,
+       "ts": 1719393671625
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.019501",
+       "symbol": "MEMELAND_USDT",
+       "time": 1719743020541,
+       "ts": 1719743020554
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00012997",
+       "symbol": "CRE_USDT",
+       "time": 1700462647094,
+       "ts": 1719393671617
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0074",
+       "symbol": "MILK_USDT",
+       "time": 1712738722704,
+       "ts": 1719393671613
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.61",
+       "symbol": "JTO_USDT",
+       "time": 1719512856043,
+       "ts": 1719512856055
+      },
+      {
+       "dailyChange": "-0.0001",
+       "price": "2.2109",
+       "symbol": "FTN_USDT",
+       "time": 1719870854425,
+       "ts": 1719870854437
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0007",
+       "symbol": "BLOX_USDT",
+       "time": 1719308956402,
+       "ts": 1719393671709
+      },
+      {
+       "dailyChange": "0.0222",
+       "price": "0.000368",
+       "symbol": "IOT_USDT",
+       "time": 1719810475653,
+       "ts": 1719810475667
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.28",
+       "symbol": "HNT_USDT",
+       "time": 1718831744761,
+       "ts": 1719393671705
+      },
+      {
+       "dailyChange": "0.2329",
+       "price": "0.001853",
+       "symbol": "MOBILE_USDT",
+       "time": 1719866389185,
+       "ts": 1719866389200
+      },
+      {
+       "dailyChange": "0.0426",
+       "price": "0.13762",
+       "symbol": "MYRO_USDT",
+       "time": 1719836103743,
+       "ts": 1719836103758
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2535",
+       "symbol": "PMG_USDT",
+       "time": 1719754634852,
+       "ts": 1719754634861
+      },
+      {
+       "dailyChange": "0.1678",
+       "price": "0.0522",
+       "symbol": "MND_USDT",
+       "time": 1719855446253,
+       "ts": 1719855446261
+      },
+      {
+       "dailyChange": "-0.014",
+       "price": "0.000012",
+       "symbol": "BYTE_USDT",
+       "time": 1719866545980,
+       "ts": 1719866545996
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.393",
+       "symbol": "FLIP_USDT",
+       "time": 1719391456088,
+       "ts": 1719393671690
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.291",
+       "symbol": "GEC_USDT",
+       "time": 1719628600739,
+       "ts": 1719628600751
+      },
+      {
+       "dailyChange": "0.0001",
+       "price": "1.6611",
+       "symbol": "STX_USDT",
+       "time": 1719847145893,
+       "ts": 1719847145904
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1051",
+       "symbol": "MNDE_USDT",
+       "time": 1719582918598,
+       "ts": 1719582918609
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00386",
+       "symbol": "TURT_USDT",
+       "time": 1719809813185,
+       "ts": 1719809813198
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0502",
+       "symbol": "MUBI_USDT",
+       "time": 1719235245644,
+       "ts": 1719393671758
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.3422",
+       "symbol": "NFP_USDT",
+       "time": 1718956260248,
+       "ts": 1719393671754
+      },
+      {
+       "dailyChange": "-0.0473",
+       "price": "4.43",
+       "symbol": "BFIC_USDT",
+       "time": 1719869779241,
+       "ts": 1719869779253
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.4563",
+       "symbol": "DOVI_USDT",
+       "time": 1718935567747,
+       "ts": 1719393671748
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.161",
+       "symbol": "XPE_USDT",
+       "time": 1717892202152,
+       "ts": 1719393671744
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000467",
+       "symbol": "SEEU_USDT",
+       "time": 1719059101378,
+       "ts": 1719393671741
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000041",
+       "symbol": "BOO_USDT",
+       "time": 1719153451610,
+       "ts": 1719393671738
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000045",
+       "symbol": "ANALOS_USDT",
+       "time": 1719698401474,
+       "ts": 1719698401494
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000003",
+       "symbol": "KNOB_USDT",
+       "time": 1719772927409,
+       "ts": 1719772927416
+      },
+      {
+       "dailyChange": "0.2128",
+       "price": "0.00057",
+       "symbol": "AI_USDT",
+       "time": 1719784974109,
+       "ts": 1719784974124
+      },
+      {
+       "dailyChange": "0.154",
+       "price": "0.46834",
+       "symbol": "PONKE_USDT",
+       "time": 1719848207322,
+       "ts": 1719848207338
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.18",
+       "symbol": "ACE_USDT",
+       "time": 1719410344479,
+       "ts": 1719410344490
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1673",
+       "symbol": "ZERO_USDT",
+       "time": 1719396792712,
+       "ts": 1719396792720
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00691",
+       "symbol": "SILLY_USDT",
+       "time": 1719113911875,
+       "ts": 1719393671715
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000161",
+       "symbol": "SPEERO_USDT",
+       "time": 1718234343946,
+       "ts": 1719393671820
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.368",
+       "symbol": "COM_USDT",
+       "time": 1719582935450,
+       "ts": 1719582935464
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.5567",
+       "symbol": "RAY_USDT",
+       "time": 1719474210409,
+       "ts": 1719474210423
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0165",
+       "symbol": "RDEX_USDT",
+       "time": 1719582934196,
+       "ts": 1719582934204
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00343",
+       "symbol": "CSAS_USDT",
+       "time": 1719072892688,
+       "ts": 1719393671805
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0049",
+       "symbol": "DSWP_USDT",
+       "time": 1717484421618,
+       "ts": 1719393671801
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0278",
+       "symbol": "MMSS_USDT",
+       "time": 1719582931970,
+       "ts": 1719582931987
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0518",
+       "symbol": "LONG1_USDT",
+       "time": 1719108768558,
+       "ts": 1719393671794
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.41",
+       "symbol": "SHDW1_USDT",
+       "time": 1719309319570,
+       "ts": 1719393671790
+      },
+      {
+       "dailyChange": "0.3248",
+       "price": "0.00208",
+       "symbol": "ZKF_USDT",
+       "time": 1719858374007,
+       "ts": 1719858374013
+      },
+      {
+       "dailyChange": "0.0941",
+       "price": "0.000001896",
+       "symbol": "COQ_USDT",
+       "time": 1719860034262,
+       "ts": 1719860034274
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01612",
+       "symbol": "USEDCAR_USDT",
+       "time": 1717983802467,
+       "ts": 1719393671780
+      },
+      {
+       "dailyChange": "5.7237",
+       "price": "0.0000000511",
+       "symbol": "GUAC_USDT",
+       "time": 1719818573553,
+       "ts": 1719818573562
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.16",
+       "symbol": "BSSB1_USDT",
+       "time": 1718861823032,
+       "ts": 1719393671772
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.06018",
+       "symbol": "ORDS_USDT",
+       "time": 1719696917588,
+       "ts": 1719696917601
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.6788",
+       "symbol": "AI1_USDT",
+       "time": 1719420646460,
+       "ts": 1719420646483
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000055",
+       "symbol": "FERRET_USDT",
+       "time": 1718866635418,
+       "ts": 1719393671862
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000029",
+       "symbol": "MUSKX_USDT",
+       "time": 1718419119014,
+       "ts": 1719393671860
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0011895",
+       "symbol": "MYRA_USDT",
+       "time": 1719775926538,
+       "ts": 1719775926555
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000018",
+       "symbol": "DACC_USDT",
+       "time": 1718090356904,
+       "ts": 1719393671856
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000062",
+       "symbol": "ZUZALU_USDT",
+       "time": 1718742677966,
+       "ts": 1719393671854
+      },
+      {
+       "dailyChange": "0.7071",
+       "price": "0.00239",
+       "symbol": "EGG_USDT",
+       "time": 1719810150760,
+       "ts": 1719810150773
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000232",
+       "symbol": "BOZO_USDT",
+       "time": 1719765538457,
+       "ts": 1719765538464
+      },
+      {
+       "dailyChange": "0.5987",
+       "price": "1.717",
+       "symbol": "TRAC_USDT",
+       "time": 1719824938056,
+       "ts": 1719824938067
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0361",
+       "symbol": "RSTK_USDT",
+       "time": 1718878211749,
+       "ts": 1719393671842
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000035",
+       "symbol": "FENTANYL_USDT",
+       "time": 1719308913521,
+       "ts": 1719393671838
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.044",
+       "symbol": "SFARM_USDT",
+       "time": 1719743628364,
+       "ts": 1719743628381
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000015499",
+       "symbol": "TROLL_USDT",
+       "time": 1719597981065,
+       "ts": 1719597981073
+      },
+      {
+       "dailyChange": "0.9416",
+       "price": "0.000565",
+       "symbol": "ROUP_USDT",
+       "time": 1719810345987,
+       "ts": 1719810345995
+      },
+      {
+       "dailyChange": "0.1219",
+       "price": "2.2819",
+       "symbol": "WIF_USDT",
+       "time": 1719849604525,
+       "ts": 1719849604541
+      },
+      {
+       "dailyChange": "0.0104",
+       "price": "0.000001162",
+       "symbol": "HTX_USDT",
+       "time": 1719869404670,
+       "ts": 1719869404684
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0004",
+       "symbol": "SBF_USDT",
+       "time": 1717873516066,
+       "ts": 1719393671894
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000102",
+       "symbol": "BFI_USDT",
+       "time": 1719731321614,
+       "ts": 1719731321630
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000000004108",
+       "symbol": "SMILEY_USDT",
+       "time": 1719625115794,
+       "ts": 1719625115806
+      },
+      {
+       "dailyChange": "0.1706",
+       "price": "1.99",
+       "symbol": "SAVM_USDT",
+       "time": 1719860409283,
+       "ts": 1719860409297
+      },
+      {
+       "dailyChange": "0.0683",
+       "price": "1.2552",
+       "symbol": "ONDO_USDT",
+       "time": 1719849353734,
+       "ts": 1719849353742
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00034",
+       "symbol": "CROCCAT_USDT",
+       "time": 1719109875284,
+       "ts": 1719393671874
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00288",
+       "symbol": "MOCKJUP_USDT",
+       "time": 1719774607104,
+       "ts": 1719774607121
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000151",
+       "symbol": "EACC_USDT",
+       "time": 1718142132365,
+       "ts": 1719393671869
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000016",
+       "symbol": "GENESIS_USDT",
+       "time": 1719447794771,
+       "ts": 1719447794779
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00421",
+       "symbol": "WYNN_USDT",
+       "time": 1719173526622,
+       "ts": 1719393671864
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2229",
+       "symbol": "BAKE_USDT",
+       "time": 1718812794338,
+       "ts": 1719393671928
+      },
+      {
+       "dailyChange": "-0.0656",
+       "price": "7.0415",
+       "symbol": "TRUMP_USDT",
+       "time": 1719868194002,
+       "ts": 1719868194012
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000243",
+       "symbol": "CHOW_USDT",
+       "time": 1718979881656,
+       "ts": 1719393671921
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000234",
+       "symbol": "SPOODY_USDT",
+       "time": 1719304481155,
+       "ts": 1719393671917
+      },
+      {
+       "dailyChange": "0.801",
+       "price": "0.003991",
+       "symbol": "HONK_USDT",
+       "time": 1719840326240,
+       "ts": 1719840326254
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.796",
+       "symbol": "GTAI_USDT",
+       "time": 1719527276283,
+       "ts": 1719527276299
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.18767",
+       "symbol": "ALT_USDT",
+       "time": 1719303752124,
+       "ts": 1719393671905
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0018",
+       "symbol": "FOMO_USDT",
+       "time": 1719545496791,
+       "ts": 1719545496798
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0025",
+       "symbol": "LAMBOSOL_USDT",
+       "time": 1719701171770,
+       "ts": 1719701171784
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0301",
+       "symbol": "INS_USDT",
+       "time": 1719550014834,
+       "ts": 1719550014843
+      },
+      {
+       "dailyChange": "-0.2583",
+       "price": "0.00112",
+       "symbol": "DOGWIFFORK_USDT",
+       "time": 1719852750465,
+       "ts": 1719852750474
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000268",
+       "symbol": "HODLSOL_USDT",
+       "time": 1719323396533,
+       "ts": 1719393671977
+      },
+      {
+       "dailyChange": "0.0478",
+       "price": "0.8443",
+       "symbol": "JUP_USDT",
+       "time": 1719858788630,
+       "ts": 1719858788641
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000096",
+       "symbol": "SSB_USDT",
+       "time": 1719608977658,
+       "ts": 1719608977674
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000075",
+       "symbol": "MEOW_USDT",
+       "time": 1719699410554,
+       "ts": 1719699410564
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.042",
+       "symbol": "TELEPATHY_USDT",
+       "time": 1717480163080,
+       "ts": 1719393671961
+      },
+      {
+       "dailyChange": "0.0306",
+       "price": "0.000148",
+       "symbol": "WEN_USDT",
+       "time": 1719857054253,
+       "ts": 1719857054266
+      },
+      {
+       "dailyChange": "-0.108",
+       "price": "0.00725",
+       "symbol": "GME_USDT",
+       "time": 1719867167276,
+       "ts": 1719867167286
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.93",
+       "symbol": "VEC_USDT",
+       "time": 1719036234469,
+       "ts": 1719393671949
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "7.82",
+       "symbol": "PEAS_USDT",
+       "time": 1719580330491,
+       "ts": 1719580330502
+      },
+      {
+       "dailyChange": "0.4733",
+       "price": "0.000000000193",
+       "symbol": "SNOW_USDT",
+       "time": 1719851300052,
+       "ts": 1719851300067
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000225",
+       "symbol": "PONK_USDT",
+       "time": 1719344610971,
+       "ts": 1719393671939
+      },
+      {
+       "dailyChange": "-0.0161",
+       "price": "0.000611",
+       "symbol": "CHINU_USDT",
+       "time": 1719870850154,
+       "ts": 1719870850163
+      },
+      {
+       "dailyChange": "-0.0989",
+       "price": "0.69341",
+       "symbol": "AERODROME_USDT",
+       "time": 1719830097000,
+       "ts": 1719830097013
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2919",
+       "symbol": "PIXEL_USDT",
+       "time": 1719015152638,
+       "ts": 1719393672045
+      },
+      {
+       "dailyChange": "0.17",
+       "price": "0.75",
+       "symbol": "STRK_USDT",
+       "time": 1719830802010,
+       "ts": 1719830802021
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00014",
+       "symbol": "JIVA_USDT",
+       "time": 1719553185427,
+       "ts": 1719553185442
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00253",
+       "symbol": "SORA_USDT",
+       "time": 1719638278405,
+       "ts": 1719638278414
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.63",
+       "symbol": "MAVIA_USDT",
+       "time": 1719221304642,
+       "ts": 1719393672031
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000134",
+       "symbol": "SPYRO_USDT",
+       "time": 1719134933718,
+       "ts": 1719393672027
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.011",
+       "symbol": "NAVX_USDT",
+       "time": 1719582944086,
+       "ts": 1719582944099
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2779",
+       "symbol": "WHALES_USDT",
+       "time": 1718997714680,
+       "ts": 1719393672021
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2721",
+       "symbol": "LMWR_USDT",
+       "time": 1719597995602,
+       "ts": 1719597995612
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2581",
+       "symbol": "BFICGOLD_BFIC",
+       "time": 1710242522270,
+       "ts": 1719393672014
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "7.37",
+       "symbol": "YES_USDT",
+       "time": 1719769215595,
+       "ts": 1719769215607
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000065",
+       "symbol": "GMEONETH_USDT",
+       "time": 1718797824920,
+       "ts": 1719393672007
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000184",
+       "symbol": "SQUIDSOL_USDT",
+       "time": 1719762245096,
+       "ts": 1719762245107
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000013",
+       "symbol": "FART_USDT",
+       "time": 1719674351201,
+       "ts": 1719674351215
+      },
+      {
+       "dailyChange": "0.0381",
+       "price": "0.8493",
+       "symbol": "ZETA_USDT",
+       "time": 1719859599434,
+       "ts": 1719859599447
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000624",
+       "symbol": "PEBO_USDT",
+       "time": 1718260383498,
+       "ts": 1719393671992
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0058",
+       "symbol": "AC_USDT",
+       "time": 1719582947100,
+       "ts": 1719582947113
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00136",
+       "symbol": "DZHV_USDT",
+       "time": 1719630221412,
+       "ts": 1719630221422
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.53014",
+       "symbol": "TREMP_USDT",
+       "time": 1719766984267,
+       "ts": 1719766984278
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000175",
+       "symbol": "BIF_USDT",
+       "time": 1719678211684,
+       "ts": 1719678211695
+      },
+      {
+       "dailyChange": "0.0221",
+       "price": "0.0277",
+       "symbol": "SHU_USDT",
+       "time": 1719847496511,
+       "ts": 1719847496517
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2715",
+       "symbol": "TBANK_USDT",
+       "time": 1719713832933,
+       "ts": 1719713832947
+      },
+      {
+       "dailyChange": "-0.0771",
+       "price": "0.004705",
+       "symbol": "ICENETWORK_USDT",
+       "time": 1719844969422,
+       "ts": 1719844969440
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.094",
+       "symbol": "MOBY_USDT",
+       "time": 1719174036198,
+       "ts": 1719393672075
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.281",
+       "symbol": "CHAT_USDT",
+       "time": 1719767820731,
+       "ts": 1719767820738
+      },
+      {
+       "dailyChange": "0.0781",
+       "price": "0.16715",
+       "symbol": "ML_USDT",
+       "time": 1719870844423,
+       "ts": 1719870844433
+      },
+      {
+       "dailyChange": "-0.0146",
+       "price": "0.024421",
+       "symbol": "BENDOG_USDT",
+       "time": 1719870852445,
+       "ts": 1719870852453
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.043",
+       "symbol": "BEOBLE_USDT",
+       "time": 1719566655767,
+       "ts": 1719566655778
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000001",
+       "symbol": "PORK_USDT",
+       "time": 1719862782425,
+       "ts": 1719862782440
+      },
+      {
+       "dailyChange": "0.0171",
+       "price": "0.00476",
+       "symbol": "NADA_USDT",
+       "time": 1719870818630,
+       "ts": 1719870818646
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0917",
+       "symbol": "XPET_USDT",
+       "time": 1719582938642,
+       "ts": 1719582938653
+      },
+      {
+       "dailyChange": "-0.0197",
+       "price": "3.3607",
+       "symbol": "KLIMA_USDT",
+       "time": 1719870854109,
+       "ts": 1719870854125
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000391",
+       "symbol": "CLOSEDAI_USDT",
+       "time": 1719731390679,
+       "ts": 1719731390687
+      },
+      {
+       "dailyChange": "0.1189",
+       "price": "0.16835",
+       "symbol": "BRETT_USDT",
+       "time": 1719864737140,
+       "ts": 1719864737148
+      },
+      {
+       "dailyChange": "0.3809",
+       "price": "0.29",
+       "symbol": "PENG_USDT",
+       "time": 1719839523437,
+       "ts": 1719839523453
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.601",
+       "symbol": "OPSEC_USDT",
+       "time": 1719814457886,
+       "ts": 1719814457901
+      },
+      {
+       "dailyChange": "0.7419",
+       "price": "0.0022",
+       "symbol": "UPDOG_USDT",
+       "time": 1719855942790,
+       "ts": 1719855942799
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.466",
+       "symbol": "PORTAL_USDT",
+       "time": 1719655353522,
+       "ts": 1719655353546
+      },
+      {
+       "dailyChange": "-0.0531",
+       "price": "0.1694",
+       "symbol": "ALVA_USDT",
+       "time": 1719870853854,
+       "ts": 1719870853867
+      },
+      {
+       "dailyChange": "0.0012",
+       "price": "0.00852",
+       "symbol": "HEMULE_USDT",
+       "time": 1719867851944,
+       "ts": 1719867851955
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0003",
+       "symbol": "CAF_USDT",
+       "time": 1719824586161,
+       "ts": 1719824586174
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000206",
+       "symbol": "FORK_USDT",
+       "time": 1719795165508,
+       "ts": 1719795165522
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.001",
+       "symbol": "SOLCHAT_USDT",
+       "time": 1719779749118,
+       "ts": 1719779749131
+      },
+      {
+       "dailyChange": "-0.0423",
+       "price": "0.61386",
+       "symbol": "POPCAT_USDT",
+       "time": 1719865802118,
+       "ts": 1719865802132
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000105",
+       "symbol": "RFKJ_USDT",
+       "time": 1719309237868,
+       "ts": 1719393672113
+      },
+      {
+       "dailyChange": "0.0136",
+       "price": "0.1644",
+       "symbol": "TYT_USDT",
+       "time": 1719870831071,
+       "ts": 1719870831081
+      },
+      {
+       "dailyChange": "-0.1194",
+       "price": "0.00006999",
+       "symbol": "NEVER_USDT",
+       "time": 1719870843793,
+       "ts": 1719870843809
+      },
+      {
+       "dailyChange": "0.0239",
+       "price": "0.0099291",
+       "symbol": "BOME_USDT",
+       "time": 1719870693331,
+       "ts": 1719870693346
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.53",
+       "symbol": "AEVO_USDT",
+       "time": 1719604784514,
+       "ts": 1719604784525
+      },
+      {
+       "dailyChange": "0.0594",
+       "price": "0.000020996",
+       "symbol": "MUMU_USDT",
+       "time": 1719860177902,
+       "ts": 1719860177916
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.997404",
+       "symbol": "OETH_ETH",
+       "time": 1712655881345,
+       "ts": 1719393672191
+      },
+      {
+       "dailyChange": "0.0128",
+       "price": "3452.18",
+       "symbol": "OETH_USDT",
+       "time": 1719870854352,
+       "ts": 1719870854369
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0097",
+       "symbol": "PRISMA_USDT",
+       "time": 1719582917312,
+       "ts": 1719582917331
+      },
+      {
+       "dailyChange": "0.0615",
+       "price": "0.069",
+       "symbol": "BFICGOLD_USDT",
+       "time": 1719852987019,
+       "ts": 1719852987031
+      },
+      {
+       "dailyChange": "-0.6333",
+       "price": "0.00011",
+       "symbol": "SYNC_USDT",
+       "time": 1719854597722,
+       "ts": 1719854597735
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000079",
+       "symbol": "FAIR_USDT",
+       "time": 1719764693311,
+       "ts": 1719764693318
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00253",
+       "symbol": "WTAO_USDT",
+       "time": 1719294909145,
+       "ts": 1719393672169
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.016",
+       "symbol": "CLD_USDT",
+       "time": 1719311465295,
+       "ts": 1719393672165
+      },
+      {
+       "dailyChange": "-0.1563",
+       "price": "0.6648",
+       "symbol": "GPU_USDT",
+       "time": 1719864864970,
+       "ts": 1719864864980
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00057",
+       "symbol": "DEPD_USDT",
+       "time": 1719582954985,
+       "ts": 1719582955003
+      },
+      {
+       "dailyChange": "-0.33",
+       "price": "0.0201",
+       "symbol": "MOZ_USDT",
+       "time": 1719868155388,
+       "ts": 1719868155398
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.46",
+       "symbol": "BVM_USDT",
+       "time": 1719474249028,
+       "ts": 1719474249036
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.4348",
+       "symbol": "SCA_USDT",
+       "time": 1718731773731,
+       "ts": 1719393672146
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00192",
+       "symbol": "NOCHILL_USDT",
+       "time": 1719671221562,
+       "ts": 1719671221571
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000412",
+       "symbol": "NAP_USDT",
+       "time": 1718905087893,
+       "ts": 1719393672242
+      },
+      {
+       "dailyChange": "-0.1375",
+       "price": "0.000069",
+       "symbol": "DUPE_USDT",
+       "time": 1719868835212,
+       "ts": 1719868835226
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.01",
+       "symbol": "WEETH_ETH",
+       "time": 1719072514840,
+       "ts": 1719393672236
+      },
+      {
+       "dailyChange": "-0.08",
+       "price": "0.000069",
+       "symbol": "SAFEMOON_USDT",
+       "time": 1719810416744,
+       "ts": 1719810416760
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00006",
+       "symbol": "IDK_USDT",
+       "time": 1719340094466,
+       "ts": 1719393672233
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2378",
+       "symbol": "SLERF_USDT",
+       "time": 1719715367321,
+       "ts": 1719715367334
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000083",
+       "symbol": "GTOP_USDT",
+       "time": 1719353766639,
+       "ts": 1719393672229
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.1602",
+       "symbol": "ETHFI_USDT",
+       "time": 1719368117026,
+       "ts": 1719393672227
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000048",
+       "symbol": "POGAISOL_USDT",
+       "time": 1719065384765,
+       "ts": 1719393672226
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00004",
+       "symbol": "BINU_USDT",
+       "time": 1719524044161,
+       "ts": 1719524044170
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0121",
+       "symbol": "ACRIA_USDT",
+       "time": 1719757340859,
+       "ts": 1719757340866
+      },
+      {
+       "dailyChange": "-0.3913",
+       "price": "0.00182",
+       "symbol": "MOROS_USDT",
+       "time": 1719826550332,
+       "ts": 1719826550346
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00008",
+       "symbol": "PORTNOY_USDT",
+       "time": 1719747899611,
+       "ts": 1719747899635
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00521",
+       "symbol": "ANDYSOL_USDT",
+       "time": 1719493740630,
+       "ts": 1719493740648
+      },
+      {
+       "dailyChange": "-0.1354",
+       "price": "0.000083",
+       "symbol": "PANDA_USDT",
+       "time": 1719840128349,
+       "ts": 1719840128361
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000000013",
+       "symbol": "PIPI_USDT",
+       "time": 1719762047551,
+       "ts": 1719762047564
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000001",
+       "symbol": "COME_USDT",
+       "time": 1719558843219,
+       "ts": 1719558843228
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00082",
+       "symbol": "SHROOM_USDT",
+       "time": 1718471955652,
+       "ts": 1719393672289
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.4423",
+       "symbol": "FIRE_USDT",
+       "time": 1719202509628,
+       "ts": 1719393672285
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000021",
+       "symbol": "LOOMSOL_USDT",
+       "time": 1718351066922,
+       "ts": 1719393672283
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.368",
+       "symbol": "NGL_USDT",
+       "time": 1719666862572,
+       "ts": 1719666862586
+      },
+      {
+       "dailyChange": "0.5326",
+       "price": "0.008322",
+       "symbol": "DEGEN_USDT",
+       "time": 1719858128930,
+       "ts": 1719858128938
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00014",
+       "symbol": "PNUT_USDT",
+       "time": 1719611015229,
+       "ts": 1719611015235
+      },
+      {
+       "dailyChange": "-0.0308",
+       "price": "0.00126",
+       "symbol": "BRIUN_USDT",
+       "time": 1719832663429,
+       "ts": 1719832663440
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0002",
+       "symbol": "NORMIEOLD_USDT",
+       "time": 1717371886235,
+       "ts": 1719393672264
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "9.22",
+       "symbol": "PRIME_USDT",
+       "time": 1719225417097,
+       "ts": 1719393672260
+      },
+      {
+       "dailyChange": "-0.0585",
+       "price": "7.999",
+       "symbol": "GRIMACE_USDT",
+       "time": 1719870568753,
+       "ts": 1719870568765
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000201",
+       "symbol": "SMOLE_USDT",
+       "time": 1718736201532,
+       "ts": 1719393672253
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00013",
+       "symbol": "KERMIT_USDT",
+       "time": 1718674922117,
+       "ts": 1719393672249
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00124",
+       "symbol": "MAIL_USDT",
+       "time": 1719754466437,
+       "ts": 1719754466445
+      },
+      {
+       "dailyChange": "0.487",
+       "price": "0.000171",
+       "symbol": "FINK_USDT",
+       "time": 1719847626166,
+       "ts": 1719847626177
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000164",
+       "symbol": "FOMOBASE_USDT",
+       "time": 1718733849913,
+       "ts": 1719393672335
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000118",
+       "symbol": "DOGINME_USDT",
+       "time": 1719069862668,
+       "ts": 1719393672331
+      },
+      {
+       "dailyChange": "0.0232",
+       "price": "0.0441",
+       "symbol": "SORABTC_USDT",
+       "time": 1719861207848,
+       "ts": 1719861207854
+      },
+      {
+       "dailyChange": "0.0037",
+       "price": "0.05094",
+       "symbol": "LIME_USDT",
+       "time": 1719870854499,
+       "ts": 1719870854512
+      },
+      {
+       "dailyChange": "0.0699",
+       "price": "0.004729",
+       "symbol": "MEW_USDT",
+       "time": 1719869744816,
+       "ts": 1719869744824
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0005",
+       "symbol": "REX_USDT",
+       "time": 1719683397613,
+       "ts": 1719683397629
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00989",
+       "symbol": "PUNDU_USDT",
+       "time": 1718822815134,
+       "ts": 1719393672316
+      },
+      {
+       "dailyChange": "0.374",
+       "price": "4.012",
+       "symbol": "BASEDAI_USDT",
+       "time": 1719870853092,
+       "ts": 1719870853107
+      },
+      {
+       "dailyChange": "-0.0196",
+       "price": "0.0599",
+       "symbol": "BODEN_USDT",
+       "time": 1719864901904,
+       "ts": 1719864901921
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000891",
+       "symbol": "PUMP_USDT",
+       "time": 1719730924015,
+       "ts": 1719730924029
+      },
+      {
+       "dailyChange": "-0.1778",
+       "price": "0.06027",
+       "symbol": "BENJI_USDT",
+       "time": 1719831076269,
+       "ts": 1719831076279
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00008",
+       "symbol": "DWIFC_USDT",
+       "time": 1719695331333,
+       "ts": 1719695331350
+      },
+      {
+       "dailyChange": "-0.0192",
+       "price": "0.0000008537",
+       "symbol": "CWIF_USDT",
+       "time": 1719870850293,
+       "ts": 1719870850305
+      },
+      {
+       "dailyChange": "0.0576",
+       "price": "0.1323",
+       "symbol": "VENOM_USDT",
+       "time": 1719866605513,
+       "ts": 1719866605524
+      },
+      {
+       "dailyChange": "0.0296",
+       "price": "0.0696",
+       "symbol": "MOGGO_USDT",
+       "time": 1719870852596,
+       "ts": 1719870852603
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00669",
+       "symbol": "DOG_USDT",
+       "time": 1719775672618,
+       "ts": 1719775672633
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000008",
+       "symbol": "SHOL_USDT",
+       "time": 1717348335271,
+       "ts": 1719393672393
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000000099",
+       "symbol": "SHIV_USDT",
+       "time": 1719685360628,
+       "ts": 1719685360640
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000168",
+       "symbol": "SBFSOL_USDT",
+       "time": 1718892804463,
+       "ts": 1719393672385
+      },
+      {
+       "dailyChange": "0.1205",
+       "price": "0.6963",
+       "symbol": "IXS_USDT",
+       "time": 1719870818496,
+       "ts": 1719870818503
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0008",
+       "symbol": "TPU_USDT",
+       "time": 1713039212152,
+       "ts": 1719393672376
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01615",
+       "symbol": "NEURA_USDT",
+       "time": 1719789880629,
+       "ts": 1719789880638
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.865",
+       "symbol": "ARCX_USDT",
+       "time": 1719307211047,
+       "ts": 1719393672368
+      },
+      {
+       "dailyChange": "0.1476",
+       "price": "0.05286",
+       "symbol": "CSWAP_USDT",
+       "time": 1719797990620,
+       "ts": 1719797990631
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00151",
+       "symbol": "ROOST_USDT",
+       "time": 1719304353087,
+       "ts": 1719393672361
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00001",
+       "symbol": "GRUMPY_USDT",
+       "time": 1719510164250,
+       "ts": 1719510164260
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00023",
+       "symbol": "DAW_USDT",
+       "time": 1718701816643,
+       "ts": 1719393672354
+      },
+      {
+       "dailyChange": "0.1067",
+       "price": "0.03059",
+       "symbol": "ALU_USDT",
+       "time": 1719870534038,
+       "ts": 1719870534047
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0251",
+       "symbol": "SCALE_USDT",
+       "time": 1717705653099,
+       "ts": 1719393672346
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00093",
+       "symbol": "SPCT_USDT",
+       "time": 1719631937497,
+       "ts": 1719631937508
+      },
+      {
+       "dailyChange": "0.0018",
+       "price": "0.1132",
+       "symbol": "YAI_USDT",
+       "time": 1719863771041,
+       "ts": 1719863771051
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000006",
+       "symbol": "BLERF_USDT",
+       "time": 1719335126663,
+       "ts": 1719393672443
+      },
+      {
+       "dailyChange": "0.1396",
+       "price": "0.000645",
+       "symbol": "HASHAI_USDT",
+       "time": 1719868484185,
+       "ts": 1719868484191
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.882",
+       "symbol": "DEAI_USDT",
+       "time": 1712308693056,
+       "ts": 1719393672439
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000081",
+       "symbol": "BUB_USDT",
+       "time": 1719309040520,
+       "ts": 1719393672438
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00501",
+       "symbol": "HIGHER_USDT",
+       "time": 1719582967102,
+       "ts": 1719582967115
+      },
+      {
+       "dailyChange": "0.9667",
+       "price": "0.000177",
+       "symbol": "TYBG_USDT",
+       "time": 1719826804372,
+       "ts": 1719826804386
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01",
+       "symbol": "LYTE_USDT",
+       "time": 1716606687034,
+       "ts": 1719393672430
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00295",
+       "symbol": "HOBBES_USDT",
+       "time": 1719366316020,
+       "ts": 1719393672427
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000085",
+       "symbol": "BSHIB_USDT",
+       "time": 1719698659052,
+       "ts": 1719698659059
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.512",
+       "symbol": "ENA_USDT",
+       "time": 1719679748812,
+       "ts": 1719679748827
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00004",
+       "symbol": "CATINO_USDT",
+       "time": 1719764101803,
+       "ts": 1719764101811
+      },
+      {
+       "dailyChange": "0.1314",
+       "price": "0.0198",
+       "symbol": "MFER_USDT",
+       "time": 1719855406566,
+       "ts": 1719855406580
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.2009",
+       "symbol": "STOS_USDT",
+       "time": 1719784382461,
+       "ts": 1719784382478
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01717",
+       "symbol": "T_USDT",
+       "time": 1719583012978,
+       "ts": 1719583012997
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "10.03",
+       "symbol": "PUPS_USDT",
+       "time": 1719773643497,
+       "ts": 1719773643504
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01722",
+       "symbol": "APUFF_USDT",
+       "time": 1715898016917,
+       "ts": 1719393672491
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.9948",
+       "symbol": "USDE_USDT",
+       "time": 1719666527800,
+       "ts": 1719666527812
+      },
+      {
+       "dailyChange": "-0.0833",
+       "price": "0.01991",
+       "symbol": "XEROAI_USDT",
+       "time": 1719846111982,
+       "ts": 1719846111997
+      },
+      {
+       "dailyChange": "-0.0109",
+       "price": "0.00016642",
+       "symbol": "ANDYETH_USDT",
+       "time": 1719830424733,
+       "ts": 1719830424742
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0052",
+       "symbol": "RIVUS_USDT",
+       "time": 1719750926526,
+       "ts": 1719750926536
+      },
+      {
+       "dailyChange": "1.4939",
+       "price": "0.002247",
+       "symbol": "BORED_USDT",
+       "time": 1719816711307,
+       "ts": 1719816711312
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000072",
+       "symbol": "LOCK_USDT",
+       "time": 1719727310581,
+       "ts": 1719727310597
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0349",
+       "symbol": "SHARKCAT_USDT",
+       "time": 1719123582611,
+       "ts": 1719393672467
+      },
+      {
+       "dailyChange": "-0.0019",
+       "price": "0.0000001606",
+       "symbol": "CHKN_USDT",
+       "time": 1719807292100,
+       "ts": 1719807292113
+      },
+      {
+       "dailyChange": "0.1907",
+       "price": "0.0768",
+       "symbol": "NAO_USDT",
+       "time": 1719870847019,
+       "ts": 1719870847030
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00535",
+       "symbol": "JUSTANEGG_USDT",
+       "time": 1719760145843,
+       "ts": 1719760145877
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0575",
+       "symbol": "O4DX_USDT",
+       "time": 1719582907778,
+       "ts": 1719582907795
+      },
+      {
+       "dailyChange": "0.019",
+       "price": "0.5857",
+       "symbol": "TNSR_USDT",
+       "time": 1719849638183,
+       "ts": 1719849638192
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.45",
+       "symbol": "X314_USDT",
+       "time": 1719694801404,
+       "ts": 1719694801416
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "2.701",
+       "symbol": "FRENPET_USDT",
+       "time": 1718763858344,
+       "ts": 1719393672449
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0119",
+       "symbol": "KAI_USDT",
+       "time": 1719352145892,
+       "ts": 1719393672533
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01703",
+       "symbol": "COINYE_USDT",
+       "time": 1718467593384,
+       "ts": 1719393672532
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0216",
+       "symbol": "ASTO_USDT",
+       "time": 1719657159792,
+       "ts": 1719657159806
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00029",
+       "symbol": "BASEFOMO_USDT",
+       "time": 1718793432880,
+       "ts": 1719393672528
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.025",
+       "symbol": "RB_USDT",
+       "time": 1719150480767,
+       "ts": 1719393672526
+      },
+      {
+       "dailyChange": "0.6274",
+       "price": "0.02734",
+       "symbol": "TOOKER_USDT",
+       "time": 1719867606230,
+       "ts": 1719867606237
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000099",
+       "symbol": "SPEEDY_USDT",
+       "time": 1719693099497,
+       "ts": 1719693099506
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.812",
+       "symbol": "RAIL_USDT",
+       "time": 1718498942989,
+       "ts": 1719393672520
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.035",
+       "symbol": "EPIK_USDT",
+       "time": 1719781200892,
+       "ts": 1719781200905
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "3.814",
+       "symbol": "WZRD_USDT",
+       "time": 1719697876080,
+       "ts": 1719697876115
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00234",
+       "symbol": "OLM_USDT",
+       "time": 1719746571171,
+       "ts": 1719746571184
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000041",
+       "symbol": "ERIC_USDT",
+       "time": 1719411566247,
+       "ts": 1719411566259
+      },
+      {
+       "dailyChange": "0.4463",
+       "price": "0.014",
+       "symbol": "INTRO_USDT",
+       "time": 1719833591988,
+       "ts": 1719833592005
+      },
+      {
+       "dailyChange": "0.2427",
+       "price": "0.03443",
+       "symbol": "CREO_USDT",
+       "time": 1719870852520,
+       "ts": 1719870852531
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000281",
+       "symbol": "POON_USDT",
+       "time": 1718719831875,
+       "ts": 1719393672497
+      },
+      {
+       "dailyChange": "-0.0484",
+       "price": "0.0609",
+       "symbol": "AREA_USDT",
+       "time": 1719870852013,
+       "ts": 1719870852022
+      },
+      {
+       "dailyChange": "0.144",
+       "price": "0.29",
+       "symbol": "MICHI_USDT",
+       "time": 1719860166315,
+       "ts": 1719860166326
+      },
+      {
+       "dailyChange": "0.75",
+       "price": "0.0014",
+       "symbol": "FLUFF_USDT",
+       "time": 1719852545693,
+       "ts": 1719852545702
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00053",
+       "symbol": "BUNNY_USDT",
+       "time": 1719767070911,
+       "ts": 1719767070919
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000169",
+       "symbol": "YESBUT_USDT",
+       "time": 1716926452611,
+       "ts": 1719393672558
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000065",
+       "symbol": "CATGPT_USDT",
+       "time": 1719402863324,
+       "ts": 1719402863356
+      },
+      {
+       "dailyChange": "1.90",
+       "price": "0.58",
+       "symbol": "MSN_USDT",
+       "time": 1719808689008,
+       "ts": 1719808689018
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00002997",
+       "symbol": "ELONETH_USDT",
+       "time": 1719680454430,
+       "ts": 1719680454443
+      },
+      {
+       "dailyChange": "0.0359",
+       "price": "0.02022",
+       "symbol": "LAVA_USDT",
+       "time": 1719822500110,
+       "ts": 1719822500120
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000012",
+       "symbol": "DUCKE_USDT",
+       "time": 1719767448209,
+       "ts": 1719767448222
+      },
+      {
+       "dailyChange": "0.0539",
+       "price": "0.009146",
+       "symbol": "MANEKI_USDT",
+       "time": 1719870848232,
+       "ts": 1719870848243
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000049",
+       "symbol": "NOGS_USDT",
+       "time": 1719582973850,
+       "ts": 1719582973864
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0056",
+       "symbol": "SKI_USDT",
+       "time": 1718948146958,
+       "ts": 1719393672540
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "1.298",
+       "symbol": "SAFE_USDT",
+       "time": 1719581129171,
+       "ts": 1719581129183
+      },
+      {
+       "dailyChange": "0.0009",
+       "price": "0.01105",
+       "symbol": "ATR_USDT",
+       "time": 1719870853757,
+       "ts": 1719870853790
+      },
+      {
+       "dailyChange": "0.0927",
+       "price": "0.2299",
+       "symbol": "MERL_USDT",
+       "time": 1719814549258,
+       "ts": 1719814549267
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00834",
+       "symbol": "DEVIN_USDT",
+       "time": 1719316441623,
+       "ts": 1719393672610
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000031",
+       "symbol": "FRENS_USDT",
+       "time": 1718635434605,
+       "ts": 1719393672608
+      },
+      {
+       "dailyChange": "-0.2747",
+       "price": "0.01478",
+       "symbol": "GUMMY_USDT",
+       "time": 1719870852573,
+       "ts": 1719870852591
+      },
+      {
+       "dailyChange": "-0.9626",
+       "price": "0.00004",
+       "symbol": "FINDME_USDT",
+       "time": 1719821584711,
+       "ts": 1719821584722
+      },
+      {
+       "dailyChange": "-0.445",
+       "price": "0.00111",
+       "symbol": "CRODIE_USDT",
+       "time": 1719833332732,
+       "ts": 1719833332740
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.01794",
+       "symbol": "HAMMY_USDT",
+       "time": 1719527353907,
+       "ts": 1719527353917
+      },
+      {
+       "dailyChange": "0.4599",
+       "price": "0.00000286",
+       "symbol": "USA_USDT",
+       "time": 1719863465618,
+       "ts": 1719863465632
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000000258",
+       "symbol": "ARKY_USDT",
+       "time": 1718129634090,
+       "ts": 1719393672598
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0004265",
+       "symbol": "ZEROLEND_USDT",
+       "time": 1719671507211,
+       "ts": 1719671507222
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00751",
+       "symbol": "BOOMER_USDT",
+       "time": 1719654098606,
+       "ts": 1719654098620
+      },
+      {
+       "dailyChange": "-0.1346",
+       "price": "0.004",
+       "symbol": "PINK_USDT",
+       "time": 1719850106469,
+       "ts": 1719850106479
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.9488",
+       "symbol": "ATOR_USDT",
+       "time": 1719424800804,
+       "ts": 1719424800814
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00047",
+       "symbol": "TIM_USDT",
+       "time": 1717873517082,
+       "ts": 1719393672583
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000052",
+       "symbol": "MONKE_USDT",
+       "time": 1719375144991,
+       "ts": 1719393672580
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00003",
+       "symbol": "PIKA_USDT",
+       "time": 1719074719617,
+       "ts": 1719393672576
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00049",
+       "symbol": "SPEED_USDT",
+       "time": 1718918157059,
+       "ts": 1719393672648
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00622",
+       "symbol": "BUBBLE_USDT",
+       "time": 1719633606911,
+       "ts": 1719633606927
+      },
+      {
+       "dailyChange": "-0.9079",
+       "price": "1.74",
+       "symbol": "AIUS_USDT",
+       "time": 1719863420826,
+       "ts": 1719863420838
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000122",
+       "symbol": "ROGER_USDT",
+       "time": 1718076177821,
+       "ts": 1719393672639
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000013",
+       "symbol": "MIKI_USDT",
+       "time": 1718790683123,
+       "ts": 1719393672636
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000186",
+       "symbol": "DONALDCAT_USDT",
+       "time": 1719286159553,
+       "ts": 1719393672632
+      },
+      {
+       "dailyChange": "-0.1314",
+       "price": "0.008",
+       "symbol": "SLOTH_USDT",
+       "time": 1719854799895,
+       "ts": 1719854799908
+      },
+      {
+       "dailyChange": "0.7007",
+       "price": "0.01699",
+       "symbol": "CHUD_USDT",
+       "time": 1719848468637,
+       "ts": 1719848468649
+      },
+      {
+       "dailyChange": "-0.2456",
+       "price": "0.000043",
+       "symbol": "KABAL_USDT",
+       "time": 1719839003379,
+       "ts": 1719839003393
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000198",
+       "symbol": "MARU_USDT",
+       "time": 1717071016498,
+       "ts": 1719393672623
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000062",
+       "symbol": "TILLY_USDT",
+       "time": 1719642030302,
+       "ts": 1719642030319
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000092",
+       "symbol": "IBOSS_USDT",
+       "time": 1717636105539,
+       "ts": 1719393672618
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000015",
+       "symbol": "XIAO_USDT",
+       "time": 1719697396981,
+       "ts": 1719697396995
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00051",
+       "symbol": "ARGSOL_USDT",
+       "time": 1718536645311,
+       "ts": 1719393672614
+      },
+      {
+       "dailyChange": "-0.1727",
+       "price": "0.0091",
+       "symbol": "SOLCEX_USDT",
+       "time": 1719866678243,
+       "ts": 1719866678254
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.1507",
+       "symbol": "CTA_USDT",
+       "time": 1719508506052,
+       "ts": 1719508506065
+      },
+      {
+       "dailyChange": "0.0338",
+       "price": "0.000003758",
+       "symbol": "MEX_USDT",
+       "time": 1719870580247,
+       "ts": 1719870580254
+      },
+      {
+       "dailyChange": "-0.0157",
+       "price": "0.03457",
+       "symbol": "RBX_USDT",
+       "time": 1719870852674,
+       "ts": 1719870852688
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000019",
+       "symbol": "DWP_USDT",
+       "time": 1719496155555,
+       "ts": 1719496155572
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000231",
+       "symbol": "GIL_USDT",
+       "time": 1719433548787,
+       "ts": 1719433548800
+      },
+      {
+       "dailyChange": "0.3635",
+       "price": "0.000010544",
+       "symbol": "GMEETH_USDT",
+       "time": 1719831329341,
+       "ts": 1719831329350
+      },
+      {
+       "dailyChange": "-0.4018",
+       "price": "0.005683",
+       "symbol": "KITTY_USDT",
+       "time": 1719869140578,
+       "ts": 1719869140592
+      },
+      {
+       "dailyChange": "0.0734",
+       "price": "31.28",
+       "symbol": "EGLD_USDT",
+       "time": 1719865118723,
+       "ts": 1719865118736
+      },
+      {
+       "dailyChange": "0.0355",
+       "price": "0.00003474",
+       "symbol": "BEBE_USDT",
+       "time": 1719870847315,
+       "ts": 1719870847327
+      },
+      {
+       "dailyChange": "-0.027",
+       "price": "0.000255501",
+       "symbol": "MAGA_USDT",
+       "time": 1719849293439,
+       "ts": 1719849293453
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.455",
+       "symbol": "DRIFT_USDT",
+       "time": 1719493566542,
+       "ts": 1719493566555
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000105",
+       "symbol": "REEE_USDT",
+       "time": 1719507093943,
+       "ts": 1719507093959
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000029",
+       "symbol": "TOBI_USDT",
+       "time": 1719671057841,
+       "ts": 1719671057857
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000011",
+       "symbol": "SKATECAT_USDT",
+       "time": 1719505747840,
+       "ts": 1719505747853
+      },
+      {
+       "dailyChange": "0.3036",
+       "price": "0.000073",
+       "symbol": "POSEIDON_USDT",
+       "time": 1719847569739,
+       "ts": 1719847569745
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00428",
+       "symbol": "SELFIE_USDT",
+       "time": 1719507051645,
+       "ts": 1719507051652
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000384",
+       "symbol": "BEPE_USDT",
+       "time": 1719615067674,
+       "ts": 1719615067682
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00005",
+       "symbol": "PFCC_USDT",
+       "time": 1719529376074,
+       "ts": 1719529376088
+      },
+      {
+       "dailyChange": "0.7847",
+       "price": "0.031",
+       "symbol": "HABIBI_USDT",
+       "time": 1719823197866,
+       "ts": 1719823197878
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.02306",
+       "symbol": "COST_USDT",
+       "time": 1718817182107,
+       "ts": 1719393672695
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000338",
+       "symbol": "TESTSOL_USDT",
+       "time": 1719439719884,
+       "ts": 1719439719895
+      },
+      {
+       "dailyChange": "0.7034",
+       "price": "0.00201",
+       "symbol": "AMCSOL_USDT",
+       "time": 1719820246150,
+       "ts": 1719820246159
+      },
+      {
+       "dailyChange": "0.1998",
+       "price": "0.00001201",
+       "symbol": "FOFAR_USDT",
+       "time": 1719865646621,
+       "ts": 1719865646638
+      },
+      {
+       "dailyChange": "-0.4418",
+       "price": "0.000235",
+       "symbol": "NVDA_USDT",
+       "time": 1719816559916,
+       "ts": 1719816559932
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00091",
+       "symbol": "WSBSOL_USDT",
+       "time": 1719334843529,
+       "ts": 1719393672680
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.03768",
+       "symbol": "NIM_USDT",
+       "time": 1719600396476,
+       "ts": 1719600396483
+      },
+      {
+       "dailyChange": "0.125",
+       "price": "0.0018",
+       "symbol": "NOHAT_USDT",
+       "time": 1719791547158,
+       "ts": 1719791547171
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000026",
+       "symbol": "COUPE_USDT",
+       "time": 1719590339788,
+       "ts": 1719590339799
+      },
+      {
+       "dailyChange": "7.1491",
+       "price": "0.002241",
+       "symbol": "FUACK_USDT",
+       "time": 1719860290733,
+       "ts": 1719860290739
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0000275",
+       "symbol": "NIGHT_USDT",
+       "time": 1719602965423,
+       "ts": 1719602965438
+      },
+      {
+       "dailyChange": "0.2569",
+       "price": "0.0016",
+       "symbol": "MOOCAT_USDT",
+       "time": 1719858530767,
+       "ts": 1719858530781
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.004",
+       "symbol": "WIFMAGA_USDT",
+       "time": 1719732379291,
+       "ts": 1719732379301
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000122",
+       "symbol": "SHOE_USDT",
+       "time": 1718957384563,
+       "ts": 1719393672747
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.00000225",
+       "symbol": "BUILD_USDT",
+       "time": 1718982237663,
+       "ts": 1719393672744
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000469",
+       "symbol": "NIGI_USDT",
+       "time": 1719410776947,
+       "ts": 1719410776963
+      },
+      {
+       "dailyChange": "-0.115",
+       "price": "0.031",
+       "symbol": "ZACK_USDT",
+       "time": 1719854463162,
+       "ts": 1719854463173
+      },
+      {
+       "dailyChange": "-0.021",
+       "price": "0.002561",
+       "symbol": "GOME_USDT",
+       "time": 1719862892636,
+       "ts": 1719862892643
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000142",
+       "symbol": "NAMI_USDT",
+       "time": 1719324901267,
+       "ts": 1719393672732
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000008",
+       "symbol": "KIKI_USDT",
+       "time": 1719149539291,
+       "ts": 1719393672729
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.0001501",
+       "symbol": "FFIE_USDT",
+       "time": 1717668252791,
+       "ts": 1719393672726
+      },
+      {
+       "dailyChange": "-0.0521",
+       "price": "0.0000000000818",
+       "symbol": "HODL_USDT",
+       "time": 1719870851399,
+       "ts": 1719870851407
+      },
+      {
+       "dailyChange": "0.0105",
+       "price": "0.01251",
+       "symbol": "BAZINGA_USDT",
+       "time": 1719833472242,
+       "ts": 1719833472252
+      },
+      {
+       "dailyChange": "0.115",
+       "price": "0.06611",
+       "symbol": "MOTHER_USDT",
+       "time": 1719808494767,
+       "ts": 1719808494775
+      },
+      {
+       "dailyChange": "-0.134",
+       "price": "0.000278",
+       "symbol": "MOJO_USDT",
+       "time": 1719828801597,
+       "ts": 1719828801604
+      },
+      {
+       "dailyChange": "0.1221",
+       "price": "0.000006404",
+       "symbol": "PEW_USDT",
+       "time": 1719870854280,
+       "ts": 1719870854292
+      },
+      {
+       "dailyChange": "0.7333",
+       "price": "0.00052",
+       "symbol": "CAT_USDT",
+       "time": 1719864901497,
+       "ts": 1719864901507
+      },
+      {
+       "dailyChange": "0.5633",
+       "price": "0.0469",
+       "symbol": "GROYPER_USDT",
+       "time": 1719858274424,
+       "ts": 1719858274436
+      },
+      {
+       "dailyChange": "0.1473",
+       "price": "0.000000257",
+       "symbol": "ULTRA_USDT",
+       "time": 1719850195834,
+       "ts": 1719850195848
+      },
+      {
+       "dailyChange": "-0.1637",
+       "price": "0.05631",
+       "symbol": "ASTR_USDT",
+       "time": 1719869493928,
+       "ts": 1719869493935
+      },
+      {
+       "dailyChange": "-0.2124",
+       "price": "0.0178",
+       "symbol": "MAGASOL_USDT",
+       "time": 1719805948996,
+       "ts": 1719805949008
+      },
+      {
+       "dailyChange": "-0.1538",
+       "price": "110",
+       "symbol": "ABI_USDT",
+       "time": 1719849418414,
+       "ts": 1719849418428
+      },
+      {
+       "dailyChange": "-0.7075",
+       "price": "0.0000359",
+       "symbol": "BEERSOL_USDT",
+       "time": 1719858636002,
+       "ts": 1719858636014
+      },
+      {
+       "dailyChange": "-0.3014",
+       "price": "0.006822",
+       "symbol": "PEPESOLCOMM_USDT",
+       "time": 1719849892676,
+       "ts": 1719849892685
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000029",
+       "symbol": "ZION_USDT",
+       "time": 1719705586829,
+       "ts": 1719705586841
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000051",
+       "symbol": "HUGH_USDT",
+       "time": 1719654523801,
+       "ts": 1719654523814
+      },
+      {
+       "dailyChange": "-0.1643",
+       "price": "0.00000001511",
+       "symbol": "PEPEBASE_USDT",
+       "time": 1719862666133,
+       "ts": 1719862666140
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.521943",
+       "symbol": "XB_USDT",
+       "time": 1719771698882,
+       "ts": 1719771698896
+      },
+      {
+       "dailyChange": "-0.9343",
+       "price": "0.00054",
+       "symbol": "MAMBA_USDT",
+       "time": 1719869782466,
+       "ts": 1719869782482
+      },
+      {
+       "dailyChange": "0.0227",
+       "price": "0.6349",
+       "symbol": "MCOIN_USDT",
+       "time": 1719870846718,
+       "ts": 1719870846725
+      },
+      {
+       "dailyChange": "0.098",
+       "price": "0.0000000056",
+       "symbol": "HONKETH_USDT",
+       "time": 1719800101290,
+       "ts": 1719800101297
+      },
+      {
+       "dailyChange": "-0.0213",
+       "price": "0.000965",
+       "symbol": "HAPPY_USDT",
+       "time": 1719870853287,
+       "ts": 1719870853299
+      },
+      {
+       "dailyChange": "-0.1498",
+       "price": "0.000005455",
+       "symbol": "COK_USDT",
+       "time": 1719870600763,
+       "ts": 1719870600770
+      },
+      {
+       "dailyChange": "-0.13",
+       "price": "0.00261",
+       "symbol": "TMANIA_USDT",
+       "time": 1719839701419,
+       "ts": 1719839701432
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000705",
+       "symbol": "MOTH_USDT",
+       "time": 1719200494265,
+       "ts": 1719394109201
+      },
+      {
+       "dailyChange": "0.8065",
+       "price": "0.011999",
+       "symbol": "BIRDDOG_USDT",
+       "time": 1719865670959,
+       "ts": 1719865670969
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.000951",
+       "symbol": "STACKS_USDT",
+       "time": 1719582229355,
+       "ts": 1719582229363
+      },
+      {
+       "dailyChange": "-0.0358",
+       "price": "0.000269",
+       "symbol": "DAVIDO_USDT",
+       "time": 1719832552627,
+       "ts": 1719832552636
+      },
+      {
+       "dailyChange": "-0.0683",
+       "price": "0.000259",
+       "symbol": "OPPIE_USDT",
+       "time": 1719867244818,
+       "ts": 1719867244826
+      },
+      {
+       "dailyChange": "0.0828",
+       "price": "0.0000000000183",
+       "symbol": "MAGAPEPE_USDT",
+       "time": 1719863141927,
+       "ts": 1719863141950
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.009606",
+       "symbol": "WALTER_USDT",
+       "time": 1717172651193,
+       "ts": 1719394109227
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.010183",
+       "symbol": "CATFROG_USDT",
+       "time": 1717171809292,
+       "ts": 1719394109229
+      },
+      {
+       "dailyChange": "-0.1113",
+       "price": "0.0001277",
+       "symbol": "KENDU_USDT",
+       "time": 1719870854354,
+       "ts": 1719870854363
+      },
+      {
+       "dailyChange": "0.0999",
+       "price": "0.003249",
+       "symbol": "CHAN_USDT",
+       "time": 1719810343420,
+       "ts": 1719810343431
+      },
+      {
+       "dailyChange": "-0.4923",
+       "price": "0.00000396",
+       "symbol": "BULEI_USDT",
+       "time": 1719866025070,
+       "ts": 1719866025082
+      },
+      {
+       "dailyChange": "-0.1221",
+       "price": "0.1201",
+       "symbol": "DADDY_USDT",
+       "time": 1719869496247,
+       "ts": 1719869496253
+      },
+      {
+       "dailyChange": "1.1898",
+       "price": "4.13",
+       "symbol": "PIZZA_USDT",
+       "time": 1719870849513,
+       "ts": 1719870849524
+      },
+      {
+       "dailyChange": "0.1508",
+       "price": "1.238",
+       "symbol": "RCH_USDT",
+       "time": 1719870852209,
+       "ts": 1719870852217
+      },
+      {
+       "dailyChange": "-0.1214",
+       "price": "0.00521",
+       "symbol": "RNT_USDT",
+       "time": 1719856554594,
+       "ts": 1719856554601
+      },
+      {
+       "dailyChange": "-0.0691",
+       "price": "0.002509",
+       "symbol": "DUKO_USDT",
+       "time": 1719870853578,
+       "ts": 1719870853587
+      },
+      {
+       "dailyChange": "0.0098",
+       "price": "0.00093",
+       "symbol": "SPHYNX_USDT",
+       "time": 1719870837753,
+       "ts": 1719870837763
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.012",
+       "symbol": "SPURDOETH_USDT",
+       "time": 1719355240974,
+       "ts": 1719394109289
+      },
+      {
+       "dailyChange": "0.0611",
+       "price": "0.00000022924",
+       "symbol": "PEIPEI_USDT",
+       "time": 1719870062509,
+       "ts": 1719870062523
+      },
+      {
+       "dailyChange": "0.00",
+       "price": "0.002341",
+       "symbol": "WYAC_USDT",
+       "time": 1719512531146,
+       "ts": 1719512531158
+      },
+      {
+       "dailyChange": "-0.0038",
+       "price": "0.02905",
+       "symbol": "XDC_USDT",
+       "time": 1719862470459,
+       "ts": 1719862470468
+      },
+      {
+       "dailyChange": "0.2022",
+       "price": "0.00022",
+       "symbol": "MACHO_USDT",
+       "time": 1719869458232,
+       "ts": 1719869458239
+      },
+      {
+       "dailyChange": "0.1975",
+       "price": "0.0000234",
+       "symbol": "TROG_USDT",
+       "time": 1719833627377,
+       "ts": 1719833627389
+      },
+      {
+       "dailyChange": "0.0628",
+       "price": "0.0000022",
+       "symbol": "BOBO_USDT",
+       "time": 1719865169781,
+       "ts": 1719865169792
+      },
+      {
+       "dailyChange": "0.3689",
+       "price": "0.00584",
+       "symbol": "HAWKTUAH_USDT",
+       "time": 1719870852898,
+       "ts": 1719870852906
+      },
+      {
+       "dailyChange": "-0.3695",
+       "price": "0.4494",
+       "symbol": "SCRAT_USDT",
+       "time": 1719870853528,
+       "ts": 1719870853539
+      },
+      {
+       "dailyChange": "-0.0319",
+       "price": "0.01424",
+       "symbol": "NOTCOIN_USDT",
+       "time": 1719870854484,
+       "ts": 1719870854498
+      },
+      {
+       "dailyChange": "-0.0896",
+       "price": "0.000000587",
+       "symbol": "APECOIN_USDT",
+       "time": 1719870852880,
+       "ts": 1719870852889
+      },
+      {
+       "dailyChange": "-0.1922",
+       "price": "0.001479",
+       "symbol": "CHIPPY_USDT",
+       "time": 1719870853927,
+       "ts": 1719870853935
+      },
+      {
+       "dailyChange": "-0.0362",
+       "price": "0.00000133",
+       "symbol": "TRUMPNS_USDT",
+       "time": 1719870850653,
+       "ts": 1719870850663
+      },
+      {
+       "dailyChange": "0.1508",
+       "price": "3.842",
+       "symbol": "ZRO_USDT",
+       "time": 1719870852983,
+       "ts": 1719870852997
+      },
+      {
+       "dailyChange": "0.0127",
+       "price": "0.0987",
+       "symbol": "XZK_USDT",
+       "time": 1719870852842,
+       "ts": 1719870852852
+      },
+      {
+       "dailyChange": "-0.0641",
+       "price": "0.00000001371",
+       "symbol": "KAIKEN_USDT",
+       "time": 1719870854199,
+       "ts": 1719870854214
+      },
+      {
+       "dailyChange": "-0.0865",
+       "price": "0.01039",
+       "symbol": "DJT_USDT",
+       "time": 1719870853666,
+       "ts": 1719870853676
+      },
+      {
+       "dailyChange": "0.0053",
+       "price": "0.0002073",
+       "symbol": "DED_USDT",
+       "time": 1719870849968,
+       "ts": 1719870849978
+      },
+      {
+       "dailyChange": "0.0707",
+       "price": "0.06087",
+       "symbol": "BILLYSOL_USDT",
+       "time": 1719870852494,
+       "ts": 1719870852503
+      },
+      {
+       "dailyChange": "0.1358",
+       "price": "0.015903",
+       "symbol": "WOLFSOL_USDT",
+       "time": 1719870854461,
+       "ts": 1719870854467
+      },
+      {
+       "dailyChange": "0.1079",
+       "price": "0.1899",
+       "symbol": "ZK_USDT",
+       "time": 1719870853468,
+       "ts": 1719870853479
+      },
+      {
+       "dailyChange": "-0.1722",
+       "price": "0.000327",
+       "symbol": "GENIE_USDT",
+       "time": 1719866233317,
+       "ts": 1719866233329
+      },
+      {
+       "dailyChange": "0.2598",
+       "price": "0.0029",
+       "symbol": "LILPUMP_USDT",
+       "time": 1719858608742,
+       "ts": 1719858608754
+      },
+      {
+       "dailyChange": "10.60",
+       "price": "0.0235",
+       "symbol": "TRUTH_USDT",
+       "time": 1719870853879,
+       "ts": 1719870853890
+      },
+      {
+       "dailyChange": "7.3629",
+       "price": "0.000001037",
+       "symbol": "MEOWCOIN_USDT",
+       "time": 1719870851956,
+       "ts": 1719870851967
+      },
+      {
+       "dailyChange": "-0.0281",
+       "price": "0.006649",
+       "symbol": "SANSHU_USDT",
+       "time": 1719870853864,
+       "ts": 1719870853875
+      },
+      {
+       "dailyChange": "-0.0617",
+       "price": "0.00000005001",
+       "symbol": "FISH_USDT",
+       "time": 1719869147681,
+       "ts": 1719869147688
+      },
+      {
+       "dailyChange": "-0.1205",
+       "price": "0.001366",
+       "symbol": "WATER_USDT",
+       "time": 1719870852250,
+       "ts": 1719870852261
+      },
+      {
+       "dailyChange": "-0.017",
+       "price": "0.000001239",
+       "symbol": "PEPER_USDT",
+       "time": 1719870853449,
+       "ts": 1719870853455
+      }
+     ],
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }

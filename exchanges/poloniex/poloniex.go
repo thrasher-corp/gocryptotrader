@@ -1006,7 +1006,6 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if len(methods) == 1 {
 		method = methods[0]
 	}
-	println("Test: ", endpoint+path)
 	item := &request.Item{
 		Method:        method,
 		Path:          endpoint + path,
@@ -1016,13 +1015,9 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		HTTPRecording: p.HTTPRecording,
 	}
 
-	err = p.SendPayload(ctx, epl, func() (*request.Item, error) {
+	return p.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -1035,7 +1030,6 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
-	var rawResponse *ResponseResult
 	requestFunc := func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
@@ -1081,7 +1075,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		req := &request.Item{
 			Method:        method,
 			Path:          path,
-			Result:        &rawResponse,
+			Result:        result,
 			Headers:       headers,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,
@@ -1092,16 +1086,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 		return req, nil
 	}
-	err = p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
-	if err != nil {
-		return err
-	} else if rawResponse == nil {
-		return fmt.Errorf("%w no data in the response", common.ErrNilPointer)
-	}
-	if rawResponse.Code != 0 {
-		return fmt.Errorf("error code: %d message: %s", rawResponse.Code.Int64(), rawResponse.Message)
-	}
-	return json.Unmarshal(rawResponse.Data, result)
+	return p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

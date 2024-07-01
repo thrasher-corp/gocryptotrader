@@ -161,7 +161,6 @@ func (p *Poloniex) wsReadData(conn stream.Connection) {
 }
 
 func (p *Poloniex) wsHandleData(respRaw []byte) error {
-	println(string(respRaw))
 	var result SubscriptionResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
