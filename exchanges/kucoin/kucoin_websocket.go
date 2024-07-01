@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -72,14 +73,17 @@ const (
 	futuresStopOrdersLifecycleEventChannel = "/contractMarket/advancedOrders"
 	futuresAccountBalanceEventChannel      = "/contractAccount/wallet"
 	futuresPositionChangeEventChannel      = "/contract/position:%s" // /contract/position:{symbol}
+
+	futuresLimitCandles = "/contractMarket/limitCandle"
 )
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
-	subscription.OrderbookChannel: marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
-	subscription.CandlesChannel:   marketCandlesChannel,
-	subscription.AllTradesChannel: marketMatchChannel,
+	// subscription.TickerChannel:    marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
+	// subscription.OrderbookChannel: marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
+	// subscription.CandlesChannel:   marketCandlesChannel,
+	// subscription.AllTradesChannel: marketMatchChannel,
 	// No equivalents for: AllOrders, MyTrades, MyOrders
+	subscription.CandlesChannel: futuresLimitCandles,
 }
 
 var (
@@ -168,9 +172,9 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 		Data *WSInstanceServers `json:"data"`
 		Error
 	}{}
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, privateBullets, nil, &response)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
 	if err != nil && strings.Contains(err.Error(), "400003") {
-		return response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, privateBullets, nil, &response)
+		return response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
 	}
 	return response.Data, err
 }
@@ -258,6 +262,12 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
 		return ku.processStopOrderEvent(resp.Data)
+	case strings.HasPrefix(topicInfo[0], futuresLimitCandles):
+		instrumentInfos := strings.Split(topicInfo[1], "_")
+		if len(instrumentInfos) != 2 {
+			return errors.New("invalid instrument information")
+		}
+		return ku.processFuturesKline(resp.Data, instrumentInfos[1])
 	case strings.HasPrefix(futuresTickerV2Channel, topicInfo[0]),
 		strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
 		return ku.processFuturesTickerV2(resp.Data)
@@ -577,6 +587,56 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 		Bid:          resp.BestBidPrice.Float64(),
 		AskSize:      resp.BestAskSize,
 		BidSize:      resp.BestBidSize,
+	}
+	return nil
+}
+
+func stringToInterval(intervalString string) (kline.Interval, error) {
+	intervalMap := map[string]kline.Interval{
+		"1min":   kline.OneMin,
+		"3min":   kline.ThreeMin,
+		"5min":   kline.FiveMin,
+		"15min":  kline.FifteenMin,
+		"30min":  kline.ThirtyMin,
+		"1hour":  kline.OneHour,
+		"2hour":  kline.TwoHour,
+		"4hour":  kline.FourHour,
+		"8hour":  kline.EightHour,
+		"12hour": kline.TwelveHour,
+		"1day":   kline.OneDay,
+		"1week":  kline.OneWeek,
+		"1month": kline.OneMonth,
+	}
+	interval, ok := intervalMap[intervalString]
+	if !ok {
+		return kline.Interval(0), kline.ErrUnsupportedInterval
+	}
+	return interval, nil
+}
+
+func (ku *Kucoin) processFuturesKline(respData []byte, intervalStr string) error {
+	resp := WsFuturesKline{}
+	err := json.Unmarshal(respData, &resp)
+	if err != nil {
+		return err
+	}
+	var pair currency.Pair
+	pair, err = currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- &stream.KlineData{
+		Timestamp:  resp.Time.Time(),
+		AssetType:  asset.Futures,
+		Exchange:   ku.Name,
+		StartTime:  time.Unix(resp.Candles[0].Int64(), 0),
+		Interval:   intervalStr,
+		OpenPrice:  resp.Candles[1].Float64(),
+		ClosePrice: resp.Candles[2].Float64(),
+		HighPrice:  resp.Candles[3].Float64(),
+		LowPrice:   resp.Candles[4].Float64(),
+		Volume:     resp.Candles[6].Float64(),
+		Pair:       pair,
 	}
 	return nil
 }
@@ -1026,7 +1086,10 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 // getChannelsAssetType returns the asset type to which the subscription channel belongs to or asset.Empty
 func getChannelsAssetType(channelName string) asset.Item {
 	switch channelName {
-	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
+	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel,
+		futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel,
+		futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel,
+		futuresPositionChangeEventChannel, futuresLimitCandles:
 		return asset.Futures
 	case marketTickerChannel, marketAllTickersChannel,
 		marketSnapshotChannel, marketSymbolSnapshotChannel,
@@ -1097,6 +1160,17 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 		}
 		subs := spotOrMarginPairSubs(assetPairs, s, false, interval)
 		subscriptions = append(subscriptions, subs...)
+	case s.Channel == futuresLimitCandles:
+		interval, err := ku.intervalToString(s.Interval)
+		if err != nil {
+			return nil, err
+		}
+		for _, fPair := range assetPairs[asset.Futures] {
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: futuresLimitCandles + ":" + fPair.String() + "_" + interval,
+				Asset:   asset.Futures,
+			})
+		}
 	case s.Channel == marginFundingbookChangeChannel:
 		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Margin].GetCurrencies().Join())
 		subscriptions = append(subscriptions, s)
@@ -1267,42 +1341,19 @@ func (ku *Kucoin) setupOrderbookManager() {
 func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
 	updateBid := make([]orderbook.Tranche, len(ws.Changes.Bids))
 	for i := range ws.Changes.Bids {
-		p, err := strconv.ParseFloat(ws.Changes.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(ws.Changes.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
 		var sequence int64
-		if len(ws.Changes.Bids[i]) > 2 && ws.Changes.Bids[i][2] != "" {
-			sequence, err = strconv.ParseInt(ws.Changes.Bids[i][2], 10, 64)
-			if err != nil {
-				return err
-			}
+		if len(ws.Changes.Bids[i]) > 2 {
+			sequence = ws.Changes.Bids[i][2].Int64()
 		}
-		updateBid[i] = orderbook.Tranche{Price: p, Amount: a, ID: sequence}
+		updateBid[i] = orderbook.Tranche{Price: ws.Changes.Bids[i][0].Float64(), Amount: ws.Changes.Bids[i][1].Float64(), ID: sequence}
 	}
-
 	updateAsk := make([]orderbook.Tranche, len(ws.Changes.Asks))
 	for i := range ws.Changes.Asks {
-		p, err := strconv.ParseFloat(ws.Changes.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(ws.Changes.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
 		var sequence int64
-		if len(ws.Changes.Asks[i]) > 2 && ws.Changes.Asks[i][2] != "" {
-			sequence, err = strconv.ParseInt(ws.Changes.Asks[i][2], 10, 64)
-			if err != nil {
-				return err
-			}
+		if len(ws.Changes.Asks[i]) > 2 {
+			sequence = ws.Changes.Asks[i][2].Int64()
 		}
-		updateAsk[i] = orderbook.Tranche{Price: p, Amount: a, ID: sequence}
+		updateAsk[i] = orderbook.Tranche{Price: ws.Changes.Asks[i][0].Float64(), Amount: ws.Changes.Asks[i][1].Float64(), ID: sequence}
 	}
 
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
