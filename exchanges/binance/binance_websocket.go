@@ -98,6 +98,14 @@ func (b *Binance) WsConnect() error {
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
+
+	err = b.WsConnectAPI()
+	if err != nil {
+		b.SetIsAPIStreamConnected(false)
+		log.Errorf(log.ExchangeSys, "could not connect to API stream %v", err)
+		return err
+	}
+	b.SetIsAPIStreamConnected(true)
 	return nil
 }
 
@@ -276,8 +284,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Side:                 orderSide,
 				Status:               orderStatus,
 				AssetType:            assetType,
-				Date:                 data.Data.OrderCreationTime,
-				LastUpdated:          data.Data.TransactionTime,
+				Date:                 data.Data.OrderCreationTime.Time(),
+				LastUpdated:          data.Data.TransactionTime.Time(),
 				Pair:                 pair,
 			}
 			return nil
@@ -286,6 +294,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			err = json.Unmarshal(respRaw, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "outboundAccountInfo":
+			var data wsAccountInfo
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
 					b.Name,
 					err)
 			}
@@ -340,7 +358,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		return b.Websocket.Trade.Update(saveTradeData,
 			trade.Data{
 				CurrencyPair: pair,
-				Timestamp:    t.TimeStamp,
+				Timestamp:    t.TimeStamp.Time(),
 				Price:        t.Price.Float64(),
 				Amount:       t.Quantity.Float64(),
 				Exchange:     b.Name,
@@ -366,7 +384,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			Bid:          t.BestBidPrice.Float64(),
 			Ask:          t.BestAskPrice.Float64(),
 			Last:         t.LastPrice.Float64(),
-			LastUpdated:  t.EventTime,
+			LastUpdated:  t.EventTime.Time(),
 			AssetType:    asset.Spot,
 			Pair:         pair,
 		}
@@ -381,12 +399,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				err)
 		}
 		b.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  kline.EventTime,
+			Timestamp:  kline.EventTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Spot,
 			Exchange:   b.Name,
-			StartTime:  kline.Kline.StartTime,
-			CloseTime:  kline.Kline.CloseTime,
+			StartTime:  kline.Kline.StartTime.Time(),
+			CloseTime:  kline.Kline.CloseTime.Time(),
 			Interval:   kline.Kline.Interval,
 			OpenPrice:  kline.Kline.OpenPrice.Float64(),
 			ClosePrice: kline.Kline.ClosePrice.Float64(),
@@ -574,10 +592,15 @@ func (b *Binance) subscribeToChan(chans subscription.List) error {
 		}
 	}
 
-	req := WsPayload{
-		Method: wsSubscribeMethod,
+	req := &struct {
+		WsPayload
+		Params []string `json:"params"`
+	}{
+		WsPayload: WsPayload{
+			Method: wsUnsubscribeMethod,
+			ID:     id,
+		},
 		Params: cNames,
-		ID:     id,
 	}
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
@@ -620,10 +643,15 @@ func (b *Binance) unsubscribeFromChan(chans subscription.List) error {
 		cNames[i] = chans[i].Channel
 	}
 
-	req := WsPayload{
-		Method: wsUnsubscribeMethod,
+	req := &struct {
+		WsPayload
+		Params []string `json:"params"`
+	}{
+		WsPayload: WsPayload{
+			Method: wsUnsubscribeMethod,
+			ID:     id,
+		},
 		Params: cNames,
-		ID:     id,
 	}
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
@@ -666,7 +694,7 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		Asks:       updateAsk,
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
+		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
 }
