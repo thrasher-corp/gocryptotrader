@@ -588,9 +588,6 @@ func (p *Poloniex) Subscribe(subs subscription.List) error {
 		return err
 	}
 	for i := range payloads {
-		val, _ := json.Marshal(payloads[i])
-		println(string(val))
-
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if p.Websocket.CanUseAuthenticatedEndpoints() {

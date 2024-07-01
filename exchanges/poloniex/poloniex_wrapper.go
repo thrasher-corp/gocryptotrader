@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -167,7 +168,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		ExchangeConfig:        exch,
 		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,
-		Connector:             p.WsFuturesConnect,
+		Connector:             p.WsConnect,
 		Subscriber:            p.Subscribe,
 		Unsubscriber:          p.Unsubscribe,
 		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
@@ -377,7 +378,8 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	}
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err := p.GetOrderbook(ctx, pair, 0, 0)
+		var orderbookNew *OrderbookData
+		orderbookNew, err = p.GetOrderbook(ctx, pair, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -392,7 +394,8 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			book.Asks[y].Amount = orderbookNew.Asks[y*2+1].Float64()
 		}
 	case asset.Futures:
-		orderbookNew, err := p.GetFullOrderbookLevel2(ctx, pair.String())
+		var orderbookNew *Orderbook
+		orderbookNew, err = p.GetFullOrderbookLevel2(ctx, pair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -544,7 +547,8 @@ func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		tradeData, err := p.GetTrades(ctx, pair, 0)
+		var tradeData []Trade
+		tradeData, err = p.GetTrades(ctx, pair, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -565,7 +569,8 @@ func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 			})
 		}
 	case asset.Futures:
-		tradeData, err := p.GetTransactionHistory(ctx, pair.String())
+		var tradeData *TransactionHistory
+		tradeData, err = p.GetTransactionHistory(ctx, pair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -650,7 +655,8 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 			}
 		}
 	case asset.Futures:
-		tradeData, err := p.GetTransactionHistory(ctx, pair.String())
+		var tradeData *TransactionHistory
+		tradeData, err = p.GetTransactionHistory(ctx, pair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -671,7 +677,7 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 			})
 		}
 	}
-	if err = p.AddTradesToBuffer(resp...); err != nil {
+	if err := p.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
 	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
@@ -887,7 +893,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	commonOrderType := o[0].Type
 	for i := range o {
 		if assetType != o[i].AssetType {
-			return nil, fmt.Errorf("order asset type mismatch detected")
+			return nil, errors.New("order asset type mismatch detected")
 		}
 		if commonOrderType != o[i].Type {
 			commonOrderType = order.AnyType
@@ -1020,7 +1026,8 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			if cancelOrd.Type != order.UnknownType {
 				orderTypes = append(orderTypes, orderTypeString(cancelOrd.Type))
 			}
-			resp, err := p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
+			var resp []CancelOrderResponse
+			resp, err = p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1420,11 +1427,11 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 			trades := make([]order.TradeHistory, len(fOrders.Items[a].Trades))
 			for t := range fOrders.Items[a].Trades {
-				trades = append(trades, order.TradeHistory{
+				trades[t] = order.TradeHistory{
 					TID:      fOrders.Items[a].Trades[t].TradeID,
 					Fee:      fOrders.Items[a].Trades[t].FeePay,
 					Exchange: p.Name,
-				})
+				}
 			}
 			orders = append(orders, order.Detail{
 				Type:               oType,
@@ -1687,7 +1694,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		}
 		return req.ProcessResponse(timeSeries)
 	case asset.Futures:
-		resp, err := p.GetFuturesKlineDataOfContract(ctx, req.RequestFormatted.String(), 0, req.Start, req.End)
+		resp, err := p.GetFuturesKlineDataOfContract(ctx, req.RequestFormatted.String(), int64(req.ExchangeInterval.Duration().Minutes()), req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}

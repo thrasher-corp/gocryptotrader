@@ -745,7 +745,7 @@ type CancelReplaceSmartOrderParam struct {
 	Amount           float64 `json:"amount,omitempty,string"`
 	AmendedType      string  `json:"type,omitempty,string"`
 	TimeInForce      string  `json:"timeInForce,omitempty"`
-	ProceedOnFailure bool    `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancelation of the existing smart order fails.
+	ProceedOnFailure bool    `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 
 // CancelReplaceSmartOrderResponse represents a response parameter for order cancellation and replacement operation.
@@ -1092,7 +1092,7 @@ type WsFuturesTickerInfo struct {
 type WsFuturesLvl2Orderbook struct {
 	LastSequence int64    `json:"lastSequence"`
 	Sequence     int64    `json:"sequence"`
-	Change       string   `json:"change"`  //[deprecated]Price, side, quantity
+	Change       string   `json:"change"`  // [deprecated]Price, side, quantity
 	Changes      []string `json:"changes"` // Price, side, quantity。incremental change in multiple gears
 	Timestamp    int64    `json:"timestamp"`
 }

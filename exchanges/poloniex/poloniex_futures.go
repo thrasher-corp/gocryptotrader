@@ -255,7 +255,7 @@ func (p *Poloniex) GetFuturesAccountOverview(ctx context.Context, ccy currency.C
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, accountOverviewEPL, http.MethodGet, "/api/v1/account-overview", params, nil, &resp)
 }
 
-// GetFuturesAccountTransactionHistory retrieves the futures account transaciton history.
+// GetFuturesAccountTransactionHistory retrieves the futures account transactions history.
 // If there are open positions, the status of the first page returned will be Pending, indicating the realized profit and loss in the current 8-hour settlement period.
 // Please specify the minimum offset number of the current page into the offset field to turn the page.
 // Ccy: [Optional] Currency of transaction history XBT or USDT
@@ -380,8 +380,8 @@ func (p *Poloniex) PlaceMultipleFuturesOrder(ctx context.Context, args []Futures
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
-	for _, arg := range args {
-		err := futuresOrderParamsFilter(&arg)
+	for i := range args {
+		err := futuresOrderParamsFilter(&(args[i]))
 		if err != nil {
 			return nil, err
 		}
@@ -521,7 +521,7 @@ func (p *Poloniex) GetFuturesCompletedOrdersIn24Hour(ctx context.Context) ([]Fut
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetCompleted24HrEPL, http.MethodGet, "/api/v1/recentDoneOrders", nil, nil, &resp)
 }
 
-// GetFuturesSingleOrderDetail retrieves a single order detail.
+// GetFuturesSingleOrderDetailByOrderID retrieves a single order detail.
 func (p *Poloniex) GetFuturesSingleOrderDetailByOrderID(ctx context.Context, orderID string) (*FuturesOrder, error) {
 	return p.getFuturesByID(ctx, "/api/v1/orders/", orderID)
 }
@@ -602,7 +602,7 @@ func (p *Poloniex) GetFuturesOrderFills(ctx context.Context, orderID, symbol, si
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFuturesFillsEPL, http.MethodGet, "/api/v1/fills", params, nil, &resp)
 }
 
-// GetFuturesActiveOrderValueCalculation query this endpoint to get the the total number and value of the all your active orders.
+// GetFuturesActiveOrderValueCalculation query this endpoint to get the total number and value of the all your active orders.
 func (p *Poloniex) GetFuturesActiveOrderValueCalculation(ctx context.Context, symbol string) (*FuturesActiveOrdersValue, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -752,6 +752,9 @@ func (p *Poloniex) GetFuturesFundingHistory(ctx context.Context, symbol string, 
 	}
 	if !forward {
 		params.Set("forward", "false")
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
 	if maxCount > 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))

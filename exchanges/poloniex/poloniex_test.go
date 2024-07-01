@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"log"
 	"testing"
 	"time"
 
@@ -25,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
-	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -270,10 +269,11 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	p.Verbose = true
 	var start, end time.Time
 	if mockTests {
-		start = time.Unix(1588741402, 0)
-		end = time.Unix(1588745003, 0)
+		start = time.Unix(1719869100, 0)
+		end = time.Unix(1719861600, 0)
 	} else {
 		start = time.Now().Add(-time.Hour * 2)
 		end = time.Now()
@@ -443,7 +443,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	is, err := p.IsPerpetualFutureCurrency(asset.Spot, spotTradablePair)
 	require.NoError(t, err)
-	assert.False(t, is)
+	require.False(t, is)
 
 	is, err = p.IsPerpetualFutureCurrency(asset.Futures, futuresTradablePair)
 	require.NoError(t, err)
@@ -530,7 +530,6 @@ func TestGetMarkPrices(t *testing.T) {
 
 func TestGetMarkPrice(t *testing.T) {
 	t.Parallel()
-
 	result, err := p.GetMarkPrice(context.Background(), spotTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -837,7 +836,7 @@ func TestNewCurrencyDepoditAddress(t *testing.T) {
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := p.WithdrawCurrency(context.Background(), nil)
-	assert.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, errNilArgument)
 	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
 		Currency: currency.BTC,
 	})
@@ -1181,6 +1180,7 @@ func TestGetTradeOrderID(t *testing.T) {
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
 	result, err := p.GenerateDefaultSubscriptions()
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1214,19 +1214,6 @@ func TestWsPushData(t *testing.T) {
 	for key, value := range pushMessages {
 		err := p.wsHandleData([]byte(value))
 		require.NoErrorf(t, err, "%s error %s: %v", p.Name, key, err)
-	}
-}
-
-func setupWS() {
-	if !p.Websocket.IsEnabled() {
-		return
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(p) {
-		p.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	err := p.WsConnect()
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 
@@ -1441,7 +1428,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
 		resp, err := p.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		assert.NotEmpty(t, resp)
+		require.NotEmpty(t, resp)
 	}
 }
 
@@ -1555,7 +1542,7 @@ func TestChangeMarginMode(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	err = p.ChangeMarginMode(context.Background(), "BTCUSDTPERP", margin.Isolated)
-	assert.NotNil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestPlaceFuturesOrder(t *testing.T) {
@@ -1787,7 +1774,7 @@ func TestFuturesRemoveMarginManually(t *testing.T) {
 		MarginAmount: 123,
 		BizNo:        "31312312",
 	})
-	assert.NotNil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestFuturesAddMarginManually(t *testing.T) {
@@ -1801,7 +1788,7 @@ func TestFuturesAddMarginManually(t *testing.T) {
 		MarginAmount: 123,
 		BizNo:        "31312312",
 	})
-	assert.NotNil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesLeverage(t *testing.T) {

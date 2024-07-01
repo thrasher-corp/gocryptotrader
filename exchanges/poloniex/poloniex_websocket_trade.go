@@ -12,7 +12,7 @@ import (
 
 // WsCreateOrder create an order for an account.
 func (p *Poloniex) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
-	if arg == nil {
+	if arg == nil || *arg == (PlaceOrderParams{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {

@@ -458,7 +458,8 @@ func (p *Poloniex) processFuturesWsOrdderbook(pairString string, resp *FuturesSu
 	// Check and load orderbook snapshot for an asset type and currency pair.
 	base, err := p.Websocket.Orderbook.GetOrderbook(cp, asset.Futures)
 	if err != nil {
-		ob, err := p.GetFullOrderbookLevel2(context.Background(), pairString)
+		var ob *Orderbook
+		ob, err = p.GetFullOrderbookLevel2(context.Background(), pairString)
 		if err != nil {
 			return err
 		}
@@ -473,19 +474,20 @@ func (p *Poloniex) processFuturesWsOrdderbook(pairString string, resp *FuturesSu
 		return nil
 	}
 	for i := range result.Changes {
-		splitted := strings.Split(result.Changes[i], ",")
-		if len(splitted) != 3 {
+		split := strings.Split(result.Changes[i], ",")
+		if len(split) != 3 {
 			continue
 		}
-		price, err := strconv.ParseFloat(splitted[0], 64)
+		var price, amount float64
+		price, err = strconv.ParseFloat(split[0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(splitted[2], 64)
+		amount, err = strconv.ParseFloat(split[2], 64)
 		if err != nil {
 			return err
 		}
-		switch splitted[1] {
+		switch split[1] {
 		case "sell":
 			found := false
 			for j := range base.Asks {
@@ -592,13 +594,12 @@ func (p *Poloniex) GenerateFuturesDefaultSubscriptions() (subscription.List, err
 				Pairs:         enabledPairs,
 				Authenticated: authenticated,
 			})
-
 		}
 	}
 	return subscriptions, nil
 }
 
-func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscription.List) ([]FuturesSubscriptionInput, error) {
+func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscription.List) []FuturesSubscriptionInput {
 	payloads := []FuturesSubscriptionInput{}
 	for x := range subscs {
 		if len(subscs[x].Pairs) == 0 {
@@ -622,15 +623,13 @@ func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscript
 			}
 		}
 	}
-	return payloads, nil
+	return payloads
 }
 
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (p *Poloniex) SubscribeFutures(subs subscription.List) error {
-	payloads, err := p.handleFuturesSubscriptions("subscribe", subs)
-	if err != nil {
-		return err
-	}
+	payloads := p.handleFuturesSubscriptions("subscribe", subs)
+	var err error
 	for i := range payloads {
 		err = p.Websocket.Conn.SendJSONMessage(payloads[i])
 		if err != nil {
@@ -642,10 +641,8 @@ func (p *Poloniex) SubscribeFutures(subs subscription.List) error {
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) UnsubscribeFutures(unsub subscription.List) error {
-	payloads, err := p.handleFuturesSubscriptions("unsubscribe", unsub)
-	if err != nil {
-		return err
-	}
+	payloads := p.handleFuturesSubscriptions("unsubscribe", unsub)
+	var err error
 	for i := range payloads {
 		err = p.Websocket.Conn.SendJSONMessage(payloads[i])
 		if err != nil {
