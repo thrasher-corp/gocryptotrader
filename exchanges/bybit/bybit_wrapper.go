@@ -1937,7 +1937,7 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			}
 			resp = append(resp, fundingrate.LatestRateResponse{
 				Exchange:    by.Name,
-				TimeChecked: time.Now(),
+				TimeChecked: time.Now().UTC(),
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{

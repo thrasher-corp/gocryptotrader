@@ -725,7 +725,7 @@ func (m *OrderManager) processOrders() {
 					return
 				}
 				if sd.IsZero() {
-					sd = time.Now().Add(m.futuresPositionSeekDuration)
+					sd = time.Now().UTC().Add(m.futuresPositionSeekDuration)
 				}
 				positions, err = exchanges[x].GetFuturesPositionOrders(context.TODO(), &futures.PositionsRequest{
 					Asset:                     enabledAssets[y],
@@ -811,7 +811,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		Asset:                position.Asset,
 		Pair:                 position.Pair,
 		StartDate:            position.Orders[0].Date,
-		EndDate:              time.Now(),
+		EndDate:              time.Now().UTC(),
 		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
@@ -847,7 +847,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 		ord.Status = order.UnknownStatus
 		return err
 	}
-	fetchedOrder.LastUpdated = time.Now()
+	fetchedOrder.LastUpdated = time.Now().UTC()
 	_, err = m.UpsertOrder(fetchedOrder)
 	return err
 }

@@ -706,7 +706,7 @@ func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy currency.Code, res
 	response := make([]VolatilityIndexData, len(resp.Data))
 	for x := range resp.Data {
 		response[x] = VolatilityIndexData{
-			TimestampMS: time.UnixMilli(int64(resp.Data[x][0])),
+			TimestampMS: time.UnixMilli(int64(resp.Data[x][0])).UTC(),
 			Open:        resp.Data[x][1],
 			High:        resp.Data[x][2],
 			Low:         resp.Data[x][3],
@@ -2526,7 +2526,7 @@ func (d *Deribit) GetTime(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(result), nil
+	return time.UnixMilli(result).UTC(), nil
 }
 
 // GetLastBlockTradesByCurrency returns list of last users block trades

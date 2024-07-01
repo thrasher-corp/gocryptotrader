@@ -513,7 +513,7 @@ func (b *Bitfinex) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	history, err := b.GetMovementHistory(ctx, c.String(), "", time.Date(2012, 0, 0, 0, 0, 0, 0, time.Local), time.Now(), 0)
+	history, err := b.GetMovementHistory(ctx, c.String(), "", time.Date(2012, 0, 0, 0, 0, 0, 0, time.UTC), time.Now().UTC(), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +523,7 @@ func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			Status:          history[i].Status,
 			TransferID:      strconv.FormatInt(history[i].ID, 10),
 			Description:     history[i].Description,
-			Timestamp:       time.UnixMilli(int64(history[i].Timestamp)),
+			Timestamp:       time.UnixMilli(int64(history[i].Timestamp)).UTC(),
 			Currency:        history[i].Currency,
 			Amount:          history[i].Amount,
 			Fee:             history[i].Fee,
@@ -537,7 +537,7 @@ func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitfinex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
+	return b.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15).UTC(), time.Now().UTC())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -570,7 +570,7 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.UnixMilli(tradeData[i].Timestamp)
+			tradeTS := time.UnixMilli(tradeData[i].Timestamp).UTC()
 			if tradeTS.Before(timestampStart) && !timestampStart.IsZero() {
 				break allTrades
 			}
@@ -582,7 +582,7 @@ allTrades:
 				AssetType:    a,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
-				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
+				Timestamp:    time.UnixMilli(tradeData[i].Timestamp).UTC(),
 			})
 			if i == len(tradeData)-1 {
 				if ts.Equal(tradeTS) {
@@ -766,7 +766,7 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 
 	orderDetail := &order.Detail{
 		Amount:          o.OriginalAmount,
-		Date:            time.Unix(int64(timestamp), 0),
+		Date:            time.Unix(int64(timestamp), 0).UTC(),
 		Exchange:        b.Name,
 		OrderID:         strconv.FormatInt(o.ID, 10),
 		Side:            side,

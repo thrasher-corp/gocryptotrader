@@ -272,7 +272,7 @@ func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(resp.ServerTime), nil
+	return time.UnixMilli(resp.ServerTime).UTC(), nil
 }
 
 // GetLoanOrders returns the list of loan offers and demands for a given

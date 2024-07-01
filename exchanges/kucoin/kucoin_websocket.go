@@ -896,7 +896,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	lastUpdated := time.UnixMilli(response.Timestamp)
+	lastUpdated := time.UnixMilli(response.Timestamp).UTC()
 
 	for x := range assets {
 		err = ku.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
@@ -1421,7 +1421,7 @@ func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderboo
 		Pair:            p,
 		Asset:           assetType,
 		Exchange:        ku.Name,
-		LastUpdated:     time.Now(),
+		LastUpdated:     time.Now().UTC(),
 		LastUpdateID:    orderbookNew.Sequence,
 		VerifyOrderbook: ku.CanVerifyOrderbook,
 		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),

@@ -386,7 +386,7 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 	}
 
 	if mainUpdate {
-		t := time.Now()
+		t := time.Now().UTC()
 		data.LastMainUpdate = t.Unix()
 		s.currencyCodes.LastMainUpdate = t
 	}

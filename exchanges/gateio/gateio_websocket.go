@@ -743,7 +743,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 			return nil, subscription.ErrNotSinglePair
 		}
 		var auth *WsAuthInput
-		timestamp := time.Now()
+		timestamp := time.Now().UTC()
 		channelsToSubscribe[i].Pairs[0].Delimiter = currency.UnderscoreDelimiter
 		params := []string{channelsToSubscribe[i].Pairs[0].String()}
 		switch channelsToSubscribe[i].Channel {

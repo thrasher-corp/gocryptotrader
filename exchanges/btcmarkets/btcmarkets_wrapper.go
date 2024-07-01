@@ -244,7 +244,7 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Bid:          tickers[x].BestBID,
 			Ask:          tickers[x].BestAsk,
 			Volume:       tickers[x].Volume,
-			LastUpdated:  time.Now(),
+			LastUpdated:  time.Now().UTC(),
 			ExchangeName: b.Name,
 			AssetType:    a,
 		})

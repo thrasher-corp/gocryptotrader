@@ -18,7 +18,7 @@ func (a *RecentTrade) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Time > 0 {
-		a.Time = time.UnixMilli(chil.Time)
+		a.Time = time.UnixMilli(chil.Time).UTC()
 	}
 	return nil
 }
@@ -36,7 +36,7 @@ func (a *HistoricalTrade) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Time > 0 {
-		a.Time = time.UnixMilli(chil.Time)
+		a.Time = time.UnixMilli(chil.Time).UTC()
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (a *AggregatedTrade) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.TimeStamp > 0 {
-		a.TimeStamp = time.UnixMilli(chil.TimeStamp)
+		a.TimeStamp = time.UnixMilli(chil.TimeStamp).UTC()
 	}
 	return nil
 }
@@ -73,10 +73,10 @@ func (a *PriceChangeStats) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.OpenTime > 0 {
-		a.OpenTime = time.UnixMilli(chil.OpenTime)
+		a.OpenTime = time.UnixMilli(chil.OpenTime).UTC()
 	}
 	if chil.CloseTime > 0 {
-		a.CloseTime = time.UnixMilli(chil.CloseTime)
+		a.CloseTime = time.UnixMilli(chil.CloseTime).UTC()
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func (a *TradeStatus) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.UpdateTime > 0 {
-		a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+		a.UpdateTime = time.UnixMilli(chil.UpdateTime).UTC()
 	}
 	return nil
 }
@@ -112,7 +112,7 @@ func (a *SubAccount) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.CreateTime > 0 {
-		a.CreateTime = time.UnixMilli(chil.CreateTime)
+		a.CreateTime = time.UnixMilli(chil.CreateTime).UTC()
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.UpdateTime > 0 {
-		a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+		a.UpdateTime = time.UnixMilli(chil.UpdateTime).UTC()
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func (a *TransferHistory) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if aux.TimeStamp == 0 {
-		a.TimeStamp = time.UnixMilli(int64(aux.TimeStamp))
+		a.TimeStamp = time.UnixMilli(int64(aux.TimeStamp)).UTC()
 	}
 	return nil
 }
@@ -184,7 +184,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Servertime > 0 {
-		a.ServerTime = time.UnixMilli(int64(chil.Servertime))
+		a.ServerTime = time.UnixMilli(int64(chil.Servertime)).UTC()
 	}
 	return nil
 }
@@ -203,10 +203,10 @@ func (a *Order) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Time > 0 {
-		a.Time = time.UnixMilli(chil.Time)
+		a.Time = time.UnixMilli(chil.Time).UTC()
 	}
 	if chil.UpdateTime > 0 {
-		a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+		a.UpdateTime = time.UnixMilli(chil.UpdateTime).UTC()
 	}
 	return nil
 }
@@ -224,7 +224,7 @@ func (a *Trade) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Time > 0 {
-		a.Time = time.UnixMilli(chil.Time)
+		a.Time = time.UnixMilli(chil.Time).UTC()
 	}
 	return nil
 }
@@ -242,7 +242,7 @@ func (a *OCOOrderReportItem) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.TransactionTime > 0 {
-		a.TransactionTime = time.UnixMilli(chil.TransactionTime)
+		a.TransactionTime = time.UnixMilli(chil.TransactionTime).UTC()
 	}
 	return nil
 }
@@ -260,7 +260,7 @@ func (a *OCOOrderResponse) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.TransactionTime > 0 {
-		a.TransactionTime = time.UnixMilli(chil.TransactionTime)
+		a.TransactionTime = time.UnixMilli(chil.TransactionTime).UTC()
 	}
 	return nil
 }
@@ -278,7 +278,7 @@ func (a *OTCTradeOrderResponse) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.CreateTime > 0 {
-		a.CreateTime = time.UnixMilli(chil.CreateTime)
+		a.CreateTime = time.UnixMilli(chil.CreateTime).UTC()
 	}
 	return nil
 }
@@ -296,7 +296,7 @@ func (a *OTCTradeOrder) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.CreateTime > 0 {
-		a.CreateTime = time.UnixMilli(chil.CreateTime)
+		a.CreateTime = time.UnixMilli(chil.CreateTime).UTC()
 	}
 	return nil
 }
@@ -483,10 +483,10 @@ func (a *WebsocketAggregateTradeStream) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if chil.TradeTime > 0 {
-		a.TradeTime = time.UnixMilli(chil.TradeTime)
+		a.TradeTime = time.UnixMilli(chil.TradeTime).UTC()
 	}
 	if chil.EventTime > 0 {
-		a.EventTime = time.UnixMilli(chil.EventTime)
+		a.EventTime = time.UnixMilli(chil.EventTime).UTC()
 	}
 	return nil
 }
@@ -499,7 +499,7 @@ func (t *binanceusTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &timestamp); err != nil {
 		return err
 	}
-	*t = binanceusTime(time.UnixMilli(timestamp))
+	*t = binanceusTime(time.UnixMilli(timestamp).UTC())
 	return nil
 }
 
@@ -521,7 +521,7 @@ func (a *OCBSOrder) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.CreateTime > 0 {
-		a.CreateTime = time.UnixMilli(chil.CreateTime)
+		a.CreateTime = time.UnixMilli(chil.CreateTime).UTC()
 	}
 	return nil
 }
@@ -539,7 +539,7 @@ func (a *ServerTime) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Timestamp > 0 {
-		a.Timestamp = time.UnixMilli(chil.Timestamp)
+		a.Timestamp = time.UnixMilli(chil.Timestamp).UTC()
 	}
 	return nil
 }
@@ -557,7 +557,7 @@ func (a *SubAccountStatus) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.InsertTime > 0 {
-		a.InsertTime = time.UnixMilli(chil.InsertTime)
+		a.InsertTime = time.UnixMilli(chil.InsertTime).UTC()
 	}
 	return nil
 }
@@ -575,7 +575,7 @@ func (a *Quote) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.ValidTimestamp > 0 {
-		a.ValidTimestamp = time.UnixMilli(chil.ValidTimestamp)
+		a.ValidTimestamp = time.UnixMilli(chil.ValidTimestamp).UTC()
 	}
 	return nil
 }
@@ -593,7 +593,7 @@ func (a *SubAccountDepositItem) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.InsertTime > 0 {
-		a.InsertTime = time.UnixMilli(chil.InsertTime)
+		a.InsertTime = time.UnixMilli(chil.InsertTime).UTC()
 	}
 	return nil
 }
@@ -611,7 +611,7 @@ func (a *ReferralWithdrawalItem) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.ReceiveDateTime > 0 {
-		a.ReceiveDateTime = time.UnixMilli(chil.ReceiveDateTime)
+		a.ReceiveDateTime = time.UnixMilli(chil.ReceiveDateTime).UTC()
 	}
 	return nil
 }

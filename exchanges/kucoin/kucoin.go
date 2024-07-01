@@ -322,7 +322,7 @@ func (ku *Kucoin) GetKlines(ctx context.Context, pair, period string, start, end
 		if err != nil {
 			return nil, err
 		}
-		klines[i].StartTime = time.Unix(t, 0)
+		klines[i].StartTime = time.Unix(t, 0).UTC()
 		klines[i].Open, err = strconv.ParseFloat(resp[i][1], 64)
 		if err != nil {
 			return nil, err

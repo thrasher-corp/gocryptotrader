@@ -1520,7 +1520,7 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 	}
 	fPair := r.Pair.Format(format)
 	pairRate := fundingrate.LatestRateResponse{
-		TimeChecked: time.Now(),
+		TimeChecked: time.Now().UTC(),
 		Exchange:    ok.Name,
 		Asset:       r.Asset,
 		Pair:        fPair,
@@ -1558,7 +1558,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 	}
 	requestLimit := 100
 	sd := r.StartDate
-	maxLookback := time.Now().Add(-ok.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
+	maxLookback := time.Now().UTC().Add(-ok.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
 		if r.RespectHistoryLimits {
 			r.StartDate = maxLookback

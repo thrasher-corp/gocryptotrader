@@ -387,7 +387,7 @@ func (h *HitBTC) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ ass
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (h *HitBTC) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return h.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
+	return h.GetHistoricTrades(ctx, p, assetType, time.Now().UTC().Add(-time.Minute*15), time.Now().UTC())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
