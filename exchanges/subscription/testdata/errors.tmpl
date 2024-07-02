@@ -1,0 +1,13 @@
+{{- if eq .S.Channel "error1" }}
+  {{/* Error 1: Expand pairs but not assets, without specific asset */}}
+  {{- .PairSeparator -}}
+{{- else if eq .S.Channel "error2" }}
+  {{/* Error 2: Runtime error from executing */}}
+  {{ .S.String 42 }}
+{{- else if eq .S.Channel "error3" }}
+  {{/* Error 3: Incorrect number of asset entries */}}
+  {{- .AssetSeparator }}
+{{- else if eq .S.Channel "error4" }}
+  {{/* Error 3: Incorrect number of pair entries */}}
+  {{- .PairSeparator }}
+{{- end -}}

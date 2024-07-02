@@ -43,7 +43,7 @@ func (s *Store) Add(sub *Subscription) error {
 		return fmt.Errorf("%w: Add called on nil Store", common.ErrNilPointer)
 	}
 	if s.m == nil {
-		return fmt.Errorf("%w: Add called on an Uninitialised Store", common.ErrNilPointer)
+		return fmt.Errorf("%w: Add called on an uninitialised Store", common.ErrNilPointer)
 	}
 	if sub == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)

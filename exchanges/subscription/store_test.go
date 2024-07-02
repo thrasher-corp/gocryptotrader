@@ -13,6 +13,7 @@ import (
 
 // TestNewStore exercises NewStore
 func TestNewStore(t *testing.T) {
+	t.Parallel()
 	s := NewStore()
 	require.IsType(t, &Store{}, s, "Must return a store ref")
 	require.NotNil(t, s.m, "storage map must be initialised")
@@ -20,6 +21,7 @@ func TestNewStore(t *testing.T) {
 
 // TestNewStoreFromList exercises NewStoreFromList
 func TestNewStoreFromList(t *testing.T) {
+	t.Parallel()
 	s, err := NewStoreFromList(List{})
 	assert.NoError(t, err, "Should not error on empty list")
 	require.IsType(t, &Store{}, s, "Must return a store ref")
@@ -43,11 +45,20 @@ func TestNewStoreFromList(t *testing.T) {
 
 // TestAdd exercises Add and add methods
 func TestAdd(t *testing.T) {
-	assert.ErrorIs(t, (*Store)(nil).Add(&Subscription{}), common.ErrNilPointer, "Should error nil pointer correctly")
-	assert.ErrorIs(t, (&Store{}).Add(nil), common.ErrNilPointer, "Should error nil pointer correctly")
-	assert.ErrorIs(t, (&Store{}).Add(&Subscription{}), common.ErrNilPointer, "Should error nil pointer correctly")
+	t.Parallel()
+	err := (*Store)(nil).Add(&Subscription{})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
+	assert.ErrorContains(t, err, "called on nil Store", "Should error correctly")
+
+	err = new(Store).Add(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
+	assert.ErrorContains(t, err, "called on an uninitialised Store", "Should error correctly")
 
 	s := NewStore()
+	err = s.Add(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
+	assert.ErrorContains(t, err, "Subscription param", "Should error correctly")
+
 	sub := &Subscription{Channel: TickerChannel}
 	require.NoError(t, s.Add(sub), "Should not error on a standard add")
 	assert.NotNil(t, s.get(sub), "Should have stored the sub")
@@ -58,6 +69,7 @@ func TestAdd(t *testing.T) {
 // TestGet exercises Get and get methods
 // Ensures that key's Match is used, but does not exercise subscription.Match; See TestMatch for that coverage
 func TestGet(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, (*Store)(nil).Get(&Subscription{}), "Should return nil when called on nil")
 	assert.Nil(t, (&Store{}).Get(&Subscription{}), "Should return nil when called with no subscription map")
 	s := NewStore()
@@ -81,11 +93,20 @@ func TestGet(t *testing.T) {
 
 // TestRemove exercises the Remove method
 func TestRemove(t *testing.T) {
-	assert.ErrorIs(t, (*Store)(nil).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called on nil")
-	assert.ErrorIs(t, (&Store{}).Remove(nil), common.ErrNilPointer, "Should error correctly when called passing nil")
-	assert.ErrorIs(t, (&Store{}).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called with no subscription map")
+	t.Parallel()
+	err := (*Store)(nil).Remove(&Subscription{})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when called on nil")
+	assert.ErrorContains(t, err, "Remove called on nil Store", "Should error correctly when called on nil")
+
+	err = new(Store).Remove(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when called on an uninit store")
+	assert.ErrorContains(t, err, "Remove called on an Uninitialised Store", "Should error correctly when called on an uninit store")
 
 	s := NewStore()
+	err = s.Remove(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when called with nil")
+	assert.ErrorContains(t, err, "key param", "Should error correctly when called with nil")
+
 	require.NoError(t, s.Add(&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Adding subscription must not error")
 	assert.NotNil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should have added the sub")
 	assert.ErrorIs(t, s.Remove(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}}), ErrNotFound, "Should error correctly when called with a non-matching key")
@@ -96,6 +117,7 @@ func TestRemove(t *testing.T) {
 
 // TestList exercises the List and Len methods
 func TestList(t *testing.T) {
+	t.Parallel()
 	assert.Empty(t, (*Store)(nil).List(), "Should return an empty List when called on nil")
 	assert.Empty(t, (&Store{}).List(), "Should return an empty List when called on Store without map")
 	s := NewStore()
@@ -118,6 +140,7 @@ func TestList(t *testing.T) {
 
 // TestStoreClear exercises the Clear method
 func TestStoreClear(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() { (*Store)(nil).Clear() }, "Should not panic when called on nil")
 	s := &Store{}
 	assert.NotPanics(t, func() { s.Clear() }, "Should not panic when called with no subscription map")
@@ -131,6 +154,7 @@ func TestStoreClear(t *testing.T) {
 
 // TestStoreDiff exercises the Diff method
 func TestStoreDiff(t *testing.T) {
+	t.Parallel()
 	s := NewStore()
 	assert.NotPanics(t, func() { (*Store)(nil).Diff(List{}) }, "Should not panic when called on nil")
 	assert.NotPanics(t, func() { (&Store{}).Diff(List{}) }, "Should not panic when called with no subscription map")

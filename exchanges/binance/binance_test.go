@@ -28,9 +28,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1981,26 +1981,23 @@ func BenchmarkWsHandleData(bb *testing.B) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := b
-	channels := subscription.List{
-		{Channel: "btcusdt@ticker"},
-		{Channel: "btcusdt@trade"},
-	}
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	channels, err := b.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
+	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
+		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
 		mock := func(msg []byte, w *websocket.Conn) error {
 			var req WsPayload
-			err := json.Unmarshal(msg, &req)
-			require.NoError(t, err, "Unmarshal should not error")
-			require.Len(t, req.Params, len(channels), "Params should only have 2 channel") // Failure might mean mockWSInstance default Subs is not empty
-			assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
-			assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
+			require.NoError(t, json.Unmarshal(msg, &req), "Unmarshal should not error")
+			require.ElementsMatch(t, req.Params, exp, "Params should have correct channels")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
 		}
 		b = testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock))
 	} else {
 		testexch.SetupWs(t, b)
 	}
-	err := b.Subscribe(channels)
+	err = b.Subscribe(channels)
 	require.NoError(t, err, "Subscribe should not error")
 	err = b.Unsubscribe(channels)
 	require.NoError(t, err, "Unsubscribe should not error")
@@ -2019,7 +2016,6 @@ func TestSubscribeBadResp(t *testing.T) {
 	}
 	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
 	assert.ErrorIs(t, err, errUnknownError, "Subscribe should error errUnknownError")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
 }
@@ -2434,61 +2430,42 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	expected := subscription.List{}
+	exp := subscription.List{}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
+	wsFmt := currency.PairFormat{Uppercase: false, Delimiter: ""}
+	baseExp := subscription.List{
+		{Channel: subscription.CandlesChannel, QualifiedChannel: "kline_1m", Asset: asset.Spot, Interval: kline.OneMin},
+		{Channel: subscription.OrderbookChannel, QualifiedChannel: "depth@100ms", Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+		{Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Asset: asset.Spot},
+		{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade", Asset: asset.Spot},
+	}
 	for _, p := range pairs {
-		for _, c := range []string{"kline_1m", "depth@100ms", "ticker", "trade"} {
-			expected = append(expected, &subscription.Subscription{
-				Channel: p.Format(currency.PairFormat{Delimiter: "", Uppercase: false}).String() + "@" + c,
-				Pairs:   currency.Pairs{p},
-				Asset:   asset.Spot,
-			})
+		for _, baseSub := range baseExp {
+			sub := baseSub.Clone()
+			sub.Pairs = currency.Pairs{p}
+			sub.QualifiedChannel = wsFmt.Format(p) + "@" + sub.QualifiedChannel
+			exp = append(exp, sub)
 		}
 	}
 	subs, err := b.generateSubscriptions()
-	assert.NoError(t, err, "GenerateSubscriptions should not error")
-	if assert.Len(t, subs, len(expected), "Should have the correct number of subs") {
-		assert.ElementsMatch(t, subs, expected, "Should get the correct subscriptions")
-	}
+	require.NoError(t, err, "generateSubscriptions should not error")
+	testsubs.EqualLists(t, exp, subs)
 }
 
-func TestChannelName(t *testing.T) {
-	_, err := channelName(&subscription.Subscription{Channel: "Wobbegongs"})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionNotSupported, "Invalid channel name should return ErrSubNotSupported")
-	assert.ErrorContains(t, err, "Wobbegong", "Invalid channel name error should contain at least one shark")
+// TestFormatChannelInterval exercises formatChannelInterval
+func TestFormatChannelInterval(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "@1000ms", formatChannelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}), "1s should format correctly for Orderbook")
+	assert.Equal(t, "@1m", formatChannelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}), "Orderbook should format correctly")
+	assert.Equal(t, "_15m", formatChannelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}), "Candles should format correctly")
+}
 
-	n, err := channelName(&subscription.Subscription{Channel: subscription.TickerChannel})
-	assert.NoError(t, err, "Ticker channel should not error")
-	assert.Equal(t, "ticker", n, "Ticker channel name should be correct")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.AllTradesChannel})
-	assert.NoError(t, err, "AllTrades channel should not error")
-	assert.Equal(t, "trade", n, "Trades channel name should be correct")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel})
-	assert.NoError(t, err, "Orderbook channel should not error")
-	assert.Equal(t, "depth@0s", n, "Orderbook with no update rate should return 0s") // It's not channelName's job to supply defaults
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Second)})
-	assert.NoError(t, err, "Orderbook channel should not error")
-	assert.Equal(t, "depth@1000ms", n, "Orderbook with 1s update rate should 1000ms")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
-	assert.NoError(t, err, "Orderbook channel should not error")
-	assert.Equal(t, "depth@100ms", n, "Orderbook with update rate should return it in the depth channel name")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds, Levels: 5})
-	assert.NoError(t, err, "Orderbook channel should not error")
-	assert.Equal(t, "depth@5@100ms", n, "Orderbook with Level should return it in the depth channel name")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin})
-	assert.NoError(t, err, "Candles channel should not error")
-	assert.Equal(t, "kline_15m", n, "Candles with interval should return it in the depth channel name")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.CandlesChannel})
-	assert.NoError(t, err, "Candles channel should not error")
-	assert.Equal(t, "kline_0s", n, "Candles with no interval should return 0s") // It's not channelName's job to supply defaults
+// TestFormatChannelLevels exercises formatChannelLevels
+func TestFormatChannelLevels(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "10", formatChannelLevels(&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10}), "Levels should format correctly")
+	assert.Empty(t, formatChannelLevels(&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 0}), "Levels should format correctly")
 }
 
 var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":"BTCUSDT","u":7145637297}`)
