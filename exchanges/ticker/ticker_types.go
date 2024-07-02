@@ -37,7 +37,9 @@ type Price struct {
 	High         float64       `json:"High"`
 	Low          float64       `json:"Low"`
 	Bid          float64       `json:"Bid"`
+	BidSize      float64       `json:"BidSize"`
 	Ask          float64       `json:"Ask"`
+	AskSize      float64       `json:"AskSize"`
 	Volume       float64       `json:"Volume"`
 	QuoteVolume  float64       `json:"QuoteVolume"`
 	PriceATH     float64       `json:"PriceATH"`
@@ -54,9 +56,7 @@ type Price struct {
 	// Funding rate field variables
 	FlashReturnRate       float64
 	BidPeriod             float64
-	BidSize               float64
 	AskPeriod             float64
-	AskSize               float64
 	FlashReturnRateAmount float64
 }
 
