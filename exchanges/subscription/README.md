@@ -22,7 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 Exchange Subscriptions are streams of data delivered via websocket.
 
-GoCryptoTrader engine will Subscribe automatically to configured channels.
+GoCryptoTrader engine will subscribe automatically to configured channels.
 A subset of exchanges currently support user configured channels, with the remaining using hardcoded defaults.
 See configuration Features.Subscriptions for whether an exchange is configurable.
 
@@ -33,8 +33,8 @@ Exchange Contributors should implement `GetSubscriptionTemplate` to return a tex
 Exchanges are free to implement template caching, a map or a mono-template, inline or file templates.
 
 The template is provided with a single context structure:
-```
-  Sub            *subscription.Subscription
+```go
+  S              *subscription.Subscription
   AssetPairs     map[asset.Item]currency.Pairs
   AssetSeparator string
   PairSeparator  string
