@@ -53,7 +53,7 @@ func TestExpandTemplates(t *testing.T) {
 	equalLists(t, exp, got)
 
 	_, err = List{{Channel: "feature2", Asset: asset.Spot}}.ExpandTemplates(e)
-	assert.ErrorIs(t, err, errAssetTemplateWithoutAll, "Should error correctly on xpand Assets without All")
+	assert.ErrorIs(t, err, errAssetTemplateWithoutAll, "Should error correctly on xpand assets without All")
 
 	e.tpl = "errors.tmpl"
 	_, err = List{{Channel: "error1", Asset: asset.All}}.ExpandTemplates(e)
