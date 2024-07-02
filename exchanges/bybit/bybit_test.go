@@ -3116,7 +3116,6 @@ func TestWsTicker(t *testing.T) {
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	testexch.UpdatePairsOnce(t, b)
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
 		return b.wsHandleData(assetRouting[0], r)
