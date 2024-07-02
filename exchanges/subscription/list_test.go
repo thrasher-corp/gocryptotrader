@@ -69,13 +69,13 @@ func TestListGroupPairs(t *testing.T) {
 func TestListSetStates(t *testing.T) {
 	t.Parallel()
 	l := List{{Channel: TickerChannel}, {Channel: OrderbookChannel}}
-	assert.NoError(t, l.SetStates(SubscribingState), "SetState should not error")
-	assert.Equal(t, SubscribingState, l[1].State(), "SetState should set State correctly")
+	assert.NoError(t, l.SetStates(SubscribingState), "SetStates should not error")
+	assert.Equal(t, SubscribingState, l[1].State(), "SetStates should set State correctly")
 
 	require.NoError(t, l[0].SetState(SubscribedState), "Individual SetState must not error")
 	err := l.SetStates(SubscribedState)
-	assert.ErrorIs(t, ErrInStateAlready, err, "SetState should error when duplicate state")
-	assert.Equal(t, SubscribedState, l[1].State(), "SetState should set State correctly after the error")
+	assert.ErrorIs(t, ErrInStateAlready, err, "SetStates should error when duplicate state")
+	assert.Equal(t, SubscribedState, l[1].State(), "SetStates should set State correctly after the error")
 }
 
 // TestAssetPairs exercises assetPairs error handling
