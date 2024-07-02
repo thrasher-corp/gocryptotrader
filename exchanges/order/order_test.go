@@ -237,9 +237,7 @@ func TestSubmit_Validate(t *testing.T) {
 		},
 	}
 
-	for x := range tester {
-		tc := tester[x]
-		x := x
+	for x, tc := range tester {
 		t.Run(strconv.Itoa(x), func(t *testing.T) {
 			t.Parallel()
 			requirements := protocol.TradingRequirements{
