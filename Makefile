@@ -61,3 +61,20 @@ endif
 target/sqlboiler.json:
 	mkdir -p $(@D)
 	go run ./cmd/gen_sqlboiler_config/main.go $(CONFIG_FLAG) -outdir $(@D)
+
+.PHONY: lint_configs
+lint_configs: check-jq
+	@$(call sort-json,config_example.json)
+	@$(call sort-json,testdata/configtest.json)
+
+define sort-json
+	@printf "Processing $(1)... "
+	@jq '.exchanges |= sort_by(.name)' --indent 1 $(1) > $(1).temp && \
+		(mv $(1).temp $(1) && printf "OK\n") || \
+		(rm $(1).temp; printf "FAILED\n"; exit 1)
+endef
+
+.PHONY: check-jq
+check-jq:
+	@printf "Checking if jq is installed... "
+	@command -v jq >/dev/null 2>&1 && { printf "OK\n"; } || { printf "FAILED. Please install jq to proceed.\n"; exit 1; }

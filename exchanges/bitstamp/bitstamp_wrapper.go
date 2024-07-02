@@ -30,29 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Bitstamp) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default for Bitstamp
 func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"
@@ -134,7 +111,7 @@ func (b *Bitstamp) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -360,9 +337,9 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
@@ -370,9 +347,9 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 	filterOrderbookZeroBidPrice(book)
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -590,20 +567,23 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			TID:    strconv.FormatInt(o.Transactions[i].TradeID, 10),
 			Price:  o.Transactions[i].Price,
 			Fee:    o.Transactions[i].Fee,
-			Amount: o.Transactions[i].BTC,
+			Amount: o.Transactions[i].ToCurrency,
 		}
 	}
 	orderDate, err := time.Parse(time.DateTime, o.DateTime)
 	if err != nil {
 		return nil, err
 	}
-
+	status, err := order.StringToOrderStatus(o.Status)
+	if err != nil {
+		return nil, err
+	}
 	return &order.Detail{
-		Amount:  o.Amount,
-		Price:   o.Price,
-		OrderID: o.ID,
-		Date:    orderDate,
-		Trades:  th,
+		RemainingAmount: o.AmountRemaining,
+		OrderID:         o.ID,
+		Date:            orderDate,
+		Trades:          th,
+		Status:          status,
 	}, nil
 }
 
@@ -947,4 +927,14 @@ func (b *Bitstamp) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bitstamp) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitstamp) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = ""
+	return tradeBaseURL + cp.Lower().String() + "/", nil
 }

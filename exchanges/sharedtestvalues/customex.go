@@ -262,12 +262,7 @@ func (c *CustomEx) SupportsREST() bool {
 }
 
 // GetSubscriptions is a mock method for CustomEx
-func (c *CustomEx) GetSubscriptions() ([]subscription.Subscription, error) {
-	return nil, nil
-}
-
-// GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
+func (c *CustomEx) GetSubscriptions() (subscription.List, error) {
 	return nil, nil
 }
 
@@ -317,12 +312,12 @@ func (c *CustomEx) SupportsWebsocket() bool {
 }
 
 // SubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) SubscribeToWebsocketChannels(_ []subscription.Subscription) error {
+func (c *CustomEx) SubscribeToWebsocketChannels(_ subscription.List) error {
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) UnsubscribeToWebsocketChannels(_ []subscription.Subscription) error {
+func (c *CustomEx) UnsubscribeToWebsocketChannels(_ subscription.List) error {
 	return nil
 }
 

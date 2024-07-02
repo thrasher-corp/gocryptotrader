@@ -448,22 +448,9 @@ func (c *Config) CheckPairConfigFormats(exchName string) error {
 			}
 
 			for y := range loadedPairs {
-				if pairFmt.Delimiter != "" && pairFmt.Index != "" {
-					return fmt.Errorf(
-						"exchange %s %s %s cannot have an index and delimiter set at the same time",
-						exchName, pairsType, assetType)
-				}
 				if pairFmt.Delimiter != "" {
 					if !strings.Contains(loadedPairs[y].String(), pairFmt.Delimiter) {
-						return fmt.Errorf(
-							"exchange %s %s %s pairs does not contain delimiter",
-							exchName, pairsType, assetType)
-					}
-				}
-				if pairFmt.Index != "" {
-					if !strings.Contains(loadedPairs[y].String(), pairFmt.Index) {
-						return fmt.Errorf("exchange %s %s %s pairs does not contain an index",
-							exchName, pairsType, assetType)
+						return fmt.Errorf("exchange %s %s %s pairs does not contain delimiter", exchName, pairsType, assetType)
 					}
 				}
 			}

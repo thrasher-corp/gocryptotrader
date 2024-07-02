@@ -21,7 +21,7 @@ type WhaleBombResult struct {
 	MinimumPrice         float64
 	MaximumPrice         float64
 	PercentageGainOrLoss float64
-	Orders               Items
+	Orders               Tranches
 	Status               string
 }
 
@@ -175,7 +175,7 @@ type DeploymentAction struct {
 	TranchePositionPrice float64
 	BaseAmount           float64
 	QuoteAmount          float64
-	Tranches             Items
+	Tranches             Tranches
 	FullLiquidityUsed    bool
 }
 
@@ -201,7 +201,7 @@ func (b *Base) buy(quote float64) (*DeploymentAction, error) {
 				}
 			}
 			subAmount := quote / b.Asks[x].Price
-			action.Tranches = append(action.Tranches, Item{
+			action.Tranches = append(action.Tranches, Tranche{
 				Price:  b.Asks[x].Price,
 				Amount: subAmount,
 			})
@@ -238,7 +238,7 @@ func (b *Base) sell(base float64) (*DeploymentAction, error) {
 					action.FullLiquidityUsed = true
 				}
 			}
-			action.Tranches = append(action.Tranches, Item{
+			action.Tranches = append(action.Tranches, Tranche{
 				Price:  b.Bids[x].Price,
 				Amount: base,
 			})
@@ -279,16 +279,16 @@ func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
 // FindNominalAmount finds the nominal amount spent in terms of the quote
 // If the orderbook doesn't have enough liquidity it returns a non zero
 // remaining amount value
-func (elem Items) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
+func (ts Tranches) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
 	remainingAmount = amount
-	for x := range elem {
-		if remainingAmount <= elem[x].Amount {
-			aggNominalAmount += elem[x].Price * remainingAmount
+	for x := range ts {
+		if remainingAmount <= ts[x].Amount {
+			aggNominalAmount += ts[x].Price * remainingAmount
 			remainingAmount = 0
 			break
 		}
-		aggNominalAmount += elem[x].Price * elem[x].Amount
-		remainingAmount -= elem[x].Amount
+		aggNominalAmount += ts[x].Price * ts[x].Amount
+		remainingAmount -= ts[x].Amount
 	}
 	return aggNominalAmount, remainingAmount
 }

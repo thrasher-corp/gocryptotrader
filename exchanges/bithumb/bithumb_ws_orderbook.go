@@ -25,10 +25,10 @@ const (
 )
 
 func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
-	bids := make([]orderbook.Item, 0, len(updates.List))
-	asks := make([]orderbook.Item, 0, len(updates.List))
+	bids := make([]orderbook.Tranche, 0, len(updates.List))
+	asks := make([]orderbook.Tranche, 0, len(updates.List))
 	for x := range updates.List {
-		i := orderbook.Item{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
+		i := orderbook.Tranche{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
 		if updates.List[x].OrderSide == "bid" {
 			bids = append(bids, i)
 			continue
@@ -426,16 +426,16 @@ func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	var newOrderBook orderbook.Base
-	newOrderBook.Bids = make(orderbook.Items, len(o.Data.Bids))
+	newOrderBook.Bids = make(orderbook.Tranches, len(o.Data.Bids))
 	for i := range o.Data.Bids {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: o.Data.Bids[i].Quantity,
 			Price:  o.Data.Bids[i].Price,
 		}
 	}
-	newOrderBook.Asks = make(orderbook.Items, len(o.Data.Asks))
+	newOrderBook.Asks = make(orderbook.Tranches, len(o.Data.Asks))
 	for i := range o.Data.Asks {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: o.Data.Asks[i].Quantity,
 			Price:  o.Data.Asks[i].Price,
 		}

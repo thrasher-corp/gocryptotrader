@@ -378,7 +378,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 
-			defaultCfg, err := exch.GetDefaultConfig(context.Background())
+			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 			if err != nil {
 				t.Fatal(err)
 			}

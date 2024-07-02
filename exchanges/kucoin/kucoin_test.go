@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -41,45 +39,27 @@ const (
 	canManipulateRealOrders = false
 )
 
-var (
-	ku                                                        = &Kucoin{}
-	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
-)
+var ku *Kucoin
+var spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 
 func TestMain(m *testing.M) {
-	ku.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	ku = new(Kucoin)
+	if err := testexch.Setup(ku); err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Kucoin")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = passPhrase
 	if apiKey != "" && apiSecret != "" && passPhrase != "" {
+		ku.API.AuthenticatedSupport = true
+		ku.API.AuthenticatedWebsocketSupport = true
+		ku.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		ku.SetCredentials(apiKey, apiSecret, passPhrase, "", "", "")
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	ku.SetDefaults()
-	ku.Websocket = sharedtestvalues.NewTestWebsocket()
-	ku.Websocket.Orderbook = buffer.Orderbook{}
-	err = ku.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	setupWS()
 	getFirstTradablePairOfAssets()
+	ku.setupOrderbookManager()
+	fetchedFuturesSnapshotOrderbook = map[string]bool{}
+
 	os.Exit(m.Run())
 }
 
@@ -1988,14 +1968,15 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 }
 
 func TestPushData(t *testing.T) {
-	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsHandleData.json", ku.wsHandleData)
+	t.Parallel()
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
-func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
+func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
 	tb.Helper()
 	var sub *subscription.Subscription
-	for i, s := range subs { //nolint:gocritic // prefer convenience over performance here for tests
+	for i, s := range subs {
 		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
 			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
 				continue
@@ -2004,7 +1985,7 @@ func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, p
 				assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
 				return
 			}
-			sub = &subs[i]
+			sub = subs[i]
 		}
 	}
 	if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
@@ -2023,12 +2004,11 @@ func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, p
 // In Both: ETH-BTC, LTC-USDT
 // Only in Margin: TRX-BTC, SOL-USDC
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := ku.GenerateDefaultSubscriptions()
-
-	assert.NoError(t, err, "GenerateDefaultSubscriptions should not error")
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
 
 	assert.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
 
@@ -2049,15 +2029,11 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 func TestGenerateAuthSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	nu.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	subs, err := nu.GenerateDefaultSubscriptions()
-	assert.NoError(t, err, "GenerateDefaultSubscriptions with Auth should not error")
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	assert.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
 
 	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
@@ -2086,18 +2062,13 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 func TestGenerateCandleSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
-	assert.NoError(t, err, "GenerateDefaultSubscriptions with Candles should not error")
+	subs, err := ku.generateSubscriptions()
+	assert.NoError(t, err, "generateSubscriptions with Candles should not error")
 
 	assert.Len(t, subs, 6, "Should generate the correct number of subs for candles")
 	for _, c := range []string{"BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC"} {
@@ -2111,18 +2082,13 @@ func TestGenerateCandleSubscription(t *testing.T) {
 func TestGenerateMarketSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = subscription.List{
 		{Channel: marketSnapshotChannel},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
-	assert.NoError(t, err, "GenerateDefaultSubscriptions with MarketSnapshot should not error")
+	subs, err := ku.generateSubscriptions()
+	assert.NoError(t, err, "generateSubscriptions with MarketSnapshot should not error")
 
 	assert.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
 	for _, c := range []string{"BTC", "ETH", "LTC", "USDT"} {
@@ -2383,19 +2349,6 @@ func TestGetPaginatedListOfSubAccounts(t *testing.T) {
 	}
 }
 
-func setupWS() {
-	if !ku.Websocket.IsEnabled() {
-		return
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(ku) {
-		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	err := ku.WsConnect()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
@@ -2490,65 +2443,60 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
-	seen := 0
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
+	close(ku.Websocket.DataHandler)
+	assert.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *ticker.Price:
-				switch seen {
-				case 1:
-					assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-					assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-					assert.Equal(t, 0.004445, v.High, "high")
-					assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-					assert.Equal(t, 0.004191, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-					assert.Equal(t, 13097.3357, v.Volume, "volume")
-					assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-				case 2, 3:
-					assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-					assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-					seenAssetTypes[v.AssetType]++
-					assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-					assert.Equal(t, 0.054846, v.High, "high")
-					assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-					assert.Equal(t, 0.05364, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-					assert.Equal(t, 2958.3139116, v.Volume, "volume")
-					assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-				case 4:
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-					assert.Equal(t, 37750.0, v.High, "high")
-					assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-					assert.Equal(t, 36700.0, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-					assert.Equal(t, 2900.37846402, v.Volume, "volume")
-					assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
-				default:
-					t.Errorf("Got an unexpected *ticker.Price: %v", v)
-				}
-			case error:
-				t.Error(v)
-			default:
-				t.Errorf("Got unexpected data: %T %v", v, v)
+	for resp := range ku.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *ticker.Price:
+			switch len(ku.Websocket.DataHandler) {
+			case 3:
+				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
+				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
+				assert.Equal(t, 0.004445, v.High, "high")
+				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
+				assert.Equal(t, 0.004191, v.Low, "low")
+				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
+				assert.Equal(t, 13097.3357, v.Volume, "volume")
+				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
+			case 2, 1:
+				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
+				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
+				seenAssetTypes[v.AssetType]++
+				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
+				assert.Equal(t, 0.054846, v.High, "high")
+				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
+				assert.Equal(t, 0.05364, v.Low, "low")
+				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
+				assert.Equal(t, 2958.3139116, v.Volume, "volume")
+				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
+			case 0:
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
+				assert.Equal(t, 37750.0, v.High, "high")
+				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
+				assert.Equal(t, 36700.0, v.Low, "low")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
+				assert.Equal(t, 2900.37846402, v.Volume, "volume")
+				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
 	}
-	assert.Equal(t, 4, seen, "Number of messages")
 }
 
 func TestSubscribeMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	setupWS()
-	err := ku.Subscribe([]subscription.Subscription{{Channel: marketSymbolSnapshotChannel, Pair: currency.Pair{Base: currency.BTC}}})
+
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.SetupWs(t, ku)
+
+	err := ku.Subscribe(subscription.List{{Channel: marketSymbolSnapshotChannel, Pairs: currency.Pairs{currency.Pair{Base: currency.BTC}}}})
 	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
 }
 
@@ -2735,17 +2683,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 
-	nu := new(Kucoin)
-	require.NoError(t, testexch.TestInstance(nu), "TestInstance setup should not error")
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	_, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
+	_, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	resp, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futuresTradablePair.Base.Item,
 		Quote: futuresTradablePair.Quote.Item,
 		Asset: asset.Futures,
@@ -2754,8 +2701,8 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 
 	cp1 := currency.NewPair(currency.ETH, currency.USDTM)
-	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, nu, asset.Futures, cp1)
-	resp, err = nu.GetOpenInterest(context.Background(),
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ku, asset.Futures, cp1)
+	resp, err = ku.GetOpenInterest(context.Background(),
 		key.PairAsset{
 			Base:  futuresTradablePair.Base.Item,
 			Quote: futuresTradablePair.Quote.Item,
@@ -2770,7 +2717,32 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	resp, err = nu.GetOpenInterest(context.Background())
+	resp, err = ku.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, ku)
+	for _, a := range ku.GetAssetTypes(false) {
+		pairs, err := ku.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := ku.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
+}
+
+// testInstance returns a local Kucoin for isolated testing
+func testInstance(tb testing.TB) *Kucoin {
+	tb.Helper()
+	ku := new(Kucoin)
+	require.NoError(tb, testexch.Setup(ku), "Test instance Setup must not error")
+	ku.obm = &orderbookManager{
+		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
+		jobs:  make(chan job, maxWSOrderbookJobs),
+	}
+	return ku
 }

@@ -92,7 +92,7 @@ func (bi *Bitget) SetDefaults() {
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimits()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

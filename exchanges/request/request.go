@@ -38,6 +38,8 @@ var (
 	ErrRequestSystemIsNil = errors.New("request system is nil")
 	// ErrAuthRequestFailed is a wrapping error to denote that it's an auth request that failed
 	ErrAuthRequestFailed = errors.New("authenticated request failed")
+	// ErrBadStatus is a wrapping error to denote that the HTTP status code was unsuccessful
+	ErrBadStatus = errors.New("unsuccessful HTTP status code")
 
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
@@ -147,10 +149,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		default:
 		}
 
-		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(ctx, endpoint)
-		if err != nil {
-			return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+		if r.limiter != nil {
+			// Initiate a rate limit reservation and sleep on requested endpoint
+			err := r.InitiateRateLimit(ctx, endpoint)
+			if err != nil {
+				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+			}
 		}
 
 		p, err := newRequest()
@@ -226,14 +230,18 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			}
 
 			if verbose {
-				log.Errorf(log.RequestSys,
-					"%s request has failed. Retrying request in %s, attempt %d",
-					r.name,
-					delay,
-					attempt)
+				log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d", r.name, delay, attempt)
 			}
 
-			time.Sleep(delay)
+			if delay > 0 {
+				// Allow for context cancellation while delaying the retry.
+				select {
+				case <-time.After(delay):
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+
 			continue
 		}
 
@@ -264,8 +272,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusNoContent {
-			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
+			return fmt.Errorf("%s %w: %d raw response: %s",
 				r.name,
+				ErrBadStatus,
 				resp.StatusCode,
 				string(contents))
 		}
@@ -281,21 +290,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		err = resp.Body.Close()
 		if err != nil {
-			log.Errorf(log.RequestSys,
-				"%s failed to close request body %s",
-				r.name,
-				err)
+			log.Errorf(log.RequestSys, "%s failed to close request body %s", r.name, err)
 		}
 		if verbose {
-			log.Debugf(log.RequestSys,
-				"HTTP status: %s, Code: %v",
-				resp.Status,
-				resp.StatusCode)
+			log.Debugf(log.RequestSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 			if !p.HTTPDebugging {
-				log.Debugf(log.RequestSys,
-					"%s raw response: %s",
-					r.name,
-					string(contents))
+				log.Debugf(log.RequestSys, "%s raw response: %s", r.name, string(contents))
 			}
 		}
 		return unmarshallError
@@ -304,44 +304,19 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 func (r *Requester) drainBody(body io.ReadCloser) {
 	if _, err := io.Copy(io.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
-		log.Errorf(log.RequestSys,
-			"%s failed to drain request body %s",
-			r.name,
-			err)
+		log.Errorf(log.RequestSys, "%s failed to drain request body %s", r.name, err)
 	}
 
 	if err := body.Close(); err != nil {
-		log.Errorf(log.RequestSys,
-			"%s failed to close request body %s",
-			r.name,
-			err)
+		log.Errorf(log.RequestSys, "%s failed to close request body %s", r.name, err)
 	}
 }
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
-func (r *Requester) GetNonce(isNano bool) nonce.Value {
+func (r *Requester) GetNonce(set nonce.Setter) nonce.Value {
 	r.timedLock.LockForDuration()
-	if r.Nonce.Get() == 0 {
-		if isNano {
-			r.Nonce.Set(time.Now().UnixNano())
-		} else {
-			r.Nonce.Set(time.Now().Unix())
-		}
-		return r.Nonce.Get()
-	}
-	return r.Nonce.GetInc()
-}
-
-// GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
-// nonce FIFO on the buffered job channel this is for millisecond
-func (r *Requester) GetNonceMilli() nonce.Value {
-	r.timedLock.LockForDuration()
-	if r.Nonce.Get() == 0 {
-		r.Nonce.Set(time.Now().UnixMilli())
-		return r.Nonce.Get()
-	}
-	return r.Nonce.GetInc()
+	return r.Nonce.GetAndIncrement(set)
 }
 
 // SetProxy sets a proxy address for the client transport

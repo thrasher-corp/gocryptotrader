@@ -106,7 +106,7 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 	targetDir := utils.GetTLSDir(s.config.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {
-		return fmt.Errorf("unabled to start gRPC proxy. Err: %w", err)
+		return fmt.Errorf("unable to start gRPC proxy. Err: %w", err)
 	}
 
 	mux := runtime.NewServeMux()

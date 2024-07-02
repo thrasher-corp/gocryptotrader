@@ -21,11 +21,15 @@ import (
 )
 
 const (
-	huobiAPIURL      = "https://api.huobi.pro"
-	huobiURL         = "https://api.hbdm.com"
-	huobiFuturesURL  = huobiURL
-	huobiAPIVersion  = "1"
-	huobiAPIVersion2 = "2"
+	huobiAPIURL       = "https://api.huobi.pro"
+	huobiURL          = "https://api.hbdm.com"
+	huobiFuturesURL   = huobiURL
+	huobiAPIVersion   = "1"
+	huobiAPIVersion2  = "2"
+	tradeBaseURL      = "https://www.htx.com/"
+	tradeSpot         = "trade/"
+	tradeFutures      = "futures/linear_swap/exchange#contract_code="
+	tradeCoinMargined = "futures/swap/exchange/#symbol="
 
 	// Spot endpoints
 	huobiMarketHistoryKline           = "/market/history/kline"

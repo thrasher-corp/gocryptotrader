@@ -834,7 +834,7 @@ message WebsocketGetSubscriptionsRequest {
 
 message WebsocketSubscription {
   string channel = 1;
-  string pair = 2;
+  string pairs = 2;
   string asset = 3;
   string params = 4;
 }
@@ -1522,6 +1522,16 @@ message OpenInterestDataResponse {
   double open_interest = 4;
 }
 
+message GetCurrencyTradeURLRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+}
+
+message GetCurrencyTradeURLResponse {
+  string url = 1;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {get: "/v1/getinfo"};
@@ -1781,21 +1791,21 @@ service GoCryptoTraderService {
 
   rpc SetLoggerDetails(SetLoggerDetailsRequest) returns (GetLoggerDetailsResponse) {
     option (google.api.http) = {
-      post: "/v1/setloggerdetails",
+      post: "/v1/setloggerdetails"
       body: "*"
     };
   }
 
   rpc GetExchangePairs(GetExchangePairsRequest) returns (GetExchangePairsResponse) {
     option (google.api.http) = {
-      post: "/v1/getexchangepairs",
+      post: "/v1/getexchangepairs"
       body: "*"
     };
   }
 
   rpc SetExchangePair(SetExchangePairRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/setexchangepair",
+      post: "/v1/setexchangepair"
       body: "*"
     };
   }
@@ -1826,14 +1836,14 @@ service GoCryptoTraderService {
 
   rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/gctscript/upload",
+      post: "/v1/gctscript/upload"
       body: "*"
     };
   }
 
   rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptQueryResponse) {
     option (google.api.http) = {
-      post: "/v1/gctscript/read",
+      post: "/v1/gctscript/read"
       body: "*"
     };
   }
@@ -1848,27 +1858,27 @@ service GoCryptoTraderService {
 
   rpc GCTScriptStop(GCTScriptStopRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/gctscript/stop",
+      post: "/v1/gctscript/stop"
       body: "*"
     };
   }
 
   rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/gctscript/stopall",
+      post: "/v1/gctscript/stopall"
       body: "*"
     };
   }
 
   rpc GCTScriptListAll(GCTScriptListAllRequest) returns (GCTScriptStatusResponse) {
     option (google.api.http) = {
-      post: "/v1/gctscript/list",
+      post: "/v1/gctscript/list"
       body: "*"
     };
   }
   rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/gctscript/autoload",
+      post: "/v1/gctscript/autoload"
       body: "*"
     };
   }
@@ -1942,7 +1952,7 @@ service GoCryptoTraderService {
 
   rpc UpsertDataHistoryJob(UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
     option (google.api.http) = {
-      post: "/v1/upsertdatahistoryjob",
+      post: "/v1/upsertdatahistoryjob"
       body: "*"
     };
   }
@@ -1961,13 +1971,13 @@ service GoCryptoTraderService {
   }
   rpc SetDataHistoryJobStatus(SetDataHistoryJobStatusRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/setdatahistoryjobstatus",
+      post: "/v1/setdatahistoryjobstatus"
       body: "*"
     };
   }
   rpc UpdateDataHistoryJobPrerequisite(UpdateDataHistoryJobPrerequisiteRequest) returns (GenericResponse) {
     option (google.api.http) = {
-      post: "/v1/updatedatahistoryjobprerequisite",
+      post: "/v1/updatedatahistoryjobprerequisite"
       body: "*"
     };
   }
@@ -2067,5 +2077,8 @@ service GoCryptoTraderService {
   }
   rpc GetOpenInterest(GetOpenInterestRequest) returns (GetOpenInterestResponse) {
     option (google.api.http) = {get: "/v1/getopeninterest"};
+  }
+  rpc GetCurrencyTradeURL(GetCurrencyTradeURLRequest) returns (GetCurrencyTradeURLResponse) {
+    option (google.api.http) = {get: "/v1/getcurrencytradeurl"};
   }
 }

@@ -28,6 +28,10 @@ const (
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
+	tradeBaseURL                        = "https://www.gate.io/"
+	tradeSpot                           = "trade/"
+	tradeFutures                        = "futures/usdt/"
+	tradeDelivery                       = "futures-delivery/usdt/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -156,7 +160,6 @@ var (
 	errTooManyOrderRequest           = errors.New("too many order creation request")
 	errInvalidTimeout                = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                  = errors.New("no ticker data available")
-	errOnlyLimitOrderType            = errors.New("only order type 'limit' is allowed")
 	errNilArgument                   = errors.New("null argument")
 	errInvalidTimezone               = errors.New("invalid timezone")
 	errMultipleOrders                = errors.New("multiple orders passed")
@@ -632,9 +635,6 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.CurrencyPair.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Type != "limit" {
-		return nil, errOnlyLimitOrderType
-	}
 	arg.Side = strings.ToLower(arg.Side)
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, errInvalidOrderSide
@@ -647,7 +647,7 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price <= 0 {
+	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -1152,28 +1152,26 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !strings.EqualFold(arg.From, asset.Spot.String()) {
-		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", asset.ErrNotSupported, asset.Spot)
+	if arg.From == "" {
+		return nil, errors.New("from account is required")
 	}
-	if !g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", asset.ErrNotSupported, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+	if arg.To == "" {
+		return nil, errors.New("to account is required")
 	}
-	if arg.Amount < 0 {
+	if arg.To == arg.From {
+		return nil, errors.New("from and to account cannot be the same")
+	}
+	if (arg.To == "margin" || arg.From == "margin") && arg.CurrencyPair.IsEmpty() {
+		return nil, errors.New("currency pair is required for margin account transfer")
+	}
+	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
+		return nil, errors.New("settle is required for futures account transfer")
+	}
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	var response *TransactionIDResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodPost, walletTransfer, nil, &arg, &response)
-}
-
-func (g *Gateio) isAccountAccepted(account string) bool {
-	if account == "" {
-		return false
-	}
-	acc, err := asset.New(account)
-	if err != nil {
-		return false
-	}
-	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Options
 }
 
 func (g *Gateio) assetTypeToString(acc asset.Item) string {
@@ -3753,8 +3751,12 @@ func (g *Gateio) IsValidPairString(currencyPair string) bool {
 	if len(currencyPair) < 3 {
 		return false
 	}
-	if strings.Contains(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter) {
-		result := strings.Split(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter)
+	pf, err := g.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(currencyPair, pf.Delimiter) {
+		result := strings.Split(currencyPair, pf.Delimiter)
 		return len(result) >= 2
 	}
 	return false

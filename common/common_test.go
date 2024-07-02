@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
@@ -835,4 +836,23 @@ func TestGenerateRandomString(t *testing.T) {
 	if sample != "" {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
+}
+
+// TestErrorCollector exercises the error collector
+func TestErrorCollector(t *testing.T) {
+	e := CollectErrors(4)
+	for i := range 4 {
+		go func() {
+			if i%2 == 0 {
+				e.C <- errors.New("Collected error")
+			} else {
+				e.C <- nil
+			}
+			e.Wg.Done()
+		}()
+	}
+	v := e.Collect()
+	errs, ok := v.(*multiError)
+	require.True(t, ok, "Must return a multiError")
+	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
 }

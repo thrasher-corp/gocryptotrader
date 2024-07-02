@@ -3121,7 +3121,7 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 		payload.Subscriptions = append(payload.Subscriptions,
 			&gctrpc.WebsocketSubscription{
 				Channel: subs[i].Channel,
-				Pair:    subs[i].Pair.String(),
+				Pairs:   subs[i].Pairs.Join(),
 				Asset:   subs[i].Asset.String(),
 				Params:  string(params),
 			})
@@ -6014,5 +6014,38 @@ func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenIntere
 	}
 	return &gctrpc.GetOpenInterestResponse{
 		Data: resp,
+	}, nil
+}
+
+// GetCurrencyTradeURL returns the URL for the trading pair
+func (s *RPCServer) GetCurrencyTradeURL(ctx context.Context, r *gctrpc.GetCurrencyTradeURLRequest) (*gctrpc.GetCurrencyTradeURLResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetCurrencyTradeURLRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+	if !exch.IsEnabled() {
+		return nil, fmt.Errorf("%s %w", r.Exchange, errExchangeNotEnabled)
+	}
+	ai, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if r.Pair == nil ||
+		(r.Pair.Base == "" && r.Pair.Quote == "") {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, ai, false)
+	if err != nil {
+		return nil, err
+	}
+	url, err := exch.GetCurrencyTradeURL(ctx, ai, cp)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GetCurrencyTradeURLResponse{
+		Url: url,
 	}, nil
 }

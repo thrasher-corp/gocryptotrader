@@ -206,6 +206,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
+| Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No | // <-------- new exchange
 | CoinbasePro | Yes | Yes | No|
@@ -236,6 +237,7 @@ var Exchanges = []string{
 	"bybit",
 	"coinbasepro",
 	"coinut",
+	"deribit",
 	"exmo",
 	"ftx", // <-------- new exchange
 	"gateio",
@@ -719,7 +721,7 @@ func (f *FTX) WsConnect() error {
 		}
 	}
 	// Generates the default subscription set, based off enabled pairs.
-	subs, err := f.GenerateDefaultSubscriptions()
+	subs, err := f.generateSubscriptions()
 	if err != nil {
 		return err
 	}
@@ -731,10 +733,10 @@ func (f *FTX) WsConnect() error {
 - Create function to generate default subscriptions:
 
 ```go
-// GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
-	subscriptions = append(subscriptions, subscription.Subscription{
+// generateSubscriptions generates default subscription
+func (f *FTX) generateSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
+	subscriptions = append(subscriptions, &subscription.Subscription{
 		Channel: wsMarkets,
 	})
 	// Ranges over available channels, pairs and asset types to produce a full
@@ -752,9 +754,9 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]subscription.Subscription, error
 				"-")
 			for x := range channels {
 				subscriptions = append(subscriptions,
-					subscription.Subscription{
+					&subscription.Subscription{
 						Channel:  channels[x],
-						Pair: newPair,
+						Pair:     currency.Pairs{newPair},
 						Asset:    assets[a],
 					})
 			}
@@ -764,9 +766,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]subscription.Subscription, error
 	if f.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: authchan[x],
-			})
+			subscriptions = append(subscriptions, &subscription.Subscription{Channel: authchan[x]})
 		}
 	}
 	return subscriptions, nil
@@ -807,7 +807,7 @@ type WsSub struct {
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (f *FTX) Subscribe(channelsToSubscribe subscription.List) error {
 	// For subscriptions we try to batch as much as possible to limit the amount
 	// of connection usage but sometimes this is not supported on the exchange 
 	// API.
@@ -823,13 +823,8 @@ channels:
 		case wsFills, wsOrders, wsMarkets:
 		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for the full set of tradable markets do not need a currency pair association. 
 		default:
-			a, err := f.GetPairAssetType(channelsToSubscribe[i].Pair)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
 			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different from what our request format needs to be.
-			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Pair, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Pair, channelsToSubscribe[i].Asset)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -844,10 +839,7 @@ channels:
 		// When we have a successful subscription, we can alert our internal management system of the success.
 		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+    return errs
 }
 ```
 
@@ -1061,7 +1053,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 
 ```go
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (f *FTX) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
 	var errs common.Errors
 channels:
@@ -1072,13 +1064,7 @@ channels:
 		switch channelsToUnsubscribe[i].Channel {
 		case wsFills, wsOrders, wsMarkets:
 		default:
-			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Pair)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-
-			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, channelsToUnsubscribe[i].Asset)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -1133,8 +1119,8 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		Subscriber:             f.Subscribe, 
 		// Unsubscriber function outlined above.
 		UnSubscriber:           f.Unsubscribe,
-		// GenerateDefaultSubscriptions function outlined above. 
-		GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
+		// GenerateSubscriptions function outlined above. 
+		GenerateSubscriptions:  f.generateSubscriptions, 
 		// Defines the capabilities of the websocket outlined in supported 
 		// features struct. This allows the websocket connection to be flushed 
 		// appropriately if we have a pair/asset enable/disable change. This is 

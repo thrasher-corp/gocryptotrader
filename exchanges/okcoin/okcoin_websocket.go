@@ -504,12 +504,12 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 			Exchange:    o.Name,
 			LastUpdated: resp.Data[0].Timestamp.Time(),
 		}
-		base.Asks = make([]orderbook.Item, len(resp.Data[0].Asks))
+		base.Asks = make([]orderbook.Tranche, len(resp.Data[0].Asks))
 		for a := range resp.Data[0].Asks {
 			base.Asks[a].Amount = resp.Data[0].Asks[a][1].Float64()
 			base.Asks[a].Price = resp.Data[0].Asks[a][0].Float64()
 		}
-		base.Bids = make([]orderbook.Item, len(resp.Data[0].Bids))
+		base.Bids = make([]orderbook.Tranche, len(resp.Data[0].Bids))
 		for b := range resp.Data[0].Bids {
 			base.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
 			base.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
@@ -582,9 +582,9 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes
 // again to fetch a new snapshot in the event of a de-sync event.
 func (o *Okcoin) ReSubscribeSpecificOrderbook(obChannel string, p currency.Pair) error {
-	subscription := []subscription.Subscription{{
+	subscription := subscription.List{{
 		Channel: obChannel,
-		Pair:    p,
+		Pairs:   currency.Pairs{p},
 	}}
 	if err := o.Unsubscribe(subscription); err != nil {
 		return err
@@ -697,12 +697,12 @@ func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.Item, error) {
-	items := make([]orderbook.Item, len(entries))
+func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.Tranche, error) {
+	items := make([]orderbook.Tranche, len(entries))
 	for j := range entries {
 		amount := entries[j][1].Float64()
 		price := entries[j][0].Float64()
-		items[j] = orderbook.Item{Amount: amount, Price: price}
+		items[j] = orderbook.Tranche{Amount: amount, Price: price}
 	}
 	return items, nil
 }
@@ -764,8 +764,8 @@ func (o *Okcoin) CalculateOrderbookUpdateChecksum(orderbookData *orderbook.Base)
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
-func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (o *Okcoin) GenerateDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	pairs, err := o.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -788,7 +788,7 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 	for s := range channels {
 		switch channels[s] {
 		case wsInstruments:
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[s],
 				Asset:   asset.Spot,
 			})
@@ -799,20 +799,20 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
 			wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
 			for p := range pairs {
-				subscriptions = append(subscriptions, subscription.Subscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: channels[s],
-					Pair:    pairs[p],
+					Pairs:   currency.Pairs{pairs[p]},
 				})
 			}
 		case wsStatus:
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[s],
 			})
 		case wsAccount:
 			currenciesMap := map[currency.Code]bool{}
 			for p := range pairs {
 				if reserved, okay := currenciesMap[pairs[p].Base]; !okay && !reserved {
-					subscriptions = append(subscriptions, subscription.Subscription{
+					subscriptions = append(subscriptions, &subscription.Subscription{
 						Channel: channels[s],
 						Params: map[string]interface{}{
 							"ccy": pairs[p].Base,
@@ -823,7 +823,7 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			}
 			for p := range pairs {
 				if reserved, okay := currenciesMap[pairs[p].Quote]; !okay && !reserved {
-					subscriptions = append(subscriptions, subscription.Subscription{
+					subscriptions = append(subscriptions, &subscription.Subscription{
 						Channel: channels[s],
 						Params: map[string]interface{}{
 							"ccy": pairs[p].Quote,
@@ -834,9 +834,9 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			}
 		case wsOrder, wsOrdersAlgo, wsAlgoAdvance:
 			for p := range pairs {
-				subscriptions = append(subscriptions, subscription.Subscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: channels[s],
-					Pair:    pairs[p],
+					Pairs:   currency.Pairs{pairs[p]},
 					Asset:   asset.Spot,
 				})
 			}
@@ -848,23 +848,23 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *Okcoin) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	return o.handleSubscriptions("subscribe", channelsToSubscribe)
+func (o *Okcoin) Subscribe(channelsToSubscribe subscription.List) error {
+	return o.manageSubscriptions("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *Okcoin) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
+func (o *Okcoin) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+	return o.manageSubscriptions("unsubscribe", channelsToUnsubscribe)
 }
 
-func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subscription) error {
+func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) error {
 	subscriptionRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	var err error
-	var channels []subscription.Subscription
-	var authChannels []subscription.Subscription
+	var channels subscription.List
+	var authChannels subscription.List
 	for i := 0; i < len(subs); i++ {
 		authenticatedChannelSubscription := isAuthenticatedChannel(subs[i].Channel)
 		// Temp type to evaluate max byte len after a marshal on batched unsubs
@@ -891,8 +891,11 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subsc
 		if subs[i].Asset != asset.Empty {
 			argument["instType"] = strings.ToUpper(subs[i].Asset.String())
 		}
-		if !subs[i].Pair.IsEmpty() {
-			argument["instId"] = subs[i].Pair.String()
+		if len(subs[i].Pairs) > 1 {
+			return subscription.ErrNotSinglePair
+		}
+		if len(subs[i].Pairs) == 1 {
+			argument["instId"] = subs[i].Pairs[0].String()
 		}
 		if authenticatedChannelSubscription {
 			authTemp.Arguments = append(authTemp.Arguments, argument)
@@ -928,16 +931,19 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subsc
 
 			if operation == "unsubscribe" {
 				if authenticatedChannelSubscription {
-					o.Websocket.RemoveSubscriptions(authChannels...)
+					err = o.Websocket.RemoveSubscriptions(authChannels...)
 				} else {
-					o.Websocket.RemoveSubscriptions(channels...)
+					err = o.Websocket.RemoveSubscriptions(channels...)
 				}
 			} else {
 				if authenticatedChannelSubscription {
-					o.Websocket.AddSuccessfulSubscriptions(authChannels...)
+					err = o.Websocket.AddSuccessfulSubscriptions(authChannels...)
 				} else {
-					o.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = o.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
+			}
+			if err != nil {
+				return err
 			}
 			// Drop prior unsubs and chunked payload args on successful unsubscription
 			if authenticatedChannelSubscription {
@@ -958,23 +964,19 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subsc
 		}
 	}
 	if len(subscriptionRequest.Arguments) > 0 {
-		err = o.Websocket.Conn.SendJSONMessage(subscriptionRequest)
-		if err != nil {
+		if err := o.Websocket.Conn.SendJSONMessage(subscriptionRequest); err != nil {
 			return err
 		}
 	}
 	if len(authRequest.Arguments) > 0 {
-		err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
-		if err != nil {
+		if err := o.Websocket.AuthConn.SendJSONMessage(authRequest); err != nil {
 			return err
 		}
 	}
 	if operation == "unsubscribe" {
-		o.Websocket.RemoveSubscriptions(channels...)
-	} else {
-		o.Websocket.AddSuccessfulSubscriptions(channels...)
+		return o.Websocket.RemoveSubscriptions(channels...)
 	}
-	return nil
+	return o.Websocket.AddSuccessfulSubscriptions(channels...)
 }
 
 // GetCandlesData represents a candlestick instances list.

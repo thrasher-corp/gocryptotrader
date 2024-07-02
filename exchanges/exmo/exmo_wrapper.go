@@ -29,29 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	e.SetDefaults()
-	exchCfg, err := e.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = e.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for exmo
 func (e *EXMO) SetDefaults() {
 	e.Name = "EXMO"
@@ -113,7 +90,7 @@ func (e *EXMO) SetDefaults() {
 
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -289,7 +266,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			continue
 		}
 
-		book.Asks = make(orderbook.Items, len(data.Ask))
+		book.Asks = make(orderbook.Tranches, len(data.Ask))
 		for y := range data.Ask {
 			var price, amount float64
 			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
@@ -302,13 +279,13 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 				return book, err
 			}
 
-			book.Asks[y] = orderbook.Item{
+			book.Asks[y] = orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			}
 		}
 
-		book.Bids = make(orderbook.Items, len(data.Bid))
+		book.Bids = make(orderbook.Tranches, len(data.Bid))
 		for y := range data.Bid {
 			var price, amount float64
 			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
@@ -321,7 +298,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 				return book, err
 			}
 
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			}
@@ -814,4 +791,14 @@ func (e *EXMO) GetLatestFundingRates(context.Context, *fundingrate.LatestRateReq
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *EXMO) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (e *EXMO) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	return tradeBaseURL + cp.Upper().String() + "/", nil
 }
