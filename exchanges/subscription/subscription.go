@@ -156,6 +156,6 @@ func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 		return
 	}
 	s.m.Lock()
-	s.Pairs.Add(pairs...)
+	s.Pairs = s.Pairs.Add(pairs...)
 	s.m.Unlock()
 }
