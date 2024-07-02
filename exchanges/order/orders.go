@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"golang.org/x/text/cases"
@@ -30,16 +31,17 @@ const (
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
 
+// Public error vars for order package
 var (
-	// ErrUnableToPlaceOrder defines an error when an order submission has
-	// failed.
-	ErrUnableToPlaceOrder = errors.New("order not placed")
-	// ErrOrderNotFound is returned when no order is found
-	ErrOrderNotFound = errors.New("order not found")
+	ErrUnableToPlaceOrder          = errors.New("order not placed")
+	ErrOrderNotFound               = errors.New("order not found")
+	ErrUnknownPriceType            = errors.New("unknown price type")
+	ErrAmountMustBeSet             = errors.New("amount must be set")
+	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
+	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
+)
 
-	// ErrUnknownPriceType returned when price type is unknown
-	ErrUnknownPriceType = errors.New("unknown price type")
-
+var (
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
@@ -56,7 +58,7 @@ func IsValidOrderSubmissionSide(s Side) bool {
 }
 
 // Validate checks the supplied data and returns whether it's valid
-func (s *Submit) Validate(opt ...validate.Checker) error {
+func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
@@ -103,6 +105,18 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
+	}
+
+	if requirements.ClientOrderID && s.ClientOrderID == "" {
+		return fmt.Errorf("submit validation error %w, client order ID must be set to satisfy submission requirements", ErrClientOrderIDMustBeSet)
+	}
+
+	if requirements.SpotMarketOrderAmountPurchaseQuotationOnly && s.QuoteAmount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
+		return fmt.Errorf("submit validation error %w, quote amount to be sold must be set to 'QuoteAmount' field to satisfy trading requirements", ErrAmountMustBeSet)
+	}
+
+	if requirements.SpotMarketOrderAmountSellBaseOnly && s.Amount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
+		return fmt.Errorf("submit validation error %w, base amount being sold must be set to 'Amount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
 	for _, o := range opt {

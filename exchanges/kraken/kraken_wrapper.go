@@ -716,7 +716,7 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(k.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

@@ -632,7 +632,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 
 // SubmitOrder submits a new order
 func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(d.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

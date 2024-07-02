@@ -370,7 +370,7 @@ func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
 func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(y.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

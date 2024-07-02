@@ -274,7 +274,7 @@ func (a *Alphapoint) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(a.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

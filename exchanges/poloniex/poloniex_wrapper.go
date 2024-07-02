@@ -541,7 +541,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(p.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

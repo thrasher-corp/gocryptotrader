@@ -496,7 +496,7 @@ func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 
 // SubmitOrder submits a new order
 func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

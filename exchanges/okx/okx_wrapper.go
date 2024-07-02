@@ -712,7 +712,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(ok.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if !ok.SupportsAsset(s.AssetType) {

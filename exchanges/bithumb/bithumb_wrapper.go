@@ -450,7 +450,7 @@ func (b *Bithumb) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
 func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

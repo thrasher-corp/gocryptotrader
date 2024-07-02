@@ -441,7 +441,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(l.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

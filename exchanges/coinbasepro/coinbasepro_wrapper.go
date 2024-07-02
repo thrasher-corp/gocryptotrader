@@ -440,7 +440,7 @@ func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ as
 
 // SubmitOrder submits a new order
 func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(c.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
