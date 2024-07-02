@@ -267,19 +267,43 @@ func TestAdd(t *testing.T) {
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
-
 	// Test adding a new pair to the list of pairs
 	p := NewPair(BTC, USDT)
 	pairs = pairs.Add(p)
 	if !pairs.Contains(p, true) || len(pairs) != 4 {
 		t.Error("TestAdd unexpected result")
 	}
-
 	// Now test adding a pair which already exists
 	pairs = pairs.Add(p)
 	if len(pairs) != 4 {
 		t.Error("TestAdd unexpected result")
 	}
+	// Test adding multiple pairs
+	pairs = pairs.Add(NewPair(BTC, LTC), NewPair(ETH, USD))
+	if len(pairs) != 6 {
+		t.Error("TestAdd unexpected result")
+	}
+	// Test adding multiple duplicate pairs
+	pairs = pairs.Add(NewPair(ETH, USDT), NewPair(ETH, USDT))
+	if len(pairs) != 7 {
+		t.Error("TestAdd unexpected result")
+	}
+	// Test whether the original pairs have been modified
+	pairsWithExtraBaggage := make(Pairs, 0, len(pairs)+3)
+	pairsWithExtraBaggage = append(pairsWithExtraBaggage, pairs...)
+	brain := NewPair(BRAIN, USD)
+	withBrain := pairsWithExtraBaggage.Add(NewPair(BTC, LTC), brain)
+	if len(pairs) != 7 {
+		t.Error("TestAdd unexpected result")
+	}
+	assert.Equal(t, brain, withBrain[len(withBrain)-1])
+	badger := NewPair(BADGER, USD)
+	withBadger := pairsWithExtraBaggage.Add(NewPair(BTC, LTC), badger)
+	if len(pairs) != 7 {
+		t.Error("TestAdd unexpected result")
+	}
+	assert.Equal(t, badger, withBadger[len(withBadger)-1])
+	assert.Equal(t, brain, withBrain[len(withBrain)-1])
 }
 
 func TestContains(t *testing.T) {
