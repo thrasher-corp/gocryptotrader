@@ -392,10 +392,9 @@ func (bi *Bitget) GetP2PTransactionRecords(ctx context.Context, currency string,
 }
 
 // GetP2PMerchantList returns detailed information on merchants
-func (bi *Bitget) GetP2PMerchantList(ctx context.Context, online, merchantID string, limit, pagination int64) (*P2PMerListResp, error) {
+func (bi *Bitget) GetP2PMerchantList(ctx context.Context, online string, limit, pagination int64) (*P2PMerListResp, error) {
 	vals := url.Values{}
 	vals.Set("online", online)
-	vals.Set("merchantId", merchantID)
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatInt(limit, 10))
 	}

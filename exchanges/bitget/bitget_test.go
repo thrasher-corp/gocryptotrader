@@ -182,7 +182,7 @@ func TestGetP2PTransactionRecords(t *testing.T) {
 func TestGetP2PMerchantList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetP2PMerchantList(context.Background(), "", "", 5, 1<<62)
+	_, err := bi.GetP2PMerchantList(context.Background(), "", 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -2412,7 +2412,7 @@ func TestCommitConversion(t *testing.T) {
 }
 
 func TestCommitConversionAbomination(t *testing.T) {
-	testGenAbomination(t, bi.CommitConversion, 3, canManipulateRealOrders, []genAbominationStruct[string, string,
+	testGenAbomination(t, bi.CommitConversion, 4, canManipulateRealOrders, []genAbominationStruct[string, string,
 		string, float64, float64, float64]{{"", "", "", 0, 0, 0, errCurrencyEmpty}, {testCrypto.String(),
 		testFiat.String(), "", 0, 0, 0, errTraceIDEmpty}, {testCrypto.String(), testFiat.String(), "1", 0, 0, 0,
 		errAmountEmpty}, {testCrypto.String(), testFiat.String(), "1", 1, 1, 0, errPriceEmpty}})
@@ -2634,7 +2634,7 @@ func testGenAbomination[R genAbominationResp, P1, P2, P3, P4, P5, P6 getOneArgPa
 		} else {
 			assert.NoError(t, err)
 		}
-		if i == checkCredsAfter {
+		if i == checkCredsAfter-1 {
 			sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipOrders)
 		}
 	}
