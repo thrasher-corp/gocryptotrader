@@ -52,7 +52,7 @@ func TestAdd(t *testing.T) {
 
 	err = new(Store).Add(nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error nil pointer correctly")
-	assert.ErrorContains(t, err, "called on an Uninitialised Store", "Should error correctly")
+	assert.ErrorContains(t, err, "called on an uninitialised Store", "Should error correctly")
 
 	s := NewStore()
 	err = s.Add(nil)
