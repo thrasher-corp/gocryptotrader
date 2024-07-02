@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,7 +65,7 @@ func (bi *Bitget) SetDefaults() {
 	// Config format denotes what the pair as a string will be, when saved to
 	// the config.json file.
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
-	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures, asset.Margin)
+	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures, asset.Margin, asset.CrossMargin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -75,8 +76,9 @@ func (bi *Bitget) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:                 true,
+				OrderbookFetching:              true,
+				HasAssetTypeAccountSegregation: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
@@ -201,7 +203,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			pairs[x] = pair
 		}
 		return pairs, nil
-	case asset.Margin:
+	case asset.Margin, asset.CrossMargin:
 		resp, err := bi.GetSupportedCurrencies(ctx)
 		if err != nil {
 			return nil, err
@@ -240,7 +242,7 @@ func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
 	switch assetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin, asset.CrossMargin:
 		tick, err := bi.GetSpotTickerInformation(ctx, p.String())
 		if err != nil {
 			return nil, err
@@ -289,7 +291,7 @@ func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 // UpdateTickers updates all currency pairs of a given asset type
 func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin, asset.CrossMargin:
 		tick, err := bi.GetSpotTickerInformation(ctx, "")
 		if err != nil {
 			return err
@@ -318,7 +320,6 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			}
 		}
 	case asset.Futures:
-		prodTypes := []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 		for i := range prodTypes {
 			tick, err := bi.GetAllFuturesTickers(ctx, prodTypes[i])
 			if err != nil {
@@ -380,65 +381,168 @@ func (bi *Bitget) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: bi.CanVerifyOrderbook,
+		MaxDepth:        150,
 	}
 
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := bi.GetOrderBook(exchange.FormatExchangeCurrency(bi.Name, p).String(), 1000)
+	switch assetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		orderbookNew, err := bi.GetOrderbookDepth(ctx, pair.String(), "", 150)
 		if err != nil {
 			return book, err
 		}
-
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			}
+		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Data.Bids))
+		for x := range orderbookNew.Data.Bids {
+			book.Bids[x].Amount = orderbookNew.Data.Bids[x][1].Float64()
+			book.Bids[x].Price = orderbookNew.Data.Bids[x][0].Float64()
 		}
-
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
-			}
+		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Data.Asks))
+		for x := range orderbookNew.Data.Asks {
+			book.Asks[x].Amount = orderbookNew.Data.Asks[x][1].Float64()
+			book.Asks[x].Price = orderbookNew.Data.Asks[x][0].Float64()
 		}
-	*/
-
+	case asset.Futures:
+		orderbookNew, err := bi.GetFuturesMergeDepth(ctx, pair.String(), getProductType(pair), "", "max")
+		if err != nil {
+			return book, err
+		}
+		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Data.Bids))
+		for x := range orderbookNew.Data.Bids {
+			book.Bids[x].Amount = orderbookNew.Data.Bids[x][1]
+			book.Bids[x].Price = orderbookNew.Data.Bids[x][0]
+		}
+		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Data.Asks))
+		for x := range orderbookNew.Data.Asks {
+			book.Asks[x].Amount = orderbookNew.Data.Asks[x][1]
+			book.Asks[x].Price = orderbookNew.Data.Asks[x][0]
+		}
+	default:
+		return book, asset.ErrNotSupported
+	}
 	err := book.Process()
 	if err != nil {
 		return book, err
 	}
-
 	return orderbook.Get(bi.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (bi *Bitget) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// If fetching requires more than one asset type please set
-	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
-	return account.Holdings{}, common.ErrNotYetImplemented
+	acc := account.Holdings{
+		Exchange: bi.Name,
+	}
+	creds, err := bi.GetCredentials(ctx)
+	if err != nil {
+		return acc, err
+	}
+	switch assetType {
+	case asset.Spot:
+		resp, err := bi.GetAccountAssets(ctx, "", "")
+		if err != nil {
+			return acc, err
+		}
+		acc.Accounts = make([]account.SubAccount, 1)
+		acc.Accounts[0].Currencies = make([]account.Balance, len(resp.Data))
+		for x := range resp.Data {
+			acc.Accounts[0].Currencies[x].Currency = currency.NewCode(resp.Data[x].Coin)
+			acc.Accounts[0].Currencies[x].Hold = resp.Data[x].Frozen + resp.Data[x].Locked +
+				resp.Data[x].LimitAvailable
+			acc.Accounts[0].Currencies[x].Total = resp.Data[x].Available + acc.Accounts[0].Currencies[x].Hold
+			acc.Accounts[0].Currencies[x].Free = resp.Data[x].Available
+		}
+	case asset.Futures:
+		acc.Accounts = make([]account.SubAccount, len(prodTypes))
+		for i := range prodTypes {
+			resp, err := bi.GetAllFuturesAccounts(ctx, prodTypes[i])
+			if err != nil {
+				return acc, err
+			}
+			acc.Accounts[i].Currencies = make([]account.Balance, len(resp.Data))
+			for x := range resp.Data {
+				acc.Accounts[i].Currencies[x].Currency = currency.NewCode(resp.Data[x].MarginCoin)
+				acc.Accounts[i].Currencies[x].Hold = resp.Data[x].Locked
+				acc.Accounts[i].Currencies[x].Total = resp.Data[x].Locked + resp.Data[x].Available
+				acc.Accounts[i].Currencies[x].Free = resp.Data[x].Available
+			}
+		}
+	case asset.Margin:
+		resp, err := bi.GetIsolatedAccountAssets(ctx, "")
+		if err != nil {
+			return acc, err
+		}
+		acc.Accounts = make([]account.SubAccount, 1)
+		acc.Accounts[0].Currencies = make([]account.Balance, len(resp.Data))
+		for x := range resp.Data {
+			acc.Accounts[0].Currencies[x].Currency = currency.NewCode(resp.Data[x].Coin)
+			acc.Accounts[0].Currencies[x].Hold = resp.Data[x].Frozen
+			acc.Accounts[0].Currencies[x].Total = resp.Data[x].TotalAmount
+			acc.Accounts[0].Currencies[x].Free = resp.Data[x].Available
+			acc.Accounts[0].Currencies[x].Borrowed = resp.Data[x].Borrow
+		}
+	case asset.CrossMargin:
+		resp, err := bi.GetCrossAccountAssets(ctx, "")
+		if err != nil {
+			return acc, err
+		}
+		acc.Accounts = make([]account.SubAccount, 1)
+		acc.Accounts[0].Currencies = make([]account.Balance, len(resp.Data))
+		for x := range resp.Data {
+			acc.Accounts[0].Currencies[x].Currency = currency.NewCode(resp.Data[x].Coin)
+			acc.Accounts[0].Currencies[x].Hold = resp.Data[x].Frozen
+			acc.Accounts[0].Currencies[x].Total = resp.Data[x].TotalAmount
+			acc.Accounts[0].Currencies[x].Free = resp.Data[x].Available
+			acc.Accounts[0].Currencies[x].Borrowed = resp.Data[x].Borrow
+		}
+	default:
+		return acc, asset.ErrNotSupported
+	}
+	ID, err := bi.GetAccountInfo(ctx)
+	if err != nil {
+		return acc, err
+	}
+	for x := range acc.Accounts {
+		acc.Accounts[x].ID = strconv.FormatInt(ID.Data.UserID, 10)
+		acc.Accounts[x].AssetType = assetType
+	}
+	err = account.Process(&acc, creds)
+	if err != nil {
+		return acc, err
+	}
+	return acc, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (bi *Bitget) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// Example implementation below:
-	// 	creds, err := bi.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	acc, err := account.GetHoldings(bi.Name, creds, assetType)
-	// 	if err != nil {
-	// 		return bi.UpdateAccountInfo(ctx, assetType)
-	// 	}
-	// 	return acc, nil
-	return account.Holdings{}, common.ErrNotYetImplemented
+	creds, err := bi.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(bi.Name, creds, assetType)
+	if err != nil {
+		return bi.UpdateAccountInfo(ctx, assetType)
+	}
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (bi *Bitget) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	// This exchange only allows requests covering the last 90 days
+	// funHist := []exchange.FundingHistory{}
+	// var pagination int64
+	// var done bool
+	// for !done {
+	// 	resp, err := bi.GetWithdrawalRecords(ctx, "", "", time.Now().Add(-time.Hour*24*90), time.Now(), pagination, 0,
+	// 		100)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if len(resp.Data) == 0 {
+	// 		break
+	// 	}
+	// 	tempHist := make([]exchange.FundingHistory, len(resp.Data))
+	// 	for x := range resp.Data {
+	// 	}
+	// }
 	return nil, common.ErrNotYetImplemented
 }
 

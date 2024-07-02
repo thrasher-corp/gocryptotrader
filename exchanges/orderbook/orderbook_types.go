@@ -94,7 +94,7 @@ type Base struct {
 	IsFundingRate    bool
 	// VerifyOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
-	// a potential for orderbook integrity being deminished.
+	// a potential for orderbook integrity being diminished.
 	VerifyOrderbook bool `json:"-"`
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription

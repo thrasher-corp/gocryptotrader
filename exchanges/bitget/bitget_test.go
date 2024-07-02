@@ -67,10 +67,16 @@ const (
 	skipInsufficientBalance      = "insufficient balance to place order, skipping"
 	skipInsufficientOrders       = "insufficient orders found, skipping"
 
-	errAPIKeyLimitPartial              = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
-	errInsufficientBalancePartial      = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"43012","msg":"Insufficient balance","requestTime":`
-	errAmountExceedsBalancePartial     = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40762","msg":"The order amount exceeds the balance","requestTime":`
+	errAPIKeyLimitPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
+	// errInsufficientBalancePartial      = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"43012","msg":"Insufficient balance","requestTime":`
+	// errAmountExceedsBalancePartial     = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40762","msg":"The order amount exceeds the balance","requestTime":`
 	errCurrentlyHoldingPositionPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"45117","msg":"Currently holding positions or orders, the margin mode cannot be adjusted","requestTime":`
+	errFakePairDoesNotExistPartial     = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40034","msg":"Parameter FAKEPAIRNOTREALMEOWMEOW does not exist","requestTime"`
+)
+
+// Developer-defined variables to aid testing
+var (
+	fakePair = currency.NewPair(currency.NewCode("FAKEPAIRNOT"), currency.NewCode("REALMEOWMEOW"))
 )
 
 var bi = &Bitget{}
@@ -680,47 +686,6 @@ func TestPlacePlanSpotOrder(t *testing.T) {
 	assert.NotEmpty(t, resp.Data)
 }
 
-func TestModifyPlanSpotOrder(t *testing.T) {
-	t.Parallel()
-	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
-	assert.ErrorIs(t, err, errOrderClientEmpty)
-	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "", 0, 0, 0)
-	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "woof", 0, 0, 0)
-	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "limit", 1, 0, 0)
-	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "woof", 1, 0, 0)
-	assert.ErrorIs(t, err, errAmountEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
-	assert.NoError(t, err)
-	if len(ordID.Data.OrderList) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	resp, err := bi.ModifyPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
-		ordID.Data.OrderList[0].ClientOrderID, "limit", testPrice, testPrice, testAmount)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
-}
-
-func TestCancelPlanSpotOrder(t *testing.T) {
-	t.Parallel()
-	_, err := bi.CancelPlanSpotOrder(context.Background(), 0, "")
-	assert.ErrorIs(t, err, errOrderClientEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
-	assert.NoError(t, err)
-	require.NotNil(t, ordID)
-	if len(ordID.Data.OrderList) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	resp, err := bi.CancelPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
-		ordID.Data.OrderList[0].ClientOrderID)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
-}
-
 func TestGetCurrentSpotPlanOrders(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetCurrentSpotPlanOrders(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
@@ -740,7 +705,7 @@ func TestSpotGetPlanSubOrder(t *testing.T) {
 		ordIDs = getPlanOrdIDHelper(t, true)
 	}
 	// This gets the error "the current plan order does not exist or has not been triggered" even when using
-	// a plan order that definitely exists and has definitely been triggered
+	// a plan order that definitely exists and has definitely been triggered. Re-investigate later
 	testGetOneArg(t, bi.GetSpotPlanSubOrder, "", strconv.FormatInt(ordIDs.OrderID, 10), errOrderIDEmpty, true,
 		true, true)
 }
@@ -946,6 +911,16 @@ func TestGetSubaccountDepositRecords(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetWithdrawalRecords(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetWithdrawalRecords(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetWithdrawalRecords(context.Background(), "", "", time.Now().Add(-time.Hour*24*90), time.Now(),
+		1<<62, 0, 5)
+	assert.NoError(t, err)
+}
+
 func TestGetDepositRecords(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetDepositRecords(context.Background(), "", 0, 0, 0, time.Time{}, time.Time{})
@@ -1094,7 +1069,7 @@ func TestGetAllFuturesAccounts(t *testing.T) {
 
 func TestGetFuturesSubaccountAssets(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, bi.GetFuturesSubaccountAssets, "", "USDT-FUTURES", errProductTypeEmpty, true, true, true)
+	testGetOneArg(t, bi.GetFuturesSubaccountAssets, "", "COIN-FUTURES", errProductTypeEmpty, true, true, true)
 }
 
 func TestGetEstimatedOpenCount(t *testing.T) {
@@ -1864,7 +1839,7 @@ func TestGetIsolatedFinancialHistory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetIsolatedAccoutnAssets(t *testing.T) {
+func TestGetIsolatedAccountAssets(t *testing.T) {
 	t.Parallel()
 	testGetOneArg(t, bi.GetIsolatedAccountAssets, "", "", nil, false, true, true)
 }
@@ -2407,20 +2382,16 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := bi.UpdateTicker(context.Background(), testPair, asset.Spot)
+	_, err := bi.UpdateTicker(context.Background(), fakePair, asset.Spot)
+	assert.Error(t, err)
+	_, err = bi.UpdateTicker(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
+	_, err = bi.UpdateTicker(context.Background(), fakePair, asset.Futures)
+	assert.Error(t, err)
 	_, err = bi.UpdateTicker(context.Background(), testPair, asset.Futures)
 	assert.NoError(t, err)
 	_, err = bi.UpdateTicker(context.Background(), testPair, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-}
-
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	_, err := bi.FetchTicker(context.Background(), testPair, asset.Spot)
-	assert.NoError(t, err)
-	_, err = bi.FetchTicker(context.Background(), testPair, asset.Spot)
-	assert.NoError(t, err)
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -2434,34 +2405,151 @@ func TestUpdateTickers(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
-// func TestMeowMeow(t *testing.T) {
-// 	p, err := currency.NewPairFromString("ETHUSDU24")
-// 	require.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// 	p, err = currency.NewPairFromString("DOGEUSD")
-// 	require.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// 	p, err = currency.NewPairFromString("BRETTUSDT")
-// 	require.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// 	p, err = currency.NewPairFromString("BBUSDT")
-// 	require.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
+func TestFetchTicker(t *testing.T) {
+	t.Parallel()
+	_, err := bi.FetchTicker(context.Background(), testPair, asset.Spot)
+	assert.NoError(t, err)
+	_, err = bi.FetchTicker(context.Background(), testPair, asset.Spot)
+	assert.NoError(t, err)
+}
 
-// 	bi.UpdateTradablePairs(context.Background(), true)
-// 	p, err = bi.MatchSymbolWithAvailablePairs("ETHUSDU24", asset.Futures, false)
-// 	assert.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// 	p, err = bi.MatchSymbolWithAvailablePairs("DOGEUSD", asset.Futures, false)
-// 	assert.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// 	p, err = bi.MatchSymbolWithAvailablePairs("BRETTUSDT", asset.Futures, false)
-// 	assert.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// 	p, err = bi.MatchSymbolWithAvailablePairs("BBUSDT", asset.Futures, false)
-// 	assert.NoError(t, err)
-// 	fmt.Print(p, "\n", p.Base, "\n", p.Quote, "\n")
-// }
+func TestFetchOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := bi.FetchOrderbook(context.Background(), testPair, asset.Spot)
+	assert.NoError(t, err)
+	_, err = bi.FetchOrderbook(context.Background(), testPair, asset.Spot)
+	assert.NoError(t, err)
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := bi.UpdateOrderbook(context.Background(), fakePair, asset.Spot)
+	assert.Error(t, err)
+	_, err = bi.UpdateOrderbook(context.Background(), testPair, asset.Spot)
+	assert.NoError(t, err)
+	_, err = bi.UpdateOrderbook(context.Background(), fakePair, asset.Futures)
+	assert.Error(t, err)
+	_, err = bi.UpdateOrderbook(context.Background(), testPair, asset.Futures)
+	assert.NoError(t, err)
+	_, err = bi.UpdateOrderbook(context.Background(), testPair, asset.Empty)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	_, err := bi.UpdateAccountInfo(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	_, err = bi.UpdateAccountInfo(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+	_, err = bi.UpdateAccountInfo(context.Background(), asset.Margin)
+	assert.NoError(t, err)
+	_, err = bi.UpdateAccountInfo(context.Background(), asset.CrossMargin)
+	assert.NoError(t, err)
+	_, err = bi.UpdateAccountInfo(context.Background(), asset.Empty)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	_, err := bi.FetchAccountInfo(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+	_, err = bi.FetchAccountInfo(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+}
+
+// The following 2 tests aren't parallel due to collisions with each other, and some other plan order-related tests
+
+func TestModifyPlanSpotOrder(t *testing.T) {
+	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderTypeEmpty)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "woof", 0, 0, 0)
+	assert.ErrorIs(t, err, errTriggerPriceEmpty)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "limit", 1, 0, 0)
+	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "woof", 1, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
+	assert.NoError(t, err)
+	if len(ordID.Data.OrderList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	resp, err := bi.ModifyPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
+		ordID.Data.OrderList[0].ClientOrderID, "limit", testPrice, testPrice, testAmount)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestCancelPlanSpotOrder(t *testing.T) {
+	_, err := bi.CancelPlanSpotOrder(context.Background(), 0, "")
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
+	assert.NoError(t, err)
+	require.NotNil(t, ordID)
+	if len(ordID.Data.OrderList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	resp, err := bi.CancelPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
+		ordID.Data.OrderList[0].ClientOrderID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestCommitConversion(t *testing.T) {
+	// In a separate parallel batch due to collision with TestGetQuotedPrice
+	t.Parallel()
+	_, err := bi.CommitConversion(context.Background(), "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "", 0, 0, 0)
+	assert.ErrorIs(t, err, errTraceIDEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 0, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 1, 1, 0)
+	assert.ErrorIs(t, err, errPriceEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), testAmount, 0)
+	require.NoError(t, err)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), resp.Data.TraceID,
+		resp.Data.FromCoinSize, resp.Data.ToCoinSize, resp.Data.ConvertPrice)
+	assert.NoError(t, err)
+}
+
+func TestCancelTriggerFuturesOrders(t *testing.T) {
+	// In a separate parallel batch due to collisions with TestModifyTPSLFuturesOrder and TestModifyTriggerFuturesOrder
+	t.Parallel()
+	var ordList []OrderIDStruct
+	_, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, "", "", "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	oID := getTrigOrdIDHelper(t, []string{"profit_loss", "normal_plan", "track_plan"})
+	ordList = append(ordList, *oID)
+	resp, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, testPair2.String(),
+		testFiat2.String()+"-FUTURES", "", "")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestRepayLoan(t *testing.T) {
+	// In a separate parallel batch due to a collision with ModifyPledgeRate
+	t.Parallel()
+	_, err := bi.RepayLoan(context.Background(), 0, 0, false, false)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	_, err = bi.RepayLoan(context.Background(), 1, 0, false, false)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetOngoingLoans(context.Background(), 0, "", "")
+	require.NoError(t, err)
+	if len(resp.Data) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, testAmount, false, false)
+	assert.NoError(t, err)
+	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, 0, true, true)
+	assert.NoError(t, err)
+}
 
 // The following 5 tests aren't parallel due to collisions with each other, and some other futures-related tests
 func TestModifyFuturesOrder(t *testing.T) {
@@ -2523,59 +2611,6 @@ func TestCancelAllFuturesOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	_, err = bi.CancelAllFuturesOrders(context.Background(), "", testFiat2.String()+"-FUTURES", testFiat2.String(),
 		time.Second*60)
-	assert.NoError(t, err)
-}
-
-func TestCommitConversion(t *testing.T) {
-	// In a separate parallel batch due to collision with TestGetQuotedPrice
-	t.Parallel()
-	_, err := bi.CommitConversion(context.Background(), "", "", "", 0, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "", 0, 0, 0)
-	assert.ErrorIs(t, err, errTraceIDEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 0, 0, 0)
-	assert.ErrorIs(t, err, errAmountEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 1, 1, 0)
-	assert.ErrorIs(t, err, errPriceEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), testAmount, 0)
-	require.NoError(t, err)
-	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), resp.Data.TraceID,
-		resp.Data.FromCoinSize, resp.Data.ToCoinSize, resp.Data.ConvertPrice)
-	assert.NoError(t, err)
-}
-
-func TestCancelTriggerFuturesOrders(t *testing.T) {
-	// In a separate parallel batch due to collisions with TestModifyTPSLFuturesOrder and TestModifyTriggerFuturesOrder
-	t.Parallel()
-	var ordList []OrderIDStruct
-	_, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, "", "", "", "")
-	assert.ErrorIs(t, err, errProductTypeEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getTrigOrdIDHelper(t, []string{"profit_loss", "normal_plan", "track_plan"})
-	ordList = append(ordList, *oID)
-	resp, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, testPair2.String(),
-		testFiat2.String()+"-FUTURES", "", "")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
-}
-
-func TestRepayLoan(t *testing.T) {
-	// In a separate parallel batch due to a collision with ModifyPledgeRate
-	t.Parallel()
-	_, err := bi.RepayLoan(context.Background(), 0, 0, false, false)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	_, err = bi.RepayLoan(context.Background(), 1, 0, false, false)
-	assert.ErrorIs(t, err, errAmountEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetOngoingLoans(context.Background(), 0, "", "")
-	require.NoError(t, err)
-	if len(resp.Data) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, testAmount, false, false)
-	assert.NoError(t, err)
-	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, 0, true, true)
 	assert.NoError(t, err)
 }
 
@@ -2839,9 +2874,23 @@ func aBenchmarkHelper(a, pag int64) {
 }
 
 // irrelevant/outdated data retained for formatting
-// 4005735	       289.4 ns/op	      24 B/op	       1 allocs/op
+// 4952	    292175 ns/op	  165455 B/op	       4 allocs/op
 func BenchmarkGen(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		aBenchmarkHelper(5, 1<<62)
+		var sizableArray [][10]int
+		var done bool
+		for !done {
+			// tempArray := make([][10]int, 100)
+			// for x := 0; x < 100; x++ {
+			// 	tempArray[x] = [10]int{5, 1 << 30, i % 27, x % 9, x ^ i, 2, 3, 4, 5, 6}
+			// }
+			// sizableArray = append(sizableArray, tempArray...)
+			for x := 0; x < 100; x++ {
+				sizableArray = append(sizableArray, [10]int{5, 1 << 30, i % 27, x % 9, x ^ i, 2, 3, 4, 5, 6})
+			}
+			if i%5 == 0 || len(sizableArray) > 1000 {
+				done = true
+			}
+		}
 	}
 }

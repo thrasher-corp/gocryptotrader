@@ -268,6 +268,8 @@ var (
 	errCollateralLoanMutex           = errors.New("exactly one of collateralAmount and loanAmount must be set")
 	errReviseTypeEmpty               = errors.New("reviseType cannot be empty")
 	errUnknownPairQuote              = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
+
+	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -1681,12 +1683,9 @@ func (bi *Bitget) GetSubaccountDepositRecords(ctx context.Context, subaccountID,
 
 // GetWithdrawalRecords returns the user's withdrawal history
 func (bi *Bitget) GetWithdrawalRecords(ctx context.Context, currency, clientOrderID string, startTime, endTime time.Time, pagination, orderID, limit int64) (*WithdrawRecordsResp, error) {
-	if currency == "" {
-		return nil, errCurrencyEmpty
-	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
+	err := params.prepareDateString(startTime, endTime, false, false)
 	if err != nil {
 		return nil, err
 	}
