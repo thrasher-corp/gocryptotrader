@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -167,7 +168,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		}
 		pairs := make(currency.Pairs, len(resp.Data))
 		for x := range resp.Data {
-			pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+			pair, err := currency.NewPairFromString(resp.Data[x].BaseCoin + "-" + resp.Data[x].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
@@ -175,11 +176,8 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		}
 		return pairs, nil
 	case asset.Futures:
-		resp, err := bi.GetAllFuturesTickers(ctx, "USDT-FUTURES")
-		if err != nil {
-			return nil, err
-		}
-		req := []string{"COIN-FUTURES", "USDC-FUTURES"}
+		resp := new(FutureTickerResp)
+		req := []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 		for x := range req {
 			resp2, err := bi.GetAllFuturesTickers(ctx, req[x])
 			if err != nil {
@@ -189,7 +187,14 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		}
 		pairs := make(currency.Pairs, len(resp.Data))
 		for x := range resp.Data {
-			pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+			i := strings.Index(resp.Data[x].Symbol, "USD")
+			if i == -1 {
+				i = strings.Index(resp.Data[x].Symbol, "PERP")
+				if i == -1 {
+					return nil, errUnknownPairQuote
+				}
+			}
+			pair, err := currency.NewPairFromString(resp.Data[x].Symbol[:i] + "-" + resp.Data[x].Symbol[i:])
 			if err != nil {
 				return nil, err
 			}
@@ -203,7 +208,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		}
 		pairs := make(currency.Pairs, len(resp.Data))
 		for x := range resp.Data {
-			pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+			pair, err := currency.NewPairFromString(resp.Data[x].BaseCoin + "-" + resp.Data[x].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
@@ -233,62 +238,120 @@ func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := bi.GetTicker(p.String())
+	tickerPrice := new(ticker.Price)
+	switch assetType {
+	case asset.Spot:
+		tick, err := bi.GetSpotTickerInformation(ctx, p.String())
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
 		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
+			High:        tick.Data[0].High24H,
+			Low:         tick.Data[0].Low24H,
+			Bid:         tick.Data[0].BidPrice,
+			Ask:         tick.Data[0].AskPrice,
+			Volume:      tick.Data[0].BaseVolume,
+			QuoteVolume: tick.Data[0].QuoteVolume,
+			Open:        tick.Data[0].Open,
+			Close:       tick.Data[0].LastPrice,
+			LastUpdated: tick.Data[0].Timestamp.Time(),
 		}
-		err = ticker.ProcessTicker(bi.Name, tickerPrice, assetType)
+	case asset.Futures:
+		tick, err := bi.GetFuturesTicker(ctx, p.String(), getProductType(p))
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-	*/
+		tickerPrice = &ticker.Price{
+			High:        tick.Data[0].High24H,
+			Low:         tick.Data[0].Low24H,
+			Bid:         tick.Data[0].BidPrice,
+			Ask:         tick.Data[0].AskPrice,
+			Volume:      tick.Data[0].BaseVolume,
+			QuoteVolume: tick.Data[0].QuoteVolume,
+			Open:        tick.Data[0].Open24H,
+			Close:       tick.Data[0].LastPrice,
+			IndexPrice:  tick.Data[0].IndexPrice,
+			LastUpdated: tick.Data[0].Timestamp.Time(),
+		}
+	default:
+		return nil, asset.ErrNotSupported
+	}
+	tickerPrice.Pair = p
+	tickerPrice.ExchangeName = bi.Name
+	tickerPrice.AssetType = assetType
+	err := ticker.ProcessTicker(tickerPrice)
+	if err != nil {
+		return tickerPrice, err
+	}
 	return ticker.GetTicker(bi.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-			tick, err := bi.GetTickers()
+	switch assetType {
+	case asset.Spot:
+		tick, err := bi.GetSpotTickerInformation(ctx, "")
+		if err != nil {
+			return err
+		}
+		for x := range tick.Data {
+			p, err := bi.MatchSymbolWithAvailablePairs(tick.Data[x].Symbol, assetType, false)
 			if err != nil {
 				return err
 			}
-		    for y := range tick {
-		        cp, err := currency.NewPairFromString(tick[y].Symbol)
-		        if err != nil {
-		            return err
-		        }
-		        err = ticker.ProcessTicker(&ticker.Price{
-		            Last:         tick[y].LastPrice,
-		            High:         tick[y].HighPrice,
-		            Low:          tick[y].LowPrice,
-		            Bid:          tick[y].BidPrice,
-		            Ask:          tick[y].AskPrice,
-		            Volume:       tick[y].Volume,
-		            QuoteVolume:  tick[y].QuoteVolume,
-		            Open:         tick[y].OpenPrice,
-		            Close:        tick[y].PrevClosePrice,
-		            Pair:         cp,
-		            ExchangeName: b.Name,
-		            AssetType:    assetType,
-		        })
-		        if err != nil {
-		            return err
-		        }
-		    }
-	*/
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         tick.Data[x].High24H,
+				Low:          tick.Data[x].Low24H,
+				Bid:          tick.Data[x].BidPrice,
+				Ask:          tick.Data[x].AskPrice,
+				Volume:       tick.Data[x].BaseVolume,
+				QuoteVolume:  tick.Data[x].QuoteVolume,
+				Open:         tick.Data[x].Open,
+				Close:        tick.Data[x].LastPrice,
+				LastUpdated:  tick.Data[x].Timestamp.Time(),
+				Pair:         p,
+				ExchangeName: bi.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	case asset.Futures:
+		prodTypes := []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
+		for i := range prodTypes {
+			tick, err := bi.GetAllFuturesTickers(ctx, prodTypes[i])
+			if err != nil {
+				return err
+			}
+			for x := range tick.Data {
+				p, err := bi.MatchSymbolWithAvailablePairs(tick.Data[x].Symbol, assetType, false)
+				if err != nil {
+					return err
+				}
+				err = ticker.ProcessTicker(&ticker.Price{
+					High:         tick.Data[x].High24H,
+					Low:          tick.Data[x].Low24H,
+					Bid:          tick.Data[x].BidPrice,
+					Ask:          tick.Data[x].AskPrice,
+					Volume:       tick.Data[x].BaseVolume,
+					QuoteVolume:  tick.Data[x].QuoteVolume,
+					Open:         tick.Data[x].Open24H,
+					Close:        tick.Data[x].LastPrice,
+					IndexPrice:   tick.Data[x].IndexPrice,
+					LastUpdated:  tick.Data[x].Timestamp.Time(),
+					Pair:         p,
+					ExchangeName: bi.Name,
+					AssetType:    assetType,
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	default:
+		return asset.ErrNotSupported
+	}
 	return nil
 }
 
@@ -542,4 +605,18 @@ func (bi *Bitget) GetLatestFundingRates(_ context.Context, _ *fundingrate.Latest
 // UpdateOrderExecutionLimits updates order execution limits
 func (bi *Bitget) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetProductType is a halper function that returns the appropriate product type for a given currency pair
+func getProductType(p currency.Pair) string {
+	var prodType string
+	switch p.Quote {
+	case currency.USDT:
+		prodType = "USDT-FUTURES"
+	case currency.PERP:
+		prodType = "USDC-FUTURES"
+	default:
+		prodType = "COIN-FUTURES"
+	}
+	return prodType
 }

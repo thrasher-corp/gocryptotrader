@@ -267,6 +267,7 @@ var (
 	errCollateralAmountEmpty         = errors.New("collateralAmount cannot be empty")
 	errCollateralLoanMutex           = errors.New("exactly one of collateralAmount and loanAmount must be set")
 	errReviseTypeEmpty               = errors.New("reviseType cannot be empty")
+	errUnknownPairQuote              = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -2647,19 +2648,19 @@ func (bi *Bitget) CancelAllFuturesOrders(ctx context.Context, pair, productType,
 }
 
 // GetFuturesTriggerOrderByID returns information on a particular trigger order
-func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, planOrderID, productType string) (*SubOrderResp, error) {
+func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, productType string, planOrderID int64) (*SubOrderResp, error) {
 	if planType == "" {
 		return nil, errPlanTypeEmpty
-	}
-	if planOrderID == "" {
-		return nil, errPlanOrderIDEmpty
 	}
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
+	if planOrderID == 0 {
+		return nil, errPlanOrderIDEmpty
+	}
 	vals := url.Values{}
 	vals.Set("planType", planType)
-	vals.Set("planOrderId", planOrderID)
+	vals.Set("planOrderId", strconv.FormatInt(planOrderID, 10))
 	vals.Set("productType", productType)
 	path := bitgetMix + bitgetOrder + bitgetPlanSubOrder
 	var resp *SubOrderResp
