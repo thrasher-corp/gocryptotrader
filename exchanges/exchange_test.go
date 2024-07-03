@@ -3062,3 +3062,11 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	_, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
+
+func TestGetTradingRequirements(t *testing.T) {
+	t.Parallel()
+	requirements := (*Base)(nil).GetTradingRequirements()
+	require.Empty(t, requirements)
+	requirements = (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
+	require.NotEmpty(t, requirements)
+}

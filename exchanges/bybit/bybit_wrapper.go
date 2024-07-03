@@ -778,7 +778,7 @@ func orderTypeToString(oType order.Type) string {
 
 // SubmitOrder submits a new order
 func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(by.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
