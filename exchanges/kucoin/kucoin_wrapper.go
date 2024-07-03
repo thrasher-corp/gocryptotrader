@@ -66,6 +66,9 @@ func (ku *Kucoin) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	ku.Features = exchange.Features{
+		TradingRequirements: protocol.TradingRequirements{
+			ClientOrderID: true,
+		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -736,7 +739,7 @@ func (ku *Kucoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, ass
 
 // SubmitOrder submits a new order
 func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(ku.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

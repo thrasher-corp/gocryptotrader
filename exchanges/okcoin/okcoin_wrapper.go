@@ -577,7 +577,7 @@ func (o *Okcoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	if !o.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	err := s.Validate()
+	err := s.Validate(o.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
