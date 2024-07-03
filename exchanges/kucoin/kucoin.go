@@ -2475,18 +2475,6 @@ func (ku *Kucoin) AccountToTradeTypeString(a asset.Item, marginMode string) stri
 	}
 }
 
-// OrderTypeToString converts an order.Type instance to a string representation.
-func (ku *Kucoin) OrderTypeToString(orderType order.Type) (string, error) {
-	switch orderType {
-	case order.AnyType, order.UnknownType:
-		return "", nil
-	case order.Market, order.Limit:
-		return orderType.Lower(), nil
-	default:
-		return "", order.ErrUnsupportedOrderType
-	}
-}
-
 // OrderSideString converts an order.Side instance to a string representation
 func (ku *Kucoin) OrderSideString(side order.Side) (string, error) {
 	switch {

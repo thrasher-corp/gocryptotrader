@@ -344,15 +344,30 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 
 // PostFuturesOrder used to place two types of futures orders: limit and market
 func (ku *Kucoin) PostFuturesOrder(ctx context.Context, arg *FuturesOrderParam) (string, error) {
-	return ku.postFuturesOrder(ctx, arg, kucoinFuturesOrder)
+	err := ku.FillFuturesPostOrderArgumentFilter(arg)
+	if err != nil {
+		return "", err
+	}
+	resp := struct {
+		OrderID string `json:"orderId"`
+	}{}
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder, &arg, &resp)
 }
 
 // PostFuturesOrderTest a test endpoint to place a single futures order.
 func (ku *Kucoin) PostFuturesOrderTest(ctx context.Context, arg *FuturesOrderParam) (string, error) {
-	return ku.postFuturesOrder(ctx, arg, kucoinFuturesOrder+"/test")
+	err := ku.FillFuturesPostOrderArgumentFilter(arg)
+	if err != nil {
+		return "", err
+	}
+	resp := struct {
+		OrderID string `json:"orderId"`
+	}{}
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder+"/test", &arg, &resp)
 }
 
-func (ku *Kucoin) futuresPostOrderArgumentFilter(arg *FuturesOrderParam) error {
+// FillFuturesPostOrderArgumentFilter verifies futures order request parameters.
+func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) error {
 	if arg == nil || *arg == (FuturesOrderParam{}) {
 		return common.ErrNilPointer
 	}
@@ -397,17 +412,6 @@ func (ku *Kucoin) futuresPostOrderArgumentFilter(arg *FuturesOrderParam) error {
 	return nil
 }
 
-func (ku *Kucoin) postFuturesOrder(ctx context.Context, arg *FuturesOrderParam, path string) (string, error) {
-	err := ku.futuresPostOrderArgumentFilter(arg)
-	if err != nil {
-		return "", err
-	}
-	resp := struct {
-		OrderID string `json:"orderId"`
-	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, path, &arg, &resp)
-}
-
 // PlaceMultipleFuturesOrders used to place multiple futures orders.
 // The maximum limit orders for a single contract is 100 per account, and the maximum stop orders for a single contract is 50 per account.
 func (ku *Kucoin) PlaceMultipleFuturesOrders(ctx context.Context, args []FuturesOrderParam) ([]FuturesOrderRespItem, error) {
@@ -416,7 +420,7 @@ func (ku *Kucoin) PlaceMultipleFuturesOrders(ctx context.Context, args []Futures
 	}
 	var err error
 	for x := range args {
-		err = ku.futuresPostOrderArgumentFilter(&args[x])
+		err = ku.FillFuturesPostOrderArgumentFilter(&args[x])
 		if err != nil {
 			return nil, err
 		}

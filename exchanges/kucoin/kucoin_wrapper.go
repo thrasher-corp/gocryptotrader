@@ -206,7 +206,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			Connector:             ku.WsConnect,
 			Subscriber:            ku.Subscribe,
 			Unsubscriber:          ku.Unsubscribe,
-			GenerateSubscriptions: ku.generateSubscriptions,
+			GenerateSubscriptions: ku.GenerateSubscriptions,
 			Features:              &ku.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
@@ -660,8 +660,78 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
-	return nil, common.ErrFunctionNotSupported
+func (ku *Kucoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+	if err := ku.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+	rFmt, err := ku.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err = common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+	}
+	pair = pair.Format(rFmt)
+	switch assetType {
+	case asset.Futures:
+		trades, err := ku.GetFuturesTradeHistory(ctx, pair.String())
+		if err != nil {
+			return nil, fmt.Errorf("%w %v", err, pair)
+		}
+		result := make([]trade.Data, len(trades))
+		for i := range trades {
+			result[i] = trade.Data{
+				CurrencyPair: pair,
+				TID:          trades[i].TradeID,
+				Amount:       trades[i].Size,
+				Exchange:     ku.Name,
+				Price:        trades[i].Price,
+				Timestamp:    trades[i].FilledTime.Time(),
+				AssetType:    assetType,
+				Side:         order.AnySide,
+			}
+		}
+		err = ku.AddTradesToBuffer(result...)
+		if err != nil {
+			return nil, err
+		}
+
+		sort.Sort(trade.ByDate(result))
+		return result, nil
+	case asset.Spot, asset.Margin:
+		trades, err := ku.GetTradeHistory(ctx, pair.String())
+		if err != nil {
+			return nil, err
+		}
+		result := make([]trade.Data, len(trades))
+		for i := range trades {
+			result[i] = trade.Data{
+				CurrencyPair: pair,
+				TID:          trades[i].Sequence,
+				Amount:       trades[i].Size,
+				Exchange:     ku.Name,
+				Price:        trades[i].Price,
+				Timestamp:    trades[i].Time.Time(),
+				AssetType:    assetType,
+				Side:         order.AnySide,
+			}
+		}
+		err = ku.AddTradesToBuffer(result...)
+		if err != nil {
+			return nil, err
+		}
+
+		sort.Sort(trade.ByDate(result))
+		if !startTime.IsZero() && !endTime.IsZero() {
+			result = trade.FilterTradesByTime(result, startTime, endTime)
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
 }
 
 // SubmitOrder submits a new order
@@ -687,6 +757,39 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if s.Leverage == 0 {
 			s.Leverage = 1
 		}
+		var stopOrderType, stopOrderBoundary string
+		switch s.Type {
+		case order.Stop, order.StopLimit, order.TrailingStop:
+			if s.TriggerPrice == 0 {
+				break
+			}
+			switch s.TriggerPriceType {
+			case order.IndexPrice:
+				stopOrderType = "IP"
+			case order.MarkPrice:
+				stopOrderType = "MP"
+			case order.LastPrice:
+				stopOrderType = "TP"
+			}
+			switch s.Type {
+			case order.StopLimit:
+				switch s.Side {
+				case order.Sell:
+					stopOrderBoundary = "up"
+				case order.Buy:
+					stopOrderBoundary = "down"
+				}
+			case order.TrailingStop, order.Stop:
+				switch s.Side {
+				case order.Sell:
+					// Stop-loss when order type is order.Stop
+					stopOrderBoundary = "down"
+				case order.Buy:
+					// Take Profit when order type is order.Stop
+					stopOrderBoundary = "up"
+				}
+			}
+		}
 		o, err = ku.PostFuturesOrder(ctx, &FuturesOrderParam{
 			ClientOrderID: s.ClientOrderID,
 			Side:          sideString,
@@ -694,12 +797,15 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			OrderType:     s.Type.Lower(),
 			Size:          s.Amount,
 			Price:         s.Price,
-			StopPrice:     s.TriggerPrice,
 			Leverage:      s.Leverage,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.PostOnly,
-			Hidden:        s.Hidden})
+			Hidden:        s.Hidden,
+			Stop:          stopOrderBoundary,
+			StopPrice:     s.TriggerPrice,
+			StopPriceType: stopOrderType,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -727,9 +833,9 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			case order.Limit, order.Market, order.StopLimit, order.StopMarket:
 				var oType order.Type
 				switch s.Type {
-				case order.Limit, order.StopLimit:
+				case order.Limit:
 					oType = order.Limit
-				case order.Market, order.StopMarket:
+				case order.Market:
 					oType = order.Market
 				}
 				var timeInForce string
@@ -1202,7 +1308,8 @@ func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 	return nil, common.ErrFunctionNotSupported
 }
 
-func orderTypeToString(oType order.Type) (string, error) {
+// OrderTypeToString returns an order type instance from string.
+func OrderTypeToString(oType order.Type) (string, error) {
 	switch oType {
 	case order.Limit:
 		return "limit", nil
@@ -1246,7 +1353,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		oType, err := orderTypeToString(getOrdersRequest.Type)
+		oType, err := OrderTypeToString(getOrdersRequest.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1316,7 +1423,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		oType, err := ku.OrderTypeToString(getOrdersRequest.Type)
+		oType, err := OrderTypeToString(getOrdersRequest.Type)
 		if err != nil {
 			return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
 		}
@@ -1880,8 +1987,65 @@ func (ku *Kucoin) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (boo
 }
 
 // GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
-func (ku *Kucoin) GetHistoricalFundingRates(_ context.Context, _ *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
-	return nil, common.ErrFunctionNotSupported
+func (ku *Kucoin) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var err error
+	r.Pair, err = ku.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := ku.GetPublicFundingRate(ctx, r.Pair.String(), r.StartDate, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+	fundingRates := make([]fundingrate.Rate, 0, len(records))
+	for i := range records {
+		if (!r.EndDate.IsZero() && r.EndDate.Before(records[i].Timepoint.Time())) ||
+			(!r.StartDate.IsZero() && r.StartDate.After(records[i].Timepoint.Time())) {
+			continue
+		}
+
+		fundingRates = append(fundingRates, fundingrate.Rate{
+			Rate: decimal.NewFromFloat(records[i].FundingRate),
+			Time: records[i].Timepoint.Time(),
+		})
+	}
+
+	if len(fundingRates) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+
+	return &fundingrate.HistoricalRates{
+		Exchange:        ku.Name,
+		Asset:           r.Asset,
+		Pair:            r.Pair,
+		FundingRates:    fundingRates,
+		StartDate:       fundingRates[len(fundingRates)-1].Time,
+		EndDate:         fundingRates[0].Time,
+		LatestRate:      fundingRates[0],
+		PaymentCurrency: r.PaymentCurrency,
+	}, nil
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair

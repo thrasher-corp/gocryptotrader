@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	ku.setupOrderbookManager()
+	ku.SetupOrderbookManager()
 	fetchedFuturesSnapshotOrderbook = map[string]bool{}
 	os.Exit(m.Run())
 }
@@ -1258,11 +1258,69 @@ func TestPostFuturesOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
+	t.Parallel()
+	err := ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy"})
+	require.ErrorIs(t, err, errInvalidLeverage)
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{Side: "buy", Leverage: 0.02})
+	require.ErrorIs(t, err, errInvalidClientOrderID)
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Leverage: 0.02})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Leverage: 0.02})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	// With Stop order configuration
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Stop: "up", StopPriceType: "", TimeInForce: "", Size: 1, Price: 1000, StopPrice: 0, Leverage: 0.02, VisibleSize: 0})
+	require.ErrorIs(t, err, errInvalidStopPriceType)
+
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Stop: "up", StopPriceType: "TP", TimeInForce: "", Size: 1, Price: 1000, StopPrice: 0, Leverage: 0.02, VisibleSize: 0})
+	require.ErrorIs(t, err, errInvalidPrice)
+
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Stop: "up", StopPriceType: "TP", StopPrice: 123456, TimeInForce: "", Size: 1, Price: 1000, Leverage: 0.02, VisibleSize: 0})
+	require.NoError(t, err)
+
+	// Limit Orders
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair,
+		OrderType: "limit", Remark: "10", Leverage: 0.02})
+	require.ErrorIs(t, err, errInvalidPrice)
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10", Price: 1000, Leverage: 0.02, VisibleSize: 0})
+	require.ErrorIs(t, err, errInvalidSize)
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Size: 1, Price: 1000, Leverage: 0.02, VisibleSize: 0})
+	require.NoError(t, err)
+
+	// Market Orders
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair,
+		OrderType: "market", Remark: "10", Leverage: 0.02})
+	require.ErrorIs(t, err, errInvalidSize)
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "market", Remark: "10",
+		Size: 0, Leverage: 0.02, VisibleSize: 0})
+	require.ErrorIs(t, err, errInvalidSize)
+
+	err = ku.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de",
+		Side:          "buy",
+		Symbol:        futuresTradablePair,
+		OrderType:     "limit",
+		Remark:        "10",
+		Stop:          "",
+		StopPriceType: "",
+		TimeInForce:   "",
+		Size:          1,
+		Price:         1000,
+		StopPrice:     0,
+		Leverage:      0.02,
+		VisibleSize:   0})
+	assert.NoError(t, err)
+}
 
 func TestPostFuturesOrderTest(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	response, err := ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{
+	response, err := ku.PostFuturesOrderTest(context.Background(), &FuturesOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de",
 		Side:          "buy",
 		Symbol:        futuresTradablePair,
@@ -1819,7 +1877,7 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 func TestPushData(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.WsHandleData)
 }
 
 func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
@@ -1856,7 +1914,7 @@ func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix stri
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.GenerateSubscriptions()
 	require.NoError(t, err)
 
 	require.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
@@ -1880,7 +1938,7 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	require.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
 
@@ -1915,7 +1973,7 @@ func TestGenerateCandleSubscription(t *testing.T) {
 		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
 	}
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.GenerateSubscriptions()
 	require.NoError(t, err)
 
 	require.Len(t, subs, 6, "Should generate the correct number of subs for candles")
@@ -1935,7 +1993,7 @@ func TestGenerateMarketSubscription(t *testing.T) {
 		{Channel: marketSnapshotChannel},
 	}
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.GenerateSubscriptions()
 	require.NoError(t, err)
 	require.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
 	for _, c := range []string{"BTC", "ETH", "LTC", "USDT"} {
@@ -2242,10 +2300,10 @@ func TestProcessOrderbook(t *testing.T) {
 	result, err := ku.UpdateLocalBuffer(response, asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
+	err = ku.ProcessOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	err = ku.wsHandleData([]byte(orderbookLevel5PushData))
+	err = ku.WsHandleData([]byte(orderbookLevel5PushData))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2253,7 +2311,7 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.WsHandleData)
 	close(ku.Websocket.DataHandler)
 	require.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
@@ -3215,7 +3273,7 @@ func TestOrderTypeToString(t *testing.T) {
 	var err error
 	var oTypeString string
 	for a := range oTypeErrInputs {
-		oTypeString, err = ku.OrderTypeToString(oTypeErrInputs[a].OrderType)
+		oTypeString, err = OrderTypeToString(oTypeErrInputs[a].OrderType)
 		require.ErrorIs(t, err, oTypeErrInputs[a].Err)
 		require.Equal(t, oTypeString, oTypeErrInputs[a].Result)
 	}
@@ -3255,7 +3313,6 @@ func TestAccountToTradeTypeString(t *testing.T) {
 		result := ku.AccountToTradeTypeString(accountToTradeTypeResults[a].AccountType, accountToTradeTypeResults[a].MarginMode)
 		require.Equal(t, result, accountToTradeTypeResults[a].Result)
 	}
-
 }
 
 func TestStringToOrderStatus(t *testing.T) {
@@ -3298,4 +3355,35 @@ func TestIntervalToString(t *testing.T) {
 		require.ErrorIs(t, err, intervalStringResults[a].Err)
 		require.Equal(t, intervalString, intervalStringResults[a].Result)
 	}
+}
+
+func TestGetHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	r := &fundingrate.HistoricalRatesRequest{
+		Asset:     asset.Spot,
+		Pair:      futuresTradablePair,
+		StartDate: time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:   time.Now(),
+	}
+	_, err := ku.GetHistoricalFundingRates(context.Background(), r)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	r.Asset = asset.Futures
+	result, err := ku.GetHistoricalFundingRates(context.Background(), r)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Options, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := ku.GetHistoricTrades(context.Background(), spotTradablePair, asset.Spot, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	result, err = ku.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }
