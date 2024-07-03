@@ -2484,7 +2484,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func BenchmarkIntervalToString(b *testing.B) {
 	for x := 0; x < b.N; x++ {
-		result, err := ku.intervalToString(kline.OneWeek)
+		result, err := ku.IntervalToString(kline.OneWeek)
 		require.NoError(b, err)
 		require.NotNil(b, result)
 	}
@@ -3175,4 +3175,127 @@ func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
 	result, err := ku.GetInformationOnAccountInvolvedInOffExchangeLoans(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestOrderSideString(t *testing.T) {
+	t.Parallel()
+	sideErrInput := []struct {
+		Side   order.Side
+		Result string
+		Err    error
+	}{
+		{Side: order.Sell, Result: "sell"},
+		{Side: order.Buy, Result: "buy"},
+		{Side: order.AnySide, Result: ""},
+		{Side: order.Bid, Result: "buy"},
+		{Side: order.Ask, Result: "sell"},
+		{Side: order.CouldNotShort, Result: "", Err: order.ErrSideIsInvalid},
+	}
+	var err error
+	var sideString string
+	for a := range sideErrInput {
+		sideString, err = ku.OrderSideString(sideErrInput[a].Side)
+		require.ErrorIs(t, err, sideErrInput[a].Err)
+		require.Equal(t, sideString, sideErrInput[a].Result)
+	}
+}
+
+func TestOrderTypeToString(t *testing.T) {
+	t.Parallel()
+	oTypeErrInputs := []struct {
+		OrderType order.Type
+		Result    string
+		Err       error
+	}{
+		{OrderType: order.Limit, Result: "limit"},
+		{OrderType: order.Market, Result: "market"},
+		{OrderType: order.AnyType, Result: ""},
+		{OrderType: order.OCO, Result: "", Err: order.ErrUnsupportedOrderType},
+	}
+	var err error
+	var oTypeString string
+	for a := range oTypeErrInputs {
+		oTypeString, err = ku.OrderTypeToString(oTypeErrInputs[a].OrderType)
+		require.ErrorIs(t, err, oTypeErrInputs[a].Err)
+		require.Equal(t, oTypeString, oTypeErrInputs[a].Result)
+	}
+}
+
+func TestMarginModeToString(t *testing.T) {
+	t.Parallel()
+	marginModeResults := []struct {
+		MarginMode margin.Type
+		Result     string
+	}{
+		{MarginMode: margin.Isolated, Result: "isolated"},
+		{MarginMode: margin.Multi, Result: "cross"},
+		{MarginMode: margin.Unknown, Result: ""},
+	}
+	for a := range marginModeResults {
+		result := MarginModeToString(marginModeResults[a].MarginMode)
+		require.Equal(t, result, marginModeResults[a].Result)
+	}
+}
+
+func TestAccountToTradeTypeString(t *testing.T) {
+	t.Parallel()
+	accountToTradeTypeResults := []struct {
+		AccountType asset.Item
+		MarginMode  string
+		Result      string
+	}{
+		{AccountType: asset.Margin, MarginMode: "cross", Result: "MARGIN_TRADE"},
+		{AccountType: asset.Margin, MarginMode: "isolated", Result: "MARGIN_ISOLATED_TRADE"},
+		{AccountType: asset.Spot, MarginMode: "cross", Result: "TRADE"},
+		{AccountType: asset.Spot, MarginMode: "isolated", Result: "TRADE"},
+		{AccountType: asset.Futures, MarginMode: "isolated", Result: ""},
+		{AccountType: asset.Futures, MarginMode: "isolated", Result: ""},
+	}
+	for a := range accountToTradeTypeResults {
+		result := ku.AccountToTradeTypeString(accountToTradeTypeResults[a].AccountType, accountToTradeTypeResults[a].MarginMode)
+		require.Equal(t, result, accountToTradeTypeResults[a].Result)
+	}
+
+}
+
+func TestStringToOrderStatus(t *testing.T) {
+	t.Parallel()
+	orderStatusResults := []struct {
+		Input  string
+		Result order.Status
+		HasErr bool
+	}{
+		{Input: "match", Result: order.Filled},
+		{Input: "open", Result: order.Open},
+		{Input: "done", Result: order.Closed},
+		{Input: "accepted", Result: order.New},
+		{Input: "PLaced", Result: order.New},
+		{Input: "something", Result: order.UnknownStatus, HasErr: true},
+	}
+	for a := range orderStatusResults {
+		result, err := ku.StringToOrderStatus(orderStatusResults[a].Input)
+		if !orderStatusResults[a].HasErr {
+			require.NoError(t, err)
+		}
+		require.Equal(t, result, orderStatusResults[a].Result)
+	}
+}
+
+func TestIntervalToString(t *testing.T) {
+	t.Parallel()
+	intervalStringResults := []struct {
+		Interval kline.Interval
+		Result   string
+		Err      error
+	}{
+		{Interval: kline.OneMin, Result: "1min"},
+		{Interval: kline.ThreeMin, Result: "3min"},
+		{Interval: kline.FiveMin, Result: "5min"},
+		{Interval: kline.TenMin, Result: "", Err: kline.ErrUnsupportedInterval},
+	}
+	for a := range intervalStringResults {
+		intervalString, err := ku.IntervalToString(intervalStringResults[a].Interval)
+		require.ErrorIs(t, err, intervalStringResults[a].Err)
+		require.Equal(t, intervalString, intervalStringResults[a].Result)
+	}
 }

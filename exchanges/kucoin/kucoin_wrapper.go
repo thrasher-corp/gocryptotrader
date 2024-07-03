@@ -477,7 +477,16 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			Currencies: balances,
 		})
 	case asset.Spot, asset.Margin:
-		accountH, err := ku.GetAllAccounts(ctx, "", ku.accountTypeToString(assetType))
+		assetTypeString := "main"
+		switch assetType {
+		case asset.Spot:
+			assetTypeString = "trade"
+		case asset.Margin:
+			assetTypeString = "margin"
+		case asset.Empty:
+			assetTypeString = ""
+		}
+		accountH, err := ku.GetAllAccounts(ctx, "", assetTypeString)
 		if err != nil {
 			return account.Holdings{}, err
 		}
@@ -661,7 +670,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
-	sideString, err := ku.orderSideString(s.Side)
+	sideString, err := ku.OrderSideString(s.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -827,7 +836,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		o, err := ku.PostMarginOrder(ctx,
 			&MarginOrderParam{ClientOrderID: s.ClientOrderID,
 				Side: sideString, Symbol: s.Pair,
-				OrderType: s.Type.Lower(), MarginModel: marginModeToString(s.MarginType),
+				OrderType: s.Type.Lower(), MarginModel: MarginModeToString(s.MarginType),
 				Price: s.Price, Size: s.Amount,
 				VisibleSize: s.Amount, PostOnly: s.PostOnly,
 				Hidden: s.Hidden, AutoBorrow: s.AutoBorrow})
@@ -846,7 +855,8 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 }
 
-func marginModeToString(mType margin.Type) string {
+// MarginModeToString returns a string representation of a MarginMode
+func MarginModeToString(mType margin.Type) string {
 	switch mType {
 	case margin.Isolated:
 		return mType.String()
@@ -921,11 +931,12 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	if orderCancellation == nil {
 		return order.CancelAllResponse{}, common.ErrNilPointer
 	}
-	if err := ku.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType); err != nil {
+	err := ku.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType)
+	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	result := order.CancelAllResponse{}
-	err := orderCancellation.Validate()
+	err = orderCancellation.Validate()
 	if err != nil {
 		return result, err
 	}
@@ -975,7 +986,7 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 			}
 			return resp, nil
 		}
-		tradeType := ku.accountToTradeTypeString(orderCancellation.AssetType, marginModeToString(orderCancellation.MarginType))
+		tradeType := ku.AccountToTradeTypeString(orderCancellation.AssetType, MarginModeToString(orderCancellation.MarginType))
 		values, err = ku.CancelAllOpenOrders(ctx, pairString, tradeType)
 		if err != nil {
 			return order.CancelAllResponse{}, err
@@ -1002,10 +1013,11 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 
 // GetOrderInfo returns order information based on order ID
 func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if err := ku.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
+	if err != nil {
 		return nil, err
 	}
-	pair, err := ku.FormatExchangeCurrency(pair, assetType)
+	pair, err = ku.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -1037,7 +1049,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			side = order.Long
 		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
-			return nil, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
+			return nil, fmt.Errorf("order with id %s and symbol %v does not exist", orderID, pair)
 		}
 		return &order.Detail{
 			Exchange:        ku.Name,
@@ -1132,10 +1144,23 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
+func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, _, chain string) (*deposit.Address, error) {
 	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper().String())
 	if err != nil {
 		return nil, err
+	}
+	if chain != "" {
+		// check if there is a matching chain address.
+		for a := range ad {
+			if strings.EqualFold(ad[a].Chain, chain) {
+				return &deposit.Address{
+					Address: ad[a].Address,
+					Chain:   ad[a].Chain,
+					Tag:     ad[a].Memo,
+				}, nil
+			}
+		}
+		return nil, fmt.Errorf("%w matching the chain name %s", errNoDepositAddress, chain)
 	}
 	if len(ad) > 1 {
 		return nil, errMultipleDepositAddress
@@ -1157,7 +1182,7 @@ func (ku *Kucoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawalID, err := ku.ApplyWithdrawal(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, withdrawRequest.Crypto.Chain, "INTERNAL", false, withdrawRequest.Amount)
+	withdrawalID, err := ku.ApplyWithdrawal(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, withdrawRequest.Crypto.Chain, "INTERNAL", withdrawRequest.InternalTransfer, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -1217,7 +1242,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}
-		sideString, err := ku.orderSideString(getOrdersRequest.Side)
+		sideString, err := ku.OrderSideString(getOrdersRequest.Side)
 		if err != nil {
 			return nil, err
 		}
@@ -1260,7 +1285,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if err != nil {
 				return nil, err
 			}
-
 			orders = append(orders, order.Detail{
 				OrderID:            futuresOrders.Items[x].ID,
 				ClientOrderID:      futuresOrders.Items[x].ClientOid,
@@ -1285,15 +1309,14 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			})
 		}
 	case asset.Spot, asset.Margin:
-
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}
-		sideString, err := ku.orderSideString(getOrdersRequest.Side)
+		sideString, err := ku.OrderSideString(getOrdersRequest.Side)
 		if err != nil {
 			return nil, err
 		}
-		oType, err := ku.orderTypeToString(getOrdersRequest.Type)
+		oType, err := ku.OrderTypeToString(getOrdersRequest.Type)
 		if err != nil {
 			return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
 		}
@@ -1358,7 +1381,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 		return nil, err
 	}
 	var sideString string
-	sideString, err = ku.orderSideString(getOrdersRequest.Side)
+	sideString, err = ku.OrderSideString(getOrdersRequest.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -1560,7 +1583,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				})
 		}
 	case asset.Spot, asset.Margin:
-		intervalString, err := ku.intervalToString(interval)
+		intervalString, err := ku.IntervalToString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -1580,6 +1603,8 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 					Volume: candles[x].Volume,
 				})
 		}
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(timeseries)
 }
@@ -1590,10 +1615,11 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if err != nil {
 		return nil, err
 	}
+
 	var timeSeries []kline.Candle
-	for x := range req.RangeHolder.Ranges {
-		switch a {
-		case asset.Futures:
+	switch a {
+	case asset.Futures:
+		for x := range req.RangeHolder.Ranges {
 			var candles []FuturesKline
 			candles, err = ku.GetFuturesKline(ctx, int64(interval.Duration().Minutes()), req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -1610,13 +1636,16 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 						Volume: candles[x].Volume,
 					})
 			}
-		case asset.Spot, asset.Margin:
-			var intervalString string
-			intervalString, err = ku.intervalToString(interval)
-			if err != nil {
-				return nil, err
-			}
-			var candles []Kline
+		}
+		return req.ProcessResponse(timeSeries)
+	case asset.Spot, asset.Margin:
+		var intervalString string
+		intervalString, err = ku.IntervalToString(interval)
+		if err != nil {
+			return nil, err
+		}
+		var candles []Kline
+		for x := range req.RangeHolder.Ranges {
 			candles, err = ku.GetKlines(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
@@ -1633,8 +1662,10 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					})
 			}
 		}
+		return req.ProcessResponse(timeSeries)
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
-	return req.ProcessResponse(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.
@@ -1659,9 +1690,9 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 	if err != nil {
 		return nil, err
 	}
-	chains := make([]string, 0, len(currencyDetail.Chains))
+	chains := make([]string, len(currencyDetail.Chains))
 	for x := range currencyDetail.Chains {
-		chains = append(chains, currencyDetail.Chains[x].Name)
+		chains[x] = currencyDetail.Chains[x].Name
 	}
 	return chains, nil
 }
@@ -2192,7 +2223,7 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
 	case asset.Margin:
 		return tradeBaseURL + tradeSpot + tradeMargin + cp.Upper().String(), nil
-	case asset.Futures, asset.CoinMarginedFutures:
+	case asset.Futures:
 		cp.Delimiter = ""
 		return tradeBaseURL + tradeFutures + tradeSpot + cp.Upper().String(), nil
 	default:

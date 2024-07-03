@@ -438,7 +438,7 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	oStatus, err := ku.stringToOrderStatus(resp.Status)
+	oStatus, err := ku.StringToOrderStatus(resp.Status)
 	if err != nil {
 		return err
 	}
@@ -710,7 +710,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte, topic string) error {
 	if err != nil {
 		return err
 	}
-	oStatus, err := ku.stringToOrderStatus(response.Status)
+	oStatus, err := ku.StringToOrderStatus(response.Status)
 	if err != nil {
 		return err
 	}
@@ -1154,14 +1154,14 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 			subscriptions = append(subscriptions, i)
 		}
 	case s.Channel == marketCandlesChannel:
-		interval, err := ku.intervalToString(s.Interval)
+		interval, err := ku.IntervalToString(s.Interval)
 		if err != nil {
 			return nil, err
 		}
 		subs := spotOrMarginPairSubs(assetPairs, s, false, interval)
 		subscriptions = append(subscriptions, subs...)
 	case s.Channel == futuresLimitCandles:
-		interval, err := ku.intervalToString(s.Interval)
+		interval, err := ku.IntervalToString(s.Interval)
 		if err != nil {
 			return nil, err
 		}
