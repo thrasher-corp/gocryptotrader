@@ -47,21 +47,17 @@ var (
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+	payload, err := b.GetInstrumentInfo(context.Background(), "linear", "10000000AIDOGEUSDT", "", "", "", 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, payload.List)
+	require.NotZero(t, payload.List[0].LotSizeFilter.MinNotionalValue)
 }
 
 func TestGetKlines(t *testing.T) {
@@ -621,29 +617,17 @@ func TestUpdateTickers(t *testing.T) {
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
-	if !errors.Is(err, errInvalidCategory) {
-		t.Errorf("expected %v, got %v", errInvalidCategory, err)
-	}
+	require.ErrorIs(t, err, errInvalidCategory)
 	_, err = b.GetTickers(context.Background(), "option", "BTC-29DEC23-80000-C", "", time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "option", "", "BTC", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "inverse", "", "", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "linear", "", "", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetFundingRateHistory(t *testing.T) {
