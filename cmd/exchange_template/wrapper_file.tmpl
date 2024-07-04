@@ -358,7 +358,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetServerTime(ctx context.Context, a asse
 
 // SubmitOrder submits a new order
 func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate({{.Variable}}.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	// When an order has been submitted you can use this helpful constructor to

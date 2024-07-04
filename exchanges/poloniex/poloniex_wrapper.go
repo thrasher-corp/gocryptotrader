@@ -690,7 +690,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if s == nil {
 		return nil, common.ErrNilPointer
 	}
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(p.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	var err error
