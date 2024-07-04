@@ -1370,19 +1370,6 @@ type WsPriceIndicator struct {
 	Value       float64              `json:"value"`
 }
 
-// WsMarginFundingBook represents order book changes on margin.
-type WsMarginFundingBook struct {
-	Sequence           int64                `json:"sequence"`
-	Currency           string               `json:"currency"`
-	DailyInterestRate  float64              `json:"dailyIntRate"`
-	AnnualInterestRate float64              `json:"annualIntRate"`
-	Term               int64                `json:"term"`
-	Size               float64              `json:"size"`
-	Side               string               `json:"side"`
-	Timestamp          convert.ExchangeTime `json:"ts"` // In Nanosecond
-
-}
-
 // WsTradeOrder represents a private trade order push data.
 type WsTradeOrder struct {
 	Symbol     string               `json:"symbol"`

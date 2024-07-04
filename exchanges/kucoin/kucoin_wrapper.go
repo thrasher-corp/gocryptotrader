@@ -151,7 +151,6 @@ func (ku *Kucoin) SetDefaults() {
 			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
 			{Enabled: true, Channel: futuresTickerV2Channel},
 			{Enabled: true, Channel: futuresOrderbookLevel2Depth50Channel},
-			{Enabled: true, Channel: marginFundingbookChangeChannel, Authenticated: true},
 			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
 			{Enabled: true, Channel: marginPositionChannel, Authenticated: true},
 			{Enabled: true, Channel: marginLoanChannel, Authenticated: true},

@@ -46,7 +46,6 @@ const (
 	marketMatchChannel              = "/market/match:%s"             // /market/match:{symbol},{symbol}...
 	indexPriceIndicatorChannel      = "/indicator/index:%s"          // /indicator/index:{symbol0},{symbol1}..
 	markPriceIndicatorChannel       = "/indicator/markPrice:%s"      // /indicator/markPrice:{symbol0},{symbol1}...
-	marginFundingbookChangeChannel  = "/margin/fundingBook:%s"       // /margin/fundingBook:{currency0},{currency1}...
 
 	// Private channels
 	privateSpotTradeOrders    = "/spotMarket/tradeOrders"
@@ -239,9 +238,6 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.ProcessData(resp.Data, &response)
 	case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
 		var response WsPriceIndicator
-		return ku.ProcessData(resp.Data, &response)
-	case strings.HasPrefix(marginFundingbookChangeChannel, topicInfo[0]):
-		var response WsMarginFundingBook
 		return ku.ProcessData(resp.Data, &response)
 	case strings.HasPrefix(privateSpotTradeOrders, topicInfo[0]):
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
@@ -1097,7 +1093,7 @@ func GetChannelsAssetType(channelName string) asset.Item {
 		marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel,
 		privateSpotTradeOrders, accountBalanceChannel, spotMarketAdvancedChannel:
 		return asset.Spot
-	case marginFundingbookChangeChannel, marginPositionChannel, marginLoanChannel:
+	case marginPositionChannel, marginLoanChannel:
 		return asset.Margin
 	default:
 		return asset.Empty
@@ -1170,9 +1166,6 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 				Asset:   asset.Futures,
 			})
 		}
-	case s.Channel == marginFundingbookChangeChannel:
-		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Margin].GetCurrencies().Join())
-		subscriptions = append(subscriptions, s)
 	case s.Channel == marketSnapshotChannel:
 		subs, err := spotOrMarginCurrencySubs(assetPairs, s)
 		if err != nil {
