@@ -209,7 +209,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			Connector:             ku.WsConnect,
 			Subscriber:            ku.Subscribe,
 			Unsubscriber:          ku.Unsubscribe,
-			GenerateSubscriptions: ku.GenerateSubscriptions,
+			GenerateSubscriptions: ku.generateSubscriptions,
 			Features:              &ku.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,

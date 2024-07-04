@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	ku.SetupOrderbookManager()
+	ku.setupOrderbookManager()
 	fetchedFuturesSnapshotOrderbook = map[string]bool{}
 	os.Exit(m.Run())
 }
@@ -1877,7 +1877,7 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 func TestPushData(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.WsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
 func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
@@ -1914,7 +1914,7 @@ func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix stri
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := ku.GenerateSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err)
 
 	require.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
@@ -1938,7 +1938,7 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	subs, err := ku.GenerateSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	require.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
 
@@ -1973,7 +1973,7 @@ func TestGenerateCandleSubscription(t *testing.T) {
 		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
 	}
 
-	subs, err := ku.GenerateSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err)
 
 	require.Len(t, subs, 6, "Should generate the correct number of subs for candles")
@@ -1993,7 +1993,7 @@ func TestGenerateMarketSubscription(t *testing.T) {
 		{Channel: marketSnapshotChannel},
 	}
 
-	subs, err := ku.GenerateSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err)
 	require.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
 	for _, c := range []string{"BTC", "ETH", "LTC", "USDT"} {
@@ -2297,13 +2297,13 @@ func TestProcessOrderbook(t *testing.T) {
 	response := &WsOrderbook{}
 	err := json.Unmarshal([]byte(wsOrderbookData), &response)
 	require.NoError(t, err)
-	result, err := ku.UpdateLocalBuffer(response, asset.Spot)
+	result, err := ku.updateLocalBuffer(response, asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	err = ku.ProcessOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
+	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	err = ku.WsHandleData([]byte(orderbookLevel5PushData))
+	err = ku.wsHandleData([]byte(orderbookLevel5PushData))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2311,7 +2311,7 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.WsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
 	close(ku.Websocket.DataHandler)
 	require.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
