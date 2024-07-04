@@ -158,17 +158,9 @@ type OrderbookChanges struct {
 
 // Level3PullingMessage represents a level 3 orderbook data pulled.
 type Level3PullingMessage struct {
-	Symbol    string               `json:"symbol"`
-	Sequence  int64                `json:"sequence"`
-	Side      string               `json:"side,omitempty"`
-	OrderTime convert.ExchangeTime `json:"orderTime,omitempty"`
-	Size      types.Number         `json:"size,omitempty"`
-	OrderID   string               `json:"orderId"`
-	Price     types.Number         `json:"price,omitempty"`
-	Type      string               `json:"type"`
-	ClientOid string               `json:"clientOid,omitempty"`
-	Timestamp convert.ExchangeTime `json:"ts"`
-	Reason    string               `json:"reason,omitempty"`
+	Symbol   string `json:"symbol"`
+	Sequence int    `json:"sequence"`
+	Change   string `json:"change"`
 }
 
 // Level3PullingMessageResponse represents response for orderbook level 3 pulled missing data.

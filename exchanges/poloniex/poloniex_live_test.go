@@ -40,7 +40,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	p.HTTPRecording = true
 	err = populateTradablepairs()
 	if err != nil {
 		log.Fatal(err)

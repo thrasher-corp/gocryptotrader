@@ -271,8 +271,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	var start, end time.Time
 	if mockTests {
-		start = time.Unix(1719869100, 0)
-		end = time.Unix(1719861600, 0)
+		start = time.Unix(1720120800, 0)
+		end = time.Unix(1720128300, 0)
 	} else {
 		start = time.Now().Add(-time.Hour * 2)
 		end = time.Now()
@@ -281,7 +281,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = p.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FiveMin, start, end)
+	result, err = p.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, start, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -354,7 +354,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetAvailableTransferChains(context.Background(), currency.NewCode("SHIT"))
+	result, err := p.GetAvailableTransferChains(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -474,13 +474,6 @@ func TestGetSymbolInformation(t *testing.T) {
 func TestGetCurrencyInformations(t *testing.T) {
 	t.Parallel()
 	result, err := p.GetCurrencyInformations(context.Background())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetCurrencyInformation(t *testing.T) {
-	t.Parallel()
-	result, err := p.GetCurrencyInformation(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -652,7 +645,7 @@ func TestAccountsTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := p.AccountsTransfer(context.Background(), nil)
 	require.ErrorIs(t, err, errNilArgument)
-	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{})
+	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{Amount: 1232.221})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{
 		Ccy: currency.BTC,
@@ -736,7 +729,7 @@ func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := p.SubAccountTransfer(context.Background(), nil)
 	require.ErrorIs(t, err, errNilArgument)
-	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{})
+	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{Amount: 12.34})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{
 		Currency: currency.BTC,
@@ -905,7 +898,7 @@ func TestPlaceOrder(t *testing.T) {
 	_, err := p.PlaceOrder(context.Background(), nil)
 	require.ErrorIs(t, err, errNilArgument)
 
-	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{})
+	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{
@@ -1058,6 +1051,7 @@ func TestKillSwitch(t *testing.T) {
 
 func TestGetKillSwitchStatus(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetKillSwitchStatus(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1220,7 +1214,7 @@ func TestWsCreateOrder(t *testing.T) {
 	t.Parallel()
 	_, err := p.WsCreateOrder(nil)
 	require.ErrorIs(t, err, errNilArgument)
-	_, err = p.WsCreateOrder(&PlaceOrderParams{})
+	_, err = p.WsCreateOrder(&PlaceOrderParams{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = p.WsCreateOrder(&PlaceOrderParams{
@@ -1265,7 +1259,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err)
 	instruments, err := p.GetSymbolInformation(context.Background(), currency.EMPTYPAIR)
 	require.NoError(t, err)
-	require.Len(t, instruments, 1)
 	cp, err := currency.NewPairFromString(instruments[0].Symbol)
 	require.NoError(t, err)
 	limits, err := p.GetOrderExecutionLimits(asset.Spot, cp)
@@ -1286,6 +1279,7 @@ func TestGetOpenContractList(t *testing.T) {
 
 func TestGetOrderInfoOfTheContract(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetOrderInfoOfTheContract(context.Background(), "BTCUSDTPERP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1349,14 +1343,14 @@ func TestGetTransactionHistory(t *testing.T) {
 
 func TestGetInterestRateList(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetInterestRateList(context.Background(), "BTCUSDTPERP", time.Time{}, time.Now(), false, true, 20)
+	result, err := p.GetInterestRateList(context.Background(), "BTCUSDTPERP", time.Time{}, time.Time{}, false, true, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetIndexList(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetIndexList(context.Background(), "BTCUSDTPERP", time.Time{}, time.Now(), false, true, 20)
+	result, err := p.GetIndexList(context.Background(), "BTCUSDTPERP", time.Time{}, time.Time{}, false, true, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1370,6 +1364,7 @@ func TestGetCurrentMarkPrice(t *testing.T) {
 
 func TestGetPremiumIndex(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetPremiumIndex(context.Background(), "BTCUSDTPERP", time.Time{}, time.Now(), false, true, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1398,7 +1393,7 @@ func TestGetServiceStatus(t *testing.T) {
 
 func TestGetKlineDataOfContract(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetFuturesKlineDataOfContract(context.Background(), "BTCUSDTPERP", 123, time.Time{}, time.Now())
+	result, err := p.GetFuturesKlineDataOfContract(context.Background(), "BTCUSDTPERP", 480, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

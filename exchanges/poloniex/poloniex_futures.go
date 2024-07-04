@@ -114,7 +114,7 @@ func (p *Poloniex) GetFullOrderBookLevel3(ctx context.Context, symbol string) (*
 // Level3PullingMessages If the messages pushed by the Websocket is not continuous, you can submit the following request and re-pull the data to ensure that the sequence is not missing.
 func (p *Poloniex) Level3PullingMessages(ctx context.Context) (*Level3PullingMessageResponse, error) {
 	var resp *Level3PullingMessageResponse
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v2/level3/snapshot", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/level2/message/query", &resp)
 }
 
 // ----------------------------------------------------   Historical Data  ---------------------------------------------------------------

@@ -1714,6 +1714,16 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 }
 
+func (p *Poloniex) getGranularityFromInterval(interval kline.Interval) (int64, error) {
+	switch interval {
+	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.TwoHour, kline.FourHour,
+		kline.EightHour, kline.TwelveHour, kline.OneDay, kline.SevenDay:
+		return int64(interval.Duration().Minutes()), nil
+	default:
+		return 0, kline.ErrUnsupportedInterval
+	}
+}
+
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := p.GetKlineExtendedRequest(pair, a, interval, start, end)
@@ -1746,11 +1756,14 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 		}
 	case asset.Futures:
+		granularity, err := p.getGranularityFromInterval(interval)
+		if err != nil {
+			return nil, err
+		}
 		for i := range req.RangeHolder.Ranges {
 			resp, err := p.GetFuturesKlineDataOfContract(ctx,
 				req.RequestFormatted.String(),
-				// req.ExchangeInterval
-				0,
+				granularity,
 				req.RangeHolder.Ranges[i].Start.Time,
 				req.RangeHolder.Ranges[i].End.Time,
 			)
@@ -1779,18 +1792,18 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	currencies, err := p.GetCurrencyInformations(ctx)
+	currencies, err := p.GetV2CurrencyInformation(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
-	for a := range currencies {
-		curr, ok := currencies[a][cryptocurrency.Upper().String()]
-		if !ok {
-			continue
-		}
-		return curr.ChildChains, nil
+	if len(currencies.NetworkList) == 0 {
+		return nil, fmt.Errorf("%w for currency %v", errChainsNotFound, cryptocurrency)
 	}
-	return nil, fmt.Errorf("%w for currency %v", errChainsNotFound, cryptocurrency)
+	chains := make([]string, len(currencies.NetworkList))
+	for a := range currencies.NetworkList {
+		chains[a] = currencies.NetworkList[a].Blockchain
+	}
+	return chains, nil
 }
 
 // GetServerTime returns the current exchange server time.

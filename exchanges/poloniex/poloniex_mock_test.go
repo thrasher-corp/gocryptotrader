@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -34,7 +35,6 @@ func TestMain(m *testing.M) {
 	poloniexConfig.API.Credentials.Key = apiKey
 	poloniexConfig.API.Credentials.Secret = apiSecret
 
-	p.Verbose = true
 	p.SetDefaults()
 	p.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = p.Setup(poloniexConfig)
@@ -60,5 +60,21 @@ func TestMain(m *testing.M) {
 	}
 	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDT", "_")
 	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDTPERP", "")
+	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }

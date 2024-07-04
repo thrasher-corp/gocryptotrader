@@ -1001,7 +1001,6 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err != nil {
 		return err
 	}
-	p.Verbose = true
 	method := http.MethodGet
 	if len(methods) == 1 {
 		method = methods[0]
