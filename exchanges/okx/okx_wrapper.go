@@ -63,7 +63,7 @@ func (ok *Okx) SetDefaults() {
 
 	// Fill out the capabilities/features that the exchange supports
 	ok.Features = exchange.Features{
-		Translation: currency.NewTranslations(map[currency.Code]currency.Code{
+		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
 			currency.NewCode("USDT-SWAP"): currency.USDT,
 			currency.NewCode("USD-SWAP"):  currency.USD,
 			currency.NewCode("USDC-SWAP"): currency.USDC,
