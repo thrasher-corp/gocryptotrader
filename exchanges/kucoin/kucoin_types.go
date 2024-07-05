@@ -20,9 +20,7 @@ var (
 	}
 
 	errInvalidResponseReceiver    = errors.New("invalid response receiver")
-	errInvalidPrice               = errors.New("invalid price")
 	errInvalidStopPriceType       = errors.New("stopPriceType is required")
-	errInvalidSize                = errors.New("invalid size")
 	errMalformedData              = errors.New("malformed data")
 	errNoDepositAddress           = errors.New("no deposit address found")
 	errMultipleDepositAddress     = errors.New("multiple deposit addresses")
@@ -34,7 +32,6 @@ var (
 	errMissingOrderbookSequence   = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired       = errors.New("at least one required among size and funds")
 	errInvalidLeverage            = errors.New("invalid leverage value")
-	errInvalidClientOrderID       = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
 	errAccountTypeMissing         = errors.New("account type is required")
 	errTransferTypeMissing        = errors.New("transfer type is required")
 	errTradeTypeMissing           = errors.New("trade type is missing")
@@ -2303,4 +2300,15 @@ type VIPLendingAccounts struct {
 	MarginFactor types.Number `json:"marginFactor"`
 	AccountType  string       `json:"accountType"`
 	IsParent     bool         `json:"isParent"`
+}
+
+// UserRebateInfo represents a user rebate information.
+type UserRebateInfo struct {
+	M1UID    string       `json:"m1Uid"`
+	Rcode    string       `json:"rcode"`
+	M2UID    string       `json:"m2Uid"`
+	Amount   types.Number `json:"amount"`
+	Rebate   types.Number `json:"rebate"`
+	CashBack types.Number `json:"cashBack"`
+	Offset   string       `json:"offset"`
 }

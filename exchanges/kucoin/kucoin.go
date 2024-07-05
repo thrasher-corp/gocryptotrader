@@ -612,7 +612,7 @@ func (ku *Kucoin) SyncCancelHFOrder(ctx context.Context, orderID, symbol string)
 // SyncCancelHFOrderByClientOrderID this interface will synchronously return the order information after the order canceling is completed.
 func (ku *Kucoin) SyncCancelHFOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*SyncCancelHFOrderResp, error) {
 	if clientOrderID == "" {
-		return nil, errInvalidClientOrderID
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	return ku.SendSyncCancelHFOrder(ctx, clientOrderID, symbol, "/v1/hf/orders/sync/client-order/")
 }
@@ -629,7 +629,7 @@ func (ku *Kucoin) SendSyncCancelHFOrder(ctx context.Context, id, symbol, path st
 // CancelHFOrderByClientOrderID sends out a request to cancel a high-frequency order using clientOid.
 func (ku *Kucoin) CancelHFOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) (string, error) {
 	if clientOrderID == "" {
-		return "", errInvalidClientOrderID
+		return "", order.ErrClientOrderIDMustBeSet
 	}
 	if symbol == "" {
 		return "", currency.ErrSymbolStringEmpty
@@ -812,7 +812,7 @@ func (ku *Kucoin) PostOrderTest(ctx context.Context, arg *SpotOrderParam) (strin
 func (ku *Kucoin) HandlePostOrder(ctx context.Context, arg *SpotOrderParam, path string) (string, error) {
 	if arg.ClientOrderID == "" {
 		// NOTE: 128 bit max length character string. UUID recommended.
-		return "", errInvalidClientOrderID
+		return "", order.ErrClientOrderIDMustBeSet
 	}
 	if arg.Side == "" {
 		return "", order.ErrSideIsInvalid
@@ -823,13 +823,13 @@ func (ku *Kucoin) HandlePostOrder(ctx context.Context, arg *SpotOrderParam, path
 	switch arg.OrderType {
 	case "limit", "":
 		if arg.Price <= 0 {
-			return "", fmt.Errorf("%w, price =%.3f", errInvalidPrice, arg.Price)
+			return "", fmt.Errorf("%w, price =%.3f", order.ErrPriceBelowMin, arg.Price)
 		}
 		if arg.Size <= 0 {
-			return "", errInvalidSize
+			return "", order.ErrAmountBelowMin
 		}
 		if arg.VisibleSize < 0 {
-			return "", fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
+			return "", fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
 		}
 	case "market":
 		if arg.Size == 0 && arg.Funds == 0 {
@@ -860,25 +860,25 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, arg *MarginOrderParam) (*
 // SendPostMarginOrder applies a margin order placement or tests the order placement process.
 func (ku *Kucoin) SendPostMarginOrder(ctx context.Context, arg *MarginOrderParam, path string) (*PostMarginOrderResp, error) {
 	if arg.ClientOrderID == "" {
-		return nil, errInvalidClientOrderID
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Symbol.IsEmpty() {
-		return nil, fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
 	switch arg.OrderType {
 	case "limit", "":
 		if arg.Price <= 0 {
-			return nil, fmt.Errorf("%w, price=%.3f", errInvalidPrice, arg.Price)
+			return nil, fmt.Errorf("%w, price=%.3f", order.ErrPriceBelowMin, arg.Price)
 		}
 		if arg.Size <= 0 {
-			return nil, errInvalidSize
+			return nil, order.ErrAmountBelowMin
 		}
 		if arg.VisibleSize < 0 {
-			return nil, fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
+			return nil, fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
 		}
 	case "market":
 		sum := arg.Size + arg.Funds
@@ -900,20 +900,20 @@ func (ku *Kucoin) SendPostMarginOrder(ctx context.Context, arg *MarginOrderParam
 // Note: To check if order was posted successfully, check status field in response
 func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []OrderRequest) ([]PostBulkOrderResp, error) {
 	if symbol == "" {
-		return nil, errors.New("symbol can not be empty")
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	for i := range orderList {
 		if orderList[i].ClientOID == "" {
-			return nil, errors.New("clientOid can not be empty")
+			return nil, order.ErrClientOrderIDMustBeSet
 		}
 		if orderList[i].Side == "" {
-			return nil, errors.New("side can not be empty")
+			return nil, order.ErrSideIsInvalid
 		}
 		if orderList[i].Price <= 0 {
-			return nil, errors.New("price must be positive")
+			return nil, order.ErrPriceBelowMin
 		}
 		if orderList[i].Size <= 0 {
-			return nil, errors.New("size must be positive")
+			return nil, order.ErrAmountBelowMin
 		}
 	}
 	arg := &struct {
@@ -932,7 +932,7 @@ func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []
 // CancelSingleOrder used to cancel single order previously placed
 func (ku *Kucoin) CancelSingleOrder(ctx context.Context, orderID string) ([]string, error) {
 	if orderID == "" {
-		return nil, errors.New("orderID can not be empty")
+		return nil, order.ErrOrderIDNotSet
 	}
 	resp := struct {
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
@@ -1010,7 +1010,7 @@ func (ku *Kucoin) GetRecentOrders(ctx context.Context) ([]OrderDetail, error) {
 // GetOrderByID get a single order info by order ID
 func (ku *Kucoin) GetOrderByID(ctx context.Context, orderID string) (*OrderDetail, error) {
 	if orderID == "" {
-		return nil, errors.New("orderID can not be empty")
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *OrderDetail
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, orderDetailByIDEPL, http.MethodGet, "/v1/orders/"+orderID, nil, &resp)
@@ -1046,13 +1046,13 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize,
 	funds float64, postOnly, hidden, iceberg bool) (string, error) {
 	if clientOID == "" {
-		return "", errors.New("clientOid can not be empty")
+		return "", order.ErrClientOrderIDMustBeSet
 	}
 	if side == "" {
-		return "", errors.New("side can not be empty")
+		return "", fmt.Errorf("%w order side cannot be empty", order.ErrSideIsInvalid)
 	}
 	if symbol == "" {
-		return "", fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
+		return "", currency.ErrSymbolStringEmpty
 	}
 	arg := make(map[string]interface{})
 	arg["clientOid"] = clientOID
@@ -1122,7 +1122,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 // CancelStopOrder used to cancel single stop order previously placed
 func (ku *Kucoin) CancelStopOrder(ctx context.Context, orderID string) ([]string, error) {
 	if orderID == "" {
-		return nil, errors.New("orderID can not be empty")
+		return nil, order.ErrOrderIDNotSet
 	}
 	resp := struct {
 		Data []string `json:"cancelledOrderIds"`
@@ -1131,8 +1131,25 @@ func (ku *Kucoin) CancelStopOrder(ctx context.Context, orderID string) ([]string
 	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelStopOrderEPL, http.MethodDelete, "/v1/stop-order/"+orderID, nil, &resp)
 }
 
+// CancelStopOrderByClientOrderID used to cancel single stop order previously placed by client supplied order ID.
+func (ku *Kucoin) CancelStopOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) ([]string, error) {
+	if clientOrderID == "" {
+		return nil, order.ErrClientOrderIDMustBeSet
+	}
+	params := url.Values{}
+	params.Set("clientOid", clientOrderID)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	resp := struct {
+		Data []string `json:"cancelledOrderIds"`
+		Error
+	}{}
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelStopOrderEPL, http.MethodDelete, common.EncodeURLValues("/v1/stop-order/cancelOrderByClientOid", params), nil, &resp)
+}
+
 // CancelStopOrders used to cancel all order based upon the parameters passed
-func (ku *Kucoin) CancelStopOrders(ctx context.Context, symbol, tradeType, orderIDs string) ([]string, error) {
+func (ku *Kucoin) CancelStopOrders(ctx context.Context, symbol, tradeType string, orderIDs []string) ([]string, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1140,8 +1157,8 @@ func (ku *Kucoin) CancelStopOrders(ctx context.Context, symbol, tradeType, order
 	if tradeType != "" {
 		params.Set("tradeType", tradeType)
 	}
-	if orderIDs != "" {
-		params.Set("orderIds", orderIDs)
+	if len(orderIDs) > 0 {
+		params.Set("orderIds", strings.Join(orderIDs, ","))
 	}
 	resp := struct {
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
@@ -1153,7 +1170,7 @@ func (ku *Kucoin) CancelStopOrders(ctx context.Context, symbol, tradeType, order
 // GetStopOrder used to cancel single stop order previously placed
 func (ku *Kucoin) GetStopOrder(ctx context.Context, orderID string) (*StopOrder, error) {
 	if orderID == "" {
-		return nil, errors.New("orderID can not be empty")
+		return nil, order.ErrOrderIDNotSet
 	}
 	resp := struct {
 		StopOrder
@@ -1163,10 +1180,10 @@ func (ku *Kucoin) GetStopOrder(ctx context.Context, orderID string) (*StopOrder,
 }
 
 // ListStopOrders get all current untriggered stop orders
-func (ku *Kucoin) ListStopOrders(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) (*StopOrderListResponse, error) {
+func (ku *Kucoin) ListStopOrders(ctx context.Context, symbol, side, orderType, tradeType string, orderIDs []string, startAt, endAt time.Time, currentPage, pageSize int64) (*StopOrderListResponse, error) {
 	params := FillParams(symbol, side, orderType, tradeType, startAt, endAt)
-	if orderIDs != "" {
-		params.Set("orderIds", orderIDs)
+	if len(orderIDs) > 0 {
+		params.Set("orderIds", strings.Join(orderIDs, ","))
 	}
 	if currentPage != 0 {
 		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
@@ -1223,7 +1240,7 @@ func (ku *Kucoin) PlaceOCOOrder(ctx context.Context, arg *OCOOrderParams) (strin
 		return "", order.ErrPriceBelowMin
 	}
 	if arg.Size <= 0 {
-		return "", errInvalidSize
+		return "", order.ErrAmountBelowMin
 	}
 	if arg.StopPrice <= 0 {
 		return "", fmt.Errorf("%w stop price = %f", order.ErrPriceBelowMin, arg.StopPrice)
@@ -1232,7 +1249,7 @@ func (ku *Kucoin) PlaceOCOOrder(ctx context.Context, arg *OCOOrderParams) (strin
 		return "", fmt.Errorf("%w limit price = %f", order.ErrPriceBelowMin, arg.LimitPrice)
 	}
 	if arg.ClientOrderID == "" {
-		return "", errInvalidClientOrderID
+		return "", order.ErrClientOrderIDMustBeSet
 	}
 	resp := &struct {
 		OrderID string `json:"orderId"`
@@ -1857,7 +1874,7 @@ func (ku *Kucoin) GetUniversalTransfer(ctx context.Context, arg *UniversalTransf
 		return "", common.ErrNilPointer
 	}
 	if arg.ClientSuppliedOrderID == "" {
-		return "", errInvalidClientOrderID
+		return "", order.ErrClientOrderIDMustBeSet
 	}
 	if arg.Amount <= 0 {
 		return "", order.ErrAmountBelowMin
@@ -1913,7 +1930,7 @@ func (ku *Kucoin) TransferMainToSubAccount(ctx context.Context, clientOID, ccy, 
 // MakeInnerTransfer used to transfer funds between accounts internally
 func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, clientOID, ccy, from, to, amount, fromTag, toTag string) (string, error) {
 	if clientOID == "" {
-		return "", errors.New("clientOID can not be empty")
+		return "", order.ErrClientOrderIDMustBeSet
 	}
 	if ccy == "" {
 		return "", currency.ErrCurrencyPairEmpty
@@ -2644,4 +2661,23 @@ func (ku *Kucoin) GetInformationOnOffExchangeFundingAndLoans(ctx context.Context
 func (ku *Kucoin) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context.Context) ([]VIPLendingAccounts, error) {
 	var resp []VIPLendingAccounts
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, vipLendingEPL, http.MethodGet, "/v1/otc-loan/accounts", nil, &resp)
+}
+
+// GetAffilateUserRebateInformation allows getting affiliate user rebate information.
+func (ku *Kucoin) GetAffilateUserRebateInformation(ctx context.Context, date time.Time, maxCount int64, offset string) ([]UserRebateInfo, error) {
+	if date.IsZero() {
+		return nil, errors.New("query date is required")
+	}
+	if offset == "" {
+		return nil, errors.New("offset is required")
+	}
+	params := url.Values{}
+	formattedDate := date.Format("20060102")
+	params.Set("date", formattedDate)
+	if maxCount > 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	params.Set("offset", offset)
+	var resp []UserRebateInfo
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, affilateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
 }

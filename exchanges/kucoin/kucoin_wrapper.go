@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -573,7 +574,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 	switch a {
 	case asset.Spot:
 		var withdrawals *HistoricalDepositWithdrawalResponse
-		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{})
+		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.Upper().String(), "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -999,25 +1000,42 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if ord.OrderID == "" && ord.ClientOrderID == "" {
 			return fmt.Errorf("%w, either clientOrderID or OrderID is required", order.ErrOrderIDNotSet)
 		}
-		if ku.HFMargin && ord.AssetType == asset.Margin {
+		switch ord.Type {
+		case order.OCO:
 			if ord.OrderID != "" {
-				_, err = ku.CancelMarginHFOrderByOrderID(ctx, ord.OrderID, ord.Pair.String())
+				_, err = ku.CancelOCOOrderByOrderID(ctx, ord.OrderID)
+			} else if ord.ClientOrderID != "" {
+				_, err = ku.CancelOCOOrderByClientOrderID(ctx, ord.ClientOrderID)
+			}
+		case order.Stop, order.StopLimit:
+			if ord.OrderID != "" {
+				_, err = ku.CancelStopOrder(ctx, ord.OrderID)
 			} else {
-				_, err = ku.CancelMarginHFOrderByClientOrderID(ctx, ord.ClientOrderID, ord.Pair.String())
+				_, err = ku.CancelStopOrderByClientOrderID(ctx, ord.ClientOrderID, ord.Pair.String())
 			}
-			return err
-		} else if ku.HFSpot && ord.AssetType == asset.Spot {
-			orderID := ord.OrderID
-			if orderID == "" {
-				orderID = ord.ClientOrderID
+		default:
+			// If the HFMargin(High Frequency margin is enabled, the request will be a High frequency order)
+			if ku.HFMargin && ord.AssetType == asset.Margin {
+				if ord.OrderID != "" {
+					_, err = ku.CancelMarginHFOrderByOrderID(ctx, ord.OrderID, ord.Pair.String())
+				} else {
+					_, err = ku.CancelMarginHFOrderByClientOrderID(ctx, ord.ClientOrderID, ord.Pair.String())
+				}
+				return err
+				// If the HFSpot(High Frequency spot is enabled, the request will be a High frequency order)
+			} else if ku.HFSpot && ord.AssetType == asset.Spot {
+				orderID := ord.OrderID
+				if orderID == "" {
+					orderID = ord.ClientOrderID
+				}
+				_, err = ku.CancelHFOrder(ctx, orderID, ord.Pair.String())
+				return err
 			}
-			_, err = ku.CancelHFOrder(ctx, orderID, ord.Pair.String())
-			return err
-		}
-		if ord.OrderID != "" {
-			_, err = ku.CancelSingleOrder(ctx, ord.OrderID)
-		} else {
-			_, err = ku.CancelOrderByClientOID(ctx, ord.ClientOrderID)
+			if ord.OrderID != "" {
+				_, err = ku.CancelSingleOrder(ctx, ord.OrderID)
+			} else {
+				_, err = ku.CancelOrderByClientOID(ctx, ord.ClientOrderID)
+			}
 		}
 		return err
 	case asset.Futures:
@@ -1025,6 +1043,8 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, ord.AssetType)
 	}
 	return nil
 }
@@ -1059,20 +1079,33 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	var values []string
 	switch orderCancellation.AssetType {
 	case asset.Margin, asset.Spot:
-		var result string
-		if ku.HFMargin && orderCancellation.AssetType == asset.Margin {
-			result, err = ku.CancelAllMarginHFOrdersBySymbol(ctx, pairString, orderCancellation.MarginType.String())
+		orderIDs := []string{}
+		if orderCancellation.OrderID != "" {
+			orderIDs = append(orderIDs, orderCancellation.OrderID)
+		}
+		if orderCancellation.ClientOrderID != "" {
+			orderIDs = append(orderIDs, orderCancellation.ClientOrderID)
+		}
+		switch orderCancellation.Type {
+		case order.OCO:
+			var response *OCOOrderCancellationResponse
+			response, err = ku.CancelOCOMultipleOrders(ctx, orderIDs, orderCancellation.Pair.String())
+			values = response.CancelledOrderIDs
 			if err != nil {
 				return order.CancelAllResponse{}, err
 			}
-			return order.CancelAllResponse{
-				Status: map[string]string{
-					result: "success",
-				},
-			}, nil
-		} else if ku.HFSpot && orderCancellation.AssetType == asset.Spot {
-			if pairString != "" {
-				result, err = ku.CancelAllHFOrdersBySymbol(ctx, pairString)
+		case order.Stop, order.StopLimit:
+			values, err = ku.CancelStopOrders(ctx,
+				orderCancellation.Pair.String(),
+				ku.AccountToTradeTypeString(orderCancellation.AssetType, MarginModeToString(orderCancellation.MarginType)),
+				orderIDs)
+			if err != nil {
+				return order.CancelAllResponse{}, err
+			}
+		default:
+			var result string
+			if ku.HFMargin && orderCancellation.AssetType == asset.Margin {
+				result, err = ku.CancelAllMarginHFOrdersBySymbol(ctx, pairString, orderCancellation.MarginType.String())
 				if err != nil {
 					return order.CancelAllResponse{}, err
 				}
@@ -1081,21 +1114,36 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 						result: "success",
 					},
 				}, nil
+			} else if ku.HFSpot && orderCancellation.AssetType == asset.Spot {
+				if pairString != "" {
+					result, err = ku.CancelAllHFOrdersBySymbol(ctx, pairString)
+					if err != nil {
+						return order.CancelAllResponse{}, err
+					}
+					return order.CancelAllResponse{
+						Status: map[string]string{
+							result: "success",
+						},
+					}, nil
+				}
+				var response *CancelAllHFOrdersResponse
+				response, err = ku.CancelAllHFOrders(ctx)
+				if err != nil {
+					return order.CancelAllResponse{}, err
+				}
+				var resp order.CancelAllResponse
+				resp.Status = map[string]string{}
+				for _, a := range response.SucceedSymbols {
+					resp.Status[a] = "success"
+				}
+				return resp, nil
 			}
-			var response *CancelAllHFOrdersResponse
-			response, err = ku.CancelAllHFOrders(ctx)
+			tradeType := ku.AccountToTradeTypeString(orderCancellation.AssetType, MarginModeToString(orderCancellation.MarginType))
+			values, err = ku.CancelAllOpenOrders(ctx, pairString, tradeType)
 			if err != nil {
 				return order.CancelAllResponse{}, err
 			}
-			var resp order.CancelAllResponse
-			resp.Status = map[string]string{}
-			for _, a := range response.SucceedSymbols {
-				resp.Status[a] = "success"
-			}
-			return resp, nil
 		}
-		tradeType := ku.AccountToTradeTypeString(orderCancellation.AssetType, MarginModeToString(orderCancellation.MarginType))
-		values, err = ku.CancelAllOpenOrders(ctx, pairString, tradeType)
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
@@ -1344,6 +1392,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if err != nil {
 		return nil, err
 	}
+	getOrdersRequest.Pairs = getOrdersRequest.Pairs.Format(format)
 	var pair string
 	var orders []order.Detail
 	switch getOrdersRequest.AssetType {
@@ -1418,57 +1467,151 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			})
 		}
 	case asset.Spot, asset.Margin:
+		var singlePair currency.Pair
 		if len(getOrdersRequest.Pairs) == 1 {
-			pair = format.Format(getOrdersRequest.Pairs[0])
+			singlePair = getOrdersRequest.Pairs[0]
 		}
-		sideString, err := ku.OrderSideString(getOrdersRequest.Side)
-		if err != nil {
-			return nil, err
-		}
-		oType, err := OrderTypeToString(getOrdersRequest.Type)
-		if err != nil {
-			return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
-		}
-		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, oType, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-		if err != nil {
-			return nil, err
-		}
-		for x := range spotOrders.Items {
-			if !spotOrders.Items[x].IsActive {
-				continue
-			}
-			var dPair currency.Pair
-			var isEnabled bool
-			dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(spotOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
+		switch getOrdersRequest.Type {
+		case order.OCO:
+			response, err := ku.GetOCOOrderList(ctx, "", "", singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
 			if err != nil {
 				return nil, err
 			}
-			if !isEnabled {
-				continue
+			for a := range response.Items {
+				if response.Items[a].Status != "NEW" {
+					continue
+				}
+				cp, err := currency.NewPairFromString(response.Items[a].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				if !singlePair.IsEmpty() && cp.Equal(singlePair) {
+					continue
+				} else if len(getOrdersRequest.Pairs) > 1 {
+					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, cp) {
+						continue
+					}
+				}
+				status, err := order.StringToOrderStatus(response.Items[a].Status)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					OrderID:       response.Items[a].OrderID,
+					ClientOrderID: response.Items[a].ClientOid,
+					Exchange:      ku.Name,
+					LastUpdated:   response.Items[a].OrderTime.Time(),
+					Type:          order.OCO,
+					Pair:          cp,
+					Status:        status,
+				})
 			}
-			if len(getOrdersRequest.Pairs) > 0 && !getOrdersRequest.Pairs.Contains(dPair, true) {
-				continue
-			}
-			side, err := order.StringToOrderSide(spotOrders.Items[x].Side)
+		case order.Stop, order.StopLimit, order.StopMarket:
+			response, err := ku.ListStopOrders(ctx, singlePair.String(), getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "", []string{getOrdersRequest.FromOrderID}, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spotOrders.Items[x].TradeType)
+			for a := range response.Items {
+				if response.Items[a].Status != "New" {
+					continue
+				}
+				var dPair currency.Pair
+				var enabled bool
+				dPair, enabled, err = ku.MatchSymbolCheckEnabled(response.Items[a].Symbol, getOrdersRequest.AssetType, false)
+				if err != nil {
+					return nil, err
+				}
+				if !enabled {
+					continue
+				}
+				if !singlePair.IsEmpty() && dPair.Equal(singlePair) {
+					continue
+				} else if len(getOrdersRequest.Pairs) > 1 {
+					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, dPair) {
+						continue
+					}
+				}
+				side, err := order.StringToOrderSide(response.Items[a].Side)
+				if err != nil {
+					return nil, err
+				}
+				status, err := order.StringToOrderStatus(response.Items[a].Status)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					OrderID:        response.Items[a].ID,
+					ClientOrderID:  response.Items[a].ClientOID,
+					Amount:         response.Items[a].Size,
+					ContractAmount: response.Items[a].Size,
+					// RemainingAmount: response.Items[a].Size - response.Items[a].FilledSize,
+					// ExecutedAmount:  response.Items[a].,
+					Exchange:    ku.Name,
+					Date:        response.Items[a].CreatedAt.Time(),
+					LastUpdated: response.Items[a].OrderTime.Time(),
+					Price:       response.Items[a].Price,
+					Side:        side,
+					Type:        order.Stop,
+					Pair:        dPair,
+					PostOnly:    response.Items[a].PostOnly,
+					Status:      status,
+					AssetType:   getOrdersRequest.AssetType,
+					HiddenOrder: response.Items[a].Hidden,
+				})
+			}
+		default:
+			if len(getOrdersRequest.Pairs) == 1 {
+				pair = format.Format(getOrdersRequest.Pairs[0])
+			}
+			sideString, err := ku.OrderSideString(getOrdersRequest.Side)
 			if err != nil {
 				return nil, err
 			}
-			orders = append(orders, order.Detail{
-				OrderID:         spotOrders.Items[x].ID,
-				Amount:          spotOrders.Items[x].Size,
-				RemainingAmount: spotOrders.Items[x].Size - spotOrders.Items[x].DealSize,
-				ExecutedAmount:  spotOrders.Items[x].DealSize,
-				Exchange:        ku.Name,
-				Date:            spotOrders.Items[x].CreatedAt.Time(),
-				Price:           spotOrders.Items[x].Price,
-				Side:            side,
-				Type:            oType,
-				Pair:            dPair,
-			})
+			oType, err := OrderTypeToString(getOrdersRequest.Type)
+			if err != nil {
+				return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
+			}
+			spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, oType, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+			if err != nil {
+				return nil, err
+			}
+			for x := range spotOrders.Items {
+				if !spotOrders.Items[x].IsActive {
+					continue
+				}
+				var dPair currency.Pair
+				var isEnabled bool
+				dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(spotOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
+				if err != nil {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				if len(getOrdersRequest.Pairs) > 0 && !getOrdersRequest.Pairs.Contains(dPair, true) {
+					continue
+				}
+				side, err := order.StringToOrderSide(spotOrders.Items[x].Side)
+				if err != nil {
+					return nil, err
+				}
+				oType, err := order.StringToOrderType(spotOrders.Items[x].TradeType)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					OrderID:         spotOrders.Items[x].ID,
+					Amount:          spotOrders.Items[x].Size,
+					RemainingAmount: spotOrders.Items[x].Size - spotOrders.Items[x].DealSize,
+					ExecutedAmount:  spotOrders.Items[x].DealSize,
+					Exchange:        ku.Name,
+					Date:            spotOrders.Items[x].CreatedAt.Time(),
+					Price:           spotOrders.Items[x].Price,
+					Side:            side,
+					Type:            oType,
+					Pair:            dPair,
+				})
+			}
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
@@ -1559,56 +1702,153 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			orders[i].InferCostsAndTimes()
 		}
 	case asset.Spot, asset.Margin:
-		var responseOrders *OrdersListResponse
-		var newOrders *OrdersListResponse
-		if len(getOrdersRequest.Pairs) == 0 {
-			responseOrders, err = ku.ListOrders(ctx, "", "", sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			for x := range getOrdersRequest.Pairs {
-				newOrders, err = ku.ListOrders(ctx, "", getOrdersRequest.Pairs[x].String(), sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-				if err != nil {
-					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
-				}
-				if responseOrders == nil {
-					responseOrders = newOrders
-				} else {
-					responseOrders.Items = append(responseOrders.Items, newOrders.Items...)
-				}
-			}
+		var singlePair currency.Pair
+		if len(getOrdersRequest.Pairs) == 1 {
+			singlePair = getOrdersRequest.Pairs[0]
 		}
-		orders = make([]order.Detail, len(responseOrders.Items))
-		for i := range orders {
-			orderSide, err = order.StringToOrderSide(responseOrders.Items[i].Side)
+		switch getOrdersRequest.Type {
+		case order.OCO:
+			var response *OCOOrders
+			response, err = ku.GetOCOOrderList(ctx, "", "", singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
 			if err != nil {
 				return nil, err
 			}
-			var orderStatus order.Status
-			pair, err = currency.NewPairFromString(responseOrders.Items[i].Symbol)
+			var cp currency.Pair
+			for a := range response.Items {
+				cp, err = currency.NewPairFromString(response.Items[a].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				if !singlePair.IsEmpty() && cp.Equal(singlePair) {
+					continue
+				} else if len(getOrdersRequest.Pairs) > 1 {
+					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, cp) {
+						continue
+					}
+				}
+				var status order.Status
+				status, err = order.StringToOrderStatus(response.Items[a].Status)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					OrderID:       response.Items[a].OrderID,
+					ClientOrderID: response.Items[a].ClientOid,
+					Exchange:      ku.Name,
+					LastUpdated:   response.Items[a].OrderTime.Time(),
+					Type:          order.OCO,
+					Pair:          cp,
+					Status:        status,
+				})
+			}
+		case order.Stop, order.StopLimit, order.StopMarket:
+			var response *StopOrderListResponse
+			response, err = ku.ListStopOrders(ctx, singlePair.String(), getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "", []string{getOrdersRequest.FromOrderID}, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 			if err != nil {
 				return nil, err
 			}
-			var oType order.Type
-			oType, err = order.StringToOrderType(responseOrders.Items[i].Type)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
+			for a := range response.Items {
+				var dPair currency.Pair
+				var enabled bool
+				dPair, enabled, err = ku.MatchSymbolCheckEnabled(response.Items[a].Symbol, getOrdersRequest.AssetType, false)
+				if err != nil {
+					return nil, err
+				}
+				if !enabled {
+					continue
+				}
+				if !singlePair.IsEmpty() && dPair.Equal(singlePair) {
+					continue
+				} else if len(getOrdersRequest.Pairs) > 1 {
+					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, dPair) {
+						continue
+					}
+				}
+				var (
+					side   order.Side
+					status order.Status
+				)
+				side, err = order.StringToOrderSide(response.Items[a].Side)
+				if err != nil {
+					return nil, err
+				}
+				status, err = order.StringToOrderStatus(response.Items[a].Status)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					OrderID:        response.Items[a].ID,
+					ClientOrderID:  response.Items[a].ClientOID,
+					Amount:         response.Items[a].Size,
+					ContractAmount: response.Items[a].Size,
+					// RemainingAmount: response.Items[a].Size - response.Items[a].FilledSize,
+					// ExecutedAmount:  response.Items[a].,
+					TriggerPrice: response.Items[a].StopPrice,
+					Exchange:     ku.Name,
+					Date:         response.Items[a].CreatedAt.Time(),
+					LastUpdated:  response.Items[a].OrderTime.Time(),
+					Price:        response.Items[a].Price,
+					Side:         side,
+					Type:         order.Stop,
+					Pair:         dPair,
+					PostOnly:     response.Items[a].PostOnly,
+					Status:       status,
+					AssetType:    getOrdersRequest.AssetType,
+					HiddenOrder:  response.Items[a].Hidden,
+				})
 			}
-			orders[i] = order.Detail{
-				Price:           responseOrders.Items[i].Price,
-				Amount:          responseOrders.Items[i].Size,
-				ExecutedAmount:  responseOrders.Items[i].DealSize,
-				RemainingAmount: responseOrders.Items[i].Size - responseOrders.Items[i].DealSize,
-				Date:            responseOrders.Items[i].CreatedAt.Time(),
-				Exchange:        ku.Name,
-				OrderID:         responseOrders.Items[i].ID,
-				Side:            orderSide,
-				Status:          orderStatus,
-				Type:            oType,
-				Pair:            pair,
+		default:
+			var responseOrders *OrdersListResponse
+			var newOrders *OrdersListResponse
+			if len(getOrdersRequest.Pairs) == 0 {
+				responseOrders, err = ku.ListOrders(ctx, "", "", sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				for x := range getOrdersRequest.Pairs {
+					newOrders, err = ku.ListOrders(ctx, "", getOrdersRequest.Pairs[x].String(), sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+					if err != nil {
+						return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
+					}
+					if responseOrders == nil {
+						responseOrders = newOrders
+					} else {
+						responseOrders.Items = append(responseOrders.Items, newOrders.Items...)
+					}
+				}
 			}
-			orders[i].InferCostsAndTimes()
+			orders = make([]order.Detail, len(responseOrders.Items))
+			for i := range orders {
+				orderSide, err = order.StringToOrderSide(responseOrders.Items[i].Side)
+				if err != nil {
+					return nil, err
+				}
+				var orderStatus order.Status
+				pair, err = currency.NewPairFromString(responseOrders.Items[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				var oType order.Type
+				oType, err = order.StringToOrderType(responseOrders.Items[i].Type)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
+				}
+				orders[i] = order.Detail{
+					Price:           responseOrders.Items[i].Price,
+					Amount:          responseOrders.Items[i].Size,
+					ExecutedAmount:  responseOrders.Items[i].DealSize,
+					RemainingAmount: responseOrders.Items[i].Size - responseOrders.Items[i].DealSize,
+					Date:            responseOrders.Items[i].CreatedAt.Time(),
+					Exchange:        ku.Name,
+					OrderID:         responseOrders.Items[i].ID,
+					Side:            orderSide,
+					Status:          orderStatus,
+					Type:            oType,
+					Pair:            pair,
+				}
+				orders[i].InferCostsAndTimes()
+			}
 		}
 	}
 	return getOrdersRequest.Filter(ku.Name, orders), nil

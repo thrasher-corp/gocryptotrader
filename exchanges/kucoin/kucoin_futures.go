@@ -375,7 +375,7 @@ func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) err
 		return errInvalidLeverage
 	}
 	if arg.ClientOrderID == "" {
-		return errInvalidClientOrderID
+		return order.ErrClientOrderIDMustBeSet
 	}
 	if arg.Side == "" {
 		return fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
@@ -388,23 +388,23 @@ func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) err
 			return errInvalidStopPriceType
 		}
 		if arg.StopPrice <= 0 {
-			return fmt.Errorf("%w, stopPrice is required", errInvalidPrice)
+			return fmt.Errorf("%w, stopPrice is required", order.ErrPriceBelowMin)
 		}
 	}
 	switch arg.OrderType {
 	case "limit", "":
 		if arg.Price <= 0 {
-			return fmt.Errorf("%w %f", errInvalidPrice, arg.Price)
+			return fmt.Errorf("%w %f", order.ErrPriceBelowMin, arg.Price)
 		}
 		if arg.Size <= 0 {
-			return fmt.Errorf("%w, must be non-zero positive value", errInvalidSize)
+			return fmt.Errorf("%w, must be non-zero positive value", order.ErrAmountBelowMin)
 		}
 		if arg.VisibleSize < 0 {
-			return fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
+			return fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
 		}
 	case "market":
 		if arg.Size <= 0 {
-			return fmt.Errorf("%w, market size must be > 0", errInvalidSize)
+			return fmt.Errorf("%w, market size must be > 0", order.ErrAmountBelowMin)
 		}
 	default:
 		return fmt.Errorf("%w, order type= %s", order.ErrTypeIsInvalid, arg.OrderType)
@@ -550,7 +550,7 @@ func (ku *Kucoin) GetFuturesOrderDetails(ctx context.Context, orderID, clientOrd
 // GetFuturesOrderDetailsByClientOrderID gets single order details by client ID
 func (ku *Kucoin) GetFuturesOrderDetailsByClientOrderID(ctx context.Context, clientOrderID string) (*FuturesOrder, error) {
 	if clientOrderID == "" {
-		return nil, fmt.Errorf("%w empty clientOid", errInvalidClientOrderID)
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	var resp *FuturesOrder
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresOrderDetailsByClientOrderIDEPL, http.MethodGet, "/v1/orders/byClientOid?clientOid="+clientOrderID, nil, &resp)

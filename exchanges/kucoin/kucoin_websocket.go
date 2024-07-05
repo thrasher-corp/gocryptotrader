@@ -34,7 +34,7 @@ const (
 	publicBullets  = "/v1/bullet-public"
 	privateBullets = "/v1/bullet-private"
 
-	// spot channels
+	// Spot channels
 	marketAllTickersChannel         = "/market/ticker:all"
 	marketTickerChannel             = "/market/ticker:%s"            // /market/ticker:{symbol},{symbol}...
 	marketSymbolSnapshotChannel     = "/market/snapshot:%s"          // /market/snapshot:{symbol}
@@ -54,7 +54,7 @@ const (
 	marginLoanChannel         = "/margin/loan:%s" // /margin/loan:{currency}
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
 
-	// futures channels
+	// Futures channels
 	futuresTickerV2Channel                       = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
 	futuresTickerChannel                         = "/contractMarket/ticker:%s"        // /contractMarket/ticker:{symbol}
 	futuresOrderbookLevel2Channel                = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
