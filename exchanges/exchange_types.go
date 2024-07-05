@@ -154,6 +154,7 @@ type Features struct {
 	Enabled              FeaturesEnabled
 	Subscriptions        subscription.List
 	CurrencyTranslations currency.Translations
+	TradingRequirements  protocol.TradingRequirements
 }
 
 // FeaturesEnabled stores the exchange enabled features

@@ -58,6 +58,10 @@ func (g *Gateio) SetDefaults() {
 		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
 			currency.NewCode("MBABYDOGE"): currency.BABYDOGE,
 		}),
+		TradingRequirements: protocol.TradingRequirements{
+			SpotMarketOrderAmountPurchaseQuotationOnly: true,
+			SpotMarketOrderAmountSellBaseOnly:          true,
+		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -987,7 +991,7 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(g.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -1011,11 +1015,20 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
+
+		// When doing spot market orders when purchasing base currency, the
+		// quote currency amount is used. When selling the base currency the
+		// base currency amount is used.
+		tradingAmount := s.Amount
+		if tradingAmount == 0 && s.Type == order.Market {
+			tradingAmount = s.QuoteAmount
+		}
+
 		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
 			Side:         s.Side.Lower(),
 			Type:         s.Type.Lower(),
 			Account:      g.assetTypeToString(s.AssetType),
-			Amount:       types.Number(s.Amount),
+			Amount:       types.Number(tradingAmount),
 			Price:        types.Number(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,

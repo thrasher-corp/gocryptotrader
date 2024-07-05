@@ -33,6 +33,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+type assetPairFmt struct {
+	asset  asset.Item
+	cfgFmt *currency.PairFormat
+	reqFmt *currency.PairFormat
+}
+
+var (
+	underscoreFmt = &currency.PairFormat{Uppercase: true, Delimiter: "_"}
+	dashFmt       = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	plainFmt      = &currency.PairFormat{Uppercase: true}
+	assetPairFmts = []assetPairFmt{
+		{asset.Spot, underscoreFmt, plainFmt},
+		{asset.USDTMarginedFutures, underscoreFmt, plainFmt},
+		{asset.CoinMarginedFutures, underscoreFmt, plainFmt},
+		{asset.USDCMarginedFutures, dashFmt, plainFmt},
+		{asset.Options, dashFmt, dashFmt},
+	}
+)
+
 // SetDefaults sets the basic defaults for Bybit
 func (by *Bybit) SetDefaults() {
 	by.Name = "Bybit"
@@ -41,55 +60,19 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresKey = true
 	by.API.CredentialsValidator.RequiresSecret = true
 
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "_"}
-	requestFormat := &currency.PairFormat{Uppercase: true}
-	spotPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err := by.StoreAssetPairFormat(asset.Spot, spotPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
-	}
-	usdtMarginedFuturesPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtMarginedFuturesPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.USDTMarginedFutures, err)
-	}
-	usdcMarginedFutures := currency.PairStore{RequestFormat: requestFormat,
-		ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}}
-	err = by.StoreAssetPairFormat(asset.USDCMarginedFutures, usdcMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.USDCMarginedFutures, err)
-	}
-	coinMarginedFutures := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, coinMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.CoinMarginedFutures, err)
-	}
-	optionPairStore := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	}
-	err = by.StoreAssetPairFormat(asset.Options, optionPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Options, err)
+	for _, n := range assetPairFmts {
+		ps := currency.PairStore{RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
+		if err := by.StoreAssetPairFormat(n.asset, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%v %v", n.asset, err)
+		}
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.DisableAssetWebsocketSupport(asset.USDCMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
+		if err := by.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	by.Features = exchange.Features{
 		CurrencyTranslations: currency.NewTranslations(
 			map[currency.Code]currency.Code{
@@ -202,14 +185,8 @@ func (by *Bybit) SetDefaults() {
 		},
 	}
 
-	by.Requester, err = request.New(by.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()))
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	by.API.Endpoints = by.NewEndpoints()
-	err = by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err := by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         bybitAPIURL,
 		exchange.RestCoinMargined: bybitAPIURL,
 		exchange.RestUSDTMargined: bybitAPIURL,
@@ -218,6 +195,13 @@ func (by *Bybit) SetDefaults() {
 		exchange.WebsocketSpot:    spotPublic,
 	})
 	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	if by.Requester, err = request.New(by.Name,
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(GetRateLimit()),
+	); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -820,7 +804,7 @@ func orderTypeToString(oType order.Type) string {
 
 // SubmitOrder submits a new order
 func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(by.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

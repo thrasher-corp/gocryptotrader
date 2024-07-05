@@ -72,6 +72,9 @@ func (ku *Kucoin) SetDefaults() {
 			currency.USDM:  currency.USD,
 			currency.USDCM: currency.USDC,
 		}),
+		TradingRequirements: protocol.TradingRequirements{
+			ClientOrderID: true,
+		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -679,7 +682,7 @@ func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(ku.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
