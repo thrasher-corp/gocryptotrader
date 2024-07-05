@@ -63,6 +63,11 @@ func (ok *Okx) SetDefaults() {
 
 	// Fill out the capabilities/features that the exchange supports
 	ok.Features = exchange.Features{
+		Translation: currency.NewTranslations(map[currency.Code]currency.Code{
+			currency.NewCode("USDT-SWAP"): currency.USDT,
+			currency.NewCode("USD-SWAP"):  currency.USD,
+			currency.NewCode("USDC-SWAP"): currency.USDC,
+		}),
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
 			Websocket:           true,
@@ -518,7 +523,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	for i := range accountBalances {
 		for j := range accountBalances[i].Details {
 			currencyBalances = append(currencyBalances, account.Balance{
-				Currency: currency.NewCode(accountBalances[i].Details[j].Currency),
+				Currency: accountBalances[i].Details[j].Currency,
 				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
 				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
 				Free:     accountBalances[i].Details[j].AvailableBalance.Float64(),
@@ -1848,7 +1853,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 	)
 
 	for i := range acc[0].Details {
-		if acc[0].Details[i].Currency != positionSummary.Currency {
+		if !acc[0].Details[i].Currency.Equal(positionSummary.Currency) {
 			continue
 		}
 		freeCollateral = acc[0].Details[i].AvailableBalance.Decimal()
@@ -1877,7 +1882,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		Asset:           req.Asset,
 		MarginType:      marginMode,
 		CollateralMode:  collateralMode,
-		Currency:        currency.NewCode(positionSummary.Currency),
+		Currency:        positionSummary.Currency,
 		AvailableEquity: availableEquity,
 		CashBalance:     cashBalance,
 		DiscountEquity:  discountEquity,
