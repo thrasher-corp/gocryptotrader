@@ -530,7 +530,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	var submitOrderResponse order.SubmitResponse
 	var timeInForce RequestParamsTimeForceType
 	var sideType string
-	err := s.Validate()
+	err := s.Validate(bi.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
