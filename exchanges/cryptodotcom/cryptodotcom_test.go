@@ -216,7 +216,7 @@ func TestWsRetriveAccountSummary(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
+	arg := &CreateOrderParam{Symbol: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	result, err := cr.CreateOrder(context.Background(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -225,7 +225,7 @@ func TestCreateOrder(t *testing.T) {
 func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
+	arg := &CreateOrderParam{Symbol: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	result, err := cr.WsPlaceOrder(arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -316,7 +316,7 @@ func TestCreateOrderList(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	result, err := cr.CreateOrderList(context.Background(), "LIST", []CreateOrderParam{
 		{
-			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+			Symbol: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
 		}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -326,7 +326,7 @@ func TestWsCreateOrderList(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	result, err := cr.WsCreateOrderList("LIST", []CreateOrderParam{
 		{
-			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+			Symbol: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
 		}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -744,13 +744,13 @@ func TestWsSetCancelOnDisconnect(t *testing.T) {
 
 func TestGetCreateParamMap(t *testing.T) {
 	t.Parallel()
-	arg := &CreateOrderParam{InstrumentName: "", OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
+	arg := &CreateOrderParam{Symbol: "", OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	_, err := arg.getCreateParamMap()
-	require.ErrorIs(t, err, errEmptyInstrumentName)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	var newone *CreateOrderParam
 	_, err = newone.getCreateParamMap()
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	arg.InstrumentName = "BTC_USDT"
+	arg.Symbol = "BTC_USDT"
 	_, err = arg.getCreateParamMap()
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Buy

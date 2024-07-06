@@ -7,16 +7,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
-	errEmptyInstrumentName           = errors.New("instrument name is required")
 	errInvalidOrderCancellationScope = errors.New("invalid order cancellation scope, only ACCOUNT or CONNECTION is supported")
-	errInvalidCurrency               = errors.New("invalid currency")
-	errInvalidAmount                 = errors.New("amount has to be greater than zero")
-	errNoArgumentPassed              = errors.New("no argument passed")
 	errInvalidResponseFromServer     = errors.New("invalid response from server")
 	errInvalidQuantity               = errors.New("quantity must be non-zero positive decimal value for order")
 	errTriggerPriceRequired          = errors.New("trigger price is required")
@@ -321,24 +318,24 @@ type PersonalOrdersResponse struct {
 
 // CreateOrderParam represents a create order request parameter.
 type CreateOrderParam struct {
-	InstrumentName string     `json:"instrument_name"`
-	Side           order.Side `json:"side"`
-	OrderType      string     `json:"type"`
-	Price          float64    `json:"price"`
-	Quantity       float64    `json:"quantity"`
-	Notional       float64    `json:"notional"`
-	ClientOrderID  string     `json:"client_oid"`
-	TimeInForce    string     `json:"time_in_force"`
-	PostOnly       bool       `json:"exec_inst"`
-	TriggerPrice   float64    `json:"trigger_price"`
+	Symbol        string     `json:"instrument_name"`
+	Side          order.Side `json:"side"`
+	OrderType     string     `json:"type"`
+	Price         float64    `json:"price"`
+	Quantity      float64    `json:"quantity"`
+	Notional      float64    `json:"notional"`
+	ClientOrderID string     `json:"client_oid"`
+	TimeInForce   string     `json:"time_in_force"`
+	PostOnly      bool       `json:"exec_inst"`
+	TriggerPrice  float64    `json:"trigger_price"`
 }
 
 func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%w, CreateOrderParam can not be nil", common.ErrNilPointer)
 	}
-	if arg.InstrumentName == "" {
-		return nil, errEmptyInstrumentName
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.Side != order.Sell && arg.Side != order.Buy {
 		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)
@@ -388,7 +385,7 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 		return nil, fmt.Errorf("unsupported order type: %v", arg.OrderType)
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = arg.InstrumentName
+	params["instrument_name"] = arg.Symbol
 	params["side"] = arg.Side.String()
 	params["type"] = arg.OrderType
 	params["price"] = arg.Price

@@ -689,7 +689,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(cr.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if !cr.SupportsAsset(s.AssetType) {
@@ -712,7 +712,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		notional = s.Amount
 	}
 	var ordersResp *CreateOrderResponse
-	arg := &CreateOrderParam{InstrumentName: format.Format(s.Pair), Side: s.Side, OrderType: orderTypeToString(s.Type), Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice}
+	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: orderTypeToString(s.Type), Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice}
 	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		ordersResp, err = cr.WsPlaceOrder(arg)
 	} else {

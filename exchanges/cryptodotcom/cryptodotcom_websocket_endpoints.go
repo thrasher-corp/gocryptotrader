@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -18,12 +19,12 @@ func (cr *Cryptodotcom) WsGetInstruments() (*InstrumentList, error) {
 }
 
 // WsRetriveTrades fetches the public trades for a particular instrument through the websocket stream.
-func (cr *Cryptodotcom) WsRetriveTrades(instrumentName string) (*TradesResponse, error) {
-	if instrumentName == "" {
-		return nil, errEmptyInstrumentName
+func (cr *Cryptodotcom) WsRetriveTrades(symbol string) (*TradesResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
+	params["instrument_name"] = symbol
 	var resp *TradesResponse
 	return resp, cr.SendWebsocketRequest(publicTrades, params, &resp, false)
 }
@@ -50,10 +51,10 @@ func (cr *Cryptodotcom) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope,
 // Withdrawal fees and minimum withdrawal amount can be found on the Fees & Limits page on the Exchange website.
 func (cr *Cryptodotcom) WsCreateWithdrawal(ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
 	if ccy.IsEmpty() {
-		return nil, errInvalidCurrency
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", errInvalidAmount, amount)
+		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountBelowMin, amount)
 	}
 	if address == "" {
 		return nil, errors.New("address is required")
@@ -92,15 +93,15 @@ func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderRespons
 }
 
 // WsCancelExistingOrder cancels and existing open order through the websocket connection
-func (cr *Cryptodotcom) WsCancelExistingOrder(instrumentName, orderID string) error {
-	if instrumentName == "" {
-		return errEmptyInstrumentName
+func (cr *Cryptodotcom) WsCancelExistingOrder(symbol, orderID string) error {
+	if symbol == "" {
+		return currency.ErrSymbolStringEmpty
 	}
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
+	params["instrument_name"] = symbol
 	params["order_id"] = orderID
 	return cr.SendWebsocketRequest(privateCancelOrder, params, nil, true)
 }
@@ -130,7 +131,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 // WsCancelOrderList cancel a list of orders on the Exchange through the websocket connection.
 func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersResponse, error) {
 	if len(args) == 0 {
-		return nil, errNoArgumentPassed
+		return nil, common.ErrNilPointer
 	}
 	cancelOrderList := []map[string]interface{}{}
 	for x := range args {
@@ -154,12 +155,12 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 
 // WsCancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Cryptodotcom) WsCancelAllPersonalOrders(instrumentName string) error {
-	if instrumentName == "" {
-		return errEmptyInstrumentName
+func (cr *Cryptodotcom) WsCancelAllPersonalOrders(symbol string) error {
+	if symbol == "" {
+		return currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
+	params["instrument_name"] = symbol
 	return cr.SendWebsocketRequest(privateCancelAllOrders, params, nil, true)
 }
 

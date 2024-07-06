@@ -100,8 +100,8 @@ func (cr *Cryptodotcom) GetInstruments(ctx context.Context) (*InstrumentList, er
 }
 
 // GetOrderbook retches the public order book for a particular instrument and depth.
-func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, instrumentName string, depth int64) (*OrderbookDetail, error) {
-	params, err := checkInstrumentName(instrumentName)
+func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, symbol string, depth int64) (*OrderbookDetail, error) {
+	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
 	}
@@ -112,18 +112,18 @@ func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, instrumentName string,
 	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicOrderbook, params), publicOrderbookRate, &resp)
 }
 
-func checkInstrumentName(instrumentName string) (url.Values, error) {
-	if instrumentName == "" {
-		return nil, errEmptyInstrumentName
+func checkInstrumentName(symbol string) (url.Values, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("instrument_name", instrumentName)
+	params.Set("instrument_name", symbol)
 	return params, nil
 }
 
 // GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
-func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName string, interval kline.Interval) (*CandlestickDetail, error) {
-	params, err := checkInstrumentName(instrumentName)
+func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, symbol string, interval kline.Interval) (*CandlestickDetail, error) {
+	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
 	}
@@ -135,18 +135,18 @@ func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName
 }
 
 // GetTickers fetches the public tickers for an instrument.
-func (cr *Cryptodotcom) GetTickers(ctx context.Context, instrumentName string) (*TickersResponse, error) {
+func (cr *Cryptodotcom) GetTickers(ctx context.Context, symbol string) (*TickersResponse, error) {
 	params := url.Values{}
-	if instrumentName != "" {
-		params.Set("instrument_name", instrumentName)
+	if symbol != "" {
+		params.Set("instrument_name", symbol)
 	}
 	var resp *TickersResponse
 	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTickers, params), publicTickerRate, &resp)
 }
 
 // GetTrades fetches the public trades for a particular instrument.
-func (cr *Cryptodotcom) GetTrades(ctx context.Context, instrumentName string) (*TradesResponse, error) {
-	params, err := checkInstrumentName(instrumentName)
+func (cr *Cryptodotcom) GetTrades(ctx context.Context, symbol string) (*TradesResponse, error) {
+	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
 	}
@@ -161,10 +161,10 @@ func (cr *Cryptodotcom) GetTrades(ctx context.Context, instrumentName string) (*
 // Withdrawal fees and minimum withdrawal amount can be found on the Fees & Limits page on the Exchange website.
 func (cr *Cryptodotcom) WithdrawFunds(ctx context.Context, ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
 	if ccy.IsEmpty() {
-		return nil, errInvalidCurrency
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", errInvalidAmount, amount)
+		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountBelowMin, amount)
 	}
 	if address == "" {
 		return nil, errors.New("address is required")
@@ -238,10 +238,10 @@ func (cr *Cryptodotcom) GetPersonalDepositAddress(ctx context.Context, ccy curre
 
 // CreateExportRequest creates a new export
 // requested_data possible values: SPOT_ORDER, SPOT_TRADE, MARGIN_ORDER, MARGIN_TRADE , OEX_ORDER, OEX_TRADE
-func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, instrumentName, clientRequestID string, startTime, endTime time.Time, requestedData []string) (*ExportRequestResponse, error) {
+func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, symbol, clientRequestID string, startTime, endTime time.Time, requestedData []string) (*ExportRequestResponse, error) {
 	params := make(map[string]interface{})
-	if instrumentName != "" {
-		params["instrument_names"] = instrumentName
+	if symbol != "" {
+		params["instrument_names"] = symbol
 	}
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
@@ -261,10 +261,10 @@ func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, instrumentName,
 }
 
 // GetExportRequests retrieves an export requests
-func (cr *Cryptodotcom) GetExportRequests(ctx context.Context, instrumentName string, startTime, endTime time.Time, requestedData []string, pageSize, page int64) (*ExportRequests, error) {
+func (cr *Cryptodotcom) GetExportRequests(ctx context.Context, symbol string, startTime, endTime time.Time, requestedData []string, pageSize, page int64) (*ExportRequests, error) {
 	params := make(map[string]interface{})
-	if instrumentName != "" {
-		params["instrument_names"] = instrumentName
+	if symbol != "" {
+		params["instrument_names"] = symbol
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -310,15 +310,15 @@ func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg *CreateOrderParam) 
 }
 
 // CancelExistingOrder cancels and existing open order.
-func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName, orderID string) error {
-	if instrumentName == "" {
-		return errEmptyInstrumentName
+func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, symbol, orderID string) error {
+	if symbol == "" {
+		return currency.ErrSymbolStringEmpty
 	}
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
+	params["instrument_name"] = symbol
 	params["order_id"] = orderID
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderRate, privateCancelOrder, params, nil)
 }
@@ -348,7 +348,7 @@ func (cr *Cryptodotcom) CreateOrderList(ctx context.Context, contingencyType str
 // CancelOrderList cancel a list of orders on the Exchange.
 func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderParam) (*CancelOrdersResponse, error) {
 	if len(args) == 0 {
-		return nil, errNoArgumentPassed
+		return nil, common.ErrNilPointer
 	}
 	cancelOrderList := make([]map[string]interface{}, 0, len(args))
 	for x := range args {
@@ -372,12 +372,12 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 
 // CancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, instrumentName string) error {
-	if instrumentName == "" {
-		return errEmptyInstrumentName
+func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, symbol string) error {
+	if symbol == "" {
+		return currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
+	params["instrument_name"] = symbol
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelAllOrdersRate, privateCancelAllOrders, params, nil)
 }
 
@@ -400,7 +400,7 @@ func (cr *Cryptodotcom) SubAccountTransfer(ctx context.Context, from, to string,
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return errInvalidAmount
+		return order.ErrAmountBelowMin
 	}
 	params := make(map[string]interface{})
 	params["from"] = from
@@ -411,10 +411,10 @@ func (cr *Cryptodotcom) SubAccountTransfer(ctx context.Context, from, to string,
 }
 
 // GetTransactions fetches recent transactions
-func (cr *Cryptodotcom) GetTransactions(ctx context.Context, instrumentName, journalType string, startTimestamp, endTimestamp time.Time, limit int64) (*TransactionResponse, error) {
+func (cr *Cryptodotcom) GetTransactions(ctx context.Context, symbol, journalType string, startTimestamp, endTimestamp time.Time, limit int64) (*TransactionResponse, error) {
 	params := make(map[string]interface{})
-	if instrumentName != "" {
-		params["instrument_name"] = instrumentName
+	if symbol != "" {
+		params["instrument_name"] = symbol
 	}
 	if journalType != "" {
 		params["journal_type"] = journalType
@@ -444,7 +444,7 @@ func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to s
 		return fmt.Errorf("%w Currency: %v", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
-		return errInvalidAmount
+		return order.ErrAmountBelowMin
 	}
 	params := make(map[string]interface{})
 	params["from"] = from
@@ -457,10 +457,10 @@ func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to s
 // GetPersonalOrderHistory gets the order history for a particular instrument
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
-func (cr *Cryptodotcom) GetPersonalOrderHistory(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (cr *Cryptodotcom) GetPersonalOrderHistory(ctx context.Context, symbol string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]interface{})
-	if instrumentName != "" {
-		params["instrument_name"] = instrumentName
+	if symbol != "" {
+		params["instrument_name"] = symbol
 	}
 	if !startTimestamp.IsZero() {
 		params["start_ts"] = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
@@ -479,10 +479,10 @@ func (cr *Cryptodotcom) GetPersonalOrderHistory(ctx context.Context, instrumentN
 }
 
 // GetPersonalOpenOrders retrieves all open orders of particular instrument.
-func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context, instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context, symbol string, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]interface{})
-	if instrumentName != "" {
-		params["instrument_name"] = instrumentName
+	if symbol != "" {
+		params["instrument_name"] = symbol
 	}
 	if pageSize > 0 {
 		params["page_size"] = pageSize
@@ -509,10 +509,10 @@ func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*Or
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
-func (cr *Cryptodotcom) GetPrivateTrades(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
+func (cr *Cryptodotcom) GetPrivateTrades(ctx context.Context, symbol string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
 	params := make(map[string]interface{})
-	if instrumentName != "" {
-		params["instrument_name"] = instrumentName
+	if symbol != "" {
+		params["instrument_name"] = symbol
 	}
 	if !startTimestamp.IsZero() {
 		params["start_ts"] = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
@@ -641,9 +641,9 @@ func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, currencyPair cur
 // Receive otc_book.{instrument_name} response
 // Send private/otc/create-order with price obtained from step 2.
 // If receive PENDING status, keep sending private/otc/get-trade-history till status FILLED or REJECTED
-func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, instrumentName, side, clientOrderID string, quantity, price float64, settleLater bool) (*OTCOrderResponse, error) {
-	if instrumentName == "" {
-		return nil, errEmptyInstrumentName
+func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, symbol, side, clientOrderID string, quantity, price float64, settleLater bool) (*OTCOrderResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	if quantity <= 0 {
 		return nil, fmt.Errorf("%w, 'quantity' is %f", order.ErrAmountBelowMin, quantity)
@@ -655,7 +655,7 @@ func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, instrumentName, side
 		return nil, fmt.Errorf("%w, side=%s", order.ErrSideIsInvalid, side)
 	}
 	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
+	params["instrument_name"] = symbol
 	params["quantity"] = quantity
 	params["price"] = price
 	params["side"] = side
