@@ -64,30 +64,8 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 // TODO: update
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
-	if sharedtestvalues.AreAPICredentialsSet(p) || mockTests {
-		// CryptocurrencyTradeFee Basic
-		result, err := p.GetFee(context.Background(), feeBuilder)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		// CryptocurrencyTradeFee High quantity
-		feeBuilder = setFeeBuilder()
-		feeBuilder.Amount = 1000
-		feeBuilder.PurchasePrice = 1000
-		result, err = p.GetFee(context.Background(), feeBuilder)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		// CryptocurrencyTradeFee Negative purchase price
-		feeBuilder = setFeeBuilder()
-		feeBuilder.PurchasePrice = -1000
-		result, err = p.GetFee(context.Background(), feeBuilder)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-	}
 	// CryptocurrencyWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	result, err := p.GetFee(context.Background(), feeBuilder)
 	require.NoError(t, err)
@@ -122,6 +100,28 @@ func TestGetFee(t *testing.T) {
 	result, err = p.GetFee(context.Background(), feeBuilder)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	// CryptocurrencyTradeFee Basic
+	feeBuilder = setFeeBuilder()
+	result, err = p.GetFee(context.Background(), feeBuilder)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// CryptocurrencyTradeFee High quantity
+	feeBuilder = setFeeBuilder()
+	feeBuilder.Amount = 1000
+	feeBuilder.PurchasePrice = 1000
+	result, err = p.GetFee(context.Background(), feeBuilder)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// CryptocurrencyTradeFee Negative purchase price
+	feeBuilder = setFeeBuilder()
+	feeBuilder.PurchasePrice = -1000
+	result, err = p.GetFee(context.Background(), feeBuilder)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }
 
 func TestGetActiveOrders(t *testing.T) {
