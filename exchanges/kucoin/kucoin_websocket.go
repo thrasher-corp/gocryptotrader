@@ -31,7 +31,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedFuturesSnapshotOrderbook map[string]bool
+var fetchedFuturesOrderbookMutex sync.Mutex
+var fetchedFuturesOrderbook map[string]bool
 
 const (
 	publicBullets  = "/v1/bullet-public"
@@ -103,7 +104,7 @@ func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
-	fetchedFuturesSnapshotOrderbook = map[string]bool{}
+	fetchedFuturesOrderbook = map[string]bool{}
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
@@ -330,27 +331,6 @@ func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
 	return nil
 }
 
-// ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
-func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
-	if fetchedFuturesSnapshotOrderbook[symbol] {
-		return nil
-	}
-	fetchedFuturesSnapshotOrderbook[symbol] = true
-	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	cp, err := enabledPairs.DeriveFrom(symbol)
-	if err != nil {
-		return err
-	}
-	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
-	if err != nil {
-		return err
-	}
-	return ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
-}
-
 func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 	resp := WsFuturesAvailableBalance{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
@@ -485,6 +465,29 @@ func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrume
 	resp.Symbol = instrument
 	ku.Websocket.DataHandler <- &resp
 	return nil
+}
+
+// ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
+func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
+	fetchedFuturesOrderbookMutex.Lock()
+	defer fetchedFuturesOrderbookMutex.Unlock()
+	if fetchedFuturesOrderbook[symbol] {
+		return nil
+	}
+	fetchedFuturesOrderbook[symbol] = true
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	cp, err := enabledPairs.DeriveFrom(symbol)
+	if err != nil {
+		return err
+	}
+	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	if err != nil {
+		return err
+	}
+	return ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
 }
 
 func (ku *Kucoin) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {

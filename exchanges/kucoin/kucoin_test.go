@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 
 	getFirstTradablePairOfAssets()
 	ku.setupOrderbookManager()
-	fetchedFuturesSnapshotOrderbook = map[string]bool{}
+	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
 }
