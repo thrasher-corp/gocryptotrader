@@ -2312,3 +2312,26 @@ type UserRebateInfo struct {
 	CashBack types.Number `json:"cashBack"`
 	Offset   string       `json:"offset"`
 }
+
+// MarginPairConfigs querying the configuration of cross margin trading pairs.
+type MarginPairConfigs struct {
+	Timestamp int64 `json:"timestamp"`
+	Items     []struct {
+		Symbol         string  `json:"symbol"`
+		Name           string  `json:"name"`
+		EnableTrading  bool    `json:"enableTrading"`
+		Market         string  `json:"market"`
+		BaseCurrency   string  `json:"baseCurrency"`
+		QuoteCurrency  string  `json:"quoteCurrency"`
+		BaseIncrement  float64 `json:"baseIncrement"`
+		BaseMinSize    float64 `json:"baseMinSize"`
+		QuoteIncrement float64 `json:"quoteIncrement"`
+		QuoteMinSize   float64 `json:"quoteMinSize"`
+		BaseMaxSize    float64 `json:"baseMaxSize"`
+		QuoteMaxSize   float64 `json:"quoteMaxSize"`
+		PriceIncrement float64 `json:"priceIncrement"`
+		FeeCurrency    string  `json:"feeCurrency"`
+		PriceLimitRate float64 `json:"priceLimitRate"`
+		MinFunds       float64 `json:"minFunds"`
+	} `json:"items"`
+}

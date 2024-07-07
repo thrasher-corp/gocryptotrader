@@ -2681,3 +2681,14 @@ func (ku *Kucoin) GetAffilateUserRebateInformation(ctx context.Context, date tim
 	var resp []UserRebateInfo
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, affilateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
 }
+
+// GetMarginPairsConfigurations allows querying the configuration of cross margin trading pairs.
+func (ku *Kucoin) GetMarginPairsConfigurations(ctx context.Context, symbol string) ([]MarginPairConfigs, error) {
+	params := url.Values{}
+	if symbol != "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params.Set("symbol", symbol)
+	var resp []MarginPairConfigs
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginPairsConfigurationEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/symbols", params), nil, &resp)
+}

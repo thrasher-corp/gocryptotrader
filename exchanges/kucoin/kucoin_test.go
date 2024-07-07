@@ -3250,6 +3250,13 @@ func TestGetAffilateUserRebateInformation(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetMarginPairsConfigurations(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetMarginPairsConfigurations(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
 func TestOrderSideString(t *testing.T) {
 	t.Parallel()
 	sideErrInput := []struct {
