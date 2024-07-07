@@ -210,8 +210,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return nil
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
-	switch {
-	case strings.HasPrefix(marketTickerChannel, topicInfo[0]):
+	switch topicInfo[0] {
+	case marketTickerChannel:
 		var instruments string
 		if topicInfo[1] == "all" {
 			instruments = resp.Subject
@@ -219,115 +219,77 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			instruments = topicInfo[1]
 		}
 		return ku.processTicker(resp.Data, instruments, topicInfo[0])
-	case strings.HasPrefix(marketSnapshotChannel, topicInfo[0]):
+	case marketSnapshotChannel:
 		return ku.processMarketSnapshot(resp.Data, topicInfo[0])
-	case strings.HasPrefix(marketOrderbookChannel, topicInfo[0]):
+	case marketOrderbookChannel:
 		return ku.processOrderbookWithDepth(respData, topicInfo[1], topicInfo[0])
-	case strings.HasPrefix(marketOrderbookDepth5Channel, topicInfo[0]),
-		strings.HasPrefix(marketOrderbookDepth50Channel, topicInfo[0]):
+	case marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
 		return ku.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
-	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
+	case marketCandlesChannel:
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
 			return errMalformedData
 		}
 		return ku.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1], topicInfo[0])
-	case strings.HasPrefix(marketMatchChannel, topicInfo[0]):
+	case marketMatchChannel:
 		return ku.processTradeData(resp.Data, topicInfo[1], topicInfo[0])
-	case strings.HasPrefix(indexPriceIndicatorChannel, topicInfo[0]):
+	case indexPriceIndicatorChannel, markPriceIndicatorChannel:
 		var response WsPriceIndicator
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
-		var response WsPriceIndicator
-		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(marginFundingbookChangeChannel, topicInfo[0]):
+	case marginFundingbookChangeChannel:
 		var response WsMarginFundingBook
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(privateSpotTradeOrders, topicInfo[0]):
+	case privateSpotTradeOrders:
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
-	case strings.HasPrefix(accountBalanceChannel, topicInfo[0]):
+	case accountBalanceChannel:
 		return ku.processAccountBalanceChange(resp.Data)
-	case strings.HasPrefix(marginPositionChannel, topicInfo[0]):
+	case marginPositionChannel:
 		if resp.Subject == "debt.ratio" {
 			var response WsDebtRatioChange
 			return ku.processData(resp.Data, &response)
 		}
 		var response WsPositionStatus
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(marginLoanChannel, topicInfo[0]) && resp.Subject == "order.done":
-		var response WsMarginTradeOrderDoneEvent
-		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(marginLoanChannel, topicInfo[0]):
-		return ku.processMarginLendingTradeOrderEvent(resp.Data)
-	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
-		return ku.processStopOrderEvent(resp.Data)
-	case strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
-		return ku.processFuturesTickerV2(resp.Data)
-	case strings.HasPrefix(futuresOrderbookChannel, topicInfo[0]):
-		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
-			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
-			var enabledPairs currency.Pairs
-			enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				return err
-			}
-			var cp currency.Pair
-			cp, err = enabledPairs.DeriveFrom(topicInfo[1])
-			if err != nil {
-				return err
-			}
-			var orderbooks *orderbook.Base
-			orderbooks, err = ku.FetchOrderbook(context.Background(), cp, asset.Futures)
-			if err != nil {
-				return err
-			}
-			err = ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
-			if err != nil {
-				return err
-			}
+	case marginLoanChannel:
+		if resp.Subject == "order.done" {
+			var response WsMarginTradeOrderDoneEvent
+			return ku.processData(resp.Data, &response)
+		} else {
+			return ku.processMarginLendingTradeOrderEvent(resp.Data)
 		}
-		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
-	case strings.HasPrefix(futuresExecutionDataChannel, topicInfo[0]):
+	case spotMarketAdvancedChannel:
+		return ku.processStopOrderEvent(resp.Data)
+	case futuresTickerChannel:
+		return ku.processFuturesTickerV2(resp.Data)
+	case futuresExecutionDataChannel:
 		var response WsFuturesExecutionData
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(futuresOrderbookDepth5Channel, topicInfo[0]),
-		strings.HasPrefix(futuresOrderbookDepth50Channel, topicInfo[0]):
-		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
-			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
-			var enabledPairs currency.Pairs
-			enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				return err
-			}
-			cp, err := enabledPairs.DeriveFrom(topicInfo[1])
-			if err != nil {
-				return err
-			}
-			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
-			if err != nil {
-				return err
-			}
-			err = ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
-			if err != nil {
-				return err
-			}
+	case futuresOrderbookChannel:
+		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
+			return err
 		}
-		return ku.processFuturesOrderbookLevel5(resp.Data, topicInfo[1])
-	case strings.HasPrefix(futuresContractMarketDataChannel, topicInfo[0]):
-		if resp.Subject == "mark.index.price" {
+		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
+	case futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
+		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
+			return err
+		}
+		return ku.processFuturesOrderbookSnapshot(resp.Data, topicInfo[1])
+	case futuresContractMarketDataChannel:
+		switch resp.Subject {
+		case "mark.index.price":
 			return ku.processFuturesMarkPriceAndIndexPrice(resp.Data, topicInfo[1])
-		} else if resp.Subject == "funding.rate" {
+		case "funding.rate":
 			return ku.processFuturesFundingData(resp.Data, topicInfo[1])
 		}
-	case strings.HasPrefix(futuresSystemAnnouncementChannel, topicInfo[0]):
+	case futuresSystemAnnouncementChannel:
 		return ku.processFuturesSystemAnnouncement(resp.Data, resp.Subject)
-	case strings.HasPrefix(futuresTrasactionStatisticsTimerEventChannel, topicInfo[0]):
+	case futuresTrasactionStatisticsTimerEventChannel:
 		return ku.processFuturesTransactionStatistics(resp.Data, topicInfo[1])
-	case strings.HasPrefix(futuresTradeOrderChannel, topicInfo[0]):
+	case futuresTradeOrderChannel:
 		return ku.processFuturesPrivateTradeOrders(resp.Data)
-	case strings.HasPrefix(futuresStopOrdersLifecycleEventChannel, topicInfo[0]):
+	case futuresStopOrdersLifecycleEventChannel:
 		return ku.processFuturesStopOrderLifecycleEvent(resp.Data)
-	case strings.HasPrefix(futuresAccountBalanceEventChannel, topicInfo[0]):
+	case futuresAccountBalanceEventChannel:
 		switch resp.Subject {
 		case "orderMargin.change":
 			var response WsFuturesOrderMarginEvent
@@ -338,15 +300,16 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			var response WsFuturesWithdrawalAmountAndTransferOutAmountEvent
 			return ku.processData(resp.Data, &response)
 		}
-	case strings.HasPrefix(futuresPositionChangeEventChannel, topicInfo[0]):
-		if resp.Subject == "position.change" {
+	case futuresPositionChangeEventChannel:
+		switch resp.Subject {
+		case "position.change":
 			if resp.ChannelType == "private" {
 				var response WsFuturesPosition
 				return ku.processData(resp.Data, &response)
 			}
 			var response WsFuturesMarkPricePositionChanges
 			return ku.processData(resp.Data, &response)
-		} else if resp.Subject == "position.settlement" {
+		case "position.settlement":
 			var response WsFuturesPositionFundingSettlement
 			return ku.processData(resp.Data, &response)
 		}
@@ -365,6 +328,27 @@ func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
 	}
 	ku.Websocket.DataHandler <- resp
 	return nil
+}
+
+// ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
+func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
+	if fetchedFuturesSnapshotOrderbook[symbol] {
+		return nil
+	}
+	fetchedFuturesSnapshotOrderbook[symbol] = true
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	cp, err := enabledPairs.DeriveFrom(symbol)
+	if err != nil {
+		return err
+	}
+	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	if err != nil {
+		return err
+	}
+	return ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
 }
 
 func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
@@ -503,7 +487,7 @@ func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrume
 	return nil
 }
 
-func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument string) error {
+func (ku *Kucoin) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
 	response := WsOrderbookLevel5Response{}
 	if err := json.Unmarshal(respData, &response); err != nil {
 		return err
