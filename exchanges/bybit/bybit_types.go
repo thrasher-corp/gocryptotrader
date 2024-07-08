@@ -94,6 +94,7 @@ type InstrumentInfo struct {
 		QuotePrecision      types.Number `json:"quotePrecision"`
 		MinOrderAmt         types.Number `json:"minOrderAmt"`
 		MaxOrderAmt         types.Number `json:"maxOrderAmt"`
+		MinNotionalValue    types.Number `json:"minNotionalValue"`
 	} `json:"lotSizeFilter"`
 	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
 	FundingInterval    int64  `json:"fundingInterval"`
@@ -164,9 +165,10 @@ type TickerData struct {
 	List     []TickerItem `json:"list"`
 }
 
-// TickerItem represents a ticker item detail.
+// TickerItem represents a ticker item detail
 type TickerItem struct {
 	Symbol                 string               `json:"symbol"`
+	TickDirection          string               `json:"tickDirection"`
 	LastPrice              types.Number         `json:"lastPrice"`
 	IndexPrice             types.Number         `json:"indexPrice"`
 	MarkPrice              types.Number         `json:"markPrice"`
@@ -193,6 +195,7 @@ type TickerItem struct {
 	Bid1Iv                 types.Number         `json:"bid1Iv"`
 	Ask1Iv                 types.Number         `json:"ask1Iv"`
 	MarkIv                 types.Number         `json:"markIv"`
+	MarkPriceIv            types.Number         `json:"markPriceIv"`
 	UnderlyingPrice        types.Number         `json:"underlyingPrice"`
 	TotalVolume            types.Number         `json:"totalVolume"`
 	TotalTurnover          types.Number         `json:"totalTurnover"`
@@ -201,6 +204,13 @@ type TickerItem struct {
 	Vega                   types.Number         `json:"vega"`
 	Theta                  types.Number         `json:"theta"`
 	Change24Hour           types.Number         `json:"change24h"`
+	UsdIndexPrice          types.Number         `json:"usdIndexPrice"`
+	BidPrice               types.Number         `json:"bidPrice"`
+	BidSize                types.Number         `json:"bidSize"`
+	BidIv                  types.Number         `json:"bidIv"`
+	AskPrice               types.Number         `json:"askPrice"`
+	AskSize                types.Number         `json:"askSize"`
+	AskIv                  types.Number         `json:"askIv"`
 }
 
 // FundingRateHistory represents a funding rate history for a category.
@@ -1786,72 +1796,6 @@ type WebsocketPublicTrades []struct {
 	BlockTrade           bool                 `json:"BT"`
 }
 
-// WsLinearTicker represents a linear ticker information.
-type WsLinearTicker struct {
-	Symbol            string               `json:"symbol"`
-	TickDirection     string               `json:"tickDirection"`
-	Price24HPcnt      types.Number         `json:"price24hPcnt"`
-	LastPrice         types.Number         `json:"lastPrice"`
-	PrevPrice24H      types.Number         `json:"prevPrice24h"`
-	HighPrice24H      types.Number         `json:"highPrice24h"`
-	LowPrice24H       types.Number         `json:"lowPrice24h"`
-	PrevPrice1H       types.Number         `json:"prevPrice1h"`
-	MarkPrice         types.Number         `json:"markPrice"`
-	IndexPrice        types.Number         `json:"indexPrice"`
-	OpenInterest      types.Number         `json:"openInterest"`
-	OpenInterestValue types.Number         `json:"openInterestValue"`
-	Turnover24H       types.Number         `json:"turnover24h"`
-	Volume24H         types.Number         `json:"volume24h"`
-	NextFundingTime   convert.ExchangeTime `json:"nextFundingTime"`
-	FundingRate       types.Number         `json:"fundingRate"`
-	Bid1Price         types.Number         `json:"bid1Price"`
-	Bid1Size          types.Number         `json:"bid1Size"`
-	Ask1Price         types.Number         `json:"ask1Price"`
-	Ask1Size          types.Number         `json:"ask1Size"`
-}
-
-// WsOptionTicker represents options public ticker data.
-type WsOptionTicker struct {
-	Symbol                 string       `json:"symbol"`
-	BidPrice               types.Number `json:"bidPrice"`
-	BidSize                types.Number `json:"bidSize"`
-	BidIv                  types.Number `json:"bidIv"`
-	AskPrice               types.Number `json:"askPrice"`
-	AskSize                types.Number `json:"askSize"`
-	AskIv                  types.Number `json:"askIv"`
-	LastPrice              types.Number `json:"lastPrice"`
-	HighPrice24H           types.Number `json:"highPrice24h"`
-	LowPrice24H            types.Number `json:"lowPrice24h"`
-	MarkPrice              types.Number `json:"markPrice"`
-	IndexPrice             types.Number `json:"indexPrice"`
-	MarkPriceIv            types.Number `json:"markPriceIv"`
-	UnderlyingPrice        types.Number `json:"underlyingPrice"`
-	OpenInterest           types.Number `json:"openInterest"`
-	Turnover24H            types.Number `json:"turnover24h"`
-	Volume24H              types.Number `json:"volume24h"`
-	TotalVolume            types.Number `json:"totalVolume"`
-	TotalTurnover          types.Number `json:"totalTurnover"`
-	Delta                  types.Number `json:"delta"`
-	Gamma                  types.Number `json:"gamma"`
-	Vega                   types.Number `json:"vega"`
-	Theta                  types.Number `json:"theta"`
-	PredictedDeliveryPrice types.Number `json:"predictedDeliveryPrice"`
-	Change24H              types.Number `json:"change24h"`
-}
-
-// WsSpotTicker represents a spot public ticker information.
-type WsSpotTicker struct {
-	Symbol        string       `json:"symbol"`
-	LastPrice     types.Number `json:"lastPrice"`
-	HighPrice24H  types.Number `json:"highPrice24h"`
-	LowPrice24H   types.Number `json:"lowPrice24h"`
-	PrevPrice24H  types.Number `json:"prevPrice24h"`
-	Volume24H     types.Number `json:"volume24h"`
-	Turnover24H   types.Number `json:"turnover24h"`
-	Price24HPcnt  types.Number `json:"price24hPcnt"`
-	UsdIndexPrice types.Number `json:"usdIndexPrice"`
-}
-
 // WsKlines represents a list of Kline data.
 type WsKlines []struct {
 	Confirm   bool                 `json:"confirm"`
@@ -1887,16 +1831,6 @@ type LTKlines []struct {
 	High      types.Number         `json:"high"`
 	Low       types.Number         `json:"low"`
 	Timestamp convert.ExchangeTime `json:"timestamp"`
-}
-
-// LTTicker represents a leverage token ticker.
-type LTTicker struct {
-	Symbol             string       `json:"symbol"`
-	LastPrice          types.Number `json:"lastPrice"`
-	HighPrice24H       types.Number `json:"highPrice24h"`
-	LowPrice24H        types.Number `json:"lowPrice24h"`
-	PrevPrice24H       types.Number `json:"prevPrice24h"`
-	Price24HPercentage types.Number `json:"price24hPcnt"`
 }
 
 // LTNav represents leveraged token nav stream.
