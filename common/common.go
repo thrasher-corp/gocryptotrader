@@ -671,9 +671,11 @@ type contextError struct {
 // Error returns the error message with contextual information.
 func (e contextError) Error() string {
 	if e.FunctionName == "" {
-		return fmt.Sprintf("%s: %d: %v", e.File, e.Line, e.Err)
+		return fmt.Sprintf("%s:%d: %v", e.File, e.Line, e.Err)
 	}
-	return fmt.Sprintf("%s: %d %s: %v", e.File, e.Line, e.FunctionName, e.Err)
+	names := strings.Split(e.FunctionName, "/")
+	e.FunctionName = names[len(names)-1]
+	return fmt.Sprintf("%s:%d %s: %v", e.File, e.Line, e.FunctionName, e.Err)
 }
 
 // Unwrap returns the wrapped error.
