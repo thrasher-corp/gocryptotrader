@@ -107,12 +107,24 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 
 	rateLimiter := r.limiter[e]
 
+	err := RateLimit(ctx, rateLimiter)
+	if err != nil {
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+	}
+
+	return nil
+}
+
+// RateLimit is a function that will rate limit a request based on the rate
+// limiter provided. It will return an error if the context is cancelled or
+// deadline exceeded.
+func RateLimit(ctx context.Context, rateLimiter *RateLimiterWithWeight) error {
 	if rateLimiter == nil {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errSpecificRateLimiterIsNil, e)
+		return errSpecificRateLimiterIsNil
 	}
 
 	if rateLimiter.Weight <= 0 {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errInvalidWeightCount, e)
+		return errInvalidWeightCount
 	}
 
 	var finalDelay time.Duration
