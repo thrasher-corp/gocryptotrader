@@ -1,0 +1,38 @@
+{{define "exchanges subscription" -}}
+{{template "header" .}}
+# Exchange Subscriptions
+
+Exchange Subscriptions are streams of data delivered via websocket.
+
+GoCryptoTrader engine will subscribe automatically to configured channels.
+A subset of exchanges currently support user configured channels, with the remaining using hardcoded defaults.
+See configuration Features.Subscriptions for whether an exchange is configurable.
+
+## Templating
+
+Exchange Contributors should implement `GetSubscriptionTemplate` to return a text/template Template.
+
+Exchanges are free to implement template caching, a map or a mono-template, inline or file templates.
+
+The template is provided with a single context structure:
+```go
+  S              *subscription.Subscription
+  AssetPairs     map[asset.Item]currency.Pairs
+  AssetSeparator string
+  PairSeparator  string
+```
+
+Subscriptions may fan out many channels for assets and pairs, to support exchanges which require individual subscriptions.  
+To allow the template to communicate how to handle its output it should use the provided separators:
+- AssetSeparator should be added at the end of each section related to assets
+- PairSeparator should be added at the end of each pair
+
+We use separators like this because it allows mono-templates to decide at runtime whether to fan out.
+
+See exchanges/subscription/testdata/subscriptions.tmpl for an example mono-template showcasing various features
+
+Templates do not need to worry about joining around separators; Trailing separators will be stripped automatically.
+
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
