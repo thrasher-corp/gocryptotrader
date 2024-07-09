@@ -2498,7 +2498,7 @@ func TestSubscribeMarketSnapshot(t *testing.T) {
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	testexch.SetupWs(t, ku)
 
-	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: marketSnapshotChannel, Pairs: currency.Pairs{currency.Pair{Base: currency.BTC}}}}
+	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: marketSnapshotChannel}}
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 
