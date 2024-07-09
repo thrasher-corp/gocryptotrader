@@ -269,11 +269,9 @@ func (ku *Kucoin) GetPublicFundingRate(ctx context.Context, symbol string, from,
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if from.IsZero() {
-		return nil, errors.New("from, initial time range is not specified")
-	}
-	if to.IsZero() {
-		return nil, errors.New("to, final time range is not specified")
+	err := common.StartEndTimeCheck(from, to)
+	if err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)

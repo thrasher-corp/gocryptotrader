@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -297,8 +296,6 @@ func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Cont
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "true")
-	} else {
-		params.Set("isIsolated", "false")
 	}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -339,7 +336,7 @@ func (ku *Kucoin) GetMarginBorrowingHistory(ctx context.Context, ccy currency.Co
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	if isIsolated {
-		params.Set("isIsonalted", "true")
+		params.Set("isIsolated", "true")
 	}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -389,7 +386,7 @@ func (ku *Kucoin) GetRepaymentHistory(ctx context.Context, ccy currency.Code, is
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	if isIsolated {
-		params.Set("isIsonalted", "true")
+		params.Set("isIsolated", "true")
 	}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -471,25 +468,34 @@ func (ku *Kucoin) SpotPlaceHFOrderTest(ctx context.Context, arg *PlaceHFParam) (
 	return ku.SendSpotHFPlaceOrder(ctx, arg, "/v1/hf/orders/test")
 }
 
-// SendSpotHFPlaceOrder sends a spot high-frequency order and the test for placing the order.
-func (ku *Kucoin) SendSpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, path string) (string, error) {
+// ValidatePlaceOrderParams validates an order placement parameters.
+func (ku *Kucoin) ValidatePlaceOrderParams(arg *PlaceHFParam) error {
 	if arg == nil || *arg == (PlaceHFParam{}) {
-		return "", common.ErrNilPointer
+		return common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
-		return "", currency.ErrSymbolStringEmpty
+		return currency.ErrSymbolStringEmpty
 	}
 	if arg.OrderType == "" {
-		return "", order.ErrTypeIsInvalid
+		return order.ErrTypeIsInvalid
 	}
 	if arg.Side == "" {
-		return "", order.ErrSideIsInvalid
+		return order.ErrSideIsInvalid
 	}
 	if arg.Price <= 0 {
-		return "", order.ErrPriceBelowMin
+		return order.ErrPriceBelowMin
 	}
 	if arg.Size <= 0 {
-		return "", order.ErrAmountBelowMin
+		return order.ErrAmountBelowMin
+	}
+	return nil
+}
+
+// SendSpotHFPlaceOrder sends a spot high-frequency order and the test for placing the order.
+func (ku *Kucoin) SendSpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, path string) (string, error) {
+	err := ku.ValidatePlaceOrderParams(arg)
+	if err != nil {
+		return "", err
 	}
 	resp := &struct {
 		OrderID string `json:"orderId"`
@@ -499,23 +505,9 @@ func (ku *Kucoin) SendSpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, p
 
 // SyncPlaceHFOrder this interface will synchronously return the order information after the order matching is completed.
 func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*SyncPlaceHFOrderResp, error) {
-	if arg == nil || *arg == (PlaceHFParam{}) {
-		return nil, common.ErrNilPointer
-	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrSymbolStringEmpty
-	}
-	if arg.OrderType == "" {
-		return nil, order.ErrTypeIsInvalid
-	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
-	}
-	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
-	}
-	if arg.Size <= 0 {
-		return nil, order.ErrAmountBelowMin
+	err := ku.ValidatePlaceOrderParams(arg)
+	if err != nil {
+		return nil, err
 	}
 	var resp *SyncPlaceHFOrderResp
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfSyncPlaceOrderEPL, http.MethodPost, "/v1/hf/orders/sync", arg, &resp)
@@ -527,20 +519,9 @@ func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) 
 		return nil, common.ErrNilPointer
 	}
 	for i := range args {
-		if args[i].Symbol.IsEmpty() {
-			return nil, currency.ErrSymbolStringEmpty
-		}
-		if args[i].OrderType == "" {
-			return nil, order.ErrTypeIsInvalid
-		}
-		if args[i].Side == "" {
-			return nil, order.ErrSideIsInvalid
-		}
-		if args[i].Price <= 0 {
-			return nil, order.ErrPriceBelowMin
-		}
-		if args[i].Size <= 0 {
-			return nil, order.ErrAmountBelowMin
+		err := ku.ValidatePlaceOrderParams(&(args[i]))
+		if err != nil {
+			return nil, err
 		}
 	}
 	var resp []PlaceOrderResp
@@ -553,20 +534,9 @@ func (ku *Kucoin) SyncPlaceMultipleHFOrders(ctx context.Context, args []PlaceHFP
 		return nil, common.ErrNilPointer
 	}
 	for i := range args {
-		if args[i].Symbol.IsEmpty() {
-			return nil, currency.ErrSymbolStringEmpty
-		}
-		if args[i].OrderType == "" {
-			return nil, order.ErrTypeIsInvalid
-		}
-		if args[i].Side == "" {
-			return nil, order.ErrSideIsInvalid
-		}
-		if args[i].Price <= 0 {
-			return nil, order.ErrPriceBelowMin
-		}
-		if args[i].Size <= 0 {
-			return nil, order.ErrAmountBelowMin
+		err := ku.ValidatePlaceOrderParams(&(args[i]))
+		if err != nil {
+			return nil, err
 		}
 	}
 	var resp []SyncPlaceHFOrderResp
@@ -1528,10 +1498,10 @@ func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tr
 
 // CreateSubUser creates a new sub-user for the account.
 func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, remarks, access string) (*SubAccount, error) {
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(subAccountName) {
-		return nil, errors.New("invalid sub-account name")
+	if subAccountName == "" {
+		return nil, fmt.Errorf("%w, subaccount name is required", errInvalidSubAccountName)
 	}
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-24}$").MatchString(password) {
+	if password == "" {
 		return nil, errInvalidPassPhraseInstance
 	}
 	params := make(map[string]interface{})
@@ -2324,7 +2294,7 @@ func (ku *Kucoin) GetRedemptionOrders(ctx context.Context, ccy currency.Code, re
 }
 
 // GetSubscriptionOrders provides pagination query for the subscription orders.
-func (ku *Kucoin) GetSubscriptionOrders(ctx context.Context, ccy currency.Code, purchaseOrderNo, status string, currentPage, pageSize int64) (*SubscriptionOrdersResponse, error) {
+func (ku *Kucoin) GetSubscriptionOrders(ctx context.Context, ccy currency.Code, purchaseOrderNo, status string, currentPage, pageSize int64) (*PurchaseSubscriptionOrdersResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2343,7 +2313,7 @@ func (ku *Kucoin) GetSubscriptionOrders(ctx context.Context, ccy currency.Code, 
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
-	var resp *SubscriptionOrdersResponse
+	var resp *PurchaseSubscriptionOrdersResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getSubscriptionOrdersEPL, http.MethodGet, common.EncodeURLValues("/v3/purchase/orders", params), nil, &resp)
 }
 
@@ -2460,7 +2430,7 @@ func (ku *Kucoin) IntervalToString(interval kline.Interval) (string, error) {
 	if okay {
 		return intervalString, nil
 	}
-	return "", kline.ErrUnsupportedInterval
+	return "", fmt.Errorf("%w interval: %v", kline.ErrUnsupportedInterval, interval)
 }
 
 // StringToOrderStatus returns an order.Status instance from string.
@@ -2664,20 +2634,20 @@ func (ku *Kucoin) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context.
 }
 
 // GetAffilateUserRebateInformation allows getting affiliate user rebate information.
-func (ku *Kucoin) GetAffilateUserRebateInformation(ctx context.Context, date time.Time, maxCount int64, offset string) ([]UserRebateInfo, error) {
+func (ku *Kucoin) GetAffilateUserRebateInformation(ctx context.Context, date time.Time, offset string, maxCount int64) ([]UserRebateInfo, error) {
 	if date.IsZero() {
-		return nil, errors.New("query date is required")
+		return nil, errQueryDateIsRequired
 	}
 	if offset == "" {
-		return nil, errors.New("offset is required")
+		return nil, errOffsetIsRequired
 	}
 	params := url.Values{}
 	formattedDate := date.Format("20060102")
 	params.Set("date", formattedDate)
+	params.Set("offset", offset)
 	if maxCount > 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	params.Set("offset", offset)
 	var resp []UserRebateInfo
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, affilateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
 }

@@ -141,7 +141,7 @@ type FuturesFundingRate struct {
 	PredictedValue float64 `json:"predictedValue"`
 }
 
-// FundingHistoryItem represents funding hidtory item
+// FundingHistoryItem represents funding history item
 type FundingHistoryItem struct {
 	Symbol      string               `json:"symbol"`
 	FundingRate float64              `json:"fundingRate"`

@@ -2170,6 +2170,10 @@ func TestCreateSubUser(t *testing.T) {
 	var resp *SubAccount
 	err := json.Unmarshal([]byte(subUserResponseJSON), &resp)
 	require.NoError(t, err)
+	_, err = ku.CreateSubUser(context.Background(), "", "sdfajdlkad", "", "")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+	_, err = ku.CreateSubUser(context.Background(), "SamuaelTee1", "", "", "")
+	require.ErrorIs(t, err, errInvalidPassPhraseInstance)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	result, err := ku.CreateSubUser(context.Background(), "SamuaelTee1", "sdfajdlkad", "", "")
@@ -2594,6 +2598,24 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = ku.GetOpenInterest(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestValidatePlaceOrderParams(t *testing.T) {
+	t.Parallel()
+	err := ku.ValidatePlaceOrderParams(&PlaceHFParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	err = ku.ValidatePlaceOrderParams(&PlaceHFParam{Size: 1})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	err = ku.ValidatePlaceOrderParams(&PlaceHFParam{Symbol: spotTradablePair, Size: 1})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	err = ku.ValidatePlaceOrderParams(&PlaceHFParam{Symbol: spotTradablePair, OrderType: "limit", Size: 1})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	err = ku.ValidatePlaceOrderParams(&PlaceHFParam{Symbol: spotTradablePair, OrderType: "limit", Side: "Sell", Size: 1})
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	err = ku.ValidatePlaceOrderParams(&PlaceHFParam{Symbol: spotTradablePair, OrderType: "limit", Price: 323423423, Side: "Sell"})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	err = ku.ValidatePlaceOrderParams(&PlaceHFParam{Symbol: spotTradablePair, OrderType: "limit", Price: 323423423, Side: "Sell", Size: 1})
+	assert.NoError(t, err)
 }
 
 func TestSpotHFPlaceOrder(t *testing.T) {
@@ -3244,8 +3266,13 @@ func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
 
 func TestGetAffilateUserRebateInformation(t *testing.T) {
 	t.Parallel()
+	_, err := ku.GetAffilateUserRebateInformation(context.Background(), time.Time{}, "1234", 0)
+	require.ErrorIs(t, err, errQueryDateIsRequired)
+	_, err = ku.GetAffilateUserRebateInformation(context.Background(), time.Now(), "", 0)
+	require.ErrorIs(t, err, errOffsetIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetAffilateUserRebateInformation(context.Background(), time.Now(), 0, "1234")
+	result, err := ku.GetAffilateUserRebateInformation(context.Background(), time.Now(), "1234", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3407,5 +3434,5 @@ func TestGetHistoricTrades(t *testing.T) {
 
 	result, err = ku.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Time{}, time.Time{})
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 }

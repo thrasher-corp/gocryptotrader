@@ -949,8 +949,10 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	lastUpdated := time.UnixMilli(response.Timestamp)
-
+	var lastUpdatedTime = response.Timestamp.Time()
+	if response.Timestamp.Time().IsZero() {
+		lastUpdatedTime = time.Now()
+	}
 	for x := range assets {
 		err = ku.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Exchange:    ku.Name,
@@ -958,7 +960,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 			Bids:        bids,
 			Pair:        pair,
 			Asset:       assets[x],
-			LastUpdated: lastUpdated,
+			LastUpdated: lastUpdatedTime,
 		})
 		if err != nil {
 			return err
