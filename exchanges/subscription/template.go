@@ -129,6 +129,9 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	out := strings.TrimSpace(buf.String())
 
+	// Remove a single trailing AssetSeparator; don't use a cutset to avoid removing 2 or more
+	out = strings.TrimSpace(strings.TrimSuffix(out, subCtx.AssetSeparator))
+
 	xpandPairs := strings.Contains(out, subCtx.PairSeparator)
 	if xpandAssets := strings.Contains(out, subCtx.AssetSeparator); xpandAssets {
 		if s.Asset != asset.All {
@@ -142,9 +145,6 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		// No expansion so update expected Assets for consistent behaviour below
 		assets = []asset.Item{s.Asset}
 	}
-
-	// Remove a single trailing AssetSeparator; don't use a cutset to avoid removing 2 or more
-	out = strings.TrimSpace(strings.TrimSuffix(out, subCtx.AssetSeparator))
 
 	assetRecords := strings.Split(out, subCtx.AssetSeparator)
 	if len(assetRecords) != len(assets) {
