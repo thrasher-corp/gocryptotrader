@@ -1006,15 +1006,13 @@ func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 		spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
 		subTemplate, err = template.New("master.tmpl").
 			Funcs(template.FuncMap{
-				"channelName": channelName,
-				"assetPairs": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) map[asset.Item]currency.Pairs {
-					return assetPairs(s, ap, spotPairs)
-				},
-				"isCurrencyChannel":   isCurrencyChannel,
-				"isSymbolChannel":     isSymbolChannel,
-				"isSymbolListChannel": isSymbolListChannel,
-				"channelInterval":     channelInterval,
-				"assetCurrencies":     assetCurrencies,
+				"channelName":          channelName,
+				"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string { return removeSpotFromMargin(ap, spotPairs) },
+				"isCurrencyChannel":    isCurrencyChannel,
+				"isSymbolChannel":      isSymbolChannel,
+				"isSymbolListChannel":  isSymbolListChannel,
+				"channelInterval":      channelInterval,
+				"assetCurrencies":      assetCurrencies,
 			}).
 			Parse(subTplText)
 	}
@@ -1642,13 +1640,12 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 	return s.Channel
 }
 
-// assetPairs returns a map of asset pairs for subscription
-// If asset is not All it will return a single entry map
-// If asset is Margin it will return only the pairs not enabled for Spot
-// AP is updated to remove enabled Spot pairs from Margin
-func assetPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) map[asset.Item]currency.Pairs {
-	ap[asset.Margin] = ap[asset.Margin].Remove(spotPairs...)
-	return ap
+// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map
+func removeSpotFromMargin(ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+	if p, ok := ap[asset.Margin]; ok {
+		ap[asset.Margin] = p.Remove(spotPairs...)
+	}
+	return ""
 }
 
 // isSymbolChannel returns if the channel expects receive a symbol
@@ -1699,13 +1696,14 @@ func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pa
 }
 
 const subTplText = `
+{{- removeSpotFromMargin $.AssetPairs -}}
 {{- if isCurrencyChannel $.S }}
 	{{- range $currency := assetCurrencies $.S $.AssetPairs -}}
 		{{ channelName $.S $.S.Asset -}} : {{- $currency }}
 	{{- $.PairSeparator -}}
 	{{- end -}}
 {{- else if isSymbolChannel $.S }}
-	{{ range $asset, $pairs := assetPairs $.S $.AssetPairs }}
+	{{ range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S $asset }}
 			{{- if isSymbolListChannel $.S }}
 				{{- $name -}} : 
