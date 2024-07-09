@@ -113,6 +113,15 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		}
 	}
 
+	if len(s.Pairs) != 0 {
+		for a, pairs := range subCtx.AssetPairs {
+			if err := pairs.ContainsAll(s.Pairs, true); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
+				return nil, err
+			}
+			subCtx.AssetPairs[a] = s.Pairs
+		}
+	}
+
 	buf := &bytes.Buffer{}
 	if err := t.Execute(buf, subCtx); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
 		return nil, err
