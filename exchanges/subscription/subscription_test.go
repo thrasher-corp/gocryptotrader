@@ -18,12 +18,15 @@ var (
 
 // TestSubscriptionString exercises the String method
 func TestSubscriptionString(t *testing.T) {
+	t.Parallel()
 	s := &Subscription{
 		Channel: "candles",
 		Asset:   asset.Spot,
 		Pairs:   currency.Pairs{btcusdtPair, ethusdcPair.Format(currency.PairFormat{Delimiter: "/"})},
 	}
 	assert.Equal(t, "candles spot BTC/USDT,ETH/USDC", s.String(), "Subscription String should return correct value")
+	s.Key = 42
+	assert.Equal(t, "42: candles spot BTC/USDT,ETH/USDC", s.String(), "String with a non-MatchableKey")
 }
 
 // TestState exercises the state getter
@@ -46,19 +49,6 @@ func TestSetState(t *testing.T) {
 	}
 	assert.ErrorIs(t, s.SetState(UnsubscribedState), ErrInStateAlready, "SetState should error on same state")
 	assert.ErrorIs(t, s.SetState(UnsubscribedState+1), ErrInvalidState, "Setting an invalid state should error")
-}
-
-// TestString exercises the Stringer implementation
-func TestString(t *testing.T) {
-	s := &Subscription{
-		Channel: "candles",
-		Asset:   asset.Spot,
-		Pairs:   currency.Pairs{btcusdtPair},
-	}
-	_ = s.EnsureKeyed()
-	assert.Equal(t, "candles spot BTC/USDT", s.String(), "String with a MatchableKey")
-	s.Key = 42
-	assert.Equal(t, "42: candles spot BTC/USDT", s.String(), "String with a MatchableKey")
 }
 
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
@@ -102,6 +92,7 @@ func TestSubscriptionMarshaling(t *testing.T) {
 
 // TestClone exercises Clone
 func TestClone(t *testing.T) {
+	t.Parallel()
 	a := &Subscription{
 		Channel:  TickerChannel,
 		Interval: kline.OneHour,
@@ -123,6 +114,7 @@ func TestClone(t *testing.T) {
 
 // TestSetKey exercises SetKey
 func TestSetKey(t *testing.T) {
+	t.Parallel()
 	s := &Subscription{}
 	s.SetKey(14)
 	assert.Equal(t, 14, s.Key, "SetKey should set a key correctly")
@@ -130,7 +122,18 @@ func TestSetKey(t *testing.T) {
 
 // TestSetPairs exercises SetPairs
 func TestSetPairs(t *testing.T) {
+	t.Parallel()
 	s := &Subscription{}
 	s.SetPairs(currency.Pairs{btcusdtPair})
 	assert.Equal(t, "BTCUSDT", s.Pairs.Join(), "SetPairs should set a key correctly")
+}
+
+// TestAddPairs exercises AddPairs
+func TestAddPairs(t *testing.T) {
+	t.Parallel()
+	s := &Subscription{}
+	s.AddPairs()
+	assert.Empty(t, s.Pairs, "Should not have added any pairs")
+	s.AddPairs(btcusdtPair)
+	assert.Len(t, s.Pairs, 1, "Should not have added any pairs")
 }

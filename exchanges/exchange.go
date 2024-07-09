@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -1150,9 +1151,20 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 
+// GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
+func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
+}
+
+// CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
+// Used to avoid import cycles on stream.websocket
+func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
+	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
