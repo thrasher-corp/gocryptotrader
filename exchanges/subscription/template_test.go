@@ -35,6 +35,7 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "feature3", Asset: asset.All, Levels: 100},
 		{Channel: "feature1", QualifiedChannel: "just one sub already processed"},
 		{Channel: "feature5", Asset: asset.All},
+		{Channel: "feature7", Asset: asset.Spot, Pairs: pairs[0:2]},
 		{Channel: "feature6", Asset: asset.Spot},
 		{Channel: "feature4", Authenticated: true},
 	}
@@ -46,6 +47,7 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "feature2", QualifiedChannel: "future-feature2@15m", Asset: asset.Futures, Pairs: pairs, Interval: kline.FifteenMin},
 		{Channel: "feature1", QualifiedChannel: "just one sub already processed"},
 		{Channel: "feature5", QualifiedChannel: "spot-btcusdt-feature5", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}},
+		{Channel: "feature7", QualifiedChannel: "spot-BTCUSDT,ETHUSDC-feature7", Asset: asset.Spot, Pairs: pairs[0:2]},
 	}
 	for _, p := range pairs {
 		exp = append(exp, List{

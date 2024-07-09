@@ -37,4 +37,11 @@
             {{- $.BatchSize -}} 3
         {{- end }}
 	{{- end -}}
+{{- else if eq $.S.Channel "feature7" }}
+	{{/* Only pairs we expect */}}
+	{{- range $asset, $pairs := $.AssetPairs }}
+        {{- if eq $asset.String "spot" }}
+			{{ assetName $asset }}-{{ $pairs.Join -}} -feature7
+		{{- end -}}
+	{{- end -}}
 {{- end -}}
