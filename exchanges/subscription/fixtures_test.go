@@ -29,7 +29,10 @@ func (m *mockEx) GetPairFormat(_ asset.Item, _ bool) (currency.PairFormat, error
 	return currency.PairFormat{Uppercase: true}, m.errFormat
 }
 
-func (m *mockEx) GetSubscriptionTemplate(_ *Subscription) (*template.Template, error) {
+func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, error) {
+	if s.Channel == "nil" {
+		return nil, nil
+	}
 	return template.New(m.tpl).
 		Funcs(template.FuncMap{
 			"assetName": func(a asset.Item) string {

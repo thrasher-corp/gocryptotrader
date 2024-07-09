@@ -58,20 +58,20 @@ const (
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
 
 	// futures channels
-	futuresTickerChannel                         = "/contractMarket/tickerV2"      // /contractMarket/tickerV2:{symbol}
-	futuresOrderbookChannel                      = "/contractMarket/level2"        // /contractMarket/level2:{symbol}
-	futuresOrderbookDepth5Channel                = "/contractMarket/level2Depth5"  // /contractMarket/level2Depth5:{symbol}
-	futuresOrderbookDepth50Channel               = "/contractMarket/level2Depth50" // /contractMarket/level2Depth50:{symbol}
-	futuresExecutionDataChannel                  = "/contractMarket/execution"     // /contractMarket/execution:{symbol}
-	futuresContractMarketDataChannel             = "/contract/instrument"          // /contract/instrument:{symbol}
+	futuresTickerChannel                         = "/contractMarket/tickerV2"      // /contractMarket/tickerV2:{symbol},...
+	futuresOrderbookChannel                      = "/contractMarket/level2"        // /contractMarket/level2:{symbol},...
+	futuresOrderbookDepth5Channel                = "/contractMarket/level2Depth5"  // /contractMarket/level2Depth5:{symbol},...
+	futuresOrderbookDepth50Channel               = "/contractMarket/level2Depth50" // /contractMarket/level2Depth50:{symbol},...
+	futuresExecutionDataChannel                  = "/contractMarket/execution"     // /contractMarket/execution:{symbol},...
+	futuresContractMarketDataChannel             = "/contract/instrument"          // /contract/instrument:{symbol},...
 	futuresSystemAnnouncementChannel             = "/contract/announcement"
-	futuresTrasactionStatisticsTimerEventChannel = "/contractMarket/snapshot" // /contractMarket/snapshot:{symbol}
+	futuresTrasactionStatisticsTimerEventChannel = "/contractMarket/snapshot" // /contractMarket/snapshot:{symbol},...
 
 	// futures private channels
-	futuresTradeOrderChannel               = "/contractMarket/tradeOrders" // /contractMarket/tradeOrders:{symbol}
+	futuresTradeOrderChannel               = "/contractMarket/tradeOrders" // /contractMarket/tradeOrders:{symbol},...
+	futuresPositionChangeEventChannel      = "/contract/position"          // /contract/position:{symbol},...
 	futuresStopOrdersLifecycleEventChannel = "/contractMarket/advancedOrders"
 	futuresAccountBalanceEventChannel      = "/contractAccount/wallet"
-	futuresPositionChangeEventChannel      = "/contract/position" // /contract/position:{symbol}
 )
 
 var (
@@ -1006,13 +1006,16 @@ func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 		spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
 		subTemplate, err = template.New("master.tmpl").
 			Funcs(template.FuncMap{
-				"channelName":          channelName,
-				"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string { return removeSpotFromMargin(ap, spotPairs) },
-				"isCurrencyChannel":    isCurrencyChannel,
-				"isSymbolChannel":      isSymbolChannel,
-				"isSymbolListChannel":  isSymbolListChannel,
-				"channelInterval":      channelInterval,
-				"assetCurrencies":      assetCurrencies,
+				"channelName": channelName,
+				"removeSpotFromMargin": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
+					return removeSpotFromMargin(s, ap, spotPairs)
+				},
+				"isCurrencyChannel":     isCurrencyChannel,
+				"isSymbolChannel":       isSymbolChannel,
+				"channelInterval":       channelInterval,
+				"assetCurrencies":       assetCurrencies,
+				"joinPairsWithInterval": joinPairsWithInterval,
+				"batch":                 common.Batch[currency.Pairs],
 			}).
 			Parse(subTplText)
 	}
@@ -1640,8 +1643,11 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 	return s.Channel
 }
 
-// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map
-func removeSpotFromMargin(ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map for subscriptions to non-margin endpoints
+func removeSpotFromMargin(s *subscription.Subscription, ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+	if strings.HasPrefix(s.Channel, "/margin") {
+		return ""
+	}
 	if p, ok := ap[asset.Margin]; ok {
 		ap[asset.Margin] = p.Remove(spotPairs...)
 	}
@@ -1650,7 +1656,7 @@ func removeSpotFromMargin(ap map[asset.Item]currency.Pairs, spotPairs currency.P
 
 // isSymbolChannel returns if the channel expects receive a symbol
 func isSymbolChannel(s *subscription.Subscription) bool {
-	switch s.Channel {
+	switch channelName(s, s.Asset) {
 	case privateSpotTradeOrders, accountBalanceChannel, marginPositionChannel, spotMarketAdvancedChannel, futuresSystemAnnouncementChannel,
 		futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
 		return false
@@ -1661,16 +1667,6 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 // isCurrencyChannel returns if the channel expects receive a currency
 func isCurrencyChannel(s *subscription.Subscription) bool {
 	return s.Channel == marginLoanChannel
-}
-
-// isSymbolListChannel returns if the channel expects receive a list of symbol
-func isSymbolListChannel(s *subscription.Subscription) bool {
-	switch channelName(s, s.Asset) {
-	case marketTickerChannel, marketOrderbookChannel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel,
-		marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel, marginFundingbookChangeChannel:
-		return true
-	}
-	return false
 }
 
 // channelInterval returns the channel interval if it has one
@@ -1686,7 +1682,7 @@ func channelInterval(s *subscription.Subscription) string {
 // currencies returns the currencies from all pairs in an asset
 // Updates the AssetPairs map parameter to contain only those currencies as Base items
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
-	cs := ap[s.Asset].GetCurrencies()
+	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
 	p := currency.Pairs{}
 	for _, c := range cs {
 		p = append(p, currency.Pair{Base: c})
@@ -1695,30 +1691,36 @@ func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pa
 	return cs
 }
 
+// joinPairsWithInterval returns a list of currency pair symbols joined by comma
+// If the subscription has a viable interval it's appended after each symbol
+func joinPairsWithInterval(b currency.Pairs, s *subscription.Subscription) string {
+	out := make([]string, len(b))
+	suffix, err := intervalToString(s.Interval)
+	if err == nil {
+		suffix = "_" + suffix
+	}
+	for i, p := range b {
+		out[i] = p.String() + suffix
+	}
+	return strings.Join(out, ",")
+}
+
 const subTplText = `
-{{- removeSpotFromMargin $.AssetPairs -}}
+{{- removeSpotFromMargin $.S $.AssetPairs -}}
 {{- if isCurrencyChannel $.S }}
-	{{- range $currency := assetCurrencies $.S $.AssetPairs -}}
-		{{ channelName $.S $.S.Asset -}} : {{- $currency }}
-	{{- $.PairSeparator -}}
-	{{- end -}}
+	{{ channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join -}}
 {{- else if isSymbolChannel $.S }}
 	{{ range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S $asset }}
-			{{- if isSymbolListChannel $.S }}
-				{{- $name -}} : 
-				{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) -}}
-					all
-				{{- else -}}
-					{{ $pairs.Join }}
-				{{- end }}
+			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) -}}
+				{{- $name -}} :all
 				{{- with $i := channelInterval $.S -}}_{{- $i -}}{{- end -}}
-			{{- else }}
-				{{- range $pair := $pairs -}}
-					{{ $name -}} : {{- $pair }}
-					{{- with $i := channelInterval $.S -}} _ {{- $i }}{{ end -}}
+			{{- else -}}
+				{{- range $b := batch $pairs 100 -}}
+					{{- $name -}} : {{- joinPairsWithInterval $b $.S -}}
 					{{ $.PairSeparator }}
-				{{- end }}
+				{{- end -}}
+				{{- $.BatchSize -}} 100
 			{{- end }}
 		{{- end }}
 		{{ $.AssetSeparator }}
