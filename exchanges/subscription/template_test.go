@@ -89,7 +89,7 @@ func TestExpandTemplates(t *testing.T) {
 	_, err = List{{Channel: "error3"}}.ExpandTemplates(e)
 	assert.ErrorContains(t, err, "wrong number of args for String", "Should error correctly with execution error")
 
-	_, err = List{{Channel: "empty-content", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}}}.ExpandTemplates(e)
+	_, err = List{{Channel: "empty-content", Asset: asset.Spot}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errNoTemplateContent, "Should error correctly when no content generated")
 	assert.ErrorContains(t, err, "empty-content", "Should error correctly when no content generated")
 

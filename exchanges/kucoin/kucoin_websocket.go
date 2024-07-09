@@ -1648,11 +1648,6 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 // AP is updated to remove enabled Spot pairs from Margin
 func assetPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) map[asset.Item]currency.Pairs {
 	ap[asset.Margin] = ap[asset.Margin].Remove(spotPairs...)
-	if s.Asset != asset.All {
-		return map[asset.Item]currency.Pairs{
-			s.Asset: ap[s.Asset],
-		}
-	}
 	return ap
 }
 
