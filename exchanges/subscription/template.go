@@ -97,10 +97,20 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	subCtx := &tplCtx{
 		S:              s,
-		AssetPairs:     maps.Clone(ap),
 		PairSeparator:  recordSeparator,
 		AssetSeparator: groupSeparator,
 		BatchSize:      deviceControl + "BS",
+	}
+
+	switch s.Asset {
+	case asset.All:
+		subCtx.AssetPairs = maps.Clone(ap)
+	case asset.Empty:
+		subCtx.AssetPairs = assetPairs{}
+	default:
+		subCtx.AssetPairs = assetPairs{
+			s.Asset: ap[s.Asset],
+		}
 	}
 
 	buf := &bytes.Buffer{}
