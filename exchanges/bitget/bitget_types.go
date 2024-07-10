@@ -667,14 +667,6 @@ type MarketFillsResp struct {
 	} `json:"data"`
 }
 
-// OrderResp contains information on an order
-type OrderResp struct {
-	Data struct {
-		OrderID       EmptyInt `json:"orderId"`
-		ClientOrderID string   `json:"clientOid"`
-	} `json:"data"`
-}
-
 // PlaceOrderStruct contains information on an order to be placed
 type PlaceSpotOrderStruct struct {
 	Side          string  `json:"side"`
