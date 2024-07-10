@@ -23,6 +23,7 @@ var (
 	errInvalidStopPriceType       = errors.New("stopPriceType is required")
 	errMalformedData              = errors.New("malformed data")
 	errNoDepositAddress           = errors.New("no deposit address found")
+	errAddressRequired            = errors.New("address is required")
 	errMultipleDepositAddress     = errors.New("multiple deposit addresses")
 	errInvalidResultInterface     = errors.New("result interface has to be pointer")
 	errInvalidSubAccountName      = errors.New("invalid sub-account name")
@@ -46,6 +47,9 @@ var (
 	errAccountIDMissing        = errors.New("account ID is required")
 	errQueryDateIsRequired     = errors.New("query date is required")
 	errOffsetIsRequired        = errors.New("offset is required")
+	errProductIDMissing        = errors.New("product ID is missing")
+	errStatusMissing           = errors.New("status is missing")
+	errInvalidPeriod           = errors.New("invalid period")
 )
 
 // UnmarshalTo acts as interface to exchange API response

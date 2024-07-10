@@ -1301,7 +1301,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, _, chain string) (*deposit.Address, error) {
-	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper().String())
+	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper())
 	if err != nil {
 		return nil, err
 	}
@@ -1338,7 +1338,7 @@ func (ku *Kucoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawalID, err := ku.ApplyWithdrawal(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, withdrawRequest.Crypto.Chain, "INTERNAL", withdrawRequest.InternalTransfer, withdrawRequest.Amount)
+	withdrawalID, err := ku.ApplyWithdrawal(ctx, withdrawRequest.Currency, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, withdrawRequest.Crypto.Chain, "INTERNAL", withdrawRequest.InternalTransfer, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -2031,7 +2031,7 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	currencyDetail, err := ku.GetCurrencyDetailV3(ctx, cryptocurrency.String(), "")
+	currencyDetail, err := ku.GetCurrencyDetailV3(ctx, cryptocurrency, "")
 	if err != nil {
 		return nil, err
 	}

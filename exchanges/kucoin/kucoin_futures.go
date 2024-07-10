@@ -865,9 +865,6 @@ func (ku *Kucoin) GetFuturesTradingPairsActualFees(ctx context.Context, symbol s
 // GetPositionHistory query position history information records
 func (ku *Kucoin) GetPositionHistory(ctx context.Context, symbol string, from, to time.Time, limit, pageID int64) (*FuturesPositionHistory, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
 	if !from.IsZero() && !to.IsZero() {
 		err := common.StartEndTimeCheck(from, to)
 		if err != nil {
@@ -875,6 +872,9 @@ func (ku *Kucoin) GetPositionHistory(ctx context.Context, symbol string, from, t
 		}
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
