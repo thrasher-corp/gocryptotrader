@@ -879,3 +879,13 @@ func TestBatch(t *testing.T) {
 		assert.Lenf(t, b[0], len(s), "A batch size of %v should produce a single batch", i)
 	}
 }
+
+type A int
+
+func (a A) String() string {
+	return strconv.Itoa(int(a))
+}
+
+func TestSortStrings(t *testing.T) {
+	assert.Equal(t, []A{1, 2, 5, 6}, SortStrings([]A{6, 2, 5, 1}))
+}

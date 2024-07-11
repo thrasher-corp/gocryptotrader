@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -674,4 +675,13 @@ func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 		batches[i] = blobs
 	}
 	return batches
+}
+
+// SortStrings takes a slice of fmt.Stringer implementers and returns a new ascending sorted slice
+func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
+	n := slices.Clone(x)
+	slices.SortFunc(n, func(a, b E) int {
+		return strings.Compare(a.String(), b.String())
+	})
+	return n
 }
