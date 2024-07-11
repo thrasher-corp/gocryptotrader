@@ -489,7 +489,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		case asset.Empty:
 			assetTypeString = ""
 		}
-		accountH, err := ku.GetAllAccounts(ctx, "", assetTypeString)
+		accountH, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, assetTypeString)
 		if err != nil {
 			return account.Holdings{}, err
 		}
@@ -527,11 +527,11 @@ func (ku *Kucoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (ku *Kucoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	withdrawalsData, err := ku.GetWithdrawalList(ctx, "", "", time.Time{}, time.Time{})
+	withdrawalsData, err := ku.GetWithdrawalList(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
-	depositsData, err := ku.GetHistoricalDepositList(ctx, "", "", time.Time{}, time.Time{})
+	depositsData, err := ku.GetHistoricalDepositList(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -574,7 +574,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 	switch a {
 	case asset.Spot:
 		var withdrawals *HistoricalDepositWithdrawalResponse
-		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.Upper().String(), "", time.Time{}, time.Time{})
+		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.Upper(), "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}

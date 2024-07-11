@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -27,8 +26,9 @@ var (
 	errMultipleDepositAddress     = errors.New("multiple deposit addresses")
 	errInvalidResultInterface     = errors.New("result interface has to be pointer")
 	errInvalidSubAccountName      = errors.New("invalid sub-account name")
+	errRemarkIsRequired           = errors.New("remark with a 24 characters max-length is required")
 	errAPIKeyRequired             = errors.New("account API key is required")
-	errInvalidPassPhraseInstance  = errors.New("invalid passphrase string")
+	errInvalidPassphraseInstance  = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer  = errors.New("no valid response from server")
 	errMissingOrderbookSequence   = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired       = errors.New("at least one required among size and funds")
@@ -41,15 +41,13 @@ var (
 	errSubscriptionPairRequired   = errors.New("pair required for manual subscriptions")
 	errMissingPurchaseOrderNumber = errors.New("missing purchase order number")
 	errMissingInterestRate        = errors.New("interest rate is required")
-
-	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
-	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
-	errAccountIDMissing        = errors.New("account ID is required")
-	errQueryDateIsRequired     = errors.New("query date is required")
-	errOffsetIsRequired        = errors.New("offset is required")
-	errProductIDMissing        = errors.New("product ID is missing")
-	errStatusMissing           = errors.New("status is missing")
-	errInvalidPeriod           = errors.New("invalid period")
+	errAccountIDMissing           = errors.New("account ID is required")
+	errQueryDateIsRequired        = errors.New("query date is required")
+	errOffsetIsRequired           = errors.New("offset is required")
+	errProductIDMissing           = errors.New("product ID is missing")
+	errStatusMissing              = errors.New("status is missing")
+	errInvalidPeriod              = errors.New("invalid period")
+	errTransferDirectionRequired  = errors.New("transfer direction cannot be empty")
 )
 
 // UnmarshalTo acts as interface to exchange API response

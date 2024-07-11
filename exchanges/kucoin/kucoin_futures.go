@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -303,10 +304,10 @@ func (ku *Kucoin) GetFuturesServiceStatus(ctx context.Context) (*FuturesServiceS
 // GetFuturesKline get contract's kline data
 func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol string, from, to time.Time) ([]FuturesKline, error) {
 	if granularity == 0 {
-		return nil, errors.New("granularity can not be empty")
+		return nil, kline.ErrInvalidInterval
 	}
 	if !common.StringDataContains(validGranularity, strconv.FormatInt(granularity, 10)) {
-		return nil, errors.New("invalid granularity")
+		return nil, fmt.Errorf("%w, invalid granularity", kline.ErrUnsupportedInterval)
 	}
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -653,11 +654,11 @@ func (ku *Kucoin) AddMargin(ctx context.Context, symbol, uniqueID string, margin
 	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	if uniqueID == "" {
-		return nil, errors.New("uniqueID can't be empty")
+		return nil, errors.New("uniqueID cannot be empty")
 	}
 	params["bizNo"] = uniqueID
 	if margin <= 0 {
-		return nil, errors.New("margin can't be zero or negative")
+		return nil, errors.New("margin cannot be zero or negative")
 	}
 	params["margin"] = strconv.FormatFloat(margin, 'f', -1, 64)
 	var resp *FuturesPosition
@@ -749,13 +750,13 @@ func (ku *Kucoin) GetFuturesTransactionHistory(ctx context.Context, ccy currency
 // CreateFuturesSubAccountAPIKey is used to create Futures APIs for sub-accounts
 func (ku *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist, passphrase, permission, remark, subName string) (*APIKeyDetail, error) {
 	if remark == "" {
-		return nil, errors.New("remark can't be empty")
+		return nil, errors.New("remark cannot be empty")
 	}
 	if subName == "" {
-		return nil, errors.New("subName can't be empty")
+		return nil, errors.New("subName cannot be empty")
 	}
 	if passphrase == "" {
-		return nil, errors.New("passphrase can't be empty")
+		return nil, errors.New("passphrase cannot be empty")
 	}
 	params := make(map[string]interface{})
 	params["passphrase"] = passphrase
@@ -780,7 +781,7 @@ func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if recAccountType == "" {
-		return nil, errors.New("recAccountType can't be empty")
+		return nil, errors.New("recAccountType cannot be empty")
 	}
 	params := make(map[string]interface{})
 	params["amount"] = amount
@@ -799,7 +800,7 @@ func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount floa
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if payAccountType == "" {
-		return errors.New("payAccountType can't be empty")
+		return fmt.Errorf("%w, payAccountType cannot be empty", errAccountTypeMissing)
 	}
 	params := make(map[string]interface{})
 	params["amount"] = amount
