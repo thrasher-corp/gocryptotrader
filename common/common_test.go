@@ -866,3 +866,13 @@ func TestBatch(t *testing.T) {
 	require.Len(t, b[1], 3)
 	require.Len(t, b[2], 1)
 }
+
+type A int
+
+func (a A) String() string {
+	return strconv.Itoa(int(a))
+}
+
+func TestSortStrings(t *testing.T) {
+	assert.Equal(t, []A{1, 2, 5, 6}, SortStrings([]A{6, 2, 5, 1}))
+}
