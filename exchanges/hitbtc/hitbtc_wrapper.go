@@ -460,7 +460,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate()
+	err := o.Validate(h.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

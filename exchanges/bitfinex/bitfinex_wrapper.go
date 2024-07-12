@@ -608,7 +608,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
