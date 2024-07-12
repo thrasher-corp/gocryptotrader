@@ -168,10 +168,8 @@ func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange
 		t.Fatal(err)
 	}
 	epLen := len(enabledPairs)
-	for i := range cp {
-		availPairs = availPairs.Add(cp[i])
-		enabledPairs = enabledPairs.Add(cp[i])
-	}
+	availPairs = availPairs.Add(cp...)
+	enabledPairs = enabledPairs.Add(cp...)
 	if len(availPairs) != apLen {
 		err = b.CurrencyPairs.StorePairs(a, availPairs, false)
 		if err != nil {
