@@ -347,7 +347,7 @@ func TestGetEstimatedDeliveryPrice(t *testing.T) {
 
 func TestGetDiscountRateAndInterestFreeQuota(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetDiscountRateAndInterestFreeQuota(contextGenerate(), "", 0)
+	result, err := ok.GetDiscountRateAndInterestFreeQuota(contextGenerate(), currency.EMPTYCODE, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -429,7 +429,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 
 func TestCurrencyUnitConvert(t *testing.T) {
 	t.Parallel()
-	result, err := ok.CurrencyUnitConvert(contextGenerate(), "BTC-USD-SWAP", 1, 3500, 1, "")
+	result, err := ok.CurrencyUnitConvert(contextGenerate(), "BTC-USD-SWAP", 1, 3500, 1, currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -444,62 +444,62 @@ func TestGetSupportCoins(t *testing.T) {
 
 func TestGetTakerVolume(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetTakerVolume(contextGenerate(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.OneDay)
+	result, err := ok.GetTakerVolume(contextGenerate(), currency.BTC, "SPOT", time.Time{}, time.Time{}, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 func TestGetMarginLendingRatio(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetMarginLendingRatio(contextGenerate(), "BTC", time.Time{}, time.Time{}, kline.FiveMin)
+	result, err := ok.GetMarginLendingRatio(contextGenerate(), currency.BTC, time.Time{}, time.Time{}, kline.FiveMin)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetLongShortRatio(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetLongShortRatio(contextGenerate(), "BTC", time.Time{}, time.Time{}, kline.OneDay)
+	result, err := ok.GetLongShortRatio(contextGenerate(), currency.BTC, time.Time{}, time.Time{}, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetContractsOpenInterestAndVolume(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetContractsOpenInterestAndVolume(contextGenerate(), "BTC", time.Time{}, time.Time{}, kline.OneDay)
+	result, err := ok.GetContractsOpenInterestAndVolume(contextGenerate(), currency.BTC, time.Time{}, time.Time{}, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetOptionsOpenInterestAndVolume(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetOptionsOpenInterestAndVolume(contextGenerate(), "BTC", kline.OneDay)
+	result, err := ok.GetOptionsOpenInterestAndVolume(contextGenerate(), currency.BTC, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetPutCallRatio(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetPutCallRatio(contextGenerate(), "BTC", kline.OneDay)
+	result, err := ok.GetPutCallRatio(contextGenerate(), currency.BTC, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetOpenInterestAndVolumeExpiry(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetOpenInterestAndVolumeExpiry(contextGenerate(), "BTC", kline.OneDay)
+	result, err := ok.GetOpenInterestAndVolumeExpiry(contextGenerate(), currency.BTC, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), "BTC", time.Now(), kline.OneDay)
+	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Now(), kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetTakerFlow(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetTakerFlow(contextGenerate(), "BTC", kline.OneDay)
+	result, err := ok.GetTakerFlow(contextGenerate(), currency.BTC, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -531,12 +531,11 @@ const (
 
 func TestPlaceMultipleOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	var params []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeMultipleOrderParamsJSON), &params)
 	require.NoError(t, err)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceMultipleOrders(contextGenerate(),
 		params)
 	require.NoError(t, err)
@@ -547,7 +546,7 @@ func TestCancelSingleOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelSingleOrder(contextGenerate(),
-		CancelOrderRequestParam{
+		&CancelOrderRequestParam{
 			InstrumentID: "BTC-USDT",
 			OrderID:      "2510789768709120",
 		})
@@ -558,7 +557,6 @@ func TestCancelSingleOrder(t *testing.T) {
 func TestCancelMultipleOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	result, err := ok.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{{
 		InstrumentID: "DCR-BTC",
 		OrderID:      "2510789768709120",
@@ -622,7 +620,6 @@ func TestGetOrderList(t *testing.T) {
 func TestGet7And3MonthDayOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.Get7DayOrderHistory(contextGenerate(), &OrderHistoryRequestParams{
 		OrderListRequestParams: OrderListRequestParams{InstrumentType: "MARGIN"},
 	})
@@ -638,7 +635,6 @@ func TestGet7And3MonthDayOrderHistory(t *testing.T) {
 func TestTransactionHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetTransactionDetailsLast3Days(contextGenerate(), &TransactionDetailRequestParams{
 		InstrumentType: "MARGIN",
 		Limit:          1,
@@ -666,7 +662,6 @@ func TestSetTransactionDetailIntervalFor2Years(t *testing.T) {
 func TestStopOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	result, err := ok.PlaceStopOrder(contextGenerate(), &AlgoOrderParams{
 		TakeProfitTriggerPriceType: "index",
 		InstrumentID:               "BTC-USDT",
@@ -739,7 +734,6 @@ func TestStopOrder(t *testing.T) {
 func TestCancelAlgoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	result, err := ok.CancelAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{
 		{
 			InstrumentID: "BTC-USDT",
@@ -753,7 +747,6 @@ func TestCancelAlgoOrder(t *testing.T) {
 func TestCancelAdvanceAlgoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	result, err := ok.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{
 		InstrumentID: "BTC-USDT",
 		AlgoOrderID:  "90994943",
@@ -765,7 +758,6 @@ func TestCancelAdvanceAlgoOrder(t *testing.T) {
 func TestGetAlgoOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetAlgoOrderList(contextGenerate(), "conditional", "", "", "", "", time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -774,7 +766,6 @@ func TestGetAlgoOrderList(t *testing.T) {
 func TestGetAlgoOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetAlgoOrderHistory(contextGenerate(), "conditional", "effective", "", "", "", time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -783,7 +774,6 @@ func TestGetAlgoOrderHistory(t *testing.T) {
 func TestGetEasyConvertCurrencyList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetEasyConvertCurrencyList(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -859,11 +849,11 @@ func TestCreateRfq(t *testing.T) {
 
 func TestCancelRfq(t *testing.T) {
 	t.Parallel()
-	_, err := ok.CancelRfq(contextGenerate(), CancelRfqRequestParam{})
+	_, err := ok.CancelRfq(contextGenerate(), &CancelRfqRequestParam{})
 	require.ErrorIs(t, err, errMissingRfqIDAndClientRfqID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CancelRfq(context.Background(), CancelRfqRequestParam{
+	result, err := ok.CancelRfq(context.Background(), &CancelRfqRequestParam{
 		ClientRfqID: "somersdjskfjsdkfjxvxv",
 	})
 	require.NoError(t, err)
@@ -872,12 +862,11 @@ func TestCancelRfq(t *testing.T) {
 
 func TestMultipleCancelRfq(t *testing.T) {
 	t.Parallel()
-
-	_, err := ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{})
+	_, err := ok.CancelMultipleRfqs(contextGenerate(), &CancelRfqRequestsParam{})
 	require.ErrorIs(t, err, errMissingRfqIDAndClientRfqID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{
+	result, err := ok.CancelMultipleRfqs(contextGenerate(), &CancelRfqRequestsParam{
 		ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"},
 	})
 	require.NoError(t, err)
@@ -894,12 +883,11 @@ func TestCancelAllRfqs(t *testing.T) {
 
 func TestExecuteQuote(t *testing.T) {
 	t.Parallel()
-
-	_, err := ok.ExecuteQuote(contextGenerate(), ExecuteQuoteParams{})
+	_, err := ok.ExecuteQuote(contextGenerate(), &ExecuteQuoteParams{})
 	assert.ErrorIs(t, err, errMissingRfqIDOrQuoteID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.ExecuteQuote(contextGenerate(), ExecuteQuoteParams{
+	result, err := ok.ExecuteQuote(contextGenerate(), &ExecuteQuoteParams{
 		RfqID:   "22540",
 		QuoteID: "84073",
 	})
@@ -975,7 +963,7 @@ func TestCreateQuote(t *testing.T) {
 func TestCancelQuote(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CancelQuote(contextGenerate(), nil)
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = ok.CancelQuote(contextGenerate(), &CancelQuoteRequestParams{})
 	require.ErrorIs(t, err, errMissingQuoteIDOrClientQuoteID)
 
@@ -1009,7 +997,6 @@ func TestCancelMultipleQuote(t *testing.T) {
 func TestCancelAllQuotes(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	time, err := ok.CancelAllQuotes(contextGenerate())
 	switch {
 	case err != nil:
@@ -1060,7 +1047,7 @@ func TestGetPublicRFQTrades(t *testing.T) {
 func TestGetFundingCurrencies(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetFundingCurrencies(contextGenerate(), "BTC")
+	result, err := ok.GetFundingCurrencies(contextGenerate(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1068,7 +1055,7 @@ func TestGetFundingCurrencies(t *testing.T) {
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetBalance(contextGenerate(), "")
+	result, err := ok.GetBalance(contextGenerate(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1076,7 +1063,7 @@ func TestGetBalance(t *testing.T) {
 func TestGetNonTradableAssets(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetNonTradableAssets(context.Background(), "BTC")
+	result, err := ok.GetNonTradableAssets(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1084,19 +1071,33 @@ func TestGetNonTradableAssets(t *testing.T) {
 func TestGetAccountAssetValuation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetAccountAssetValuation(contextGenerate(), "")
+	result, err := ok.GetAccountAssetValuation(contextGenerate(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestFundingTransfer(t *testing.T) {
 	t.Parallel()
+	_, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
+		FundingReceipentAddress: "6", FundingSourceAddress: "18", Currency: currency.BTC})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
+		Amount: 12.000, FundingReceipentAddress: "6",
+		FundingSourceAddress: "18", Currency: currency.EMPTYCODE})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
+		Amount: 12.000, FundingReceipentAddress: "6",
+		FundingSourceAddress: "", Currency: currency.BTC})
+	require.ErrorIs(t, err, errAddressRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount:   12.000,
-		To:       "6",
-		From:     "18",
-		Currency: "BTC",
+		Amount:                  12.000,
+		FundingReceipentAddress: "6",
+		FundingSourceAddress:    "18",
+		Currency:                currency.BTC,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1104,6 +1105,9 @@ func TestFundingTransfer(t *testing.T) {
 
 func TestGetFundsTransferState(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetFundsTransferState(contextGenerate(), "", "", 1)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetFundsTransferState(contextGenerate(), "754147", "1232", 1)
 	require.NoError(t, err)
@@ -1113,7 +1117,7 @@ func TestGetFundsTransferState(t *testing.T) {
 func TestGetAssetBillsDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetAssetBillsDetails(contextGenerate(), "", "", time.Time{}, time.Time{}, 0, 1)
+	result, err := ok.GetAssetBillsDetails(contextGenerate(), currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1137,7 +1141,7 @@ func TestGetCurrencyDepositAddress(t *testing.T) {
 func TestGetCurrencyDepositHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetCurrencyDepositHistory(contextGenerate(), "BTC", "", "", time.Time{}, time.Time{}, 0, 1)
+	result, err := ok.GetCurrencyDepositHistory(contextGenerate(), currency.BTC, "", "", time.Time{}, time.Time{}, 0, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1145,7 +1149,7 @@ func TestGetCurrencyDepositHistory(t *testing.T) {
 func TestWithdrawal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: "BTC", WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
+	result, err := ok.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1172,7 +1176,7 @@ func TestCancelWithdrawal(t *testing.T) {
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetWithdrawalHistory(contextGenerate(), "BTC", "", "", "", "", time.Time{}, time.Time{}, 1)
+	result, err := ok.GetWithdrawalHistory(contextGenerate(), currency.BTC, "", "", "", "", time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1188,7 +1192,7 @@ func TestSmallAssetsConvert(t *testing.T) {
 func TestGetSavingBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetSavingBalance(contextGenerate(), "BTC")
+	result, err := ok.GetSavingBalance(contextGenerate(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1226,25 +1230,25 @@ func TestSetLendingRate(t *testing.T) {
 func TestGetLendingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetLendingHistory(contextGenerate(), "USDT", time.Time{}, time.Time{}, 1)
+	result, err := ok.GetLendingHistory(contextGenerate(), currency.USDT, time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetPublicBorrowInfo(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetPublicBorrowInfo(contextGenerate(), "")
+	result, err := ok.GetPublicBorrowInfo(contextGenerate(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = ok.GetPublicBorrowInfo(context.Background(), "USDT")
+	result, err = ok.GetPublicBorrowInfo(context.Background(), currency.USDT)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetPublicBorrowHistory(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetPublicBorrowHistory(context.Background(), "USDT", time.Time{}, time.Time{}, 1)
+	result, err := ok.GetPublicBorrowHistory(context.Background(), currency.USDT, time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1252,7 +1256,6 @@ func TestGetPublicBorrowHistory(t *testing.T) {
 func TestGetConvertCurrencies(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetConvertCurrencies(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1261,8 +1264,7 @@ func TestGetConvertCurrencies(t *testing.T) {
 func TestGetConvertCurrencyPair(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	result, err := ok.GetConvertCurrencyPair(contextGenerate(), "USDT", "BTC")
+	result, err := ok.GetConvertCurrencyPair(contextGenerate(), currency.USDT, currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1301,7 +1303,6 @@ func TestConvertTrade(t *testing.T) {
 func TestGetConvertHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetConvertHistory(contextGenerate(), time.Time{}, time.Time{}, 1, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1310,8 +1311,7 @@ func TestGetConvertHistory(t *testing.T) {
 func TestGetNonZeroAccountBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	result, err := ok.AccountBalance(contextGenerate(), "")
+	result, err := ok.AccountBalance(contextGenerate(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1319,7 +1319,6 @@ func TestGetNonZeroAccountBalance(t *testing.T) {
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetPositions(contextGenerate(), "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1328,7 +1327,6 @@ func TestGetPositions(t *testing.T) {
 func TestGetPositionsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetPositionsHistory(contextGenerate(), "", "", "", 0, 1, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1337,7 +1335,6 @@ func TestGetPositionsHistory(t *testing.T) {
 func TestGetAccountAndPositionRisk(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetAccountAndPositionRisk(contextGenerate(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1346,7 +1343,6 @@ func TestGetAccountAndPositionRisk(t *testing.T) {
 func TestGetBillsDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetBillsDetailLast7Days(contextGenerate(), &BillsDetailQueryParameter{
 		Limit: 3,
 	})
@@ -1357,7 +1353,6 @@ func TestGetBillsDetail(t *testing.T) {
 func TestGetAccountConfiguration(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetAccountConfiguration(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1366,7 +1361,6 @@ func TestGetAccountConfiguration(t *testing.T) {
 func TestSetPositionMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.SetPositionMode(contextGenerate(), "net_mode")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1376,7 +1370,7 @@ func TestSetLeverageRate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.SetLeverageRate(contextGenerate(), SetLeverageInput{
-		Currency:     "USDT",
+		Currency:     currency.USDT,
 		Leverage:     5,
 		MarginMode:   "cross",
 		InstrumentID: "BTC-USDT",
@@ -1387,8 +1381,7 @@ func TestSetLeverageRate(t *testing.T) {
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	result, err := ok.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), "BTC-USDT", "cross", "BTC", "", 5)
+	result, err := ok.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, "BTC-USDT", "cross", "", 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1396,7 +1389,7 @@ func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetMaximumAvailableTradableAmount(contextGenerate(), "BTC-USDT", "BTC", "cross", true, 123)
+	result, err := ok.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, "BTC-USDT", "cross", true, 123)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1404,7 +1397,6 @@ func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 func TestIncreaseDecreaseMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	result, err := ok.IncreaseDecreaseMargin(contextGenerate(), &IncreaseDecreaseMarginInput{
 		InstrumentID: "BTC-USDT",
 		PositionSide: "long",
@@ -1419,7 +1411,6 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 func TestGetLeverageRate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetLeverageRate(contextGenerate(), "BTC-USDT", "cross")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1428,7 +1419,7 @@ func TestGetLeverageRate(t *testing.T) {
 func TestGetMaximumLoanOfInstrument(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetMaximumLoanOfInstrument(contextGenerate(), "ZRX-BTC", "isolated", "ZRX")
+	result, err := ok.GetMaximumLoanOfInstrument(contextGenerate(), "ZRX-BTC", "isolated", currency.ZRX)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1436,7 +1427,6 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetTradeFee(contextGenerate(), "SPOT", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1445,8 +1435,7 @@ func TestGetTradeFee(t *testing.T) {
 func TestGetInterestAccruedData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	result, err := ok.GetInterestAccruedData(contextGenerate(), 0, 1, "", "", "", time.Time{}, time.Time{})
+	result, err := ok.GetInterestAccruedData(contextGenerate(), 0, 1, currency.EMPTYCODE, "", "", time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1454,8 +1443,7 @@ func TestGetInterestAccruedData(t *testing.T) {
 func TestGetInterestRate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	result, err := ok.GetInterestRate(contextGenerate(), "")
+	result, err := ok.GetInterestRate(contextGenerate(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1484,7 +1472,7 @@ func TestIsolatedMarginTradingSettings(t *testing.T) {
 func TestGetMaximumWithdrawals(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetMaximumWithdrawals(contextGenerate(), "BTC")
+	result, err := ok.GetMaximumWithdrawals(contextGenerate(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1508,7 +1496,7 @@ func TestVIPLoansBorrowAndRepay(t *testing.T) {
 func TestGetBorrowAndRepayHistoryForVIPLoans(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetBorrowAndRepayHistoryForVIPLoans(contextGenerate(), "", time.Time{}, time.Time{}, 3)
+	result, err := ok.GetBorrowAndRepayHistoryForVIPLoans(contextGenerate(), currency.EMPTYCODE, time.Time{}, time.Time{}, 3)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1516,7 +1504,7 @@ func TestGetBorrowAndRepayHistoryForVIPLoans(t *testing.T) {
 func TestGetBorrowInterestAndLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetBorrowInterestAndLimit(contextGenerate(), 1, "BTC")
+	result, err := ok.GetBorrowInterestAndLimit(contextGenerate(), 1, currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1524,7 +1512,6 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 func TestPositionBuilder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.PositionBuilder(contextGenerate(), PositionBuilderInput{
 		ImportExistingPosition: true,
 	})
@@ -1535,15 +1522,13 @@ func TestPositionBuilder(t *testing.T) {
 func TestGetGreeks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	_, err := ok.GetGreeks(contextGenerate(), "")
+	_, err := ok.GetGreeks(contextGenerate(), currency.EMPTYCODE)
 	assert.False(t, err != nil && !strings.Contains(err.Error(), "Unsupported operation"), err)
 }
 
 func TestGetPMLimitation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetPMPositionLimitation(contextGenerate(), "SWAP", "BTC-USDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1552,7 +1537,6 @@ func TestGetPMLimitation(t *testing.T) {
 func TestViewSubaccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.ViewSubAccountList(contextGenerate(), false, "", time.Time{}, time.Time{}, 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1561,7 +1545,6 @@ func TestViewSubaccountList(t *testing.T) {
 func TestResetSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName:   "sam",
 		APIKey:           apiKey,
@@ -1592,14 +1575,14 @@ func TestGetSubaccountTradingBalance(t *testing.T) {
 func TestGetSubaccountFundingBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetSubaccountFundingBalance(contextGenerate(), "test1", "")
+	result, err := ok.GetSubaccountFundingBalance(contextGenerate(), "test1", currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 func TestGetSubAccountMaximumWithdrawal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetSubAccountMaximumWithdrawal(context.Background(), "test1", "BTC")
+	result, err := ok.GetSubAccountMaximumWithdrawal(context.Background(), "test1", currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1607,7 +1590,7 @@ func TestGetSubAccountMaximumWithdrawal(t *testing.T) {
 func TestHistoryOfSubaccountTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.HistoryOfSubaccountTransfer(contextGenerate(), "", "0", "", time.Time{}, time.Time{}, 1)
+	result, err := ok.HistoryOfSubaccountTransfer(contextGenerate(), currency.EMPTYCODE, "0", "", time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1615,7 +1598,7 @@ func TestHistoryOfSubaccountTransfer(t *testing.T) {
 func TestGetHistoryOfManagedSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetHistoryOfManagedSubAccountTransfer(context.Background(), "BTC", "", "", "", time.Time{}, time.Time{}, 10)
+	result, err := ok.GetHistoryOfManagedSubAccountTransfer(context.Background(), currency.BTC, "", "", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1644,7 +1627,6 @@ func TestSetPermissionOfTransferOut(t *testing.T) {
 func TestGetCustodyTradingSubaccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	result, err := ok.GetCustodyTradingSubaccountList(contextGenerate(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1669,7 +1651,7 @@ func TestSetSubAccountVIPLoanAllocation(t *testing.T) {
 func TestGetSubAccountBorrowInterestAndLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetSubAccountBorrowInterestAndLimit(context.Background(), "123456", "ETH")
+	result, err := ok.GetSubAccountBorrowInterestAndLimit(context.Background(), "123456", currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1782,7 +1764,7 @@ func TestGetGridAlgoOrderHistory(t *testing.T) {
 func TestGetGridAlgoOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetGridAlgoOrderDetails(contextGenerate(), "grid", "")
-	require.ErrorIs(t, err, errMissingAlgoOrderID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderDetails(contextGenerate(), "grid", "7878")
@@ -1795,7 +1777,7 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	_, err := ok.GetGridAlgoSubOrders(contextGenerate(), "", "", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingAlgoOrderType)
 	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2)
-	require.ErrorIs(t, err, errMissingAlgoOrderID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingSubOrderType)
 
@@ -1815,9 +1797,9 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "", "")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
-	require.ErrorIs(t, err, errMissingAlgoOrderID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
-	require.ErrorIs(t, err, errMissingAlgoOrderID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "448965992920907776")
@@ -1828,7 +1810,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 func TestSpotGridWithdrawProfit(t *testing.T) {
 	t.Parallel()
 	_, err := ok.SpotGridWithdrawProfit(contextGenerate(), "")
-	require.ErrorIs(t, err, errMissingAlgoOrderID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SpotGridWithdrawProfit(contextGenerate(), "1234")
@@ -1879,7 +1861,7 @@ func TestGetGridAIParameter(t *testing.T) {
 func TestGetOffers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetOffers(contextGenerate(), "", "", "")
+	result, err := ok.GetOffers(contextGenerate(), "", "", currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1931,7 +1913,7 @@ func TestCancelPurchaseOrRedemption(t *testing.T) {
 func TestGetEarnActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetEarnActiveOrders(contextGenerate(), "", "", "", "")
+	result, err := ok.GetEarnActiveOrders(contextGenerate(), "", "", "", currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1939,7 +1921,7 @@ func TestGetEarnActiveOrders(t *testing.T) {
 func TestGetFundingOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetFundingOrderHistory(contextGenerate(), "", "", "", time.Time{}, time.Time{}, 1)
+	result, err := ok.GetFundingOrderHistory(contextGenerate(), "", "", currency.EMPTYCODE, time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2265,7 +2247,6 @@ func TestGetPairFromInstrumentID(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	pair, err := currency.NewPairFromString("BTC-USD")
 	require.NoError(t, err)
 	var getOrdersRequest = order.MultiOrderRequest{
@@ -2754,7 +2735,6 @@ func TestWsMassCancelOrders(t *testing.T) {
 func TestWsPositionChannel(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	err := ok.WsPositionChannel("subscribe", asset.Options, currency.NewPair(currency.USD, currency.BTC))
 	assert.NoError(t, err)
 }
@@ -2762,7 +2742,6 @@ func TestWsPositionChannel(t *testing.T) {
 func TestBalanceAndPositionSubscription(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	err := ok.BalanceAndPositionSubscription("subscribe", "1234")
 	require.NoError(t, err)
 	err = ok.BalanceAndPositionSubscription("unsubscribe", "1234")
@@ -2772,7 +2751,6 @@ func TestBalanceAndPositionSubscription(t *testing.T) {
 func TestWsOrderChannel(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	err := ok.WsOrderChannel("subscribe", asset.Margin, currency.NewPair(currency.SOL, currency.USDT), "")
 	require.NoError(t, err)
 	err = ok.WsOrderChannel("unsubscribe", asset.Margin, currency.NewPair(currency.SOL, currency.USDT), "")
@@ -2791,7 +2769,6 @@ func TestAlgoOrdersSubscription(t *testing.T) {
 func TestAdvanceAlgoOrdersSubscription(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	err := ok.AdvanceAlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP")), "")
 	require.NoError(t, err)
 	err = ok.AdvanceAlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP")), "")
@@ -2801,7 +2778,6 @@ func TestAdvanceAlgoOrdersSubscription(t *testing.T) {
 func TestPositionRiskWarningSubscription(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	err := ok.PositionRiskWarningSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP")))
 	require.NoError(t, err)
 	err = ok.PositionRiskWarningSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP")))
@@ -2829,7 +2805,6 @@ func TestRfqSubscription(t *testing.T) {
 func TestQuotesSubscription(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	err := ok.QuotesSubscription("subscribe")
 	require.NoError(t, err)
 	err = ok.QuotesSubscription("unsubscribe")
@@ -3019,7 +2994,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
-	require.ErrorIs(t, err, errEmptyArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	assets, err := ok.GetAssetsFromInstrumentTypeOrID("SPOT", "")
 	require.NoError(t, err)
@@ -3161,9 +3136,9 @@ func TestGetLeverage(t *testing.T) {
 	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
 	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-	require.ErrorIs(t, err, errOrderSideRequired)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.CouldNotBuy)
-	require.ErrorIs(t, err, errInvalidOrderSide)
+	require.ErrorIs(t, err, errMissingLegs)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
@@ -3183,9 +3158,9 @@ func TestSetLeverage(t *testing.T) {
 	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
 	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	require.ErrorIs(t, err, errOrderSideRequired)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
-	require.ErrorIs(t, err, errInvalidOrderSide)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3246,7 +3221,7 @@ func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 	result, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
 		Amount:       1,
 		InstrumentID: "BTC-USDT",
-		LoanCcy:      "USDT",
+		LoanCcy:      currency.USDT,
 		Side:         "borrow",
 	})
 	require.NoError(t, err)
@@ -3444,6 +3419,8 @@ func TestComputeMinInvestment(t *testing.T) {
 
 func TestRSIBackTesting(t *testing.T) {
 	t.Parallel()
+	_, err := ok.RSIBackTesting(context.Background(), "", "", "", 50, 14, kline.FiveMin)
+	require.ErrorIs(t, err, errMissingInstrumentID)
 	result, err := ok.RSIBackTesting(context.Background(), "BTC-USDT", "", "", 50, 14, kline.FiveMin)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3588,7 +3565,7 @@ func TestPlaceLeadingStopOrder(t *testing.T) {
 func TestCloseLeadingPosition(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{})
-	require.ErrorIsf(t, err, errNilArgument, "expected %v, got %v", errNilArgument, err)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{
@@ -3641,7 +3618,7 @@ func TestGetUnrealizedProfitSharingDetails(t *testing.T) {
 func TestSetFirstCopySettings(t *testing.T) {
 	t.Parallel()
 	_, err := ok.AmendCopySettings(context.Background(), &FirstCopySettings{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendCopySettings(context.Background(), &FirstCopySettings{
@@ -3661,7 +3638,7 @@ func TestSetFirstCopySettings(t *testing.T) {
 func TestAmendCopySettings(t *testing.T) {
 	t.Parallel()
 	_, err := ok.SetFirstCopySettings(context.Background(), &FirstCopySettings{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SetFirstCopySettings(context.Background(), &FirstCopySettings{
@@ -3681,7 +3658,7 @@ func TestAmendCopySettings(t *testing.T) {
 func TestStopCopying(t *testing.T) {
 	t.Parallel()
 	_, err := ok.StopCopying(context.Background(), &StopCopyingParameter{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.StopCopying(context.Background(), &StopCopyingParameter{
@@ -3960,7 +3937,7 @@ func TestGetEconomicCanendarData(t *testing.T) {
 func TestGetDepositWithdrawalStatus(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetDepositWithdrawalStatus(context.Background(), "1244", "", "", "", "")
+	result, err := ok.GetDepositWithdrawalStatus(context.Background(), currency.EMPTYCODE, "1244", "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3974,6 +3951,9 @@ func TestGetPublicExchangeList(t *testing.T) {
 
 func TestWsPlaceSpreadOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.WsPlaceSpreadOrder(&SpreadOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.WsPlaceSpreadOrder(&SpreadOrderParam{
 		SpreadID:      "BTC-USDT_BTC-USDT-SWAP",

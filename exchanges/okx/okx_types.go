@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -513,13 +514,13 @@ type VIPInterestRateAndLoanQuotaInformation struct {
 
 // InsuranceFundInformationRequestParams insurance fund balance information.
 type InsuranceFundInformationRequestParams struct {
-	InstrumentType string    `json:"instType"`
-	Type           string    `json:"type"` //  Type values allowed are `liquidation_balance_deposit, bankruptcy_loss, and platform_revenue`
-	Underlying     string    `json:"uly"`
-	Currency       string    `json:"ccy"`
-	Before         time.Time `json:"before"`
-	After          time.Time `json:"after"`
-	Limit          int64     `json:"limit"`
+	InstrumentType string        `json:"instType"`
+	Type           string        `json:"type"` //  Type values allowed are `liquidation_balance_deposit, bankruptcy_loss, and platform_revenue`
+	Underlying     string        `json:"uly"`
+	Currency       currency.Code `json:"ccy"`
+	Before         time.Time     `json:"before"`
+	After          time.Time     `json:"after"`
+	Limit          int64         `json:"limit"`
 }
 
 // InsuranceFundInformation holds insurance fund information data.
@@ -1078,14 +1079,14 @@ type AccountAssetValuation struct {
 
 // FundingTransferRequestInput represents funding account request input.
 type FundingTransferRequestInput struct {
-	Currency     string  `json:"ccy"`
-	Type         int64   `json:"type,string"`
-	Amount       float64 `json:"amt,string"`
-	From         string  `json:"from"` // "6": Funding account, "18": Trading account
-	To           string  `json:"to"`
-	SubAccount   string  `json:"subAcct"`
-	LoanTransfer bool    `json:"loanTrans,string"`
-	ClientID     string  `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
+	Currency                currency.Code `json:"ccy"`
+	Type                    int64         `json:"type,string"`
+	Amount                  float64       `json:"amt,string"`
+	FundingSourceAddress    string        `json:"from"` // "6": Funding account, "18": Trading account
+	FundingReceipentAddress string        `json:"to"`
+	SubAccount              string        `json:"subAcct"`
+	LoanTransfer            bool          `json:"loanTrans,string"`
+	ClientID                string        `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
 }
 
 // FundingTransferResponse represents funding transfer and trading account transfer response.
@@ -1159,13 +1160,13 @@ type DepositHistoryResponseItem struct {
 
 // WithdrawalInput represents request parameters for cryptocurrency withdrawal
 type WithdrawalInput struct {
-	Amount                float64 `json:"amt,string"`
-	TransactionFee        float64 `json:"fee,string"`
-	WithdrawalDestination string  `json:"dest"`
-	Currency              string  `json:"ccy"`
-	ChainName             string  `json:"chain"`
-	ToAddress             string  `json:"toAddr"`
-	ClientID              string  `json:"clientId"`
+	Amount                float64       `json:"amt,string"`
+	TransactionFee        float64       `json:"fee,string"`
+	WithdrawalDestination string        `json:"dest"`
+	Currency              currency.Code `json:"ccy"`
+	ChainName             string        `json:"chain"`
+	ToAddress             string        `json:"toAddr"`
+	ClientID              string        `json:"clientId"`
 }
 
 // WithdrawalResponse cryptocurrency withdrawal response
@@ -1524,7 +1525,7 @@ type AccountAndPositionRisk struct {
 // BillsDetailQueryParameter represents bills detail query parameter
 type BillsDetailQueryParameter struct {
 	InstrumentType string // Instrument type "SPOT" "MARGIN" "SWAP" "FUTURES" "OPTION"
-	Currency       string
+	Currency       currency.Code
 	MarginMode     string // Margin mode "isolated" "cross"
 	ContractType   string // Contract type "linear" & "inverse" Only applicable to FUTURES/SWAP
 	BillType       uint64 // Bill type 1: Transfer 2: Trade 3: Delivery 4: Auto token conversion 5: Liquidation 6: Margin transfer 7: Interest deduction 8: Funding fee 9: ADL 10: Clawback 11: System token conversion 12: Strategy transfer 13: ddh
@@ -1580,11 +1581,11 @@ type PositionMode struct {
 
 // SetLeverageInput represents set leverage request input
 type SetLeverageInput struct {
-	Leverage     float64 `json:"lever,string"`     // set leverage for isolated
-	MarginMode   string  `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
-	InstrumentID string  `json:"instId,omitempty"` // Optional:
-	Currency     string  `json:"ccy,omitempty"`    // Optional:
-	PositionSide string  `json:"posSide,omitempty"`
+	Leverage     float64       `json:"lever,string"`     // set leverage for isolated
+	MarginMode   string        `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
+	InstrumentID string        `json:"instId,omitempty"` // Optional:
+	Currency     currency.Code `json:"ccy,omitempty"`    // Optional:
+	PositionSide string        `json:"posSide,omitempty"`
 }
 
 // SetLeverageResponse represents set leverage response
@@ -1744,10 +1745,10 @@ type IsolatedMode struct {
 
 // BorrowAndRepay manual holds manual borrow and repay in quick margin mode.
 type BorrowAndRepay struct {
-	Amount       float64 `json:"amt,string"`
-	InstrumentID string  `json:"instId"`
-	LoanCcy      string  `json:"ccy"`
-	Side         string  `json:"side"` // possible values: 'borrow' and 'repay'
+	Amount       float64       `json:"amt,string"`
+	InstrumentID string        `json:"instId"`
+	LoanCcy      currency.Code `json:"ccy"`
+	Side         string        `json:"side"` // possible values: 'borrow' and 'repay'
 }
 
 // BorrowRepayHistoryItem holds borrow or repay history item information
@@ -2811,7 +2812,7 @@ type WsOrderActionResponse struct {
 
 func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingData) error {
 	if incoming == nil {
-		return errNilArgument
+		return common.ErrNilPointer
 	}
 	a.ID = incoming.ID
 	a.Code = incoming.Code

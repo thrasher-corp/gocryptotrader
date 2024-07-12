@@ -484,7 +484,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 				}
 				p := s.Pairs[0]
 				if p.Base.String() == "" || p.Quote.String() == "" {
-					return errIncompleteCurrencyPair
+					return currency.ErrCurrencyPairsEmpty
 				}
 				instrumentID = format.Format(p)
 			}
@@ -770,7 +770,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 // wsProcessSpreadTrades handle and process spread order trades
 func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 	if respRaw == nil {
-		return errNilArgument
+		return common.ErrNilPointer
 	}
 	var resp WsSpreadOrderTrade
 	err := json.Unmarshal(respRaw, &resp)
@@ -809,7 +809,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 // Data will only be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 	if respRaw == nil {
-		return errNilArgument
+		return common.ErrNilPointer
 	}
 	resp := &struct {
 		Argument SubscriptionInfo `json:"arg"`
@@ -865,7 +865,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 // wsProcessIndexCandles processes index candlestick data
 func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	if respRaw == nil {
-		return errNilArgument
+		return common.ErrNilPointer
 	}
 	response := struct {
 		Argument SubscriptionInfo  `json:"arg"`
@@ -1106,7 +1106,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		return err
 	}
 	if !pair.IsPopulated() {
-		return errIncompleteCurrencyPair
+		return currency.ErrCurrencyPairsEmpty
 	}
 	pair.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
@@ -1424,7 +1424,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 // wsProcessCandles handler to get a list of candlestick messages.
 func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	if respRaw == nil {
-		return errNilArgument
+		return common.ErrNilPointer
 	}
 	response := struct {
 		Argument SubscriptionInfo  `json:"arg"`
@@ -1628,7 +1628,7 @@ func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
 // WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
 func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	err := ok.validatePlaceOrderParams(arg)
 	if err != nil {
@@ -1876,7 +1876,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 // WsAmendOrder method to amend trade order using a request thought the websocket channel.
 func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -2150,7 +2150,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 			return err
 		}
 		if !pair.IsPopulated() {
-			return errIncompleteCurrencyPair
+			return currency.ErrCurrencyPairsEmpty
 		}
 		instrumentID = format.Format(pair)
 	}
@@ -2197,7 +2197,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	}
 	if params.InstrumentID {
 		if !pair.IsPopulated() {
-			return errIncompleteCurrencyPair
+			return currency.ErrCurrencyPairsEmpty
 		}
 		format, err := ok.GetPairFormat(assetType, false)
 		if err != nil {
@@ -2458,8 +2458,8 @@ func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder StatusCodeHol
 
 // WsPlaceSpreadOrder places a spread order thought the websocket connection stream, and returns a SubmitResponse and error message.
 func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
+	if arg == nil || *arg == (SpreadOrderParam{}) {
+		return nil, common.ErrNilPointer
 	}
 	err := ok.validatePlaceSpreadOrderParam(arg)
 	if err != nil {
@@ -2508,7 +2508,7 @@ func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderResponse, 
 // WsAmandSpreadOrder amends incomplete spread order through the websocket channel.
 func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
 	if arg == nil || *arg == (AmendSpreadOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID

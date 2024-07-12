@@ -608,7 +608,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, err
 		}
 		if !pair.IsPopulated() {
-			return nil, errIncompleteCurrencyPair
+			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		instrumentID = pairFormat.Format(pair)
 		book := &orderbook.Base{
@@ -663,7 +663,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	if !ok.SupportsAsset(assetType) {
 		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	accountBalances, err := ok.AccountBalance(ctx, "")
+	accountBalances, err := ok.AccountBalance(ctx, currency.EMPTYCODE)
 	if err != nil {
 		return info, err
 	}
@@ -706,11 +706,11 @@ func (ok *Okx) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, "", "", "", time.Time{}, time.Time{}, -1, 0)
+	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, currency.EMPTYCODE, "", "", time.Time{}, time.Time{}, -1, 0)
 	if err != nil {
 		return nil, err
 	}
-	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, "", "", "", "", "", time.Time{}, time.Time{}, -5)
+	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", "", "", "", time.Time{}, time.Time{}, -5)
 	if err != nil {
 		return nil, err
 	}
@@ -747,7 +747,7 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	withdrawals, err := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", "", time.Time{}, time.Time{}, -5)
+	withdrawals, err := ok.GetWithdrawalHistory(ctx, c, "", "", "", "", time.Time{}, time.Time{}, -5)
 	if err != nil {
 		return nil, err
 	}
@@ -1095,7 +1095,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsCancelOrder(req)
 	} else {
-		_, err = ok.CancelSingleOrder(ctx, req)
+		_, err = ok.CancelSingleOrder(ctx, &req)
 	}
 	return err
 }
@@ -1124,7 +1124,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, err
 		}
 		if !ord.Pair.IsPopulated() {
-			return nil, errIncompleteCurrencyPair
+			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		cancelOrderParams[x] = CancelOrderRequestParam{
 			InstrumentID:  pairFormat.Format(ord.Pair),
@@ -1316,7 +1316,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		return nil, err
 	}
 	if !pair.IsPopulated() {
-		return nil, errIncompleteCurrencyPair
+		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	instrumentID := pairFormat.Format(pair)
 	if !ok.SupportsAsset(assetType) {
@@ -1401,7 +1401,7 @@ func (ok *Okx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 	input := WithdrawalInput{
 		ChainName:             withdrawRequest.Crypto.Chain,
 		Amount:                withdrawRequest.Amount,
-		Currency:              withdrawRequest.Currency.String(),
+		Currency:              withdrawRequest.Currency,
 		ToAddress:             withdrawRequest.Crypto.Address,
 		TransactionFee:        withdrawRequest.Crypto.FeeAmount,
 		WithdrawalDestination: "3",
@@ -1828,7 +1828,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
 func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	currencyChains, err := ok.GetFundingCurrencies(ctx, cryptocurrency.String())
+	currencyChains, err := ok.GetFundingCurrencies(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -2044,7 +2044,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
-				Currency:       pairRate.PaymentCurrency.String(),
+				Currency:       pairRate.PaymentCurrency,
 				BillType:       137,
 				BeginTime:      sd,
 				EndTime:        r.EndDate,
@@ -2223,7 +2223,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		marginMode = margin.Multi
 	}
 
-	acc, err := ok.AccountBalance(ctx, "")
+	acc, err := ok.AccountBalance(ctx, currency.EMPTYCODE)
 	if err != nil {
 		return nil, err
 	}
@@ -2434,13 +2434,13 @@ func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.P
 		if marginType == margin.Isolated {
 			switch {
 			case orderSide == order.UnknownSide:
-				return errOrderSideRequired
+				return order.ErrSideIsInvalid
 			case orderSide.IsLong():
 				posSide = "long"
 			case orderSide.IsShort():
 				posSide = "short"
 			default:
-				return fmt.Errorf("%w %v requires long/short", errInvalidOrderSide, orderSide)
+				return fmt.Errorf("%w %v requires long/short", order.ErrSideIsInvalid, orderSide)
 			}
 		}
 		fallthrough
@@ -2471,11 +2471,11 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 		if marginType == margin.Isolated {
 			switch {
 			case orderSide == order.UnknownSide:
-				return 0, errOrderSideRequired
+				return 0, order.ErrSideIsInvalid
 			case orderSide.IsLong(), orderSide.IsShort():
 				inspectLeverage = true
 			default:
-				return 0, fmt.Errorf("%w %v requires long/short", errInvalidOrderSide, orderSide)
+				return 0, fmt.Errorf("%w %v requires long/short", order.ErrSideIsInvalid, orderSide)
 			}
 		}
 		fallthrough
