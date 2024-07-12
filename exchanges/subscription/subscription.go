@@ -159,8 +159,6 @@ func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 		return
 	}
 	s.m.Lock()
-	for _, p := range pairs {
-		s.Pairs = s.Pairs.Add(p)
-	}
+	s.Pairs = s.Pairs.Add(pairs...)
 	s.m.Unlock()
 }
