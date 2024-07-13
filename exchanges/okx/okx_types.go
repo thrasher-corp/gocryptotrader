@@ -683,6 +683,29 @@ type AmendOrderRequestParams struct {
 	ClientRequestID string  `json:"reqId,omitempty"`
 	NewQuantity     float64 `json:"newSz,string,omitempty"`
 	NewPrice        float64 `json:"newPx,string,omitempty"`
+
+	// Modify options orders using USD prices
+	// Only applicable to options.
+	// When modifying options orders, users can only fill in one of the following: newPx, newPxUsd, or newPxVol.
+	NewPriceInUSD float64 `json:"newPxUsd"`
+
+	NewPriceVolatility float64       // Modify options orders based on implied volatility, where 1 represents 100%. Only applicable to options.
+	AttachAlgoOrders   []AlgoOrdInfo `json:"attachAlgoOrds,omitempty"`
+}
+
+// AlgoOrdInfo represents TP/SL info attached when placing an order.
+type AlgoOrdInfo struct {
+	AttachAlgoID                   string  `json:"attachAlgoId,omitempty"`
+	AttachAlgoClientOrderID        string  `json:"attachAlgoClOrdId,omitempty"`
+	NewTakeProfitTriggerPrice      float64 `json:"newTpTriggerPx,omitempty"`
+	NewTakeProfitOrderPrice        float64 `json:"newTpOrdPx,omitempty"`
+	NewTakeProfitOrderKind         string  `json:"newTpOrdKind,omitempty"` // possible values are 'condition' and 'limit'
+	NewStopLossTriggerPrice        float64 `json:"newSlTriggerPx,omitempty"`
+	NewStopLossOrderPrice          float64 `json:"newSlOrdPx,omitempty"`
+	NewTakkeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"`
+	NewStopLossTriggerPriceType    string  `json:"newSlTriggerPxType,omitempty"` // possible values are 'last', 'index', and 'mark'
+	NewSize                        float64 `json:"sz,omitempty"`
+	AmendPriceOnTriggerType        string  `json:"amendPxOnTriggerType,omitempty"` // Whether to enable Cost-price SL. Only applicable to SL order of split TPs. '0': disable, the default value '1': Enable
 }
 
 // ClosePositionsRequestParams input parameters for close position endpoints
@@ -1313,13 +1336,13 @@ type ConvertCurrencyPair struct {
 
 // EstimateQuoteRequestInput represents estimate quote request parameters
 type EstimateQuoteRequestInput struct {
-	BaseCurrency         string  `json:"baseCcy,omitempty"`
-	QuoteCurrency        string  `json:"quoteCcy,omitempty"`
-	Side                 string  `json:"side,omitempty"`
-	RfqAmount            float64 `json:"rfqSz,omitempty"`
-	RfqSzCurrency        string  `json:"rfqSzCcy,omitempty"`
-	ClientRequestOrderID string  `json:"clQReqId,string,omitempty"`
-	Tag                  string  `json:"tag,omitempty"`
+	BaseCurrency         currency.Code `json:"baseCcy,omitempty"`
+	QuoteCurrency        currency.Code `json:"quoteCcy,omitempty"`
+	Side                 string        `json:"side,omitempty"`
+	RfqAmount            float64       `json:"rfqSz,omitempty"`
+	RfqSzCurrency        string        `json:"rfqSzCcy,omitempty"`
+	ClientRequestOrderID string        `json:"clQReqId,string,omitempty"`
+	Tag                  string        `json:"tag,omitempty"`
 }
 
 // EstimateQuoteResponse represents estimate quote response data.
@@ -1341,14 +1364,14 @@ type EstimateQuoteResponse struct {
 
 // ConvertTradeInput represents convert trade request input
 type ConvertTradeInput struct {
-	BaseCurrency  string  `json:"baseCcy"`
-	QuoteCurrency string  `json:"quoteCcy"`
-	Side          string  `json:"side"`
-	Size          float64 `json:"sz,string"`
-	SizeCurrency  string  `json:"szCcy"`
-	QuoteID       string  `json:"quoteId"`
-	ClientOrderID string  `json:"clTReqId"`
-	Tag           string  `json:"tag"`
+	BaseCurrency  string        `json:"baseCcy"`
+	QuoteCurrency string        `json:"quoteCcy"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"sz,string"`
+	SizeCurrency  currency.Code `json:"szCcy"`
+	QuoteID       string        `json:"quoteId"`
+	ClientOrderID string        `json:"clTReqId"`
+	Tag           string        `json:"tag"`
 }
 
 // ConvertTradeResponse represents convert trade response
@@ -1905,8 +1928,8 @@ type CreateRfqInput struct {
 
 // CancelRfqRequestParam represents cancel Rfq order request params
 type CancelRfqRequestParam struct {
-	RfqID       string `json:"rfqId"`
-	ClientRfqID string `json:"clRfqId"`
+	RfqID       string `json:"rfqId,omitempty"`
+	ClientRfqID string `json:"clRfqId,omitempty"`
 }
 
 // CancelRfqRequestsParam represents cancel multiple Rfq orders request params
@@ -1953,8 +1976,8 @@ type MMPConfigDetail struct {
 
 // ExecuteQuoteParams represents Execute quote request params
 type ExecuteQuoteParams struct {
-	RfqID   string `json:"rfqId"`
-	QuoteID string `json:"quoteId"`
+	RfqID   string `json:"rfqId,omitempty"`
+	QuoteID string `json:"quoteId,omitempty"`
 }
 
 // ExecuteQuoteResponse represents execute quote response.
@@ -2032,8 +2055,8 @@ type QuoteResponse struct {
 
 // CancelQuoteRequestParams represents cancel quote request params
 type CancelQuoteRequestParams struct {
-	QuoteID       string `json:"quoteId"`
-	ClientQuoteID string `json:"clQuoteId"`
+	QuoteID       string `json:"quoteId,omitempty"`
+	ClientQuoteID string `json:"clQuoteId,omitempty"`
 }
 
 // CancelQuotesRequestParams represents cancel multiple quotes request params
@@ -2747,7 +2770,7 @@ type wsIncomingData struct {
 // copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
 func (w *wsIncomingData) copyToPlaceOrderResponse() (*WsPlaceOrderResponse, error) {
 	if len(w.Data) == 0 {
-		return nil, errEmptyPlaceOrderResponse
+		return nil, common.ErrNoResponse
 	}
 	var placeOrds []OrderData
 	err := json.Unmarshal(w.Data, &placeOrds)
@@ -2770,7 +2793,7 @@ func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
 		return errInvalidResponseParam
 	}
 	if len(w.Data) == 0 {
-		return errEmptyPlaceOrderResponse
+		return common.ErrNoResponse
 	}
 	var spreadOrderResps []SpreadOrderInfo
 	return json.Unmarshal(w.Data, &spreadOrderResps)
@@ -4412,4 +4435,81 @@ type LeadPosition struct {
 	SubPosition       string               `json:"subPos"`
 	SubPositionID     string               `json:"subPosId"`
 	UniqueCode        string               `json:"uniqueCode"`
+}
+
+// LendingOrderParam represents a lending order request parameters.
+type LendingOrderParam struct {
+	Currency    currency.Code `json:"ccy"`
+	Amount      float64       `json:"amt,omitempty,string"`
+	Rate        float64       `json:"rate,omitempty,string"`
+	Term        string        `json:"term"`
+	AutoRenewal bool          `json:"autoRenewal,omitempty"`
+}
+
+// LendingOrderResponse represents an order ID response after placing a lending order.
+type LendingOrderResponse []struct {
+	OrdID string `json:"ordId"`
+}
+
+// LendingOrderDetail represents a lending order detail.
+type LendingOrderDetail struct {
+	Amount        types.Number         `json:"amt"`
+	AutoRenewal   bool                 `json:"autoRenewal"`
+	CreationTime  convert.ExchangeTime `json:"cTime"`
+	Currency      string               `json:"ccy"`
+	EarningAmt    types.Number         `json:"earningAmt"`
+	OrderID       string               `json:"ordId"`
+	PendingAmt    types.Number         `json:"pendingAmt"`
+	Rate          types.Number         `json:"rate"`
+	SettledTime   convert.ExchangeTime `json:"settledTime"`
+	StartTime     convert.ExchangeTime `json:"startTime"`
+	State         string               `json:"state"`
+	Term          string               `json:"term"`
+	TotalInterest string               `json:"totalInterest"`
+	UTime         convert.ExchangeTime `json:"uTime"`
+}
+
+// LendingSubOrder represents a lending sub-order detail.
+type LendingSubOrder struct {
+	AccruedInterest        string               `json:"accruedInterest"`
+	Amount                 types.Number         `json:"amt"`
+	CTime                  convert.ExchangeTime `json:"cTime"`
+	Ccy                    string               `json:"ccy"`
+	EarlyTerminatedPenalty string               `json:"earlyTerminatedPenalty"`
+	ExpiryTime             convert.ExchangeTime `json:"expiryTime"`
+	FinalSettlementTime    convert.ExchangeTime `json:"finalSettlementTime"`
+	OrdID                  string               `json:"ordId"`
+	OverdueInterest        string               `json:"overdueInterest"`
+	Rate                   string               `json:"rate"`
+	SettledTime            convert.ExchangeTime `json:"settledTime"`
+	State                  string               `json:"state"`
+	SubOrdID               string               `json:"subOrdId"`
+	Term                   string               `json:"term"`
+	TotalInterest          string               `json:"totalInterest"`
+	UpdateTime             convert.ExchangeTime `json:"uTime"`
+}
+
+// PublicLendingOffer represents a lending offer detail.
+type PublicLendingOffer struct {
+	Currency  string       `json:"ccy"`
+	LendQuota string       `json:"lendQuota"`
+	MinLend   string       `json:"minLend"`
+	Rate      types.Number `json:"rate"`
+	Term      string       `json:"term"`
+}
+
+// LendingAPIHistoryItem represents a lending API history item.
+type LendingAPIHistoryItem struct {
+	Ccy       string               `json:"ccy"`
+	Rate      types.Number         `json:"rate"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
+// LendingVolume represents a lending volume detail for a specific currency.
+type LendingVolume struct {
+	Ccy           string       `json:"ccy"`
+	PendingVol    types.Number `json:"pendingVol"`
+	RateRangeFrom string       `json:"rateRangeFrom"`
+	RateRangeTo   string       `json:"rateRangeTo"`
+	Term          string       `json:"term"`
 }

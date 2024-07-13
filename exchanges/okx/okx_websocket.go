@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -778,7 +779,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 		return err
 	}
 	if len(resp.Data) == 0 {
-		return errNoCandlestickDataFound
+		return kline.ErrNoTimeSeriesDataToConvert
 	}
 	pair, err := ok.GetPairFromInstrumentID(resp.Argument.SpreadID)
 	if err != nil {
@@ -820,7 +821,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 		return err
 	}
 	if len(resp.Data) == 0 {
-		return errNoCandlestickDataFound
+		return kline.ErrNoTimeSeriesDataToConvert
 	}
 	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
 	if err != nil {
@@ -876,7 +877,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		return err
 	}
 	if len(response.Data) == 0 {
-		return errNoCandlestickDataFound
+		return kline.ErrNoTimeSeriesDataToConvert
 	}
 
 	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
@@ -1435,7 +1436,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		return err
 	}
 	if len(response.Data) == 0 {
-		return errNoCandlestickDataFound
+		return kline.ErrNoTimeSeriesDataToConvert
 	}
 	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
@@ -1627,7 +1628,7 @@ func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
 
 // WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
 func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
-	if arg == nil {
+	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	err := ok.validatePlaceOrderParams(arg)
@@ -2446,7 +2447,7 @@ func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder StatusCodeHol
 			return err
 		}
 		if dataHolder == nil {
-			return errNoValidResponseFromServer
+			return fmt.Errorf("%w, invalid incoming data", common.ErrNoResponse)
 		}
 		if data.Code == "1" {
 			return fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())

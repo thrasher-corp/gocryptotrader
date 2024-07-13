@@ -66,6 +66,7 @@ var (
 	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse             = errors.New("no response")
 	ErrTypeAssertFailure      = errors.New("type assert failure")
+	ErrNoResults              = errors.New("no results found")
 )
 
 var (

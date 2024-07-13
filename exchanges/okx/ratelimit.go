@@ -273,6 +273,14 @@ const (
 
 	getAffilateInviteesDetailEPL
 	getUserAffilateRebateInformationEPL
+
+	placeLendingOrderEPL
+	amendLendingOrderEPL
+	lendingOrderListEPL
+	lendingSubOrderListEPL
+	lendingPublicOfferEPL
+	lendingAPYHistoryEPL
+	lendingVolumeEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -565,5 +573,13 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getEventStatusEPL:                   request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
 		getAffilateInviteesDetailEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getUserAffilateRebateInformationEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		placeLendingOrderEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		amendLendingOrderEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		lendingOrderListEPL:    request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		lendingSubOrderListEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		lendingPublicOfferEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		lendingAPYHistoryEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		lendingVolumeEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 	}
 }

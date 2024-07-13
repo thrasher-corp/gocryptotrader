@@ -1645,7 +1645,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	}
 
 	if len(req.Pairs) == 0 {
-		return nil, errMissingAtLeast1CurrencyPair
+		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
 	endTime := req.EndTime
@@ -2475,7 +2475,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 			case orderSide.IsLong(), orderSide.IsShort():
 				inspectLeverage = true
 			default:
-				return 0, fmt.Errorf("%w %v requires long/short", order.ErrSideIsInvalid, orderSide)
+				return 0, fmt.Errorf("%w '%v', requires long/short", order.ErrSideIsInvalid, orderSide)
 			}
 		}
 		fallthrough
