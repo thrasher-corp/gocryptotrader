@@ -2548,7 +2548,7 @@ const wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"e
 
 func TestWsTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsTickerPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsTickerPushDataJSON)); err != nil {
 		t.Errorf("%s websocket ticker push data error: %v", g.Name, err)
 	}
 }
@@ -2557,7 +2557,7 @@ const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"ev
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsTradePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket trade push data error: %v", g.Name, err)
 	}
 }
@@ -2566,7 +2566,7 @@ const wsCandlestickPushDataJSON = `{"time": 1606292600,	"channel": "spot.candles
 
 func TestWsCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsCandlestickPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsCandlestickPushDataJSON)); err != nil {
 		t.Errorf("%s websocket candlestick push data error: %v", g.Name, err)
 	}
 }
@@ -2575,7 +2575,7 @@ const wsOrderbookTickerJSON = `{"time": 1606293275,	"channel": "spot.book_ticker
 
 func TestWsOrderbookTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsOrderbookTickerJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsOrderbookTickerJSON)); err != nil {
 		t.Errorf("%s websocket orderbook push data error: %v", g.Name, err)
 	}
 }
@@ -2587,11 +2587,11 @@ const (
 
 func TestWsOrderbookSnapshotPushData(t *testing.T) {
 	t.Parallel()
-	err := g.wsHandleData([]byte(wsOrderbookSnapshotPushDataJSON))
+	err := g.WsHandleSpotData(context.Background(), []byte(wsOrderbookSnapshotPushDataJSON))
 	if err != nil {
 		t.Errorf("%s websocket orderbook snapshot push data error: %v", g.Name, err)
 	}
-	if err = g.wsHandleData([]byte(wsOrderbookUpdatePushDataJSON)); err != nil {
+	if err = g.WsHandleSpotData(context.Background(), []byte(wsOrderbookUpdatePushDataJSON)); err != nil {
 		t.Errorf("%s websocket orderbook update push data error: %v", g.Name, err)
 	}
 }
@@ -2600,7 +2600,7 @@ const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	
 
 func TestWsPushOrders(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsSpotOrderPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsSpotOrderPushDataJSON)); err != nil {
 		t.Errorf("%s websocket orders push data error: %v", g.Name, err)
 	}
 }
@@ -2609,7 +2609,7 @@ const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrade
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsUserTradePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsUserTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket users trade push data error: %v", g.Name, err)
 	}
 }
@@ -2618,7 +2618,7 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsBalancesPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsBalancesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket balances push data error: %v", g.Name, err)
 	}
 }
@@ -2627,7 +2627,7 @@ const wsMarginBalancePushDataJSON = `{"time": 1605248616,	"channel": "spot.fundi
 
 func TestMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsMarginBalancePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket margin balance push data error: %v", g.Name, err)
 	}
 }
@@ -2636,7 +2636,7 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsCrossMarginBalancePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket cross margin balance push data error: %v", g.Name, err)
 	}
 }
@@ -2645,7 +2645,7 @@ const wsCrossMarginBalanceLoan = `{	"time":1658289372,	"channel":"spot.cross_loa
 
 func TestCrossMarginBalanceLoan(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleData([]byte(wsCrossMarginBalanceLoan)); err != nil {
+	if err := g.WsHandleSpotData(context.Background(), []byte(wsCrossMarginBalanceLoan)); err != nil {
 		t.Errorf("%s websocket cross margin loan push data error: %v", g.Name, err)
 	}
 }
@@ -2963,9 +2963,9 @@ func TestFuturesCandlestickPushData(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestGenerateDefaultSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateDefaultSubscriptions(); err != nil {
+	if _, err := g.GenerateDefaultSubscriptionsSpot(); err != nil {
 		t.Error(err)
 	}
 }

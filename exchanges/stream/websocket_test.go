@@ -1121,9 +1121,6 @@ func TestSetupNewConnection(t *testing.T) {
 	err = web.Setup(defaultSetup)
 	assert.NoError(t, err, "Setup should not error")
 
-	err = web.SetupNewConnection(ConnectionSetup{})
-	assert.ErrorIs(t, err, errExchangeConfigEmpty, "SetupNewConnection should error correctly")
-
 	err = web.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
 	assert.NoError(t, err, "SetupNewConnection should not error")
 

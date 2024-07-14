@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -159,18 +160,18 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = g.DisableAssetWebsocketSupport(asset.Futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
+	// err = g.DisableAssetWebsocketSupport(asset.Futures)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = g.DisableAssetWebsocketSupport(asset.Options)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -208,26 +209,110 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
-		FillsFeed:             g.Features.Enabled.FillsFeed,
-		TradeFeed:             g.Features.Enabled.TradeFeed,
+		ExchangeConfig: exch,
+		DefaultURL:     gateioWebsocketEndpoint,
+		RunningURL:     wsRunningURL,
+		Features:       &g.Features.Supports.WebsocketCapabilities,
+		FillsFeed:      g.Features.Enabled.FillsFeed,
+		TradeFeed:      g.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
 	}
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
+	// Spot connection
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                   gateioWebsocketEndpoint,
+		RateLimit:             gateioWebsocketRateLimit,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               g.WsHandleSpotData,
+		Subscriber:            g.SpotSubscribe,
+		Unsubscriber:          g.SpotUnsubscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptionsSpot,
+		Connector:             g.WsConnectSpot,
+		Enabled:               func() bool { return g.CheckWebsocketEnabled(asset.Spot) },
+	})
+	if err != nil {
+		return err
+	}
+	// Futures connection - USDT margined
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  futuresWebsocketUsdtURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
+		},
+		Subscriber:            g.FuturesSubscribe,
+		Unsubscriber:          g.FuturesUnsubscribe,
+		GenerateSubscriptions: func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
+		Connector:             g.WsFuturesConnect,
+		Enabled:               func() bool { return g.CheckWebsocketEnabled(asset.Futures) },
 	})
+	if err != nil {
+		return err
+	}
+
+	// Futures connection - BTC margined
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  futuresWebsocketBtcURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
+		},
+		Subscriber:            g.FuturesSubscribe,
+		Unsubscriber:          g.FuturesUnsubscribe,
+		GenerateSubscriptions: func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.BTC) },
+		Connector:             g.WsFuturesConnect,
+		Enabled:               func() bool { return g.CheckWebsocketEnabled(asset.Futures) },
+	})
+	if err != nil {
+		return err
+	}
+
+	// Futures connection - Delivery - USDT margined
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  deliveryRealUSDTTradingURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
+		},
+		Subscriber:            g.DeliveryFuturesSubscribe,
+		Unsubscriber:          g.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions: func() (subscription.List, error) { return g.GenerateDeliveryFuturesDefaultSubscriptions(currency.BTC) },
+		Connector:             g.WsDeliveryFuturesConnect,
+		Enabled:               func() bool { return true },
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: Add BTC margined delivery futures.
+
+	// Futures connection - Options
+	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                   optionsWebsocketURL,
+		RateLimit:             gateioWebsocketRateLimit,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               g.WsHandleOptionsData,
+		Subscriber:            g.OptionsSubscribe,
+		Unsubscriber:          g.OptionsUnsubscribe,
+		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
+		Connector:             g.WsOptionsConnect,
+		Enabled:               func() bool { return true },
+	})
+}
+
+// CheckWebsocketEnabled checks if the websocket is enabled for an individual asset
+func (g *Gateio) CheckWebsocketEnabled(a asset.Item) bool {
+	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
+	return err == nil && g.AssetWebsocketSupport.IsAssetWebsocketSupported(a)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

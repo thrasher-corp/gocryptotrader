@@ -58,7 +58,7 @@ var defaultSubscriptions = []string{
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsConnect initiates a websocket connection
-func (g *Gateio) WsConnect() error {
+func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -66,7 +66,7 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -74,14 +74,12 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
-	g.Websocket.Wg.Add(1)
-	go g.wsReadConnData()
 	return nil
 }
 
@@ -94,22 +92,8 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// wsReadConnData receives and passes on websocket messages for processing
-func (g *Gateio) wsReadConnData() {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := g.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := g.wsHandleData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (g *Gateio) wsHandleData(respRaw []byte) error {
+// WsHandleSpotData handles spot data
+func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
@@ -625,7 +609,7 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 }
 
 // GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, []string{
@@ -690,14 +674,14 @@ func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(event, channelsToSubscribe)
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
+	payloads, err := g.generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -723,14 +707,14 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscripti
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(context.TODO())
+		creds, err = g.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -816,7 +800,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 		}
 
 		payload := WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			ID:      conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -842,14 +826,14 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 	return payloads, nil
 }
 
-// Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription("subscribe", channelsToUnsubscribe)
+// SpotSubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+	return g.handleSubscription(ctx, conn, "subscribe", channelsToUnsubscribe)
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
+// SpotUnsubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+	return g.handleSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {

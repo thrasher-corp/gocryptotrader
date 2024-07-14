@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -35,7 +37,6 @@ var (
 var (
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
-	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
@@ -51,6 +52,7 @@ var (
 	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
 	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
 	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
+	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errClosedConnection                     = errors.New("use of closed network connection")
@@ -62,6 +64,7 @@ var (
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 	errConnSetup                            = errors.New("error in connection setup")
+	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
 )
 
 var (
@@ -127,29 +130,15 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
-	if s.Connector == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
-	}
 	w.connector = s.Connector
-
-	if s.Subscriber == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketSubscriberUnset)
-	}
 	w.Subscriber = s.Subscriber
+	w.Unsubscriber = s.Unsubscriber
+	w.GenerateSubs = s.GenerateSubscriptions
 
-	if w.features.Unsubscribe && s.Unsubscriber == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketUnsubscriberUnset)
-	}
 	w.connectionMonitorDelay = s.ExchangeConfig.ConnectionMonitorDelay
 	if w.connectionMonitorDelay <= 0 {
 		w.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
 	}
-	w.Unsubscriber = s.Unsubscriber
-
-	if s.GenerateSubscriptions == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
-	}
-	w.GenerateSubs = s.GenerateSubscriptions
 
 	if s.DefaultURL == "" {
 		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
@@ -202,36 +191,63 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
-	if c == (ConnectionSetup{}) {
-		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
-	}
-
 	if w.exchangeName == "" {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigNameEmpty)
 	}
-
 	if w.TrafficAlert == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errTrafficAlertNil)
 	}
-
 	if w.ReadMessageErrors == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errReadMessageErrorsNil)
 	}
-
-	connectionURL := w.GetWebsocketURL()
-	if c.URL != "" {
-		connectionURL = c.URL
-	}
-
 	if c.ConnectionLevelReporter == nil {
 		c.ConnectionLevelReporter = w.ExchangeLevelReporter
 	}
-
 	if c.ConnectionLevelReporter == nil {
 		c.ConnectionLevelReporter = globalReporter
 	}
 
-	newConn := &WebsocketConnection{
+	// If connector is nil, we assume that the connection and supporting
+	// functions are defined per connection. Else we use the global connector
+	// and supporting functions for backwards compatibility.
+	if w.connector == nil {
+		fmt.Println("w.connector == nil")
+		if c.Handler == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
+		}
+		if c.Subscriber == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
+		}
+		if c.Unsubscriber == nil && w.features.Unsubscribe {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
+		}
+		if c.GenerateSubscriptions == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
+		}
+		if c.Connector == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
+		}
+		w.PendingConnections = append(w.PendingConnections, c)
+		return nil
+	}
+
+	if c.Authenticated {
+		w.AuthConn = w.getConnectionFromSetup(c)
+	} else {
+		w.Conn = w.getConnectionFromSetup(c)
+	}
+
+	return nil
+}
+
+// getConnectionFromSetup returns a websocket connection from a setup
+// configuration. This is used for setting up new connections on the fly.
+func (w *Websocket) getConnectionFromSetup(c ConnectionSetup) *WebsocketConnection {
+	connectionURL := w.GetWebsocketURL()
+	if c.URL != "" {
+		connectionURL = c.URL
+	}
+	return &WebsocketConnection{
 		ExchangeName:      w.exchangeName,
 		URL:               connectionURL,
 		ProxyURL:          w.GetProxyAddress(),
@@ -245,22 +261,11 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		RateLimit:         c.RateLimit,
 		Reporter:          c.ConnectionLevelReporter,
 	}
-
-	if c.Authenticated {
-		w.AuthConn = newConn
-	} else {
-		w.Conn = newConn
-	}
-
-	return nil
 }
 
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
-	if w.connector == nil {
-		return errNoConnectFunc
-	}
 	w.m.Lock()
 	defer w.m.Unlock()
 
@@ -283,27 +288,86 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setState(connectingState)
 
-	err := w.connector()
-	if err != nil {
-		w.setState(disconnectedState)
-		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
-	}
-	w.setState(connectedState)
-
-	if !w.IsConnectionMonitorRunning() {
-		err = w.connectionMonitor()
+	if w.connector != nil {
+		fmt.Println("OLD CONNECTOR")
+		err := w.connector()
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
+			w.setState(disconnectedState)
+			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+		}
+		w.setState(connectedState)
+
+		if !w.IsConnectionMonitorRunning() {
+			err := w.connectionMonitor()
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
+			}
+		}
+
+		subs, err := w.GenerateSubs() // regenerate state on new connection
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+		if len(subs) != 0 {
+			if err := w.SubscribeToChannels(subs); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	fmt.Println("NEW CONNECTOR")
+
+	if len(w.PendingConnections) == 0 {
+		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
+	}
+
+	for i := range w.PendingConnections {
+		fmt.Println("SPAWN CONNECTION: ", i)
+		if !w.PendingConnections[i].Enabled() {
+			fmt.Println("Connection not enabled")
+			continue
+		}
+		subs, err := w.PendingConnections[i].GenerateSubscriptions() // regenerate state on new connection
+		if err != nil {
+			if errors.Is(err, asset.ErrNotEnabled) {
+				log.Warnf(log.WebsocketMgr, "%s websocket: %v", w.exchangeName, err)
+				continue // Non-fatal error, we can continue to the next connection
+			}
+			w.setState(disconnectedState)
+			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+
+		fmt.Println("subs: ", len(subs))
+
+		if len(subs) == 0 {
+			// If no subscriptions are generated, we skip the connection
+			log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", w.exchangeName)
+			continue
+		}
+
+		// TODO: Add window to max subscriptions per connection, to spawn new connections if needed.
+		conn := w.getConnectionFromSetup(w.PendingConnections[i])
+		err = w.PendingConnections[i].Connector(context.TODO(), conn)
+		if err != nil {
+			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+		}
+		w.Wg.Add(1)
+		go w.Reader(context.TODO(), conn, w.PendingConnections[i].Handler)
+
+		fmt.Println("Subscribing to channels: ", len(subs))
+		err = w.PendingConnections[i].Subscriber(context.TODO(), conn, subs)
+		if err != nil {
+			return fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
 		}
 	}
 
-	subs, err := w.GenerateSubs() // regenerate state on new connection
-	if err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-	}
-	if len(subs) != 0 {
-		if err := w.SubscribeToChannels(subs); err != nil {
-			return err
+	fmt.Println("DONE SPAWNING CONNECTIONS")
+
+	if !w.IsConnectionMonitorRunning() {
+		err := w.connectionMonitor()
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
 	}
 
@@ -961,4 +1025,18 @@ func (w *Websocket) checkSubscriptions(subs subscription.List) error {
 	}
 
 	return nil
+}
+
+// Reader reads and handles data from a specific connection
+func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, message []byte) error) {
+	defer w.Wg.Done()
+	for {
+		resp := conn.ReadMessage()
+		if resp.Raw == nil {
+			return // Connection has been closed
+		}
+		if err := handler(ctx, resp.Raw); err != nil {
+			w.ReadMessageErrors <- err
+		}
+	}
 }

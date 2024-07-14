@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -66,7 +67,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 
 	var err error
 	var conStatus *http.Response
-
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
@@ -74,7 +74,39 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		}
 		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
 	}
-	defer conStatus.Body.Close()
+	defer conStatus.Body.Close() // TODO: Close on error above. This is a potential resource leak.
+
+	if w.Verbose {
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
+	}
+	select {
+	case w.Traffic <- struct{}{}:
+	default:
+	}
+	w.setConnectedStatus(true)
+	return nil
+}
+
+// DialContext sets proxy urls and then connects to the websocket
+func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *websocket.Dialer, headers http.Header) error {
+	if w.ProxyURL != "" {
+		proxy, err := url.Parse(w.ProxyURL)
+		if err != nil {
+			return err
+		}
+		dialer.Proxy = http.ProxyURL(proxy)
+	}
+
+	var err error
+	var conStatus *http.Response
+	w.Connection, conStatus, err = dialer.DialContext(ctx, w.URL, headers)
+	if err != nil {
+		if conStatus != nil {
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
+		}
+		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
+	}
+	defer conStatus.Body.Close() // TODO: Close on error above. This is a potential resource leak.
 
 	if w.Verbose {
 		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)

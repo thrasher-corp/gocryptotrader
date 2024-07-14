@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,11 +9,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
+	DialContext(context.Context, *websocket.Dialer, http.Header) error
 	ReadMessage() Response
 	SendJSONMessage(interface{}) error
 	SetupPingHandler(PingHandler)
@@ -39,6 +42,12 @@ type ConnectionSetup struct {
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+	Handler                 func(ctx context.Context, incoming []byte) error
+	Subscriber              func(ctx context.Context, conn Connection, sub subscription.List) error
+	Unsubscriber            func(ctx context.Context, conn Connection, unsub subscription.List) error
+	GenerateSubscriptions   func() (subscription.List, error)
+	Connector               func(ctx context.Context, conn Connection) error
+	Enabled                 func() bool
 }
 
 // PingHandler container for ping handler settings

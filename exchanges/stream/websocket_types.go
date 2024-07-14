@@ -50,6 +50,8 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
+	PendingConnections []ConnectionSetup
+
 	subscriptions *subscription.Store
 
 	// Subscriber function for exchange specific subscribe implementation
