@@ -47,7 +47,6 @@ type ConnectionSetup struct {
 	Unsubscriber            func(ctx context.Context, conn Connection, unsub subscription.List) error
 	GenerateSubscriptions   func() (subscription.List, error)
 	Connector               func(ctx context.Context, conn Connection) error
-	Enabled                 func() bool
 }
 
 // PingHandler container for ping handler settings

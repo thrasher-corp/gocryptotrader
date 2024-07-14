@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"slices"
 	"time"
 
@@ -289,7 +290,6 @@ func (w *Websocket) Connect() error {
 	w.setState(connectingState)
 
 	if w.connector != nil {
-		fmt.Println("OLD CONNECTOR")
 		err := w.connector()
 		if err != nil {
 			w.setState(disconnectedState)
@@ -324,14 +324,16 @@ func (w *Websocket) Connect() error {
 
 	for i := range w.PendingConnections {
 		fmt.Println("SPAWN CONNECTION: ", i)
-		if !w.PendingConnections[i].Enabled() {
-			fmt.Println("Connection not enabled")
-			continue
-		}
+		// if !w.PendingConnections[i].Enabled() {
+		// 	fmt.Println("Connection not enabled")
+		// 	continue
+		// }
 		subs, err := w.PendingConnections[i].GenerateSubscriptions() // regenerate state on new connection
 		if err != nil {
 			if errors.Is(err, asset.ErrNotEnabled) {
-				log.Warnf(log.WebsocketMgr, "%s websocket: %v", w.exchangeName, err)
+				if w.verbose {
+					log.Warnf(log.WebsocketMgr, "%s websocket: %v", w.exchangeName, err)
+				}
 				continue // Non-fatal error, we can continue to the next connection
 			}
 			w.setState(disconnectedState)
@@ -339,6 +341,12 @@ func (w *Websocket) Connect() error {
 		}
 
 		fmt.Println("subs: ", len(subs))
+
+		for x := range subs {
+			fmt.Println("SUBS: ", subs[x])
+		}
+
+		os.Exit(1)
 
 		if len(subs) == 0 {
 			// If no subscriptions are generated, we skip the connection
