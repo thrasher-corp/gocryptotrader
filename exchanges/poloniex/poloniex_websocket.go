@@ -608,9 +608,9 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 		}
 		if err == nil {
 			if op == wsSubscribeOp {
-				err = p.Websocket.AddSuccessfulSubscriptions(s)
+				err = p.Websocket.AddSuccessfulSubscriptions(nil, s)
 			} else {
-				err = p.Websocket.RemoveSubscriptions(s)
+				err = p.Websocket.RemoveSubscriptions(nil, s)
 			}
 		}
 		if err != nil {

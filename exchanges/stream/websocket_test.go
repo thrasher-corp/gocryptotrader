@@ -341,54 +341,54 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
-	ws.PendingConnections = []ConnectionSetup{{URL: "ws://localhost:8080/ws"}}
+	ws.ConnectionManager = []ConnectionDetails{{Details: &ConnectionSetup{URL: "ws://localhost:8080/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
-	ws.PendingConnections[0].GenerateSubscriptions = func() (subscription.List, error) {
+	ws.ConnectionManager[0].Details.GenerateSubscriptions = func() (subscription.List, error) {
 		return nil, errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.PendingConnections[0].GenerateSubscriptions = func() (subscription.List, error) {
+	ws.ConnectionManager[0].Details.GenerateSubscriptions = func() (subscription.List, error) {
 		return subscription.List{{}}, nil
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errNoConnectFunc)
 
-	ws.PendingConnections[0].Connector = func(context.Context, Connection) error {
+	ws.ConnectionManager[0].Details.Connector = func(context.Context, Connection) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.PendingConnections[0].Handler = func(context.Context, []byte) error {
+	ws.ConnectionManager[0].Details.Handler = func(context.Context, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
 
-	ws.PendingConnections[0].Subscriber = func(context.Context, Connection, subscription.List) error {
+	ws.ConnectionManager[0].Details.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.PendingConnections[0].Connector = func(ctx context.Context, conn Connection) error {
+	ws.ConnectionManager[0].Details.Connector = func(ctx context.Context, conn Connection) error {
 		return nil
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.PendingConnections[0].Handler = func(context.Context, []byte) error {
+	ws.ConnectionManager[0].Details.Handler = func(context.Context, []byte) error {
 		return nil
 	}
 	require.NoError(t, ws.Shutdown())
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.PendingConnections[0].Subscriber = func(context.Context, Connection, subscription.List) error {
+	ws.ConnectionManager[0].Details.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return nil
 	}
 	require.NoError(t, ws.Shutdown())
@@ -493,13 +493,13 @@ func TestWebsocket(t *testing.T) {
 
 func currySimpleSub(w *Websocket) func(subscription.List) error {
 	return func(subs subscription.List) error {
-		return w.AddSuccessfulSubscriptions(subs...)
+		return w.AddSuccessfulSubscriptions(nil, subs...)
 	}
 }
 
 func currySimpleUnsub(w *Websocket) func(subscription.List) error {
 	return func(unsubs subscription.List) error {
-		return w.RemoveSubscriptions(unsubs...)
+		return w.RemoveSubscriptions(nil, unsubs...)
 	}
 }
 
@@ -514,11 +514,11 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	subs, err := ws.GenerateSubs()
 	require.NoError(t, err, "Generating test subscriptions should not error")
-	assert.NoError(t, new(Websocket).UnsubscribeChannels(subs), "Should not error when w.subscriptions is nil")
-	assert.NoError(t, ws.UnsubscribeChannels(nil), "Unsubscribing from nil should not error")
-	assert.ErrorIs(t, ws.UnsubscribeChannels(subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
+	assert.NoError(t, new(Websocket).UnsubscribeChannels(nil, subs), "Should not error when w.subscriptions is nil")
+	assert.NoError(t, ws.UnsubscribeChannels(nil, nil), "Unsubscribing from nil should not error")
+	assert.ErrorIs(t, ws.UnsubscribeChannels(nil, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, ws.GetSubscription(42), "GetSubscription on empty internal map should return")
-	assert.NoError(t, ws.SubscribeToChannels(subs), "Basic Subscribing should not error")
+	assert.NoError(t, ws.SubscribeToChannels(nil, subs), "Basic Subscribing should not error")
 	assert.Len(t, ws.GetSubscriptions(), 4, "Should have 4 subscriptions")
 	bySub := ws.GetSubscription(subscription.Subscription{Channel: "TestSub"})
 	if assert.NotNil(t, bySub, "GetSubscription by subscription should find a channel") {
@@ -536,14 +536,14 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
-	assert.ErrorIs(t, ws.SubscribeToChannels(subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
-	assert.NoError(t, ws.SubscribeToChannels(nil), "Subscribe to an nil List should not error")
-	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
+	assert.ErrorIs(t, ws.SubscribeToChannels(nil, subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
+	assert.NoError(t, ws.SubscribeToChannels(nil, nil), "Subscribe to an nil List should not error")
+	assert.NoError(t, ws.UnsubscribeChannels(nil, subs), "Unsubscribing should not error")
 
 	ws.Subscriber = func(subscription.List) error { return errDastardlyReason }
-	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+	assert.ErrorIs(t, ws.SubscribeToChannels(nil, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
 
-	err = ws.SubscribeToChannels(subscription.List{nil})
+	err = ws.SubscribeToChannels(nil, subscription.List{nil})
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
 }
 
@@ -565,9 +565,9 @@ func TestResubscribe(t *testing.T) {
 
 	channel := subscription.List{{Channel: "resubTest"}}
 
-	assert.ErrorIs(t, ws.ResubscribeToChannel(channel[0]), subscription.ErrNotFound, "Resubscribe should error when channel isn't subscribed yet")
-	assert.NoError(t, ws.SubscribeToChannels(channel), "Subscribe should not error")
-	assert.NoError(t, ws.ResubscribeToChannel(channel[0]), "Resubscribe should not error now the channel is subscribed")
+	assert.ErrorIs(t, ws.ResubscribeToChannel(nil, channel[0]), subscription.ErrNotFound, "Resubscribe should error when channel isn't subscribed yet")
+	assert.NoError(t, ws.SubscribeToChannels(nil, channel), "Subscribe should not error")
+	assert.NoError(t, ws.ResubscribeToChannel(nil, channel[0]), "Resubscribe should not error now the channel is subscribed")
 }
 
 // TestSubscriptions tests adding, getting and removing subscriptions
@@ -581,7 +581,7 @@ func TestSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, w.AddSubscriptions(s), subscription.ErrDuplicate, "Adding same subscription should return error")
 	assert.Equal(t, subscription.SubscribingState, s.State(), "Should set state to Subscribing")
 
-	err := w.RemoveSubscriptions(s)
+	err := w.RemoveSubscriptions(nil, s)
 	require.NoError(t, err, "RemoveSubscriptions must not error")
 	assert.Nil(t, w.GetSubscription(42), "Remove should have removed the sub")
 	assert.Equal(t, subscription.UnsubscribedState, s.State(), "Should set state to Unsubscribed")
@@ -595,21 +595,21 @@ func TestSubscriptions(t *testing.T) {
 func TestSuccessfulSubscriptions(t *testing.T) {
 	t.Parallel()
 	w := new(Websocket) // Do not use NewWebsocket; We want to exercise w.subs == nil
-	assert.ErrorIs(t, (*Websocket)(nil).AddSuccessfulSubscriptions(nil), common.ErrNilPointer, "Should error correctly when nil websocket")
+	assert.ErrorIs(t, (*Websocket)(nil).AddSuccessfulSubscriptions(nil, nil), common.ErrNilPointer, "Should error correctly when nil websocket")
 	c := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
-	require.NoError(t, w.AddSuccessfulSubscriptions(c), "Adding first subscription should not error")
+	require.NoError(t, w.AddSuccessfulSubscriptions(nil, c), "Adding first subscription should not error")
 	assert.Same(t, c, w.GetSubscription(42), "Get Subscription should retrieve the same subscription")
-	assert.ErrorIs(t, w.AddSuccessfulSubscriptions(c), subscription.ErrInStateAlready, "Adding subscription in same state should return error")
+	assert.ErrorIs(t, w.AddSuccessfulSubscriptions(nil, c), subscription.ErrInStateAlready, "Adding subscription in same state should return error")
 	require.NoError(t, c.SetState(subscription.SubscribingState), "SetState must not error")
-	assert.ErrorIs(t, w.AddSuccessfulSubscriptions(c), subscription.ErrDuplicate, "Adding same subscription should return error")
+	assert.ErrorIs(t, w.AddSuccessfulSubscriptions(nil, c), subscription.ErrDuplicate, "Adding same subscription should return error")
 
-	err := w.RemoveSubscriptions(c)
+	err := w.RemoveSubscriptions(nil, c)
 	require.NoError(t, err, "RemoveSubscriptions must not error")
 	assert.Nil(t, w.GetSubscription(42), "Remove should have removed the sub")
-	assert.ErrorIs(t, w.RemoveSubscriptions(c), subscription.ErrNotFound, "Should error correctly when not found")
-	assert.ErrorIs(t, (*Websocket)(nil).RemoveSubscriptions(nil), common.ErrNilPointer, "Should error correctly when nil websocket")
+	assert.ErrorIs(t, w.RemoveSubscriptions(nil, c), subscription.ErrNotFound, "Should error correctly when not found")
+	assert.ErrorIs(t, (*Websocket)(nil).RemoveSubscriptions(nil, nil), common.ErrNilPointer, "Should error correctly when nil websocket")
 	w.subscriptions = nil
-	assert.ErrorIs(t, w.RemoveSubscriptions(c), common.ErrNilPointer, "Should error correctly when nil websocket")
+	assert.ErrorIs(t, w.RemoveSubscriptions(nil, c), common.ErrNilPointer, "Should error correctly when nil websocket")
 }
 
 // TestConnectionMonitorNoConnection logic test
@@ -988,12 +988,12 @@ func TestGetChannelDifference(t *testing.T) {
 	t.Parallel()
 
 	w := &Websocket{}
-	assert.NotPanics(t, func() { w.GetChannelDifference(subscription.List{}) }, "Should not panic when called without a store")
-	subs, unsubs := w.GetChannelDifference(subscription.List{{Channel: subscription.CandlesChannel}})
+	assert.NotPanics(t, func() { w.GetChannelDifference(nil, subscription.List{}) }, "Should not panic when called without a store")
+	subs, unsubs := w.GetChannelDifference(nil, subscription.List{{Channel: subscription.CandlesChannel}})
 	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
 	require.Empty(t, unsubs, "Should get no unsubs")
 	require.NoError(t, w.AddSubscriptions(subs...), "AddSubscriptions must not error")
-	subs, unsubs = w.GetChannelDifference(subscription.List{{Channel: subscription.TickerChannel}})
+	subs, unsubs = w.GetChannelDifference(nil, subscription.List{{Channel: subscription.TickerChannel}})
 	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
 	assert.Equal(t, 1, len(unsubs), "Should get the correct number of unsubs")
 }
@@ -1239,21 +1239,21 @@ func TestLatency(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := Websocket{}
-	err := ws.checkSubscriptions(nil)
+	err := ws.checkSubscriptions(nil, nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "checkSubscriptions should error correctly on nil w.subscriptions")
 	assert.ErrorContains(t, err, "Websocket.subscriptions", "checkSubscriptions should error giving context correctly on nil w.subscriptions")
 
 	ws.subscriptions = subscription.NewStore()
-	err = ws.checkSubscriptions(nil)
+	err = ws.checkSubscriptions(nil, nil)
 	assert.NoError(t, err, "checkSubscriptions should not error on a nil list")
 
 	ws.MaxSubscriptionsPerConnection = 1
 
-	err = ws.checkSubscriptions(subscription.List{{}})
+	err = ws.checkSubscriptions(nil, subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error when subscriptions is empty")
 
 	ws.subscriptions = subscription.NewStore()
-	err = ws.checkSubscriptions(subscription.List{{}, {}})
+	err = ws.checkSubscriptions(nil, subscription.List{{}, {}})
 	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error correctly")
 
 	ws.MaxSubscriptionsPerConnection = 2
@@ -1261,9 +1261,9 @@ func TestCheckSubscriptions(t *testing.T) {
 	ws.subscriptions = subscription.NewStore()
 	err = ws.subscriptions.Add(&subscription.Subscription{Key: 42, Channel: "test"})
 	require.NoError(t, err, "Add subscription must not error")
-	err = ws.checkSubscriptions(subscription.List{{Key: 42, Channel: "test"}})
+	err = ws.checkSubscriptions(nil, subscription.List{{Key: 42, Channel: "test"}})
 	assert.ErrorIs(t, err, subscription.ErrDuplicate, "checkSubscriptions should error correctly")
 
-	err = ws.checkSubscriptions(subscription.List{{}})
+	err = ws.checkSubscriptions(nil, subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
 }

@@ -837,7 +837,7 @@ channels:
 			continue
 		}
 		// When we have a successful subscription, we can alert our internal management system of the success.
-		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		f.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
 	}
     return errs
 }
@@ -1077,7 +1077,7 @@ channels:
 			continue
 		}
 		// When we have a successful unsubscription, we can alert our internal management system of the success.
-		f.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+		f.Websocket.RemoveSubscriptions(nil, channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs

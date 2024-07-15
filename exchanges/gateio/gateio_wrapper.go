@@ -91,12 +91,12 @@ func (g *Gateio) SetDefaults() {
 				OrderbookFetching:      true,
 				TradeFetching:          true,
 				KlineFetching:          true,
-				FullPayloadSubscribe:   true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
 				GetOrder:               true,
 				AccountBalance:         true,
 				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

@@ -394,7 +394,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 	}
 	err := b.Websocket.Conn.SendJSONMessage(sub)
 	if err == nil {
-		err = b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+		err = b.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
 	}
 	return err
 }
@@ -409,7 +409,7 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	}
 	err := b.Websocket.Conn.SendJSONMessage(unSub)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
+		err = b.Websocket.RemoveSubscriptions(nil, channelsToUnsubscribe...)
 	}
 	return err
 }

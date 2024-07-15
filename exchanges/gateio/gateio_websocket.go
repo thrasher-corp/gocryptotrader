@@ -697,9 +697,9 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
 			} else {
-				err = g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)

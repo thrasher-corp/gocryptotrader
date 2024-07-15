@@ -511,7 +511,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	c.Key = int(chanID)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	if err := b.Websocket.AddSuccessfulSubscriptions(c); err != nil {
+	if err := b.Websocket.AddSuccessfulSubscriptions(nil, c); err != nil {
 		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, err, subID)
 	}
 
@@ -1660,7 +1660,7 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 
 	// Resub will block so we have to do this in a goro
 	go func() {
-		if err := b.Websocket.ResubscribeToChannel(c); err != nil {
+		if err := b.Websocket.ResubscribeToChannel(nil, c); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", b.Name, err)
 		}
 	}()
@@ -1753,7 +1753,7 @@ func (b *Bitfinex) subscribeToChan(chans subscription.List) error {
 
 	// Always remove the temporary subscription keyed by subID
 	defer func() {
-		_ = b.Websocket.RemoveSubscriptions(c)
+		_ = b.Websocket.RemoveSubscriptions(nil, c)
 	}()
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
@@ -1860,7 +1860,7 @@ func (b *Bitfinex) unsubscribeFromChan(chans subscription.List) error {
 		return wErr
 	}
 
-	return b.Websocket.RemoveSubscriptions(c)
+	return b.Websocket.RemoveSubscriptions(nil, c)
 }
 
 // getErrResp takes a json response string and looks for an error event type

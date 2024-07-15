@@ -486,9 +486,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(nil, channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
 				}
 				if err != nil {
 					return err
@@ -510,9 +510,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(nil, channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
 				}
 				if err != nil {
 					return err
@@ -538,10 +538,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 
 	channels = append(channels, authChannels...)
 	if operation == operationUnsubscribe {
-		return ok.Websocket.RemoveSubscriptions(channels...)
+		return ok.Websocket.RemoveSubscriptions(nil, channels...)
 	}
 
-	return ok.Websocket.AddSuccessfulSubscriptions(channels...)
+	return ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler

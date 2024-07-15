@@ -169,7 +169,6 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
-	fmt.Printf("Gateio WsHandleFuturesData: %s\n", string(respRaw))
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
@@ -236,30 +235,27 @@ func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Conn
 	}
 	var errs error
 	var respByte []byte
-	// con represents the websocket connection. 0 - for usdt settle and 1 - for btc settle connections.
-	for con, val := range payloads {
-		for k := range val {
-			if con == 0 {
-				respByte, err = conn.SendMessageReturnResponse(val[k].ID, val[k])
+	for i, val := range payloads {
+		respByte, err = conn.SendMessageReturnResponse(val.ID, val)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		var resp WsEventResponse
+		if err = json.Unmarshal(respByte, &resp); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			if resp.Error != nil && resp.Error.Code != 0 {
+				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val.Event, val.Channel, resp.Error.Code, resp.Error.Message))
+				continue
+			}
+			if val.Event == "subscribe" {
+				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[i])
 			} else {
-				// TODO: Authconn test temp
-				respByte, err = conn.SendMessageReturnResponse(val[k].ID, val[k])
+				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[i])
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
-				continue
-			}
-			var resp WsEventResponse
-			if err = json.Unmarshal(respByte, &resp); err != nil {
-				errs = common.AppendError(errs, err)
-			} else {
-				if resp.Error != nil && resp.Error.Code != 0 {
-					errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))
-					continue
-				}
-				if err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k]); err != nil {
-					errs = common.AppendError(errs, err)
-				}
 			}
 		}
 	}
@@ -269,10 +265,9 @@ func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Conn
 	return nil
 }
 
-func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([2][]WsInput, error) {
-	payloads := [2][]WsInput{}
+func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return payloads, errors.New("cannot generate payload, no channels supplied")
+		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
@@ -282,9 +277,11 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
+
+	var outbound []WsInput
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
-			return payloads, subscription.ErrNotSinglePair
+			return nil, subscription.ErrNotSinglePair
 		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
@@ -306,7 +303,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 				var sigTemp string
 				sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
 				if err != nil {
-					return [2][]WsInput{}, err
+					return nil, err
 				}
 				auth = &WsAuthInput{
 					Method: "api_key",
@@ -320,7 +317,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 			var frequencyString string
 			frequencyString, err = g.GetIntervalString(frequency)
 			if err != nil {
-				return payloads, err
+				return nil, err
 			}
 			params = append(params, frequencyString)
 		}
@@ -343,7 +340,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 				var intervalString string
 				intervalString, err = g.GetIntervalString(interval)
 				if err != nil {
-					return payloads, err
+					return nil, err
 				}
 				params = append([]string{intervalString}, params...)
 			}
@@ -353,27 +350,16 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 				params = append(params, intervalString)
 			}
 		}
-		if strings.HasPrefix(channelsToSubscribe[i].Pairs[0].Quote.Upper().String(), "USDT") {
-			payloads[0] = append(payloads[0], WsInput{
-				ID:      conn.GenerateMessageID(false),
-				Event:   event,
-				Channel: channelsToSubscribe[i].Channel,
-				Payload: params,
-				Auth:    auth,
-				Time:    timestamp.Unix(),
-			})
-		} else {
-			payloads[1] = append(payloads[1], WsInput{
-				ID:      conn.GenerateMessageID(false),
-				Event:   event,
-				Channel: channelsToSubscribe[i].Channel,
-				Payload: params,
-				Auth:    auth,
-				Time:    timestamp.Unix(),
-			})
-		}
+		outbound = append(outbound, WsInput{
+			ID:      conn.GenerateMessageID(false),
+			Event:   event,
+			Channel: channelsToSubscribe[i].Channel,
+			Payload: params,
+			Auth:    auth,
+			Time:    timestamp.Unix(),
+		})
 	}
-	return payloads, nil
+	return outbound, nil
 }
 
 func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error {

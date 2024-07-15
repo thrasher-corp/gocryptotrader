@@ -620,7 +620,7 @@ func (c *COINUT) Subscribe(subs subscription.List) error {
 		}
 		err = c.Websocket.Conn.SendJSONMessage(subscribe)
 		if err == nil {
-			err = c.Websocket.AddSuccessfulSubscriptions(s)
+			err = c.Websocket.AddSuccessfulSubscriptions(nil, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -663,7 +663,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			case len(val) == 0, val[0] != "OK":
 				err = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, s.Channel))
 			default:
-				err = c.Websocket.RemoveSubscriptions(s)
+				err = c.Websocket.RemoveSubscriptions(nil, s)
 			}
 		}
 		if err != nil {

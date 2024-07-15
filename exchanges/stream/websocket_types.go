@@ -29,6 +29,16 @@ const (
 	connectedState
 )
 
+type ConnectionAssociation struct {
+	Subscriptions *subscription.Store
+	Details       *ConnectionSetup
+}
+
+type ConnectionDetails struct {
+	Details    *ConnectionSetup
+	Connection Connection
+}
+
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
@@ -50,7 +60,8 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
-	PendingConnections []ConnectionSetup
+	ConnectionManager []ConnectionDetails
+	Connections       map[Connection]ConnectionAssociation
 
 	subscriptions *subscription.Store
 

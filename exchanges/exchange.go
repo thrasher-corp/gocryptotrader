@@ -1131,7 +1131,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(channels)
+	return b.Websocket.SubscribeToChannels(nil, channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
@@ -1140,7 +1140,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error 
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.UnsubscribeChannels(channels)
+	return b.Websocket.UnsubscribeChannels(nil, channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions
