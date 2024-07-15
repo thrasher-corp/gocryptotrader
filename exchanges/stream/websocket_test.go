@@ -341,7 +341,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
-	ws.ConnectionManager = []ConnectionDetails{{Details: &ConnectionSetup{URL: "ws://localhost:8080/ws"}}}
+	ws.ConnectionManager = []ConnectionCandidate{{Details: &ConnectionSetup{URL: "ws://localhost:8080/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 

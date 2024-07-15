@@ -29,16 +29,19 @@ const (
 	connectedState
 )
 
-// ConnectionAssociation contains the connection details and subscriptions
-type ConnectionAssociation struct {
-	Subscriptions *subscription.Store
-	Details       *ConnectionSetup
-}
+// // ConnectionAssociation contains the connection details and subscriptions
+// type ConnectionAssociation struct {
+// 	Subscriptions *subscription.Store
+// 	Details       *ConnectionSetup
+// }
 
-// ConnectionDetails contains the connection details and it's tracked connections
-type ConnectionDetails struct {
-	Details    *ConnectionSetup
-	Connection Connection // TODO: Upgrade to slice of connections.
+// ConnectionCandidate contains the connection setup details to be used when
+// attempting a new connection. It also contains the subscriptions that are
+// associated with the specifc connection.
+type ConnectionCandidate struct {
+	Details       *ConnectionSetup
+	Subscriptions *subscription.Store
+	Connection    Connection // TODO: Upgrade to slice of connections.
 }
 
 // Websocket defines a return type for websocket connections via the interface
@@ -62,8 +65,12 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
-	ConnectionManager []ConnectionDetails
-	Connections       map[Connection]ConnectionAssociation
+	// ConnectionManager contains the connection candidates and the current
+	// connections
+	ConnectionManager []ConnectionCandidate
+	// Connections contains the current connections with their associated
+	// connection candidates
+	Connections map[Connection]*ConnectionCandidate
 
 	subscriptions *subscription.Store
 

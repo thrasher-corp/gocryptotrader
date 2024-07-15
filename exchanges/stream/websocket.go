@@ -90,7 +90,7 @@ func NewWebsocket() *Websocket {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		Connections:       make(map[Connection]ConnectionAssociation),
+		Connections:       make(map[Connection]*ConnectionCandidate),
 	}
 }
 
@@ -227,7 +227,10 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		if c.Connector == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
 		}
-		w.ConnectionManager = append(w.ConnectionManager, ConnectionDetails{Details: c})
+		w.ConnectionManager = append(w.ConnectionManager, ConnectionCandidate{
+			Details:       c,
+			Subscriptions: subscription.NewStore(),
+		})
 		return nil
 	}
 
@@ -290,7 +293,6 @@ func (w *Websocket) Connect() error {
 		}
 		details.Subscriptions.Clear()
 	}
-	w.Connections = make(map[Connection]ConnectionAssociation)
 
 	w.dataMonitor()
 	w.trafficMonitor()
@@ -381,10 +383,7 @@ func (w *Websocket) Connect() error {
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.ConnectionManager[i].Details.Handler)
 
-		w.Connections[conn] = ConnectionAssociation{
-			Subscriptions: subscription.NewStore(),
-			Details:       w.ConnectionManager[i].Details,
-		}
+		w.Connections[conn] = &w.ConnectionManager[i]
 
 		err = w.ConnectionManager[i].Details.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
@@ -557,7 +556,9 @@ func (w *Websocket) Shutdown() error {
 		}
 		details.Subscriptions.Clear()
 	}
-	w.Connections = make(map[Connection]ConnectionAssociation)
+
+	// Clean map of old connections
+	clear(w.Connections)
 
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
