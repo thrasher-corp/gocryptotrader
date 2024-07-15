@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1974,55 +1974,23 @@ func TestPushData(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
-func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
-	tb.Helper()
-	var sub *subscription.Subscription
-	for i, s := range subs {
-		if s.Asset == a && strings.HasPrefix(s.QualifiedChannel, prefix) {
-			if len(expected) == 1 && !strings.Contains(s.QualifiedChannel, expected[0]) {
-				continue
-			}
-			if sub != nil {
-				assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
-				return
-			}
-			sub = subs[i]
-		}
-	}
-	if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
-		suffix := strings.TrimPrefix(sub.QualifiedChannel, prefix)
-		if len(expected) == 0 {
-			assert.Empty(tb, suffix, "Sub for asset %s with prefix %s should have no symbol suffix", a.String(), prefix)
-		} else {
-			currs := strings.Split(suffix, ",")
-			assert.ElementsMatch(tb, currs, expected, "Currencies should match in sub for asset %s with prefix %s", a.String(), prefix)
-		}
-	}
-}
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
 
-var subPairs currency.Pairs
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-func init() {
+	// Pairs overlap for spot/margin tests:
+	// Only in Spot: BTC-USDT, ETH-USDT
+	// In Both: ETH-BTC, LTC-USDT
+	// Only in Margin: TRX-BTC, SOL-USDC
+	subPairs := currency.Pairs{}
 	for _, pp := range [][]string{
 		{"BTC", "USDT", "-"}, {"ETH", "BTC", "-"}, {"ETH", "USDT", "-"}, {"LTC", "USDT", "-"}, // Spot
 		{"ETH", "BTC", "-"}, {"LTC", "USDT", "-"}, {"SOL", "USDC", "-"}, {"TRX", "BTC", "-"}, // Margin
 		{"ETH", "USDCM", ""}, {"SOL", "USDTM", ""}, {"XBT", "USDCM", ""}, // Futures
 	} {
-		pair := currency.NewPairWithDelimiter(pp[0], pp[1], pp[2])
-		pair.Delimiter = pp[2]
-		subPairs = append(subPairs, pair)
+		subPairs = append(subPairs, currency.NewPairWithDelimiter(pp[0], pp[1], pp[2]))
 	}
-}
-
-// Pairs for Subscription tests:
-// Only in Spot: BTC-USDT, ETH-USDT
-// In Both: ETH-BTC, LTC-USDT
-// Only in Margin: TRX-BTC, SOL-USDC
-
-func TestGenerateSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: subPairs[0:4], QualifiedChannel: "/market/ticker:" + subPairs[0:4].Join()},
@@ -2108,6 +2076,39 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
 		}
 	}
+}
+
+// TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
+func TestCheckSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ku := &Kucoin{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+		Base: exchange.Base{
+			Config: &config.Exchange{
+				Features: &config.FeaturesConfig{
+					Subscriptions: subscription.List{
+						{Enabled: true, Channel: "ticker"},
+						{Enabled: true, Channel: "allTrades"},
+						{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
+						{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
+						{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
+						{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
+						{Enabled: true, Channel: "/account/balance", Authenticated: true},
+						{Enabled: true, Channel: "/margin/position", Authenticated: true},
+						{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
+						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
+						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
+						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
+					},
+				},
+			},
+			Features: exchange.Features{},
+		},
+	}
+
+	ku.checkSubscriptions()
+	testsubs.EqualLists(t, defaultSubscriptions, ku.Features.Subscriptions)
+	testsubs.EqualLists(t, defaultSubscriptions, ku.Config.Features.Subscriptions)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {

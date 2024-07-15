@@ -1586,18 +1586,22 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 }
 
 // checkSubscriptions looks for any backwards incompatibilities with missing assets
+// This should be unnecessary and removable by 2025
 func (ku *Kucoin) checkSubscriptions() {
-	for _, s := range ku.Features.Subscriptions {
+	upgraded := false
+	for _, s := range ku.Config.Features.Subscriptions {
 		if s.Asset != asset.Empty {
 			continue
 		}
+		upgraded = true
+		s.Channel = strings.TrimSuffix(s.Channel, ":%s")
 		switch s.Channel {
 		case subscription.TickerChannel, subscription.OrderbookChannel:
 			s.Asset = asset.All
 		case subscription.AllTradesChannel:
 			for _, d := range defaultSubscriptions {
 				if d.Channel == s.Channel {
-					ku.Features.Subscriptions = append(ku.Features.Subscriptions, d)
+					ku.Config.Features.Subscriptions = append(ku.Config.Features.Subscriptions, d)
 				}
 			}
 		case futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
@@ -1606,16 +1610,25 @@ func (ku *Kucoin) checkSubscriptions() {
 			s.Asset = asset.Margin
 		}
 	}
-	ku.Features.Subscriptions = slices.DeleteFunc(ku.Features.Subscriptions, func(s *subscription.Subscription) bool {
+	ku.Config.Features.Subscriptions = slices.DeleteFunc(ku.Config.Features.Subscriptions, func(s *subscription.Subscription) bool {
 		switch s.Channel {
-		case "/contractMarket/level2Depth50:%s", "/contractMarket/tickerV2:%s":
+		case "/contractMarket/level2Depth50", // Replaced by subsctiption.Orderbook for asset.All
+			"/contractMarket/tickerV2", // Replaced by subscription.Ticker for asset.All
+			"/margin/fundingBook":      // Deprecated and removed
 			return true
 		case subscription.AllTradesChannel:
 			return s.Asset == asset.Empty
 		}
 		return false
 	})
-	ku.Config.Features.Subscriptions = ku.Features.Subscriptions
+	if upgraded {
+		ku.Features.Subscriptions = subscription.List{}
+		for _, s := range ku.Config.Features.Subscriptions {
+			if s.Enabled {
+				ku.Features.Subscriptions = append(ku.Features.Subscriptions, s)
+			}
+		}
+	}
 }
 
 // channelName returns the correct channel name for the asset
@@ -1675,8 +1688,8 @@ func channelInterval(s *subscription.Subscription) string {
 	return ""
 }
 
-// currencies returns the currencies from all pairs in an asset
-// Updates the AssetPairs map parameter to contain only those currencies as Base items
+// assetCurrencies returns the currencies from all pairs in an asset
+// Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
 	p := currency.Pairs{}
