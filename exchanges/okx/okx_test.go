@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -47,6 +48,8 @@ var (
 
 	leadTraderUniqueID string
 	loadLeadTraderOnce sync.Once
+
+	spotTP, marginTP, futuresTP, perpetualSwapTP, optionsTP, spreadTP currency.Pair
 )
 
 func TestMain(m *testing.M) {
@@ -83,8 +86,51 @@ func TestMain(m *testing.M) {
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 		setupWS()
 	}
+	err = populateTradablePairs()
+	if err != nil {
+		log.Fatal(err)
+	}
 	syncLeadTraderUniqueID()
 	os.Exit(m.Run())
+}
+
+func populateTradablePairs() error {
+	errNoEnabledPair := errors.New("no enabled pair found")
+	err := ok.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		return err
+	}
+
+	assetToTradablePairMap := map[asset.Item]currency.Pair{
+		asset.Spot:          spotTP,
+		asset.Margin:        marginTP,
+		asset.Futures:       futuresTP,
+		asset.Options:       optionsTP,
+		asset.PerpetualSwap: perpetualSwapTP,
+		// asset.Spread:        &spreadTP,
+	}
+	for a := range assetToTradablePairMap {
+		tradablePairs, err := ok.GetEnabledPairs(a)
+		if err != nil {
+			return err
+		}
+		if len(tradablePairs) == 0 {
+			return fmt.Errorf("%w %v", errNoEnabledPair, a)
+		}
+		switch a {
+		case asset.Spot:
+			spotTP = tradablePairs[0]
+		case asset.Margin:
+			marginTP = tradablePairs[0]
+		case asset.Futures:
+			futuresTP = tradablePairs[0]
+		case asset.Options:
+			optionsTP = tradablePairs[0]
+		case asset.PerpetualSwap:
+			perpetualSwapTP = tradablePairs[0]
+		}
+	}
+	return nil
 }
 
 func syncLeadTraderUniqueID() {
@@ -115,56 +161,56 @@ func contextGenerate() context.Context {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetTickers(contextGenerate(), "OPTION", "", "SOL-USD")
+	result, err := ok.GetTickers(contextGenerate(), "OPTION", "", optionsTP.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetIndexTicker(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetIndexTickers(contextGenerate(), currency.USDT, "NEAR-USDT-SWAP")
+	result, err := ok.GetIndexTickers(contextGenerate(), currency.USDT, perpetualSwapTP.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetTicker(contextGenerate(), "NEAR-USDT-SWAP")
+	result, err := ok.GetTicker(contextGenerate(), perpetualSwapTP.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetOrderBookDepth(contextGenerate(), "BTC-USDT", 400)
+	result, err := ok.GetOrderBookDepth(contextGenerate(), spotTP.String(), 400)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetCandlesticks(contextGenerate(), "BTC-USDT", kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
+	result, err := ok.GetCandlesticks(contextGenerate(), spotTP.String(), kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetCandlesticksHistory(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetCandlesticksHistory(contextGenerate(), "BTC-USDT", kline.OneHour, time.Unix(time.Now().Unix()-int64(time.Minute), 3), time.Now(), 3)
+	result, err := ok.GetCandlesticksHistory(contextGenerate(), spotTP.String(), kline.OneHour, time.Unix(time.Now().Unix()-int64(time.Minute), 3), time.Now(), 3)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetTrades(contextGenerate(), "BTC-USDT", 3)
+	result, err := ok.GetTrades(contextGenerate(), spotTP.String(), 3)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetTradesHistory(contextGenerate(), "BTC-USDT", "", "", 2)
+	result, err := ok.GetTradesHistory(contextGenerate(), spotTP.String(), "", "", 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3325,8 +3371,11 @@ func TestMassCancelOrder(t *testing.T) {
 
 func TestCancelAllMMPOrdersAfterCountdown(t *testing.T) {
 	t.Parallel()
+	_, err := ok.CancelAllMMPOrdersAfterCountdown(context.Background(), 2, "")
+	require.ErrorIs(t, err, errCountdownTimeoutRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CancelAllMMPOrdersAfterCountdown(context.Background(), "60")
+	result, err := ok.CancelAllMMPOrdersAfterCountdown(context.Background(), 60, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4117,6 +4166,88 @@ func TestGetLendingVolume(t *testing.T) {
 	require.ErrorIs(t, err, errLendingTermIsRequired)
 
 	result, err := ok.GetLendingVolume(context.Background(), currency.BTC, "30D")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllSpreadOrdersAfterCountdown(t *testing.T) {
+	t.Parallel()
+	_, err := ok.CancelAllSpreadOrdersAfterCountdown(context.Background(), 2)
+	require.ErrorIs(t, err, errCountdownTimeoutRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.CancelAllSpreadOrdersAfterCountdown(context.Background(), 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractsOpenInterestHistory(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFuturesContractsOpenInterestHistory(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetFuturesContractsOpenInterestHistory(context.Background(), futuresTP.String(), kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesContractTakerVolume(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFuturesContractTakerVolume(context.Background(), "", kline.FiveMin, 1, 10, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetFuturesContractTakerVolume(context.Background(), futuresTP.String(), kline.FiveMin, 1, 10, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesContractLongShortAccountRatio(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFuturesContractLongShortAccountRatio(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetFuturesContractLongShortAccountRatio(context.Background(), futuresTP.String(), kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTopTradersFuturesContractLongShortRatio(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetTopTradersFuturesContractLongShortAccountRatio(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetTopTradersFuturesContractLongShortAccountRatio(context.Background(), futuresTP.String(), kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTopTradersFuturesContractLongShortPositionRatio(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetTopTradersFuturesContractLongShortPositionRatio(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetTopTradersFuturesContractLongShortPositionRatio(context.Background(), futuresTP.String(), kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetAccountInstruments(context.Background(), "", "", "", spotTP.String())
+	require.ErrorIs(t, err, errInstrumentTypeRequired)
+	_, err = ok.GetAccountInstruments(context.Background(), "FUTURES", "", "", spotTP.String())
+	require.ErrorIs(t, err, errInvalidUnderlying)
+	_, err = ok.GetAccountInstruments(context.Background(), "OPTION", "", "", spotTP.String())
+	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetAccountInstruments(context.Background(), "SPOT", "", "", spotTP.String())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	result, err = ok.GetAccountInstruments(context.Background(), "OPTION", "", "BTC-USD", optionsTP.String())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	result, err = ok.GetAccountInstruments(context.Background(), "FUTURES", "BTC-USD", "", optionsTP.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

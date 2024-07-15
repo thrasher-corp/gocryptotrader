@@ -232,6 +232,7 @@ const (
 	getSpreadOrderbookEPL
 	getSpreadTickerEPL
 	getSpreadPublicTradesEPL
+	cancelAllSpreadOrdersAfterEPL
 	getActiveSpreadOrdersEPL
 	getSpreadOrders7DaysEPL
 	getInstrumentsEPL
@@ -281,6 +282,12 @@ const (
 	lendingPublicOfferEPL
 	lendingAPYHistoryEPL
 	lendingVolumeEPL
+
+	rubikGetContractOpenInterestHistoryEPL
+	rubikContractTakerVolumeEPL
+	rubikTopTradersContractLongShortRatioEPL
+
+	getAccountInstrumentsEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -521,18 +528,19 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getBlockTradesEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		// Spread Orders rate limiters
-		placeSpreadOrderEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelSpreadOrderEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAllSpreadOrderEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		amendSpreadOrderEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadOrderDetailsEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getActiveSpreadOrdersEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getSpreadOrders7DaysEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadOrderTradesEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadOrderbookEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadTickerEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadPublicTradesEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		placeSpreadOrderEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelSpreadOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAllSpreadOrderEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		amendSpreadOrderEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrderDetailsEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getActiveSpreadOrdersEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getSpreadOrders7DaysEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrderTradesEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadsEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrderbookEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadTickerEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadPublicTradesEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAllSpreadOrdersAfterEPL: request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 
 		// Public Data Endpoints
 		getInstrumentsEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -581,5 +589,11 @@ func GetRateLimit() request.RateLimitDefinitions {
 		lendingPublicOfferEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		lendingAPYHistoryEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		lendingVolumeEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+
+		rubikGetContractOpenInterestHistoryEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		rubikContractTakerVolumeEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		rubikTopTradersContractLongShortRatioEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+
+		getAccountInstrumentsEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 	}
 }

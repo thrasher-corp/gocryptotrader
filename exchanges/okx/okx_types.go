@@ -1281,6 +1281,7 @@ type SavingsPurchaseRedemptionResponse struct {
 	Amount     types.Number `json:"amt"`
 	ActionType string       `json:"side"`
 	Rate       types.Number `json:"rate"`
+	Account    string       `json:"acct"` // '6': Funding account '18': Trading account
 }
 
 // LendingRate represents lending rate response
@@ -4512,4 +4513,93 @@ type LendingVolume struct {
 	RateRangeFrom string       `json:"rateRangeFrom"`
 	RateRangeTo   string       `json:"rateRangeTo"`
 	Term          string       `json:"term"`
+}
+
+// SpreadOrderCancellationResponse represents a spread order cancellation response.
+type SpreadOrderCancellationResponse struct {
+	TriggerTime convert.ExchangeTime `json:"triggerTime"`
+	Timestamp   convert.ExchangeTime `json:"ts"`
+}
+
+// ContractTakerVolume represents a contract taker sell and buy volume.
+type ContractTakerVolume struct {
+	Timestamp       time.Time
+	TakerSellVolume float64
+	TakerBuyVolume  float64
+}
+
+// ContractOpenInterestHistoryItem represents an open interest information for contract.
+type ContractOpenInterestHistoryItem struct {
+	Timestamp              time.Time
+	OpenInterestInContract float64
+	OpenInterestInCurrency float64
+	OpenInterestInUSD      float64
+}
+
+func extractTakerVolumesFromSlice(takerVolumesSlice [][3]types.Number) []ContractTakerVolume {
+	contractTakerVolumes := make([]ContractTakerVolume, len(takerVolumesSlice))
+	for a := range takerVolumesSlice {
+		contractTakerVolumes[a].Timestamp = time.UnixMilli(takerVolumesSlice[a][0].Int64())
+		contractTakerVolumes[a].TakerSellVolume = takerVolumesSlice[a][1].Float64()
+		contractTakerVolumes[a].TakerBuyVolume = takerVolumesSlice[a][2].Float64()
+	}
+	return contractTakerVolumes
+}
+
+func extractOpenInterestHistoryFromSlice(openInterestsSlice [][4]types.Number) []ContractOpenInterestHistoryItem {
+	openInterestsHist := make([]ContractOpenInterestHistoryItem, len(openInterestsSlice))
+	for a := range openInterestsSlice {
+		openInterestsHist[a].Timestamp = time.UnixMilli(openInterestsSlice[a][0].Int64())
+		openInterestsHist[a].OpenInterestInContract = openInterestsSlice[a][1].Float64()
+		openInterestsHist[a].OpenInterestInCurrency = openInterestsSlice[a][2].Float64()
+		openInterestsHist[a].OpenInterestInUSD = openInterestsSlice[a][3].Float64()
+	}
+	return openInterestsHist
+}
+
+// TopTraderContractsLongShortRatio represents the timestamp and ratio information of top traders long and short accounts/positions.
+type TopTraderContractsLongShortRatio struct {
+	Timestamp time.Time
+	Ratio     float64
+}
+
+func extractLongShortRatio(longShortRatiosSlice [][2]types.Number) []TopTraderContractsLongShortRatio {
+	topTradersLongShortRatios := make([]TopTraderContractsLongShortRatio, len(longShortRatiosSlice))
+	for a := range longShortRatiosSlice {
+		topTradersLongShortRatios[a].Timestamp = time.UnixMilli(longShortRatiosSlice[a][0].Int64())
+		topTradersLongShortRatios[a].Ratio = longShortRatiosSlice[a][1].Float64()
+	}
+	return topTradersLongShortRatios
+}
+
+// AccountInstrument represents an account instrument.
+type AccountInstrument struct {
+	BaseCcy            string               `json:"baseCcy"`
+	ContractMultiplier string               `json:"ctMult"`
+	ContractType       string               `json:"ctType"`
+	ContractValue      string               `json:"ctVal"`
+	ContractValCcy     string               `json:"ctValCcy"`
+	ExpiryTime         convert.ExchangeTime `json:"expTime"`
+	InstFamily         string               `json:"instFamily"`
+	InstrumentID       string               `json:"instId"`
+	InstrumentType     string               `json:"instType"`
+	Leverage           string               `json:"lever"`
+	ListTime           convert.ExchangeTime `json:"listTime"`
+	LotSz              types.Number         `json:"lotSz"`
+	MaxIcebergSz       types.Number         `json:"maxIcebergSz"`
+	MaxLmtAmt          types.Number         `json:"maxLmtAmt"`
+	MaxLmtSz           types.Number         `json:"maxLmtSz"`
+	MaxMktAmt          types.Number         `json:"maxMktAmt"`
+	MaxMktSz           types.Number         `json:"maxMktSz"`
+	MaxStopSz          types.Number         `json:"maxStopSz"`
+	MaxTriggerSz       types.Number         `json:"maxTriggerSz"`
+	MaxTwapSz          types.Number         `json:"maxTwapSz"`
+	MinSz              types.Number         `json:"minSz"`
+	OptType            string               `json:"optType"`
+	QuoteCcy           string               `json:"quoteCcy"`
+	SettleCcy          string               `json:"settleCcy"`
+	State              string               `json:"state"`
+	StrikePrice        string               `json:"stk"`
+	TickSz             types.Number         `json:"tickSz"`
+	Underlying         string               `json:"uly"`
 }

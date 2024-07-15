@@ -90,6 +90,7 @@ var (
 	errUnacceptableAmount                     = errors.New("amount must be greater than 0")
 	errMissingValidWithdrawalID               = errors.New("missing valid withdrawal id")
 	errInstrumentFamilyRequired               = errors.New("instrument family is required")
+	errCountdownTimeoutRequired               = errors.New("countdown timeout is required")
 	errInstrumentIDorFamilyRequired           = errors.New("either instrumen id or instrument family is required")
 	errInvalidQuantityLimit                   = errors.New("invalid quantity limit")
 	errInstrumentTypeRequired                 = errors.New("instrument type required")
@@ -126,6 +127,7 @@ var (
 	errMaxRfqOrdersToCancel                   = errors.New("no more than 100 Rfq cancel order parameter is allowed")
 	errMalformedData                          = errors.New("malformed data")
 	errInvalidUnderlying                      = errors.New("invalid underlying")
+	errInstrumentFamilyOrUnderlyingRequired   = errors.New("either underlying or instrument family is required")
 	errMissingRequiredParameter               = errors.New("missing required parameter")
 	errMissingMakerInstrumentSettings         = errors.New("missing maker instrument settings")
 	errInvalidSubAccountName                  = errors.New("invalid sub-account name")
@@ -921,12 +923,19 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 
 // CancelAllMMPOrdersAfterCountdown cancel all MMP pending orders after the countdown timeout.
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout string) (*CancelMMPAfterCountdownResponse, error) {
-	if timeout == "" {
-		return nil, errors.New("countdown timeout is required")
+func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int64, orderTag string) (*CancelMMPAfterCountdownResponse, error) {
+	if (timeout != 0) && (timeout < 10 || timeout > 120) {
+		return nil, fmt.Errorf("%w, Range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
+	}
+	arg := &struct {
+		TimeOut  int64  `json:"timeOut,string"`
+		OrderTag string `json:"tag,omitempty"`
+	}{
+		TimeOut:  timeout,
+		OrderTag: orderTag,
 	}
 	var resp *CancelMMPAfterCountdownResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodPost, "trade/cancel-all-after", &map[string]string{"timeOut": timeout}, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodPost, "trade/cancel-all-after", arg, &resp, true)
 }
 
 /*************************************** Block trading ********************************/
@@ -1218,7 +1227,7 @@ func (ok *Okx) GetPublicRFQTrades(ctx context.Context, beginID, endID string, li
 
 /*************************************** Funding Tradings ********************************/
 
-// GetFundingCurrencies Retrieve a list of all currencies.
+// GetFundingCurrencies retrieve a list of all currencies.
 func (ok *Okx) GetFundingCurrencies(ctx context.Context, ccy currency.Code) ([]CurrencyResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1481,7 +1490,7 @@ func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.Code
 		params.Set("ccy", ccy.String())
 	}
 	if withdrawalID == "" && addressTo == "" {
-		return nil, errors.New("destination address is required")
+		return nil, fmt.Errorf("%w, 'addressTo' is empty", errAddressRequired)
 	} else if !ccy.IsEmpty() {
 		params.Set("to", addressTo)
 	}
@@ -1529,7 +1538,7 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	case arg.Amount <= 0:
 		return nil, errUnacceptableAmount
 	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
-		return nil, errors.New("invalid side value, side has to be either \"redempt\" or \"purchase\"")
+		return nil, fmt.Errorf("%w, side has to be either \"redempt\" or \"purchase\"", order.ErrSideIsInvalid)
 	case arg.ActionType == "purchase" && (arg.Rate < 0.01 || arg.Rate > 3.65):
 		return nil, errors.New("the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
@@ -1561,7 +1570,7 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRat
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
-		return nil, errors.New("invalid lending rate value. the rate value range is between 1% (0.01) and 365% (3.65)")
+		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errLendingRateRequired)
 	}
 	var resp *LendingRate
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, "finance/savings/set-lending-rate", &arg, &resp, true)
@@ -1638,7 +1647,7 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, fmt.Errorf("%w, rfq amount required", order.ErrAmountBelowMin)
 	}
 	if arg.RfqSzCurrency == "" {
-		return nil, errors.New("missing rfq currency")
+		return nil, fmt.Errorf("%w, missing rfq currency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp *EstimateQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, "asset/convert/estimate-quote", arg, &resp, true)
@@ -1693,6 +1702,37 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 }
 
 /********************************** Account endpoints ***************************************************/
+
+// GetAccountInstruments retrieve available instruments info of current account.
+func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType, underlying, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
+	if instrumentType == "" {
+		return nil, errInstrumentTypeRequired
+	}
+	params := url.Values{}
+	switch instrumentType {
+	case "MARGIN", "SWAP", "FUTURES":
+		if underlying == "" {
+			return nil, fmt.Errorf("%w, underlying is required", errInvalidUnderlying)
+		}
+		params.Set("uly", underlying)
+	case "OPTION":
+		if underlying == "" && instrumentFamily == "" {
+			return nil, errInstrumentFamilyOrUnderlyingRequired
+		}
+		if underlying != "" {
+			params.Set("uly", underlying)
+		}
+		if instrumentFamily != "" {
+			params.Set("instFamily", instrumentFamily)
+		}
+	}
+	params.Set("instType", instrumentType)
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	var resp []AccountInstrument
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountInstrumentsEPL, http.MethodGet, common.EncodeURLValues("account/instruments", params), nil, &resp, true)
+}
 
 // AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
 // Interest-free quota and discount rates are public data and not displayed on the account interface.
@@ -4554,6 +4594,20 @@ func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]Sp
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadPublicTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/public-trades", params), nil, &resp, false)
 }
 
+// CancelAllSpreadOrdersAfterCountdown cancel all pending orders after the countdown timeout. Only applicable to spread trading.
+func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutDuration int64) (*SpreadOrderCancellationResponse, error) {
+	if (timeoutDuration != 0) && (timeoutDuration < 10 || timeoutDuration > 120) {
+		return nil, fmt.Errorf("%w, Range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
+	}
+	arg := &struct {
+		TimeOut int64 `json:"timeOut,string"`
+	}{
+		TimeOut: timeoutDuration,
+	}
+	var resp *SpreadOrderCancellationResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllSpreadOrdersAfterEPL, http.MethodPost, "sprd/cancel-all-after", arg, &resp, true)
+}
+
 /************************************ Public Data Endpoinst *************************************************/
 
 // GetInstruments Retrieve a list of instruments with open contracts.
@@ -5513,6 +5567,8 @@ func (ok *Okx) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam) (*
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, true, false)
 }
 
+// Note: the documentation for Amending lending order has similar url, request method, and parameters to the placing order. Therefore, the implementation is skipped for now.
+
 // GetLendingOrders retrieves list of lending orders.
 // State: possible values are 'pending', 'earning', 'expired', 'settled'
 func (ok *Okx) GetLendingOrders(ctx context.Context, orderID, term, state string, ccy currency.Code, startAt, endAt time.Time, limit int64) ([]LendingOrderDetail, error) {
@@ -5533,6 +5589,9 @@ func (ok *Okx) GetLendingOrders(ctx context.Context, orderID, term, state string
 		}
 		params.Set("after", strconv.FormatInt(startAt.UnixMilli(), 10))
 		params.Set("before", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if state != "" {
+		params.Set("state", state)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -5607,3 +5666,108 @@ func (ok *Okx) GetLendingVolume(ctx context.Context, ccy currency.Code, term str
 	var resp []LendingVolume
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingVolumeEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/pending-lending-volume", params), nil, &resp, false)
 }
+
+// Trading Statistics endpoints.
+
+// GetFuturesContractsOpenInterestHistory retrieve the contract open interest statistics of futures and perp. This endpoint returns a maximum of 1440 records.
+func (ok *Okx) GetFuturesContractsOpenInterestHistory(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]ContractOpenInterestHistoryItem, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if period != kline.Interval(0) {
+		params.Set("period", ok.GetIntervalEnum(period, true))
+	}
+	if !startAt.IsZero() {
+		params.Set("begin", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("end", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp [][4]types.Number
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rubikGetContractOpenInterestHistoryEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/contracts/open-interest-history", params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	return extractOpenInterestHistoryFromSlice(resp), nil
+}
+
+// GetFuturesContractTakerVolume retrieve the contract taker volume for both buyers and sellers. This endpoint returns a maximum of 1440 records.
+// The unit of buy/sell volume, the default is 1. '0': Crypto '1': Contracts '2': U
+func (ok *Okx) GetFuturesContractTakerVolume(ctx context.Context, instrumentID string, period kline.Interval, unit, limit int64, startAt, endAt time.Time) ([]ContractTakerVolume, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if period != kline.Interval(0) {
+		params.Set("period", ok.GetIntervalEnum(period, true))
+	}
+	if !startAt.IsZero() {
+		params.Set("begin", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("end", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if unit != 1 {
+		params.Set("unit", strconv.FormatInt(unit, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp [][3]types.Number
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rubikContractTakerVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/taker-volume-contract", params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	return extractTakerVolumesFromSlice(resp), nil
+}
+
+// GetFuturesContractLongShortAccountRatio retrieve the account long/short ratio of a contract. This endpoint returns a maximum of 1440 records.
+func (ok *Okx) GetFuturesContractLongShortAccountRatio(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
+	return ok.getTopTradersFuturesContractLongShortRatio(ctx, instrumentID, "rubik/stat/contracts/long-short-account-ratio-contract", period, startAt, endAt, limit)
+}
+
+// GetTopTradersFuturesContractLongShortAccountRatio retrieve the account net long/short ratio of a contract for top traders.
+// Top traders refer to the top 5% of traders with the largest open position value.
+// This endpoint returns a maximum of 1440 records.
+func (ok *Okx) GetTopTradersFuturesContractLongShortAccountRatio(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
+	return ok.getTopTradersFuturesContractLongShortRatio(ctx, instrumentID, "rubik/stat/contracts/long-short-account-ratio-contract-top-trader", period, startAt, endAt, limit)
+}
+
+// GetTopTradersFuturesContractLongShortPositionRatio retrieve the position long/short ratio of a contract for top traders. Top traders refer to the top 5% of traders with the largest open position value. This endpoint returns a maximum of 1440 records.
+func (ok *Okx) GetTopTradersFuturesContractLongShortPositionRatio(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
+	return ok.getTopTradersFuturesContractLongShortRatio(ctx, instrumentID, "rubik/stat/contracts/long-short-position-ratio-contract-top-trader", period, startAt, endAt, limit)
+}
+
+func (ok *Okx) getTopTradersFuturesContractLongShortRatio(ctx context.Context, instrumentID, path string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if period != kline.Interval(0) {
+		params.Set("period", ok.GetIntervalEnum(period, true))
+	}
+	if !startAt.IsZero() {
+		params.Set("begin", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("end", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp [][2]types.Number
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rubikTopTradersContractLongShortRatioEPL, http.MethodGet, common.EncodeURLValues(path, params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	return extractLongShortRatio(resp), nil
+}
+
+// func (ok *Okx)
