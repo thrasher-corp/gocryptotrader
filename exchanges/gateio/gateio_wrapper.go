@@ -209,7 +209,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Spot connection
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                   gateioWebsocketEndpoint,
 		RateLimit:             gateioWebsocketRateLimit,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
@@ -224,7 +224,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Futures connection - USDT margined
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketUsdtURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -242,7 +242,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - BTC margined
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -261,7 +261,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 
 	// TODO: Add BTC margined delivery futures.
 	// Futures connection - Delivery - USDT margined
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  deliveryRealUSDTTradingURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -279,7 +279,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - Options
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                   optionsWebsocketURL,
 		RateLimit:             gateioWebsocketRateLimit,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,

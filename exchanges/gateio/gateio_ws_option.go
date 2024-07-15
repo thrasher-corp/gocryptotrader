@@ -286,12 +286,12 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn stream.Connect
 
 // OptionsSubscribe sends a websocket message to stop receiving data for asset type options
 func (g *Gateio) OptionsSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleOptionsSubscription(ctx, conn, "subscribe", channelsToUnsubscribe)
+	return g.handleOptionsSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
 func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleOptionsSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
+	return g.handleOptionsSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
 }
 
 // handleOptionsSubscription sends a websocket message to receive data from the channel
@@ -315,7 +315,7 @@ func (g *Gateio) handleOptionsSubscription(ctx context.Context, conn stream.Conn
 				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s asset type: options error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
-			if payloads[k].Event == "subscribe" {
+			if payloads[k].Event == subscribeEvent {
 				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
 			} else {
 				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
@@ -329,14 +329,14 @@ func (g *Gateio) handleOptionsSubscription(ctx context.Context, conn stream.Conn
 }
 
 // WsHandleOptionsData handles options websocket data
-func (g *Gateio) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
 
-	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
 		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}

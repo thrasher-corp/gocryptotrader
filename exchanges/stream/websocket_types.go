@@ -35,7 +35,7 @@ type ConnectionAssociation struct {
 	Details       *ConnectionSetup
 }
 
-// ConnectionSetup contains the connection details and it's tracked connections
+// ConnectionDetails contains the connection details and it's tracked connections
 type ConnectionDetails struct {
 	Details    *ConnectionSetup
 	Connection Connection // TODO: Upgrade to slice of connections.

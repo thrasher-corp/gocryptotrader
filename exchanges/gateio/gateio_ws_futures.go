@@ -159,23 +159,23 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) FuturesSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleFuturesSubscription(ctx, conn, "subscribe", channelsToUnsubscribe)
+	return g.handleFuturesSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleFuturesSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
+	return g.handleFuturesSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
 }
 
 // WsHandleFuturesData handles futures websocket data
-func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
+func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
 
-	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
 		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}
@@ -249,7 +249,7 @@ func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Conn
 				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val.Event, val.Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
-			if val.Event == "subscribe" {
+			if val.Event == subscribeEvent {
 				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[i])
 			} else {
 				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[i])
@@ -278,7 +278,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 		}
 	}
 
-	var outbound []WsInput
+	outbound := make([]WsInput, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair

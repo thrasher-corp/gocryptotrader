@@ -188,7 +188,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
-func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
+func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
@@ -227,14 +227,14 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		if c.Connector == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
 		}
-		w.ConnectionManager = append(w.ConnectionManager, ConnectionDetails{Details: &c})
+		w.ConnectionManager = append(w.ConnectionManager, ConnectionDetails{Details: c})
 		return nil
 	}
 
 	if c.Authenticated {
-		w.AuthConn = w.getConnectionFromSetup(&c)
+		w.AuthConn = w.getConnectionFromSetup(c)
 	} else {
-		w.Conn = w.getConnectionFromSetup(&c)
+		w.Conn = w.getConnectionFromSetup(c)
 	}
 
 	return nil
@@ -305,7 +305,7 @@ func (w *Websocket) Connect() error {
 		w.setState(connectedState)
 
 		if !w.IsConnectionMonitorRunning() {
-			err := w.connectionMonitor()
+			err = w.connectionMonitor()
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 			}
@@ -627,8 +627,7 @@ func (w *Websocket) FlushChannels() error {
 			}
 			subs, unsubs := w.GetChannelDifference(w.ConnectionManager[x].Connection, newsubs)
 			if len(unsubs) != 0 && w.features.Unsubscribe {
-
-				err := w.UnsubscribeChannels(w.ConnectionManager[x].Connection, unsubs)
+				err = w.UnsubscribeChannels(w.ConnectionManager[x].Connection, unsubs)
 				if err != nil {
 					return err
 				}

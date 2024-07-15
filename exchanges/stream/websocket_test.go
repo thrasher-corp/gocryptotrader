@@ -375,7 +375,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.ConnectionManager[0].Details.Connector = func(ctx context.Context, conn Connection) error {
+	ws.ConnectionManager[0].Details.Connector = func(context.Context, Connection) error {
 		return nil
 	}
 	err = ws.Connect()
@@ -1144,19 +1144,19 @@ func TestEnable(t *testing.T) {
 func TestSetupNewConnection(t *testing.T) {
 	t.Parallel()
 	var nonsenseWebsock *Websocket
-	err := nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	err := nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errWebsocketIsNil, "SetupNewConnection should error correctly")
 
 	nonsenseWebsock = &Websocket{}
-	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errExchangeConfigNameEmpty, "SetupNewConnection should error correctly")
 
 	nonsenseWebsock = &Websocket{exchangeName: "test"}
-	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errTrafficAlertNil, "SetupNewConnection should error correctly")
 
 	nonsenseWebsock.TrafficAlert = make(chan struct{}, 1)
-	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errReadMessageErrorsNil, "SetupNewConnection should error correctly")
 
 	web := NewWebsocket()
@@ -1164,10 +1164,10 @@ func TestSetupNewConnection(t *testing.T) {
 	err = web.Setup(defaultSetup)
 	assert.NoError(t, err, "Setup should not error")
 
-	err = web.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	err = web.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.NoError(t, err, "SetupNewConnection should not error")
 
-	err = web.SetupNewConnection(ConnectionSetup{URL: "urlstring", Authenticated: true})
+	err = web.SetupNewConnection(&ConnectionSetup{URL: "urlstring", Authenticated: true})
 	assert.NoError(t, err, "SetupNewConnection should not error")
 }
 

@@ -116,12 +116,12 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 
 // DeliveryFuturesSubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) DeliveryFuturesSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleDeliveryFuturesSubscription(ctx, conn, "subscribe", channelsToUnsubscribe)
+	return g.handleDeliveryFuturesSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
 }
 
 // DeliveryFuturesUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) DeliveryFuturesUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleDeliveryFuturesSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
+	return g.handleDeliveryFuturesSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
 }
 
 // handleDeliveryFuturesSubscription sends a websocket message to receive data from the channel
@@ -146,7 +146,7 @@ func (g *Gateio) handleDeliveryFuturesSubscription(ctx context.Context, conn str
 				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val.Event, val.Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
-			if val.Event == "subscribe" {
+			if val.Event == subscribeEvent {
 				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[i])
 			} else {
 				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[i])
@@ -171,7 +171,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn stream
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	var outbound []WsInput
+	outbound := make([]WsInput, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair

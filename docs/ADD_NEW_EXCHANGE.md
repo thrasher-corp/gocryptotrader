@@ -1137,7 +1137,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return f.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
