@@ -430,22 +430,29 @@ func (ku *Kucoin) PlaceMultipleFuturesOrders(ctx context.Context, args []Futures
 
 // CancelFuturesOrderByOrderID used to cancel single order previously placed including a stop order
 func (ku *Kucoin) CancelFuturesOrderByOrderID(ctx context.Context, orderID string) ([]string, error) {
-	return ku.cancelFuturesOrderByID(ctx, orderID, "/v1/orders/")
+	return ku.cancelFuturesOrderByID(ctx, orderID, "/v1/orders/", "")
 }
 
 // CancelFuturesOrderByClientOrderID cancels a futures order by using client order ID
-func (ku *Kucoin) CancelFuturesOrderByClientOrderID(ctx context.Context, clientOrderID string) ([]string, error) {
-	return ku.cancelFuturesOrderByID(ctx, clientOrderID, "/v1/orders/client-order/")
+func (ku *Kucoin) CancelFuturesOrderByClientOrderID(ctx context.Context, symbol, clientOrderID string) ([]string, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	return ku.cancelFuturesOrderByID(ctx, clientOrderID, "/v1/orders/client-order/", symbol)
 }
 
-func (ku *Kucoin) cancelFuturesOrderByID(ctx context.Context, id, path string) ([]string, error) {
+func (ku *Kucoin) cancelFuturesOrderByID(ctx context.Context, id, path, symbol string) ([]string, error) {
 	if id == "" {
 		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
 	}
 	resp := struct {
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
 	}{}
-	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresCancelAnOrderEPL, http.MethodDelete, path+id, nil, &resp)
+	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresCancelAnOrderEPL, http.MethodDelete, common.EncodeURLValues(path+id, params), nil, &resp)
 }
 
 // CancelMultipleFuturesLimitOrders used to cancel all futures order excluding stop orders

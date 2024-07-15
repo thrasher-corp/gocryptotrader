@@ -566,35 +566,24 @@ func (ku *Kucoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	err := ku.CurrencyPairs.IsAssetEnabled(a)
+func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	var withdrawals *HistoricalDepositWithdrawalResponse
+	withdrawals, err := ku.GetHistoricalWithdrawalList(ctx, c.Upper(), "", time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
-	switch a {
-	case asset.Spot:
-		var withdrawals *HistoricalDepositWithdrawalResponse
-		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.Upper(), "", time.Time{}, time.Time{})
-		if err != nil {
-			return nil, err
+	resp := make([]exchange.WithdrawalHistory, len(withdrawals.Items))
+	for x := range withdrawals.Items {
+		resp[x] = exchange.WithdrawalHistory{
+			Status:       withdrawals.Items[x].Status,
+			CryptoTxID:   withdrawals.Items[x].WalletTxID,
+			Timestamp:    withdrawals.Items[x].CreatedAt.Time(),
+			Amount:       withdrawals.Items[x].Amount,
+			TransferType: "withdrawal",
+			Currency:     c.String(),
 		}
-		resp := make([]exchange.WithdrawalHistory, len(withdrawals.Items))
-		for x := range withdrawals.Items {
-			resp[x] = exchange.WithdrawalHistory{
-				Status:       withdrawals.Items[x].Status,
-				CryptoTxID:   withdrawals.Items[x].WalletTxID,
-				Timestamp:    withdrawals.Items[x].CreatedAt.Time(),
-				Amount:       withdrawals.Items[x].Amount,
-				TransferType: "withdrawal",
-				Currency:     c.String(),
-			}
-		}
-		return resp, nil
-	case asset.Futures:
-		return nil, common.ErrNotYetImplemented
-	default:
-		return nil, fmt.Errorf("withdrawal %w for asset type %v", asset.ErrNotSupported, a)
 	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -1473,7 +1462,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		}
 		switch getOrdersRequest.Type {
 		case order.OCO:
-			response, err := ku.GetOCOOrderList(ctx, "", "", singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
+			response, err := ku.GetOCOOrderList(ctx, 100, 0, singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
 			if err != nil {
 				return nil, err
 			}
@@ -1707,7 +1696,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 		switch getOrdersRequest.Type {
 		case order.OCO:
 			var response *OCOOrders
-			response, err = ku.GetOCOOrderList(ctx, "", "", singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
+			response, err = ku.GetOCOOrderList(ctx, 100, 0, singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
 			if err != nil {
 				return nil, err
 			}

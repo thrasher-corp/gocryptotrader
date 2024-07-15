@@ -324,20 +324,21 @@ func (ku *Kucoin) PostMarginBorrowOrder(ctx context.Context, arg *MarginBorrowPa
 
 // GetMarginBorrowingHistory retrieves the borrowing orders for cross and isolated margin accounts
 func (ku *Kucoin) GetMarginBorrowingHistory(ctx context.Context, ccy currency.Code, isIsolated bool,
-	symbol currency.Pair, orderNo string,
+	symbol, orderNo string,
 	startTime, endTime time.Time,
 	currentPage, pageSize int64) (*BorrowRepayDetailResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	if isIsolated {
 		params.Set("isIsolated", "true")
 	}
-	if !symbol.IsEmpty() {
-		params.Set("symbol", symbol.String())
-	}
+	params.Set("symbol", symbol)
 	if orderNo != "" {
 		params.Set("orderNo", orderNo)
 	}
@@ -374,19 +375,20 @@ func (ku *Kucoin) PostRepayment(ctx context.Context, arg *RepayParam) (*BorrowAn
 
 // GetRepaymentHistory retrieves the repayment orders for cross and isolated margin accounts.
 func (ku *Kucoin) GetRepaymentHistory(ctx context.Context, ccy currency.Code, isIsolated bool,
-	symbol currency.Pair, orderNo string,
+	symbol, orderNo string,
 	startTime, endTime time.Time,
 	currentPage, pageSize int64) (*BorrowRepayDetailResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
+	params.Set("symbol", symbol)
 	if isIsolated {
 		params.Set("isIsolated", "true")
-	}
-	if !symbol.IsEmpty() {
-		params.Set("symbol", symbol.String())
 	}
 	if orderNo != "" {
 		params.Set("orderNo", orderNo)
@@ -929,7 +931,9 @@ func (ku *Kucoin) CancelAllOpenOrders(ctx context.Context, symbol, tradeType str
 	resp := struct {
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
 		Error
-	}{}
+	}{
+		CancelledOrderIDs: []string{},
+	}
 	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelAllOrdersEPL, http.MethodDelete, common.EncodeURLValues("/v1/orders", params), nil, &resp)
 }
 
@@ -1133,7 +1137,9 @@ func (ku *Kucoin) CancelStopOrders(ctx context.Context, symbol, tradeType string
 	resp := struct {
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
 		Error
-	}{}
+	}{
+		CancelledOrderIDs: []string{},
+	}
 	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelStopOrdersEPL, http.MethodDelete, common.EncodeURLValues("/v1/stop-order/cancel", params), nil, &resp)
 }
 
@@ -1291,16 +1297,16 @@ func (ku *Kucoin) GetOCOOrderDetailsByOrderID(ctx context.Context, orderID strin
 }
 
 // GetOCOOrderList retrieves list of OCO orders.
-func (ku *Kucoin) GetOCOOrderList(ctx context.Context, pageSize, currentPage, symbol string, startAt, endAt time.Time, orderIDs []string) (*OCOOrders, error) {
-	if pageSize == "" {
-		return nil, errors.New("pageSize cannot be empty")
+func (ku *Kucoin) GetOCOOrderList(ctx context.Context, pageSize, currentPage int64, symbol string, startAt, endAt time.Time, orderIDs []string) (*OCOOrders, error) {
+	if pageSize <= 10 {
+		return nil, errors.New("pageSize cannot must be greater than 10")
 	}
-	if currentPage == "" {
+	if currentPage <= 0 {
 		return nil, errors.New("currentPage cannot be empty")
 	}
 	params := url.Values{}
-	params.Set("pageSize", pageSize)
-	params.Set("currentPage", currentPage)
+	params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	params.Set("currentPage", strconv.FormatInt(currentPage, 10))
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
@@ -1472,13 +1478,14 @@ func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tr
 	if tradeType == "" {
 		return nil, errTradeTypeMissing
 	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
 	params := url.Values{}
 	params.Set("tradeType", tradeType)
+	params.Set("symbol", symbol)
 	if orderID != "" {
 		params.Set("orderId", orderID)
-	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
 	}
 	if side != "" {
 		params.Set("side", side)

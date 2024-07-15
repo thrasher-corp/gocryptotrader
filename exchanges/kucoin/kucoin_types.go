@@ -724,7 +724,7 @@ type CrossMarginStatusAndAssets struct {
 }
 
 // IsolatedMarginAccountDetail represents an isolated-margin account detail.
-type IsolatedMarginAccountDetail []struct {
+type IsolatedMarginAccountDetail struct {
 	TotalAssetOfQuoteCurrency     string               `json:"totalAssetOfQuoteCurrency"`
 	TotalLiabilityOfQuoteCurrency string               `json:"totalLiabilityOfQuoteCurrency"`
 	Timestamp                     convert.ExchangeTime `json:"timestamp"`
