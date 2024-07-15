@@ -71,7 +71,7 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn stream.Conne
 }
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
-func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions(_ currency.Code) (subscription.List, error) {
+func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	_, err := g.GetCredentials(context.Background())
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -85,30 +85,10 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions(_ currency.Code) (s
 			futuresBalancesChannel,
 		)
 	}
-	pairs, err := g.GetAvailablePairs(asset.DeliveryFutures)
+	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
 		return nil, err
 	}
-
-	// switch {
-	// case settlement.Equal(currency.USDT):
-	// 	pairs, err = pairs.GetPairsByQuote(currency.USDT)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// case settlement.Equal(currency.BTC):
-	// 	offset := 0
-	// 	for x := range pairs {
-	// 		if pairs[x].Quote.Equal(currency.USDT) {
-	// 			continue // skip USDT pairs
-	// 		}
-	// 		pairs[offset] = pairs[x]
-	// 		offset++
-	// 	}
-	// 	pairs = pairs[:offset]
-	// default:
-	// 	return nil, fmt.Errorf("settlement currency %s not supported", settlement)
-	// }
 
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {

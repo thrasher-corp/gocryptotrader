@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -140,21 +141,6 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, err, errConfigFeaturesIsNil, "Setup should error correctly")
 
 	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketConnectorUnset, "Setup should error correctly")
-
-	websocketSetup.Connector = func() error { return nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketSubscriberUnset, "Setup should error correctly")
-
-	websocketSetup.Subscriber = func(subscription.List) error { return nil }
-	websocketSetup.Features.Unsubscribe = true
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketUnsubscriberUnset, "Setup should error correctly")
-
-	websocketSetup.Unsubscriber = func(subscription.List) error { return nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset, "Setup should error correctly")
 
 	websocketSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
 	err = w.Setup(websocketSetup)
@@ -296,11 +282,8 @@ func TestIsDisconnectionError(t *testing.T) {
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
 	var wsWrong = &Websocket{}
-	err := wsWrong.Connect()
-	assert.ErrorIs(t, err, errNoConnectFunc, "Connect should error correctly")
-
 	wsWrong.connector = func() error { return nil }
-	err = wsWrong.Connect()
+	err := wsWrong.Connect()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
 
 	wsWrong.setEnabled(true)
@@ -351,6 +334,66 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.ReadMessageErrors <- &websocket.CloseError{Code: 1006, Text: "SpecialText"}
 	assert.EventuallyWithT(t, c, 2*time.Second, 10*time.Millisecond, "Should get an error down the routine")
+
+	// Test individual connection defined functions
+	ws.connector = nil
+
+	err = ws.Connect()
+	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
+
+	ws.PendingConnections = []ConnectionSetup{{URL: "ws://localhost:8080/ws"}}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
+
+	ws.PendingConnections[0].GenerateSubscriptions = func() (subscription.List, error) {
+		return nil, errDastardlyReason
+	}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errDastardlyReason)
+
+	ws.PendingConnections[0].GenerateSubscriptions = func() (subscription.List, error) {
+		return subscription.List{{}}, nil
+	}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errNoConnectFunc)
+
+	ws.PendingConnections[0].Connector = func(context.Context, Connection) error {
+		return errDastardlyReason
+	}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
+
+	ws.PendingConnections[0].Handler = func(context.Context, []byte) error {
+		return errDastardlyReason
+	}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
+
+	ws.PendingConnections[0].Subscriber = func(context.Context, Connection, subscription.List) error {
+		return errDastardlyReason
+	}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errDastardlyReason)
+
+	ws.PendingConnections[0].Connector = func(ctx context.Context, conn Connection) error {
+		return nil
+	}
+	err = ws.Connect()
+	require.ErrorIs(t, err, errDastardlyReason)
+
+	ws.PendingConnections[0].Handler = func(context.Context, []byte) error {
+		return nil
+	}
+	require.NoError(t, ws.Shutdown())
+	err = ws.Connect()
+	require.ErrorIs(t, err, errDastardlyReason)
+
+	ws.PendingConnections[0].Subscriber = func(context.Context, Connection, subscription.List) error {
+		return nil
+	}
+	require.NoError(t, ws.Shutdown())
+	err = ws.Connect()
+	require.NoError(t, err)
 }
 
 func TestWebsocket(t *testing.T) {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"slices"
 	"time"
 
@@ -316,18 +315,22 @@ func (w *Websocket) Connect() error {
 		return nil
 	}
 
-	fmt.Println("NEW CONNECTOR")
+	// hasStableConnection is used to determine if the websocket has a stable
+	// connection. If it does not, the websocket will be set to disconnected.
+	hasStableConnection := false
+	defer w.setStateFromHasStableConnection(&hasStableConnection)
 
 	if len(w.PendingConnections) == 0 {
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
 	}
 
+	// TODO: Implement concurrency below. This can be achieved once there is
+	// more mutex protection around the subscriptions.
 	for i := range w.PendingConnections {
-		fmt.Println("SPAWN CONNECTION: ", i)
-		// if !w.PendingConnections[i].Enabled() {
-		// 	fmt.Println("Connection not enabled")
-		// 	continue
-		// }
+		if w.PendingConnections[i].GenerateSubscriptions == nil {
+			return fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.PendingConnections[i].URL, errWebsocketSubscriptionsGeneratorUnset)
+		}
+
 		subs, err := w.PendingConnections[i].GenerateSubscriptions() // regenerate state on new connection
 		if err != nil {
 			if errors.Is(err, asset.ErrNotEnabled) {
@@ -336,41 +339,44 @@ func (w *Websocket) Connect() error {
 				}
 				continue // Non-fatal error, we can continue to the next connection
 			}
-			w.setState(disconnectedState)
 			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
 
-		fmt.Println("subs: ", len(subs))
-
-		for x := range subs {
-			fmt.Println("SUBS: ", subs[x])
-		}
-
-		os.Exit(1)
-
 		if len(subs) == 0 {
 			// If no subscriptions are generated, we skip the connection
-			log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", w.exchangeName)
+			if w.verbose {
+				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", w.exchangeName)
+			}
 			continue
 		}
 
-		// TODO: Add window to max subscriptions per connection, to spawn new connections if needed.
+		if w.PendingConnections[i].Connector == nil {
+			return fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.PendingConnections[i].URL, errNoConnectFunc)
+		}
+		if w.PendingConnections[i].Handler == nil {
+			return fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.PendingConnections[i].URL, errWebsocketDataHandlerUnset)
+		}
+		if w.PendingConnections[i].Subscriber == nil {
+			return fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.PendingConnections[i].URL, errWebsocketSubscriberUnset)
+		}
+
+		// TODO: Add window for max subscriptions per connection, to spawn new connections if needed.
 		conn := w.getConnectionFromSetup(w.PendingConnections[i])
 		err = w.PendingConnections[i].Connector(context.TODO(), conn)
 		if err != nil {
 			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 		}
+
+		hasStableConnection = true
+
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.PendingConnections[i].Handler)
 
-		fmt.Println("Subscribing to channels: ", len(subs))
 		err = w.PendingConnections[i].Subscriber(context.TODO(), conn, subs)
 		if err != nil {
 			return fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
 		}
 	}
-
-	fmt.Println("DONE SPAWNING CONNECTIONS")
 
 	if !w.IsConnectionMonitorRunning() {
 		err := w.connectionMonitor()
@@ -380,6 +386,14 @@ func (w *Websocket) Connect() error {
 	}
 
 	return nil
+}
+
+func (w *Websocket) setStateFromHasStableConnection(hasStableConnection *bool) {
+	if *hasStableConnection {
+		w.setState(connectedState)
+	} else {
+		w.setState(disconnectedState)
+	}
 }
 
 // Disable disables the exchange websocket protocol

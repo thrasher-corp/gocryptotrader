@@ -224,6 +224,9 @@ func (w *WebsocketConnection) IsConnected() bool {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() Response {
+	if w.Connection == nil {
+		return Response{}
+	}
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if IsDisconnectionError(err) {

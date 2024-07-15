@@ -169,6 +169,7 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
+	fmt.Printf("Gateio WsHandleFuturesData: %s\n", string(respRaw))
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {

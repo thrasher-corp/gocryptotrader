@@ -635,6 +635,8 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 			assetType = asset.CrossMargin
 			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
 		default:
+			// TODO: Check and add balance support as spot balances can be
+			// subscribed without a currency pair supplied.
 			assetType = asset.Spot
 			pairs, err = g.GetEnabledPairs(asset.Spot)
 		}

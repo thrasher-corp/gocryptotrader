@@ -2971,7 +2971,7 @@ func TestGenerateDefaultSubscriptionsSpot(t *testing.T) {
 }
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateDeliveryFuturesDefaultSubscriptions(currency.USDT); err != nil {
+	if _, err := g.GenerateDeliveryFuturesDefaultSubscriptions(); err != nil {
 		t.Error(err)
 	}
 }
