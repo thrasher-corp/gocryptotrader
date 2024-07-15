@@ -29,14 +29,16 @@ const (
 	connectedState
 )
 
+// ConnectionAssociation contains the connection details and subscriptions
 type ConnectionAssociation struct {
 	Subscriptions *subscription.Store
 	Details       *ConnectionSetup
 }
 
+// ConnectionSetup contains the connection details and it's tracked connections
 type ConnectionDetails struct {
 	Details    *ConnectionSetup
-	Connection Connection
+	Connection Connection // TODO: Upgrade to slice of connections.
 }
 
 // Websocket defines a return type for websocket connections via the interface

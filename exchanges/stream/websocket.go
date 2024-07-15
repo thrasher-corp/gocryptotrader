@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"slices"
 	"time"
 
@@ -333,8 +332,7 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
 	}
 
-	// TODO: Implement concurrency below. This can be achieved once there is
-	// more mutex protection around the subscriptions.
+	// TODO: Implement concurrency below.
 	for i := range w.ConnectionManager {
 		if w.ConnectionManager[i].Details.GenerateSubscriptions == nil {
 			return fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.ConnectionManager[i].Details.URL, errWebsocketSubscriptionsGeneratorUnset)
@@ -1051,14 +1049,6 @@ func (w *Websocket) AddSuccessfulSubscriptions(conn Connection, subs ...*subscri
 	if conn != nil {
 		state, ok := w.Connections[conn]
 		if !ok {
-			for k, v := range w.Connections {
-				fmt.Printf("key: %v, value: %v\n", k, v)
-			}
-
-			fmt.Println("conn", conn)
-
-			os.Exit(1)
-
 			return errors.New("connection details not found")
 		}
 		var errs error
