@@ -1588,6 +1588,7 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 // checkSubscriptions looks for any backwards incompatibilities with missing assets
 func (ku *Kucoin) checkSubscriptions() {
 	for _, s := range ku.Features.Subscriptions {
+		s.Channel = strings.TrimSuffix(s.Channel, ":%s")
 		if s.Asset != asset.Empty {
 			continue
 		}
@@ -1608,7 +1609,9 @@ func (ku *Kucoin) checkSubscriptions() {
 	}
 	ku.Features.Subscriptions = slices.DeleteFunc(ku.Features.Subscriptions, func(s *subscription.Subscription) bool {
 		switch s.Channel {
-		case "/contractMarket/level2Depth50:%s", "/contractMarket/tickerV2:%s":
+		case "/contractMarket/level2Depth50", // Replaced by subsctiption.Orderbook for asset.All
+			"/contractMarket/tickerV2", // Replaced by subscription.Ticker for asset.All
+			"/margin/fundingBook":      // Deprecated and removed
 			return true
 		case subscription.AllTradesChannel:
 			return s.Asset == asset.Empty

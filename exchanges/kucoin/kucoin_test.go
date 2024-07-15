@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -2085,6 +2086,39 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
 		}
 	}
+}
+
+// TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
+func TestCheckSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ku := &Kucoin{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+		Base: exchange.Base{
+			Config: &config.Exchange{
+				Features: &config.FeaturesConfig{},
+			},
+			Features: exchange.Features{
+				Subscriptions: subscription.List{
+					{Channel: "ticker"},
+					{Channel: "allTrades"},
+					{Channel: "orderbook", Interval: kline.HundredMilliseconds},
+					{Channel: "/contractMarket/tickerV2:%s"},
+					{Channel: "/contractMarket/level2Depth50:%s"},
+					{Channel: "/margin/fundingBook:%s", Authenticated: true},
+					{Channel: "/account/balance", Authenticated: true},
+					{Channel: "/margin/position", Authenticated: true},
+					{Channel: "/margin/loan:%s", Authenticated: true},
+					{Channel: "/contractMarket/tradeOrders", Authenticated: true},
+					{Channel: "/contractMarket/advancedOrders", Authenticated: true},
+					{Channel: "/contractAccount/wallet", Authenticated: true},
+				},
+			},
+		},
+	}
+
+	ku.checkSubscriptions()
+	testsubs.EqualLists(t, defaultSubscriptions, ku.Features.Subscriptions)
+	testsubs.EqualLists(t, defaultSubscriptions, ku.Config.Features.Subscriptions)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
