@@ -140,8 +140,8 @@ func (s *Subscription) Clone() *Subscription {
 		Pairs:            s.Pairs,
 		QualifiedChannel: s.QualifiedChannel,
 	}
-	s.Pairs = slices.Clone(s.Pairs)
-	s.Params = maps.Clone(s.Params)
+	c.Pairs = slices.Clone(s.Pairs)
+	c.Params = maps.Clone(s.Params)
 	s.m.RUnlock()
 	return c
 }
