@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -136,11 +137,24 @@ func (b *Bitmex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 		},
+		Subscriptions: subscription.List{
+			{Enabled: true, Channel: bitmexWSAnnouncement},
+			{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+			{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+			{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSPrivateNotifications, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+			{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
+		},
 	}
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -185,7 +199,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
@@ -458,17 +472,17 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Asks = make(orderbook.Items, 0, len(orderbookNew))
-	book.Bids = make(orderbook.Items, 0, len(orderbookNew))
+	book.Asks = make(orderbook.Tranches, 0, len(orderbookNew))
+	book.Bids = make(orderbook.Tranches, 0, len(orderbookNew))
 	for i := range orderbookNew {
 		switch {
 		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Tranche{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
 		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Tranche{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
@@ -679,7 +693,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -1360,4 +1374,14 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 		OpenInterest: instrument[0].OpenInterest,
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitmex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

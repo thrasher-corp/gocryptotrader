@@ -118,6 +118,15 @@ func (f PairFormat) Format(pair Pair) string {
 	return pair.Format(f).String()
 }
 
+// clone returns a clone of the PairFormat
+func (f *PairFormat) clone() *PairFormat {
+	if f == nil {
+		return nil
+	}
+	c := *f
+	return &c
+}
+
 // MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair
 // it will then split on that index and verify whether that currencypair exists in the
 // supplied pairs

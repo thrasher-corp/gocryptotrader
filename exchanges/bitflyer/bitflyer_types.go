@@ -1,5 +1,9 @@
 package bitflyer
 
+import "errors"
+
+var errUnhandledCurrency = errors.New("unhandled currency")
+
 // ChainAnalysisBlock holds block information from the bitcoin network
 type ChainAnalysisBlock struct {
 	BlockHash     string   `json:"block_hash"`

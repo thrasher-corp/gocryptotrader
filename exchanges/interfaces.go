@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"text/template"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -34,8 +36,12 @@ type IBotExchange interface {
 	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
+
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
+	// GetTradingRequirements returns trading requirements for the exchange
+	GetTradingRequirements() protocol.TradingRequirements
+
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -70,11 +76,13 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	GetWebsocket() (*stream.Websocket, error)
-	SubscribeToWebsocketChannels(channels []subscription.Subscription) error
-	UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error
-	GetSubscriptions() ([]subscription.Subscription, error)
+	SubscribeToWebsocketChannels(channels subscription.List) error
+	UnsubscribeToWebsocketChannels(channels subscription.List) error
+	GetSubscriptions() (subscription.List, error)
+	GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error)
 	FlushWebsocketChannels(allowAutoSubscribe stream.SubscriptionAllowed) error
 	AuthenticateWebsocket(ctx context.Context) error
+	CanUseAuthenticatedWebsocketEndpoints() bool
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
@@ -82,6 +90,7 @@ type IBotExchange interface {
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
+	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.

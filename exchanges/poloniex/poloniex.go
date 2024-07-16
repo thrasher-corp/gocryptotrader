@@ -23,6 +23,8 @@ import (
 
 const (
 	poloniexAPIURL               = "https://poloniex.com"
+	tradeSpot                    = "/trade/"
+	tradeFutures                 = "/futures" + tradeSpot
 	poloniexAltAPIUrl            = "https://api.poloniex.com"
 	poloniexAPITradingEndpoint   = "tradingApi"
 	poloniexAPIVersion           = "1"
@@ -932,7 +934,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPRecording: p.HTTPRecording,
 	}
 
-	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return p.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
@@ -948,7 +950,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 
-	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return p.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		headers["Key"] = creds.Key

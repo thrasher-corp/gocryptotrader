@@ -55,6 +55,10 @@ func (g *Gateio) SetDefaults() {
 	}
 
 	g.Features = exchange.Features{
+		TradingRequirements: protocol.TradingRequirements{
+			SpotMarketOrderAmountPurchaseQuotationOnly: true,
+			SpotMarketOrderAmountSellBaseOnly:          true,
+		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -142,7 +146,7 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()),
+		request.WithLimiter(GetRateLimit()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -692,16 +696,16 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		LastUpdateID:    orderbookNew.ID,
 		LastUpdated:     orderbookNew.Update.Time(),
 	}
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price.Float64(),
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price.Float64(),
 		}
@@ -984,7 +988,7 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(g.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -1008,11 +1012,20 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
+
+		// When doing spot market orders when purchasing base currency, the
+		// quote currency amount is used. When selling the base currency the
+		// base currency amount is used.
+		tradingAmount := s.Amount
+		if tradingAmount == 0 && s.Type == order.Market {
+			tradingAmount = s.QuoteAmount
+		}
+
 		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
 			Side:         s.Side.Lower(),
 			Type:         s.Type.Lower(),
 			Account:      g.assetTypeToString(s.AssetType),
-			Amount:       types.Number(s.Amount),
+			Amount:       types.Number(tradingAmount),
 			Price:        types.Number(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
@@ -1606,7 +1619,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					continue
 				}
 				var side order.Side
-				side, err = order.StringToOrderSide(spotOrders[x].Orders[x].Side)
+				side, err = order.StringToOrderSide(spotOrders[x].Orders[y].Side)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 				}
@@ -2554,4 +2567,23 @@ func getTimeInForce(s *order.Submit) (string, error) {
 		timeInForce = "fok" // market order entire fill or kill
 	}
 	return timeInForce, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := g.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	switch a {
+	case asset.Spot, asset.CrossMargin, asset.Margin:
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Futures:
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	case asset.DeliveryFutures:
+		return tradeBaseURL + tradeDelivery + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

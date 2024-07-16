@@ -19,6 +19,7 @@ import (
 const (
 	apiPublicURL                  = "https://yobit.net/api"
 	apiPrivateURL                 = "https://yobit.net/tapi"
+	tradeBaseURL                  = "https://yobit.net/en/trade/"
 	apiPublicVersion              = "3"
 	publicInfo                    = "info"
 	publicTicker                  = "ticker"

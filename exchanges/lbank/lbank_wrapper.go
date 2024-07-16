@@ -242,7 +242,7 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return book, err
 	}
 
-	book.Asks = make(orderbook.Items, len(a.Data.Asks))
+	book.Asks = make(orderbook.Tranches, len(a.Data.Asks))
 	for i := range a.Data.Asks {
 		price, convErr := strconv.ParseFloat(a.Data.Asks[i][0], 64)
 		if convErr != nil {
@@ -252,12 +252,12 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if convErr != nil {
 			return book, convErr
 		}
-		book.Asks[i] = orderbook.Item{
+		book.Asks[i] = orderbook.Tranche{
 			Price:  price,
 			Amount: amount,
 		}
 	}
-	book.Bids = make(orderbook.Items, len(a.Data.Bids))
+	book.Bids = make(orderbook.Tranches, len(a.Data.Bids))
 	for i := range a.Data.Bids {
 		price, convErr := strconv.ParseFloat(a.Data.Bids[i][0], 64)
 		if convErr != nil {
@@ -267,7 +267,7 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if convErr != nil {
 			return book, convErr
 		}
-		book.Bids[i] = orderbook.Item{
+		book.Bids[i] = orderbook.Tranche{
 			Price:  price,
 			Amount: amount,
 		}
@@ -441,7 +441,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(l.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -982,4 +982,14 @@ func (l *Lbank) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRe
 // UpdateOrderExecutionLimits updates order execution limits
 func (l *Lbank) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (l *Lbank) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := l.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	return tradeBaseURL + cp.Lower().String(), nil
 }

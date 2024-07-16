@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	itemArray = [][]orderbook.Item{
+	itemArray = [][]orderbook.Tranche{
 		{{Price: 1000, Amount: 1, ID: 1000}},
 		{{Price: 2000, Amount: 1, ID: 2000}},
 		{{Price: 3000, Amount: 1, ID: 3000}},
@@ -31,9 +31,9 @@ const (
 	exchangeName = "exchangeTest"
 )
 
-func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error) {
-	asks = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
-	bids = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
+func createSnapshot() (holder *Orderbook, asks, bids orderbook.Tranches, err error) {
+	asks = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
+	bids = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 
 	book := &orderbook.Base{
 		Exchange:         exchangeName,
@@ -62,15 +62,15 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 	return holder, asks, bids, err
 }
 
-func bidAskGenerator() []orderbook.Item {
-	var response []orderbook.Item
+func bidAskGenerator() []orderbook.Tranche {
+	var response []orderbook.Tranche
 	randIterator := 100
 	for i := 0; i < randIterator; i++ {
 		price := float64(rand.Intn(1000)) //nolint:gosec // no need to import crypo/rand for testing
 		if price == 0 {
 			price = 1
 		}
-		response = append(response, orderbook.Item{
+		response = append(response, orderbook.Tranche{
 			Amount: float64(rand.Intn(10)), //nolint:gosec // no need to import crypo/rand for testing
 			Price:  price,
 			ID:     int64(i),
@@ -464,7 +464,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	// this update invalidates the book
 	err = holder.Update(&orderbook.Update{
-		Asks:       []orderbook.Item{{Price: 999999}},
+		Asks:       []orderbook.Tranche{{Price: 999999}},
 		Pair:       cp,
 		UpdateID:   -1,
 		Asset:      asset.Spot,
@@ -498,7 +498,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	// out of order
 	err = holder.Update(&orderbook.Update{
-		Asks:     []orderbook.Item{{Price: 999999}},
+		Asks:     []orderbook.Tranche{{Price: 999999}},
 		Pair:     cp,
 		UpdateID: 1,
 		Asset:    asset.Spot,
@@ -521,10 +521,10 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	t.Parallel()
 	var holder Orderbook
 	var snapShot1 orderbook.Base
-	asks := []orderbook.Item{
+	asks := []orderbook.Tranche{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
-	bids := []orderbook.Item{
+	bids := []orderbook.Tranche{
 		{Price: 5999, Amount: 1, ID: 8},
 		{Price: 4000, Amount: 1, ID: 9},
 	}
@@ -550,8 +550,8 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	t.Parallel()
 	var obl Orderbook
 	var snapShot1 orderbook.Base
-	snapShot1.Asks = []orderbook.Item{}
-	snapShot1.Bids = []orderbook.Item{}
+	snapShot1.Asks = []orderbook.Tranche{}
+	snapShot1.Bids = []orderbook.Tranche{}
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
@@ -593,10 +593,10 @@ func TestLoadSnapshot(t *testing.T) {
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "SnapshotWithOverride"
-	asks := []orderbook.Item{
+	asks := []orderbook.Tranche{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
-	bids := []orderbook.Item{
+	bids := []orderbook.Tranche{
 		{Price: 4000, Amount: 1, ID: 9},
 	}
 	snapShot1.Asks = asks
@@ -633,7 +633,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	holder.ob = make(map[key.PairAsset]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
-	asks := []orderbook.Item{
+	asks := []orderbook.Tranche{
 		{Price: 6000, Amount: 1, ID: 1},
 		{Price: 6001, Amount: 0.5, ID: 2},
 		{Price: 6002, Amount: 2, ID: 3},
@@ -647,7 +647,7 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 6010, Amount: 7, ID: 11},
 	}
 
-	bids := []orderbook.Item{
+	bids := []orderbook.Tranche{
 		{Price: 5999, Amount: 1, ID: 12},
 		{Price: 5998, Amount: 0.5, ID: 13},
 		{Price: 5997, Amount: 2, ID: 14},
@@ -672,7 +672,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	}
 	var snapShot2 orderbook.Base
 	snapShot2.Exchange = "WSORDERBOOKTEST2"
-	asks = []orderbook.Item{
+	asks = []orderbook.Tranche{
 		{Price: 51, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
 		{Price: 53, Amount: 2, ID: 3},
@@ -686,7 +686,7 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 60, Amount: 7, ID: 11},
 	}
 
-	bids = []orderbook.Item{
+	bids = []orderbook.Tranche{
 		{Price: 49, Amount: 1, ID: 12},
 		{Price: 48, Amount: 0.5, ID: 13},
 		{Price: 47, Amount: 2, ID: 14},
@@ -716,7 +716,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	}
 	var snapShot3 orderbook.Base
 	snapShot3.Exchange = "WSORDERBOOKTEST3"
-	asks = []orderbook.Item{
+	asks = []orderbook.Tranche{
 		{Price: 511, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
 		{Price: 53, Amount: 2, ID: 3},
@@ -730,7 +730,7 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 60, Amount: 7, ID: 11},
 	}
 
-	bids = []orderbook.Item{
+	bids = []orderbook.Tranche{
 		{Price: 49, Amount: 1, ID: 12},
 		{Price: 48, Amount: 0.5, ID: 13},
 		{Price: 47, Amount: 2, ID: 14},
@@ -911,10 +911,10 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 }
 
-func deploySliceOrdered(size int) orderbook.Items {
-	var items []orderbook.Item
+func deploySliceOrdered(size int) orderbook.Tranches {
+	var items []orderbook.Tranche
 	for i := 0; i < size; i++ {
-		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) //nolint:gosec // Not needed for tests
+		items = append(items, orderbook.Tranche{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) //nolint:gosec // Not needed for tests
 	}
 	return items
 }
@@ -957,7 +957,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Amend,
-		Bids: []orderbook.Item{
+		Bids: []orderbook.Tranche{
 			{
 				Price: 100,
 				ID:    6969,
@@ -975,14 +975,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	// append to slice
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.UpdateInsert,
-		Bids: []orderbook.Item{
+		Bids: []orderbook.Tranche{
 			{
 				Price:  0,
 				ID:     1337,
 				Amount: 1,
 			},
 		},
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{
 				Price:  100,
 				ID:     1337,
@@ -1010,14 +1010,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	// Change amount
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.UpdateInsert,
-		Bids: []orderbook.Item{
+		Bids: []orderbook.Tranche{
 			{
 				Price:  0,
 				ID:     1337,
 				Amount: 100,
 			},
 		},
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{
 				Price:  100,
 				ID:     1337,
@@ -1046,14 +1046,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	// Change price level
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.UpdateInsert,
-		Bids: []orderbook.Item{
+		Bids: []orderbook.Tranche{
 			{
 				Price:  100,
 				ID:     1337,
 				Amount: 99,
 			},
 		},
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{
 				Price:  0,
 				ID:     1337,
@@ -1086,7 +1086,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	// Delete - not found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{
 				Price:  0,
 				ID:     1337,
@@ -1105,7 +1105,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	// Delete - found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			asks[0],
 		},
 		UpdateTime: time.Now(),
@@ -1126,7 +1126,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	// Apply update
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Amend,
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{ID: 123456},
 		},
 	})
@@ -1152,7 +1152,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Amend,
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			update,
 		},
 		UpdateTime: time.Now(),
@@ -1181,10 +1181,10 @@ func TestFlushOrderbook(t *testing.T) {
 
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "Snapshooooot"
-	asks := []orderbook.Item{
+	asks := []orderbook.Tranche{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
-	bids := []orderbook.Item{
+	bids := []orderbook.Tranche{
 		{Price: 4000, Amount: 1, ID: 9},
 	}
 	snapShot1.Asks = asks

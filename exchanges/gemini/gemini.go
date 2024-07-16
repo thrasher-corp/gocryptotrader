@@ -23,6 +23,7 @@ const (
 	geminiAPIURL        = "https://api.gemini.com"
 	geminiSandboxAPIURL = "https://api.sandbox.gemini.com"
 	geminiAPIVersion    = "1"
+	tradeBaseURL        = "https://exchange.gemini.com/trade/"
 
 	geminiSymbols            = "symbols"
 	geminiSymbolDetails      = "symbols/details"
@@ -401,7 +402,7 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 		HTTPRecording: g.HTTPRecording,
 	}
 
-	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return g.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
