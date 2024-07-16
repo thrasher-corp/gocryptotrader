@@ -837,7 +837,7 @@ channels:
 			continue
 		}
 		// When we have a successful subscription, we can alert our internal management system of the success.
-		f.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+		f.Websocket.AddSuccessfulSubscriptions(f.Websocket.Conn, channelsToSubscribe[i])
 	}
     return errs
 }
