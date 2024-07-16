@@ -121,7 +121,7 @@ type WebsocketSetup struct {
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config
 
-	// UseMultiConnectionManagement allows this connection to be managed by the
+	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
 	// provided in this struct.
 	UseMultiConnectionManagement bool

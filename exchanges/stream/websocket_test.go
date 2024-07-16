@@ -589,7 +589,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	amazingCandidate := &ConnectionSetup{
 		URL:                   "AMAZING",
-		Connector:             func(ctx context.Context, c Connection) error { return nil },
+		Connector:             func(context.Context, Connection) error { return nil },
 		GenerateSubscriptions: ws.GenerateSubs,
 		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleSubConn(multi)(ctx, c, s)
@@ -597,7 +597,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleUnsubConn(multi)(ctx, c, s)
 		},
-		Handler: func(ctx context.Context, b []byte) error { return nil },
+		Handler: func(context.Context, []byte) error { return nil },
 	}
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
@@ -1114,7 +1114,9 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	err := w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	require.NoError(t, err)
+
 	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
 	require.Empty(t, subs, "Should get no subs")
 	require.Empty(t, unsubs, "Should get no unsubs")
@@ -1122,7 +1124,6 @@ func TestGetChannelDifference(t *testing.T) {
 	subs, unsubs = w.GetChannelDifference(sweetConn, nil)
 	require.Empty(t, subs, "Should get no subs")
 	require.Equal(t, 1, len(unsubs))
-
 }
 
 // GenSubs defines a theoretical exchange with pair management
