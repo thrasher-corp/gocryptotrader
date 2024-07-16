@@ -117,51 +117,68 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Websocket
 	err := w.Setup(nil)
-	assert.ErrorIs(t, err, errWebsocketIsNil, "Setup should error correctly")
+	assert.ErrorIs(t, err, errWebsocketIsNil)
 
 	w = &Websocket{DataHandler: make(chan interface{})}
 	err = w.Setup(nil)
-	assert.ErrorIs(t, err, errWebsocketSetupIsNil, "Setup should error correctly")
+	assert.ErrorIs(t, err, errWebsocketSetupIsNil)
 
 	websocketSetup := &WebsocketSetup{}
 
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errExchangeConfigIsNil, "Setup should error correctly")
+	assert.ErrorIs(t, err, errExchangeConfigIsNil)
 
 	websocketSetup.ExchangeConfig = &config.Exchange{}
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errExchangeConfigNameEmpty, "Setup should error correctly")
+	assert.ErrorIs(t, err, errExchangeConfigNameEmpty)
 
 	websocketSetup.ExchangeConfig.Name = "testname"
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketFeaturesIsUnset, "Setup should error correctly")
+	assert.ErrorIs(t, err, errWebsocketFeaturesIsUnset)
 
 	websocketSetup.Features = &protocol.Features{}
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errConfigFeaturesIsNil, "Setup should error correctly")
+	assert.ErrorIs(t, err, errConfigFeaturesIsNil)
 
 	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
+	websocketSetup.Subscriber = func(subscription.List) error { return nil } // kicks off the setup
+	err = w.Setup(websocketSetup)
+	assert.ErrorIs(t, err, errWebsocketConnectorUnset)
+	websocketSetup.Subscriber = nil
+
+	websocketSetup.Connector = func() error { return nil }
+	err = w.Setup(websocketSetup)
+	assert.ErrorIs(t, err, errWebsocketSubscriberUnset)
+
+	websocketSetup.Subscriber = func(subscription.List) error { return nil }
+	w.features.Unsubscribe = true
+	err = w.Setup(websocketSetup)
+	assert.ErrorIs(t, err, errWebsocketUnsubscriberUnset)
+
+	websocketSetup.Unsubscriber = func(subscription.List) error { return nil }
+	err = w.Setup(websocketSetup)
+	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
 	websocketSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errDefaultURLIsEmpty, "Setup should error correctly")
+	assert.ErrorIs(t, err, errDefaultURLIsEmpty)
 
 	websocketSetup.DefaultURL = "test"
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errRunningURLIsEmpty, "Setup should error correctly")
+	assert.ErrorIs(t, err, errRunningURLIsEmpty)
 
 	websocketSetup.RunningURL = "http://www.google.com"
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errInvalidWebsocketURL, "Setup should error correctly")
+	assert.ErrorIs(t, err, errInvalidWebsocketURL)
 
 	websocketSetup.RunningURL = "wss://www.google.com"
 	websocketSetup.RunningURLAuth = "http://www.google.com"
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errInvalidWebsocketURL, "Setup should error correctly")
+	assert.ErrorIs(t, err, errInvalidWebsocketURL)
 
 	websocketSetup.RunningURLAuth = "wss://www.google.com"
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errInvalidTrafficTimeout, "Setup should error correctly")
+	assert.ErrorIs(t, err, errInvalidTrafficTimeout)
 
 	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
 	err = w.Setup(websocketSetup)
@@ -497,9 +514,21 @@ func currySimpleSub(w *Websocket) func(subscription.List) error {
 	}
 }
 
+func currySimpleSubConn(w *Websocket) func(context.Context, Connection, subscription.List) error {
+	return func(_ context.Context, conn Connection, subs subscription.List) error {
+		return w.AddSuccessfulSubscriptions(conn, subs...)
+	}
+}
+
 func currySimpleUnsub(w *Websocket) func(subscription.List) error {
 	return func(unsubs subscription.List) error {
 		return w.RemoveSubscriptions(nil, unsubs...)
+	}
+}
+
+func currySimpleUnsubConn(w *Websocket) func(context.Context, Connection, subscription.List) error {
+	return func(_ context.Context, conn Connection, unsubs subscription.List) error {
+		return w.RemoveSubscriptions(conn, unsubs...)
 	}
 }
 
@@ -544,6 +573,75 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.ErrorIs(t, ws.SubscribeToChannels(nil, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
 
 	err = ws.SubscribeToChannels(nil, subscription.List{nil})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
+
+	multi := NewWebsocket()
+	set := *defaultSetup
+	// Values below are now not neccessary as this will be set per connection
+	// candidate in SetupNewConnection.
+	set.Connector = nil
+	set.Subscriber = nil
+	set.Unsubscriber = nil
+	set.GenerateSubscriptions = nil
+	set.DefaultURL = ""
+	set.RunningURL = ""
+	assert.NoError(t, multi.Setup(&set))
+
+	amazingCandidate := &ConnectionSetup{
+		URL:                   "AMAZING",
+		Connector:             func(ctx context.Context, c Connection) error { return nil },
+		GenerateSubscriptions: ws.GenerateSubs,
+		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+			return currySimpleSubConn(multi)(ctx, c, s)
+		},
+		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+			return currySimpleUnsubConn(multi)(ctx, c, s)
+		},
+		Handler: func(ctx context.Context, b []byte) error { return nil },
+	}
+	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
+
+	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
+	multi.Connections = map[Connection]*ConnectionCandidate{
+		amazingConn: &multi.ConnectionManager[0],
+	}
+
+	subs, err = amazingCandidate.GenerateSubscriptions()
+	require.NoError(t, err, "Generating test subscriptions should not error")
+	assert.NoError(t, new(Websocket).UnsubscribeChannels(nil, subs), "Should not error when w.subscriptions is nil")
+	assert.NoError(t, new(Websocket).UnsubscribeChannels(amazingConn, subs), "Should not error when w.subscriptions is nil")
+	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, nil), "Unsubscribing from nil should not error")
+	assert.ErrorIs(t, multi.UnsubscribeChannels(amazingConn, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
+	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
+
+	assert.ErrorIs(t, multi.SubscribeToChannels(nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
+
+	assert.NoError(t, multi.SubscribeToChannels(amazingConn, subs), "Basic Subscribing should not error")
+	assert.Len(t, multi.GetSubscriptions(), 4, "Should have 4 subscriptions")
+	bySub = multi.GetSubscription(subscription.Subscription{Channel: "TestSub"})
+	if assert.NotNil(t, bySub, "GetSubscription by subscription should find a channel") {
+		assert.Equal(t, "TestSub", bySub.Channel, "GetSubscription by default key should return a pointer a copy of the right channel")
+		assert.Same(t, bySub, subs[0], "GetSubscription returns the same pointer")
+	}
+	if assert.NotNil(t, multi.GetSubscription("purple"), "GetSubscription by string key should find a channel") {
+		assert.Equal(t, "TestSub2", multi.GetSubscription("purple").Channel, "GetSubscription by string key should return a pointer a copy of the right channel")
+	}
+	if assert.NotNil(t, multi.GetSubscription(testSubKey{"mauve"}), "GetSubscription by type key should find a channel") {
+		assert.Equal(t, "TestSub3", multi.GetSubscription(testSubKey{"mauve"}).Channel, "GetSubscription by type key should return a pointer a copy of the right channel")
+	}
+	if assert.NotNil(t, multi.GetSubscription(42), "GetSubscription by int key should find a channel") {
+		assert.Equal(t, "TestSub4", multi.GetSubscription(42).Channel, "GetSubscription by int key should return a pointer a copy of the right channel")
+	}
+	assert.Nil(t, multi.GetSubscription(nil), "GetSubscription by nil should return nil")
+	assert.Nil(t, multi.GetSubscription(45), "GetSubscription by invalid key should return nil")
+	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
+	assert.NoError(t, multi.SubscribeToChannels(amazingConn, nil), "Subscribe to an nil List should not error")
+	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, subs), "Unsubscribing should not error")
+
+	amazingCandidate.Subscriber = func(context.Context, Connection, subscription.List) error { return errDastardlyReason }
+	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+
+	err = multi.SubscribeToChannels(amazingConn, subscription.List{nil})
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
 }
 
@@ -996,6 +1094,35 @@ func TestGetChannelDifference(t *testing.T) {
 	subs, unsubs = w.GetChannelDifference(nil, subscription.List{{Channel: subscription.TickerChannel}})
 	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
 	assert.Equal(t, 1, len(unsubs), "Should get the correct number of unsubs")
+
+	w = &Websocket{}
+	sweetConn := &WebsocketConnection{}
+	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
+	require.Equal(t, 1, len(subs))
+	require.Empty(t, unsubs, "Should get no unsubs")
+
+	w.Connections = map[Connection]*ConnectionCandidate{
+		sweetConn: {Details: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
+	}
+
+	naughtyConn := &WebsocketConnection{}
+	subs, unsubs = w.GetChannelDifference(naughtyConn, subscription.List{{Channel: subscription.CandlesChannel}})
+	require.Equal(t, 1, len(subs))
+	require.Empty(t, unsubs, "Should get no unsubs")
+
+	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
+	require.Equal(t, 1, len(subs))
+	require.Empty(t, unsubs, "Should get no unsubs")
+
+	w.Connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
+	require.Empty(t, subs, "Should get no subs")
+	require.Empty(t, unsubs, "Should get no unsubs")
+
+	subs, unsubs = w.GetChannelDifference(sweetConn, nil)
+	require.Empty(t, subs, "Should get no subs")
+	require.Equal(t, 1, len(unsubs))
+
 }
 
 // GenSubs defines a theoretical exchange with pair management
@@ -1169,6 +1296,54 @@ func TestSetupNewConnection(t *testing.T) {
 
 	err = web.SetupNewConnection(&ConnectionSetup{URL: "urlstring", Authenticated: true})
 	assert.NoError(t, err, "SetupNewConnection should not error")
+
+	// Test connection candidates for multi connection tracking.
+	multi := NewWebsocket()
+	set := *defaultSetup
+
+	// Values below are now not neccessary as this will be set per connection
+	// candidate in SetupNewConnection.
+	set.Connector = nil
+	set.Subscriber = nil
+	set.Unsubscriber = nil
+	set.GenerateSubscriptions = nil
+	set.DefaultURL = ""
+	set.RunningURL = ""
+
+	require.NoError(t, multi.Setup(&set))
+
+	connSetup := &ConnectionSetup{}
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errDefaultURLIsEmpty)
+
+	connSetup.URL = "urlstring"
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWebsocketConnectorUnset)
+
+	connSetup.Connector = func(context.Context, Connection) error { return nil }
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
+
+	connSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
+
+	connSetup.Subscriber = func(context.Context, Connection, subscription.List) error { return nil }
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWebsocketUnsubscriberUnset)
+
+	connSetup.Unsubscriber = func(context.Context, Connection, subscription.List) error { return nil }
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
+
+	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	err = multi.SetupNewConnection(connSetup)
+	require.NoError(t, err)
+
+	require.Len(t, multi.ConnectionManager, 1)
+
+	require.Nil(t, multi.AuthConn)
+	require.Nil(t, multi.Conn)
 }
 
 func TestWebsocketConnectionShutdown(t *testing.T) {

@@ -131,33 +131,51 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
-	w.connector = s.Connector
-	w.Subscriber = s.Subscriber
-	w.Unsubscriber = s.Unsubscriber
-	w.GenerateSubs = s.GenerateSubscriptions
+	// If any fields here are set, assume that the previous global connector
+	// pattern is being used.
+	// TODO: Shift everything to connection setup when all exchanges are updated.
+	if s.Connector != nil || s.Subscriber != nil || s.Unsubscriber != nil || s.GenerateSubscriptions != nil || s.DefaultURL != "" || s.RunningURL != "" {
+		if s.Connector == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
+		}
+		if s.Subscriber == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
+		}
+		if s.Unsubscriber == nil && w.features.Unsubscribe {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
+		}
+		if s.GenerateSubscriptions == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
+		}
+		if s.DefaultURL == "" {
+			return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
+		}
+		w.defaultURL = s.DefaultURL
+		if s.RunningURL == "" {
+			return fmt.Errorf("%s websocket %w", w.exchangeName, errRunningURLIsEmpty)
+		}
+
+		w.connector = s.Connector
+		w.Subscriber = s.Subscriber
+		w.Unsubscriber = s.Unsubscriber
+		w.GenerateSubs = s.GenerateSubscriptions
+
+		err := w.SetWebsocketURL(s.RunningURL, false, false)
+		if err != nil {
+			return fmt.Errorf("%s %w", w.exchangeName, err)
+		}
+
+		if s.RunningURLAuth != "" {
+			err = w.SetWebsocketURL(s.RunningURLAuth, true, false)
+			if err != nil {
+				return fmt.Errorf("%s %w", w.exchangeName, err)
+			}
+		}
+	}
 
 	w.connectionMonitorDelay = s.ExchangeConfig.ConnectionMonitorDelay
 	if w.connectionMonitorDelay <= 0 {
 		w.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
-	}
-
-	if s.DefaultURL == "" {
-		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
-	}
-	w.defaultURL = s.DefaultURL
-	if s.RunningURL == "" {
-		return fmt.Errorf("%s websocket %w", w.exchangeName, errRunningURLIsEmpty)
-	}
-	err := w.SetWebsocketURL(s.RunningURL, false, false)
-	if err != nil {
-		return fmt.Errorf("%s %w", w.exchangeName, err)
-	}
-
-	if s.RunningURLAuth != "" {
-		err = w.SetWebsocketURL(s.RunningURLAuth, true, false)
-		if err != nil {
-			return fmt.Errorf("%s %w", w.exchangeName, err)
-		}
 	}
 
 	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
@@ -212,8 +230,14 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	// functions are defined per connection. Else we use the global connector
 	// and supporting functions for backwards compatibility.
 	if w.connector == nil {
-		if c.Handler == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
+		if c.URL == "" {
+			return fmt.Errorf("%w: %w", errConnSetup, errDefaultURLIsEmpty)
+		}
+		if c.Connector == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
+		}
+		if c.GenerateSubscriptions == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
 		}
 		if c.Subscriber == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
@@ -221,11 +245,8 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		if c.Unsubscriber == nil && w.features.Unsubscribe {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
 		}
-		if c.GenerateSubscriptions == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
-		}
-		if c.Connector == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
+		if c.Handler == nil {
+			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
 		}
 		w.ConnectionManager = append(w.ConnectionManager, ConnectionCandidate{
 			Details:       c,
@@ -286,13 +307,6 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%w: subscriptions", common.ErrNilPointer)
 	}
 	w.subscriptions.Clear()
-
-	for _, details := range w.Connections {
-		if details.Subscriptions == nil {
-			return fmt.Errorf("%w: subscriptions", common.ErrNilPointer)
-		}
-		details.Subscriptions.Clear()
-	}
 
 	w.dataMonitor()
 	w.trafficMonitor()
@@ -550,28 +564,29 @@ func (w *Websocket) Shutdown() error {
 
 	defer w.Orderbook.FlushBuffer()
 
-	for conn, details := range w.Connections {
+	// Shutdown managed connections
+	for conn := range w.Connections {
 		if err := conn.Shutdown(); err != nil {
 			return err
 		}
-		details.Subscriptions.Clear()
 	}
-
 	// Clean map of old connections
 	clear(w.Connections)
+	// Flush any subscriptions from last connection across any managed connections
+	for x := range w.ConnectionManager {
+		w.ConnectionManager[x].Subscriptions.Clear()
+	}
 
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
 			return err
 		}
 	}
-
 	if w.AuthConn != nil {
 		if err := w.AuthConn.Shutdown(); err != nil {
 			return err
 		}
 	}
-
 	// flush any subscriptions from last connection if needed
 	w.subscriptions.Clear()
 
@@ -937,13 +952,16 @@ func (w *Websocket) GetName() string {
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
 func (w *Websocket) GetChannelDifference(conn Connection, newSubs subscription.List) (sub, unsub subscription.List) {
-	if conn != nil {
-		return w.Connections[conn].Subscriptions.Diff(newSubs)
+	var subscriptionStore **subscription.Store
+	if candidate, ok := w.Connections[conn]; ok {
+		subscriptionStore = &candidate.Subscriptions
+	} else {
+		subscriptionStore = &w.subscriptions
 	}
-	if w.subscriptions == nil {
-		w.subscriptions = subscription.NewStore()
+	if *subscriptionStore == nil {
+		*subscriptionStore = subscription.NewStore()
 	}
-	return w.subscriptions.Diff(newSubs)
+	return (*subscriptionStore).Diff(newSubs)
 }
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
@@ -952,20 +970,16 @@ func (w *Websocket) UnsubscribeChannels(conn Connection, channels subscription.L
 		return nil // No channels to unsubscribe from is not an error
 	}
 
-	if conn != nil {
-		store, ok := w.Connections[conn]
-		if !ok {
-			return errors.New("connection not found")
-		}
-		if store.Subscriptions == nil {
+	if candidate, ok := w.Connections[conn]; ok {
+		if candidate.Subscriptions == nil {
 			return nil // No channels to unsubscribe from is not an error
 		}
 		for _, s := range channels {
-			if store.Subscriptions.Get(s) == nil {
+			if candidate.Subscriptions.Get(s) == nil {
 				return fmt.Errorf("%w: %s", subscription.ErrNotFound, s)
 			}
 		}
-		return store.Details.Unsubscriber(context.TODO(), conn, channels)
+		return candidate.Details.Unsubscriber(context.TODO(), conn, channels)
 	}
 
 	if w.subscriptions == nil {
@@ -1003,12 +1017,12 @@ func (w *Websocket) SubscribeToChannels(conn Connection, subs subscription.List)
 		return err
 	}
 
-	if conn != nil {
-		state, ok := w.Connections[conn]
-		if !ok {
-			return errors.New("connection details not found")
-		}
-		return state.Details.Subscriber(context.TODO(), conn, subs)
+	if candidate, ok := w.Connections[conn]; ok {
+		return candidate.Details.Subscriber(context.TODO(), conn, subs)
+	}
+
+	if w.Subscriber == nil {
+		return fmt.Errorf("%w: Global Subscriber not set", common.ErrNilPointer)
 	}
 
 	if err := w.Subscriber(subs); err != nil {
@@ -1046,32 +1060,23 @@ func (w *Websocket) AddSuccessfulSubscriptions(conn Connection, subs ...*subscri
 		return fmt.Errorf("%w: AddSuccessfulSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
 
-	if conn != nil {
-		state, ok := w.Connections[conn]
-		if !ok {
-			return errors.New("connection details not found")
-		}
-		var errs error
-		for _, s := range subs {
-			if err := s.SetState(subscription.SubscribedState); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
-			}
-			if err := state.Subscriptions.Add(s); err != nil {
-				errs = common.AppendError(errs, err)
-			}
-		}
-		return errs
+	var subscriptionStore **subscription.Store
+	if candidate, ok := w.Connections[conn]; ok {
+		subscriptionStore = &candidate.Subscriptions
+	} else {
+		subscriptionStore = &w.subscriptions
 	}
 
-	if w.subscriptions == nil {
-		w.subscriptions = subscription.NewStore()
+	if *subscriptionStore == nil {
+		*subscriptionStore = subscription.NewStore()
 	}
+
 	var errs error
 	for _, s := range subs {
 		if err := s.SetState(subscription.SubscribedState); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
-		if err := w.subscriptions.Add(s); err != nil {
+		if err := (*subscriptionStore).Add(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
@@ -1084,32 +1089,23 @@ func (w *Websocket) RemoveSubscriptions(conn Connection, subs ...*subscription.S
 		return fmt.Errorf("%w: RemoveSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
 
-	if conn != nil {
-		state, ok := w.Connections[conn]
-		if !ok {
-			return errors.New("connection details not found")
-		}
-		var errs error
-		for _, s := range subs {
-			if err := s.SetState(subscription.UnsubscribedState); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
-			}
-			if err := state.Subscriptions.Remove(s); err != nil {
-				errs = common.AppendError(errs, err)
-			}
-		}
-		return errs
+	var subscriptionStore *subscription.Store
+	if candidate, ok := w.Connections[conn]; ok {
+		subscriptionStore = candidate.Subscriptions
+	} else {
+		subscriptionStore = w.subscriptions
 	}
 
-	if w.subscriptions == nil {
+	if subscriptionStore == nil {
 		return fmt.Errorf("%w: RemoveSubscriptions called on uninitialised Websocket", common.ErrNilPointer)
 	}
+
 	var errs error
 	for _, s := range subs {
 		if err := s.SetState(subscription.UnsubscribedState); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
-		if err := w.subscriptions.Remove(s); err != nil {
+		if err := subscriptionStore.Remove(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
@@ -1120,7 +1116,19 @@ func (w *Websocket) RemoveSubscriptions(conn Connection, subs ...*subscription.S
 // returns nil if no subscription is at that key or the key is nil
 // Keys can implement subscription.MatchableKey in order to provide custom matching logic
 func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
-	if w == nil || w.subscriptions == nil || key == nil {
+	if w == nil || key == nil {
+		return nil
+	}
+	for _, c := range w.Connections {
+		if c.Subscriptions == nil {
+			continue
+		}
+		sub := c.Subscriptions.Get(key)
+		if sub != nil {
+			return sub
+		}
+	}
+	if w.subscriptions == nil {
 		return nil
 	}
 	return w.subscriptions.Get(key)
@@ -1128,10 +1136,19 @@ func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
 
 // GetSubscriptions returns a new slice of the subscriptions
 func (w *Websocket) GetSubscriptions() subscription.List {
-	if w == nil || w.subscriptions == nil {
+	if w == nil {
 		return nil
 	}
-	return w.subscriptions.List()
+	var subs subscription.List
+	for _, c := range w.Connections {
+		if c.Subscriptions != nil {
+			subs = append(subs, c.Subscriptions.List()...)
+		}
+	}
+	if w.subscriptions != nil {
+		subs = append(subs, w.subscriptions.List()...)
+	}
+	return subs
 }
 
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in a thread safe manner
@@ -1170,39 +1187,17 @@ func checkWebsocketURL(s string) error {
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
 func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) error {
-	if conn != nil {
-		state, ok := w.Connections[conn]
-		if !ok {
-			return errors.New("connection ddetails not found")
-		}
-
-		if state.Subscriptions == nil {
-			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
-		}
-
-		existing := state.Subscriptions.Len()
-		if w.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > w.MaxSubscriptionsPerConnection {
-			return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
-				errSubscriptionsExceedsLimit,
-				existing,
-				len(subs),
-				w.MaxSubscriptionsPerConnection)
-		}
-
-		for _, s := range subs {
-			if found := state.Subscriptions.Get(s); found != nil {
-				return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
-			}
-		}
-
-		return nil
+	var subscriptionStore *subscription.Store
+	if candidate, ok := w.Connections[conn]; ok {
+		subscriptionStore = candidate.Subscriptions
+	} else {
+		subscriptionStore = w.subscriptions
 	}
-
-	if w.subscriptions == nil {
+	if subscriptionStore == nil {
 		return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 	}
 
-	existing := w.subscriptions.Len()
+	existing := subscriptionStore.Len()
 	if w.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > w.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
 			errSubscriptionsExceedsLimit,
@@ -1212,7 +1207,7 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 	}
 
 	for _, s := range subs {
-		if found := w.subscriptions.Get(s); found != nil {
+		if found := subscriptionStore.Get(s); found != nil {
 			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
 		}
 	}

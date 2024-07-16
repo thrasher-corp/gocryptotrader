@@ -192,15 +192,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig: exch,
-		DefaultURL:     gateioWebsocketEndpoint,
-		RunningURL:     wsRunningURL,
 		Features:       &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:      g.Features.Enabled.FillsFeed,
 		TradeFeed:      g.Features.Enabled.TradeFeed,

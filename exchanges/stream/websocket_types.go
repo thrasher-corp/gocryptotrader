@@ -29,21 +29,6 @@ const (
 	connectedState
 )
 
-// // ConnectionAssociation contains the connection details and subscriptions
-// type ConnectionAssociation struct {
-// 	Subscriptions *subscription.Store
-// 	Details       *ConnectionSetup
-// }
-
-// ConnectionCandidate contains the connection setup details to be used when
-// attempting a new connection. It also contains the subscriptions that are
-// associated with the specifc connection.
-type ConnectionCandidate struct {
-	Details       *ConnectionSetup
-	Subscriptions *subscription.Store
-	Connection    Connection // TODO: Upgrade to slice of connections.
-}
-
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
