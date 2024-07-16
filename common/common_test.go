@@ -872,7 +872,7 @@ func TestErrorWithContext(t *testing.T) {
 
 	asserted, ok := got.(*contextError)
 	require.True(t, ok)
-	require.NotEmpty(t, asserted.Line)
+	require.NotEmpty(t, asserted.line)
 
 	runtimeCaller = func(int) (pc uintptr, file string, line int, ok bool) {
 		return 0, "", 0, false
@@ -891,7 +891,7 @@ func TestErrorWithContext(t *testing.T) {
 	}
 	asserted, ok = got.(*contextError)
 	require.True(t, ok)
-	require.NotEmpty(t, asserted.Line)
+	require.NotEmpty(t, asserted.line)
 
 	// Test so we don't add context with more context
 	require.Equal(t, got, ErrorWithContext(got))
