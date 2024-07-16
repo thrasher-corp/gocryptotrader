@@ -169,7 +169,7 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            request.NewRateLimitWithWeight(okcoinWsRateLimit*time.Millisecond, 1, 1),
+		RateLimit:            request.NewWeightedRateLimitByDuration(30 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -180,7 +180,7 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  okcoinPrivateWebsocketURL,
-		RateLimit:            request.NewRateLimitWithWeight(okcoinWsRateLimit*time.Millisecond, 1, 1),
+		RateLimit:            request.NewWeightedRateLimitByDuration(30 * time.Millisecond),
 		Authenticated:        true,
 	})
 }

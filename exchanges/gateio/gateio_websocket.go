@@ -30,7 +30,7 @@ import (
 
 const (
 	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"

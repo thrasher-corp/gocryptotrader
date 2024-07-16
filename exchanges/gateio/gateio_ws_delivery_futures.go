@@ -64,7 +64,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	}
 	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  deliveryRealBTCTradingURL,
-		RateLimit:            request.NewRateLimitWithWeight(gateioWebsocketRateLimit*time.Millisecond, 1, 1),
+		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     g.Config.WebsocketResponseMaxLimit,
 		Authenticated:        true,

@@ -170,7 +170,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 1, 1),
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Second),
 	})
 }
 

@@ -83,7 +83,7 @@ func (g *Gateio) WsFuturesConnect() error {
 
 	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
-		RateLimit:            request.NewRateLimitWithWeight(gateioWebsocketRateLimit*time.Millisecond, 1, 1),
+		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     g.Config.WebsocketResponseMaxLimit,
 		Authenticated:        true,

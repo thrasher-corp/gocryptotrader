@@ -109,9 +109,11 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interfac
 		if err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}
-		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
-		}
+	}
+	// NOTE: Secondary check to ensure the connection is still active after
+	// semacquire and potential rate limit.
+	if !w.IsConnected() {
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 	return w.Connection.WriteJSON(data)
 }
@@ -133,10 +135,9 @@ func (w *WebsocketConnection) SendRawMessage(ctx context.Context, messageType in
 		if err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}
-		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
-		}
 	}
+	// NOTE: Secondary check to ensure the connection is still active after
+	// semacquire and potential rate limit.
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}

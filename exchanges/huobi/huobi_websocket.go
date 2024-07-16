@@ -53,7 +53,6 @@ const (
 	authOp           = "auth"
 
 	loginDelay = 50 * time.Millisecond
-	rateLimit  = 20
 )
 
 // Instantiates a communications channel between websocket connections

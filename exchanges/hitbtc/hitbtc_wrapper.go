@@ -169,7 +169,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            request.NewRateLimitWithWeight(rateLimit*time.Millisecond, 1, 1),
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

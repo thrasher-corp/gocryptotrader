@@ -29,8 +29,6 @@ var (
 	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
 )
 
-const wsRateLimitMilliseconds = 300
-
 // crypto withdrawals status codes description
 const (
 	EmailSent = iota

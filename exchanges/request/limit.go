@@ -80,6 +80,18 @@ func NewRateLimitWithWeight(interval time.Duration, actions int, weight Weight) 
 	return GetRateLimiterWithWeight(NewRateLimit(interval, actions), weight)
 }
 
+// NewWeightedRateLimitByAction creates a new RateLimit based of time interval
+// and how many actions allowed within that period. The weight is set to 1.
+func NewWeightedRateLimitByAction(interval time.Duration, actions int) *RateLimiterWithWeight {
+	return NewRateLimitWithWeight(interval, actions, 1)
+}
+
+// NewWeightedRateLimitByDuration creates a new RateLimit based of time
+// interval. This equates to 1 action per interval. The weight is set to 1.
+func NewWeightedRateLimitByDuration(interval time.Duration) *RateLimiterWithWeight {
+	return NewRateLimitWithWeight(interval, 1, 1)
+}
+
 // GetRateLimiterWithWeight couples a rate limiter with a weight count into an
 // accepted defined rate limiter with weight struct
 func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {

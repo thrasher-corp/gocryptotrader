@@ -27,7 +27,6 @@ import (
 const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
-	rateLimit              = 20
 	errAuthFailed          = 1002
 )
 
