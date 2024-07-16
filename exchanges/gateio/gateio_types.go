@@ -2692,34 +2692,38 @@ type PriceAndAmount struct {
 
 // BalanceDetails represents a user's balance details
 type BalanceDetails struct {
-	Available      types.Number `json:"available"`
-	Freeze         types.Number `json:"freeze"`
-	Borrowed       types.Number `json:"borrowed"`
-	NegativeLiab   types.Number `json:"negative_liab"`
-	FuturesPosLiab types.Number `json:"futures_pos_liab"`
-	Equity         types.Number `json:"equity"`
-	TotalFreeze    types.Number `json:"total_freeze"`
-	TotalLiab      types.Number `json:"total_liab"`
-	SpotInUse      types.Number `json:"spot_in_use"`
+	Available             types.Number `json:"available"`
+	Freeze                types.Number `json:"freeze"`
+	Borrowed              types.Number `json:"borrowed"`
+	NegativeLiabilities   types.Number `json:"negative_liab"`
+	FuturesPosLiabilities types.Number `json:"futures_pos_liab"`
+	Equity                types.Number `json:"equity"`
+	TotalFreeze           types.Number `json:"total_freeze"`
+	TotalLiabilities      types.Number `json:"total_liab"`
+	SpotInUse             types.Number `json:"spot_in_use"`
+	Funding               types.Number `json:"funding"`
+	FundingVersion        types.Number `json:"funding_version"`
 }
 
 // UnifiedUserAccount represents a unified user account
 type UnifiedUserAccount struct {
-	UserID                     int64                            `json:"user_id"`
-	Locked                     bool                             `json:"locked"`
-	Balances                   map[currency.Code]BalanceDetails `json:"balances"`
-	Total                      types.Number                     `json:"total"`
-	Borrowed                   types.Number                     `json:"borrowed"`
-	TotalInitialMargin         types.Number                     `json:"total_initial_margin"`
-	TotalMarginBalance         types.Number                     `json:"total_margin_balance"`
-	TotalMaintenanceMargin     types.Number                     `json:"total_maintenance_margin"`
-	TotalInitialMarginRate     types.Number                     `json:"total_initial_margin_rate"`
-	TotalMaintenanceMarginRate types.Number                     `json:"total_maintenance_margin_rate"`
-	TotalAvailableMargin       types.Number                     `json:"total_available_margin"`
-	UnifiedAccountTotal        types.Number                     `json:"unified_account_total"`
-	UnifiedAccountTotalLiab    types.Number                     `json:"unified_account_total_liab"`
-	UnifiedAccountTotalEquity  types.Number                     `json:"unified_account_total_equity"`
-	Leverage                   types.Number                     `json:"leverage"`
-	SpotOrderLoss              types.Number                     `json:"spot_order_loss"`
-	SpotHedge                  bool                             `json:"spot_hedge"`
+	UserID                         int64                            `json:"user_id"`
+	Locked                         bool                             `json:"locked"`
+	Balances                       map[currency.Code]BalanceDetails `json:"balances"`
+	Total                          types.Number                     `json:"total"`
+	Borrowed                       types.Number                     `json:"borrowed"`
+	TotalInitialMargin             types.Number                     `json:"total_initial_margin"`
+	TotalMarginBalance             types.Number                     `json:"total_margin_balance"`
+	TotalMaintenanceMargin         types.Number                     `json:"total_maintenance_margin"`
+	TotalInitialMarginRate         types.Number                     `json:"total_initial_margin_rate"`
+	TotalMaintenanceMarginRate     types.Number                     `json:"total_maintenance_margin_rate"`
+	TotalAvailableMargin           types.Number                     `json:"total_available_margin"`
+	UnifiedAccountTotal            types.Number                     `json:"unified_account_total"`
+	UnifiedAccountTotalLiabilities types.Number                     `json:"unified_account_total_liab"`
+	UnifiedAccountTotalEquity      types.Number                     `json:"unified_account_total_equity"`
+	Leverage                       types.Number                     `json:"leverage"`
+	SpotOrderLoss                  types.Number                     `json:"spot_order_loss"`
+	SpotHedge                      bool                             `json:"spot_hedge"`
+	UseFunding                     bool                             `json:"use_funding"`
+	RefreshTime                    Time                             `json:"refresh_time"`
 }

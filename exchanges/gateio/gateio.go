@@ -45,6 +45,7 @@ const (
 	gateioSpotCandlesticks                               = "spot/candlesticks"
 	gateioSpotFeeRate                                    = "spot/fee"
 	gateioSpotAccounts                                   = "spot/accounts"
+	gateioUnifiedAccounts                                = "unified/accounts"
 	gateioSpotBatchOrders                                = "spot/batch_orders"
 	gateioSpotOpenOrders                                 = "spot/open_orders"
 	gateioSpotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
@@ -559,7 +560,7 @@ func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*Uni
 		params.Set("currency", ccy.String())
 	}
 	var response UnifiedUserAccount
-	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, "unified/accounts", params, nil, &response)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioUnifiedAccounts, params, nil, &response)
 }
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
