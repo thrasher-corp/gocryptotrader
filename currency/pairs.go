@@ -211,12 +211,16 @@ func (p Pairs) Remove(pair Pair) (Pairs, error) {
 }
 
 // Add adds a specified pair to the list of pairs if it doesn't exist
-func (p Pairs) Add(pair Pair) Pairs {
-	if p.Contains(pair, true) {
-		return p
+func (p Pairs) Add(pairs ...Pair) Pairs {
+	merge := append(slices.Clone(p), pairs...)
+	var filterInt int
+	for x := len(p); x < len(merge); x++ {
+		if !merge[:len(p)+filterInt].Contains(merge[x], true) {
+			merge[len(p)+filterInt] = merge[x]
+			filterInt++
+		}
 	}
-	p = append(p, pair)
-	return p
+	return merge[:len(p)+filterInt]
 }
 
 // GetMatch returns either the pair that is equal including the reciprocal for
