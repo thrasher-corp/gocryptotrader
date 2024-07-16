@@ -1660,7 +1660,7 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 
 	// Resub will block so we have to do this in a goro
 	go func() {
-		if err := b.Websocket.ResubscribeToChannel(nil, c); err != nil {
+		if err := b.Websocket.ResubscribeToChannel(b.Websocket.Conn, c); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", b.Name, err)
 		}
 	}()
