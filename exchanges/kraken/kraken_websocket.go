@@ -1229,13 +1229,16 @@ channels:
 	for _, subs := range subscriptions {
 		for i := range *subs {
 			var err error
+			var conn stream.Connection
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
 				_, err = k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				conn = k.Websocket.AuthConn
 			} else {
 				_, err = k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				conn = k.Websocket.Conn
 			}
 			if err == nil {
-				err = k.Websocket.AddSuccessfulSubscriptions(nil, (*subs)[i].Channels...)
+				err = k.Websocket.AddSuccessfulSubscriptions(conn, (*subs)[i].Channels...)
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -1288,13 +1291,16 @@ channels:
 	var errs error
 	for i := range unsubs {
 		var err error
+		var conn stream.Connection
 		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
 			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			conn = k.Websocket.AuthConn
 		} else {
 			_, err = k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			conn = k.Websocket.Conn
 		}
 		if err == nil {
-			err = k.Websocket.RemoveSubscriptions(nil, unsubs[i].Channels...)
+			err = k.Websocket.RemoveSubscriptions(conn, unsubs[i].Channels...)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

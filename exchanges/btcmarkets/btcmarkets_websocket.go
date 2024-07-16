@@ -376,7 +376,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 
 		err := b.Websocket.Conn.SendJSONMessage(r)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(nil, s)
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -416,7 +416,7 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(nil, s)
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

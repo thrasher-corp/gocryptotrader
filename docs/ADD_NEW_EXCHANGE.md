@@ -1077,7 +1077,7 @@ channels:
 			continue
 		}
 		// When we have a successful unsubscription, we can alert our internal management system of the success.
-		f.Websocket.RemoveSubscriptions(nil, channelsToUnsubscribe[i])
+		f.Websocket.RemoveSubscriptions(f.Websocket.Conn, channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs

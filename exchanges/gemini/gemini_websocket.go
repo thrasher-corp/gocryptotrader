@@ -117,10 +117,10 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 	}
 
 	if op == wsUnsubscribeOp {
-		return g.Websocket.RemoveSubscriptions(nil, subs...)
+		return g.Websocket.RemoveSubscriptions(g.Websocket.Conn, subs...)
 	}
 
-	return g.Websocket.AddSuccessfulSubscriptions(nil, subs...)
+	return g.Websocket.AddSuccessfulSubscriptions(g.Websocket.Conn, subs...)
 }
 
 // WsAuth will connect to Gemini's secure endpoint

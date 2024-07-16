@@ -674,9 +674,9 @@ func TestSubscriptions(t *testing.T) {
 	w := new(Websocket) // Do not use NewWebsocket; We want to exercise w.subs == nil
 	assert.ErrorIs(t, (*Websocket)(nil).AddSubscriptions(nil), common.ErrNilPointer, "Should error correctly when nil websocket")
 	s := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
-	require.NoError(t, w.AddSubscriptions(s), "Adding first subscription should not error")
+	require.NoError(t, w.AddSubscriptions(nil, s), "Adding first subscription should not error")
 	assert.Same(t, s, w.GetSubscription(42), "Get Subscription should retrieve the same subscription")
-	assert.ErrorIs(t, w.AddSubscriptions(s), subscription.ErrDuplicate, "Adding same subscription should return error")
+	assert.ErrorIs(t, w.AddSubscriptions(nil, s), subscription.ErrDuplicate, "Adding same subscription should return error")
 	assert.Equal(t, subscription.SubscribingState, s.State(), "Should set state to Subscribing")
 
 	err := w.RemoveSubscriptions(nil, s)
@@ -685,7 +685,7 @@ func TestSubscriptions(t *testing.T) {
 	assert.Equal(t, subscription.UnsubscribedState, s.State(), "Should set state to Unsubscribed")
 
 	require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
-	require.NoError(t, w.AddSubscriptions(s), "Adding first subscription should not error")
+	require.NoError(t, w.AddSubscriptions(nil, s), "Adding first subscription should not error")
 	assert.Equal(t, subscription.ResubscribingState, s.State(), "Should not change resubscribing state")
 }
 
@@ -732,7 +732,7 @@ func TestGetSubscription(t *testing.T) {
 	w := NewWebsocket()
 	assert.Nil(t, w.GetSubscription(nil), "GetSubscription with a nil key should return nil")
 	s := &subscription.Subscription{Key: 42, Channel: "hello3"}
-	require.NoError(t, w.AddSubscriptions(s), "AddSubscriptions must not error")
+	require.NoError(t, w.AddSubscriptions(nil, s), "AddSubscriptions must not error")
 	assert.Same(t, s, w.GetSubscription(42), "GetSubscription should delegate to the store")
 }
 
@@ -746,7 +746,7 @@ func TestGetSubscriptions(t *testing.T) {
 		{Key: 42, Channel: "hello3"},
 		{Key: 45, Channel: "hello4"},
 	}
-	err := w.AddSubscriptions(s...)
+	err := w.AddSubscriptions(nil, s...)
 	require.NoError(t, err, "AddSubscriptions must not error")
 	assert.ElementsMatch(t, s, w.GetSubscriptions(), "GetSubscriptions should return the correct channel details")
 }
@@ -1090,7 +1090,7 @@ func TestGetChannelDifference(t *testing.T) {
 	subs, unsubs := w.GetChannelDifference(nil, subscription.List{{Channel: subscription.CandlesChannel}})
 	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
 	require.Empty(t, unsubs, "Should get no unsubs")
-	require.NoError(t, w.AddSubscriptions(subs...), "AddSubscriptions must not error")
+	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	subs, unsubs = w.GetChannelDifference(nil, subscription.List{{Channel: subscription.TickerChannel}})
 	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
 	assert.Equal(t, 1, len(unsubs), "Should get the correct number of unsubs")
@@ -1219,7 +1219,7 @@ func TestFlushChannels(t *testing.T) {
 	w.GenerateSubs = newgen.generateSubs
 	subs, err := w.GenerateSubs()
 	require.NoError(t, err, "GenerateSubs must not error")
-	require.NoError(t, w.AddSubscriptions(subs...), "AddSubscriptions must not error")
+	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 	w.features.FullPayloadSubscribe = false

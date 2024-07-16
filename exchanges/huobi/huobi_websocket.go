@@ -570,7 +570,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe subscription.List) error {
 			})
 		}
 		if err == nil {
-			err = h.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+			err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, channelsToSubscribe[i])
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -604,7 +604,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 			})
 		}
 		if err == nil {
-			err = h.Websocket.RemoveSubscriptions(nil, channelsToUnsubscribe[i])
+			err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, channelsToUnsubscribe[i])
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

@@ -564,7 +564,7 @@ func (b *Binance) Unsubscribe(channels subscription.List) error {
 // manageSubs subscribes or unsubscribes from a list of subscriptions
 func (b *Binance) manageSubs(op string, subs subscription.List) error {
 	if op == wsSubscribeMethod {
-		if err := b.Websocket.AddSubscriptions(subs...); err != nil { // Note: AddSubscription will set state to subscribing
+		if err := b.Websocket.AddSubscriptions(b.Websocket.Conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
 			return err
 		}
 	} else {
@@ -593,7 +593,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		b.Websocket.DataHandler <- err
 
 		if op == wsSubscribeMethod {
-			if err2 := b.Websocket.RemoveSubscriptions(nil, subs...); err2 != nil {
+			if err2 := b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...); err2 != nil {
 				err = common.AppendError(err, err2)
 			}
 		}
@@ -601,7 +601,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		if op == wsSubscribeMethod {
 			err = common.AppendError(err, subs.SetStates(subscription.SubscribedState))
 		} else {
-			err = b.Websocket.RemoveSubscriptions(nil, subs...)
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
 		}
 	}
 

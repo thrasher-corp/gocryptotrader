@@ -1049,12 +1049,19 @@ func (w *Websocket) SubscribeToChannels(conn Connection, subs subscription.List)
 
 // AddSubscriptions adds subscriptions to the subscription store
 // Sets state to Subscribing unless the state is already set
-func (w *Websocket) AddSubscriptions(subs ...*subscription.Subscription) error {
+func (w *Websocket) AddSubscriptions(conn Connection, subs ...*subscription.Subscription) error {
 	if w == nil {
 		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
-	if w.subscriptions == nil {
-		w.subscriptions = subscription.NewStore()
+	var subscriptionStore **subscription.Store
+	if candidate, ok := w.connections[conn]; ok {
+		subscriptionStore = &candidate.Subscriptions
+	} else {
+		subscriptionStore = &w.subscriptions
+	}
+
+	if *subscriptionStore == nil {
+		*subscriptionStore = subscription.NewStore()
 	}
 	var errs error
 	for _, s := range subs {
@@ -1063,7 +1070,7 @@ func (w *Websocket) AddSubscriptions(subs ...*subscription.Subscription) error {
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 			}
 		}
-		if err := w.subscriptions.Add(s); err != nil {
+		if err := (*subscriptionStore).Add(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}

@@ -614,7 +614,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 			return err
 		}
 	}
-	return bi.Websocket.RemoveSubscriptions(nil, channelsToUnsubscribe...)
+	return bi.Websocket.RemoveSubscriptions(bi.Websocket.Conn, channelsToUnsubscribe...)
 }
 
 func (bi *Binanceus) setupOrderbookManager() {
