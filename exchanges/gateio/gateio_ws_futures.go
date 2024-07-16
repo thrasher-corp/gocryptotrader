@@ -77,7 +77,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: This should be a timer function.
+		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: futuresPingChannel,
 	})
 	if err != nil {

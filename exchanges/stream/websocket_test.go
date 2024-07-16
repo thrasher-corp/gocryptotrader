@@ -358,59 +358,58 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
-	ws.ConnectionManager = []ConnectionCandidate{{Details: &ConnectionSetup{URL: "ws://localhost:8080/ws"}}}
+	ws.connectionManager = []ConnectionCandidate{{Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
-	ws.ConnectionManager[0].Details.GenerateSubscriptions = func() (subscription.List, error) {
+	ws.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) {
 		return nil, errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.ConnectionManager[0].Details.GenerateSubscriptions = func() (subscription.List, error) {
+	ws.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) {
 		return subscription.List{{}}, nil
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errNoConnectFunc)
 
-	ws.ConnectionManager[0].Details.Connector = func(context.Context, Connection) error {
+	ws.connectionManager[0].Setup.Connector = func(context.Context, Connection) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.ConnectionManager[0].Details.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].Setup.Handler = func(context.Context, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
 
-	ws.ConnectionManager[0].Details.Subscriber = func(context.Context, Connection, subscription.List) error {
+	ws.connectionManager[0].Setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.ConnectionManager[0].Details.Connector = func(context.Context, Connection) error {
+	ws.connectionManager[0].Setup.Connector = func(context.Context, Connection) error {
 		return nil
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.ConnectionManager[0].Details.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].Setup.Handler = func(context.Context, []byte) error {
 		return nil
 	}
-	require.NoError(t, ws.Shutdown())
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.ConnectionManager[0].Details.Subscriber = func(context.Context, Connection, subscription.List) error {
+	ws.connectionManager[0].Setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return nil
 	}
-	require.NoError(t, ws.Shutdown())
 	err = ws.Connect()
 	require.NoError(t, err)
+	require.NoError(t, ws.Shutdown())
 }
 
 func TestWebsocket(t *testing.T) {
@@ -579,6 +578,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	set := *defaultSetup
 	// Values below are now not neccessary as this will be set per connection
 	// candidate in SetupNewConnection.
+	set.UseMultiConnectionManagement = true
 	set.Connector = nil
 	set.Subscriber = nil
 	set.Unsubscriber = nil
@@ -602,8 +602,8 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.Connections = map[Connection]*ConnectionCandidate{
-		amazingConn: &multi.ConnectionManager[0],
+	multi.connections = map[Connection]*ConnectionCandidate{
+		amazingConn: &multi.connectionManager[0],
 	}
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
@@ -1101,8 +1101,8 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.Connections = map[Connection]*ConnectionCandidate{
-		sweetConn: {Details: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
+	w.connections = map[Connection]*ConnectionCandidate{
+		sweetConn: {Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
 	}
 
 	naughtyConn := &WebsocketConnection{}
@@ -1114,7 +1114,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.Connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
 	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
 	require.Empty(t, subs, "Should get no subs")
 	require.Empty(t, unsubs, "Should get no unsubs")
@@ -1303,6 +1303,7 @@ func TestSetupNewConnection(t *testing.T) {
 
 	// Values below are now not neccessary as this will be set per connection
 	// candidate in SetupNewConnection.
+	set.UseMultiConnectionManagement = true
 	set.Connector = nil
 	set.Subscriber = nil
 	set.Unsubscriber = nil
@@ -1340,10 +1341,13 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
-	require.Len(t, multi.ConnectionManager, 1)
+	require.Len(t, multi.connectionManager, 1)
 
 	require.Nil(t, multi.AuthConn)
 	require.Nil(t, multi.Conn)
+
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errConnectionCandidateDuplication)
 }
 
 func TestWebsocketConnectionShutdown(t *testing.T) {

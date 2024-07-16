@@ -52,10 +52,10 @@ type Websocket struct {
 
 	// ConnectionManager contains the connection candidates and the current
 	// connections
-	ConnectionManager []ConnectionCandidate
+	connectionManager []ConnectionCandidate
 	// Connections contains the current connections with their associated
 	// connection candidates
-	Connections map[Connection]*ConnectionCandidate
+	connections map[Connection]*ConnectionCandidate
 
 	subscriptions *subscription.Store
 
@@ -65,6 +65,8 @@ type Websocket struct {
 	Unsubscriber func(subscription.List) error
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() (subscription.List, error)
+
+	useMultiConnectionManagement bool
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -118,6 +120,11 @@ type WebsocketSetup struct {
 
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config
+
+	// UseMultiConnectionManagement allows this connection to be managed by the
+	// connection manager. If false, this will default to the global fields
+	// provided in this struct.
+	UseMultiConnectionManagement bool
 
 	TradeFeed bool
 

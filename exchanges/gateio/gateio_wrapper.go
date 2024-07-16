@@ -193,10 +193,11 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig: exch,
-		Features:       &g.Features.Supports.WebsocketCapabilities,
-		FillsFeed:      g.Features.Enabled.FillsFeed,
-		TradeFeed:      g.Features.Enabled.TradeFeed,
+		ExchangeConfig:               exch,
+		Features:                     &g.Features.Supports.WebsocketCapabilities,
+		FillsFeed:                    g.Features.Enabled.FillsFeed,
+		TradeFeed:                    g.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement: true,
 	})
 	if err != nil {
 		return err

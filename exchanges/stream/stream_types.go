@@ -69,8 +69,8 @@ type ConnectionSetup struct {
 // attempting a new connection. It also contains the subscriptions that are
 // associated with the specifc connection.
 type ConnectionCandidate struct {
-	// Details contains the connection setup details
-	Details *ConnectionSetup
+	// Setup contains the connection setup details
+	Setup *ConnectionSetup
 	// Subscriptions contains the subscriptions that are associated with the
 	// specific connection(s)
 	Subscriptions *subscription.Store

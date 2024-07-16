@@ -87,7 +87,7 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn stream.Connection) e
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(),
+		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: optionsPingChannel,
 	})
 	if err != nil {
