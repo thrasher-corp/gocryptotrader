@@ -576,7 +576,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	multi := NewWebsocket()
 	set := *defaultSetup
-	// Values below are now not neccessary as this will be set per connection
+	// Values below are now not necessary as this will be set per connection
 	// candidate in SetupNewConnection.
 	set.UseMultiConnectionManagement = true
 	set.Connector = nil
@@ -1301,7 +1301,7 @@ func TestSetupNewConnection(t *testing.T) {
 	multi := NewWebsocket()
 	set := *defaultSetup
 
-	// Values below are now not neccessary as this will be set per connection
+	// Values below are now not necessary as this will be set per connection
 	// candidate in SetupNewConnection.
 	set.UseMultiConnectionManagement = true
 	set.Connector = nil

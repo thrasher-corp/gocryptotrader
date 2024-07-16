@@ -67,7 +67,7 @@ type ConnectionSetup struct {
 
 // ConnectionCandidate contains the connection setup details to be used when
 // attempting a new connection. It also contains the subscriptions that are
-// associated with the specifc connection.
+// associated with the specific connection.
 type ConnectionCandidate struct {
 	// Setup contains the connection setup details
 	Setup *ConnectionSetup
