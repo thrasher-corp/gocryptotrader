@@ -28,6 +28,7 @@ type Translations map[*Item]Code
 // representation and the value indicates the internal representation/common/standard
 // representation. e.g. XBT as key and BTC as value, this is useful for exchanges
 // that use different naming conventions.
+// TODO: Expand for specific assets.
 func NewTranslations(t map[Code]Code) Translations {
 	lookup := make(map[*Item]Code)
 	for k, v := range t {
@@ -39,6 +40,8 @@ func NewTranslations(t map[Code]Code) Translations {
 // Translate returns the translated currency code, usually used to convert
 // exchange specific currency codes to common currency codes. If no translation
 // is found it will return the original currency code.
+// TODO: Add TranslateToCommon and TranslateToExchange methods to allow for
+// translation to and from exchange specific currency codes.
 func (t Translations) Translate(incoming Code) Code {
 	if len(t) == 0 {
 		return incoming
