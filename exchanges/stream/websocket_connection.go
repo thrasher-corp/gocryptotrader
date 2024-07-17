@@ -22,34 +22,32 @@ import (
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
 func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
-	m, err := w.Match.Set(signature)
-	if err != nil {
-		return nil, err
-	}
-	defer m.Cleanup()
-
-	b, err := json.Marshal(request)
+	outbound, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
 	}
 
+	ch, err := w.Match.Set(signature)
+	if err != nil {
+		return nil, err
+	}
+
 	start := time.Now()
-	err = w.SendRawMessage(websocket.TextMessage, b)
+	err = w.SendRawMessage(websocket.TextMessage, outbound)
 	if err != nil {
 		return nil, err
 	}
 
 	timer := time.NewTimer(w.ResponseMaxLimit)
-
 	select {
-	case payload := <-m.C:
+	case payload := <-ch:
+		timer.Stop()
 		if w.Reporter != nil {
-			w.Reporter.Latency(w.ExchangeName, b, time.Since(start))
+			w.Reporter.Latency(w.ExchangeName, payload, time.Since(start))
 		}
-
 		return payload, nil
 	case <-timer.C:
-		timer.Stop()
+		w.Match.Timeout(signature)
 		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
 	}
 }
