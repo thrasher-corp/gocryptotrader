@@ -1443,13 +1443,13 @@ type WsFuturesTicker struct {
 	Symbol       string               `json:"symbol"`
 	Sequence     int64                `json:"sequence"`
 	Side         string               `json:"side"`
-	FilledPrice  float64              `json:"price"`
-	FilledSize   float64              `json:"size"`
+	FilledPrice  types.Number         `json:"price"`
+	FilledSize   types.Number         `json:"size"`
 	TradeID      string               `json:"tradeId"`
-	BestBidSize  float64              `json:"bestBidSize"`
+	BestBidSize  types.Number         `json:"bestBidSize"`
 	BestBidPrice types.Number         `json:"bestBidPrice"`
 	BestAskPrice types.Number         `json:"bestAskPrice"`
-	BestAskSize  float64              `json:"bestAskSize"`
+	BestAskSize  types.Number         `json:"bestAskSize"`
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
 

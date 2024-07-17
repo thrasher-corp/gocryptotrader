@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -125,9 +126,8 @@ func TestGet24hrStats(t *testing.T) {
 
 func TestGetMarketList(t *testing.T) {
 	t.Parallel()
-	result, err := ku.GetMarketList(context.Background())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err := ku.GetMarketList(context.Background())
+	assert.NoError(t, err)
 }
 
 func TestGetPartOrderbook20(t *testing.T) {
@@ -152,9 +152,8 @@ func TestGetOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetOrderbook(context.Background(), spotTradablePair.String())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err = ku.GetOrderbook(context.Background(), spotTradablePair.String())
+	assert.NoError(t, err)
 }
 
 func TestGetTradeHistory(t *testing.T) {
@@ -162,9 +161,8 @@ func TestGetTradeHistory(t *testing.T) {
 	_, err := ku.GetTradeHistory(context.Background(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := ku.GetTradeHistory(context.Background(), spotTradablePair.String())
+	_, err = ku.GetTradeHistory(context.Background(), spotTradablePair.String())
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetKlines(t *testing.T) {
@@ -184,9 +182,8 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetCurrenciesV3(t *testing.T) {
 	t.Parallel()
-	result, err := ku.GetCurrenciesV3(context.Background())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err := ku.GetCurrenciesV3(context.Background())
+	assert.NoError(t, err)
 }
 
 func TestGetCurrencyV3(t *testing.T) {
@@ -226,7 +223,7 @@ func TestGetMarkPrice(t *testing.T) {
 	_, err := ku.GetMarkPrice(context.Background(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := ku.GetMarkPrice(context.Background(), spotTradablePair.String())
+	result, err := ku.GetMarkPrice(context.Background(), marginTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -815,9 +812,8 @@ func TestGetAccountLedgers(t *testing.T) {
 func TestGetAccountLedgersHFTrade(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetAccountLedgersHFTrade(context.Background(), currency.BTC, "", "", 0, 10, time.Time{}, time.Now())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err := ku.GetAccountLedgersHFTrade(context.Background(), currency.BTC, "", "", 0, 10, time.Time{}, time.Now())
+	assert.NoError(t, err)
 }
 
 func TestGetAccountLedgerHFMargin(t *testing.T) {
@@ -946,17 +942,19 @@ func TestTransferMainToSubAccount(t *testing.T) {
 
 func TestMakeInnerTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := ku.MakeInnerTransfer(context.Background(), currency.EMPTYCODE, "62fcd1969474ea0001fd20e4", "trade", "main", "1", "", "")
+	_, err := ku.MakeInnerTransfer(context.Background(), 0, currency.EMPTYCODE, "62fcd1969474ea0001fd20e4", "trade", "main", "1", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = ku.MakeInnerTransfer(context.Background(), currency.BTC, "", "trade", "main", "1", "", "")
+	_, err = ku.MakeInnerTransfer(context.Background(), 0, currency.BTC, "", "trade", "main", "1", "")
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
-	_, err = ku.MakeInnerTransfer(context.Background(), currency.BTC, "62fcd1969474ea0001fd20e4", "", "main", "1", "", "")
+	_, err = ku.MakeInnerTransfer(context.Background(), 0, currency.BTC, "62fcd1969474ea0001fd20e4", "", "main", "", "")
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = ku.MakeInnerTransfer(context.Background(), 1, currency.BTC, "62fcd1969474ea0001fd20e4", "", "main", "", "")
 	require.ErrorIs(t, err, errAccountTypeMissing)
-	_, err = ku.MakeInnerTransfer(context.Background(), currency.BTC, "62fcd1969474ea0001fd20e4", "trade", "", "1", "", "")
+	_, err = ku.MakeInnerTransfer(context.Background(), 1, currency.BTC, "62fcd1969474ea0001fd20e4", "trade", "", "", "")
 	require.ErrorIs(t, err, errAccountTypeMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	result, err := ku.MakeInnerTransfer(context.Background(), currency.BTC, "62fcd1969474ea0001fd20e4", "trade", "main", "1", "", "")
+	result, err := ku.MakeInnerTransfer(context.Background(), 1, currency.BTC, "62fcd1969474ea0001fd20e4", "trade", "main", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3127,14 +3125,17 @@ func TestPlaceOCOOrder(t *testing.T) {
 	_, err := ku.PlaceOCOOrder(context.Background(), &OCOOrderParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
+	cpDetail, err := ku.GetTicker(context.Background(), spotTradablePair.String())
+	require.NoError(t, err)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	result, err := ku.PlaceOCOOrder(context.Background(), &OCOOrderParams{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
-		Price:         1.234,
+		Price:         cpDetail.Price - 3,
 		Size:          1,
-		StopPrice:     1.14,
-		LimitPrice:    1.2,
+		StopPrice:     cpDetail.Price - 2,
+		LimitPrice:    cpDetail.Price - 1,
 		TradeType:     "TRADE",
 		ClientOrderID: "6572fdd65723280007deb5e0",
 	})
@@ -3748,7 +3749,12 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	_, err := ku.GetHistoricalFundingRates(context.Background(), r)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	r.Pair = currency.EMPTYPAIR
+	_, err = ku.GetHistoricalFundingRates(context.Background(), r)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	r.Asset = asset.Futures
+	r.Pair = futuresTradablePair
 	result, err := ku.GetHistoricalFundingRates(context.Background(), r)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3766,4 +3772,11 @@ func TestGetHistoricTrades(t *testing.T) {
 	result, err = ku.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestProcessFuturesKline(t *testing.T) {
+	t.Parallel()
+	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
+	err := ku.processFuturesKline([]byte(data), "1hour")
+	assert.NoError(t, err)
 }

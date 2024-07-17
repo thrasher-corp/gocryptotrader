@@ -718,10 +718,12 @@ func (ku *Kucoin) AutoCancelHFOrderSetting(ctx context.Context, timeout int64, s
 	if timeout == 0 {
 		return nil, errors.New("timeout values required")
 	}
-	arg := make(map[string]interface{})
-	arg["timeout"] = timeout
-	if len(symbols) != 0 {
-		arg["symbols"] = symbols
+	arg := &struct {
+		Timeout int64    `json:"timeout,string"`
+		Symbols []string `json:"symbols,omitempty"`
+	}{
+		Timeout: timeout,
+		Symbols: symbols,
 	}
 	var resp *AutoCancelHFOrderResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, autoCancelHFOrderSettingEPL, http.MethodPost, "/v1/hf/orders/dead-cancel-all", arg, &resp)
@@ -1227,6 +1229,7 @@ func (ku *Kucoin) PlaceOCOOrder(ctx context.Context, arg *OCOOrderParams) (strin
 	if arg.ClientOrderID == "" {
 		return "", order.ErrClientOrderIDMustBeSet
 	}
+	arg.Side = strings.ToLower(arg.Side)
 	resp := &struct {
 		OrderID string `json:"orderId"`
 	}{}
@@ -1517,17 +1520,19 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 	if password == "" {
 		return nil, errInvalidPassphraseInstance
 	}
-	params := make(map[string]interface{})
-	params["subName"] = subAccountName
-	params["password"] = password
-	if remarks != "" {
-		params["remarks"] = remarks
-	}
-	if access != "" {
-		params["access"] = access
+	arg := &struct {
+		SubAccountName string `json:"subName"`
+		Password       string `json:"password"`
+		Remarks        string `json:"remarks,omitempty"`
+		Access         string `json:"access,omitempty"`
+	}{
+		SubAccountName: subAccountName,
+		Password:       password,
+		Remarks:        remarks,
+		Access:         access,
 	}
 	var resp *SubAccount
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, createSubUserEPL, http.MethodPost, "/v2/sub/user/created", params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, createSubUserEPL, http.MethodPost, "/v2/sub/user/created", arg, &resp)
 }
 
 // GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.
@@ -1896,34 +1901,39 @@ func (ku *Kucoin) TransferMainToSubAccount(ctx context.Context, ccy currency.Cod
 	if subUserID == "" {
 		return "", fmt.Errorf("%w, sub-user ID is required", order.ErrOrderIDNotSet)
 	}
-	params := make(map[string]interface{})
-	params["clientOid"] = clientOID
-	params["currency"] = ccy
-	params["amount"] = amount
-	params["direction"] = direction
-	if accountType != "" {
-		params["accountType"] = accountType
+	arg := &struct {
+		ClientOrderID  string        `json:"clientOid"`
+		SubUserID      string        `json:"subUserId"`
+		Currency       currency.Code `json:"currency"`
+		Amount         float64       `json:"amount,string"`
+		Direction      string        `json:"direction"`
+		AccountType    string        `json:"accountType,omitempty"`
+		SubAccountType string        `json:"subAccountType,omitempty"`
+	}{
+		ClientOrderID:  clientOID,
+		SubUserID:      subUserID,
+		Currency:       ccy,
+		Amount:         amount,
+		Direction:      direction,
+		AccountType:    accountType,
+		SubAccountType: subAccountType,
 	}
-	if subAccountType != "" {
-		params["subAccountType"] = subAccountType
-	}
-	params["subUserId"] = subUserID
 	resp := struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, masterSubUserTransferEPL, http.MethodPost, "/v2/accounts/sub-transfer", params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, masterSubUserTransferEPL, http.MethodPost, "/v2/accounts/sub-transfer", arg, &resp)
 }
 
 // MakeInnerTransfer used to transfer funds between accounts internally
 // possible account types: main, trade, trade_hf, margin, isolated, margin_v2, isolated_v2, contract
-func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, ccy currency.Code, clientOID, paymentAccountType, receivingAccountType, amount, fromTag, toTag string) (string, error) {
+func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, amount float64, ccy currency.Code, clientOID, paymentAccountType, receivingAccountType, fromTag, toTag string) (string, error) {
 	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if clientOID == "" {
 		return "", order.ErrClientOrderIDMustBeSet
 	}
-	if amount == "" {
+	if amount <= 0 {
 		return "", order.ErrAmountBelowMin
 	}
 	if paymentAccountType == "" {
@@ -1932,22 +1942,27 @@ func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, ccy currency.Code, clie
 	if receivingAccountType == "" {
 		return "", fmt.Errorf("%w receiving account type is required", errAccountTypeMissing)
 	}
-	params := make(map[string]interface{})
-	params["clientOid"] = clientOID
-	params["currency"] = ccy
-	params["amount"] = amount
-	params["from"] = paymentAccountType
-	params["to"] = receivingAccountType
-	if fromTag != "" {
-		params["fromTag"] = fromTag
-	}
-	if toTag != "" {
-		params["toTag"] = toTag
+	arg := &struct {
+		ClientOrderID        string        `json:"clientOid"`
+		Currency             currency.Code `json:"currency"`
+		Amount               float64       `json:"amount,string"`
+		PaymentAccountType   string        `json:"from"`
+		ReceivingAccountType string        `json:"to"`
+		FromTag              string        `json:"fromTag,omitempty"`
+		ToTag                string        `json:"toTag,omitempty"`
+	}{
+		ClientOrderID:        clientOID,
+		Amount:               amount,
+		Currency:             ccy,
+		PaymentAccountType:   paymentAccountType,
+		ReceivingAccountType: receivingAccountType,
+		FromTag:              fromTag,
+		ToTag:                toTag,
 	}
 	resp := struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, innerTransferEPL, http.MethodPost, "/v2/accounts/inner-transfer", params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, innerTransferEPL, http.MethodPost, "/v2/accounts/inner-transfer", arg, &resp)
 }
 
 // TransferToMainOrTradeAccount transfers fund from KuCoin Futures account to Main or Trade accounts.
@@ -2156,28 +2171,30 @@ func (ku *Kucoin) ApplyWithdrawal(ctx context.Context, ccy currency.Code, addres
 	if amount <= 0 {
 		return "", order.ErrAmountBelowMin
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
-	params["address"] = address
-	params["amount"] = amount
-	if memo != "" {
-		params["memo"] = memo
-	}
-	params["isInner"] = isInner
-	if remark != "" {
-		params["remark"] = remark
-	}
-	if chain != "" {
-		params["chain"] = chain
-	}
-	if feeDeductType != "" {
-		params["feeDeductType"] = feeDeductType
+	arg := &struct {
+		Currency      currency.Code `json:"currency"`
+		Address       string        `json:"address"`
+		Amount        float64       `json:"amount"`
+		IsInner       bool          `json:"isInner"`
+		Memo          string        `json:"memo,omitempty"`
+		Remark        string        `json:"remark,omitempty"`
+		Chain         string        `json:"chain,omitempty"`
+		FeeDeductType string        `json:"feeDeductType,omitempty"`
+	}{
+		Currency:      ccy,
+		Address:       address,
+		Amount:        amount,
+		Memo:          memo,
+		IsInner:       isInner,
+		Remark:        remark,
+		Chain:         chain,
+		FeeDeductType: feeDeductType,
 	}
 	resp := struct {
 		WithdrawalID string `json:"withdrawalId"`
 		Error
 	}{}
-	return resp.WithdrawalID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, applyWithdrawalEPL, http.MethodPost, "/v1/withdrawals", params, &resp)
+	return resp.WithdrawalID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, applyWithdrawalEPL, http.MethodPost, "/v1/withdrawals", arg, &resp)
 }
 
 // CancelWithdrawal used to cancel a withdrawal request
@@ -2241,10 +2258,14 @@ func (ku *Kucoin) MarginLendingSubscription(ctx context.Context, ccy currency.Co
 	if interestRate <= 0 {
 		return nil, errMissingInterestRate
 	}
-	arg := map[string]interface{}{
-		"currency":     ccy.String(),
-		"size":         size,
-		"interestRate": interestRate,
+	arg := &struct {
+		Currency     currency.Code `json:"currency"`
+		Size         float64       `json:"size,string"`
+		InterestRate float64       `json:"interestRate"`
+	}{
+		Currency:     ccy,
+		Size:         size,
+		InterestRate: interestRate,
 	}
 	var resp *OrderNumberResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginLendingSubscriptionEPL, http.MethodPost, "/v3/purchase", arg, &resp)
@@ -2261,10 +2282,14 @@ func (ku *Kucoin) Redemption(ctx context.Context, ccy currency.Code, size float6
 	if purchaseOrderNo == "" {
 		return nil, errMissingPurchaseOrderNumber
 	}
-	arg := map[string]interface{}{
-		"currency":        ccy.String(),
-		"size":            size,
-		"purchaseOrderNo": purchaseOrderNo,
+	arg := &struct {
+		Currency            currency.Code `json:"currency"`
+		Size                float64       `json:"size,string"`
+		PurchaseOrderNumber string        `json:"purchaseOrderNo"`
+	}{
+		Currency:            ccy,
+		Size:                size,
+		PurchaseOrderNumber: purchaseOrderNo,
 	}
 	var resp *OrderNumberResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, redemptionEPL, http.MethodPost, "/v3/redeem", arg, &resp)
@@ -2382,6 +2407,9 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	if err != nil {
 		return err
 	}
+	println("creds.Key", creds.Key)
+	println("creds.Secret", creds.Secret)
+	println("creds.ClientID", creds.ClientID)
 	resp, okay := result.(UnmarshalTo)
 	if !okay {
 		resp = &Response{Data: result}
@@ -2521,10 +2549,14 @@ func (ku *Kucoin) SubscribeToEarnFixedIncomeProduct(ctx context.Context, product
 	if accountType == "" {
 		return nil, errAccountTypeMissing
 	}
-	arg := map[string]interface{}{
-		"productId":   productID,
-		"accountType": accountType,
-		"amount":      amount,
+	arg := &struct {
+		ProductID   string  `json:"productId"`
+		AccountType string  `json:"accountType"`
+		Amount      float64 `json:"amount,string"`
+	}{
+		ProductID:   productID,
+		AccountType: accountType,
+		Amount:      amount,
 	}
 	var resp *SusbcribeEarn
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, subscribeToEarnEPL, http.MethodPost, "/v1/earn/orders", arg, &resp)
