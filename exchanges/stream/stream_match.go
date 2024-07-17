@@ -39,7 +39,6 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 	close(ch)
 	delete(m.m, signature)
 	return true
-
 }
 
 // Set the signature response channel for incoming data
