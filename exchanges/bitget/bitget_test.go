@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // User-defined constants to aid testing
@@ -38,6 +39,7 @@ const (
 
 	testSubaccountName = "GCTTESTA"
 	testIP             = "14.203.57.50"
+	testAddress        = "fake test address"
 	// Test values used with live data, with the goal of never letting an order be executed
 	testAmount = 0.001
 	testPrice  = 1e10 - 1
@@ -45,7 +47,6 @@ const (
 	// limits present there
 	testAmount2 = 0.003
 	testPrice2  = 1667
-	testAddress = "fake test address"
 )
 
 // User-defined variables to aid testing
@@ -68,9 +69,7 @@ const (
 	skipInsufficientBalance      = "insufficient balance to place order, skipping"
 	skipInsufficientOrders       = "insufficient orders found, skipping"
 
-	errAPIKeyLimitPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
-	// errInsufficientBalancePartial      = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"43012","msg":"Insufficient balance","requestTime":`
-	// errAmountExceedsBalancePartial     = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40762","msg":"The order amount exceeds the balance","requestTime":`
+	errAPIKeyLimitPartial              = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
 	errCurrentlyHoldingPositionPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"45117","msg":"Currently holding positions or orders, the margin mode cannot be adjusted","requestTime":`
 	errFakePairDoesNotExistPartial     = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40034","msg":"Parameter FAKEPAIRNOTREALMEOWMEOW does not exist","requestTime"`
 )
@@ -559,10 +558,6 @@ func TestCancelSpotOrderByID(t *testing.T) {
 	_, err = bi.CancelSpotOrderByID(context.Background(), testPair.String(), "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err = bi.CancelSpotOrderByID(context.Background(), "meow", "a", -1)
-	if err == nil {
-		t.Error(errNonsenseRequest)
-	}
 	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
 	require.NoError(t, err)
 	if len(resp.Data) == 0 {
@@ -601,10 +596,6 @@ func TestBatchCancelOrders(t *testing.T) {
 	_, err = bi.BatchCancelOrders(context.Background(), "meow", req)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err = bi.BatchCancelOrders(context.Background(), "meow", []OrderIDStruct{{}})
-	if err == nil {
-		t.Error(errNonsenseRequest)
-	}
 	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
 	require.NoError(t, err)
 	if len(resp.Data) == 0 {
@@ -701,7 +692,7 @@ func TestGetCurrentSpotPlanOrders(t *testing.T) {
 
 func TestSpotGetPlanSubOrder(t *testing.T) {
 	t.Parallel()
-	var ordIDs OrderIDStruct
+	var ordIDs *OrderIDStruct
 	if sharedtestvalues.AreAPICredentialsSet(bi) {
 		ordIDs = getPlanOrdIDHelper(t, true)
 	}
@@ -834,8 +825,8 @@ func TestWithdrawFunds(t *testing.T) {
 	_, err = bi.WithdrawFunds(context.Background(), "meow", "woof", "neigh", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err = bi.WithdrawFunds(context.Background(), testCrypto.String(), "on_chain", testAddress, "", "", "", "",
-		"", clientIDGenerator(), testAmount)
+	_, err = bi.WithdrawFunds(context.Background(), testCrypto.String(), "on_chain", testAddress, testCrypto.String(), "",
+		"", "", "", clientIDGenerator(), testAmount)
 	assert.NoError(t, err)
 }
 
@@ -1307,7 +1298,7 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 	_, err = bi.GetFuturesOrderDetails(context.Background(), "meow", "woof", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	oID := getFuturesOrdIDHelper(t, false)
+	oID := getFuturesOrdIDHelper(t, false, true)
 	_, err = bi.GetFuturesOrderDetails(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES",
 		oID.ClientOrderID, oID.OrderID)
 	assert.NoError(t, err)
@@ -1734,7 +1725,7 @@ func TestGetCrossOpenOrders(t *testing.T) {
 	_, err = bi.GetCrossOpenOrders(context.Background(), "meow", "", 0, 0, 0, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp := getCrossOrdIDHelper(t)
+	resp := getCrossOrdIDHelper(t, true)
 	_, err = bi.GetCrossOpenOrders(context.Background(), testPair.String(), "", resp.OrderID,
 		5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
 	assert.NoError(t, err)
@@ -1962,7 +1953,7 @@ func TestGetIsolatedOpenOrders(t *testing.T) {
 		time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp := getIsoOrdIDHelper(t)
+	resp := getIsoOrdIDHelper(t, true)
 	_, err = bi.GetIsolatedOpenOrders(context.Background(), testPair.String(), "", resp.OrderID,
 		5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
 	assert.NoError(t, err)
@@ -2547,6 +2538,75 @@ func TestSubmitOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetOrderInfo(context.Background(), "", testPair, asset.Empty)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	_, err = bi.GetOrderInfo(context.Background(), "0", testPair, asset.Empty)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	oID := getFuturesOrdIDHelper(t, true, false)
+	if oID.ClientOrderID != ordersNotFound {
+		_, err = bi.GetOrderInfo(context.Background(), strconv.FormatInt(oID.OrderID, 10), testPair2, asset.Futures)
+		assert.NoError(t, err)
+	}
+	oID = getIsoOrdIDHelper(t, false)
+	if oID.ClientOrderID != ordersNotFound {
+		_, err = bi.GetOrderInfo(context.Background(), strconv.FormatInt(oID.OrderID, 10), testPair2, asset.Margin)
+		assert.NoError(t, err)
+	}
+	oID = getCrossOrdIDHelper(t, false)
+	if oID.ClientOrderID != ordersNotFound {
+		_, err = bi.GetOrderInfo(context.Background(), strconv.FormatInt(oID.OrderID, 10), testPair2, asset.CrossMargin)
+		assert.NoError(t, err)
+	}
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	require.NoError(t, err)
+	if len(resp.Data) != 0 {
+		_, err = bi.GetOrderInfo(context.Background(), strconv.FormatInt(int64(resp.Data[0].OrderID), 10), testPair,
+			asset.Spot)
+		assert.NoError(t, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetDepositAddress(context.Background(), currency.NewCode(""), "", "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.GetDepositAddress(context.Background(), testCrypto, "", "")
+	assert.NoError(t, err)
+}
+
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	var req *withdraw.Request
+	_, err := bi.WithdrawCryptocurrencyFunds(context.Background(), req)
+	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
+	req = &withdraw.Request{
+		Crypto: withdraw.CryptoRequest{
+			Address: testAddress,
+			Chain:   testCrypto.String(),
+		},
+		Currency: testCrypto,
+		Amount:   testAmount,
+		Exchange: bi.Name,
+	}
+	_, err = bi.WithdrawCryptocurrencyFunds(context.Background(), req)
+	assert.NoError(t, err)
+}
+
+func TestWithdrawFiatFunds(t *testing.T) {
+	t.Parallel()
+	_, err := bi.WithdrawFiatFunds(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
+	t.Parallel()
+	_, err := bi.WithdrawFiatFundsToInternationalBank(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
 // The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests
 func TestModifyPlanSpotOrder(t *testing.T) {
 	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
@@ -2674,7 +2734,7 @@ func TestRepayLoan(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// The following 6 tests aren't parallel due to collisions with each other, and some other futures-related tests
+// The following 7 tests aren't parallel due to collisions with each other, and some other futures-related tests
 func TestModifyFuturesOrder(t *testing.T) {
 	_, err := bi.ModifyFuturesOrder(context.Background(), 0, "", "", "", "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
@@ -2685,7 +2745,7 @@ func TestModifyFuturesOrder(t *testing.T) {
 	_, err = bi.ModifyFuturesOrder(context.Background(), 1, "", "meow", "woof", "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errNewClientOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getFuturesOrdIDHelper(t, true)
+	oID := getFuturesOrdIDHelper(t, true, true)
 	_, err = bi.ModifyFuturesOrder(context.Background(), oID.OrderID, oID.ClientOrderID, testPair2.String(),
 		testFiat2.String()+"-FUTURES", clientIDGenerator(), 0, 0, testPrice2+1, testPrice2/10)
 	assert.NoError(t, err)
@@ -2699,7 +2759,7 @@ func TestCancelFuturesOrder(t *testing.T) {
 	_, err = bi.CancelFuturesOrder(context.Background(), "meow", "woof", "", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getFuturesOrdIDHelper(t, true)
+	oID := getFuturesOrdIDHelper(t, true, true)
 	_, err = bi.CancelFuturesOrder(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES", "",
 		"", oID.OrderID)
 	assert.NoError(t, err)
@@ -2709,7 +2769,7 @@ func TestBatchCancelFuturesOrders(t *testing.T) {
 	_, err := bi.BatchCancelFuturesOrders(context.Background(), nil, "", "", "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getFuturesOrdIDHelper(t, true)
+	oID := getFuturesOrdIDHelper(t, true, true)
 	orders := []OrderIDStruct{
 		{
 			OrderID: oID.OrderID,
@@ -2765,14 +2825,14 @@ func TestCancelOrder(t *testing.T) {
 	ord.ClientOrderID = resp.Data[0].ClientOrderID
 	err = bi.CancelOrder(context.Background(), ord)
 	assert.NoError(t, err)
-	oID := getFuturesOrdIDHelper(t, true)
+	oID := getFuturesOrdIDHelper(t, true, true)
 	ord.OrderID = strconv.FormatInt(oID.OrderID, 10)
 	ord.Pair = testPair2
 	ord.AssetType = asset.Futures
 	ord.ClientOrderID = oID.ClientOrderID
 	err = bi.CancelOrder(context.Background(), ord)
 	assert.NoError(t, err)
-	oID = getIsoOrdIDHelper(t)
+	oID = getIsoOrdIDHelper(t, true)
 	ord.OrderID = strconv.FormatInt(oID.OrderID, 10)
 	ord.AssetType = asset.CrossMargin
 	ord.ClientOrderID = oID.ClientOrderID
@@ -2780,14 +2840,34 @@ func TestCancelOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// The following 2 tests aren't parallel due to collisions with each other, and some other cross-related tests
+func TestCancelAllOrders(t *testing.T) {
+	var ord *order.Cancel
+	_, err := bi.CancelAllOrders(context.Background(), ord)
+	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+	ord = &order.Cancel{
+		AssetType: asset.Empty,
+	}
+	_, err = bi.CancelAllOrders(context.Background(), ord)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	ord.AssetType = asset.Spot
+	ord.Pair = testPair
+	_, err = bi.CancelAllOrders(context.Background(), ord)
+	assert.NoError(t, err)
+	ord.AssetType = asset.Futures
+	ord.Pair = testPair2
+	_, err = bi.CancelAllOrders(context.Background(), ord)
+	assert.NoError(t, err)
+}
+
+// The following 3 tests aren't parallel due to collisions with each other, and some other cross-related tests
 func TestCancelCrossOrder(t *testing.T) {
 	_, err := bi.CancelCrossOrder(context.Background(), "", "", 0)
 	assert.ErrorIs(t, err, errPairEmpty)
 	_, err = bi.CancelCrossOrder(context.Background(), "meow", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getCrossOrdIDHelper(t)
+	oID := getCrossOrdIDHelper(t, true)
 	_, err = bi.CancelCrossOrder(context.Background(), testPair.String(), oID.ClientOrderID, oID.OrderID)
 	assert.NoError(t, err)
 }
@@ -2798,8 +2878,64 @@ func TestBatchCancelCrossOrders(t *testing.T) {
 	_, err = bi.BatchCancelCrossOrders(context.Background(), "meow", nil)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getCrossOrdIDHelper(t)
+	oID := getCrossOrdIDHelper(t, true)
 	_, err = bi.BatchCancelCrossOrders(context.Background(), testPair.String(), []OrderIDStruct{*oID})
+	assert.NoError(t, err)
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	var orders []order.Cancel
+	orders = append(orders, order.Cancel{
+		AssetType: asset.Empty,
+	})
+	_, err := bi.CancelBatchOrders(context.Background(), orders)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	orders[0].OrderID = "0"
+	_, err = bi.CancelBatchOrders(context.Background(), orders)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	orders = nil
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	require.NoError(t, err)
+	if len(resp.Data) != 0 {
+		orders = append(orders, order.Cancel{
+			AssetType:     asset.Spot,
+			OrderID:       strconv.FormatInt(int64(resp.Data[0].OrderID), 10),
+			ClientOrderID: resp.Data[0].ClientOrderID,
+			Pair:          testPair,
+		})
+	}
+	oID := getFuturesOrdIDHelper(t, true, false)
+	if oID.ClientOrderID != ordersNotFound {
+		orders = append(orders, order.Cancel{
+			AssetType:     asset.Futures,
+			OrderID:       strconv.FormatInt(oID.OrderID, 10),
+			ClientOrderID: oID.ClientOrderID,
+			Pair:          testPair2,
+		})
+	}
+	oID = getIsoOrdIDHelper(t, false)
+	if oID.ClientOrderID != ordersNotFound {
+		orders = append(orders, order.Cancel{
+			AssetType:     asset.Margin,
+			OrderID:       strconv.FormatInt(oID.OrderID, 10),
+			ClientOrderID: oID.ClientOrderID,
+			Pair:          testPair2,
+		})
+	}
+	oID = getCrossOrdIDHelper(t, false)
+	if oID.ClientOrderID != ordersNotFound {
+		orders = append(orders, order.Cancel{
+			AssetType:     asset.CrossMargin,
+			OrderID:       strconv.FormatInt(oID.OrderID, 10),
+			ClientOrderID: oID.ClientOrderID,
+			Pair:          testPair2,
+		})
+	}
+	if len(orders) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.CancelBatchOrders(context.Background(), orders)
 	assert.NoError(t, err)
 }
 
@@ -2810,7 +2946,7 @@ func TestCancelIsolatedOrder(t *testing.T) {
 	_, err = bi.CancelIsolatedOrder(context.Background(), "meow", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getIsoOrdIDHelper(t)
+	oID := getIsoOrdIDHelper(t, true)
 	_, err = bi.CancelIsolatedOrder(context.Background(), testPair2.String(), oID.ClientOrderID, oID.OrderID)
 	assert.NoError(t, err)
 }
@@ -2821,7 +2957,7 @@ func TestBatchCancelIsolatedOrders(t *testing.T) {
 	_, err = bi.BatchCancelIsolatedOrders(context.Background(), "meow", nil)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getIsoOrdIDHelper(t)
+	oID := getIsoOrdIDHelper(t, true)
 	_, err = bi.BatchCancelIsolatedOrders(context.Background(), testPair2.String(), []OrderIDStruct{*oID})
 	assert.NoError(t, err)
 }
@@ -2911,9 +3047,9 @@ func subAccTestHelper(t *testing.T, compString, ignoreString string) string {
 	return tarID
 }
 
-func getPlanOrdIDHelper(t *testing.T, mustBeTriggered bool) OrderIDStruct {
+func getPlanOrdIDHelper(t *testing.T, mustBeTriggered bool) *OrderIDStruct {
 	t.Helper()
-	var ordIDs OrderIDStruct
+	ordIDs := new(OrderIDStruct)
 	resp, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 100,
 		1<<62)
 	if err == nil && len(resp.Data.OrderList) != 0 {
@@ -2931,7 +3067,7 @@ func getPlanOrdIDHelper(t *testing.T, mustBeTriggered bool) OrderIDStruct {
 	return ordIDs
 }
 
-func getFuturesOrdIDHelper(t *testing.T, live bool) *OrderIDStruct {
+func getFuturesOrdIDHelper(t *testing.T, live, skip bool) *OrderIDStruct {
 	t.Helper()
 	resp, err := bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
 		testFiat2.String()+"-FUTURES", "", time.Now().Add(-time.Hour*24*90), time.Now())
@@ -2957,7 +3093,9 @@ func getFuturesOrdIDHelper(t *testing.T, live bool) *OrderIDStruct {
 			}
 		}
 	}
-	t.Skip(skipInsufficientOrders)
+	if skip {
+		t.Skip(skipInsufficientOrders)
+	}
 	return &OrderIDStruct{
 		OrderID:       0,
 		ClientOrderID: ordersNotFound,
@@ -2986,7 +3124,7 @@ func getTrigOrdIDHelper(t *testing.T, planTypes []string) *OrderIDStruct {
 	}
 }
 
-func getCrossOrdIDHelper(t *testing.T) *OrderIDStruct {
+func getCrossOrdIDHelper(t *testing.T, skip bool) *OrderIDStruct {
 	t.Helper()
 	resp, err := bi.GetCrossOpenOrders(context.Background(), testPair.String(), "", 0, 5, 1<<62,
 		time.Now().Add(-time.Hour*24*85), time.Time{})
@@ -2997,14 +3135,16 @@ func getCrossOrdIDHelper(t *testing.T) *OrderIDStruct {
 			ClientOrderID: resp.Data.OrderList[0].ClientOrderID,
 		}
 	}
-	t.Skip(skipInsufficientOrders)
+	if skip {
+		t.Skip(skipInsufficientOrders)
+	}
 	return &OrderIDStruct{
 		OrderID:       0,
 		ClientOrderID: ordersNotFound,
 	}
 }
 
-func getIsoOrdIDHelper(t *testing.T) *OrderIDStruct {
+func getIsoOrdIDHelper(t *testing.T, skip bool) *OrderIDStruct {
 	t.Helper()
 	resp, err := bi.GetIsolatedOpenOrders(context.Background(), testPair.String(), "", 0, 5, 1<<62,
 		time.Now().Add(-time.Hour*24*85), time.Time{})
@@ -3015,12 +3155,13 @@ func getIsoOrdIDHelper(t *testing.T) *OrderIDStruct {
 			ClientOrderID: resp.Data.OrderList[0].ClientOrderID,
 		}
 	}
-	t.Skip(skipInsufficientOrders)
+	if skip {
+		t.Skip(skipInsufficientOrders)
+	}
 	return &OrderIDStruct{
 		OrderID:       0,
 		ClientOrderID: ordersNotFound,
 	}
-
 }
 
 func aBenchmarkHelper(a, pag int64) {

@@ -195,9 +195,6 @@ const (
 	bitgetReviseHistory            = "/revise-history"
 	bitgetDebts                    = "/debts"
 	bitgetReduces                  = "/reduces"
-
-	// Errors
-	errUnknownEndpointLimit = "unknown endpoint limit %v"
 )
 
 var (
@@ -234,7 +231,6 @@ var (
 	errOrdersEmpty                   = errors.New("orders cannot be empty")
 	errTriggerPriceEmpty             = errors.New("triggerPrice cannot be empty")
 	errTriggerTypeEmpty              = errors.New("triggerType cannot be empty")
-	errNonsenseRequest               = errors.New("nonsense request expected error")
 	errAccountTypeEmpty              = errors.New("accountType cannot be empty")
 	errFromTypeEmpty                 = errors.New("fromType cannot be empty")
 	errToTypeEmpty                   = errors.New("toType cannot be empty")
@@ -269,6 +265,7 @@ var (
 	errReviseTypeEmpty               = errors.New("reviseType cannot be empty")
 	errUnknownPairQuote              = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
 	errStrategyMutex                 = errors.New("only one of immediate or cancel, fill or kill, and post only can be set to true")
+	errOrderNotFound                 = errors.New("order not found")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 )
@@ -1111,6 +1108,8 @@ func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, client
 	if clientOrderID != "" {
 		vals.Set("clientOid", clientOrderID)
 	}
+	vals.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	vals.Set("receiveWindow", "60000")
 	path := bitgetSpot + bitgetTrade + bitgetOrderInfo
 	return bi.spotOrderHelper(ctx, path, vals)
 }
@@ -1524,7 +1523,9 @@ func (bi *Bitget) WithdrawFunds(ctx context.Context, currency, transferType, add
 		"tag":          tag,
 		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
 		"remark":       note,
-		"clientOid":    clientOrderID,
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
 	}
 	path := bitgetSpot + bitgetWallet + bitgetWithdrawal
 	var resp *OrderIDResp

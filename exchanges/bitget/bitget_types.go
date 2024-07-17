@@ -1798,22 +1798,17 @@ type MarginHistOrds struct {
 type MarginOrderFills struct {
 	Data struct {
 		Fills []struct {
-			OrderID      int64         `json:"orderId,string"`
-			TradeID      int64         `json:"tradeId,string"`
-			OrderType    string        `json:"orderType"`
-			Side         string        `json:"side"`
-			PriceAverage float64       `json:"priceAvg,string"`
-			Size         float64       `json:"size,string"`
-			Amount       float64       `json:"amount,string"`
-			TradeScope   string        `json:"tradeScope"`
-			CreationTime UnixTimestamp `json:"cTime"`
-			UpdateTime   UnixTimestamp `json:"uTime"`
-			FeeDetail    struct {
-				Deduction         YesNoBool `json:"deduction"`
-				FeeCoin           string    `json:"feeCoin"`
-				TotalDeductionFee float64   `json:"totalDeductionFee,string"`
-				TotalFee          float64   `json:"totalFee,string"`
-			} `json:"feeDetail"`
+			OrderID      int64             `json:"orderId,string"`
+			TradeID      int64             `json:"tradeId,string"`
+			OrderType    string            `json:"orderType"`
+			Side         string            `json:"side"`
+			PriceAverage float64           `json:"priceAvg,string"`
+			Size         float64           `json:"size,string"`
+			Amount       float64           `json:"amount,string"`
+			TradeScope   string            `json:"tradeScope"`
+			CreationTime UnixTimestamp     `json:"cTime"`
+			UpdateTime   UnixTimestamp     `json:"uTime"`
+			FeeDetail    AbridgedFeeDetail `json:"feeDetail"`
 		} `json:"fills"`
 		MaxID EmptyInt `json:"maxId"`
 		MinID EmptyInt `json:"minId"`
