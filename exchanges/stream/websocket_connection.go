@@ -92,11 +92,8 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interface{}) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
-
-	w.writeControl.Lock()
-	defer w.writeControl.Unlock()
 
 	if w.Verbose {
 		if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
@@ -110,11 +107,18 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interfac
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}
 	}
+
+	// This lock is only acting as rolling gate and stops panic for
+	// WriteJSON, need access to rate limit above as priority if available.
+	w.writeControl.Lock()
+	defer w.writeControl.Unlock()
+
 	// NOTE: Secondary check to ensure the connection is still active after
 	// semacquire and potential rate limit.
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
+
 	return w.Connection.WriteJSON(data)
 }
 
@@ -124,18 +128,22 @@ func (w *WebsocketConnection) SendRawMessage(ctx context.Context, messageType in
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 
-	w.writeControl.Lock()
-	defer w.writeControl.Unlock()
-
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
 	}
+
 	if w.RateLimit != nil {
 		err := request.RateLimit(ctx, w.RateLimit)
 		if err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}
 	}
+
+	// This lock is only acting as rolling gate and stops panic for
+	// WriteMessage, need access to rate limit above as priority if available.
+	w.writeControl.Lock()
+	defer w.writeControl.Unlock()
+
 	// NOTE: Secondary check to ensure the connection is still active after
 	// semacquire and potential rate limit.
 	if !w.IsConnected() {
