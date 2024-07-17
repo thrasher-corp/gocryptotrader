@@ -69,19 +69,11 @@ var fetchedOptionsCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (g *Gateio) WsOptionsConnect(ctx context.Context, conn stream.Connection) error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
-	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Options)
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(optionsWebsocketURL, false, true)
-	if err != nil {
-		return err
-	}
-	err = conn.DialContext(ctx, &dialer, http.Header{})
+	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}

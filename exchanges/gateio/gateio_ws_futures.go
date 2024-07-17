@@ -59,19 +59,11 @@ var defaultFuturesSubscriptions = []string{
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
-	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, false, true)
-	if err != nil {
-		return err
-	}
-	err = conn.DialContext(ctx, &dialer, http.Header{})
+	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
