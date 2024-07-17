@@ -5,11 +5,11 @@ import (
 	"sync"
 )
 
+var errSignatureCollision = errors.New("signature collision")
+
 // NewMatch returns a new Match
 func NewMatch() *Match {
-	return &Match{
-		m: make(map[interface{}]chan []byte),
-	}
+	return &Match{m: make(map[any]chan<- []byte)}
 }
 
 // Match is a distributed subtype that handles the matching of requests and
@@ -17,64 +17,49 @@ func NewMatch() *Match {
 // connections. Stream systems fan in all incoming payloads to one routine for
 // processing.
 type Match struct {
-	m  map[interface{}]chan []byte
+	m  map[any]chan<- []byte
 	mu sync.Mutex
 }
 
-// Matcher defines a payload matching return mechanism
-type Matcher struct {
-	C   chan []byte
-	sig interface{}
-	m   *Match
-}
-
 // Incoming matches with request, disregarding the returned payload
-func (m *Match) Incoming(signature interface{}) bool {
+func (m *Match) Incoming(signature any) bool {
 	return m.IncomingWithData(signature, nil)
 }
 
 // IncomingWithData matches with requests and takes in the returned payload, to
 // be processed outside of a stream processing routine and returns true if a handler was found
-func (m *Match) IncomingWithData(signature interface{}, data []byte) bool {
+func (m *Match) IncomingWithData(signature any, data []byte) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ch, ok := m.m[signature]
-	if ok {
-		select {
-		case ch <- data:
-		default:
-			// this shouldn't occur but if it does continue to process as normal
-			return false
-		}
-		return true
+	if !ok {
+		return false
 	}
-	return false
+	ch <- data
+	close(ch)
+	delete(m.m, signature)
+	return true
+
 }
 
 // Set the signature response channel for incoming data
-func (m *Match) Set(signature interface{}) (Matcher, error) {
-	var ch chan []byte
+func (m *Match) Set(signature any) (<-chan []byte, error) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	if _, ok := m.m[signature]; ok {
-		m.mu.Unlock()
-		return Matcher{}, errors.New("signature collision")
+		return nil, errSignatureCollision
 	}
-	// This is buffered so we don't need to wait for receiver.
-	ch = make(chan []byte, 1)
+	ch := make(chan []byte, 1) // This is buffered so we don't need to wait for receiver.
 	m.m[signature] = ch
-	m.mu.Unlock()
-
-	return Matcher{
-		C:   ch,
-		sig: signature,
-		m:   m,
-	}, nil
+	return ch, nil
 }
 
-// Cleanup closes underlying channel and deletes signature from map
-func (m *Matcher) Cleanup() {
-	m.m.mu.Lock()
-	close(m.C)
-	delete(m.m.m, m.sig)
-	m.m.mu.Unlock()
+// Timeout the signature response channel
+func (m *Match) Timeout(signature any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if ch, ok := m.m[signature]; ok {
+		close(ch)
+		delete(m.m, signature)
+	}
 }
