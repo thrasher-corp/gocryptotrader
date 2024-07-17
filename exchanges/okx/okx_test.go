@@ -49,7 +49,7 @@ var (
 	leadTraderUniqueID string
 	loadLeadTraderOnce sync.Once
 
-	spotTP, marginTP, futuresTP, perpetualSwapTP, optionsTP, spreadTP currency.Pair
+	spotTP, marginTP, futuresTP, perpetualSwapTP, optionsTP currency.Pair
 )
 
 func TestMain(m *testing.M) {

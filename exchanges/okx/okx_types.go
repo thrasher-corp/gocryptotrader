@@ -2690,10 +2690,10 @@ type WebsocketEventRequest struct {
 
 // WebsocketLoginData represents the websocket login data input json data.
 type WebsocketLoginData struct {
-	APIKey     string    `json:"apiKey"`
-	Passphrase string    `json:"passphrase"`
-	Timestamp  time.Time `json:"timestamp"`
-	Sign       string    `json:"sign"`
+	APIKey     string `json:"apiKey"`
+	Passphrase string `json:"passphrase"`
+	Timestamp  int64  `json:"timestamp,string"`
+	Sign       string `json:"sign"`
 }
 
 // SubscriptionInfo holds the channel and instrument IDs.

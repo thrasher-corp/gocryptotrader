@@ -104,7 +104,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 			{
 				APIKey:     creds.Key,
 				Passphrase: creds.ClientID,
-				Timestamp:  timeUnix,
+				Timestamp:  timeUnix.Unix(),
 				Sign:       base64Sign,
 			},
 		},
