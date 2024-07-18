@@ -996,7 +996,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse("msgID:"+msgID, req); err != nil {
+		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(context.TODO(), "msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")

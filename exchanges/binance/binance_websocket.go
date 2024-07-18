@@ -579,7 +579,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		Params: subs.QualifiedChannels(),
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.ID, req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr

@@ -53,8 +53,8 @@ func (m *Match) Set(signature any) (<-chan []byte, error) {
 	return ch, nil
 }
 
-// Timeout the signature response channel
-func (m *Match) Timeout(signature any) {
+// RemoveSignature removes the signature response from map and closes the channel.
+func (m *Match) RemoveSignature(signature any) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if ch, ok := m.m[signature]; ok {

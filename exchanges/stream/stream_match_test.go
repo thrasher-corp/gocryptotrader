@@ -34,4 +34,9 @@ func TestMatch(t *testing.T) {
 	require.True(t, nm.IncomingWithData("hello", expected))
 
 	require.Equal(t, expected, <-ch)
+
+	_, err = nm.Set("purge me")
+	require.NoError(t, err)
+	nm.RemoveSignature("purge me")
+	require.False(t, nm.IncomingWithData("purge me", expected))
 }

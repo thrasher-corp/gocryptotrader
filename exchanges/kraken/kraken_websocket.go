@@ -1230,9 +1230,9 @@ channels:
 		for i := range *subs {
 			var err error
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
-				_, err = k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
 			} else {
-				_, err = k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
 			}
 			if err == nil {
 				err = k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
@@ -1289,9 +1289,9 @@ channels:
 	for i := range unsubs {
 		var err error
 		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
-			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
 		} else {
-			_, err = k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
 		}
 		if err == nil {
 			err = k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
@@ -1309,7 +1309,7 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 	request.RequestID = id
 	request.Event = krakenWsAddOrder
 	request.Token = authToken
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return "", err
 	}
@@ -1348,7 +1348,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 		RequestID:      id,
 	}
 
-	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
 	}
@@ -1378,7 +1378,7 @@ func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 		RequestID: id,
 	}
 
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
 	}

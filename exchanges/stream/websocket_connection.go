@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -19,9 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var errMatchTimeout = errors.New("websocket connection: timeout waiting for response with signature")
+
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
-func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, request interface{}) ([]byte, error) {
 	outbound, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -43,12 +47,15 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 	case payload := <-ch:
 		timer.Stop()
 		if w.Reporter != nil {
-			w.Reporter.Latency(w.ExchangeName, payload, time.Since(start))
+			w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 		}
 		return payload, nil
 	case <-timer.C:
-		w.Match.Timeout(signature)
-		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
+		w.Match.RemoveSignature(signature)
+		return nil, fmt.Errorf("%s %w: %v", w.ExchangeName, errMatchTimeout, signature)
+	case <-ctx.Done():
+		w.Match.RemoveSignature(signature)
+		return nil, ctx.Err()
 	}
 }
 
