@@ -132,16 +132,14 @@ func (s *Subscription) Clone() *Subscription {
 		Enabled:          s.Enabled,
 		Channel:          s.Channel,
 		Asset:            s.Asset,
-		Params:           s.Params,
+		Params:           maps.Clone(s.Params),
 		Interval:         s.Interval,
 		Levels:           s.Levels,
 		Authenticated:    s.Authenticated,
 		state:            s.state,
-		Pairs:            s.Pairs,
+		Pairs:            slices.Clone(s.Pairs),
 		QualifiedChannel: s.QualifiedChannel,
 	}
-	c.Pairs = slices.Clone(s.Pairs)
-	c.Params = maps.Clone(s.Params)
 	s.m.RUnlock()
 	return c
 }
