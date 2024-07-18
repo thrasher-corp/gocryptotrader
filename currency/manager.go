@@ -289,11 +289,13 @@ func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 		return err
 	}
 
-	if !pairStore.Enabled.Contains(pair, true) {
-		return fmt.Errorf("%w %s", ErrPairNotFound, pair)
-	}
+	enabledLen := len(pairStore.Enabled)
 
 	pairStore.Enabled = pairStore.Enabled.Remove(pair)
+
+	if enabledLen == len(pairStore.Enabled) {
+		return fmt.Errorf("%w 2 %s", ErrPairNotFound, pair)
+	}
 
 	return nil
 }

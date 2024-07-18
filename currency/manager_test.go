@@ -427,9 +427,8 @@ func TestDisablePair(t *testing.T) {
 	}
 
 	// Test disabling a valid pair and ensure nil is empty
-	if err := p.DisablePair(asset.Spot, NewPair(BTC, USD)); err != nil {
-		t.Error("unexpected result")
-	}
+	err := p.DisablePair(asset.Spot, NewPair(BTC, USD))
+	assert.NoError(t, err, "Disable Pair should not error")
 }
 
 func TestEnablePair(t *testing.T) {

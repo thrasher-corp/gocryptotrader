@@ -203,7 +203,7 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 func (p Pairs) Remove(rem ...Pair) Pairs {
 	var n Pairs
 	for _, pN := range p {
-		if !slices.Contains(rem, pN) {
+		if !slices.ContainsFunc(rem, func(pX Pair) bool { return pX.Equal(pN) }) {
 			n = append(n, pN)
 		}
 	}
