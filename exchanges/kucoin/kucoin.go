@@ -606,7 +606,7 @@ func (ku *Kucoin) CancelHFOrderByClientOrderID(ctx context.Context, clientOrderI
 	resp := &struct {
 		ClientOrderID string `json:"clientOid"`
 	}{}
-	return resp.ClientOrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfCancelOrderByClientOrderIDEPL, http.MethodGet, "/v1/hf/orders/client-order/"+clientOrderID+symbolQuery+symbol, nil, &resp)
+	return resp.ClientOrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfCancelOrderByClientOrderIDEPL, http.MethodDelete, "/v1/hf/orders/client-order/"+clientOrderID+symbolQuery+symbol, nil, &resp)
 }
 
 // CancelSpecifiedNumberHFOrdersByOrderID cancel the specified quantity of the order according to the orderId.
@@ -1301,11 +1301,11 @@ func (ku *Kucoin) GetOCOOrderDetailsByOrderID(ctx context.Context, orderID strin
 
 // GetOCOOrderList retrieves list of OCO orders.
 func (ku *Kucoin) GetOCOOrderList(ctx context.Context, pageSize, currentPage int64, symbol string, startAt, endAt time.Time, orderIDs []string) (*OCOOrders, error) {
-	if pageSize <= 10 {
-		return nil, errors.New("pageSize cannot must be greater than 10")
+	if pageSize < 10 {
+		return nil, fmt.Errorf("%w, pageSize must be between 10 and 500", errPageSizeRequired)
 	}
 	if currentPage <= 0 {
-		return nil, errors.New("currentPage cannot be empty")
+		return nil, fmt.Errorf("%w, must be greater than 1", errCurrentPageRequired)
 	}
 	params := url.Values{}
 	params.Set("pageSize", strconv.FormatInt(pageSize, 10))

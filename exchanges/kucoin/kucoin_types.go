@@ -48,6 +48,8 @@ var (
 	errStatusMissing              = errors.New("status is missing")
 	errInvalidPeriod              = errors.New("invalid period")
 	errTransferDirectionRequired  = errors.New("transfer direction cannot be empty")
+	errPageSizeRequired           = errors.New("pageSize is required")
+	errCurrentPageRequired        = errors.New("current page value is required")
 )
 
 // UnmarshalTo acts as interface to exchange API response

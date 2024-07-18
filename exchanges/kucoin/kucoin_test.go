@@ -253,14 +253,15 @@ func TestGetCrossIsolatedMarginRiskLimitCurrencyConfig(t *testing.T) {
 
 func TestPostBorrowOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	result, err := ku.PostMarginBorrowOrder(context.Background(),
+	_, err := ku.PostMarginBorrowOrder(context.Background(),
 		&MarginBorrowParam{
 			Currency:    currency.USDT,
-			TimeInForce: "FOK", Size: 0})
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = ku.PostMarginBorrowOrder(context.Background(),
+			TimeInForce: "FOK",
+			Size:        0,
+		})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	result, err := ku.PostMarginBorrowOrder(context.Background(),
 		&MarginBorrowParam{
 			Currency:    currency.USDT,
 			TimeInForce: "IOC",
@@ -1488,6 +1489,7 @@ func TestPlaceMultipleFuturesOrders(t *testing.T) {
 			OrderType:     "limit",
 			Price:         2150,
 			Size:          2,
+			Leverage:      1,
 		},
 		{
 			ClientOrderID: "5c52e11203aa677f33e492",
@@ -1496,6 +1498,7 @@ func TestPlaceMultipleFuturesOrders(t *testing.T) {
 			OrderType:     "limit",
 			Price:         32150,
 			Size:          2,
+			Leverage:      2,
 		},
 	})
 	require.NoError(t, err)
@@ -2945,9 +2948,19 @@ func TestSyncPlaceMultipleHFOrders(t *testing.T) {
 
 func TestModifyHFOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err := ku.ModifyHFOrder(context.Background(), &ModifyHFOrderParam{})
 	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	result, err := ku.ModifyHFOrder(context.Background(), &ModifyHFOrderParam{
+		Symbol:        spotTradablePair,
+		ClientOrderID: "4314oiu5345u2y554x",
+		OrderID:       "4314oiu5345u2y554x",
+		NewPrice:      1234,
+		NewSize:       2,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCancelHFOrder(t *testing.T) {
@@ -3207,8 +3220,13 @@ func TestGetOrderDetailsByOrderID(t *testing.T) {
 
 func TestGetOCOOrderList(t *testing.T) {
 	t.Parallel()
+	_, err := ku.GetOCOOrderList(context.Background(), 9, 0, spotTradablePair.String(), time.Time{}, time.Now(), []string{})
+	require.ErrorIs(t, err, errPageSizeRequired)
+	_, err = ku.GetOCOOrderList(context.Background(), 10, 0, spotTradablePair.String(), time.Time{}, time.Now(), []string{})
+	require.ErrorIs(t, err, errCurrentPageRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetOCOOrderList(context.Background(), 10, 0, spotTradablePair.String(), time.Time{}, time.Now(), []string{})
+	result, err := ku.GetOCOOrderList(context.Background(), 10, 2, spotTradablePair.String(), time.Time{}, time.Now(), []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3756,20 +3774,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	r.Asset = asset.Futures
 	r.Pair = futuresTradablePair
 	result, err := ku.GetHistoricalFundingRates(context.Background(), r)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetHistoricTrades(t *testing.T) {
-	t.Parallel()
-	_, err := ku.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Options, time.Time{}, time.Time{})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	result, err := ku.GetHistoricTrades(context.Background(), spotTradablePair, asset.Spot, time.Time{}, time.Time{})
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	result, err = ku.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

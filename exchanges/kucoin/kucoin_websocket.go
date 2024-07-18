@@ -35,17 +35,17 @@ const (
 	privateBullets = "/v1/bullet-private"
 
 	// Spot channels
-	marketAllTickersChannel         = "/market/ticker:all"
-	marketTickerChannel             = "/market/ticker:%s"            // /market/ticker:{symbol},{symbol}...
-	marketSymbolSnapshotChannel     = "/market/snapshot:%s"          // /market/snapshot:{symbol}
-	marketSnapshotChannel           = "/market/snapshot:%v"          // /market/snapshot:{market} <--- market represents a currency
-	marketOrderbookLevel2Channels   = "/market/level2:%s"            // /market/level2:{pair},{pair}...
-	marketOrderbookLevel2to5Channel = "/spotMarket/level2Depth5:%s"  // /spotMarket/level2Depth5:{symbol},{symbol}...
-	marketOrderbokLevel2To50Channel = "/spotMarket/level2Depth50:%s" // /spotMarket/level2Depth50:{symbol},{symbol}...
-	marketCandlesChannel            = "/market/candles:%s_%s"        // /market/candles:{symbol}_{interval}
-	marketMatchChannel              = "/market/match:%s"             // /market/match:{symbol},{symbol}...
-	indexPriceIndicatorChannel      = "/indicator/index:%s"          // /indicator/index:{symbol0},{symbol1}..
-	markPriceIndicatorChannel       = "/indicator/markPrice:%s"      // /indicator/markPrice:{symbol0},{symbol1}...
+	marketAllTickersChannel          = "/market/ticker:all"
+	marketTickerChannel              = "/market/ticker:%s"            // /market/ticker:{symbol},{symbol}...
+	marketSymbolSnapshotChannel      = "/market/snapshot:%s"          // /market/snapshot:{symbol}
+	marketSnapshotChannel            = "/market/snapshot:%v"          // /market/snapshot:{market} <--- market represents a currency
+	marketOrderbookLevel2Channels    = "/market/level2:%s"            // /market/level2:{pair},{pair}...
+	marketOrderbookLevel2to5Channel  = "/spotMarket/level2Depth5:%s"  // /spotMarket/level2Depth5:{symbol},{symbol}...
+	marketOrderbookLevel2To50Channel = "/spotMarket/level2Depth50:%s" // /spotMarket/level2Depth50:{symbol},{symbol}...
+	marketCandlesChannel             = "/market/candles:%s_%s"        // /market/candles:{symbol}_{interval}
+	marketMatchChannel               = "/market/match:%s"             // /market/match:{symbol},{symbol}...
+	indexPriceIndicatorChannel       = "/indicator/index:%s"          // /indicator/index:{symbol0},{symbol1}..
+	markPriceIndicatorChannel        = "/indicator/markPrice:%s"      // /indicator/markPrice:{symbol0},{symbol1}...
 
 	// Private channels
 	privateSpotTradeOrders    = "/spotMarket/tradeOrders"
@@ -55,15 +55,15 @@ const (
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
 
 	// Futures channels
-	futuresTickerV2Channel                       = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
-	futuresTickerChannel                         = "/contractMarket/ticker:%s"        // /contractMarket/ticker:{symbol}
-	futuresOrderbookLevel2Channel                = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
-	futuresExecutionDataChannel                  = "/contractMarket/execution:%s"     // /contractMarket/execution:{symbol}
-	futuresOrderbookLevel2Depth5Channel          = "/contractMarket/level2Depth5:%s"  // /contractMarket/level2Depth5:{symbol}
-	futuresOrderbookLevel2Depth50Channel         = "/contractMarket/level2Depth50:%s" // /contractMarket/level2Depth50:{symbol}
-	futuresContractMarketDataChannel             = "/contract/instrument:%s"          // /contract/instrument:{symbol}
-	futuresSystemAnnouncementChannel             = "/contract/announcement"
-	futuresTrasactionStatisticsTimerEventChannel = "/contractMarket/snapshot:%s" // /contractMarket/snapshot:{symbol}
+	futuresTickerV2Channel                        = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
+	futuresTickerChannel                          = "/contractMarket/ticker:%s"        // /contractMarket/ticker:{symbol}
+	futuresOrderbookLevel2Channel                 = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
+	futuresExecutionDataChannel                   = "/contractMarket/execution:%s"     // /contractMarket/execution:{symbol}
+	futuresOrderbookLevel2Depth5Channel           = "/contractMarket/level2Depth5:%s"  // /contractMarket/level2Depth5:{symbol}
+	futuresOrderbookLevel2Depth50Channel          = "/contractMarket/level2Depth50:%s" // /contractMarket/level2Depth50:{symbol}
+	futuresContractMarketDataChannel              = "/contract/instrument:%s"          // /contract/instrument:{symbol}
+	futuresSystemAnnouncementChannel              = "/contract/announcement"
+	futuresTransactionStatisticsTimerEventChannel = "/contractMarket/snapshot:%s" // /contractMarket/snapshot:{symbol}
 
 	// futures private channels
 	futuresTradeOrdersBySymbolChannel      = "/contractMarket/tradeOrders:%s" // /contractMarket/tradeOrders:{symbol}
@@ -223,7 +223,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]):
 		return ku.processOrderbookWithDepth(respData, topicInfo[1], topicInfo[0])
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
-		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
+		strings.HasPrefix(marketOrderbookLevel2To50Channel, topicInfo[0]):
 		return ku.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
@@ -324,7 +324,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		}
 	case strings.HasPrefix(futuresSystemAnnouncementChannel, topicInfo[0]):
 		return ku.processFuturesSystemAnnouncement(resp.Data, resp.Subject)
-	case strings.HasPrefix(futuresTrasactionStatisticsTimerEventChannel, topicInfo[0]):
+	case strings.HasPrefix(futuresTransactionStatisticsTimerEventChannel, topicInfo[0]):
 		return ku.processFuturesTransactionStatistics(resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresTradeOrdersBySymbolChannel, topicInfo[0]),
 		strings.HasPrefix(futuresTradeOrderChannel, topicInfo[0]):
@@ -1084,14 +1084,14 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 func GetChannelsAssetType(channelName string) asset.Item {
 	switch channelName {
 	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel,
-		futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel,
+		futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTransactionStatisticsTimerEventChannel,
 		futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel,
 		futuresPositionChangeEventChannel, futuresLimitCandles:
 		return asset.Futures
 	case marketTickerChannel, marketAllTickersChannel,
 		marketSnapshotChannel, marketSymbolSnapshotChannel,
 		marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel,
-		marketOrderbokLevel2To50Channel, marketCandlesChannel,
+		marketOrderbookLevel2To50Channel, marketCandlesChannel,
 		marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel,
 		privateSpotTradeOrders, accountBalanceChannel, spotMarketAdvancedChannel:
 		return asset.Spot
