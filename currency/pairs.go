@@ -201,13 +201,13 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 
 // Remove removes the specified pairs from the list of pairs if they exist
 func (p Pairs) Remove(rem ...Pair) Pairs {
-	var n Pairs
+	n := make(Pairs, 0, len(p))
 	for _, pN := range p {
 		if !slices.ContainsFunc(rem, func(pX Pair) bool { return pX.Equal(pN) }) {
 			n = append(n, pN)
 		}
 	}
-	return n
+	return slices.Clip(n)
 }
 
 // Add adds pairs to the list of pairs ignoring duplicates
