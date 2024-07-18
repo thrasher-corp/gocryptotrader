@@ -865,6 +865,10 @@ func TestBatch(t *testing.T) {
 	require.Len(t, b[0], 3)
 	require.Len(t, b[1], 3)
 	require.Len(t, b[2], 1)
+	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
+	done := make(chan any, 1)
+	go func() { done <- Batch(s, 0) }()
+	require.Eventually(t, func() bool { return len(done) > 0 }, time.Second, time.Millisecond, "Batch 0 must not hang")
 }
 
 type A int

@@ -657,7 +657,11 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 
 // Batch takes a slice type and converts it into a slice of slices
 func Batch[S ~[]E, E any](blobs S, batchSize int) (batches []S) {
+	if batchSize <= 0 {
+		return
+	}
 	var j int
+	batches = make([]S, 0, (len(blobs)+batchSize-1)/batchSize)
 	for i := 0; i < len(blobs); i += batchSize {
 		j += batchSize
 		if j >= len(blobs) {
