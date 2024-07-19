@@ -221,21 +221,22 @@ func TestAdd(t *testing.T) {
 	t.Parallel()
 	orig := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
 	p := slices.Clone(orig)
-	p2 := Pairs{NewPair(BTC, USDT), NewPair(ETH, USD)}
+	p2 := Pairs{NewPair(BTC, USDT), NewPair(ETH, USD), NewPair(BTC, ETH)}
 
 	pT := p.Add(p...)
-	assert.ElementsMatch(t, pT, orig, "Adding only existing pairs should have no effect")
-	assert.ElementsMatch(t, p, orig, "Adding only existing pairs should have no effect")
+	assert.Equal(t, pT.Join(), orig.Join(), "Adding only existing pairs should return same Pairs")
+	assert.Equal(t, p.Join(), orig.Join(), "Should not effect original")
 
 	pT = p.Add(p2...)
-	assert.ElementsMatch(t, pT, append(orig, p2...), "Adding new pairs should return concat")
-	assert.ElementsMatch(t, p, orig, "Original slice must be unaffected")
+	assert.Equal(t, pT.Join(), append(orig, p2...).Join(), "Adding new pairs should return correct Pairs")
+	assert.Equal(t, p.Join(), orig.Join(), "Should not effect original")
 
-	pX := slices.Grow(slices.Clone(p), 10)
-	pT = pX.Add(p2...)
-	assert.ElementsMatch(t, pT, append(orig, p2...), "Adding new pairs within extra capacity should a return new slice")
-	pT[0] = NewPair(USD, USD)
-	assert.ElementsMatch(t, pX, orig, "Original slice must be unaffected")
+	p = slices.Grow(slices.Clone(orig), len(p2)) // Grow so that append doesn't alloc
+	pT1 := p.Add(p2[0])
+	pT2 := p.Add(p2[1])
+	pT1[3] = p2[2] // If Add doesn't allocate an new underlying array, this would affect PT2 as well
+	assert.Equal(t, p.Join(), orig.Join(), "Pairs underlying array should not be shared with original")
+	assert.Equal(t, pT2.Join(), append(orig, p2[1]).Join(), "Pairs underlying array should not be shared with siblings")
 }
 
 func TestContains(t *testing.T) {
