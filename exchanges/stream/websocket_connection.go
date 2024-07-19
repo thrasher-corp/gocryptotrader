@@ -188,8 +188,8 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 		return
 	}
 	w.Wg.Add(1)
-	defer w.Wg.Done()
 	go func() {
+		defer w.Wg.Done()
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
