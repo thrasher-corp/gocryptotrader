@@ -219,14 +219,23 @@ func TestRemove(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	p := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
+	orig := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
+	p := slices.Clone(orig)
 	p2 := Pairs{NewPair(BTC, USDT), NewPair(ETH, USD)}
-	assert.NotSame(t, p, p.Add(p2...), "Adding pairs should return a new slice")
-	assert.NotSame(t, p, p.Add(p...), "Adding only existing pairs should return a new slice")
-	p = p.Add(p2...)
-	assert.Len(t, p, 5, "Add must add to Pairs")
-	assert.NoError(t, p.ContainsAll(p2, true), "Add must add to Pairs")
-	assert.Len(t, p.Add(p2...), 5, "Adding only existing pairs should return same size")
+
+	pT := p.Add(p...)
+	assert.ElementsMatch(t, pT, orig, "Adding only existing pairs should have no effect")
+	assert.ElementsMatch(t, p, orig, "Adding only existing pairs should have no effect")
+
+	pT = p.Add(p2...)
+	assert.ElementsMatch(t, pT, append(orig, p2...), "Adding new pairs should return concat")
+	assert.ElementsMatch(t, p, orig, "Original slice must be unaffected")
+
+	pX := slices.Grow(slices.Clone(p), 10)
+	pT = pX.Add(p2...)
+	assert.ElementsMatch(t, pT, append(orig, p2...), "Adding new pairs within extra capacity should a return new slice")
+	pT[0] = NewPair(USD, USD)
+	assert.ElementsMatch(t, pX, orig, "Original slice must be unaffected")
 }
 
 func TestContains(t *testing.T) {

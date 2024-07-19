@@ -212,6 +212,7 @@ func (p Pairs) Remove(rem ...Pair) Pairs {
 
 // Add adds pairs to the list of pairs ignoring duplicates
 func (p Pairs) Add(pairs ...Pair) Pairs {
+	p = slices.Clone(p)
 	for _, a := range pairs {
 		if !p.Contains(a, true) {
 			p = append(p, a)
