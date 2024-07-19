@@ -656,20 +656,15 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 }
 
 // Batch takes a slice type and converts it into a slice of slices
-func Batch[S ~[]E, E any](blobs S, batchSize int) (batches []S) {
+func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 	if batchSize <= 0 {
-		return
+		return []S{}
 	}
-	var j int
-	batches = make([]S, 0, (len(blobs)+batchSize-1)/batchSize)
-	for i := 0; i < len(blobs); i += batchSize {
-		j += batchSize
-		if j >= len(blobs) {
-			j = len(blobs)
-		}
-		batches = append(batches, blobs[i:j])
+	batches := make([]S, 0, (len(blobs)+batchSize-1)/batchSize)
+	for batchSize < len(blobs) {
+		blobs, batches = blobs[batchSize:], append(batches, blobs[0:batchSize:batchSize])
 	}
-	return
+	return append(batches, blobs)
 }
 
 // SortStrings takes a slice of fmt.Stringer implementers and returns a new sorted slice
