@@ -18,12 +18,15 @@ var (
 
 // TestSubscriptionString exercises the String method
 func TestSubscriptionString(t *testing.T) {
+	t.Parallel()
 	s := &Subscription{
 		Channel: "candles",
 		Asset:   asset.Spot,
 		Pairs:   currency.Pairs{btcusdtPair, ethusdcPair.Format(currency.PairFormat{Delimiter: "/"})},
 	}
 	assert.Equal(t, "candles spot BTC/USDT,ETH/USDC", s.String(), "Subscription String should return correct value")
+	s.Key = 42
+	assert.Equal(t, "42: candles spot BTC/USDT,ETH/USDC", s.String(), "String with a non-MatchableKey")
 }
 
 // TestState exercises the state getter
@@ -46,19 +49,6 @@ func TestSetState(t *testing.T) {
 	}
 	assert.ErrorIs(t, s.SetState(UnsubscribedState), ErrInStateAlready, "SetState should error on same state")
 	assert.ErrorIs(t, s.SetState(UnsubscribedState+1), ErrInvalidState, "Setting an invalid state should error")
-}
-
-// TestString exercises the Stringer implementation
-func TestString(t *testing.T) {
-	s := &Subscription{
-		Channel: "candles",
-		Asset:   asset.Spot,
-		Pairs:   currency.Pairs{btcusdtPair},
-	}
-	_ = s.EnsureKeyed()
-	assert.Equal(t, "candles spot BTC/USDT", s.String(), "String with a MatchableKey")
-	s.Key = 42
-	assert.Equal(t, "42: candles spot BTC/USDT", s.String(), "String with a MatchableKey")
 }
 
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
@@ -102,27 +92,32 @@ func TestSubscriptionMarshaling(t *testing.T) {
 
 // TestClone exercises Clone
 func TestClone(t *testing.T) {
+	t.Parallel()
+	params := map[string]any{"a": 42}
 	a := &Subscription{
 		Channel:  TickerChannel,
 		Interval: kline.OneHour,
 		Pairs:    currency.Pairs{btcusdtPair},
-		Params:   map[string]any{"a": 42},
+		Params:   params,
 	}
 	a.EnsureKeyed()
 	b := a.Clone()
 	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone should return a new Subscription")
 	assert.Nil(t, b.Key, "Clone should have a nil key")
-	b.Pairs[0] = ethusdcPair
-	assert.Equal(t, btcusdtPair, a.Pairs[0], "Pairs should be (relatively) deep copied")
+	b.Pairs[0].Delimiter = "🐳"
+	assert.Empty(t, a.Pairs[0].Delimiter, "Pairs should be (relatively) deep copied")
 	b.Params["a"] = 12
 	assert.Equal(t, 42, a.Params["a"], "Params should be (relatively) deep copied")
+	assert.NotEqual(t, params, b.Params, "Params should be cloned")
+	assert.Equal(t, params, a.Params, "Original Params should be left alone")
 	a.m.Lock()
 	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
 }
 
 // TestSetKey exercises SetKey
 func TestSetKey(t *testing.T) {
+	t.Parallel()
 	s := &Subscription{}
 	s.SetKey(14)
 	assert.Equal(t, 14, s.Key, "SetKey should set a key correctly")
@@ -130,7 +125,18 @@ func TestSetKey(t *testing.T) {
 
 // TestSetPairs exercises SetPairs
 func TestSetPairs(t *testing.T) {
+	t.Parallel()
 	s := &Subscription{}
 	s.SetPairs(currency.Pairs{btcusdtPair})
 	assert.Equal(t, "BTCUSDT", s.Pairs.Join(), "SetPairs should set a key correctly")
+}
+
+// TestAddPairs exercises AddPairs
+func TestAddPairs(t *testing.T) {
+	t.Parallel()
+	s := &Subscription{}
+	s.AddPairs()
+	assert.Empty(t, s.Pairs, "Should not have added any pairs")
+	s.AddPairs(btcusdtPair)
+	assert.Len(t, s.Pairs, 1, "Should not have added any pairs")
 }
