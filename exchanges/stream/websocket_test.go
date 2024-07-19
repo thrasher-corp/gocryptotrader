@@ -353,7 +353,8 @@ func TestConnectionMessageErrors(t *testing.T) {
 	assert.EventuallyWithT(t, c, 2*time.Second, 10*time.Millisecond, "Should get an error down the routine")
 
 	// Test individual connection defined functions
-	ws.connector = nil
+	require.NoError(t, ws.Shutdown())
+	ws.useMultiConnectionManagement = true
 
 	err = ws.Connect()
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")

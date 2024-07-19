@@ -321,7 +321,10 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setState(connectingState)
 
-	if w.connector != nil {
+	if !w.useMultiConnectionManagement {
+		if w.connector == nil {
+			return fmt.Errorf("%v %w", w.exchangeName, errNoConnectFunc)
+		}
 		err := w.connector()
 		if err != nil {
 			w.setState(disconnectedState)
@@ -353,14 +356,14 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
 	}
 
-	// Assume connected state and if there are any issues below can call Shutdown
-	w.setState(connectedState)
+	// multiConnectFatalError is a fatal error that will cause all connections to
+	// be shutdown and the websocket to be disconnected.
+	var multiConnectFatalError error
 
-	var multiConnectError error
 	// TODO: Implement concurrency below.
 	for i := range w.connectionManager {
 		if w.connectionManager[i].Setup.GenerateSubscriptions == nil {
-			multiConnectError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriptionsGeneratorUnset)
 			break
 		}
 
@@ -372,7 +375,7 @@ func (w *Websocket) Connect() error {
 				}
 				continue // Non-fatal error, we can continue to the next connection
 			}
-			multiConnectError = fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+			multiConnectFatalError = fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 			break
 		}
 
@@ -385,15 +388,15 @@ func (w *Websocket) Connect() error {
 		}
 
 		if w.connectionManager[i].Setup.Connector == nil {
-			multiConnectError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errNoConnectFunc)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errNoConnectFunc)
 			break
 		}
 		if w.connectionManager[i].Setup.Handler == nil {
-			multiConnectError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketDataHandlerUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketDataHandlerUnset)
 			break
 		}
 		if w.connectionManager[i].Setup.Subscriber == nil {
-			multiConnectError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriberUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriberUnset)
 			break
 		}
 
@@ -403,7 +406,7 @@ func (w *Websocket) Connect() error {
 
 		err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)
 		if err != nil {
-			multiConnectError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+			multiConnectFatalError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 			break
 		}
 
@@ -414,14 +417,23 @@ func (w *Websocket) Connect() error {
 
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
-			multiConnectError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
+			multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
 			break
+		}
+
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
+				w.exchangeName,
+				i+1,
+				conn.URL,
+				len(subs))
 		}
 
 		w.connectionManager[i].Connection = conn
 	}
 
-	if multiConnectError != nil {
+	if multiConnectFatalError != nil {
+		// Roll back any successful connections and flush subscriptions
 		for conn, candidate := range w.connections {
 			if err := conn.Shutdown(); err != nil {
 				log.Errorln(log.WebsocketMgr, err)
@@ -429,9 +441,14 @@ func (w *Websocket) Connect() error {
 			candidate.Subscriptions.Clear()
 		}
 		clear(w.connections)
-		w.setState(disconnectedState)
-		return multiConnectError
+		w.setState(disconnectedState) // Flip from connecting to disconnected.
+		return multiConnectFatalError
 	}
+
+	// Assume connected state here. All connections have been established.
+	// All subscriptions have been sent and stored. All data received is being
+	// handled by the appropriate data handler.
+	w.setState(connectedState)
 
 	if !w.IsConnectionMonitorRunning() {
 		err := w.connectionMonitor()
