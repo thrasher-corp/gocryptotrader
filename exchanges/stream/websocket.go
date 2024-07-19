@@ -559,8 +559,8 @@ func (w *Websocket) connectionMonitor() error {
 				}
 				// Speedier reconnection, instead of waiting for the next cycle.
 				if w.IsEnabled() && (!w.IsConnected() && !w.IsConnecting()) {
-					if err := w.Connect(); err != nil {
-						log.Errorln(log.WebsocketMgr, err)
+					if connectErr := w.Connect(); connectErr != nil {
+						log.Errorln(log.WebsocketMgr, connectErr)
 					}
 				}
 				w.DataHandler <- err // hand over the error to the data handler (shutdown and reconnection is priority)
