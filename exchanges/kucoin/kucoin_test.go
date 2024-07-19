@@ -2009,9 +2009,7 @@ func init() {
 		{"ETH", "BTC", "-"}, {"LTC", "USDT", "-"}, {"SOL", "USDC", "-"}, {"TRX", "BTC", "-"}, // Margin
 		{"ETH", "USDCM", ""}, {"SOL", "USDTM", ""}, {"XBT", "USDCM", ""}, // Futures
 	} {
-		pair := currency.NewPairWithDelimiter(pp[0], pp[1], pp[2])
-		pair.Delimiter = pp[2]
-		subPairs = append(subPairs, pair)
+		subPairs = append(subPairs, currency.NewPairWithDelimiter(pp[0], pp[1], pp[2]))
 	}
 }
 
