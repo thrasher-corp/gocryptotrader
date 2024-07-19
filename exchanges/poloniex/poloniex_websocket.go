@@ -519,6 +519,10 @@ func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.List) ([]SubscriptionPayload, error) {
+	pairFormat, err := p.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
 	payloads := []SubscriptionPayload{}
 	for x := range subscs {
 		switch subscs[x].Channel {
@@ -526,7 +530,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.Lis
 			sp := SubscriptionPayload{
 				Event:   operation,
 				Channel: []string{subscs[x].Channel},
-				Symbols: subscs[x].Pairs.Strings(),
+				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
 			}
 			if subscs[x].Channel == cnlBooks {
 				depth, okay := subscs[x].Params["depth"]
@@ -560,7 +564,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.Lis
 			payloads = append(payloads, SubscriptionPayload{
 				Event:   operation,
 				Channel: []string{channelName},
-				Symbols: subscs[x].Pairs.Strings(),
+				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
 			})
 		case cnlOrders:
 			payloads = append(payloads, SubscriptionPayload{
