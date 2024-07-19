@@ -406,7 +406,7 @@ func TestDisablePair(t *testing.T) {
 
 	p = initTest(t)
 	err = p.DisablePair(asset.CoinMarginedFutures, EMPTYPAIR)
-	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Non-existant asset type should error")
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Non-existent asset type should error")
 
 	p.Pairs[asset.Spot] = nil
 	err = p.DisablePair(asset.Spot, EMPTYPAIR)
