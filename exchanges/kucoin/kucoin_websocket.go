@@ -993,29 +993,23 @@ func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
 	return ku.Features.Subscriptions.ExpandTemplates(ku)
 }
 
-var subTemplate *template.Template
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
-	var err error
-	if subTemplate == nil {
-		spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
-		subTemplate, err = template.New("master.tmpl").
-			Funcs(template.FuncMap{
-				"channelName": channelName,
-				"removeSpotFromMargin": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
-					return removeSpotFromMargin(s, ap, spotPairs)
-				},
-				"isCurrencyChannel":     isCurrencyChannel,
-				"isSymbolChannel":       isSymbolChannel,
-				"channelInterval":       channelInterval,
-				"assetCurrencies":       assetCurrencies,
-				"joinPairsWithInterval": joinPairsWithInterval,
-				"batch":                 common.Batch[currency.Pairs],
-			}).
-			Parse(subTplText)
-	}
-	return subTemplate, err
+	return template.New("master.tmpl").
+		Funcs(template.FuncMap{
+			"channelName": channelName,
+			"removeSpotFromMargin": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
+				spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
+				return removeSpotFromMargin(s, ap, spotPairs)
+			},
+			"isCurrencyChannel":     isCurrencyChannel,
+			"isSymbolChannel":       isSymbolChannel,
+			"channelInterval":       channelInterval,
+			"assetCurrencies":       assetCurrencies,
+			"joinPairsWithInterval": joinPairsWithInterval,
+			"batch":                 common.Batch[currency.Pairs],
+		}).
+		Parse(subTplText)
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation
