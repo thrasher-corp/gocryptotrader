@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -1973,32 +1972,6 @@ func TestPushData(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
-}
-
-func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
-	tb.Helper()
-	var sub *subscription.Subscription
-	for i, s := range subs {
-		if s.Asset == a && strings.HasPrefix(s.QualifiedChannel, prefix) {
-			if len(expected) == 1 && !strings.Contains(s.QualifiedChannel, expected[0]) {
-				continue
-			}
-			if sub != nil {
-				assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
-				return
-			}
-			sub = subs[i]
-		}
-	}
-	if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
-		suffix := strings.TrimPrefix(sub.QualifiedChannel, prefix)
-		if len(expected) == 0 {
-			assert.Empty(tb, suffix, "Sub for asset %s with prefix %s should have no symbol suffix", a.String(), prefix)
-		} else {
-			currs := strings.Split(suffix, ",")
-			assert.ElementsMatch(tb, currs, expected, "Currencies should match in sub for asset %s with prefix %s", a.String(), prefix)
-		}
-	}
 }
 
 var subPairs currency.Pairs
