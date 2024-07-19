@@ -532,8 +532,7 @@ func (w *Websocket) connectionMonitor() error {
 			}
 			select {
 			case err := <-w.ReadMessageErrors:
-				w.DataHandler <- err
-				if IsDisconnectionError(err) {
+				if errors.Is(err, errConnectionFault) {
 					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
 					if w.IsConnected() {
 						if shutdownErr := w.Shutdown(); shutdownErr != nil {
@@ -541,6 +540,13 @@ func (w *Websocket) connectionMonitor() error {
 						}
 					}
 				}
+				// Speedier reconnection, instead of waiting for the next cycle.
+				if w.IsEnabled() && (!w.IsConnected() && !w.IsConnecting()) {
+					if err := w.Connect(); err != nil {
+						log.Errorln(log.WebsocketMgr, err)
+					}
+				}
+				w.DataHandler <- err // hand over the error to the data handler (shutdown and reconnection is priority)
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
 					err := w.Connect()

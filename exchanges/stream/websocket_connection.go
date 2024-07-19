@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -19,6 +20,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// errConnectionFault is a connection fault error which alerts the system that a
+// connection cycle needs to take place.
+var errConnectionFault = errors.New("connection fault")
 
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
@@ -57,35 +62,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
-	if w.ProxyURL != "" {
-		proxy, err := url.Parse(w.ProxyURL)
-		if err != nil {
-			return err
-		}
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	var conStatus *http.Response
-	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
-	if err != nil {
-		if conStatus != nil {
-			_ = conStatus.Body.Close()
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
-		}
-		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
-	}
-	_ = conStatus.Body.Close()
-
-	if w.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
-	}
-	select {
-	case w.Traffic <- struct{}{}:
-	default:
-	}
-	w.setConnectedStatus(true)
-	return nil
+	return w.DialContext(context.Background(), dialer, headers)
 }
 
 // DialContext sets proxy urls and then connects to the websocket
@@ -231,23 +208,22 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	}
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		if IsDisconnectionError(err) {
-			if w.setConnectedStatus(false) {
-				// NOTE: When w.setConnectedStatus() returns true the underlying
-				// state was changed and this infers that the connection was
-				// externally closed and an error is reported else Shutdown()
-				// method on WebsocketConnection type has been called and can
-				// be skipped.
-				select {
-				case w.readMessageErrors <- err:
-				default:
-					// bypass if there is no receiver, as this stops it returning
-					// when shutdown is called.
-					log.Warnf(log.WebsocketMgr,
-						"%s failed to relay error: %v",
-						w.ExchangeName,
-						err)
-				}
+		// Any error condition will return nil response which will return the
+		// reader routine and the connection will hang with no readers. This has
+		// to be handed over to w.readMessageErrors if there is an active
+		// connection.
+		if w.setConnectedStatus(false) {
+			// NOTE: When w.setConnectedStatus() returns true the underlying
+			// state was changed and this infers that the connection was
+			// externally closed and an error is reported else Shutdown()
+			// method on WebsocketConnection type has been called and can
+			// be skipped.
+			select {
+			case w.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			default:
+				// bypass if there is no receiver, as this stops it returning
+				// when shutdown is called.
+				log.Warnf(log.WebsocketMgr, "%s failed to relay error: %v", w.ExchangeName, err)
 			}
 		}
 		return Response{}
@@ -265,18 +241,12 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
-				"%v websocket connection: parseBinaryResponse error: %v",
-				w.ExchangeName,
-				err)
-			return Response{}
+			log.Errorf(log.WebsocketMgr, "%v websocket connection: parseBinaryResponse error: %v", w.ExchangeName, err)
+			return Response{Raw: []byte(``)} // Non-nil response to avoid the reader returning on this case.
 		}
 	}
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection: message received: %v",
-			w.ExchangeName,
-			string(standardMessage))
+		log.Debugf(log.WebsocketMgr, "%v websocket connection: message received: %v", w.ExchangeName, string(standardMessage))
 	}
 	return Response{Raw: standardMessage, Type: mType}
 }
