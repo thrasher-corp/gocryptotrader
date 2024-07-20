@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -146,7 +147,7 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    int64
+	RateLimit    *request.RateLimiterWithWeight
 	ExchangeName string
 	URL          string
 	ProxyURL     string

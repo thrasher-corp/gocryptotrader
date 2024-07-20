@@ -921,9 +921,9 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
 			if authenticatedChannelSubscription {
-				err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
+				err = o.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequest)
 			} else {
-				err = o.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+				err = o.Websocket.Conn.SendJSONMessage(context.TODO(), subscriptionRequest)
 			}
 			if err != nil {
 				return err
@@ -964,12 +964,12 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 		}
 	}
 	if len(subscriptionRequest.Arguments) > 0 {
-		if err := o.Websocket.Conn.SendJSONMessage(subscriptionRequest); err != nil {
+		if err := o.Websocket.Conn.SendJSONMessage(context.TODO(), subscriptionRequest); err != nil {
 			return err
 		}
 	}
 	if len(authRequest.Arguments) > 0 {
-		if err := o.Websocket.AuthConn.SendJSONMessage(authRequest); err != nil {
+		if err := o.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequest); err != nil {
 			return err
 		}
 	}
