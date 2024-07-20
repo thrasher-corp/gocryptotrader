@@ -363,8 +363,6 @@ func (w *Websocket) Connect() error {
 	var m sync.Mutex
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(w.connectionManager))
-
 	fmt.Println("starting all conns")
 
 	subResult := make(map[Connection]subscription.List)
@@ -424,6 +422,7 @@ func (w *Websocket) Connect() error {
 		w.connectionManager[i].Connection = conn
 		w.connections[conn] = &w.connectionManager[i]
 
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)

@@ -2,7 +2,8 @@ package subscription
 
 import "sync"
 
-// Result stores the result of a subscription request
+// Result stores the result of a subscription request, this is helpful when
+// you need concurrent subscription requests and need to know which ones failed.
 type Result struct {
 	store map[*Subscription]error
 	m     sync.Mutex
@@ -10,6 +11,9 @@ type Result struct {
 
 // Add adds a subscription to the result store
 func (r *Result) Add(sub *Subscription, err error) {
+	if r == nil || sub == nil {
+		return
+	}
 	r.m.Lock()
 	defer r.m.Unlock()
 	if r.store == nil {
@@ -20,6 +24,9 @@ func (r *Result) Add(sub *Subscription, err error) {
 
 // GetSuccessful returns a list of successful subscriptions
 func (r *Result) GetSuccessful() List {
+	if r == nil {
+		return List{}
+	}
 	r.m.Lock()
 	defer r.m.Unlock()
 	list := make(List, 0, len(r.store))
@@ -34,6 +41,9 @@ func (r *Result) GetSuccessful() List {
 
 // GetUnsuccessful returns a map of failed subscriptions
 func (r *Result) GetUnsuccessful() map[*Subscription]error {
+	if r == nil {
+		return make(map[*Subscription]error)
+	}
 	r.m.Lock()
 	defer r.m.Unlock()
 	out := make(map[*Subscription]error)
@@ -43,5 +53,5 @@ func (r *Result) GetUnsuccessful() map[*Subscription]error {
 		}
 		out[sub] = err
 	}
-	return r.store
+	return out
 }

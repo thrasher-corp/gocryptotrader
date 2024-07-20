@@ -60,6 +60,9 @@ var defaultSubscriptions = []string{
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
+// PayloadGenerator defines a function to generate payloads for outbound subscriptions
+type PayloadGenerator func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
 // WsConnectSpot initiates a websocket connection
 func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
@@ -674,8 +677,6 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	}
 	return subscriptions, nil
 }
-
-type PayloadGenerator func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload PayloadGenerator) (*subscription.Result, error) {
