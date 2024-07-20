@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -359,11 +360,16 @@ func (w *Websocket) Connect() error {
 	// multiConnectFatalError is a fatal error that will cause all connections to
 	// be shutdown and the websocket to be disconnected.
 	var multiConnectFatalError error
+	var errMtx sync.Mutex
 
-	// TODO: Implement concurrency below.
+	wg := sync.WaitGroup{}
+	wg.Add(len(w.connectionManager))
+
 	for i := range w.connectionManager {
 		if w.connectionManager[i].Setup.GenerateSubscriptions == nil {
+			errMtx.Lock()
 			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+			errMtx.Unlock()
 			break
 		}
 
@@ -375,7 +381,9 @@ func (w *Websocket) Connect() error {
 				}
 				continue // Non-fatal error, we can continue to the next connection
 			}
+			errMtx.Lock()
 			multiConnectFatalError = fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+			errMtx.Unlock()
 			break
 		}
 
@@ -388,48 +396,59 @@ func (w *Websocket) Connect() error {
 		}
 
 		if w.connectionManager[i].Setup.Connector == nil {
+			errMtx.Lock()
 			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errNoConnectFunc)
+			errMtx.Unlock()
 			break
 		}
 		if w.connectionManager[i].Setup.Handler == nil {
+			errMtx.Lock()
 			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketDataHandlerUnset)
+			errMtx.Unlock()
 			break
 		}
 		if w.connectionManager[i].Setup.Subscriber == nil {
+			errMtx.Lock()
 			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriberUnset)
+			errMtx.Unlock()
 			break
 		}
 
 		// TODO: Add window for max subscriptions per connection, to spawn new connections if needed.
 
 		conn := w.getConnectionFromSetup(w.connectionManager[i].Setup)
-
-		err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)
-		if err != nil {
-			multiConnectFatalError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
-			break
-		}
-
-		w.Wg.Add(1)
-		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
-
+		w.connectionManager[i].Connection = conn
 		w.connections[conn] = &w.connectionManager[i]
 
-		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
-		if err != nil {
-			multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
-			break
-		}
+		go func() {
+			err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)
+			if err != nil {
+				errMtx.Lock()
+				multiConnectFatalError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+				errMtx.Unlock()
+				return
+			}
 
-		if w.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
-				w.exchangeName,
-				i+1,
-				conn.URL,
-				len(subs))
-		}
+			w.Wg.Add(1)
+			go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
 
-		w.connectionManager[i].Connection = conn
+			defer wg.Done()
+			err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
+			if err != nil {
+				errMtx.Lock()
+				multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
+				errMtx.Unlock()
+				return
+			}
+
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
+					w.exchangeName,
+					i+1,
+					conn.URL,
+					len(subs))
+			}
+		}()
 	}
 
 	if multiConnectFatalError != nil {
