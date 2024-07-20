@@ -54,11 +54,11 @@ type ConnectionSetup struct {
 	// Subscriber is a function that will be called to send subscription
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.
-	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) error
+	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) (*subscription.Result, error)
 	// Unsubscriber is a function that will be called to send unsubscription
 	// messages based on the exchange's websocket server requirements to
 	// unsubscribe from specific channels. NOTE: IF THE FEATURE IS ENABLED.
-	Unsubscriber func(ctx context.Context, conn Connection, unsub subscription.List) error
+	Unsubscriber func(ctx context.Context, conn Connection, unsub subscription.List) (*subscription.Result, error)
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.

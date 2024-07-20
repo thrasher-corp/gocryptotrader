@@ -11,10 +11,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -675,38 +675,40 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	return subscriptions, nil
 }
 
+type PayloadGenerator func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(ctx, conn, event, channelsToSubscribe)
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload PayloadGenerator) (*subscription.Result, error) {
+	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var errs error
-	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if payloads[k].Event == subscribeEvent {
-				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
-			} else {
-				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
-			}
+
+	var result subscription.Result
+	var wg sync.WaitGroup
+	wg.Add(len(payloads))
+	for i := range payloads {
+		go func(sub *subscription.Subscription, out *WsInput) {
+			defer wg.Done()
+			response, err := conn.SendMessageReturnResponse(out.ID, out)
 			if err != nil {
-				errs = common.AppendError(errs, err)
+				result.Add(sub, err)
+				return
 			}
-		}
+			var resp WsEventResponse
+			err = json.Unmarshal(response, &resp)
+			if err != nil {
+				result.Add(sub, err)
+				return
+			}
+			if resp.Error != nil && resp.Error.Code != 0 {
+				result.Add(sub, fmt.Errorf("error while %s to channel %s error code: %d message: %s", out.Event, out.Channel, resp.Error.Code, resp.Error.Message))
+				return
+			}
+			result.Add(sub, nil)
+		}(channelsToSubscribe[i], &payloads[i])
 	}
-	return errs
+	return &result, nil
 }
 
 func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
@@ -829,13 +831,13 @@ func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, ev
 }
 
 // SpotSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
+func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) (*subscription.Result, error) {
+	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generatePayload)
 }
 
 // SpotUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
+func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) (*subscription.Result, error) {
+	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generatePayload)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
