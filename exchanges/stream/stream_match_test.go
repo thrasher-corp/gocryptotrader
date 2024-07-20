@@ -1,50 +1,42 @@
 package stream
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMatch(t *testing.T) {
 	t.Parallel()
-	bm := &Match{}
-	if bm.Incoming("wow") {
-		t.Fatal("Should not have matched")
-	}
-
 	nm := NewMatch()
-	// try to match with unset signature
-	if nm.Incoming("hello") {
-		t.Fatal("should not be able to match")
-	}
+	require.False(t, nm.Incoming("wow"))
 
-	m, err := nm.Set("hello")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// try to match with unset signature
+	require.False(t, nm.Incoming("hello"))
+
+	ch, err := nm.Set("hello")
+	require.NoError(t, err)
 
 	_, err = nm.Set("hello")
-	if err == nil {
-		t.Fatal("error cannot be nil as this collision cannot occur")
-	}
-
-	if m.sig != "hello" {
-		t.Fatal(err)
-	}
+	require.ErrorIs(t, err, errSignatureCollision)
 
 	// try and match with initial payload
-	if !nm.Incoming("hello") {
-		t.Fatal("should of matched")
-	}
+	require.True(t, nm.Incoming("hello"))
+	require.Nil(t, <-ch)
 
 	// put in secondary payload with conflicting signature
-	if nm.Incoming("hello") {
-		fmt.Println("should not have been able to match")
-	}
+	require.False(t, nm.Incoming("hello"))
 
-	if data := <-m.C; data != nil {
-		t.Fatal("data chan should be nil")
-	}
+	ch, err = nm.Set("hello")
+	require.NoError(t, err)
 
-	m.Cleanup()
+	expected := []byte("payload")
+	require.True(t, nm.IncomingWithData("hello", expected))
+
+	require.Equal(t, expected, <-ch)
+
+	_, err = nm.Set("purge me")
+	require.NoError(t, err)
+	nm.RemoveSignature("purge me")
+	require.False(t, nm.IncomingWithData("purge me", expected))
 }

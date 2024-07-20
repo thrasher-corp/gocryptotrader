@@ -21,42 +21,46 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// errConnectionFault is a connection fault error which alerts the system that a
-// connection cycle needs to take place.
-var errConnectionFault = errors.New("connection fault")
+var (
+	// errConnectionFault is a connection fault error which alerts the system that a
+	// connection cycle needs to take place.
+	errConnectionFault = errors.New("connection fault")
+	errMatchTimeout    = errors.New("websocket connection: timeout waiting for response with signature")
+)
 
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
-func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
-	m, err := w.Match.Set(signature)
-	if err != nil {
-		return nil, err
-	}
-	defer m.Cleanup()
-
-	b, err := json.Marshal(request)
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, request interface{}) ([]byte, error) {
+	outbound, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
 	}
 
+	ch, err := w.Match.Set(signature)
+	if err != nil {
+		return nil, err
+	}
+
 	start := time.Now()
-	err = w.SendRawMessage(websocket.TextMessage, b)
+	err = w.SendRawMessage(websocket.TextMessage, outbound)
 	if err != nil {
 		return nil, err
 	}
 
 	timer := time.NewTimer(w.ResponseMaxLimit)
-
 	select {
-	case payload := <-m.C:
+	case payload := <-ch:
+		timer.Stop()
 		if w.Reporter != nil {
-			w.Reporter.Latency(w.ExchangeName, b, time.Since(start))
+			w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 		}
-
 		return payload, nil
 	case <-timer.C:
-		timer.Stop()
-		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
+		w.Match.RemoveSignature(signature)
+		return nil, fmt.Errorf("%s %w: %v", w.ExchangeName, errMatchTimeout, signature)
+	case <-ctx.Done():
+		w.Match.RemoveSignature(signature)
+		return nil, ctx.Err()
 	}
 }
 

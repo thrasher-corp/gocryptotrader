@@ -690,7 +690,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	for i := range payloads {
 		go func(sub *subscription.Subscription, out *WsInput) {
 			defer wg.Done()
-			response, err := conn.SendMessageReturnResponse(out.ID, out)
+			response, err := conn.SendMessageReturnResponse(ctx, out.ID, out)
 			if err != nil {
 				result.Add(sub, err)
 				return

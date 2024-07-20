@@ -20,7 +20,7 @@ type Connection interface {
 	SendJSONMessage(interface{}) error
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(highPrecision bool) int64
-	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
 	SetProxy(string)
