@@ -25,7 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1356,4 +1358,37 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	b := new(Bitmex)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+
+	p := currency.Pairs{
+		currency.NewPair(currency.ETH, currency.USD),
+		currency.NewPair(currency.BCH, currency.NewCode("Z19")),
+	}
+
+	exp := subscription.List{
+		{QualifiedChannel: bitmexWSAnnouncement, Channel: bitmexWSAnnouncement},
+		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[1].String(), Channel: bitmexWSOrderbookL2, Asset: asset.Futures, Pairs: p[1:2]},
+		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[0].String(), Channel: bitmexWSOrderbookL2, Asset: asset.PerpetualContract, Pairs: p[:1]},
+		{QualifiedChannel: bitmexWSTrade + ":" + p[1].String(), Channel: bitmexWSTrade, Asset: asset.Futures, Pairs: p[1:2]},
+		{QualifiedChannel: bitmexWSTrade + ":" + p[0].String(), Channel: bitmexWSTrade, Asset: asset.PerpetualContract, Pairs: p[:1]},
+		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
+		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
+		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
+		{QualifiedChannel: bitmexWSPrivateNotifications, Channel: bitmexWSPrivateNotifications, Authenticated: true},
+		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
+		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
+		{QualifiedChannel: bitmexWSExecution + ":" + p[0].String(), Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
+		{QualifiedChannel: bitmexWSPosition + ":" + p[0].String(), Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
+	}
+
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	testsubs.EqualLists(t, exp, subs)
 }
