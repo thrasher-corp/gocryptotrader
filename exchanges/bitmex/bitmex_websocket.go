@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -66,9 +67,18 @@ const (
 	bitmexActionUpdateData  = "update"
 )
 
-var subscriptionNames = map[string]string{
-	subscription.OrderbookChannel: bitmexWSOrderbookL2,
-	subscription.AllTradesChannel: bitmexWSTrade,
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Channel: bitmexWSAnnouncement},
+	{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+	{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+	{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+	{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+	{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+	{Enabled: true, Channel: bitmexWSPrivateNotifications, Authenticated: true},
+	{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+	{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+	{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+	{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
 }
 
 // WsConnect initiates a new websocket connection
@@ -543,50 +553,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 	return nil
 }
 
-// generateSubscriptions returns Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (b *Bitmex) generateSubscriptions() (subscription.List, error) {
-	authed := b.Websocket.CanUseAuthenticatedEndpoints()
+	return b.Features.Subscriptions.ExpandTemplates(b)
+}
 
-	assetPairs := map[asset.Item]currency.Pairs{}
-	for _, a := range b.GetAssetTypes(true) {
-		p, err := b.GetEnabledPairs(a)
-		if err != nil {
-			return nil, err
-		}
-		f, err := b.GetPairFormat(a, true)
-		if err != nil {
-			return nil, err
-		}
-		assetPairs[a] = p.Format(f)
-	}
-
-	subs := subscription.List{}
-	for _, baseSub := range b.Features.Subscriptions {
-		if !authed && baseSub.Authenticated {
-			continue
-		}
-
-		if baseSub.Asset == asset.Empty {
-			// Skip pair handling for subs which don't have an asset
-			subs = append(subs, baseSub.Clone())
-			continue
-		}
-
-		for a, p := range assetPairs {
-			if baseSub.Channel == bitmexWSOrderbookL2 && a == asset.Index {
-				continue // There are no L2 orderbook for index assets
-			}
-			if baseSub.Asset != asset.All && baseSub.Asset != a {
-				continue
-			}
-			s := baseSub.Clone()
-			s.Asset = a
-			s.Pairs = p
-			subs = append(subs, s)
-		}
-	}
-
-	return subs, nil
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *Bitmex) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName": channelName,
+	}).Parse(subTplText)
 }
 
 // Subscribe subscribes to a websocket channel
@@ -595,9 +571,8 @@ func (b *Bitmex) Subscribe(subs subscription.List) error {
 		Command: "subscribe",
 	}
 	for _, s := range subs {
-		for _, p := range s.Pairs {
-			cName := channelName(s.Channel)
-			req.Arguments = append(req.Arguments, cName+":"+p.String())
+		for _, a := range strings.Split(s.QualifiedChannel, ",") {
+			req.Arguments = append(req.Arguments, a)
 		}
 	}
 	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
@@ -612,11 +587,9 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 	req := WebsocketRequest{
 		Command: "unsubscribe",
 	}
-
 	for _, s := range subs {
-		for _, p := range s.Pairs {
-			cName := channelName(s.Channel)
-			req.Arguments = append(req.Arguments, cName+":"+p.String())
+		for _, a := range strings.Split(s.QualifiedChannel, ",") {
+			req.Arguments = append(req.Arguments, a)
 		}
 	}
 	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
@@ -624,15 +597,6 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
 	}
 	return err
-}
-
-// channelName converts global channel Names used in config of channel input into bitmex channel names
-// returns the name unchanged if no match is found
-func channelName(name string) string {
-	if s, ok := subscriptionNames[name]; ok {
-		return s
-	}
-	return name
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -652,10 +616,10 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	}
 	signature := crypto.HexEncodeToString(hmac)
 
-	var sendAuth WebsocketRequest
-	sendAuth.Command = "authKeyExpires"
-	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
-		signature)
+	sendAuth := WebsocketRequest{
+		Command:   "authKeyExpires",
+		Arguments: []any{creds.Key, timestamp, signature},
+	}
 	err = b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -678,3 +642,33 @@ func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
 	}
 	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }
+
+// channelName returns the correct channel name for the asset
+func channelName(s *subscription.Subscription, a asset.Item) string {
+	switch s.Channel {
+	case subscription.OrderbookChannel:
+		if a == asset.Index {
+			return "" // There are no L2 orderbook for index assets
+		}
+		return bitmexWSOrderbookL2
+	case subscription.AllTradesChannel:
+		return bitmexWSTrade
+	}
+	return s.Channel
+}
+
+const subTplText = `
+{{- if $.S.Asset }}
+	{{ range $asset, $pairs := $.AssetPairs }}
+		{{- with $name := channelName $.S $asset }}
+			{{- range $i, $p := $pairs -}}
+				{{- if $i -}} , {{- end -}}
+				{{- $name -}} : {{- $p -}}
+			{{- end }}
+		{{- end }}
+		{{ $.AssetSeparator }}
+	{{- end }}
+{{- else -}}
+	{{ channelName $.S $.S.Asset }}
+{{- end }}
+`
