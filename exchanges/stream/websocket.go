@@ -361,12 +361,8 @@ func (w *Websocket) Connect() error {
 	// be shutdown and the websocket to be disconnected.
 	var multiConnectFatalError error
 	var m sync.Mutex
-
 	wg := sync.WaitGroup{}
-	fmt.Println("starting all conns")
-
 	subResult := make(map[Connection]subscription.List)
-
 	for i := range w.connectionManager {
 		if w.connectionManager[i].Setup.GenerateSubscriptions == nil {
 			m.Lock()
@@ -454,18 +450,17 @@ func (w *Websocket) Connect() error {
 			subResult[conn] = result.GetSuccessful()
 			m.Unlock()
 
-			// if w.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
-				w.exchangeName,
-				i+1,
-				conn.URL,
-				len(subs))
-			// }
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
+					w.exchangeName,
+					i+1,
+					conn.URL,
+					len(subs))
+			}
 		}()
 	}
 
 	wg.Wait()
-	fmt.Println("finished all conns")
 
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
@@ -475,9 +470,11 @@ func (w *Websocket) Connect() error {
 			}
 			candidate.Subscriptions.Clear()
 		}
+		close(w.ShutdownC)
 		w.Wg.Wait()
 		clear(w.connections)
 		w.setState(disconnectedState) // Flip from connecting to disconnected.
+		w.ShutdownC = make(chan struct{})
 		return multiConnectFatalError
 	}
 
