@@ -173,6 +173,7 @@ var (
 // Gateio is the overarching type across this package
 type Gateio struct {
 	exchange.Base
+	Counter common.Counter
 }
 
 // ***************************************** SubAccounts ********************************

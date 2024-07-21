@@ -196,11 +196,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 			case <-ticker.C:
 				err := w.SendRawMessage(context.TODO(), handler.MessageType, handler.Message)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%v websocket connection: ping handler failed to send message [%s]",
-						w.ExchangeName,
-						handler.Message)
-					return
+					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]", w.ExchangeName, handler.Message)
 				}
 			}
 		}

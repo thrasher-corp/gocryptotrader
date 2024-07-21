@@ -475,6 +475,7 @@ func (w *Websocket) Connect() error {
 			}
 			candidate.Subscriptions.Clear()
 		}
+		w.Wg.Wait()
 		clear(w.connections)
 		w.setState(disconnectedState) // Flip from connecting to disconnected.
 		return multiConnectFatalError

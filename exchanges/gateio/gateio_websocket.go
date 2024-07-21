@@ -805,7 +805,7 @@ func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, ev
 		}
 
 		payload := WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      g.Counter.Get(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

@@ -47,7 +47,7 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn stream.Conne
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      g.Counter.Get(),
 		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: futuresPingChannel,
 	})
@@ -201,7 +201,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn stream
 			}
 		}
 		outbound = append(outbound, WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      g.Counter.Get(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
