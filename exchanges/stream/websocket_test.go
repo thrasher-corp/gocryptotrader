@@ -1448,11 +1448,7 @@ func TestCheckSubscriptions(t *testing.T) {
 
 // websocketServerMockEcho is a mock websocket server that echos messages back to the client
 func websocketServerMockEcho(w http.ResponseWriter, r *http.Request) {
-	var upgrader = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
+	upgrader := websocket.Upgrader{CheckOrigin: func(_ *http.Request) bool { return true }}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
