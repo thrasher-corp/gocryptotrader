@@ -92,7 +92,7 @@ func NewWebsocket() *Websocket {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		connections:       make(map[Connection]*ConnectionCandidate),
+		connections:       make(map[Connection]*ConnectionWrapper),
 	}
 }
 
@@ -257,7 +257,7 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 			}
 		}
 
-		w.connectionManager = append(w.connectionManager, ConnectionCandidate{
+		w.connectionManager = append(w.connectionManager, ConnectionWrapper{
 			Setup:         c,
 			Subscriptions: subscription.NewStore(),
 		})
@@ -410,10 +410,16 @@ func (w *Websocket) Connect() error {
 			break
 		}
 
+		w.connections[conn] = &w.connectionManager[i]
+		w.connectionManager[i].Connection = conn
+
+		if !conn.IsConnected() {
+			multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn.URL)
+			break
+		}
+
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
-
-		w.connections[conn] = &w.connectionManager[i]
 
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
@@ -428,17 +434,18 @@ func (w *Websocket) Connect() error {
 				conn.URL,
 				len(subs))
 		}
-
-		w.connectionManager[i].Connection = conn
 	}
 
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
-		for conn, candidate := range w.connections {
-			if err := conn.Shutdown(); err != nil {
-				log.Errorln(log.WebsocketMgr, err)
+		for x := range w.connectionManager {
+			if w.connectionManager[x].Connection != nil {
+				if err := w.connectionManager[x].Connection.Shutdown(); err != nil {
+					log.Errorln(log.WebsocketMgr, err)
+				}
+				w.connectionManager[x].Connection = nil
 			}
-			candidate.Subscriptions.Clear()
+			w.connectionManager[x].Subscriptions.Clear()
 		}
 		clear(w.connections)
 		w.setState(disconnectedState) // Flip from connecting to disconnected.
@@ -731,7 +738,7 @@ func (w *Websocket) FlushChannels() error {
 			}
 			if len(newsubs) != 0 {
 				// Purge subscription list as there will be conflicts
-				w.connections[w.connectionManager[x].Connection].Subscriptions.Clear()
+				w.connectionManager[x].Subscriptions.Clear()
 				err = w.SubscribeToChannels(w.connectionManager[x].Connection, newsubs)
 				if err != nil {
 					return err

@@ -65,10 +65,10 @@ type ConnectionSetup struct {
 	Handler func(ctx context.Context, incoming []byte) error
 }
 
-// ConnectionCandidate contains the connection setup details to be used when
+// ConnectionWrapper contains the connection setup details to be used when
 // attempting a new connection. It also contains the subscriptions that are
 // associated with the specific connection.
-type ConnectionCandidate struct {
+type ConnectionWrapper struct {
 	// Setup contains the connection setup details
 	Setup *ConnectionSetup
 	// Subscriptions contains the subscriptions that are associated with the

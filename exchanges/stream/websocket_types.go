@@ -50,12 +50,12 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
-	// ConnectionManager contains the connection candidates and the current
+	// connectionWrapper contains the connection wrappers and the current
 	// connections
-	connectionManager []ConnectionCandidate
+	connectionManager []ConnectionWrapper
 	// Connections contains the current connections with their associated
 	// connection candidates
-	connections map[Connection]*ConnectionCandidate
+	connections map[Connection]*ConnectionWrapper
 
 	subscriptions *subscription.Store
 

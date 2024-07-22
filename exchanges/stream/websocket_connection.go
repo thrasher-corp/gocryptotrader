@@ -203,15 +203,14 @@ func (w *WebsocketConnection) IsConnected() bool {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() Response {
-	if w.Connection == nil {
-		return Response{}
-	}
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		// Any error condition will return nil response which will return the
-		// reader routine and the connection will hang with no readers. This has
-		// to be handed over to w.readMessageErrors if there is an active
-		// connection.
+		// Any error condition will return a Response{Raw: nil, Type: 0} which
+		// will force the reader routine to return. The connection will hang
+		// with no reader routine and its buffer will be written to from the
+		// active websocket connection. This should be handed over to
+		// `w.readMessageErrors` and managed by 'connectionMonitor' which needs
+		// to flush, reconnect and resubscribe the connection.
 		if w.setConnectedStatus(false) {
 			// NOTE: When w.setConnectedStatus() returns true the underlying
 			// state was changed and this infers that the connection was
@@ -293,7 +292,11 @@ func (w *WebsocketConnection) Shutdown() error {
 		return nil
 	}
 	w.setConnectedStatus(false)
-	return w.Connection.UnderlyingConn().Close()
+	w.writeControl.Lock()
+	defer w.writeControl.Unlock()
+	defer w.Connection.NetConn().Close() // Ungraceful close as backup
+	// Gracefully close the connection
+	return w.Connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 }
 
 // SetURL sets connection URL
