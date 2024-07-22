@@ -660,11 +660,16 @@ func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 	if batchSize <= 0 || len(blobs) == 0 {
 		return []S{}
 	}
-	batches := make([]S, 0, (len(blobs)+batchSize-1)/batchSize)
+	i := 0
+	batches := make([]S, (len(blobs)+batchSize-1)/batchSize)
 	for batchSize < len(blobs) {
-		blobs, batches = blobs[batchSize:], append(batches, blobs[:batchSize:batchSize])
+		blobs, batches[i] = blobs[batchSize:], blobs[:batchSize:batchSize]
+		i++
 	}
-	return append(batches, blobs)
+	if len(blobs) > 0 {
+		batches[i] = blobs
+	}
+	return batches
 }
 
 // SortStrings takes a slice of fmt.Stringer implementers and returns a new sorted slice
