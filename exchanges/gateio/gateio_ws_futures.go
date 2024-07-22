@@ -52,7 +52,6 @@ var defaultFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
 	futuresOrderbookChannel,
-	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
 
@@ -125,7 +124,9 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			params := make(map[string]interface{})
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
-				params["limit"] = 100
+				// Level is set to 10 as it's the most stable, anything larger with a lot of subscripted books will start producing errors
+				// TODO: Investigate root cause of this issue (gorrilla websocket or exchange)
+				params["limit"] = 10
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin

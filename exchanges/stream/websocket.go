@@ -428,6 +428,7 @@ func (w *Websocket) Connect() error {
 				m.Unlock()
 				return
 			}
+
 			w.Wg.Add(1)
 			go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
 

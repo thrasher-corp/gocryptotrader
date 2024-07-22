@@ -54,7 +54,7 @@ const (
 var defaultSubscriptions = []string{
 	spotTickerChannel,
 	spotCandlesticksChannel,
-	spotOrderbookTickerChannel,
+	spotOrderbookChannel,
 }
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
@@ -653,7 +653,9 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 			params := make(map[string]interface{})
 			switch channelsToSubscribe[i] {
 			case spotOrderbookChannel:
-				params["level"] = 100
+				// Level is set to 10 as it's the most stable, anything larger with a lot of subscripted books will start producing errors
+				// TODO: Investigate root cause of this issue (gorrilla websocket or exchange)
+				params["level"] = 10
 				params["interval"] = kline.HundredMilliseconds
 			case spotCandlesticksChannel:
 				params["interval"] = kline.FiveMin
@@ -708,6 +710,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 			result.Add(sub, nil)
 		}(channelsToSubscribe[i], &payloads[i])
 	}
+	wg.Wait()
 	return &result, nil
 }
 
