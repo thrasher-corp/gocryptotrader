@@ -662,7 +662,7 @@ func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 	}
 	batches := make([]S, 0, (len(blobs)+batchSize-1)/batchSize)
 	for batchSize < len(blobs) {
-		blobs, batches = blobs[batchSize:], append(batches, blobs[0:batchSize:batchSize])
+		blobs, batches = blobs[batchSize:], append(batches, blobs[:batchSize:batchSize])
 	}
 	return append(batches, blobs)
 }
