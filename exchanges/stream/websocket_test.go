@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -108,10 +109,15 @@ func (d *dodgyConnection) Connect() error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
+var mock *httptest.Server
+
 func TestMain(m *testing.M) {
 	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
 	trafficCheckInterval = 50 * time.Millisecond
-	os.Exit(m.Run())
+	mock = httptest.NewServer(http.HandlerFunc(websocketServerMockEcho))
+	r := m.Run()
+	mock.Close()
+	os.Exit(r)
 }
 
 func TestSetup(t *testing.T) {
@@ -360,7 +366,8 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
-	ws.connectionManager = []ConnectionCandidate{{Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}}}
+	ws.useMultiConnectionManagement = true
+	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
@@ -394,8 +401,8 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.connectionManager[0].Setup.Connector = func(context.Context, Connection) error {
-		return nil
+	ws.connectionManager[0].Setup.Connector = func(ctx context.Context, conn Connection) error {
+		return conn.DialContext(ctx, websocket.DefaultDialer, nil)
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
@@ -600,7 +607,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.connections = map[Connection]*ConnectionCandidate{
+	multi.connections = map[Connection]*ConnectionWrapper{
 		amazingConn: &multi.connectionManager[0],
 	}
 
@@ -1111,7 +1118,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.connections = map[Connection]*ConnectionCandidate{
+	w.connections = map[Connection]*ConnectionWrapper{
 		sweetConn: {Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
 	}
 
@@ -1311,17 +1318,7 @@ func TestSetupNewConnection(t *testing.T) {
 	// Test connection candidates for multi connection tracking.
 	multi := NewWebsocket()
 	set := *defaultSetup
-
-	// Values below are now not necessary as this will be set per connection
-	// candidate in SetupNewConnection.
 	set.UseMultiConnectionManagement = true
-	set.Connector = nil
-	set.Subscriber = nil
-	set.Unsubscriber = nil
-	set.GenerateSubscriptions = nil
-	set.DefaultURL = ""
-	set.RunningURL = ""
-
 	require.NoError(t, multi.Setup(&set))
 
 	connSetup := &ConnectionSetup{}
@@ -1456,4 +1453,33 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	err = ws.checkSubscriptions(nil, subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
+}
+
+// websocketServerMockEcho is a mock websocket server that echos messages back to the client
+func websocketServerMockEcho(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(_ *http.Request) bool { return true }}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Println("Upgrade error:", err)
+		return
+	}
+	defer conn.Close()
+
+	for {
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+				panic(err)
+			}
+			break
+		}
+		err = conn.WriteMessage(messageType, message)
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+				panic(err)
+			}
+			break
+		}
+	}
 }
