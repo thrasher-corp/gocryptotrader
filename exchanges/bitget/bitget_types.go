@@ -248,8 +248,8 @@ type ActiveVolumeResp struct {
 	} `json:"data"`
 }
 
-// PositionRatioResp holds information on position ratios
-type PositionRatioResp struct {
+// PosRatFutureResp holds information on position ratios
+type PosRatFutureResp struct {
 	Data []struct {
 		LongPositionRatio      float64       `json:"longPositionRatio,string"`
 		ShortPositionRatio     float64       `json:"shortPositionRatio,string"`
@@ -257,6 +257,33 @@ type PositionRatioResp struct {
 		Timestamp              UnixTimestamp `json:"ts"`
 	} `json:"data"`
 }
+
+// Type for an endpoint which doesn't work
+// // PosRatMarginResp holds information on position ratios in margin trading
+// type PosRatMarginResp struct {
+// 	Data []struct {
+// 		Timestamp      UnixTimestamp `json:"ts"`
+// 		LongShortRatio float64       `json:"longShortRatio,string"`
+// 	} `json:"data"`
+// }
+
+// Type for an endpoint which doesn't work
+// // LoanGrowthResp holds information on loan growth
+// type LoanGrowthResp struct {
+// 	Data []struct {
+// 		Timestamp  UnixTimestamp `json:"ts"`
+// 		GrowthRate float64       `json:"growthRate,string"`
+// 	} `json:"data"`
+// }
+
+// Type for an endpoint which doesn't work
+// // BorrowRatioResp holds information on borrowing ratios
+// type BorrowRatioResp struct {
+// 	Data []struct {
+// 		Timestamp  UnixTimestamp `json:"ts"`
+// 		BorrowRate float64       `json:"borrowRate,string"`
+// 	} `json:"data"`
+// }
 
 // RatioResp holds information on ratios
 type RatioResp struct {

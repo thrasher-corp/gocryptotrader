@@ -26,13 +26,16 @@ const (
 	bitgetAPIURL = "https://api.bitget.com/api/v2/"
 
 	// Public endpoints
-	bitgetPublic              = "public/"
-	bitgetAnnouncements       = "annoucements" // sic
-	bitgetTime                = "time"
-	bitgetMarket              = "market/"
-	bitgetWhaleNetFlow        = "whale-net-flow"
-	bitgetTakerBuySell        = "taker-buy-sell"
-	bitgetPositionLongShort   = "position-long-short"
+	bitgetPublic            = "public/"
+	bitgetAnnouncements     = "annoucements" // sic
+	bitgetTime              = "time"
+	bitgetMarket            = "market/"
+	bitgetWhaleNetFlow      = "whale-net-flow"
+	bitgetTakerBuySell      = "taker-buy-sell"
+	bitgetPositionLongShort = "position-long-short"
+	// bitgetLongShortRatio      = "long-short-ratio"
+	// bitgetLoanGrowth          = "loan-growth"
+	// bitgetIsolatedBorrowRate  = "isolated-borrow-rate"
 	bitgetLongShort           = "long-short"
 	bitgetFundFlow            = "fund-flow"
 	bitgetSupportSymbols      = "support-symbols"
@@ -268,6 +271,7 @@ var (
 	errOrderNotFound                 = errors.New("order not found")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
+	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -487,7 +491,6 @@ func (bi *Bitget) GetFuturesActiveVolume(ctx context.Context, pair, period strin
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair)
-	// See whether this can be unset without causing issues
 	vals.Set("period", period)
 	path := bitgetMix + bitgetMarket + bitgetTakerBuySell
 	var resp *ActiveVolumeResp
@@ -495,18 +498,62 @@ func (bi *Bitget) GetFuturesActiveVolume(ctx context.Context, pair, period strin
 }
 
 // GetFuturesPositionRatios returns the ratio of long to short positions for a specified pair
-func (bi *Bitget) GetFuturesPositionRatios(ctx context.Context, pair, period string) (*PositionRatioResp, error) {
+func (bi *Bitget) GetFuturesPositionRatios(ctx context.Context, pair, period string) (*PosRatFutureResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair)
-	// See whether this can be unset without causing issues
 	vals.Set("period", period)
 	path := bitgetMix + bitgetMarket + bitgetPositionLongShort
-	var resp *PositionRatioResp
+	var resp *PosRatFutureResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
+
+// When queried, the exchange claims that this endpoint doesn't exist, despite having a documentation page
+// // GetMarginPositionRatios returns the ratio of long to short positions for a specified pair in margin accounts
+// func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair, period, currency string) (*PosRatMarginResp, error) {
+// 	if pair == "" {
+// 		return nil, errPairEmpty
+// 	}
+// 	vals := url.Values{}
+// 	vals.Set("symbol", pair)
+// 	vals.Set("period", period)
+// 	vals.Set("coin", currency)
+// 	path := bitgetMix + bitgetMarket + bitgetLongShortRatio
+// 	var resp *PosRatMarginResp
+// 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+// }
+
+// When queried, the exchange claims that this endpoint doesn't exist, despite having a documentation page
+// // GetMarginLoanGrowth returns the growth rate of borrowed funds for a specified pair in margin accounts
+// func (bi *Bitget) GetMarginLoanGrowth(ctx context.Context, pair, period, currency string) (*LoanGrowthResp, error) {
+// 	if pair == "" {
+// 		return nil, errPairEmpty
+// 	}
+// 	vals := url.Values{}
+// 	vals.Set("symbol", pair)
+// 	vals.Set("period", period)
+// 	vals.Set("coin", currency)
+// 	path := bitgetMix + bitgetMarket + bitgetLoanGrowth
+// 	var resp *LoanGrowthResp
+// 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+// }
+
+// When queried, the exchange claims that this endpoint doesn't exist, despite having a documentation page
+// // GetIsolatedBorrowingRatio returns the ratio of borrowed funds between base and quote currencies, after
+// // converting to USDT, within isolated margin accounts
+// func (bi *Bitget) GetIsolatedBorrowingRatio(ctx context.Context, pair, period string) (*BorrowRatioResp, error) {
+// 	if pair == "" {
+// 		return nil, errPairEmpty
+// 	}
+// 	vals := url.Values{}
+// 	vals.Set("symbol", pair)
+// 	vals.Set("period", period)
+// 	path := bitgetMix + bitgetMarket + bitgetIsolatedBorrowRate
+// 	var resp *BorrowRatioResp
+// 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+// }
 
 // GetFuturesRatios returns the ratio of long to short positions for a specified pair
 func (bi *Bitget) GetFuturesRatios(ctx context.Context, pair, period string) (*RatioResp, error) {
@@ -515,7 +562,6 @@ func (bi *Bitget) GetFuturesRatios(ctx context.Context, pair, period string) (*R
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair)
-	// See whether this can be unset without causing issues
 	vals.Set("period", period)
 	path := bitgetMix + bitgetMarket + bitgetLongShort
 	var resp *RatioResp
@@ -561,7 +607,6 @@ func (bi *Bitget) GetFuturesAccountRatios(ctx context.Context, pair, period stri
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair)
-	// See whether this can be unset without causing issues
 	vals.Set("period", period)
 	path := bitgetMix + bitgetMarket + bitgetAccountLongShort
 	var resp *AccountRatioResp
@@ -1315,7 +1360,7 @@ func (bi *Bitget) GetSpotPlanSubOrder(ctx context.Context, orderID string) (*Sub
 }
 
 // GetSpotPlanOrderHistory returns the user's plan order history
-func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair string, startTime, endTime time.Time, limit int32) (*PlanSpotOrderResp, error) {
+func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*PlanSpotOrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1326,6 +1371,9 @@ func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair string, star
 		return nil, err
 	}
 	params.Values.Set("symbol", pair)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
 	}
@@ -2835,24 +2883,6 @@ func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, cli
 		&resp)
 }
 
-// CancelTriggerFuturesOrders cancels trigger futures orders
-func (bi *Bitget) CancelTriggerFuturesOrders(ctx context.Context, orderIDList []OrderIDStruct, pair, productType, marginCoin, planType string) (*BatchOrderResp, error) {
-	if productType == "" {
-		return nil, errProductTypeEmpty
-	}
-	req := map[string]interface{}{
-		"productType": productType,
-		"planType":    planType,
-		"symbol":      pair,
-		"orderIdList": orderIDList,
-		"marginCoin":  marginCoin,
-	}
-	path := bitgetMix + bitgetOrder + bitgetCancelPlanOrder
-	var resp *BatchOrderResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
-		&resp)
-}
-
 // ModifyTriggerFuturesOrder modifies a trigger futures order
 func (bi *Bitget) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, triggerType, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) (*OrderIDResp, error) {
 	if orderID == 0 && clientOrderID == "" {
@@ -2924,6 +2954,24 @@ func (bi *Bitget) GetPendingTriggerFuturesOrders(ctx context.Context, orderID, p
 	var resp *PlanFuturesOrdResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
 		nil, &resp)
+}
+
+// CancelTriggerFuturesOrders cancels trigger futures orders
+func (bi *Bitget) CancelTriggerFuturesOrders(ctx context.Context, orderIDList []OrderIDStruct, pair, productType, marginCoin, planType string) (*BatchOrderResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	req := map[string]interface{}{
+		"productType": productType,
+		"planType":    planType,
+		"symbol":      pair,
+		"orderIdList": orderIDList,
+		"marginCoin":  marginCoin,
+	}
+	path := bitgetMix + bitgetOrder + bitgetCancelPlanOrder
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
 }
 
 // GetHistoricalTriggerFuturesOrders returns information on historical trigger orders
@@ -4201,8 +4249,6 @@ func (bi *Bitget) GetLoanCurrencyList(ctx context.Context, currency string) (*Lo
 	vals.Set("coin", currency)
 	path := bitgetEarn + bitgetLoan + "/" + bitgetPublic + bitgetCoinInfos
 	var resp *LoanCurList
-	// return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
-	// 	&resp)
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
 

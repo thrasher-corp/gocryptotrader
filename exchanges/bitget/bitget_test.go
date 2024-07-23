@@ -2,7 +2,6 @@ package bitget
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -230,9 +229,7 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetFuturesActiveVolume(context.Background(), "", "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	// Inexplicably fails with the error "The data fetched by {pair} is empty". The pair is valid, and seems to be
-	// undergoing trades on the futures market according to their website.
-	resp, err := bi.GetFuturesActiveVolume(context.Background(), "BTCUSDT", "1d")
+	resp, err := bi.GetFuturesActiveVolume(context.Background(), testPair.String(), "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
@@ -241,20 +238,46 @@ func TestGetFuturesPositionRatios(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetFuturesPositionRatios(context.Background(), "", "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	// Inexplicably fails with the error "The data fetched by {pair} is empty". The pair is valid, and seems to be
-	// undergoing trades on the futures market according to their website.
-	resp, err := bi.GetFuturesPositionRatios(context.Background(), "BTCUSDT", "12h")
+	resp, err := bi.GetFuturesPositionRatios(context.Background(), testPair.String(), "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
+
+// Test for an endpoint which doesn't work
+// func TestGetMarginPositionRatios(t *testing.T) {
+// 	t.Parallel()
+// 	_, err := bi.GetMarginPositionRatios(context.Background(), "", "", "")
+// 	assert.ErrorIs(t, err, errPairEmpty)
+// 	resp, err := bi.GetMarginPositionRatios(context.Background(), testPair.String(), "", "")
+// 	require.NoError(t, err)
+// 	assert.NotEmpty(t, resp.Data)
+// }
+
+// Test for an endpoint which doesn't work
+// func TestGetMarginLoanGrowth(t *testing.T) {
+// 	t.Parallel()
+// 	_, err := bi.GetMarginLoanGrowth(context.Background(), "", "", "")
+// 	assert.ErrorIs(t, err, errPairEmpty)
+// 	resp, err := bi.GetMarginLoanGrowth(context.Background(), testPair.String(), "", "")
+// 	require.NoError(t, err)
+// 	assert.NotEmpty(t, resp.Data)
+// }
+
+// Test for an endpoint which doesn't work
+// func TestGetIsolatedBorrowingRatio(t *testing.T) {
+// 	t.Parallel()
+// 	_, err := bi.GetIsolatedBorrowingRatio(context.Background(), "", "")
+// 	assert.ErrorIs(t, err, errPairEmpty)
+// 	resp, err := bi.GetIsolatedBorrowingRatio(context.Background(), testPair.String(), "")
+// 	require.NoError(t, err)
+// 	assert.NotEmpty(t, resp.Data)
+// }
 
 func TestGetFuturesRatios(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetFuturesRatios(context.Background(), "", "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	// Inexplicably fails with the error "The data fetched by {pair} is empty". The pair is valid, and seems to be
-	// undergoing trades on the futures market according to their website.
-	resp, err := bi.GetFuturesRatios(context.Background(), "BTCUSDT", "12h")
+	resp, err := bi.GetFuturesRatios(context.Background(), testPair.String(), "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
@@ -278,7 +301,7 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetFuturesAccountRatios(context.Background(), "", "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	resp, err := bi.GetFuturesAccountRatios(context.Background(), testPair.String(), "12h")
+	resp, err := bi.GetFuturesAccountRatios(context.Background(), testPair.String(), "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
@@ -704,13 +727,13 @@ func TestSpotGetPlanSubOrder(t *testing.T) {
 
 func TestGetSpotPlanOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetSpotPlanOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 0)
+	_, err := bi.GetSpotPlanOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.GetSpotPlanOrderHistory(context.Background(), "meow", time.Time{}, time.Time{}, 0)
+	_, err = bi.GetSpotPlanOrderHistory(context.Background(), "meow", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetSpotPlanOrderHistory(context.Background(), testPair.String(), time.Now().Add(-time.Hour*24*90),
-		time.Now().Add(-time.Minute), 1<<30)
+		time.Now().Add(-time.Minute), 2, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -1202,11 +1225,9 @@ func TestGetAllPositions(t *testing.T) {
 
 func TestGetHistoricalPositions(t *testing.T) {
 	t.Parallel()
-	fmt.Printf("sending pagination 0\n")
 	_, err := bi.GetHistoricalPositions(context.Background(), "", "", 0, 0, time.Now().Add(time.Hour), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	fmt.Printf("sending pagination %v\n", int64(1<<62))
 	_, err = bi.GetHistoricalPositions(context.Background(), "", "", 1<<62, 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
@@ -2607,6 +2628,38 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
+func TestGetActiveOrdrrs(t *testing.T) {
+	t.Parallel()
+	var req *order.MultiOrderRequest
+	_, err := bi.GetActiveOrders(context.Background(), req)
+	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil)
+	req = &order.MultiOrderRequest{
+		AssetType: asset.Binary,
+		Side:      order.Sell,
+		Type:      order.Limit,
+		Pairs:     []currency.Pair{testPair},
+	}
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	req.AssetType = asset.CrossMargin
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	assert.NoError(t, err)
+	req.AssetType = asset.Margin
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	assert.NoError(t, err)
+	req.AssetType = asset.Futures
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	assert.NoError(t, err)
+	req.AssetType = asset.Spot
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	assert.NoError(t, err)
+	req.Pairs = []currency.Pair{}
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	// This is failing since the String() method on these novel pairs returns them with a delimiter for some reason
+	assert.NoError(t, err)
+}
+
 // The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests
 func TestModifyPlanSpotOrder(t *testing.T) {
 	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
@@ -2986,7 +3039,7 @@ type getOneArgResp interface {
 }
 
 type getOneArgParam interface {
-	string | []string | int64 | bool | asset.Item | float64
+	string | []string | bool | asset.Item
 }
 
 type getOneArgGen[R getOneArgResp, P getOneArgParam] func(context.Context, P) (R, error)

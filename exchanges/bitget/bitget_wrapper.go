@@ -972,12 +972,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		resp.QuoteAmount = ordInfo.QuoteVolume
 		resp.Type = typeDecoder(ordInfo.OrderType)
 		resp.Leverage = ordInfo.Leverage
-		switch ordInfo.MarginMode {
-		case "isolated":
-			resp.MarginType = margin.Isolated
-		case "cross":
-			resp.MarginType = margin.Multi
-		}
+		resp.MarginType = marginDecoder(ordInfo.MarginMode)
 		resp.ReduceOnly = bool(ordInfo.ReduceOnly)
 		resp.Date = ordInfo.CreationTime.Time()
 		resp.LastUpdated = ordInfo.UpdateTime.Time()
@@ -1114,10 +1109,10 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if len(pairs) == 0 {
 		pairs = append(pairs, "")
 	}
-	// var resp order.FilteredOrders
-	switch getOrdersRequest.AssetType {
-	case asset.Spot:
-		for x := range pairs {
+	var resp order.FilteredOrders
+	for x := range pairs {
+		switch getOrdersRequest.AssetType {
+		case asset.Spot:
 			var pagination int64
 			for {
 				genOrds, err := bi.GetUnfilledOrders(ctx, pairs[x], time.Time{}, time.Time{}, 100, pagination, 0)
@@ -1134,42 +1129,288 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				tempOrds := make([]order.Detail, len(genOrds.Data))
 				for i := range genOrds.Data {
 					tempOrds[i] = order.Detail{
-						Exchange:  bi.Name,
-						AccountID: genOrds.Data[i].UserID,
-
-						AssetType: asset.Spot,
-						// OrderID:   strconv.FormatInt(genOrds.Data[i].OrderID, 10),
-						Side:   sideDecoder(genOrds.Data[i].Side),
-						Type:   order.Limit,
-						Amount: genOrds.Data[i].Size,
-						// Price:     genOrds.Data[i].Price,
-						Status: statusDecoder(genOrds.Data[i].Status),
-						Date:   genOrds.Data[i].CreationTime.Time(),
+						Exchange:             bi.Name,
+						AssetType:            asset.Spot,
+						AccountID:            genOrds.Data[i].UserID,
+						OrderID:              strconv.FormatInt(int64(genOrds.Data[i].OrderID), 10),
+						ClientOrderID:        genOrds.Data[i].ClientOrderID,
+						AverageExecutedPrice: genOrds.Data[i].PriceAverage,
+						Amount:               genOrds.Data[i].Size,
+						Type:                 typeDecoder(genOrds.Data[i].OrderType),
+						Side:                 sideDecoder(genOrds.Data[i].Side),
+						Status:               statusDecoder(genOrds.Data[i].Status),
+						Price:                genOrds.Data[i].BasePrice,
+						QuoteAmount:          genOrds.Data[i].QuoteVolume,
+						Date:                 genOrds.Data[i].CreationTime.Time(),
+						LastUpdated:          genOrds.Data[i].UpdateTime.Time(),
 					}
 					if pairs[x] != "" {
 						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
 					} else {
 						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data[i].Symbol)
+						if err != nil {
+							return nil, err
+						}
+					}
+				}
+				resp = append(resp, tempOrds...)
+			}
+			if pairs[x] != "" {
+				resp, err = bi.spotCurrentPlanOrdersHelper(ctx, pairs[x], getOrdersRequest.Pairs[x], resp)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				newPairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
+				if err != nil {
+					return nil, err
+				}
+				for y := range newPairs {
+					resp, err = bi.spotCurrentPlanOrdersHelper(ctx, newPairs[y].String(), newPairs[y], resp)
+					if err != nil {
+						return nil, err
+					}
+				}
+
+			}
+		case asset.Futures:
+			if pairs[x] != "" {
+				resp, err = bi.activeFuturesOrderHelper(ctx, pairs[x], getProductType(getOrdersRequest.Pairs[x]),
+					getOrdersRequest.Pairs[x], resp)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				for y := range prodTypes {
+					resp, err = bi.activeFuturesOrderHelper(ctx, "", prodTypes[y], currency.Pair{}, resp)
+					if err != nil {
+						return nil, err
 					}
 				}
 			}
+		case asset.Margin, asset.CrossMargin:
+			var pagination int64
+			var genOrds *MarginOpenOrds
+			for {
+				if getOrdersRequest.AssetType == asset.Margin {
+					genOrds, err = bi.GetIsolatedOpenOrders(ctx, pairs[x], "", 0, 500, pagination,
+						time.Now().Add(-time.Hour*24*90), time.Time{})
+				} else {
+					genOrds, err = bi.GetCrossOpenOrders(ctx, pairs[x], "", 0, 500, pagination,
+						time.Now().Add(-time.Hour*24*90), time.Time{})
+				}
+				if err != nil {
+					return nil, err
+				}
+				if len(genOrds.Data.OrderList) == 0 {
+					break
+				}
+				if pagination == int64(genOrds.Data.MaxID) {
+					break
+				}
+				pagination = int64(genOrds.Data.MaxID)
+				tempOrds := make([]order.Detail, len(genOrds.Data.OrderList))
+				for i := range genOrds.Data.OrderList {
+					tempOrds[i] = order.Detail{
+						Exchange:      bi.Name,
+						AssetType:     getOrdersRequest.AssetType,
+						OrderID:       strconv.FormatInt(int64(genOrds.Data.OrderList[i].OrderID), 10),
+						Type:          typeDecoder(genOrds.Data.OrderList[i].OrderType),
+						ClientOrderID: genOrds.Data.OrderList[i].ClientOrderID,
+						Price:         genOrds.Data.OrderList[i].Price,
+						Side:          sideDecoder(genOrds.Data.OrderList[i].Side),
+						Status:        statusDecoder(genOrds.Data.OrderList[i].Status),
+						QuoteAmount:   genOrds.Data.OrderList[i].QuoteSize,
+						Amount:        genOrds.Data.OrderList[i].Size,
+						Date:          genOrds.Data.OrderList[i].CreationTime.Time(),
+						LastUpdated:   genOrds.Data.OrderList[i].UpdateTime.Time(),
+					}
+					if pairs[x] != "" {
+						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
+					} else {
+						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data.OrderList[i].Symbol)
+						if err != nil {
+							return nil, err
+						}
+					}
+					tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly =
+						strategyDecoder(genOrds.Data.OrderList[i].Force)
+				}
+				resp = append(resp, tempOrds...)
+			}
+		default:
+			return nil, asset.ErrNotSupported
 		}
-	case asset.Futures:
-	case asset.Margin, asset.CrossMargin:
-	default:
-		return nil, asset.ErrNotSupported
 	}
-	// Include trigger orders that haven't hit their price yet
-	return nil, common.ErrNotYetImplemented
+	return resp, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	err := getOrdersRequest.Validate()
+	if err != nil {
+		return nil, err
+	}
+	pairs := make([]string, len(getOrdersRequest.Pairs))
+	for x := range getOrdersRequest.Pairs {
+		pairs[x] = getOrdersRequest.Pairs[x].String()
+	}
+	if len(pairs) == 0 {
+		pairs = append(pairs, "")
+	}
+	var resp order.FilteredOrders
+	for x := range pairs {
+		switch getOrdersRequest.AssetType {
+		case asset.Spot:
+			var pagination int64
+			fillMap := make(map[int64][]order.TradeHistory)
+			for {
+				genFills, err := bi.GetSpotFills(ctx, pairs[x], time.Time{}, time.Time{}, 100, pagination, 0)
+				if err != nil {
+					return nil, err
+				}
+				if len(genFills.Data) == 0 {
+					break
+				}
+				if pagination == int64(genFills.Data[len(genFills.Data)-1].TradeID) {
+					break
+				}
+				pagination = int64(genFills.Data[len(genFills.Data)-1].TradeID)
+				for i := range genFills.Data {
+					fillMap[genFills.Data[i].TradeID] = append(fillMap[genFills.Data[i].TradeID],
+						order.TradeHistory{
+							TID:       strconv.FormatInt(genFills.Data[i].TradeID, 10),
+							Type:      typeDecoder(genFills.Data[i].OrderType),
+							Side:      sideDecoder(genFills.Data[i].Side),
+							Price:     genFills.Data[i].PriceAverage,
+							Amount:    genFills.Data[i].Size,
+							Fee:       genFills.Data[i].FeeDetail.TotalFee,
+							FeeAsset:  genFills.Data[i].FeeDetail.FeeCoin,
+							Timestamp: genFills.Data[i].CreationTime.Time(),
+						})
+				}
+			}
+			pagination = 0
+			for {
+				genOrds, err := bi.GetHistoricalSpotOrders(ctx, pairs[x], time.Time{}, time.Time{}, 100, pagination,
+					0)
+				if err != nil {
+					return nil, err
+				}
+				if len(genOrds.Data) == 0 {
+					break
+				}
+				if pagination == int64(genOrds.Data[len(genOrds.Data)-1].OrderID) {
+					break
+				}
+				pagination = int64(genOrds.Data[len(genOrds.Data)-1].OrderID)
+				tempOrds := make([]order.Detail, len(genOrds.Data))
+				for i := range genOrds.Data {
+					tempOrds[i] = order.Detail{
+						Exchange:             bi.Name,
+						AssetType:            asset.Spot,
+						AccountID:            genOrds.Data[i].UserID,
+						OrderID:              strconv.FormatInt(int64(genOrds.Data[i].OrderID), 10),
+						ClientOrderID:        genOrds.Data[i].ClientOrderID,
+						Price:                genOrds.Data[i].Price,
+						Amount:               genOrds.Data[i].Size,
+						Type:                 typeDecoder(genOrds.Data[i].OrderType),
+						Side:                 sideDecoder(genOrds.Data[i].Side),
+						Status:               statusDecoder(genOrds.Data[i].Status),
+						AverageExecutedPrice: genOrds.Data[i].PriceAverage,
+						QuoteAmount:          genOrds.Data[i].QuoteVolume,
+						Date:                 genOrds.Data[i].CreationTime.Time(),
+						LastUpdated:          genOrds.Data[i].UpdateTime.Time(),
+					}
+					if pairs[x] != "" {
+						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
+					} else {
+						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data[i].Symbol)
+						if err != nil {
+							return nil, err
+						}
+					}
+					for y := range genOrds.Data[i].FeeDetail {
+						tempOrds[i].Fee += genOrds.Data[i].FeeDetail[y].TotalFee
+						tempOrds[i].FeeAsset = currency.NewCode(genOrds.Data[i].FeeDetail[y].FeeCoinCode)
+					}
+					if len(fillMap[int64(genOrds.Data[i].OrderID)]) > 0 {
+						tempOrds[i].Trades = fillMap[int64(genOrds.Data[i].OrderID)]
+					}
+				}
+				resp = append(resp, tempOrds...)
+			}
+			if pairs[x] != "" {
+				resp, err = bi.spotHistoricPlanOrdersHelper(ctx, pairs[x], getOrdersRequest.Pairs[x], resp, fillMap)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				newPairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
+				if err != nil {
+					return nil, err
+				}
+				for y := range newPairs {
+					resp, err = bi.spotHistoricPlanOrdersHelper(ctx, newPairs[y].String(), newPairs[y], resp,
+						fillMap)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		case asset.Futures:
+			if pairs[x] != "" {
+				resp, err = bi.historicalFuturesOrderHelper(ctx, pairs[x],
+					getProductType(getOrdersRequest.Pairs[x]), getOrdersRequest.Pairs[x], resp)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				for y := range prodTypes {
+					resp, err = bi.historicalFuturesOrderHelper(ctx, "", prodTypes[y], currency.Pair{}, resp)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		case asset.Margin, asset.CrossMargin:
+			var pagination int64
+			var genFills *MarginOrderFills
+			fillMap := make(map[int64][]order.TradeHistory)
+			for {
+				if getOrdersRequest.AssetType == asset.Margin {
+					genFills, err = bi.GetIsolatedOrderFills(ctx, pairs[x], 0, pagination, 500,
+						time.Now().Add(-time.Hour*24*90), time.Now())
+				} else {
+					genFills, err = bi.GetCrossOrderFills(ctx, pairs[x], 0, pagination, 500,
+						time.Now().Add(-time.Hour*24*90), time.Now())
+				}
+				if err != nil {
+					return nil, err
+				}
+				if len(genFills.Data.Fills) == 0 {
+					break
+				}
+				for i := range genFills.Data.Fills {
+					fillMap[genFills.Data.Fills[i].TradeID] = append(fillMap[genFills.Data.Fills[i].TradeID],
+						order.TradeHistory{
+							TID:       strconv.FormatInt(genFills.Data.Fills[i].TradeID, 10),
+							Type:      typeDecoder(genFills.Data.Fills[i].OrderType),
+							Side:      sideDecoder(genFills.Data.Fills[i].Side),
+							Price:     genFills.Data.Fills[i].PriceAverage,
+							Amount:    genFills.Data.Fills[i].Size,
+							Fee:       genFills.Data.Fills[i].FeeDetail.TotalFee,
+							FeeAsset:  genFills.Data.Fills[i].FeeDetail.FeeCoin,
+							Timestamp: genFills.Data.Fills[i].CreationTime.Time(),
+						})
+				}
+			}
+		default:
+			return nil, asset.ErrNotSupported
+		}
+	}
+	return resp, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -1225,9 +1466,9 @@ func getProductType(p currency.Pair) string {
 // SideDecoder is a helper function that returns the appropriate order side for a given string
 func sideDecoder(d string) order.Side {
 	switch strings.ToLower(d) {
-	case "buy":
+	case "buy", "long":
 		return order.Buy
-	case "sell":
+	case "sell", "short":
 		return order.Sell
 	}
 	return order.UnknownSide
@@ -1324,6 +1565,8 @@ func statusDecoder(status string) order.Status {
 		return order.Filled
 	case "cancelled", "canceled":
 		return order.Cancelled
+	case "not_trigger":
+		return order.PendingTrigger
 	}
 	return order.UnknownStatus
 }
@@ -1352,7 +1595,7 @@ func typeDecoder(s string) order.Type {
 	return order.UnknownType
 }
 
-// WithdrawalHistGrabber repeatedly calls GetWithdrawalRecords and returns all data
+// WithdrawalHistGrabber is a helper function that repeatedly calls GetWithdrawalRecords and returns all data
 func (bi *Bitget) withdrawalHistGrabber(ctx context.Context, currency string) (*WithdrawRecordsResp, error) {
 	var allData WithdrawRecordsResp
 	var pagination int64
@@ -1374,7 +1617,10 @@ func (bi *Bitget) withdrawalHistGrabber(ctx context.Context, currency string) (*
 	return &allData, nil
 }
 
-// PairFromStringHelper does some checks to help with common ambiguous cases in this exchange
+var printOnce bool
+
+// PairFromStringHelper is a helper function that does some checks to help with common ambiguous cases in this
+// exchange
 func pairFromStringHelper(s string) (currency.Pair, error) {
 	pair := currency.Pair{}
 	i := strings.Index(s, "USD")
@@ -1388,5 +1634,355 @@ func pairFromStringHelper(s string) (currency.Pair, error) {
 	if err != nil {
 		return pair, err
 	}
+	pair = pair.Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
+	if !printOnce && pair.Base == currency.TRX {
+		fmt.Printf("Pair %v has been formatted to %v. Base: %v. Quote: %v. Delimiter: %v. String: %v", s, pair,
+			pair.Base, pair.Quote, pair.Delimiter, pair.String())
+		printOnce = true
+	}
 	return pair, nil
+}
+
+// SpotPlanOrdersHelper is a helper function that repeatedly calls GetCurrentSpotPlanOrders and returns all data
+func (bi *Bitget) spotCurrentPlanOrdersHelper(ctx context.Context, pairStr string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
+	var pagination int64
+	for {
+		genOrds, err := bi.GetCurrentSpotPlanOrders(ctx, pairStr, time.Time{}, time.Time{}, 100,
+			pagination)
+		if err != nil {
+			return nil, err
+		}
+		if len(genOrds.Data.OrderList) == 0 {
+			break
+		}
+		if pagination == int64(genOrds.Data.IDLessThan) {
+			break
+		}
+		pagination = int64(genOrds.Data.IDLessThan)
+		tempOrds := make([]order.Detail, len(genOrds.Data.OrderList))
+		for i := range genOrds.Data.OrderList {
+			tempOrds[i] = order.Detail{
+				Exchange:      bi.Name,
+				AssetType:     asset.Spot,
+				OrderID:       strconv.FormatInt(int64(genOrds.Data.OrderList[i].OrderID), 10),
+				ClientOrderID: genOrds.Data.OrderList[i].ClientOrderID,
+				TriggerPrice:  genOrds.Data.OrderList[i].TriggerPrice,
+				Type:          typeDecoder(genOrds.Data.OrderList[i].OrderType),
+				Price:         float64(genOrds.Data.OrderList[i].ExecutePrice),
+				Amount:        genOrds.Data.OrderList[i].Size,
+				Status:        statusDecoder(genOrds.Data.OrderList[i].Status),
+				Side:          sideDecoder(genOrds.Data.OrderList[i].Side),
+				Date:          genOrds.Data.OrderList[i].CreationTime.Time(),
+				LastUpdated:   genOrds.Data.OrderList[i].UpdateTime.Time(),
+			}
+			tempOrds[i].Pair = pairCan
+		}
+		resp = append(resp, tempOrds...)
+		if !genOrds.Data.NextFlag {
+			break
+		}
+	}
+	return resp, nil
+}
+
+// MarginDecoder is a helper function that returns the appropriate margin type for a given string
+func marginDecoder(s string) margin.Type {
+	switch s {
+	case "isolated":
+		return margin.Isolated
+	case "cross":
+		return margin.Multi
+	}
+	return margin.Unknown
+}
+
+// ActiveFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and
+// GetPendingFuturesTriggerOrders, returning the data formatted appropriately
+func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, pairStr, productType string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
+	var pagination int64
+	for {
+		genOrds, err := bi.GetPendingFuturesOrders(ctx, 0, pagination, 100, "", pairStr, productType, "",
+			time.Time{}, time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		if len(genOrds.Data.EntrustedList) == 0 {
+			break
+		}
+		if pagination == int64(genOrds.Data.EndID) {
+			break
+		}
+		pagination = int64(genOrds.Data.EndID)
+		tempOrds := make([]order.Detail, len(genOrds.Data.EntrustedList))
+		for i := range genOrds.Data.EntrustedList {
+			tempOrds[i] = order.Detail{
+				Exchange:             bi.Name,
+				AssetType:            asset.Futures,
+				Amount:               genOrds.Data.EntrustedList[i].Size,
+				OrderID:              strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID), 10),
+				ClientOrderID:        genOrds.Data.EntrustedList[i].ClientOrderID,
+				Fee:                  float64(genOrds.Data.EntrustedList[i].Fee),
+				Price:                float64(genOrds.Data.EntrustedList[i].Price),
+				AverageExecutedPrice: float64(genOrds.Data.EntrustedList[i].PriceAverage),
+				Status:               statusDecoder(genOrds.Data.EntrustedList[i].Status),
+				Side:                 sideDecoder(genOrds.Data.EntrustedList[i].Side),
+				SettlementCurrency:   currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+				QuoteAmount:          genOrds.Data.EntrustedList[i].QuoteVolume,
+				Leverage:             genOrds.Data.EntrustedList[i].Leverage,
+				MarginType:           marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+				Type:                 typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+				Date:                 genOrds.Data.EntrustedList[i].CreationTime.Time(),
+				LastUpdated:          genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+				LimitPriceUpper:      float64(genOrds.Data.EntrustedList[i].PresetStopSurplusPrice),
+				LimitPriceLower:      float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+			}
+			if pairStr != "" {
+				tempOrds[i].Pair = pairCan
+			} else {
+				tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			}
+			tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly =
+				strategyDecoder(genOrds.Data.EntrustedList[i].Force)
+		}
+		resp = append(resp, tempOrds...)
+	}
+	for y := range planTypes {
+		pagination = 0
+		for {
+			genOrds, err := bi.GetPendingTriggerFuturesOrders(ctx, 0, pagination, 100, "", pairStr, planTypes[y],
+				productType, time.Time{}, time.Time{})
+			if err != nil {
+				return nil, err
+			}
+			if len(genOrds.Data.EntrustedList) == 0 {
+				break
+			}
+			if pagination == int64(genOrds.Data.EndID) {
+				break
+			}
+			pagination = int64(genOrds.Data.EndID)
+			tempOrds := make([]order.Detail, len(genOrds.Data.EntrustedList))
+			for i := range genOrds.Data.EntrustedList {
+				tempOrds[i] = order.Detail{
+					Exchange:  bi.Name,
+					AssetType: asset.Futures,
+					Amount:    genOrds.Data.EntrustedList[i].Size,
+					OrderID: strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID),
+						10),
+					ClientOrderID:      genOrds.Data.EntrustedList[i].ClientOrderID,
+					Price:              float64(genOrds.Data.EntrustedList[i].Price),
+					TriggerPrice:       float64(genOrds.Data.EntrustedList[i].TriggerPrice),
+					Status:             statusDecoder(genOrds.Data.EntrustedList[i].PlanStatus),
+					Side:               sideDecoder(genOrds.Data.EntrustedList[i].Side),
+					SettlementCurrency: currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+					MarginType:         marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+					Type:               typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+					Date:               genOrds.Data.EntrustedList[i].CreationTime.Time(),
+					LastUpdated:        genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+					LimitPriceUpper:    float64(genOrds.Data.EntrustedList[i].PresetTakeProfitPrice),
+					LimitPriceLower:    float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+				}
+				if pairStr != "" {
+					tempOrds[i].Pair = pairCan
+				} else {
+					tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+			resp = append(resp, tempOrds...)
+		}
+	}
+	return resp, nil
+}
+
+// SpotHistoricPlanOrdersHelper is a helper function that repeatedly calls GetHistoricalSpotOrders and returns
+// all data formatted appropriately
+func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairStr string, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
+	var pagination int64
+	for {
+		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairStr, time.Time{}, time.Time{}, 100,
+			pagination)
+		if err != nil {
+			return nil, err
+		}
+		if len(genOrds.Data.OrderList) == 0 {
+			break
+		}
+		if pagination == int64(genOrds.Data.IDLessThan) {
+			break
+		}
+		pagination = int64(genOrds.Data.IDLessThan)
+		tempOrds := make([]order.Detail, len(genOrds.Data.OrderList))
+		for i := range genOrds.Data.OrderList {
+			tempOrds[i] = order.Detail{
+				Exchange:      bi.Name,
+				AssetType:     asset.Spot,
+				OrderID:       strconv.FormatInt(int64(genOrds.Data.OrderList[i].OrderID), 10),
+				ClientOrderID: genOrds.Data.OrderList[i].ClientOrderID,
+				TriggerPrice:  genOrds.Data.OrderList[i].TriggerPrice,
+				Type:          typeDecoder(genOrds.Data.OrderList[i].OrderType),
+				Price:         float64(genOrds.Data.OrderList[i].ExecutePrice),
+				Amount:        genOrds.Data.OrderList[i].Size,
+				Status:        statusDecoder(genOrds.Data.OrderList[i].Status),
+				Side:          sideDecoder(genOrds.Data.OrderList[i].Side),
+				Date:          genOrds.Data.OrderList[i].CreationTime.Time(),
+				LastUpdated:   genOrds.Data.OrderList[i].UpdateTime.Time(),
+			}
+			tempOrds[i].Pair = pairCan
+			if len(fillMap[int64(genOrds.Data.OrderList[i].OrderID)]) > 0 {
+				tempOrds[i].Trades = fillMap[int64(genOrds.Data.OrderList[i].OrderID)]
+			}
+		}
+		resp = append(resp, tempOrds...)
+		if !genOrds.Data.NextFlag {
+			break
+		}
+	}
+	return resp, nil
+}
+
+// HistoricalFuturesOrderHelper is a helper function that repeatedly calls GetFuturesFills,
+// GetHistoricalFuturesOrders, and GetHistoricalTriggerFuturesOrders, returning the data formatted appropriately
+func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, pairStr, productType string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
+	var pagination int64
+	fillMap := make(map[int64][]order.TradeHistory)
+	for {
+		fillOrds, err := bi.GetFuturesFills(ctx, 0, pagination, 100, pairStr, productType, time.Time{}, time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		if len(fillOrds.Data.FillList) == 0 {
+			break
+		}
+		if pagination == int64(fillOrds.Data.EndID) {
+			break
+		}
+		pagination = int64(fillOrds.Data.EndID)
+		for i := range fillOrds.Data.FillList {
+			tempFill := order.TradeHistory{
+				TID:       strconv.FormatInt(fillOrds.Data.FillList[i].TradeID, 10),
+				Price:     fillOrds.Data.FillList[i].Price,
+				Amount:    fillOrds.Data.FillList[i].BaseVolume,
+				Side:      sideDecoder(fillOrds.Data.FillList[i].Side),
+				Timestamp: fillOrds.Data.FillList[i].CreationTime.Time(),
+			}
+			for y := range fillOrds.Data.FillList[i].FeeDetail {
+				tempFill.Fee += fillOrds.Data.FillList[i].FeeDetail[y].TotalFee
+				tempFill.FeeAsset = fillOrds.Data.FillList[i].FeeDetail[y].FeeCoin
+			}
+			fillMap[fillOrds.Data.FillList[i].OrderID] = append(fillMap[fillOrds.Data.FillList[i].OrderID],
+				tempFill)
+		}
+	}
+	pagination = 0
+	for {
+		genOrds, err := bi.GetHistoricalFuturesOrders(ctx, 0, pagination, 100, "", pairStr, productType,
+			time.Time{}, time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		if len(genOrds.Data.EntrustedList) == 0 {
+			break
+		}
+		if pagination == int64(genOrds.Data.EndID) {
+			break
+		}
+		pagination = int64(genOrds.Data.EndID)
+		tempOrds := make([]order.Detail, len(genOrds.Data.EntrustedList))
+		for i := range genOrds.Data.EntrustedList {
+			tempOrds[i] = order.Detail{
+				Exchange:             bi.Name,
+				AssetType:            asset.Futures,
+				Amount:               genOrds.Data.EntrustedList[i].Size,
+				OrderID:              strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID), 10),
+				ClientOrderID:        genOrds.Data.EntrustedList[i].ClientOrderID,
+				Fee:                  float64(genOrds.Data.EntrustedList[i].Fee),
+				Price:                float64(genOrds.Data.EntrustedList[i].Price),
+				AverageExecutedPrice: float64(genOrds.Data.EntrustedList[i].PriceAverage),
+				Status:               statusDecoder(genOrds.Data.EntrustedList[i].Status),
+				Side:                 sideDecoder(genOrds.Data.EntrustedList[i].Side),
+				SettlementCurrency:   currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+				QuoteAmount:          genOrds.Data.EntrustedList[i].QuoteVolume,
+				Leverage:             genOrds.Data.EntrustedList[i].Leverage,
+				MarginType:           marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+				Type:                 typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+				Date:                 genOrds.Data.EntrustedList[i].CreationTime.Time(),
+				LastUpdated:          genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+				LimitPriceUpper:      float64(genOrds.Data.EntrustedList[i].PresetStopSurplusPrice),
+				LimitPriceLower:      float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+			}
+			if pairStr != "" {
+				tempOrds[i].Pair = pairCan
+			} else {
+				tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			}
+			tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly =
+				strategyDecoder(genOrds.Data.EntrustedList[i].Force)
+			if len(fillMap[int64(genOrds.Data.EntrustedList[i].OrderID)]) > 0 {
+				tempOrds[i].Trades = fillMap[int64(genOrds.Data.EntrustedList[i].OrderID)]
+			}
+		}
+		resp = append(resp, tempOrds...)
+	}
+	for y := range planTypes {
+		pagination = 0
+		for {
+			genOrds, err := bi.GetHistoricalTriggerFuturesOrders(ctx, 0, pagination, 100, "", planTypes[y], "",
+				pairStr, productType, time.Time{}, time.Time{})
+			if err != nil {
+				return nil, err
+			}
+			if len(genOrds.Data.EntrustedList) == 0 {
+				break
+			}
+			if pagination == int64(genOrds.Data.EndID) {
+				break
+			}
+			pagination = int64(genOrds.Data.EndID)
+			tempOrds := make([]order.Detail, len(genOrds.Data.EntrustedList))
+			for i := range genOrds.Data.EntrustedList {
+				tempOrds[i] = order.Detail{
+					Exchange:  bi.Name,
+					AssetType: asset.Futures,
+					Amount:    genOrds.Data.EntrustedList[i].Size,
+					OrderID: strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID),
+						10),
+					ClientOrderID:        genOrds.Data.EntrustedList[i].ClientOrderID,
+					Status:               statusDecoder(genOrds.Data.EntrustedList[i].PlanStatus),
+					Price:                float64(genOrds.Data.EntrustedList[i].Price),
+					AverageExecutedPrice: float64(genOrds.Data.EntrustedList[i].PriceAverage),
+					TriggerPrice:         float64(genOrds.Data.EntrustedList[i].TriggerPrice),
+					Side:                 sideDecoder(genOrds.Data.EntrustedList[i].Side),
+					SettlementCurrency:   currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+					MarginType:           marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+					Type:                 typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+					Date:                 genOrds.Data.EntrustedList[i].CreationTime.Time(),
+					LastUpdated:          genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+					LimitPriceUpper:      float64(genOrds.Data.EntrustedList[i].PresetTakeProfitPrice),
+					LimitPriceLower:      float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+				}
+				if pairStr != "" {
+					tempOrds[i].Pair = pairCan
+				} else {
+					tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+					if err != nil {
+						return nil, err
+					}
+				}
+				if len(fillMap[int64(genOrds.Data.EntrustedList[i].OrderID)]) > 0 {
+					tempOrds[i].Trades = fillMap[int64(genOrds.Data.EntrustedList[i].OrderID)]
+				}
+			}
+			resp = append(resp, tempOrds...)
+		}
+	}
+	return resp, nil
 }
