@@ -408,7 +408,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].Setup.Handler = func(context.Context, []byte) error {
-		return nil
+		return errDastardlyReason
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
@@ -417,6 +417,11 @@ func TestConnectionMessageErrors(t *testing.T) {
 		return nil, nil
 	}
 	err = ws.Connect()
+	require.NoError(t, err)
+
+	err = ws.connectionManager[0].Connection.SendRawMessage(websocket.TextMessage, []byte("test"))
+	require.NoError(t, err)
+
 	require.NoError(t, err)
 	require.NoError(t, ws.Shutdown())
 }
