@@ -3598,3 +3598,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 	}
 }
+
+func TestGetUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+	// Requires unified account to be enabled for this to function.
+	payload, err := g.GetUnifiedAccount(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	require.NotEmpty(t, payload)
+}
