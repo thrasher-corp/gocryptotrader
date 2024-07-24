@@ -725,8 +725,7 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
-// TestSendMessageWithResponse logic test
-func TestSendMessageWithResponse(t *testing.T) {
+func TestSendMessageReturnResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
 		Verbose:          true,
