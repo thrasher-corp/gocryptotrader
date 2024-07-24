@@ -294,9 +294,7 @@ func (w *WebsocketConnection) Shutdown() error {
 	w.setConnectedStatus(false)
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
-	defer w.Connection.NetConn().Close() // Ungraceful close as backup
-	// Gracefully close the connection
-	return w.Connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	return w.Connection.NetConn().Close()
 }
 
 // SetURL sets connection URL
