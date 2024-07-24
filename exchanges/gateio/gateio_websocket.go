@@ -165,16 +165,16 @@ func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 		Pair:         data.CurrencyPair,
 		LastUpdated:  pushTime,
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
-	if assetPairEnabled[asset.Spot] {
+
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.Spot, true); enabled {
 		g.Websocket.DataHandler <- &tickerPrice
 	}
-	if assetPairEnabled[asset.Margin] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.Margin, true); enabled {
 		marginTicker := tickerPrice
 		marginTicker.AssetType = asset.Margin
 		g.Websocket.DataHandler <- &marginTicker
 	}
-	if assetPairEnabled[asset.CrossMargin] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.CrossMargin, true); enabled {
 		crossMarginTicker := tickerPrice
 		crossMarginTicker.AssetType = asset.CrossMargin
 		g.Websocket.DataHandler <- &crossMarginTicker
@@ -210,7 +210,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	}
 
 	for _, assetType := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
-		if g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)[assetType] {
+		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), assetType, true); enabled {
 			tData.AssetType = assetType
 			if err := g.Websocket.Trade.Update(saveTradeData, tData); err != nil {
 				return err
@@ -247,16 +247,16 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 		LowPrice:   data.LowestPrice.Float64(),
 		Volume:     data.TotalVolume.Float64(),
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
-	if assetPairEnabled[asset.Spot] {
+
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(currencyPair.String(), asset.Spot, true); enabled {
 		g.Websocket.DataHandler <- spotCandlestick
 	}
-	if assetPairEnabled[asset.Margin] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(currencyPair.String(), asset.Margin, true); enabled {
 		marginCandlestick := spotCandlestick
 		marginCandlestick.AssetType = asset.Margin
 		g.Websocket.DataHandler <- marginCandlestick
 	}
-	if assetPairEnabled[asset.CrossMargin] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(currencyPair.String(), asset.CrossMargin, true); enabled {
 		crossMarginCandlestick := spotCandlestick
 		crossMarginCandlestick.AssetType = asset.CrossMargin
 		g.Websocket.DataHandler <- crossMarginCandlestick
@@ -287,7 +287,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
+
 	if !fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] {
 		var orderbooks *orderbook.Base
 		orderbooks, err = g.FetchOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
@@ -296,7 +296,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 		}
 		// TODO: handle orderbook update synchronisation
 		for _, assetType := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
-			if !assetPairEnabled[assetType] {
+			if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), assetType, true); !enabled {
 				continue
 			}
 			assetOrderbook := *orderbooks
@@ -337,14 +337,14 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
 		return nil
 	}
-	if assetPairEnabled[asset.Spot] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.Spot, true); enabled {
 		updates.Asset = asset.Spot
 		err = g.Websocket.Orderbook.Update(&updates)
 		if err != nil {
 			return err
 		}
 	}
-	if assetPairEnabled[asset.Margin] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.Margin, true); enabled {
 		marginUpdates := updates
 		marginUpdates.Asset = asset.Margin
 		err = g.Websocket.Orderbook.Update(&marginUpdates)
@@ -352,7 +352,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 			return err
 		}
 	}
-	if assetPairEnabled[asset.CrossMargin] {
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.CrossMargin, true); enabled {
 		crossMarginUpdate := updates
 		crossMarginUpdate.Asset = asset.CrossMargin
 		err = g.Websocket.Orderbook.Update(&crossMarginUpdate)
@@ -369,55 +369,59 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
-	bases := orderbook.Base{
+
+	asks := make([]orderbook.Tranche, len(data.Asks))
+	for x := range data.Asks {
+		asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
+		if err != nil {
+			return err
+		}
+		asks[x].Amount, err = strconv.ParseFloat(data.Asks[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+	bids := make([]orderbook.Tranche, len(data.Bids))
+	for x := range data.Bids {
+		bids[x].Price, err = strconv.ParseFloat(data.Bids[x][0], 64)
+		if err != nil {
+			return err
+		}
+		bids[x].Amount, err = strconv.ParseFloat(data.Bids[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	ob := &orderbook.Base{
 		Exchange:        g.Name,
 		Pair:            data.CurrencyPair,
-		Asset:           asset.Spot,
 		LastUpdated:     data.UpdateTimeMs.Time(),
 		LastUpdateID:    data.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
+		Asks:            asks,
+		Bids:            bids,
 	}
-	bases.Asks = make([]orderbook.Tranche, len(data.Asks))
-	for x := range data.Asks {
-		bases.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
-		if err != nil {
-			return err
-		}
-		bases.Asks[x].Amount, err = strconv.ParseFloat(data.Asks[x][1], 64)
-		if err != nil {
-			return err
-		}
-	}
-	bases.Bids = make([]orderbook.Tranche, len(data.Bids))
-	for x := range data.Bids {
-		bases.Bids[x].Price, err = strconv.ParseFloat(data.Bids[x][0], 64)
-		if err != nil {
-			return err
-		}
-		bases.Bids[x].Amount, err = strconv.ParseFloat(data.Bids[x][1], 64)
+
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.Spot, true); enabled {
+		ob.Asset = asset.Spot
+		err = g.Websocket.Orderbook.LoadSnapshot(ob)
 		if err != nil {
 			return err
 		}
 	}
-	if assetPairEnabled[asset.Spot] {
-		err = g.Websocket.Orderbook.LoadSnapshot(&bases)
+
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.Margin, true); enabled {
+		ob.Asset = asset.Margin
+		err = g.Websocket.Orderbook.LoadSnapshot(ob)
 		if err != nil {
 			return err
 		}
 	}
-	if assetPairEnabled[asset.Margin] {
-		marginBases := bases
-		marginBases.Asset = asset.Margin
-		err = g.Websocket.Orderbook.LoadSnapshot(&marginBases)
-		if err != nil {
-			return err
-		}
-	}
-	if assetPairEnabled[asset.CrossMargin] {
-		crossMarginBases := bases
-		crossMarginBases.Asset = asset.CrossMargin
-		err = g.Websocket.Orderbook.LoadSnapshot(&crossMarginBases)
+
+	if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), asset.CrossMargin, true); enabled {
+		ob.Asset = asset.CrossMargin
+		err = g.Websocket.Orderbook.LoadSnapshot(ob)
 		if err != nil {
 			return err
 		}
@@ -841,18 +845,4 @@ func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, chan
 // SpotUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) (*subscription.Result, error) {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generatePayload)
-}
-
-func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
-	assetTypes := g.CurrencyPairs.GetAssetTypes(true)
-	// we need this all asset types on the map even if their value is false
-	assetPairEnabled := map[asset.Item]bool{asset.Spot: false, asset.Options: false, asset.Futures: false, asset.CrossMargin: false, asset.Margin: false, asset.DeliveryFutures: false}
-	for i := range assetTypes {
-		pairs, err := g.GetEnabledPairs(assetTypes[i])
-		if err != nil {
-			continue
-		}
-		assetPairEnabled[assetTypes[i]] = pairs.Contains(cp, true)
-	}
-	return assetPairEnabled
 }
