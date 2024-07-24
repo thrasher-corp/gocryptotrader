@@ -1277,7 +1277,7 @@ func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ct
 			return // Connection has been closed
 		}
 		if err := handler(ctx, resp.Raw); err != nil {
-			w.ReadMessageErrors <- err
+			w.DataHandler <- err
 		}
 	}
 }
