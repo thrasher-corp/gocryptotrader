@@ -418,17 +418,21 @@ func (w *Websocket) Connect() error {
 		w.connectionManager[i].Connection = conn
 		w.connections[conn] = &w.connectionManager[i]
 
+		// This connection function cannot be in a go routine as there could be
+		// supplementary routines generated within that need to be inline with
+		// wg.Add calls which could leak. e.g. ping handler, bespoke connection
+		// logic.
+		err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)
+		if err != nil {
+			m.Lock()
+			multiConnectFatalError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+			m.Unlock()
+			break
+		}
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)
-			if err != nil {
-				m.Lock()
-				multiConnectFatalError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
-				m.Unlock()
-				return
-			}
-
 			if !conn.IsConnected() {
 				m.Lock()
 				multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn.URL)
