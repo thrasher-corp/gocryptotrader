@@ -86,8 +86,16 @@ type Base struct {
 	Pair     currency.Pair
 	Asset    asset.Item
 
-	LastUpdated  time.Time
-	LastUpdateID int64
+	// When a change occured on the exchange books. This does not mean the
+	// change is out of sync with the exchange.
+	LastUpdated time.Time `json:"-"`
+
+	// UpdatePushedAt is the time the exchange pushed this update. This is used
+	// determine if colocation, processing drift or other factors are affecting
+	// the time it takes for an update to reach the user.
+	UpdatePushedAt time.Time `json:"-"`
+
+	LastUpdateID int64 `json:"-"`
 	// PriceDuplication defines whether an orderbook can contain duplicate
 	// prices in a payload
 	PriceDuplication bool
@@ -117,6 +125,7 @@ type options struct {
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
+	updatePushedAt         time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool

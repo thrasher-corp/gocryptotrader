@@ -337,6 +337,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		book.Asks,
 		book.LastUpdateID,
 		book.LastUpdated,
+		book.UpdatePushedAt,
 		false)
 	if err != nil {
 		return err
