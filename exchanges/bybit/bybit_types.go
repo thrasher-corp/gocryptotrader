@@ -898,7 +898,7 @@ type WalletBalance struct {
 			SpotHedgingQuantity     types.Number  `json:"spotHedgingQty"`
 			TotalPositionMM         types.Number  `json:"totalPositionMM"`
 			USDValue                types.Number  `json:"usdValue"`
-			UnrealisedPnl           types.Number  `json:"unrealisedPnl"`
+			UnrealisedPNL           types.Number  `json:"unrealisedPnl"`
 			BorrowAmount            types.Number  `json:"borrowAmount"`
 			TotalPositionIM         types.Number  `json:"totalPositionIM"`
 			WalletBalance           types.Number  `json:"walletBalance"`
