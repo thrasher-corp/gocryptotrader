@@ -232,18 +232,11 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	}
 
 	newConn := &WebsocketConnection{
-		ExchangeName:      w.exchangeName,
-		URL:               connectionURL,
-		ProxyURL:          w.GetProxyAddress(),
-		Verbose:           w.verbose,
-		ResponseMaxLimit:  c.ResponseMaxLimit,
-		Traffic:           w.TrafficAlert,
-		readMessageErrors: w.ReadMessageErrors,
-		ShutdownC:         w.ShutdownC,
-		Wg:                &w.Wg,
-		Match:             w.Match,
-		RateLimit:         c.RateLimit,
-		Reporter:          c.ConnectionLevelReporter,
+		_URL:             connectionURL,
+		responseMaxLimit: c.ResponseMaxLimit,
+		rateLimit:        c.RateLimit,
+		reporter:         c.ConnectionLevelReporter,
+		sharedContext:    w,
 	}
 
 	if c.Authenticated {
@@ -739,13 +732,6 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		log.Debugf(log.ExchangeSys, "%s websocket: setting websocket proxy: %s", w.exchangeName, proxyAddr)
 	} else {
 		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", w.exchangeName)
-	}
-
-	if w.Conn != nil {
-		w.Conn.SetProxy(proxyAddr)
-	}
-	if w.AuthConn != nil {
-		w.AuthConn.SetProxy(proxyAddr)
 	}
 
 	w.proxyAddr = proxyAddr

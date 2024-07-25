@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,10 +20,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// WebsocketConnection contains all the data needed to send a message to a WS
+// connection
+type WebsocketConnection struct {
+	// Gorilla websocket does not allow more than one goroutine to utilise writes methods
+	writeControl     sync.Mutex
+	connected        int32
+	connection       *websocket.Conn
+	rateLimit        int64
+	_URL             string
+	sharedContext    *Websocket
+	responseMaxLimit time.Duration
+	reporter         Reporter
+}
+
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
 func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
-	m, err := w.Match.Set(signature)
+	m, err := w.sharedContext.Match.Set(signature)
 	if err != nil {
 		return nil, err
 	}
@@ -39,25 +54,25 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 		return nil, err
 	}
 
-	timer := time.NewTimer(w.ResponseMaxLimit)
+	timer := time.NewTimer(w.responseMaxLimit)
 
 	select {
 	case payload := <-m.C:
-		if w.Reporter != nil {
-			w.Reporter.Latency(w.ExchangeName, b, time.Since(start))
+		if w.reporter != nil {
+			w.reporter.Latency(w.sharedContext.exchangeName, b, time.Since(start))
 		}
 
 		return payload, nil
 	case <-timer.C:
 		timer.Stop()
-		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
+		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.sharedContext.exchangeName, signature)
 	}
 }
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
-	if w.ProxyURL != "" {
-		proxy, err := url.Parse(w.ProxyURL)
+	if w.sharedContext.proxyAddr != "" {
+		proxy, err := url.Parse(w.sharedContext.proxyAddr)
 		if err != nil {
 			return err
 		}
@@ -67,20 +82,20 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var err error
 	var conStatus *http.Response
 
-	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+	w.connection, conStatus, err = dialer.Dial(w._URL, headers)
 	if err != nil {
 		if conStatus != nil {
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.sharedContext.exchangeName, w._URL, conStatus, conStatus.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", w.sharedContext.exchangeName, w._URL, err)
 	}
 	defer conStatus.Body.Close()
 
-	if w.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
+	if w.sharedContext.verbose {
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.sharedContext.exchangeName, w._URL)
 	}
 	select {
-	case w.Traffic <- struct{}{}:
+	case w.sharedContext.TrafficAlert <- struct{}{}:
 	default:
 	}
 	w.setConnectedStatus(true)
@@ -90,85 +105,79 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
+		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket", w.sharedContext.exchangeName)
 	}
 
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 
-	if w.Verbose {
+	if w.sharedContext.verbose {
 		if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-			log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.ExchangeName, msg)
+			log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.sharedContext.exchangeName, msg)
 		}
 	}
 
-	if w.RateLimit > 0 {
-		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
+	if w.rateLimit > 0 {
+		time.Sleep(time.Duration(w.rateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.sharedContext.exchangeName)
 		}
 	}
-	return w.Connection.WriteJSON(data)
+	return w.connection.WriteJSON(data)
 }
 
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.sharedContext.exchangeName)
 	}
 
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 
-	if w.Verbose {
-		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
+	if w.sharedContext.verbose {
+		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.sharedContext.exchangeName, message)
 	}
-	if w.RateLimit > 0 {
-		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
+	if w.rateLimit > 0 {
+		time.Sleep(time.Duration(w.rateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.sharedContext.exchangeName)
 		}
 	}
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.sharedContext.exchangeName)
 	}
-	return w.Connection.WriteMessage(messageType, message)
+	return w.connection.WriteMessage(messageType, message)
 }
 
 // SetupPingHandler will automatically send ping or pong messages based on
 // WebsocketPingHandler configuration
 func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 	if handler.UseGorillaHandler {
-		h := func(msg string) error {
-			err := w.Connection.WriteControl(handler.MessageType,
-				[]byte(msg),
-				time.Now().Add(handler.Delay))
+		w.connection.SetPingHandler(func(msg string) error {
+			err := w.connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
 			if err == websocket.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
 				return nil
 			}
 			return err
-		}
-		w.Connection.SetPingHandler(h)
+		})
 		return
 	}
-	w.Wg.Add(1)
-	defer w.Wg.Done()
+	w.sharedContext.Wg.Add(1)
 	go func() {
+		defer w.sharedContext.Wg.Done()
 		ticker := time.NewTicker(handler.Delay)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-w.ShutdownC:
-				ticker.Stop()
+			case <-w.sharedContext.ShutdownC:
 				return
 			case <-ticker.C:
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%v websocket connection: ping handler failed to send message [%s]",
-						w.ExchangeName,
-						handler.Message)
+					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", w.sharedContext.exchangeName, handler.Message, err)
 					return
 				}
 			}
@@ -192,7 +201,7 @@ func (w *WebsocketConnection) IsConnected() bool {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() Response {
-	mType, resp, err := w.Connection.ReadMessage()
+	mType, resp, err := w.connection.ReadMessage()
 	if err != nil {
 		if IsDisconnectionError(err) {
 			if w.setConnectedStatus(false) {
@@ -202,13 +211,13 @@ func (w *WebsocketConnection) ReadMessage() Response {
 				// method on WebsocketConnection type has been called and can
 				// be skipped.
 				select {
-				case w.readMessageErrors <- err:
+				case w.sharedContext.ReadMessageErrors <- err:
 				default:
 					// bypass if there is no receiver, as this stops it returning
 					// when shutdown is called.
 					log.Warnf(log.WebsocketMgr,
 						"%s failed to relay error: %v",
-						w.ExchangeName,
+						w.sharedContext.exchangeName,
 						err)
 				}
 			}
@@ -217,7 +226,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	}
 
 	select {
-	case w.Traffic <- struct{}{}:
+	case w.sharedContext.TrafficAlert <- struct{}{}:
 	default: // Non-Blocking write ensures 1 buffered signal per trafficCheckInterval to avoid flooding
 	}
 
@@ -230,15 +239,15 @@ func (w *WebsocketConnection) ReadMessage() Response {
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
 				"%v websocket connection: parseBinaryResponse error: %v",
-				w.ExchangeName,
+				w.sharedContext.exchangeName,
 				err)
 			return Response{}
 		}
 	}
-	if w.Verbose {
+	if w.sharedContext.verbose {
 		log.Debugf(log.WebsocketMgr,
 			"%v websocket connection: message received: %v",
-			w.ExchangeName,
+			w.sharedContext.exchangeName,
 			string(standardMessage))
 	}
 	return Response{Raw: standardMessage, Type: mType}
@@ -282,24 +291,19 @@ func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 
 // Shutdown shuts down and closes specific connection
 func (w *WebsocketConnection) Shutdown() error {
-	if w == nil || w.Connection == nil {
+	if w == nil || w.connection == nil {
 		return nil
 	}
 	w.setConnectedStatus(false)
-	return w.Connection.UnderlyingConn().Close()
+	return w.connection.UnderlyingConn().Close()
 }
 
 // SetURL sets connection URL
 func (w *WebsocketConnection) SetURL(url string) {
-	w.URL = url
-}
-
-// SetProxy sets connection proxy
-func (w *WebsocketConnection) SetProxy(proxy string) {
-	w.ProxyURL = proxy
+	w._URL = url
 }
 
 // GetURL returns the connection URL
 func (w *WebsocketConnection) GetURL() string {
-	return w.URL
+	return w._URL
 }
