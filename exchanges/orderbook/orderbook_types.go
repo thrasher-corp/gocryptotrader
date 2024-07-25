@@ -88,14 +88,14 @@ type Base struct {
 
 	// When a change occured on the exchange books. This does not mean the
 	// change is out of sync with the exchange.
-	LastUpdated time.Time `json:"-"`
+	LastUpdated time.Time
 
 	// UpdatePushedAt is the time the exchange pushed this update. This is used
 	// determine if colocation, processing drift or other factors are affecting
 	// the time it takes for an update to reach the user.
-	UpdatePushedAt time.Time `json:"-"`
+	UpdatePushedAt time.Time
 
-	LastUpdateID int64 `json:"-"`
+	LastUpdateID int64
 	// PriceDuplication defines whether an orderbook can contain duplicate
 	// prices in a payload
 	PriceDuplication bool
