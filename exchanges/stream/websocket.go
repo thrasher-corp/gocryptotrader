@@ -83,11 +83,15 @@ func SetupGlobalReporter(r Reporter) {
 // NewWebsocket initialises the websocket struct
 func NewWebsocket() *Websocket {
 	return &Websocket{
-		DataHandler:       make(chan interface{}, jobBuffer),
-		ToRoutine:         make(chan interface{}, jobBuffer),
-		ShutdownC:         make(chan struct{}),
-		TrafficAlert:      make(chan struct{}, 1),
-		ReadMessageErrors: make(chan error),
+		DataHandler:  make(chan interface{}, jobBuffer),
+		ToRoutine:    make(chan interface{}, jobBuffer),
+		ShutdownC:    make(chan struct{}),
+		TrafficAlert: make(chan struct{}, 1),
+		// ReadMessageErrors is buffered for an edge case when `Connect` fails
+		// after subscriptions are made but before the connectionMonitor has
+		// started. This allows the error to be read and handled in the
+		// connectionMonitor and start a connection cycle again.
+		ReadMessageErrors: make(chan error, 1),
 		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
@@ -449,6 +453,14 @@ func (w *Websocket) Connect() error {
 		}
 		clear(w.connections)
 		w.setState(disconnectedState) // Flip from connecting to disconnected.
+
+		// Drain residual error in the single buffered channel, this mitigates
+		// the cycle when `Connect` is called again and the connectionMonitor
+		// starts but there is an old error in the channel.
+		select {
+		case <-w.ReadMessageErrors:
+		default:
+		}
 		return multiConnectFatalError
 	}
 
@@ -646,6 +658,15 @@ func (w *Websocket) Shutdown() error {
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", w.exchangeName)
 	}
+
+	// Drain residual error in the single buffered channel, this mitigates
+	// the cycle when `Connect` is called again and the connectionMonitor
+	// starts but there is an old error in the channel.
+	select {
+	case <-w.ReadMessageErrors:
+	default:
+	}
+
 	return nil
 }
 
