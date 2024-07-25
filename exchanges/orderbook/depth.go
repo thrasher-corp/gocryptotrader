@@ -375,6 +375,7 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
+	d.updatePushedAt = update.UpdatePushedAt
 	d.Alert()
 }
 
