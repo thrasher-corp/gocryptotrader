@@ -154,9 +154,10 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID   int64 // Used when no time is provided
-	UpdateTime time.Time
-	Asset      asset.Item
+	UpdateID       int64 // Used when no time is provided
+	UpdateTime     time.Time
+	UpdatePushedAt time.Time
+	Asset          asset.Item
 	Action
 	Bids []Tranche
 	Asks []Tranche

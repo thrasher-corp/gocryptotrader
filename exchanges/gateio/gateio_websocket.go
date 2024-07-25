@@ -131,11 +131,11 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case spotCandlesticksChannel:
 		return g.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(push.Result)
+		return g.processOrderbookTicker(push.Result, push.TimeMs.Time())
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result)
+		return g.processOrderbookUpdate(push.Result, push.TimeMs.Time())
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(push.Result)
+		return g.processOrderbookSnapshot(push.Result, push.TimeMs.Time())
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -278,7 +278,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(incoming []byte) error {
+func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookTickerData
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -286,16 +286,17 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 	}
 
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:    g.Name,
-		Pair:        data.CurrencyPair,
-		Asset:       asset.Spot,
-		LastUpdated: data.UpdateTimeMS.Time(),
-		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Exchange:       g.Name,
+		Pair:           data.CurrencyPair,
+		Asset:          asset.Spot,
+		LastUpdated:    data.UpdateTimeMS.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
+func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -323,8 +324,9 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] = true
 	}
 	updates := orderbook.Update{
-		UpdateTime: data.UpdateTimeMs.Time(),
-		Pair:       data.CurrencyPair,
+		UpdateTime:     data.UpdateTimeMs.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Pair:           data.CurrencyPair,
 	}
 	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
@@ -377,7 +379,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
+func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookSnapshot
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -389,6 +391,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 		Pair:            data.CurrencyPair,
 		Asset:           asset.Spot,
 		LastUpdated:     data.UpdateTimeMs.Time(),
+		UpdatePushedAt:  updatePushedAt,
 		LastUpdateID:    data.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
