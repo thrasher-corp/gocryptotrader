@@ -457,10 +457,8 @@ func (w *Websocket) Connect() error {
 		// Drain residual error in the single buffered channel, this mitigates
 		// the cycle when `Connect` is called again and the connectionMonitor
 		// starts but there is an old error in the channel.
-		select {
-		case <-w.ReadMessageErrors:
-		default:
-		}
+		drain(w.ReadMessageErrors)
+
 		return multiConnectFatalError
 	}
 
@@ -662,11 +660,7 @@ func (w *Websocket) Shutdown() error {
 	// Drain residual error in the single buffered channel, this mitigates
 	// the cycle when `Connect` is called again and the connectionMonitor
 	// starts but there is an old error in the channel.
-	select {
-	case <-w.ReadMessageErrors:
-	default:
-	}
-
+	drain(w.ReadMessageErrors)
 	return nil
 }
 
@@ -1299,6 +1293,16 @@ func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ct
 		}
 		if err := handler(ctx, resp.Raw); err != nil {
 			w.DataHandler <- err
+		}
+	}
+}
+
+func drain(ch <-chan error) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
 		}
 	}
 }
