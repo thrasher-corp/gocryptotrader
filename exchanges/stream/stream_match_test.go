@@ -17,7 +17,7 @@ func TestMatch(t *testing.T) {
 
 	_, err := match.Set("hello", 0)
 	require.ErrorIs(t, err, errInvalidBufferSize, "Must error on zero buffer size")
-	_, err := match.Set("hello", -1)
+	_, err = match.Set("hello", -1)
 	require.ErrorIs(t, err, errInvalidBufferSize, "Must error on negative buffer size")
 	ch, err := match.Set("hello", 2)
 	require.NoError(t, err, "Set must not error")

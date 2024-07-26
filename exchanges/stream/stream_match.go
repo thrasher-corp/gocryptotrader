@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	errSignatureCollision            = errors.New("signature collision")
-	errInvalidBufferSize = errors.New("buffer size must be positive")
+	errSignatureCollision = errors.New("signature collision")
+	errInvalidBufferSize  = errors.New("buffer size must be positive")
 )
 
 // NewMatch returns a new Match
@@ -39,7 +39,8 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 		return false
 	}
 	ch.c <- data
-	if ch.expected--; ch.expected == 0 {
+	ch.expected--
+	if ch.expected == 0 {
 		close(ch.c)
 		delete(m.m, signature)
 	}
@@ -49,7 +50,7 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 // Set the signature response channel for incoming data
 func (m *Match) Set(signature any, bufSize int) (<-chan []byte, error) {
 	if bufSize <= 0 {
-		return nil, errBufferShouldBeGreaterThanZero
+		return nil, errInvalidBufferSize
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
