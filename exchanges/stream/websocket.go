@@ -236,7 +236,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		responseMaxLimit: c.ResponseMaxLimit,
 		rateLimit:        c.RateLimit,
 		reporter:         c.ConnectionLevelReporter,
-		sharedContext:    w,
+		parent:           w,
 	}
 
 	if c.Authenticated {

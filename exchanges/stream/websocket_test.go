@@ -360,8 +360,8 @@ func TestWebsocket(t *testing.T) {
 	err := ws.SetProxyAddress("garbagio")
 	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
-	ws.Conn = &dodgyConnection{WebsocketConnection: WebsocketConnection{sharedContext: ws}}
-	ws.AuthConn = &WebsocketConnection{sharedContext: ws}
+	ws.Conn = &dodgyConnection{WebsocketConnection: WebsocketConnection{parent: ws}}
+	ws.AuthConn = &WebsocketConnection{parent: ws}
 	ws.setEnabled(true)
 
 	err = ws.Setup(defaultSetup) // Sets to enabled again
@@ -624,7 +624,7 @@ func TestDial(t *testing.T) {
 	var testCases = []testStruct{
 		{
 			WC: &WebsocketConnection{
-				sharedContext:    &Websocket{exchangeName: "test1", verbose: true},
+				parent:           &Websocket{exchangeName: "test1", verbose: true},
 				_URL:             websocketTestURL,
 				rateLimit:        10,
 				responseMaxLimit: 7000000000,
@@ -633,22 +633,22 @@ func TestDial(t *testing.T) {
 		{
 			Error: errors.New(" Error: malformed ws or wss URL"),
 			WC: &WebsocketConnection{
-				sharedContext:    &Websocket{exchangeName: "test2", verbose: true},
+				parent:           &Websocket{exchangeName: "test2", verbose: true},
 				responseMaxLimit: 7000000000,
 			},
 		},
 		{
 			WC: &WebsocketConnection{
-				sharedContext:    &Websocket{exchangeName: "test3", verbose: true, proxyAddr: proxyURL},
+				parent:           &Websocket{exchangeName: "test3", verbose: true, proxyAddr: proxyURL},
 				_URL:             websocketTestURL,
 				responseMaxLimit: 7000000000,
 			},
 		},
 	}
 	for _, run := range testCases {
-		t.Run(run.WC.sharedContext.exchangeName, func(t *testing.T) {
+		t.Run(run.WC.parent.exchangeName, func(t *testing.T) {
 			t.Parallel()
-			if run.WC.sharedContext.proxyAddr != "" && !useProxyTests {
+			if run.WC.parent.proxyAddr != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
 			err := run.WC.Dial(&dialer, http.Header{})
@@ -668,7 +668,7 @@ func TestSendMessage(t *testing.T) {
 	var testCases = []testStruct{
 		{
 			WC: &WebsocketConnection{
-				sharedContext:    &Websocket{exchangeName: "test1", verbose: true},
+				parent:           &Websocket{exchangeName: "test1", verbose: true},
 				_URL:             websocketTestURL,
 				rateLimit:        10,
 				responseMaxLimit: 7000000000,
@@ -677,22 +677,22 @@ func TestSendMessage(t *testing.T) {
 		{
 			Error: errors.New(" Error: malformed ws or wss URL"),
 			WC: &WebsocketConnection{
-				sharedContext:    &Websocket{exchangeName: "test2", verbose: true},
+				parent:           &Websocket{exchangeName: "test2", verbose: true},
 				responseMaxLimit: 7000000000,
 			},
 		},
 		{
 			WC: &WebsocketConnection{
-				sharedContext:    &Websocket{exchangeName: "test3", verbose: true, proxyAddr: proxyURL},
+				parent:           &Websocket{exchangeName: "test3", verbose: true, proxyAddr: proxyURL},
 				_URL:             websocketTestURL,
 				responseMaxLimit: 7000000000,
 			},
 		},
 	}
 	for _, run := range testCases {
-		t.Run(run.WC.sharedContext.exchangeName, func(t *testing.T) {
+		t.Run(run.WC.parent.exchangeName, func(t *testing.T) {
 			t.Parallel()
-			if run.WC.sharedContext.proxyAddr != "" && !useProxyTests {
+			if run.WC.parent.proxyAddr != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
 			err := run.WC.Dial(&dialer, http.Header{})
@@ -718,7 +718,7 @@ func TestSendMessage(t *testing.T) {
 func TestSendMessageWithResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
-		sharedContext:    &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
+		parent:           &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
 		_URL:             "wss://ws.kraken.com",
 		responseMaxLimit: time.Second * 5,
 	}
@@ -778,7 +778,7 @@ func readMessages(t *testing.T, wc *WebsocketConnection) {
 				return
 			}
 			if incoming.RequestID > 0 {
-				wc.sharedContext.Match.IncomingWithData(incoming.RequestID, resp.Raw)
+				wc.parent.Match.IncomingWithData(incoming.RequestID, resp.Raw)
 				return
 			}
 		}
@@ -789,12 +789,12 @@ func readMessages(t *testing.T, wc *WebsocketConnection) {
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
-		sharedContext:    &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
+		parent:           &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
 		_URL:             websocketTestURL,
 		responseMaxLimit: time.Second * 5,
 	}
 
-	wc.sharedContext.ShutdownC = make(chan struct{})
+	wc.parent.ShutdownC = make(chan struct{})
 	err := wc.Dial(&dialer, http.Header{})
 	require.NoError(t, err)
 
@@ -808,15 +808,15 @@ func TestSetupPingHandler(t *testing.T) {
 
 	wc.SetupPingHandler(PingHandler{MessageType: websocket.TextMessage, Message: []byte(Ping), Delay: 200})
 	time.Sleep(time.Millisecond * 201)
-	close(wc.sharedContext.ShutdownC)
-	wc.sharedContext.Wg.Wait()
+	close(wc.parent.ShutdownC)
+	wc.parent.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test
 func TestParseBinaryResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
-		sharedContext:    &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
+		parent:           &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
 		_URL:             websocketTestURL,
 		responseMaxLimit: time.Second * 5,
 	}
@@ -1102,7 +1102,7 @@ func TestSetupNewConnection(t *testing.T) {
 
 func TestWebsocketConnectionShutdown(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{sharedContext: &Websocket{exchangeName: "test"}}
+	wc := WebsocketConnection{parent: &Websocket{exchangeName: "test"}}
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 
@@ -1124,7 +1124,7 @@ func TestLatency(t *testing.T) {
 	r := &reporter{}
 	exch := "Kraken"
 	wc := &WebsocketConnection{
-		sharedContext:    &Websocket{exchangeName: exch, verbose: true, Match: NewMatch()},
+		parent:           &Websocket{exchangeName: exch, verbose: true, Match: NewMatch()},
 		_URL:             "wss://ws.kraken.com",
 		responseMaxLimit: time.Second * 5,
 		reporter:         r,
