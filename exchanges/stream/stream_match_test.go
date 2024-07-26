@@ -15,8 +15,10 @@ func TestMatch(t *testing.T) {
 	match := NewMatch()
 	assert.False(t, match.IncomingWithData("hello", load), "Should not match an empty signature")
 
-	_, err := match.Set("hello", -0)
-	require.ErrorIs(t, err, errBufferShouldBeGreaterThanZero, "Should error on buffer size less than 0")
+	_, err := match.Set("hello", 0)
+	require.ErrorIs(t, err, errInvalidBufferSize, "Must error on zero buffer size")
+	_, err := match.Set("hello", -1)
+	require.ErrorIs(t, err, errInvalidBufferSize, "Must error on negative buffer size")
 	ch, err := match.Set("hello", 2)
 	require.NoError(t, err, "Set must not error")
 	assert.True(t, match.IncomingWithData("hello", []byte("hello")))
