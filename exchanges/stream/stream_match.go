@@ -5,11 +5,14 @@ import (
 	"sync"
 )
 
-var errSignatureCollision = errors.New("signature collision")
+var (
+	errSignatureCollision            = errors.New("signature collision")
+	errBufferShouldBeGreaterThanZero = errors.New("buffer size should be greater than zero")
+)
 
 // NewMatch returns a new Match
 func NewMatch() *Match {
-	return &Match{m: make(map[any]Incoming)}
+	return &Match{m: make(map[any]incoming)}
 }
 
 // Match is a distributed subtype that handles the matching of requests and
@@ -17,14 +20,13 @@ func NewMatch() *Match {
 // connections. Stream systems fan in all incoming payloads to one routine for
 // processing.
 type Match struct {
-	m  map[any]Incoming
+	m  map[any]incoming
 	mu sync.Mutex
 }
 
-// Incoming is a sub-type that handles incoming data
-type Incoming struct {
-	count          int // Number of responses expected
-	waitingRoutine chan<- []byte
+type incoming struct {
+	expected int
+	c        chan<- []byte
 }
 
 // IncomingWithData matches with requests and takes in the returned payload, to
@@ -36,10 +38,9 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 	if !ok {
 		return false
 	}
-	ch.waitingRoutine <- data
-	ch.count--
-	if ch.count == 0 {
-		close(ch.waitingRoutine)
+	ch.c <- data
+	if ch.expected--; ch.expected == 0 {
+		close(ch.c)
 		delete(m.m, signature)
 	}
 	return true
@@ -47,8 +48,8 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 
 // Set the signature response channel for incoming data
 func (m *Match) Set(signature any, bufSize int) (<-chan []byte, error) {
-	if bufSize < 0 {
-		bufSize = 1
+	if bufSize <= 0 {
+		return nil, errBufferShouldBeGreaterThanZero
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -56,7 +57,7 @@ func (m *Match) Set(signature any, bufSize int) (<-chan []byte, error) {
 		return nil, errSignatureCollision
 	}
 	ch := make(chan []byte, bufSize)
-	m.m[signature] = Incoming{count: bufSize, waitingRoutine: ch}
+	m.m[signature] = incoming{expected: bufSize, c: ch}
 	return ch, nil
 }
 
@@ -65,7 +66,7 @@ func (m *Match) RemoveSignature(signature any) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if ch, ok := m.m[signature]; ok {
-		close(ch.waitingRoutine)
+		close(ch.c)
 		delete(m.m, signature)
 	}
 }
