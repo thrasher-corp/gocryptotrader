@@ -103,7 +103,9 @@ func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
+	fetchedFuturesOrderbookMutex.Lock()
 	fetchedFuturesOrderbook = map[string]bool{}
+	fetchedFuturesOrderbookMutex.Unlock()
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
