@@ -86,18 +86,22 @@ type Base struct {
 	Pair     currency.Pair
 	Asset    asset.Item
 
-	// When a change occurs on the exchange books. This does not mean the
-	// change is out of sync with the exchange.
+	// LastUpdated is the time when a change occurred on the exchange books.
+	// Note: This does not necessarily indicate the change is out of sync with
+	// the exchange. It represents the last known update time from the exchange,
+	// which could be stale if there have been no recent changes.
 	LastUpdated time.Time
 
-	// UpdatePushedAt is the time the exchange pushed this update. This is used
-	// determine if collocation, processing drift or other factors are affecting
-	// the time it takes for an update to reach the user.
+	// UpdatePushedAt is the time the exchange pushed this update. This helps
+	// determine factors like distance from exchange (latency) and routing
+	// time, which can affect the time it takes for an update to reach the user
+	// from the exchange.
 	UpdatePushedAt time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook
-	// management system. This is used to determine round trip times and
-	// processing times. e.g. InsertedAt.Sub(UpdatePushedAt) == processing time + collocation time
+	// management system. This field is used to calculate round-trip times and
+	// processing delays, e.g., InsertedAt.Sub(UpdatePushedAt) represents the
+	// total processing time including network latency.
 	InsertedAt time.Time
 
 	LastUpdateID int64
