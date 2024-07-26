@@ -73,6 +73,7 @@ func TestRetrieve(t *testing.T) {
 		asset:                  asset.DownsideProfitContract,
 		lastUpdated:            time.Now(),
 		updatePushedAt:         time.Now(),
+		insertedAt:             time.Now(),
 		lastUpdateID:           1337,
 		priceDuplication:       true,
 		isFundingRate:          true,

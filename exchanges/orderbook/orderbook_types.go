@@ -86,14 +86,19 @@ type Base struct {
 	Pair     currency.Pair
 	Asset    asset.Item
 
-	// When a change occured on the exchange books. This does not mean the
+	// When a change occurs on the exchange books. This does not mean the
 	// change is out of sync with the exchange.
 	LastUpdated time.Time
 
 	// UpdatePushedAt is the time the exchange pushed this update. This is used
-	// determine if colocation, processing drift or other factors are affecting
+	// determine if collocation, processing drift or other factors are affecting
 	// the time it takes for an update to reach the user.
 	UpdatePushedAt time.Time
+
+	// InsertedAt is the time the update was inserted into the orderbook
+	// mangement system. This is used to determine round trip times and
+	// processing times. e.g. InsertedAt.Sub(UpdatePushedAt) == processing time + collocation time
+	InsertedAt time.Time
 
 	LastUpdateID int64
 	// PriceDuplication defines whether an orderbook can contain duplicate
@@ -103,7 +108,7 @@ type Base struct {
 	// VerifyOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
-	VerifyOrderbook bool `json:"-"`
+	VerifyOrderbook bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -126,6 +131,7 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	updatePushedAt         time.Time
+	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool

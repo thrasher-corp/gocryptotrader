@@ -77,6 +77,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 		Pair:                   d.pair,
 		LastUpdated:            d.lastUpdated,
 		UpdatePushedAt:         d.updatePushedAt,
+		InsertedAt:             d.insertedAt,
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
 		IsFundingRate:          d.isFundingRate,
