@@ -7,7 +7,7 @@ import (
 
 var (
 	errSignatureCollision            = errors.New("signature collision")
-	errBufferShouldBeGreaterThanZero = errors.New("buffer size should be greater than zero")
+	errInvalidBufferSize = errors.New("buffer size must be positive")
 )
 
 // NewMatch returns a new Match
