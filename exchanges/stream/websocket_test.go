@@ -365,7 +365,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.WsWithEcho) }))
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
@@ -590,15 +590,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	multi := NewWebsocket()
 	set := *defaultSetup
-	// Values below are now not necessary as this will be set per connection
-	// candidate in SetupNewConnection.
 	set.UseMultiConnectionManagement = true
-	set.Connector = nil
-	set.Subscriber = nil
-	set.Unsubscriber = nil
-	set.GenerateSubscriptions = nil
-	set.DefaultURL = ""
-	set.RunningURL = ""
 	assert.NoError(t, multi.Setup(&set))
 
 	amazingCandidate := &ConnectionSetup{

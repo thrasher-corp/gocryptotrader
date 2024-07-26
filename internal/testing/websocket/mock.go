@@ -47,8 +47,8 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 	}
 }
 
-// WsWithEcho is a simple echo function after a read
-func WsWithEcho(p []byte, c *websocket.Conn) error {
+// EchoHandler is a simple echo function after a read
+func EchoHandler(p []byte, c *websocket.Conn) error {
 	err := c.WriteMessage(websocket.TextMessage, p)
 	if err != nil {
 		return err
