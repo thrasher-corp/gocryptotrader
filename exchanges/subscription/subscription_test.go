@@ -90,8 +90,7 @@ func TestSubscriptionMarshaling(t *testing.T) {
 	assert.Equal(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
 }
 
-// TestClone exercises Clone
-func TestClone(t *testing.T) {
+func TestSubscriptionClone(t *testing.T) {
 	t.Parallel()
 	params := map[string]any{"a": 42}
 	a := &Subscription{

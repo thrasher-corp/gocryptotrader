@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // TestListStrings exercises List.Strings()
@@ -90,4 +91,16 @@ func TestAssetPairs(t *testing.T) {
 		_, err = l.assetPairs(&mockEx{errFormat: expErr})
 		assert.ErrorIs(t, err, expErr, "Should error correctly on GetPairFormat")
 	}
+}
+
+func TestListClone(t *testing.T) {
+	t.Parallel()
+	l := List{{Channel: TickerChannel}, {Channel: OrderbookChannel}}
+	n := l.Clone()
+	assert.NotSame(t, n, l, "Slices must not be the same")
+	require.NotEmpty(t, n, "List must not be empty")
+	assert.NotSame(t, n[0], l[0], "Subscriptions must be cloned")
+	assert.Equal(t, n[0], l[0], "Subscriptions should be equal")
+	l[0].Interval = kline.OneHour
+	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
 }
