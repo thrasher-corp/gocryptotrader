@@ -101,6 +101,7 @@ func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdat
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	d.updatePushedAt = updatePushedAt
+	d.insertedAt = time.Now()
 	d.restSnapshot = updateByREST
 	d.bidTranches.load(bids)
 	d.askTranches.load(asks)
@@ -377,6 +378,7 @@ func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
 	d.updatePushedAt = update.UpdatePushedAt
+	d.insertedAt = time.Now()
 	d.Alert()
 }
 
