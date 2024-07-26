@@ -96,7 +96,7 @@ type Base struct {
 	UpdatePushedAt time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook
-	// mangement system. This is used to determine round trip times and
+	// management system. This is used to determine round trip times and
 	// processing times. e.g. InsertedAt.Sub(UpdatePushedAt) == processing time + collocation time
 	InsertedAt time.Time
 
