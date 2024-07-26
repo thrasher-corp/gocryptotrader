@@ -68,8 +68,8 @@ func (k *Kraken) SeedAssets(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for k := range assetPairs {
-		assetTranslator.Seed(k, assetPairs[k].Altname)
+	for k, v := range assetPairs {
+		assetTranslator.Seed(k, v.Altname)
 	}
 	return nil
 }
@@ -117,25 +117,25 @@ func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker, 
 	}
 	values.Set("pair", symbolValue)
 
-	var data map[string]TickerResponse
+	var data map[string]*TickerResponse
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
 	if err := k.SendHTTPRequest(ctx, exchange.RestSpot, path, &data); err != nil {
 		return nil, err
 	}
 
 	var tick Ticker
-	for i := range data {
-		tick.Ask = data[i].Ask[0].Float64()
-		tick.AskSize = data[i].Ask[2].Float64()
-		tick.Bid = data[i].Bid[0].Float64()
-		tick.BidSize = data[i].Bid[2].Float64()
-		tick.Last = data[i].Last[0].Float64()
-		tick.Volume = data[i].Volume[1].Float64()
-		tick.VolumeWeightedAveragePrice = data[i].VolumeWeightedAveragePrice[1].Float64()
-		tick.Trades = data[i].Trades[1]
-		tick.Low = data[i].Low[1].Float64()
-		tick.High = data[i].High[1].Float64()
-		tick.Open = data[i].Open.Float64()
+	for _, v := range data {
+		tick.Ask = v.Ask[0].Float64()
+		tick.AskSize = v.Ask[2].Float64()
+		tick.Bid = v.Bid[0].Float64()
+		tick.BidSize = v.Bid[2].Float64()
+		tick.Last = v.Last[0].Float64()
+		tick.Volume = v.Volume[1].Float64()
+		tick.VolumeWeightedAveragePrice = v.VolumeWeightedAveragePrice[1].Float64()
+		tick.Trades = v.Trades[1]
+		tick.Low = v.Low[1].Float64()
+		tick.High = v.High[1].Float64()
+		tick.Open = v.Open.Float64()
 	}
 	return &tick, nil
 }
@@ -149,7 +149,7 @@ func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ti
 		values.Set("pair", pairList)
 	}
 
-	var result map[string]TickerResponse
+	var result map[string]*TickerResponse
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
 
 	err := k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
@@ -158,19 +158,19 @@ func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ti
 	}
 
 	tickers := make(map[string]Ticker, len(result))
-	for i := range result {
-		tickers[i] = Ticker{
-			Ask:                        result[i].Ask[0].Float64(),
-			AskSize:                    result[i].Ask[2].Float64(),
-			Bid:                        result[i].Bid[0].Float64(),
-			BidSize:                    result[i].Bid[2].Float64(),
-			Last:                       result[i].Last[0].Float64(),
-			Volume:                     result[i].Volume[1].Float64(),
-			VolumeWeightedAveragePrice: result[i].VolumeWeightedAveragePrice[1].Float64(),
-			Trades:                     result[i].Trades[1],
-			Low:                        result[i].Low[1].Float64(),
-			High:                       result[i].High[1].Float64(),
-			Open:                       result[i].Open.Float64(),
+	for k, v := range result {
+		tickers[k] = Ticker{
+			Ask:                        v.Ask[0].Float64(),
+			AskSize:                    v.Ask[2].Float64(),
+			Bid:                        v.Bid[0].Float64(),
+			BidSize:                    v.Bid[2].Float64(),
+			Last:                       v.Last[0].Float64(),
+			Volume:                     v.Volume[1].Float64(),
+			VolumeWeightedAveragePrice: v.VolumeWeightedAveragePrice[1].Float64(),
+			Trades:                     v.Trades[1],
+			Low:                        v.Low[1].Float64(),
+			High:                       v.High[1].Float64(),
+			Open:                       v.Open.Float64(),
 		}
 	}
 	return tickers, nil
@@ -262,7 +262,7 @@ func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook
 		Asks [][]types.Number `json:"asks"`
 	}
 
-	result := make(map[string]orderbookStructure)
+	result := make(map[string]*orderbookStructure)
 	if err := k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result); err != nil {
 		return nil, err
 	}
@@ -1008,7 +1008,7 @@ func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code strin
 	values.Set("method", method)
 
 	if createNew {
-		values.Set("new", strconv.FormatBool(createNew))
+		values.Set("new", "true")
 	}
 
 	var result []DepositAddress
