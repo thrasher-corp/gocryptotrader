@@ -2285,21 +2285,21 @@ type UserRebateInfo struct {
 type MarginPairConfigs struct {
 	Timestamp convert.ExchangeTime `json:"timestamp"`
 	Items     []struct {
-		Symbol         string  `json:"symbol"`
-		Name           string  `json:"name"`
-		EnableTrading  bool    `json:"enableTrading"`
-		Market         string  `json:"market"`
-		BaseCurrency   string  `json:"baseCurrency"`
-		QuoteCurrency  string  `json:"quoteCurrency"`
-		BaseIncrement  float64 `json:"baseIncrement"`
-		BaseMinSize    float64 `json:"baseMinSize"`
-		QuoteIncrement float64 `json:"quoteIncrement"`
-		QuoteMinSize   float64 `json:"quoteMinSize"`
-		BaseMaxSize    float64 `json:"baseMaxSize"`
-		QuoteMaxSize   float64 `json:"quoteMaxSize"`
-		PriceIncrement float64 `json:"priceIncrement"`
-		FeeCurrency    string  `json:"feeCurrency"`
-		PriceLimitRate float64 `json:"priceLimitRate"`
-		MinFunds       float64 `json:"minFunds"`
+		Symbol         string       `json:"symbol"`
+		Name           string       `json:"name"`
+		EnableTrading  bool         `json:"enableTrading"`
+		Market         string       `json:"market"`
+		BaseCurrency   string       `json:"baseCurrency"`
+		QuoteCurrency  string       `json:"quoteCurrency"`
+		BaseIncrement  types.Number `json:"baseIncrement"`
+		BaseMinSize    types.Number `json:"baseMinSize"`
+		QuoteIncrement types.Number `json:"quoteIncrement"`
+		QuoteMinSize   types.Number `json:"quoteMinSize"`
+		BaseMaxSize    types.Number `json:"baseMaxSize"`
+		QuoteMaxSize   types.Number `json:"quoteMaxSize"`
+		PriceIncrement types.Number `json:"priceIncrement"`
+		FeeCurrency    string       `json:"feeCurrency"`
+		PriceLimitRate types.Number `json:"priceLimitRate"`
+		MinFunds       types.Number `json:"minFunds"`
 	} `json:"items"`
 }

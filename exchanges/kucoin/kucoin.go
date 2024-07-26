@@ -42,12 +42,12 @@ type Kucoin struct {
 var locker sync.Mutex
 
 const (
-	kucoinAPIURL        = "https://api.kucoin.com/api"
-	kucoinAPIKeyVersion = "2"
-	tradeBaseURL        = "https://www.kucoin.com/"
-	tradeSpot           = "trade/"
-	tradeMargin         = "margin/"
-	tradeFutures        = "futures/"
+	kucoinAPIURL = "https://api.kucoin.com/api"
+	// kucoinAPIKeyVersion = "2"
+	tradeBaseURL = "https://www.kucoin.com/"
+	tradeSpot    = "trade/"
+	tradeMargin  = "margin/"
+	tradeFutures = "futures/"
 
 	symbolQuery = "?symbol="
 )
@@ -481,6 +481,7 @@ func (ku *Kucoin) ValidatePlaceOrderParams(arg *PlaceHFParam) error {
 	if arg.Side == "" {
 		return order.ErrSideIsInvalid
 	}
+	arg.Side = strings.ToLower(arg.Side)
 	if arg.Price <= 0 {
 		return order.ErrPriceBelowMin
 	}
@@ -667,7 +668,7 @@ func (ku *Kucoin) GetHFCompletedOrderList(ctx context.Context, symbol, side, ord
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if side != "" {
-		params.Set("side", side)
+		params.Set("side", strings.ToLower(side))
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -746,7 +747,7 @@ func (ku *Kucoin) GetHFFilledList(ctx context.Context, orderID, symbol, side, or
 		params.Set("orderId", orderID)
 	}
 	if side != "" {
-		params.Set("side", side)
+		params.Set("side", strings.ToLower(side))
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -788,6 +789,7 @@ func (ku *Kucoin) HandlePostOrder(ctx context.Context, arg *SpotOrderParam, path
 	if arg.Side == "" {
 		return "", order.ErrSideIsInvalid
 	}
+	arg.Side = strings.ToLower(arg.Side)
 	if arg.Symbol.IsEmpty() {
 		return "", fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
 	}
@@ -836,6 +838,7 @@ func (ku *Kucoin) SendPostMarginOrder(ctx context.Context, arg *MarginOrderParam
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
+	arg.Side = strings.ToLower(arg.Side)
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -880,6 +883,7 @@ func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []
 		if orderList[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
+		orderList[i].Side = strings.ToLower(orderList[i].Side)
 		if orderList[i].Price <= 0 {
 			return nil, order.ErrPriceBelowMin
 		}
@@ -960,7 +964,7 @@ func FillParams(symbol, side, orderType, tradeType string, startAt, endAt time.T
 		params.Set("symbol", symbol)
 	}
 	if side != "" {
-		params.Set("side", side)
+		params.Set("side", strings.ToLower(side))
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -1032,7 +1036,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	}
 	arg := make(map[string]interface{})
 	arg["clientOid"] = clientOID
-	arg["side"] = side
+	arg["side"] = strings.ToLower(side)
 	arg["symbol"] = symbol
 	if remark != "" {
 		arg["remark"] = remark
@@ -1214,6 +1218,7 @@ func (ku *Kucoin) PlaceOCOOrder(ctx context.Context, arg *OCOOrderParams) (strin
 	if arg.Side == "" {
 		return "", order.ErrSideIsInvalid
 	}
+	arg.Side = strings.ToLower(arg.Side)
 	if arg.Price <= 0 {
 		return "", order.ErrPriceBelowMin
 	}
@@ -1350,6 +1355,7 @@ func (ku *Kucoin) SendPlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginHF
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
+	arg.Side = strings.ToLower(arg.Side)
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1430,7 +1436,7 @@ func (ku *Kucoin) GetFilledHFMarginOrders(ctx context.Context, symbol, tradeType
 	params.Set("symbol", symbol)
 	params.Set("tradeType", tradeType)
 	if side != "" {
-		params.Set("side", side)
+		params.Set("side", strings.ToLower(side))
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -1473,7 +1479,14 @@ func (ku *Kucoin) GetMarginHFOrderDetailByID(ctx context.Context, orderID, symbo
 	params.Set("symbol", symbol)
 	params.Set("orderId", orderID)
 	var resp *HFOrderDetail
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginHFOrderDetailByOrderIDEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginHFOrderDetailByOrderIDEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("%w, where orderId %s and symbol %s", order.ErrOrderNotFound, orderID, symbol)
+	}
+	return resp, nil
 }
 
 // GetMarginHFTradeFills to obtain a list of the latest margin HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.
@@ -1491,7 +1504,7 @@ func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tr
 		params.Set("orderId", orderID)
 	}
 	if side != "" {
-		params.Set("side", side)
+		params.Set("side", strings.ToLower(side))
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -1676,7 +1689,7 @@ func (ku *Kucoin) GetFuturesAccountDetail(ctx context.Context, ccy currency.Code
 		params.Set("currency", ccy.String())
 	}
 	var resp *FuturesAccountOverview
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, futuresAccountsDetailEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview", params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAccountsDetailEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview", params), nil, &resp)
 }
 
 // GetSubAccounts retrieves all sub-account information
@@ -1788,7 +1801,7 @@ func (ku *Kucoin) GetFuturesAccountLedgers(ctx context.Context, ccy currency.Cod
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
 	var resp *FuturesLedgerInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, futuresAccountLedgersEPL, http.MethodGet, common.EncodeURLValues("/v1/transaction-history", params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAccountLedgersEPL, http.MethodGet, common.EncodeURLValues("/v1/transaction-history", params), nil, &resp)
 }
 
 // GetAllSubAccountsInfoV1 retrieves the user info of all sub-account via this interface.
@@ -1980,7 +1993,7 @@ func (ku *Kucoin) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTra
 		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.RecieveAccountType)
 	}
 	var resp *InnerTransferToMainAndTradeResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, toMainOrTradeAccountEPL, http.MethodPost, "/v3/transfer-out", arg, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, toMainOrTradeAccountEPL, http.MethodPost, "/v3/transfer-out", arg, &resp)
 }
 
 // TransferToFuturesAccount transfers fund from KuCoin Futures account to Main or Trade accounts.
@@ -1998,7 +2011,7 @@ func (ku *Kucoin) TransferToFuturesAccount(ctx context.Context, arg *FundTransfe
 		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.PaymentAccountType)
 	}
 	var resp *FundTransferToFuturesResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, toFuturesAccountEPL, http.MethodPost, "/v1/transfer-in", arg, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, toFuturesAccountEPL, http.MethodPost, "/v1/transfer-in", arg, &resp)
 }
 
 // GetFuturesTransferOutRequestRecords retrieves futures transfers out requests.
@@ -2026,7 +2039,7 @@ func (ku *Kucoin) GetFuturesTransferOutRequestRecords(ctx context.Context, start
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *FuturesTransferOutResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, futuresTransferOutRequestRecordsEPL, http.MethodGet, common.EncodeURLValues("/v1/transfer-list", params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTransferOutRequestRecordsEPL, http.MethodGet, common.EncodeURLValues("/v1/transfer-list", params), nil, &resp)
 }
 
 // CreateDepositAddress create a deposit address for a currency you intend to deposit
@@ -2407,9 +2420,6 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	if err != nil {
 		return err
 	}
-	println("creds.Key", creds.Key)
-	println("creds.Secret", creds.Secret)
-	println("creds.ClientID", creds.ClientID)
 	resp, okay := result.(UnmarshalTo)
 	if !okay {
 		resp = &Response{Data: result}
@@ -2420,6 +2430,12 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	}
 	if value.IsNil() || value.Kind() != reflect.Pointer {
 		return fmt.Errorf("%w receiver has to be non-nil pointer", errInvalidResponseReceiver)
+	}
+	apiKeyVersion := "2"
+	if strings.HasPrefix(path, "/v1/") {
+		apiKeyVersion = "1"
+	} else if strings.HasPrefix(path, "/v3/") {
+		apiKeyVersion = "3"
 	}
 	err = ku.SendPayload(ctx, epl, func() (*request.Item, error) {
 		var (
@@ -2448,7 +2464,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 			"KC-API-SIGN":        crypto.Base64Encode(signHash),
 			"KC-API-TIMESTAMP":   timeStamp,
 			"KC-API-PASSPHRASE":  crypto.Base64Encode(passPhraseHash),
-			"KC-API-KEY-VERSION": kucoinAPIKeyVersion,
+			"KC-API-KEY-VERSION": apiKeyVersion,
 			"Content-Type":       "application/json",
 		}
 		return &request.Item{
@@ -2522,7 +2538,7 @@ func (ku *Kucoin) OrderSideString(side order.Side) (string, error) {
 	case side == order.AnySide:
 		return "", nil
 	default:
-		return "", fmt.Errorf("%w, side:%s", order.ErrSideIsInvalid, side.String())
+		return "", fmt.Errorf("%w, side:%s", order.ErrSideIsInvalid, side.Lower())
 	}
 }
 
@@ -2707,12 +2723,12 @@ func (ku *Kucoin) GetAffilateUserRebateInformation(ctx context.Context, date tim
 }
 
 // GetMarginPairsConfigurations allows querying the configuration of cross margin trading pairs.
-func (ku *Kucoin) GetMarginPairsConfigurations(ctx context.Context, symbol string) ([]MarginPairConfigs, error) {
+func (ku *Kucoin) GetMarginPairsConfigurations(ctx context.Context, symbol string) (*MarginPairConfigs, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []MarginPairConfigs
+	var resp *MarginPairConfigs
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginPairsConfigurationEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/symbols", params), nil, &resp)
 }

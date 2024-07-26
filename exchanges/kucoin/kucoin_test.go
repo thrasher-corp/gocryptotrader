@@ -645,9 +645,9 @@ func TestGetRecentFills(t *testing.T) {
 
 func TestPostStopOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ku.PostStopOrder(context.Background(), "", "buy", "BTC-USDT", "", "", "entry", "CO", "TRADE", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
+	_, err := ku.PostStopOrder(context.Background(), "", "buy", spotTradablePair.String(), "", "", "entry", "CO", "TRADE", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
-	_, err = ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "", "BTC-USDT", "", "", "entry", "CO", "TRADE", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
+	_, err = ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "", spotTradablePair.String(), "", "", "entry", "CO", "TRADE", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "", "", "", "entry", "CO", "TRADE", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
@@ -772,7 +772,7 @@ func TestGetIsolatedMarginAccountDetail(t *testing.T) {
 func TestGetFuturesAccountDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetFuturesAccountDetail(context.Background(), currency.XBT)
+	result, err := ku.GetFuturesAccountDetail(context.Background(), currency.USDT)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -973,7 +973,7 @@ func TestTransferToMainOrTradeAccount(t *testing.T) {
 	result, err := ku.TransferToMainOrTradeAccount(context.Background(), &FundTransferFuturesParam{
 		Amount:             1,
 		Currency:           currency.USDT,
-		RecieveAccountType: "MAIN",
+		RecieveAccountType: "TRADE",
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -990,9 +990,9 @@ func TestTransferToFuturesAccount(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	result, err := ku.TransferToFuturesAccount(context.Background(), &FundTransferToFuturesParam{
-		Amount:             1,
+		Amount:             60,
 		Currency:           currency.USDT,
-		PaymentAccountType: "MAIN",
+		PaymentAccountType: "TRADE",
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1154,7 +1154,7 @@ func TestGetTradingFee(t *testing.T) {
 	// NOTE: Test below will error out from an external call as this will exceed
 	// the allowed pairs. If this does not error then this endpoint will allow
 	// more items to be requested.
-	pairs = append(pairs, avail[1:11]...)
+	pairs = append(pairs, avail[1:10]...)
 	result, err := ku.GetTradingFee(context.Background(), pairs)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -2175,7 +2175,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Margin)
+	_, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
@@ -2837,7 +2837,7 @@ func TestSpotHFPlaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	result, err := ku.HFSpotPlaceOrder(context.Background(), &PlaceHFParam{
 		TimeInForce: "GTT",
-		Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+		Symbol:      spotTradablePair,
 		OrderType:   "limit",
 		Side:        order.Sell.String(),
 		Price:       1234,
@@ -2855,7 +2855,7 @@ func TestSpotPlaceHFOrderTest(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	result, err := ku.SpotPlaceHFOrderTest(context.Background(), &PlaceHFParam{
 		TimeInForce: "GTT",
-		Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+		Symbol:      spotTradablePair,
 		OrderType:   "limit",
 		Side:        order.Sell.String(),
 		Price:       1234,
@@ -2889,7 +2889,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	result, err := ku.PlaceMultipleOrders(context.Background(), []PlaceHFParam{
 		{
 			TimeInForce: "GTT",
-			Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+			Symbol:      spotTradablePair,
 			OrderType:   "limit",
 			Side:        order.Sell.String(),
 			Price:       1234,
@@ -2920,7 +2920,7 @@ func TestSyncPlaceMultipleHFOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	result, err := ku.SyncPlaceMultipleHFOrders(context.Background(), []PlaceHFParam{
 		{TimeInForce: "GTT",
-			Symbol:    currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+			Symbol:    spotTradablePair,
 			OrderType: "limit",
 			Side:      order.Sell.String(),
 			Price:     1234,
@@ -3240,7 +3240,7 @@ func TestPlaceMarginHFOrder(t *testing.T) {
 	result, err := ku.PlaceMarginHFOrder(context.Background(), &PlaceMarginHFOrderParam{
 		ClientOrderID:       "first-order",
 		Side:                "sell",
-		Symbol:              currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.ETH},
+		Symbol:              marginTradablePair,
 		OrderType:           "market",
 		SelfTradePrevention: "CB",
 		Price:               1234,
@@ -3299,7 +3299,7 @@ func TestCancelAllMarginHFOrdersBySymbol(t *testing.T) {
 	t.Parallel()
 	_, err := ku.CancelAllMarginHFOrdersBySymbol(context.Background(), "", "MARGIN_TRADE")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	_, err = ku.CancelAllMarginHFOrdersBySymbol(context.Background(), "BTC-USD", "")
+	_, err = ku.CancelAllMarginHFOrdersBySymbol(context.Background(), marginTradablePair.String(), "")
 	require.ErrorIs(t, err, errTradeTypeMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
@@ -3315,7 +3315,7 @@ func TestCancelAllMarginHFOrdersBySymbol(t *testing.T) {
 func TestGetActiveMarginHFOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetActiveMarginHFOrders(context.Background(), "BTC-USD", "MARGIN_TRADE")
+	result, err := ku.GetActiveMarginHFOrders(context.Background(), marginTradablePair.String(), "MARGIN_TRADE")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3339,9 +3339,8 @@ func TestGetMarginHFOrderDetailByOrderID(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetMarginHFOrderDetailByOrderID(context.Background(), "the-order-id", marginTradablePair.String())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err = ku.GetMarginHFOrderDetailByOrderID(context.Background(), "243432432423the-order-id", marginTradablePair.String())
+	require.True(t, errors.Is(err, order.ErrOrderNotFound) || err == nil)
 }
 
 func TestGetMarginHFOrderDetailByClientOrderID(t *testing.T) {

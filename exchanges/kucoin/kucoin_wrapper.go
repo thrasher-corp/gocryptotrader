@@ -567,7 +567,7 @@ func (ku *Kucoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, assetType asset.Item) ([]exchange.WithdrawalHistory, error) {
-	if ku.SupportsAsset(assetType) {
+	if !ku.SupportsAsset(assetType) {
 		return nil, asset.ErrNotSupported
 	}
 	var withdrawals *HistoricalDepositWithdrawalResponse
