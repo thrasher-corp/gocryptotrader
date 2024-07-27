@@ -159,6 +159,7 @@ func (b *Bitfinex) SetDefaults() {
 				GlobalResultLimit: 10000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	b.Requester, err = request.New(b.Name,
