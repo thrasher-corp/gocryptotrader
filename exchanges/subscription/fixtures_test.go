@@ -15,10 +15,25 @@ import (
 
 type mockEx struct {
 	pairs     currency.Pairs
+	assets    asset.Items
 	tpl       string
 	auth      bool
 	errPairs  error
 	errFormat error
+}
+
+func newMockEx() *mockEx {
+	pairs := currency.Pairs{btcusdtPair, ethusdcPair}
+	for _, b := range []currency.Code{currency.LTC, currency.XRP, currency.TRX} {
+		for _, q := range []currency.Code{currency.USDT, currency.USDC} {
+			pairs = append(pairs, currency.NewPair(b, q))
+		}
+	}
+
+	return &mockEx{
+		assets: asset.Items{asset.Spot, asset.Futures},
+		pairs:  pairs,
+	}
 }
 
 func (m *mockEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
@@ -41,7 +56,7 @@ func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, e
 				}
 				return a.String()
 			},
-			"feature5": func(ap assetPairs) string {
+			"updateAssetPairs": func(ap assetPairs) string {
 				ap[asset.Futures] = nil
 				ap[asset.Spot] = ap[asset.Spot][0:1]
 				return ""
@@ -51,7 +66,7 @@ func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, e
 		ParseFiles("testdata/" + m.tpl)
 }
 
-func (m *mockEx) GetAssetTypes(_ bool) asset.Items            { return asset.Items{asset.Spot, asset.Futures} }
+func (m *mockEx) GetAssetTypes(_ bool) asset.Items            { return m.assets }
 func (m *mockEx) CanUseAuthenticatedWebsocketEndpoints() bool { return m.auth }
 
 // equalLists is a utility function to compare subscription lists and show a pretty failure message

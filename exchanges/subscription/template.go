@@ -104,13 +104,13 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	switch s.Asset {
 	case asset.All:
-		subCtx.AssetPairs = maps.Clone(ap)
-	case asset.Empty:
-		subCtx.AssetPairs = assetPairs{}
+		subCtx.AssetPairs = ap
 	default:
+		// This deliberately includes asset.Empty to harmonise handling
 		subCtx.AssetPairs = assetPairs{
 			s.Asset: ap[s.Asset],
 		}
+		assets = asset.Items{s.Asset}
 	}
 
 	if len(s.Pairs) != 0 {
@@ -133,18 +133,6 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 	out = strings.TrimSpace(strings.TrimSuffix(out, subCtx.AssetSeparator))
 
 	xpandPairs := strings.Contains(out, subCtx.PairSeparator)
-	if xpandAssets := strings.Contains(out, subCtx.AssetSeparator); xpandAssets {
-		if s.Asset != asset.All {
-			return nil, errAssetTemplateWithoutAll
-		}
-	} else {
-		if xpandPairs && (s.Asset == asset.All || s.Asset == asset.Empty) {
-			// We don't currently support expanding Pairs without expanding Assets for All or Empty assets, but we could; waiting for a use-case
-			return nil, errInvalidAssetExpandPairs
-		}
-		// No expansion so update expected Assets for consistent behaviour below
-		assets = []asset.Item{s.Asset}
-	}
 
 	assetRecords := strings.Split(out, subCtx.AssetSeparator)
 	if len(assetRecords) != len(assets) {

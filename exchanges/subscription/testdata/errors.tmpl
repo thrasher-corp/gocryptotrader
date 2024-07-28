@@ -1,24 +1,17 @@
 {{- if eq .S.Channel "error1" }}
-	{{/* An asset separator without specific asset*/}}
-	{{- .AssetSeparator }}
-	{{- .AssetSeparator }}
-{{- else if eq .S.Channel "error2" }}
-	{{/* Expand pairs but not assets, without specific asset */}}
-	{{- .PairSeparator -}}
-{{- else if eq .S.Channel "error3" }}
 	{{/* Runtime error from executing */}}
 	{{ .S.String 42 }}
-{{- else if eq .S.Channel "error4" }}
+{{- else if eq .S.Channel "error2" }}
 	{{/* Incorrect number of asset entries */}}
 	{{- .AssetSeparator -}}
 	{{- .AssetSeparator -}}
 	{{- .AssetSeparator -}}
-{{- else if eq .S.Channel "error5" }}
+{{- else if eq .S.Channel "error3" }}
 	{{/* Incorrect number of pair entries */}}
 	{{- .PairSeparator -}}
 	{{- .PairSeparator -}}
 	{{- .PairSeparator -}}
-{{- else if eq .S.Channel "error6" }}
+{{- else if eq .S.Channel "error4" }}
 	{{/* Too many BatchSize commands */}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- $pairs.Join -}}
@@ -26,7 +19,7 @@
 		{{- $.BatchSize -}}2
 		{{- $.AssetSeparator -}}
 	{{- end -}}
-{{- else if eq .S.Channel "error7" }}
+{{- else if eq .S.Channel "error5" }}
 	{{/* BatchSize without number */}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- $pairs.Join -}}
