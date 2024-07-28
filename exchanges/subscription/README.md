@@ -47,6 +47,18 @@ To allow the template to communicate how to handle its output it should use the 
 - PairSeparator should be added at the end of each pair
 - BatchSize should be added with a number directly before AssetSeparator to indicate pairs have been batched
 
+Example:
+```
+{{- range $asset, $pairs := $.AssetPairs }}
+    {{- range $b := batch $pairs 30 -}}
+        {{- $.S.Channel -}} : {{- $b.Join -}}
+        {{ $.PairSeparator }}
+    {{- end -}}
+    {{- $.BatchSize -}} 30
+    {{- $.AssetSeparator }}
+{{- end }}
+```
+
 Assets and pairs should be output in the sequence in AssetPairs since text/template range function uses an sorted order for map keys.
 
 Template functions may modify AssetPairs to update the subscription's pairs, e.g. Filtering out margin pairs already in spot subscription
