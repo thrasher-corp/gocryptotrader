@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -1305,4 +1306,55 @@ func drain(ch <-chan error) {
 			return
 		}
 	}
+}
+
+var ErrRequestRouteNotFound = errors.New("request route not found")
+var ErrRequestRouteNotSet = errors.New("request route not set")
+var ErrSignatureNotSet = errors.New("signature not set")
+var ErrRequestPayloadNotSet = errors.New("request payload not set")
+
+// SendRequest sends a request to a specific route and unmarhsals the response into the result
+func (w *Websocket) SendRequest(_ context.Context, routeID string, signature, payload, result any) error {
+	if w == nil {
+		return fmt.Errorf("%w: Websocket", common.ErrNilPointer)
+	}
+	if routeID == "" {
+		return ErrRequestRouteNotSet
+	}
+	if signature == nil {
+		return ErrSignatureNotSet
+	}
+	if payload == nil {
+		return ErrRequestPayloadNotSet
+	}
+	if !w.IsConnected() {
+		return ErrNotConnected
+	}
+
+	for x := range w.connectionManager {
+		if w.connectionManager[x].Setup.URL != routeID {
+			continue
+		}
+
+		if w.connectionManager[x].Connection == nil {
+			return fmt.Errorf("%s: %w", w.connectionManager[x].Setup.URL, ErrNotConnected)
+		}
+
+		// if w.verbose {
+		display, _ := json.Marshal(payload)
+		log.Debugf(log.WebsocketMgr, "%s websocket: sending request to %s. Data: %v", w.exchangeName, routeID, string(display))
+		// }
+
+		resp, err := w.connectionManager[x].Connection.SendMessageReturnResponse(signature, payload)
+		if err != nil {
+			return err
+		}
+
+		// if w.verbose {
+		log.Debugf(log.WebsocketMgr, "%s websocket: received response from %s. Data: %s", w.exchangeName, routeID, resp)
+		// }
+		return json.Unmarshal(resp, result)
+	}
+
+	return fmt.Errorf("%w: %s", ErrRequestRouteNotFound, routeID)
 }

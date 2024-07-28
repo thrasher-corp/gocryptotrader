@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -94,6 +95,12 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+	if requestID, err := jsonparser.GetString(respRaw, "request_id"); err == nil && requestID != "" {
+		if !g.Websocket.Match.IncomingWithData(requestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", requestID)
+		}
+	}
+
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {

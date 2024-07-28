@@ -63,6 +63,10 @@ type ConnectionSetup struct {
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
 	Handler func(ctx context.Context, incoming []byte) error
+	// AllowOutbound is a flag that determines if the connection is allowed to
+	// send messages to the exchange's websocket server. This will allow the
+	// connection to be established without subscriptions needing to be made.
+	AllowOutbound bool
 }
 
 // ConnectionWrapper contains the connection setup details to be used when
