@@ -541,8 +541,7 @@ func TestUpdateTickers(t *testing.T) {
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, b)
 
-	assets := b.GetAssetTypes(false)
-	for _, a := range assets {
+	for _, a := range b.GetAssetTypes(true) {
 		avail, err := b.GetAvailablePairs(a)
 		require.NoError(t, err, "GetAvailablePairs should not error")
 
