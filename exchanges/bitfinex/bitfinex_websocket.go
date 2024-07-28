@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1693,9 +1694,8 @@ func (b *Bitfinex) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (b *Bitfinex) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
-		Funcs(template.FuncMap{
-			"channelName": channelName,
-		}).
+		Funcs(sprig.FuncMap()).
+		Funcs(template.FuncMap{"channelMap": channelMap}).
 		Parse(subTplText)
 }
 
@@ -1709,25 +1709,34 @@ func (b *Bitfinex) ConfigureWS() error {
 
 // Subscribe sends a websocket message to receive data from channels
 func (b *Bitfinex) Subscribe(subs subscription.List) error {
+	var err error
+	if subs, err = subs.ExpandTemplates(b); err != nil {
+		return err
+	}
 	return b.ParallelChanOp(subs, b.subscribeToChan, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
 func (b *Bitfinex) Unsubscribe(subs subscription.List) error {
+	var err error
+	if subs, err = subs.ExpandTemplates(b); err != nil {
+		return err
+	}
 	return b.ParallelChanOp(subs, b.unsubscribeFromChan, 1)
 }
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
 func (b *Bitfinex) subscribeToChan(subs subscription.List) error {
+
 	if len(subs) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
 
 	s := subs[0]
-	req, err := subscribeReq(s)
-	if err != nil {
-		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
+	req := map[string]any{}
+	if err := json.Unmarshal([]byte(s.QualifiedChannel), &req); err != nil {
+		return err
 	}
 
 	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
@@ -1738,7 +1747,7 @@ func (b *Bitfinex) subscribeToChan(subs subscription.List) error {
 	// Add a temporary Key so we can find this Sub when we get the resp without delay or context switch
 	// Otherwise we might drop the first messages after the subscribed resp
 	s.Key = subID // Note subID string type avoids conflicts with later chanID key
-	if err = b.Websocket.AddSubscriptions(s); err != nil {
+	if err := b.Websocket.AddSubscriptions(s); err != nil {
 		return fmt.Errorf("%w Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
@@ -1759,64 +1768,6 @@ func (b *Bitfinex) subscribeToChan(subs subscription.List) error {
 	}
 
 	return nil
-}
-
-// subscribeReq returns a map of request params for subscriptions
-func subscribeReq(s *subscription.Subscription) (map[string]interface{}, error) {
-	if s == nil {
-		return nil, fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
-	}
-	if len(s.Pairs) > 1 {
-		return nil, subscription.ErrNotSinglePair
-	}
-
-	c := channelName(s)
-	req := map[string]interface{}{
-		"event":   "subscribe",
-		"channel": c,
-	}
-
-	var fundingPeriod string
-	for k, v := range s.Params {
-		switch k {
-		case CandlesPeriodKey:
-			if s, ok := v.(string); !ok {
-				return nil, common.GetTypeAssertError("string", v, "subscription.CandlesPeriodKey")
-			} else {
-				fundingPeriod = ":" + s
-			}
-		case "key", "symbol", "len":
-			return nil, fmt.Errorf("%w: %s", errParamNotAllowed, k) // Ensure user's Params aren't silently overwritten
-		default:
-			req[k] = v
-		}
-	}
-
-	if s.Levels != 0 {
-		req["len"] = s.Levels
-	}
-
-	prefix := "t"
-	if s.Asset == asset.MarginFunding {
-		prefix = "f"
-	}
-
-	if len(s.Pairs) == 1 {
-		var pairFmt currency.PairFormat
-		if needsDelimiter := s.Pairs[0].Len() > 6; needsDelimiter {
-			pairFmt = currency.PairFormat{Uppercase: true, Delimiter: ":"}
-		} else {
-			pairFmt = currency.PairFormat{Uppercase: true}
-		}
-		symbol := s.Pairs.Format(pairFmt).Join()
-		if c == wsCandles {
-			req["key"] = "trade:" + s.Interval.Short() + ":" + prefix + symbol + fundingPeriod
-		} else {
-			req["symbol"] = prefix + symbol
-		}
-	}
-
-	return req, nil
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
@@ -2220,23 +2171,69 @@ subSort:
 	}
 }
 
-func channelName(s *subscription.Subscription) string {
+// channelMap returns a json object of request params for subscriptions
+func channelMap(s *subscription.Subscription) map[string]any {
+	c := s.Channel
 	if name, ok := subscriptionNames[s.Channel]; ok {
-		return name
+		c = name
 	}
-	return s.Channel
+	req := map[string]interface{}{
+		"channel": c,
+	}
+
+	var fundingPeriod string
+	for k, v := range s.Params {
+		switch k {
+		case CandlesPeriodKey:
+			if s, ok := v.(string); !ok {
+				panic(common.GetTypeAssertError("string", v, "subscription.CandlesPeriodKey"))
+			} else {
+				fundingPeriod = ":" + s
+			}
+		case "key", "symbol", "len":
+			panic(fmt.Errorf("%w: %s", errParamNotAllowed, k)) // Ensure user's Params aren't silently overwritten
+		default:
+			req[k] = v
+		}
+	}
+
+	if s.Levels != 0 {
+		req["len"] = s.Levels
+	}
+
+	prefix := "t"
+	if s.Asset == asset.MarginFunding {
+		prefix = "f"
+	}
+
+	if len(s.Pairs) == 1 {
+		var pairFmt currency.PairFormat
+		if needsDelimiter := s.Pairs[0].Len() > 6; needsDelimiter {
+			pairFmt = currency.PairFormat{Uppercase: true, Delimiter: ":"}
+		} else {
+			pairFmt = currency.PairFormat{Uppercase: true}
+		}
+		symbol := s.Pairs.Format(pairFmt).Join()
+		if c == wsCandles {
+			req["key"] = "trade:" + s.Interval.Short() + ":" + prefix + symbol + fundingPeriod
+		} else {
+			req["symbol"] = prefix + symbol
+		}
+	}
+
+	return req
 }
 
 const subTplText = `
 {{- if $.S.Asset -}}
 	{{ range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs  -}}
-			{{- channelName $.S }}
+			{{- channelMap $.S | mustToJson }}
 			{{- $.PairSeparator }}
 		{{- end -}}
 		{{ $.AssetSeparator }}
 	{{- end -}}
 {{- else -}}
-	{{- channelName $.S }}
+	{{- channelMap $.S | mustToJson }}
 {{- end }}
 `
