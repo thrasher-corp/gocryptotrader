@@ -162,7 +162,7 @@ func TestGetTradeHistory(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = ku.GetTradeHistory(context.Background(), spotTradablePair.String())
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetKlines(t *testing.T) {
@@ -3328,9 +3328,8 @@ func TestGetFilledHFMarginOrders(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetFilledHFMarginOrders(context.Background(), marginTradablePair.String(), "MARGIN_TRADE", "sell", "limit", time.Time{}, time.Now(), 0, 20)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err = ku.GetFilledHFMarginOrders(context.Background(), marginTradablePair.String(), "MARGIN_TRADE", "sell", "limit", time.Time{}, time.Now(), 0, 20)
+	assert.NoError(t, err)
 }
 
 func TestGetMarginHFOrderDetailByOrderID(t *testing.T) {

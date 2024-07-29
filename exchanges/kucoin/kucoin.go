@@ -2431,12 +2431,6 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	if value.IsNil() || value.Kind() != reflect.Pointer {
 		return fmt.Errorf("%w receiver has to be non-nil pointer", errInvalidResponseReceiver)
 	}
-	apiKeyVersion := "2"
-	if strings.HasPrefix(path, "/v1/") {
-		apiKeyVersion = "1"
-	} else if strings.HasPrefix(path, "/v3/") {
-		apiKeyVersion = "3"
-	}
 	err = ku.SendPayload(ctx, epl, func() (*request.Item, error) {
 		var (
 			body    io.Reader
@@ -2464,7 +2458,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 			"KC-API-SIGN":        crypto.Base64Encode(signHash),
 			"KC-API-TIMESTAMP":   timeStamp,
 			"KC-API-PASSPHRASE":  crypto.Base64Encode(passPhraseHash),
-			"KC-API-KEY-VERSION": apiKeyVersion,
+			"KC-API-KEY-VERSION": "3",
 			"Content-Type":       "application/json",
 		}
 		return &request.Item{
