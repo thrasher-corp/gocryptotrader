@@ -258,7 +258,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(wsRateLimitMilliseconds * time.Millisecond),
+		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 	})
 }
 
