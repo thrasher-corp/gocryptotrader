@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRoleString(t *testing.T) {
@@ -454,6 +456,14 @@ func TestBaseCode(t *testing.T) {
 	if main.Items["CATS"][0].ID != 1338 {
 		t.Error("ID not updated")
 	}
+}
+
+func TestNewCodeFormatting(t *testing.T) {
+	require.True(t, NewCode("BTC").UpperCase)
+	require.False(t, NewCode("btc").UpperCase)
+	require.True(t, NewCode("BTC").Equal(NewCode("btc")))
+	require.True(t, NewCode("420").UpperCase)
+	require.False(t, NewCode("btc420").UpperCase)
 }
 
 func TestCodeString(t *testing.T) {
