@@ -168,19 +168,19 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okcoinWsRateLimit,
+	err = o.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		RateLimit:            request.NewWeightedRateLimitByDuration(30 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
-	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return o.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  okcoinPrivateWebsocketURL,
-		RateLimit:            okcoinWsRateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(30 * time.Millisecond),
 		Authenticated:        true,
 	})
 }

@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -203,9 +204,9 @@ func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
 		if s.Channel == "ticker" {
 			req.TickTypes = wsDefaultTickTypes
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

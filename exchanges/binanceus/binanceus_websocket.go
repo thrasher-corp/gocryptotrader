@@ -577,7 +577,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 			if err != nil {
 				return err
 			}
@@ -585,12 +585,12 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 		if err != nil {
 			return err
 		}
 	}
-	return bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return bi.Websocket.AddSuccessfulSubscriptions(bi.Websocket.Conn, channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels
@@ -601,7 +601,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 			if err != nil {
 				return err
 			}
@@ -609,12 +609,12 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 		if err != nil {
 			return err
 		}
 	}
-	return bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
+	return bi.Websocket.RemoveSubscriptions(bi.Websocket.Conn, channelsToUnsubscribe...)
 }
 
 func (bi *Binanceus) setupOrderbookManager() {

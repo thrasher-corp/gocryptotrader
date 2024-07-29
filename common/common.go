@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -652,4 +653,18 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 		description = " for: " + strings.Join(fieldDescription, ", ")
 	}
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
+}
+
+// Counter is a thread-safe counter.
+type Counter int64
+
+// Get increments returns the next count.
+func (d *Counter) Get() int64 {
+	newID := atomic.AddInt64((*int64)(d), 1)
+	// Handle overflow by resetting the counter to 1 if it becomes negative
+	if newID < 0 {
+		atomic.StoreInt64((*int64)(d), 1)
+		return 1
+	}
+	return newID
 }

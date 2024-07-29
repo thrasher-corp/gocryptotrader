@@ -856,3 +856,18 @@ func TestErrorCollector(t *testing.T) {
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
 }
+
+func TestCounter(t *testing.T) {
+	t.Parallel()
+	c := Counter(-5)
+	require.Equal(t, c.Get(), int64(1))
+	require.Equal(t, c.Get(), int64(2))
+}
+
+// 683185328	         1.787 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkCounter(b *testing.B) {
+	c := Counter(0)
+	for i := 0; i < b.N; i++ {
+		c.Get()
+	}
+}

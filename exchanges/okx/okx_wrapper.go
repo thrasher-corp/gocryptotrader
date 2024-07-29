@@ -218,21 +218,21 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	}); err != nil {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	})
 }
 

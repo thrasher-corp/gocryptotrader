@@ -292,9 +292,9 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
 			req.Data.Auth = auth.Token
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -314,9 +314,9 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 				Channel: s.Channel,
 			},
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(s)
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

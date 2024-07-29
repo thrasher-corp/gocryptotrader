@@ -147,7 +147,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", authRequest)
+	_, err = o.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), "login", authRequest)
 	if err != nil {
 		return err
 	}
@@ -921,9 +921,9 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
 			if authenticatedChannelSubscription {
-				err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
+				err = o.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequest)
 			} else {
-				err = o.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+				err = o.Websocket.Conn.SendJSONMessage(context.TODO(), subscriptionRequest)
 			}
 			if err != nil {
 				return err
@@ -931,15 +931,15 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 
 			if operation == "unsubscribe" {
 				if authenticatedChannelSubscription {
-					err = o.Websocket.RemoveSubscriptions(authChannels...)
+					err = o.Websocket.RemoveSubscriptions(o.Websocket.AuthConn, authChannels...)
 				} else {
-					err = o.Websocket.RemoveSubscriptions(channels...)
+					err = o.Websocket.RemoveSubscriptions(o.Websocket.Conn, channels...)
 				}
 			} else {
 				if authenticatedChannelSubscription {
-					err = o.Websocket.AddSuccessfulSubscriptions(authChannels...)
+					err = o.Websocket.AddSuccessfulSubscriptions(o.Websocket.AuthConn, authChannels...)
 				} else {
-					err = o.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = o.Websocket.AddSuccessfulSubscriptions(o.Websocket.Conn, channels...)
 				}
 			}
 			if err != nil {
@@ -964,19 +964,19 @@ func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) e
 		}
 	}
 	if len(subscriptionRequest.Arguments) > 0 {
-		if err := o.Websocket.Conn.SendJSONMessage(subscriptionRequest); err != nil {
+		if err := o.Websocket.Conn.SendJSONMessage(context.TODO(), subscriptionRequest); err != nil {
 			return err
 		}
 	}
 	if len(authRequest.Arguments) > 0 {
-		if err := o.Websocket.AuthConn.SendJSONMessage(authRequest); err != nil {
+		if err := o.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequest); err != nil {
 			return err
 		}
 	}
 	if operation == "unsubscribe" {
-		return o.Websocket.RemoveSubscriptions(channels...)
+		return o.Websocket.RemoveSubscriptions(o.Websocket.Conn, channels...)
 	}
-	return o.Websocket.AddSuccessfulSubscriptions(channels...)
+	return o.Websocket.AddSuccessfulSubscriptions(o.Websocket.Conn, channels...)
 }
 
 // GetCandlesData represents a candlestick instances list.

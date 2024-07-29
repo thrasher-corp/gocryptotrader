@@ -423,9 +423,9 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(r)
+	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 	if err == nil {
-		err = c.Websocket.AddSuccessfulSubscriptions(subs...)
+		err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, subs...)
 	}
 	return err
 }
@@ -459,9 +459,9 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(r)
+	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 	if err == nil {
-		err = c.Websocket.RemoveSubscriptions(subs...)
+		err = c.Websocket.RemoveSubscriptions(c.Websocket.Conn, subs...)
 	}
 	return err
 }

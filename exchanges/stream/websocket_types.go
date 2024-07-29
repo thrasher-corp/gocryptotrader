@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -50,6 +51,13 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
+	// connectionWrapper contains the connection wrappers and the current
+	// connections
+	connectionManager []ConnectionWrapper
+	// Connections contains the current connections with their associated
+	// connection candidates
+	connections map[Connection]*ConnectionWrapper
+
 	subscriptions *subscription.Store
 
 	// Subscriber function for exchange specific subscribe implementation
@@ -59,9 +67,14 @@ type Websocket struct {
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() (subscription.List, error)
 
+	useMultiConnectionManagement bool
+
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
 
+	// TODO: Disconnect this as an exported field and make it a connection level method.
+	// This impedes mutliple connection matches on startup between routines as they
+	// will all share the same match object, which is not needed.
 	Match *Match
 
 	// shutdown synchronises shutdown event across routines
@@ -112,6 +125,11 @@ type WebsocketSetup struct {
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config
 
+	// UseMultiConnectionManagement allows the connections to be managed by the
+	// connection manager. If false, this will default to the global fields
+	// provided in this struct.
+	UseMultiConnectionManagement bool
+
 	TradeFeed bool
 
 	// Fill data config values
@@ -132,7 +150,7 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    int64
+	RateLimit    *request.RateLimiterWithWeight
 	ExchangeName string
 	URL          string
 	ProxyURL     string
