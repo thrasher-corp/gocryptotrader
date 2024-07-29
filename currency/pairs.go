@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"slices"
 	"strings"
+
+	"golang.org/x/exp/maps"
 )
 
 var (
@@ -235,52 +237,68 @@ func (p Pairs) GetMatch(pair Pair) (Pair, error) {
 	return EMPTYPAIR, ErrPairNotFound
 }
 
+type pairKey struct {
+	Base  *Item
+	Quote *Item
+}
+
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
 	newPairs := make(Pairs, 0, len(incoming))
-	check := make(map[string]bool)
+	check := make(map[pairKey]bool)
+	formatDiff := false
 	for x := range incoming {
 		if incoming[x].IsEmpty() {
 			return PairDifference{}, fmt.Errorf("contained in the incoming pairs a %w", ErrCurrencyPairEmpty)
 		}
-		format := EMPTYFORMAT.Format(incoming[x])
-		if check[format] {
+
+		if !formatDiff {
+			formatDiff = incoming[x].hasFormatDifference(pairFmt)
+		}
+
+		k := pairKey{Base: incoming[x].Base.Item, Quote: incoming[x].Quote.Item}
+		if check[k] {
 			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
 		}
-		check[format] = true
+		check[k] = true
 		if !p.Contains(incoming[x], true) {
 			newPairs = append(newPairs, incoming[x])
 		}
 	}
 	removedPairs := make(Pairs, 0, len(p))
-	check = make(map[string]bool)
+	maps.Clear(check)
 	for x := range p {
 		if p[x].IsEmpty() {
 			return PairDifference{}, fmt.Errorf("contained in the existing pairs a %w", ErrCurrencyPairEmpty)
 		}
-		format := EMPTYFORMAT.Format(p[x])
-		if !incoming.Contains(p[x], true) || check[format] {
+
+		if !formatDiff {
+			formatDiff = p[x].hasFormatDifference(pairFmt)
+		}
+
+		k := pairKey{Base: p[x].Base.Item, Quote: p[x].Quote.Item}
+		if !incoming.Contains(p[x], true) || check[k] {
 			removedPairs = append(removedPairs, p[x])
 		}
-		check[format] = true
+		check[k] = true
 	}
-	return PairDifference{
-		New:              newPairs,
-		Remove:           removedPairs,
-		FormatDifference: p.HasFormatDifference(pairFmt),
-	}, nil
+	return PairDifference{New: newPairs, Remove: removedPairs, FormatDifference: formatDiff}, nil
 }
 
 // HasFormatDifference checks and validates full formatting across a pairs list
 func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
 	for x := range p {
-		if p[x].Delimiter != pairFmt.Delimiter ||
-			(!p[x].Base.IsEmpty() && p[x].Base.UpperCase != pairFmt.Uppercase) ||
-			(!p[x].Quote.IsEmpty() && p[x].Quote.UpperCase != pairFmt.Uppercase) {
+		if p[x].hasFormatDifference(pairFmt) {
 			return true
 		}
 	}
 	return false
+}
+
+func (p Pair) hasFormatDifference(pairFmt PairFormat) bool {
+	return p.Delimiter != pairFmt.Delimiter ||
+		(!p.Base.IsEmpty() && p.Base.UpperCase != pairFmt.Uppercase) ||
+		(!p.Quote.IsEmpty() && p.Quote.UpperCase != pairFmt.Uppercase)
 }
 
 // GetRandomPair returns a random pair from a list of pairs
