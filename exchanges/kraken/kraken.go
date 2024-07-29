@@ -258,8 +258,8 @@ func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenDepth, values.Encode())
 
 	type orderbookStructure struct {
-		Bids [][]types.Number `json:"bids"`
-		Asks [][]types.Number `json:"asks"`
+		Bids [][3]types.Number `json:"bids"`
+		Asks [][3]types.Number `json:"asks"`
 	}
 
 	result := make(map[string]*orderbookStructure)
