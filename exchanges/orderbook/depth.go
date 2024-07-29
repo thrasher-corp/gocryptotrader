@@ -76,6 +76,8 @@ func (d *Depth) Retrieve() (*Base, error) {
 		Asset:                  d.asset,
 		Pair:                   d.pair,
 		LastUpdated:            d.lastUpdated,
+		UpdatePushedAt:         d.updatePushedAt,
+		InsertedAt:             d.insertedAt,
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
 		IsFundingRate:          d.isFundingRate,
@@ -86,7 +88,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) error {
+func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated, updatePushedAt time.Time, updateByREST bool) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if lastUpdated.IsZero() {
@@ -98,6 +100,8 @@ func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdat
 	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
+	d.updatePushedAt = updatePushedAt
+	d.insertedAt = time.Now()
 	d.restSnapshot = updateByREST
 	d.bidTranches.load(bids)
 	d.askTranches.load(asks)
@@ -373,6 +377,8 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
+	d.updatePushedAt = update.UpdatePushedAt
+	d.insertedAt = time.Now()
 	d.Alert()
 }
 

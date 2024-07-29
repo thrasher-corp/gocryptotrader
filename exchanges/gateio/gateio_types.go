@@ -2014,6 +2014,7 @@ type WsEventResponse struct {
 type WsResponse struct {
 	ID      int64           `json:"id"`
 	Time    Time            `json:"time"`
+	TimeMs  Time            `json:"time_ms"`
 	Channel string          `json:"channel"`
 	Event   string          `json:"event"`
 	Result  json.RawMessage `json:"result"`
