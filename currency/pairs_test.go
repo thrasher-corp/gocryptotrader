@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -202,108 +203,40 @@ func TestRemove(t *testing.T) {
 		NewPair(LTC, USDT),
 	}
 
-	compare := make(Pairs, len(oldPairs))
-	copy(compare, oldPairs)
+	compare := slices.Clone(oldPairs)
 
-	p := NewPair(BTC, USD)
-	newPairs, err := oldPairs.Remove(p)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	newPairs := oldPairs.Remove(oldPairs[:2]...)
 
-	err = compare.ContainsAll(oldPairs, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := compare.ContainsAll(oldPairs, true)
+	assert.NoError(t, err, "Remove should not affect the original pairs")
 
-	if newPairs.Contains(p, true) || len(newPairs) != 2 {
-		t.Error("TestRemove unexpected result")
-	}
+	require.Len(t, newPairs, 1, "Remove should remove a pair")
+	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
 
-	_, err = newPairs.Remove(p)
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
-
-	newPairs, err = oldPairs.Remove(p)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	newPairs, err = newPairs.Remove(NewPair(LTC, USD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	err = compare.ContainsAll(oldPairs, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = newPairs.Remove(NewPair(LTC, USD))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
-
-	newPairs, err = newPairs.Remove(NewPair(LTC, USDT))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	if len(newPairs) != 0 {
-		t.Error("unexpected value")
-	}
-
-	_, err = newPairs.Remove(NewPair(LTC, USDT))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
+	newPairs = newPairs.Remove(oldPairs[0])
+	assert.Len(t, newPairs, 1, newPairs, "Remove have no effect on non-included pairs")
 }
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
-		NewPair(BTC, USD),
-		NewPair(LTC, USD),
-		NewPair(LTC, USDT),
-	}
-	// Test adding a new pair to the list of pairs
-	p := NewPair(BTC, USDT)
-	pairs = pairs.Add(p)
-	if !pairs.Contains(p, true) || len(pairs) != 4 {
-		t.Error("TestAdd unexpected result")
-	}
-	// Now test adding a pair which already exists
-	pairs = pairs.Add(p)
-	if len(pairs) != 4 {
-		t.Error("TestAdd unexpected result")
-	}
-	// Test adding multiple pairs
-	pairs = pairs.Add(NewPair(BTC, LTC), NewPair(ETH, USD))
-	if len(pairs) != 6 {
-		t.Error("TestAdd unexpected result")
-	}
-	// Test adding multiple duplicate pairs
-	pairs = pairs.Add(NewPair(ETH, USDT), NewPair(ETH, USDT))
-	if len(pairs) != 7 {
-		t.Error("TestAdd unexpected result")
-	}
-	// Test whether the original pairs have been modified
-	pairsWithExtraBaggage := make(Pairs, 0, len(pairs)+3)
-	pairsWithExtraBaggage = append(pairsWithExtraBaggage, pairs...)
-	brain := NewPair(BRAIN, USD)
-	withBrain := pairsWithExtraBaggage.Add(NewPair(BTC, LTC), brain)
-	if len(pairs) != 7 {
-		t.Error("TestAdd unexpected result")
-	}
-	assert.Equal(t, brain, withBrain[len(withBrain)-1])
-	badger := NewPair(BADGER, USD)
-	withBadger := pairsWithExtraBaggage.Add(NewPair(BTC, LTC), badger)
-	if len(pairs) != 7 {
-		t.Error("TestAdd unexpected result")
-	}
-	assert.Equal(t, badger, withBadger[len(withBadger)-1])
-	assert.Equal(t, brain, withBrain[len(withBrain)-1])
+	orig := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
+	p := slices.Clone(orig)
+	p2 := Pairs{NewPair(BTC, USDT), NewPair(ETH, USD), NewPair(BTC, ETH)}
+
+	pT := p.Add(p...)
+	assert.Equal(t, pT.Join(), orig.Join(), "Adding only existing pairs should return same Pairs")
+	assert.Equal(t, p.Join(), orig.Join(), "Should not effect original")
+
+	pT = p.Add(p2...)
+	assert.Equal(t, pT.Join(), append(orig, p2...).Join(), "Adding new pairs should return correct Pairs")
+	assert.Equal(t, p.Join(), orig.Join(), "Should not effect original")
+
+	p = slices.Grow(slices.Clone(orig), len(p2)) // Grow so that append doesn't alloc
+	pT1 := p.Add(p2[0])
+	pT2 := p.Add(p2[1])
+	pT1[3] = p2[2] // If Add doesn't allocate an new underlying array, this would affect PT2 as well
+	assert.Equal(t, p.Join(), orig.Join(), "Pairs underlying array should not be shared with original")
+	assert.Equal(t, pT2.Join(), append(orig, p2[1]).Join(), "Pairs underlying array should not be shared with siblings")
 }
 
 func TestContains(t *testing.T) {

@@ -1764,7 +1764,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	return resp.GetError()
 }
 
-func (ku *Kucoin) intervalToString(interval kline.Interval) (string, error) {
+func intervalToString(interval kline.Interval) (string, error) {
 	switch interval {
 	case kline.OneMin:
 		return "1min", nil

@@ -1,21 +1,36 @@
-{{- if eq $.S.Channel "feature1" -}}
-  {{/* Case 1: One channel to rule them all */}}
-  feature1
-{{- else if eq $.S.Channel "feature2" -}}
-  {{/* Case 2: One channel per asset */}}
-  {{- range $asset, $pairs := $.AssetPairs }}
-    {{ assetName $asset }}-feature2@ {{- $.S.Interval.Short }}
-    {{- $.AssetSeparator }}
-  {{- end }}
-{{- else if eq $.S.Channel "feature3" }}
-  {{/* Case 3: One channel per pair per asset */}}
-  {{- range $asset, $pairs := $.AssetPairs }}
-    {{- range $pair := $pairs -}}
-      {{ assetName $asset }}-{{ $pair.Swap.String -}} -feature3@ {{- $.S.Levels }}
-      {{- $.PairSeparator -}}
+{{- if eq $.S.Channel "single-channel" -}}
+	single-channel
+    {{- if $.S.Authenticated -}}
+        -authed
     {{- end -}}
-    {{- $.AssetSeparator -}}
-  {{- end -}}
-{{- else if eq $.S.Channel "feature4" }}
-  feature4-authed
+{{- else if eq $.S.Channel "expand-assets" -}}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{ assetName $asset }}-expand-assets@ {{- $.S.Interval.Short }}
+		{{- $.AssetSeparator }}
+	{{- end }}
+{{- else if eq $.S.Channel "expand-pairs" }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- range $pair := $pairs -}}
+			{{ assetName $asset }}-{{ $pair.Swap.String -}} -expand-pairs@ {{- $.S.Levels }}
+			{{- $.PairSeparator -}}
+		{{- end -}}
+		{{- $.AssetSeparator -}}
+	{{- end -}}
+{{- else if eq $.S.Channel "update-asset-pairs" }}
+	{{- updateAssetPairs $.AssetPairs -}}
+	spot-btcusdt-update-asset-pairs
+	{{- $.PairSeparator -}}
+	{{- $.AssetSeparator -}}
+	{{/* futures doesn't output anything, but we need an asset separator, so this previous one must not be stripped */}}
+	{{- $.AssetSeparator -}}
+{{- else if eq $.S.Channel "batching" }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+        {{- if eq $asset.String "spot" }}
+            {{- range $batch := batch $pairs 3 -}}
+                {{ assetName $asset }}-{{ $batch.Join -}} -batching
+                {{- $.PairSeparator -}}
+            {{- end -}}
+            {{- $.BatchSize -}} 3
+        {{- end }}
+	{{- end -}}
 {{- end -}}
