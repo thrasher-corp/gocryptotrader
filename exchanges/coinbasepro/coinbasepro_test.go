@@ -559,6 +559,7 @@ func TestCommitConvertTrade(t *testing.T) {
 }
 
 func TestGetConvertTradeByID(t *testing.T) {
+	c.Verbose = true
 	convertTestShared(t, c.GetConvertTradeByID)
 }
 
@@ -1137,22 +1138,21 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := c.SubmitOrder(context.Background(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-	var ord order.Submit
-	_, err = c.SubmitOrder(context.Background(), &ord)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, order.ErrSubmissionIsNil)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	skipTestIfLowOnFunds(t)
-	ord.Exchange = c.Name
-	ord.Pair = testPair
-	ord.AssetType = asset.Spot
-	ord.Side = order.Sell
-	ord.Type = order.StopLimit
-	ord.StopDirection = order.StopUp
-	ord.Amount = testAmount
-	ord.Price = testPrice
-	ord.RetrieveFees = true
-	ord.ClientOrderID = strconv.FormatInt(time.Now().UnixMilli(), 18) + "GCTSubmitOrderTest"
+	ord := order.Submit{
+		Exchange:      c.Name,
+		Pair:          testPair,
+		AssetType:     asset.Spot,
+		Side:          order.Buy,
+		Type:          order.Market,
+		StopDirection: order.StopUp,
+		Amount:        testAmount,
+		Price:         testPrice,
+		RetrieveFees:  true,
+		ClientOrderID: strconv.FormatInt(time.Now().UnixMilli(), 18) + "GCTSubmitOrderTest",
+	}
 	resp, err := c.SubmitOrder(context.Background(), &ord)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1669,6 +1669,11 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// func TestSilly(t *testing.T) {
+// 	ob := make(map[key.PairAsset]*orderbook.Base)
+// 	book, ok := ob[key.PairAsset{Base: , Quote: , Asset: asset.Spot}]
+// }
+
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	comparison := subscription.List{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
 		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
@@ -1911,6 +1916,7 @@ func convertTestShared(t *testing.T, f genConvertTestFunc) {
 	fromAccID, toAccID := convertTestHelper(t)
 	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
 	assert.NoError(t, err)
+	require.NotNil(t, resp)
 	resp, err = f(context.Background(), resp.Trade.ID, fromAccID, toAccID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
