@@ -1618,12 +1618,7 @@ func (ku *Kucoin) checkSubscriptions() {
 		return false
 	})
 	if upgraded {
-		ku.Features.Subscriptions = subscription.List{}
-		for _, s := range ku.Config.Features.Subscriptions {
-			if s.Enabled {
-				ku.Features.Subscriptions = append(ku.Features.Subscriptions, s)
-			}
-		}
+		ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
 	}
 }
 
