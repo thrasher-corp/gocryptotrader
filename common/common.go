@@ -655,10 +655,15 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
 }
 
-// Batch takes a slice type and converts it into a slice of slices
+// Batch takes a slice type and converts it into a slice of containing slices of length batchSize, and any remainder in the final batch
+// batchSize <= 0 will return the entire input slice in one batch
 func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
-	if batchSize <= 0 || len(blobs) == 0 {
+	if len(blobs) == 0 {
 		return []S{}
+	}
+	blobs = slices.Clone(blobs)
+	if batchSize <= 0 {
+		return []S{blobs}
 	}
 	i := 0
 	batches := make([]S, (len(blobs)+batchSize-1)/batchSize)
