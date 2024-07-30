@@ -92,6 +92,23 @@ func (bi *Bitget) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: kline.DeployExchangeIntervals(
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+				),
+			},
 		},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
@@ -1263,35 +1280,34 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 	for x := range pairs {
 		switch getOrdersRequest.AssetType {
 		case asset.Spot:
-			var pagination int64
 			fillMap := make(map[int64][]order.TradeHistory)
-			for {
-				genFills, err := bi.GetSpotFills(ctx, pairs[x], time.Time{}, time.Time{}, 100, pagination, 0)
+			var pagination int64
+			if pairs[x] != "" {
+				err = bi.spotFillsHelper(ctx, pairs[x], fillMap)
 				if err != nil {
 					return nil, err
 				}
-				if len(genFills.Data) == 0 {
-					break
+				resp, err = bi.spotHistoricPlanOrdersHelper(ctx, pairs[x], getOrdersRequest.Pairs[x], resp, fillMap)
+				if err != nil {
+					return nil, err
 				}
-				if pagination == int64(genFills.Data[len(genFills.Data)-1].TradeID) {
-					break
+			} else {
+				newPairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
+				if err != nil {
+					return nil, err
 				}
-				pagination = int64(genFills.Data[len(genFills.Data)-1].TradeID)
-				for i := range genFills.Data {
-					fillMap[genFills.Data[i].TradeID] = append(fillMap[genFills.Data[i].TradeID],
-						order.TradeHistory{
-							TID:       strconv.FormatInt(genFills.Data[i].TradeID, 10),
-							Type:      typeDecoder(genFills.Data[i].OrderType),
-							Side:      sideDecoder(genFills.Data[i].Side),
-							Price:     genFills.Data[i].PriceAverage,
-							Amount:    genFills.Data[i].Size,
-							Fee:       genFills.Data[i].FeeDetail.TotalFee,
-							FeeAsset:  genFills.Data[i].FeeDetail.FeeCoin,
-							Timestamp: genFills.Data[i].CreationTime.Time(),
-						})
+				for y := range newPairs {
+					err = bi.spotFillsHelper(ctx, newPairs[y].String(), fillMap)
+					if err != nil {
+						return nil, err
+					}
+					resp, err = bi.spotHistoricPlanOrdersHelper(ctx, newPairs[y].String(), newPairs[y], resp,
+						fillMap)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
-			pagination = 0
 			for {
 				genOrds, err := bi.GetHistoricalSpotOrders(ctx, pairs[x], time.Time{}, time.Time{}, 100, pagination,
 					0)
@@ -1341,24 +1357,6 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				}
 				resp = append(resp, tempOrds...)
 			}
-			if pairs[x] != "" {
-				resp, err = bi.spotHistoricPlanOrdersHelper(ctx, pairs[x], getOrdersRequest.Pairs[x], resp, fillMap)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				newPairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
-				if err != nil {
-					return nil, err
-				}
-				for y := range newPairs {
-					resp, err = bi.spotHistoricPlanOrdersHelper(ctx, newPairs[y].String(), newPairs[y], resp,
-						fillMap)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
 		case asset.Futures:
 			if pairs[x] != "" {
 				resp, err = bi.historicalFuturesOrderHelper(ctx, pairs[x],
@@ -1392,6 +1390,10 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if len(genFills.Data.Fills) == 0 {
 					break
 				}
+				if pagination == int64(genFills.Data.MaxID) {
+					break
+				}
+				pagination = int64(genFills.Data.MaxID)
 				for i := range genFills.Data.Fills {
 					fillMap[genFills.Data.Fills[i].TradeID] = append(fillMap[genFills.Data.Fills[i].TradeID],
 						order.TradeHistory{
@@ -1400,11 +1402,64 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 							Side:      sideDecoder(genFills.Data.Fills[i].Side),
 							Price:     genFills.Data.Fills[i].PriceAverage,
 							Amount:    genFills.Data.Fills[i].Size,
+							Timestamp: genFills.Data.Fills[i].CreationTime.Time(),
 							Fee:       genFills.Data.Fills[i].FeeDetail.TotalFee,
 							FeeAsset:  genFills.Data.Fills[i].FeeDetail.FeeCoin,
-							Timestamp: genFills.Data.Fills[i].CreationTime.Time(),
 						})
 				}
+			}
+			pagination = 0
+			var genOrds *MarginHistOrds
+			for {
+				if getOrdersRequest.AssetType == asset.Margin {
+					genOrds, err = bi.GetIsolatedHistoricalOrders(ctx, pairs[x], "", "", 0, 500, pagination,
+						time.Now().Add(-time.Hour*24*90), time.Time{})
+				} else {
+					genOrds, err = bi.GetCrossHistoricalOrders(ctx, pairs[x], "", "", 0, 500, pagination,
+						time.Now().Add(-time.Hour*24*90), time.Time{})
+				}
+				if err != nil {
+					return nil, err
+				}
+				if len(genOrds.Data.OrderList) == 0 {
+					break
+				}
+				if pagination == int64(genOrds.Data.MaxID) {
+					break
+				}
+				pagination = int64(genOrds.Data.MaxID)
+				tempOrds := make([]order.Detail, len(genOrds.Data.OrderList))
+				for i := range genOrds.Data.OrderList {
+					tempOrds[i] = order.Detail{
+						Exchange:             bi.Name,
+						AssetType:            getOrdersRequest.AssetType,
+						OrderID:              strconv.FormatInt(int64(genOrds.Data.OrderList[i].OrderID), 10),
+						Type:                 typeDecoder(genOrds.Data.OrderList[i].OrderType),
+						ClientOrderID:        genOrds.Data.OrderList[i].ClientOrderID,
+						Price:                genOrds.Data.OrderList[i].Price,
+						Side:                 sideDecoder(genOrds.Data.OrderList[i].Side),
+						Status:               statusDecoder(genOrds.Data.OrderList[i].Status),
+						Amount:               genOrds.Data.OrderList[i].Size,
+						QuoteAmount:          genOrds.Data.OrderList[i].QuoteSize,
+						AverageExecutedPrice: genOrds.Data.OrderList[i].PriceAverage,
+						Date:                 genOrds.Data.OrderList[i].CreationTime.Time(),
+						LastUpdated:          genOrds.Data.OrderList[i].UpdateTime.Time(),
+					}
+					if pairs[x] != "" {
+						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
+					} else {
+						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.Data.OrderList[i].Symbol)
+						if err != nil {
+							return nil, err
+						}
+					}
+					tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly =
+						strategyDecoder(genOrds.Data.OrderList[i].Force)
+					if len(fillMap[int64(genOrds.Data.OrderList[i].OrderID)]) > 0 {
+						tempOrds[i].Trades = fillMap[int64(genOrds.Data.OrderList[i].OrderID)]
+					}
+				}
+				resp = append(resp, tempOrds...)
 			}
 		default:
 			return nil, asset.ErrNotSupported
@@ -1415,7 +1470,17 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (bi *Bitget) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	fee, err := bi.GetTradeRate(ctx, feeBuilder.Pair.String(), "spot")
+	if err != nil {
+		return 0, err
+	}
+	if feeBuilder.IsMaker {
+		return fee.Data.MakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+	}
+	return fee.Data.TakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
@@ -1426,7 +1491,50 @@ func (bi *Bitget) ValidateAPICredentials(ctx context.Context, assetType asset.It
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (bi *Bitget) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	req, err := bi.GetKlineRequest(pair, a, interval, start, end, false)
+	if err != nil {
+		return nil, err
+	}
+	var resp []kline.Candle
+	switch a {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		cndl, err := bi.GetSpotCandlestickData(ctx, req.RequestFormatted.String(),
+			formatExchangeKlineIntervalSpot(req.ExchangeInterval), req.Start, req.End, 200, true)
+		if err != nil {
+			return nil, err
+		}
+		resp = make([]kline.Candle, len(cndl.SpotCandles))
+		for i := range cndl.SpotCandles {
+			resp[i] = kline.Candle{
+				Time:   cndl.SpotCandles[i].Timestamp,
+				Low:    cndl.SpotCandles[i].Low,
+				High:   cndl.SpotCandles[i].High,
+				Open:   cndl.SpotCandles[i].Open,
+				Close:  cndl.SpotCandles[i].Close,
+				Volume: cndl.SpotCandles[i].BaseVolume,
+			}
+		}
+	case asset.Futures:
+		cndl, err := bi.GetFuturesCandlestickData(ctx, req.RequestFormatted.String(), getProductType(pair),
+			formatExchangeKlineIntervalFutures(req.ExchangeInterval), req.Start, req.End, 200, CallModeHistory)
+		if err != nil {
+			return nil, err
+		}
+		resp = make([]kline.Candle, len(cndl.FuturesCandles))
+		for i := range cndl.FuturesCandles {
+			resp[i] = kline.Candle{
+				Time:   cndl.FuturesCandles[i].Timestamp,
+				Low:    cndl.FuturesCandles[i].Low,
+				High:   cndl.FuturesCandles[i].High,
+				Open:   cndl.FuturesCandles[i].Entry,
+				Close:  cndl.FuturesCandles[i].Exit,
+				Volume: cndl.FuturesCandles[i].BaseVolume,
+			}
+		}
+	default:
+		return nil, asset.ErrNotSupported
+	}
+	return req.ProcessResponse(resp)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1805,7 +1913,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, pairStr, product
 func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairStr string, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
 	var pagination int64
 	for {
-		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairStr, time.Time{}, time.Time{}, 100,
+		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairStr, time.Now().Add(-time.Hour*24*90), time.Now(), 100,
 			pagination)
 		if err != nil {
 			return nil, err
@@ -1985,4 +2093,102 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, pairStr, pro
 		}
 	}
 	return resp, nil
+}
+
+// SpotFillsHelper is a helper function that repeatedly calls GetSpotFills, directly altering the supplied map with that data
+func (bi *Bitget) spotFillsHelper(ctx context.Context, pairStr string, fillMap map[int64][]order.TradeHistory) error {
+	var pagination int64
+	for {
+		genFills, err := bi.GetSpotFills(ctx, pairStr, time.Time{}, time.Time{}, 100, pagination, 0)
+		if err != nil {
+			return err
+		}
+		if len(genFills.Data) == 0 {
+			break
+		}
+		if pagination == int64(genFills.Data[len(genFills.Data)-1].TradeID) {
+			break
+		}
+		pagination = int64(genFills.Data[len(genFills.Data)-1].TradeID)
+		for i := range genFills.Data {
+			fillMap[genFills.Data[i].TradeID] = append(fillMap[genFills.Data[i].TradeID],
+				order.TradeHistory{
+					TID:       strconv.FormatInt(genFills.Data[i].TradeID, 10),
+					Type:      typeDecoder(genFills.Data[i].OrderType),
+					Side:      sideDecoder(genFills.Data[i].Side),
+					Price:     genFills.Data[i].PriceAverage,
+					Amount:    genFills.Data[i].Size,
+					Fee:       genFills.Data[i].FeeDetail.TotalFee,
+					FeeAsset:  genFills.Data[i].FeeDetail.FeeCoin,
+					Timestamp: genFills.Data[i].CreationTime.Time(),
+				})
+		}
+	}
+	return nil
+}
+
+// FormatExchangeKlineIntervalSpot is a helper function used to convert kline.Interval to the string format
+// required by the spot API
+func formatExchangeKlineIntervalSpot(interval kline.Interval) string {
+	switch interval {
+	case kline.OneMin:
+		return "1min"
+	case kline.FiveMin:
+		return "5min"
+	case kline.FifteenMin:
+		return "15min"
+	case kline.ThirtyMin:
+		return "30min"
+	case kline.OneHour:
+		return "1h"
+	case kline.FourHour:
+		return "4h"
+	case kline.SixHour:
+		return "6h"
+	case kline.TwelveHour:
+		return "12h"
+	case kline.OneDay:
+		return "1day"
+	case kline.ThreeDay:
+		return "3day"
+	case kline.OneWeek:
+		return "1week"
+	case kline.OneMonth:
+		return "1M"
+	}
+	return errIntervalNotSupported
+}
+
+// FormatExchangeKlineIntervalFutures is a helper function used to convert kline.Interval to the string format
+// required by the futures API
+func formatExchangeKlineIntervalFutures(interval kline.Interval) string {
+	switch interval {
+	case kline.OneMin:
+		return "1m"
+	case kline.ThreeMin:
+		return "3m"
+	case kline.FiveMin:
+		return "5m"
+	case kline.FifteenMin:
+		return "15m"
+	case kline.ThirtyMin:
+		return "30m"
+	case kline.OneHour:
+		return "1H"
+	case kline.FourHour:
+		return "4H"
+	case kline.SixHour:
+		return "6H"
+	case kline.TwelveHour:
+		return "12H"
+	case kline.OneDay:
+		return "1D"
+	case kline.ThreeDay:
+		return "3D"
+	case kline.OneWeek:
+		return "1W"
+	case kline.OneMonth:
+		return "1M"
+	}
+	return errIntervalNotSupported
 }

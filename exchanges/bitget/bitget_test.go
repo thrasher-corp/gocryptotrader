@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -135,10 +136,10 @@ func TestGetTradeRate(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetTradeRate(context.Background(), "", "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.GetTradeRate(context.Background(), "BTCUSDT", "")
+	_, err = bi.GetTradeRate(context.Background(), testPair.String(), "")
 	assert.ErrorIs(t, err, errBusinessTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetTradeRate(context.Background(), "BTCUSDT", "spot")
+	resp, err := bi.GetTradeRate(context.Background(), testPair.String(), "spot")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
@@ -2628,7 +2629,7 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetActiveOrdrrs(t *testing.T) {
+func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var req *order.MultiOrderRequest
 	_, err := bi.GetActiveOrders(context.Background(), req)
@@ -2651,13 +2652,95 @@ func TestGetActiveOrdrrs(t *testing.T) {
 	req.AssetType = asset.Futures
 	_, err = bi.GetActiveOrders(context.Background(), req)
 	assert.NoError(t, err)
-	req.AssetType = asset.Spot
+	req.Pairs = []currency.Pair{}
 	_, err = bi.GetActiveOrders(context.Background(), req)
 	assert.NoError(t, err)
-	req.Pairs = []currency.Pair{}
+	req.AssetType = asset.Spot
 	_, err = bi.GetActiveOrders(context.Background(), req)
 	// This is failing since the String() method on these novel pairs returns them with a delimiter for some reason
 	assert.NoError(t, err)
+	req.Pairs = []currency.Pair{testPair}
+	_, err = bi.GetActiveOrders(context.Background(), req)
+	assert.NoError(t, err)
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	var req *order.MultiOrderRequest
+	_, err := bi.GetOrderHistory(context.Background(), req)
+	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil)
+	req = &order.MultiOrderRequest{
+		AssetType: asset.Binary,
+		Side:      order.Sell,
+		Type:      order.Limit,
+		Pairs:     []currency.Pair{testPair},
+	}
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	req.AssetType = asset.CrossMargin
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	assert.NoError(t, err)
+	req.AssetType = asset.Margin
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	assert.NoError(t, err)
+	req.AssetType = asset.Futures
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	assert.NoError(t, err)
+	req.Pairs = []currency.Pair{}
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	assert.NoError(t, err)
+	req.AssetType = asset.Spot
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	// This is failing since the String() method on these novel pairs returns them with a delimiter for some reason
+	assert.NoError(t, err)
+	req.Pairs = []currency.Pair{testPair}
+	_, err = bi.GetOrderHistory(context.Background(), req)
+	assert.NoError(t, err)
+}
+
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	var fb *exchange.FeeBuilder
+	_, err := bi.GetFeeByType(context.Background(), fb)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	fb = &exchange.FeeBuilder{}
+	_, err = bi.GetFeeByType(context.Background(), fb)
+	assert.ErrorIs(t, err, errPairEmpty)
+	fb.Pair = testPair
+	_, err = bi.GetFeeByType(context.Background(), fb)
+	assert.NoError(t, err)
+	fb.IsMaker = true
+	_, err = bi.GetFeeByType(context.Background(), fb)
+	assert.NoError(t, err)
+}
+
+func TestValidateAPICredentials(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	err := bi.ValidateAPICredentials(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetHistoricCandles(context.Background(), currency.Pair{}, asset.Spot, kline.Raw, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.OneDay, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+	_, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Futures, kline.OneDay, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+
+	// _, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Binary, kline.OneMin, time.Now().Add(-time.Hour),
+	// 	time.Now())
+	// assert.ErrorIs(t, err, asset.ErrNotSupported)
+	// _, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour),
+	// time.Now())
+	// assert.NoError(t, err)
+	// _, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Futures, kline.OneMin, time.Now().Add(-time.Hour),
+	// 	time.Now())
+	// assert.NoError(t, err)
 }
 
 // The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests

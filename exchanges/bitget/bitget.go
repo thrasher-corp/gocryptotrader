@@ -198,6 +198,8 @@ const (
 	bitgetReviseHistory            = "/revise-history"
 	bitgetDebts                    = "/debts"
 	bitgetReduces                  = "/reduces"
+
+	errIntervalNotSupported = "interval not supported"
 )
 
 var (
@@ -2234,7 +2236,7 @@ func (bi *Bitget) GetPositionTier(ctx context.Context, productType, pair string)
 }
 
 // GetSinglePosition returns position details for a given productType, pair, and marginCoin. The exchange recommends
-// using the websocket feed  instead, as information from this endpoint may be delayed during settlement or market
+// using the websocket feed instead, as information from this endpoint may be delayed during settlement or market
 // fluctuations
 func (bi *Bitget) GetSinglePosition(ctx context.Context, productType, pair, marginCoin string) (*PositionResp, error) {
 	if productType == "" {
@@ -2257,7 +2259,7 @@ func (bi *Bitget) GetSinglePosition(ctx context.Context, productType, pair, marg
 }
 
 // GetAllPositions returns position details for a given productType and marginCoin. The exchange recommends using
-// the websocket feed  instead, as information from this endpoint may be delayed during settlement or market
+// the websocket feed instead, as information from this endpoint may be delayed during settlement or market
 // fluctuations
 func (bi *Bitget) GetAllPositions(ctx context.Context, productType, marginCoin string) (*PositionResp, error) {
 	if productType == "" {
