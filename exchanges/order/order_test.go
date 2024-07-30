@@ -12,9 +12,11 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
@@ -24,9 +26,12 @@ func TestSubmit_Validate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
-		ExpectedErr error
-		Submit      *Submit
-		ValidOpts   validate.Checker
+		ExpectedErr                     error
+		Submit                          *Submit
+		ValidOpts                       validate.Checker
+		HasToPurchaseWithQuoteAmountSet bool
+		HasToSellWithBaseAmountSet      bool
+		RequiresID                      bool
 	}{
 		{
 			ExpectedErr: ErrSubmissionIsNil,
@@ -178,13 +183,72 @@ func TestSubmit_Validate(t *testing.T) {
 			},
 			ValidOpts: validate.Check(func() error { return nil }),
 		}, // valid order!
+		{
+			ExpectedErr: ErrAmountMustBeSet,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Market,
+				Amount:    1,
+				AssetType: asset.Spot,
+			},
+			HasToPurchaseWithQuoteAmountSet: true,
+			ValidOpts:                       validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: ErrAmountMustBeSet,
+			Submit: &Submit{
+				Exchange:    "test",
+				Pair:        testPair,
+				Side:        Sell,
+				Type:        Market,
+				QuoteAmount: 1,
+				AssetType:   asset.Spot,
+			},
+			HasToSellWithBaseAmountSet: true,
+			ValidOpts:                  validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: ErrClientOrderIDMustBeSet,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Market,
+				Amount:    1,
+				AssetType: asset.Spot,
+			},
+			RequiresID: true,
+			ValidOpts:  validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: nil,
+			Submit: &Submit{
+				Exchange:      "test",
+				Pair:          testPair,
+				Side:          Buy,
+				Type:          Market,
+				Amount:        1,
+				AssetType:     asset.Spot,
+				ClientOrderID: "69420",
+			},
+			RequiresID: true,
+			ValidOpts:  validate.Check(func() error { return nil }),
+		},
 	}
 
-	for x := range tester {
-		err := tester[x].Submit.Validate(tester[x].ValidOpts)
-		if !errors.Is(err, tester[x].ExpectedErr) {
-			t.Fatalf("Unexpected result. %d Got: %v, want: %v", x+1, err, tester[x].ExpectedErr)
-		}
+	for x, tc := range tester {
+		t.Run(strconv.Itoa(x), func(t *testing.T) {
+			t.Parallel()
+			requirements := protocol.TradingRequirements{
+				SpotMarketOrderAmountPurchaseQuotationOnly: tc.HasToPurchaseWithQuoteAmountSet,
+				SpotMarketOrderAmountSellBaseOnly:          tc.HasToSellWithBaseAmountSet,
+				ClientOrderID:                              tc.RequiresID,
+			}
+			err := tc.Submit.Validate(requirements, tc.ValidOpts)
+			assert.ErrorIs(t, err, tc.ExpectedErr)
+		})
 	}
 }
 
@@ -2061,4 +2125,23 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+}
+
+func TestGetTradeAmount(t *testing.T) {
+	t.Parallel()
+	var s *Submit
+	require.Zero(t, s.GetTradeAmount(protocol.TradingRequirements{}))
+	baseAmount := 420.0
+	quoteAmount := 69.0
+	s = &Submit{Amount: baseAmount, QuoteAmount: quoteAmount}
+	// below will default to base amount with nothing set
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountPurchaseQuotationOnly: true}))
+	s.AssetType = asset.Spot
+	s.Type = Market
+	s.Side = Buy
+	require.Equal(t, quoteAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountPurchaseQuotationOnly: true}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
+	s.Side = Sell
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
 }

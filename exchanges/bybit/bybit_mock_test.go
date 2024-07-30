@@ -10,95 +10,50 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
-
-const mockfile = "../../testdata/http_mock/bybit/bybit.json"
 
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	b = new(Bybit)
+	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
 	}
 
-	bybitConfig, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal("Bybit Setup() init error", err)
+	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
+
+	if err := testexch.MockHTTPInstance(b); err != nil {
+		log.Fatal(err)
 	}
 
-	b.SkipAuthCheck = true
-	bybitConfig.API.Credentials.Key = apiKey
-	bybitConfig.API.Credentials.Secret = apiSecret
-	bybitConfig.API.AuthenticatedSupport = true
-	bybitConfig.API.AuthenticatedWebsocketSupport = true
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bybitConfig)
-	if err != nil {
-		log.Fatal("Bybit setup error", err)
+	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+		log.Fatalf("Bybit unable to UpdateTradablePairs: %s", err)
 	}
 
-	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	err = b.SetHTTPClient(newClient)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	endpointMap := b.API.Endpoints.GetURLMap()
-	for k := range endpointMap {
-		err = b.API.Endpoints.SetRunning(k, serverDetails)
-		if err != nil {
-			log.Fatal(err)
+	setEnabledPair := func(assetType asset.Item, pair currency.Pair) {
+		okay, err := b.IsPairEnabled(pair, assetType)
+		if !okay || err != nil {
+			err = b.CurrencyPairs.EnablePair(assetType, pair)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
-	err = b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		log.Fatal("Bybit setup error", err)
-	}
+
 	spotTradablePair = currency.Pair{Base: currency.BTC, Quote: currency.USDT}
-	okay, err := b.IsPairEnabled(spotTradablePair, asset.Spot)
-	if !okay || err != nil {
-		err = b.CurrencyPairs.EnablePair(asset.Spot, spotTradablePair)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 	usdtMarginedTradablePair = currency.Pair{Base: currency.NewCode("10000LADYS"), Quote: currency.USDT}
-	if okay, err = b.IsPairEnabled(usdtMarginedTradablePair, asset.USDTMarginedFutures); !okay || err != nil {
-		err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtMarginedTradablePair)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 	usdcMarginedTradablePair = currency.Pair{Base: currency.ETH, Quote: currency.PERP}
-	if okay, err = b.IsPairEnabled(usdcMarginedTradablePair, asset.USDCMarginedFutures); !okay || err != nil {
-		err = b.CurrencyPairs.EnablePair(asset.USDCMarginedFutures, usdcMarginedTradablePair)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 	inverseTradablePair = currency.Pair{Base: currency.ADA, Quote: currency.USD}
-	if okay, err = b.IsPairEnabled(inverseTradablePair, asset.CoinMarginedFutures); !okay || err != nil {
-		err = b.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, inverseTradablePair)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 	optionsTradablePair = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("29DEC23-80000-C")}
-	if okay, err = b.IsPairEnabled(optionsTradablePair, asset.Options); !okay || err != nil {
-		err = b.CurrencyPairs.EnablePair(asset.Options, optionsTradablePair)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+
+	setEnabledPair(asset.Spot, spotTradablePair)
+	setEnabledPair(asset.USDTMarginedFutures, usdtMarginedTradablePair)
+	setEnabledPair(asset.USDCMarginedFutures, usdcMarginedTradablePair)
+	setEnabledPair(asset.CoinMarginedFutures, inverseTradablePair)
+	setEnabledPair(asset.Options, optionsTradablePair)
+
 	os.Exit(m.Run())
 }

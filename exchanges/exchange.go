@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -1155,9 +1156,20 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 
+// GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
+func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
+}
+
+// CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
+// Used to avoid import cycles on stream.websocket
+func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
+	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
@@ -1946,4 +1958,12 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
 	return "", common.ErrFunctionNotSupported
+}
+
+// GetTradingRequirements returns the exchange's trading requirements.
+func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
+	if b == nil {
+		return protocol.TradingRequirements{}
+	}
+	return b.Features.TradingRequirements
 }
