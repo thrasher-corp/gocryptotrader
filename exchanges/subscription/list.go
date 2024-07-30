@@ -55,11 +55,15 @@ func (l List) Clone() List {
 	return n
 }
 
-// Authenticated returns true if the list contains a subscription that needs Authentication
-func (l List) Authenticated() bool {
-	return slices.ContainsFunc(l, func(s *Subscription) bool {
-		return s.Authenticated
-	})
+// Authenticated returns only Authenticated subscriptions
+func (l List) Authenticated() List {
+	a := List{}
+	for _, s := range l {
+		if s.Authenticated {
+			a = append(a, s)
+		}
+	}
+	return a
 }
 
 // QualifiedChannels returns a sorted list of all the qualified Channels in the list

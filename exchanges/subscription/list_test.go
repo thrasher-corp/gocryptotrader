@@ -109,6 +109,6 @@ func TestListClone(t *testing.T) {
 
 func TestListAuthenticated(t *testing.T) {
 	t.Parallel()
-	assert.True(t, List{{}, {Authenticated: true}}.Authenticated(), "Authenticated should return true with one authenticated subscription")
-	assert.False(t, List{{}, {}}.Authenticated(), "Authenticated should return false with no authenticated subscriptions")
+	assert.NotEmpty(t, 1, List{{}, {Authenticated: true}}.Authenticated(), "Authenticated should return correct length")
+	assert.Empty(t, List{{}, {}}.Authenticated(), "Authenticated should return empty")
 }
