@@ -1174,7 +1174,6 @@ func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
 	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		fmt.Println("All enabled pairs: ", b.CurrencyPairs.Pairs[a].Enabled)
 		err = common.AppendError(err, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
 	}
 
@@ -1521,7 +1520,6 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	if !a.IsValid() {
 		return nil, asset.ErrNotSupported
 	}
-	fmt.Println("Checkpoint 1")
 	// NOTE: This allows for checking that the required kline interval is
 	// supported by the exchange and/or can be constructed from lower time frame
 	// intervals.
@@ -1529,31 +1527,26 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Checkpoint 2")
 
 	err = b.ValidateKline(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Checkpoint 3")
 
 	formatted, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Checkpoint 4")
 
 	limit, err := b.Features.Enabled.Kline.GetIntervalResultLimit(exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Checkpoint 5")
 
 	req, err := kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, exchangeInterval, start, end, limit)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Checkpoint 6")
 
 	// NOTE: The checks below makes sure a client is notified that using this
 	// functionality will result in error if the total candles cannot be
@@ -1586,7 +1579,6 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 			limit,
 			kline.ErrRequestExceedsExchangeLimits)
 	}
-	fmt.Println("Checkpoint 7")
 
 	return req, nil
 }

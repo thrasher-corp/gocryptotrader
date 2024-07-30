@@ -1539,11 +1539,60 @@ func (bi *Bitget) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (bi *Bitget) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	req, err := bi.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	var resp []kline.Candle
+	for x := range req.RangeHolder.Ranges {
+		switch a {
+		case asset.Spot, asset.Margin, asset.CrossMargin:
+			cndl, err := bi.GetSpotCandlestickData(ctx, req.RequestFormatted.String(),
+				formatExchangeKlineIntervalSpot(req.ExchangeInterval), req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time, 200, true)
+			if err != nil {
+				return nil, err
+			}
+			temp := make([]kline.Candle, len(cndl.SpotCandles))
+			for i := range cndl.SpotCandles {
+				temp[i] = kline.Candle{
+					Time:   cndl.SpotCandles[i].Timestamp,
+					Low:    cndl.SpotCandles[i].Low,
+					High:   cndl.SpotCandles[i].High,
+					Open:   cndl.SpotCandles[i].Open,
+					Close:  cndl.SpotCandles[i].Close,
+					Volume: cndl.SpotCandles[i].BaseVolume,
+				}
+			}
+			resp = append(resp, temp...)
+		case asset.Futures:
+			cndl, err := bi.GetFuturesCandlestickData(ctx, req.RequestFormatted.String(), getProductType(pair),
+				formatExchangeKlineIntervalFutures(req.ExchangeInterval), req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time, 200, CallModeHistory)
+			if err != nil {
+				return nil, err
+			}
+			temp := make([]kline.Candle, len(cndl.FuturesCandles))
+			for i := range cndl.FuturesCandles {
+				temp[i] = kline.Candle{
+					Time:   cndl.FuturesCandles[i].Timestamp,
+					Low:    cndl.FuturesCandles[i].Low,
+					High:   cndl.FuturesCandles[i].High,
+					Open:   cndl.FuturesCandles[i].Entry,
+					Close:  cndl.FuturesCandles[i].Exit,
+					Volume: cndl.FuturesCandles[i].BaseVolume,
+				}
+			}
+			resp = append(resp, temp...)
+		default:
+			return nil, asset.ErrNotSupported
+		}
+	}
+	return req.ProcessResponse(resp)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (bi *Bitget) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+func (bi *Bitget) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

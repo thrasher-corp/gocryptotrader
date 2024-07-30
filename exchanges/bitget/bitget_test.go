@@ -2743,6 +2743,14 @@ func TestGetHistoricCandles(t *testing.T) {
 	// assert.NoError(t, err)
 }
 
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetHistoricCandlesExtended(context.Background(), currency.Pair{}, asset.Spot, kline.Raw, time.Time{},
+		time.Time{})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	// Rest of this is being put on ice until the issue with the previous test has been figured out
+}
+
 // The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests
 func TestModifyPlanSpotOrder(t *testing.T) {
 	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
