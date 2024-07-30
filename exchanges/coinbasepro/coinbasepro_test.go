@@ -1669,11 +1669,6 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// func TestSilly(t *testing.T) {
-// 	ob := make(map[key.PairAsset]*orderbook.Base)
-// 	book, ok := ob[key.PairAsset{Base: , Quote: , Asset: asset.Spot}]
-// }
-
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	comparison := subscription.List{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
 		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
