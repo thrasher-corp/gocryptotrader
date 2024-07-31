@@ -213,7 +213,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:          g.SpotUnsubscribe,
 		GenerateSubscriptions: g.GenerateDefaultSubscriptionsSpot,
 		Connector:             g.WsConnectSpot,
-		AllowOutbound:         true,
 		Authenticate:          g.AuthenticateSpot,
 	})
 	if err != nil {
