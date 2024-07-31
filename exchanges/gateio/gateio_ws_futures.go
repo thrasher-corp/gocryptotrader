@@ -228,7 +228,7 @@ func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Conn
 	var errs error
 	var respByte []byte
 	for i, val := range payloads {
-		respByte, err = conn.SendMessageReturnResponse(val.ID, val)
+		respByte, err = conn.SendMessageReturnResponse(ctx, val.ID, val)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue

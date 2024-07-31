@@ -588,8 +588,8 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
 			balance := account.Balance{
-				Currency: currency.NewCode(balances.List[i].Coin[c].Coin),
-				Total:    balances.List[i].TotalWalletBalance.Float64(),
+				Currency: balances.List[i].Coin[c].Coin,
+				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
 				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
 				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
 				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),

@@ -294,7 +294,7 @@ func (g *Gateio) handleOptionsSubscription(ctx context.Context, conn stream.Conn
 	}
 	var errs error
 	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(ctx, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue

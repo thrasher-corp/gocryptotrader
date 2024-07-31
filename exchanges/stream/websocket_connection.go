@@ -25,41 +25,6 @@ import (
 // connection cycle needs to take place.
 var errConnectionFault = errors.New("connection fault")
 
-// SendMessageReturnResponse will send a WS message to the connection and wait
-// for response
-func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
-	m, err := w.Match.Set(signature)
-	if err != nil {
-		return nil, err
-	}
-	defer m.Cleanup()
-
-	b, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
-	}
-
-	start := time.Now()
-	err = w.SendRawMessage(websocket.TextMessage, b)
-	if err != nil {
-		return nil, err
-	}
-
-	timer := time.NewTimer(w.ResponseMaxLimit)
-
-	select {
-	case payload := <-m.C:
-		if w.Reporter != nil {
-			w.Reporter.Latency(w.ExchangeName, b, time.Since(start))
-		}
-
-		return payload, nil
-	case <-timer.C:
-		timer.Stop()
-		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
-	}
-}
-
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
 	return w.DialContext(context.Background(), dialer, headers)
@@ -310,4 +275,57 @@ func (w *WebsocketConnection) SetProxy(proxy string) {
 // GetURL returns the connection URL
 func (w *WebsocketConnection) GetURL() string {
 	return w.URL
+}
+
+// SendMessageReturnResponse will send a WS message to the connection and wait for response
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, request any) ([]byte, error) {
+	resps, err := w.SendMessageReturnResponses(ctx, signature, request, 1)
+	if err != nil {
+		return nil, err
+	}
+	return resps[0], nil
+}
+
+// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
+// An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, signature, request any, expected int) ([][]byte, error) {
+	outbound, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
+	}
+
+	ch, err := w.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
+	}
+
+	start := time.Now()
+	err = w.SendRawMessage(websocket.TextMessage, outbound)
+	if err != nil {
+		return nil, err
+	}
+
+	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
+
+	resps := make([][]byte, 0, expected)
+	for err == nil && len(resps) < expected {
+		select {
+		case resp := <-ch:
+			resps = append(resps, resp)
+		case <-timeout.C:
+			w.Match.RemoveSignature(signature)
+			err = fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
+		case <-ctx.Done():
+			w.Match.RemoveSignature(signature)
+			err = ctx.Err()
+		}
+	}
+
+	timeout.Stop()
+
+	if err == nil && w.Reporter != nil {
+		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
+	}
+
+	return resps, err
 }

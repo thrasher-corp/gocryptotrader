@@ -147,7 +147,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", authRequest)
+	_, err = o.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), "login", authRequest)
 	if err != nil {
 		return err
 	}
