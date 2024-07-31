@@ -23,6 +23,7 @@ var (
 	errBatchSliceEmpty  = errors.New("batch cannot be empty")
 	errNoOrdersToCancel = errors.New("no orders to cancel")
 	errEdgeCaseIssue    = errors.New("edge case issue")
+	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
 // GetWebsocketRoute returns the route for a websocket request, this is a POC
@@ -38,6 +39,14 @@ func (g *Gateio) GetWebsocketRoute(a asset.Item) (string, error) {
 
 // WebsocketLogin authenticates the websocket connection
 func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
+	if conn == nil {
+		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
+	}
+
+	if channel == "" {
+		return nil, errChannelEmpty
+	}
+
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
 		return nil, err

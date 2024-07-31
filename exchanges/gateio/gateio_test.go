@@ -33,7 +33,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var g = &Gateio{}
