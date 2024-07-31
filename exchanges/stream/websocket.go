@@ -2,7 +2,6 @@ package stream
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -34,6 +33,10 @@ var (
 	ErrNotConnected             = errors.New("websocket is not connected")
 	ErrNoMessageListener        = errors.New("websocket listener not found for message")
 	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound     = errors.New("request route not found")
+	ErrRequestRouteNotSet       = errors.New("request route not set")
+	ErrSignatureNotSet          = errors.New("signature not set")
+	ErrRequestPayloadNotSet     = errors.New("request payload not set")
 )
 
 // Private websocket errors
@@ -70,6 +73,7 @@ var (
 	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
 	errConnectionCandidateDuplication       = errors.New("connection candidate duplication")
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
+	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 )
 
 var (
@@ -429,17 +433,12 @@ func (w *Websocket) Connect() error {
 		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
 
 		if w.connectionManager[i].Setup.Authenticate != nil && w.CanUseAuthenticatedEndpoints() {
-			fmt.Println("Authenticating")
 			err = w.connectionManager[i].Setup.Authenticate(context.TODO(), conn)
 			if err != nil {
-				fmt.Println("Error authenticating", err)
-			} else {
-				fmt.Println("Authenticated")
+				// Opted to not fail entirely here for POC. This should be
+				// revisited and handled more gracefully.
+				log.Errorf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] failed to authenticate %v", w.exchangeName, i+1, conn.URL, err)
 			}
-		}
-
-		for _, sub := range subs {
-			fmt.Printf("Subscribing to %+v\n", sub)
 		}
 
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
@@ -1324,55 +1323,20 @@ func drain(ch <-chan error) {
 	}
 }
 
-var ErrRequestRouteNotFound = errors.New("request route not found")
-var ErrRequestRouteNotSet = errors.New("request route not set")
-var ErrSignatureNotSet = errors.New("signature not set")
-var ErrRequestPayloadNotSet = errors.New("request payload not set")
-
-// SendRequest sends a request to a specific route and unmarhsals the response
-// into the result. NOTE: Only for multi connection management.
-func (w *Websocket) SendRequest(ctx context.Context, routeID string, signature, payload, result any) error {
-	if w == nil {
-		return fmt.Errorf("%w: Websocket", common.ErrNilPointer)
-	}
-
-	if signature == nil {
-		return ErrSignatureNotSet
-	}
-	if payload == nil {
-		return ErrRequestPayloadNotSet
-	}
-
-	outbound, err := w.GetOutboundConnection(routeID)
-	if err != nil {
-		return err
-	}
-
-	// if w.verbose {
-	display, _ := json.Marshal(payload)
-	log.Debugf(log.WebsocketMgr, "%s websocket: sending request to %s. Data: %v", w.exchangeName, routeID, string(display))
-	// }
-
-	resp, err := outbound.SendMessageReturnResponse(ctx, signature, payload)
-	if err != nil {
-		return err
-	}
-
-	// if w.verbose {
-	log.Debugf(log.WebsocketMgr, "%s websocket: received response from %s. Data: %s", w.exchangeName, routeID, resp)
-	// }
-	return json.Unmarshal(resp, result)
-}
-
-var errCannotObtainOutboundConnection = errors.New("cannot obtain outbound connection")
-
 // GetOutboundConnection returns a connection specifically for outbound requests
 // for multi connection management. TODO: Upgrade routeID so that if there is
 // a URL change it can be handled.
 func (w *Websocket) GetOutboundConnection(routeID string) (Connection, error) {
 	if w == nil {
-		return nil, fmt.Errorf("%w: Websocket", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, w)
 	}
+
+	if routeID == "" {
+		return nil, ErrRequestRouteNotSet
+	}
+
+	w.m.Lock()
+	defer w.m.Unlock()
 
 	if !w.IsConnected() {
 		return nil, ErrNotConnected
@@ -1380,10 +1344,6 @@ func (w *Websocket) GetOutboundConnection(routeID string) (Connection, error) {
 
 	if !w.useMultiConnectionManagement {
 		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", w.exchangeName, errCannotObtainOutboundConnection)
-	}
-
-	if routeID == "" {
-		return nil, ErrRequestRouteNotSet
 	}
 
 	for x := range w.connectionManager {

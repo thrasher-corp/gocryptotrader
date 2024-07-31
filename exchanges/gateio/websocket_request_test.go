@@ -27,7 +27,7 @@ func TestWebsocketLogin(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	route, err := g.GetWebsocketRoute(asset.Spot)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestWebsocketOrderPlace(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
 	got, err := g.WebsocketOrderPlace(context.Background(), []WebsocketOrder{out}, asset.Spot)
@@ -75,9 +75,6 @@ func TestWebsocketOrderPlace(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
-
-var orderCancelError = []byte(`{"header":{"response_time":"1722405878406","status":"400","channel":"spot.order_cancel","event":"api","client_id":"14.203.57.50-0xc1e68ac6e0","conn_id":"0378a86ff109ca9a","trace_id":"b05be4753e751dff9175215ee020b578"},"data":{"errs":{"label":"INVALID_CURRENCY_PAIR","message":"label: INVALID_CURRENCY_PAIR, message: Invalid currency pair BTCUSD"}},"request_id":"1722405878175928500"}`)
-var orderCancelSuccess = []byte(`{"header":{"response_time":"1722406252471","status":"200","channel":"spot.order_cancel","event":"api","client_id":"14.203.57.50-0xc2397b9e40"},"data":{"result":{"left":"0.0003","update_time":"1722406252","amount":"0.0003","create_time":"1722406069","price":"20000","finish_as":"cancelled","time_in_force":"gtc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1722406069442994700","status":"cancelled","iceberg":"0","filled_total":"0","id":"644913098758","fill_price":"0","update_time_ms":1722406252467,"create_time_ms":1722406069667}},"request_id":"1722406252236528200"}`)
 
 func TestWebsocketOrderCancel(t *testing.T) {
 	t.Parallel()
@@ -95,7 +92,7 @@ func TestWebsocketOrderCancel(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	got, err := g.WebsocketOrderCancel(context.Background(), "644913098758", btcusdt, "", asset.Spot)
 	require.NoError(t, err)
@@ -120,7 +117,7 @@ func TestWebsocketOrderCancelAllByIDs(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	out.OrderID = "644913101755"
 	got, err := g.WebsocketOrderCancelAllByIDs(context.Background(), []WebsocketOrderCancelRequest{out}, asset.Spot)
@@ -139,7 +136,7 @@ func TestWebsocketOrderCancelAllByPair(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	got, err := g.WebsocketOrderCancelAllByPair(context.Background(), currency.EMPTYPAIR, order.Buy, "", asset.Spot)
 	require.NoError(t, err)
@@ -171,8 +168,10 @@ func TestWebsocketOrderAmend(t *testing.T) {
 	_, err = g.WebsocketOrderAmend(context.Background(), amend, 0)
 	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	amend.OrderID = "645029162673"
 	got, err := g.WebsocketOrderAmend(context.Background(), amend, asset.Spot)
@@ -198,7 +197,7 @@ func TestWebsocketGetOrderStatus(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := GetWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	pair, err = currency.NewPairFromString("BTC_USDT")
 	require.NoError(t, err)
@@ -208,9 +207,9 @@ func TestWebsocketGetOrderStatus(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-// GetWebsocketInstance returns a websocket instance copy for testing.
+// getWebsocketInstance returns a websocket instance copy for testing.
 // This restricts the pairs to a single pair per asset type to reduce test time.
-func GetWebsocketInstance(t *testing.T, g *Gateio) *Gateio {
+func getWebsocketInstance(t *testing.T, g *Gateio) *Gateio {
 	t.Helper()
 
 	cpy := new(Gateio)
