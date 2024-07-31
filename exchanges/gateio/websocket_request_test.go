@@ -166,6 +166,124 @@ func TestWebsocketOrderCancelAllByIDs(t *testing.T) {
 	got, err := g.WebsocketOrderCancelAllByIDs(context.Background(), []WebsocketOrderCancelRequest{out}, asset.Spot)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
+}
 
-	fmt.Printf("%+v\n", got)
+var cancelAllByPairSuccess = []byte(`{"header":{"response_time":"1722415590482","status":"200","channel":"spot.order_cancel_cp","event":"api","client_id":"58.169.146.133-0xc028f00b00"},"data":{"result":[{"left":"0.0003","update_time":"1722415590","amount":"0.0003","create_time":"1722406069","price":"20000","finish_as":"cancelled","time_in_force":"gtc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1722406069759058701","status":"cancelled","iceberg":"0","filled_total":"0","id":"644913101780","fill_price":"0","update_time_ms":1722415590471,"create_time_ms":1722406069992}]},"request_id":"1722415590230464500"}`)
+
+func TestWebsocketOrderCancelAllByPair(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("LTC_USDT")
+	require.NoError(t, err)
+
+	_, err = g.WebsocketOrderCancelAllByPair(context.Background(), pair, 0, "", 0)
+	require.ErrorIs(t, err, errEdgeCaseIssue)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
+	require.NoError(t, g.UpdateTradablePairs(context.Background(), false))
+	for _, a := range g.GetAssetTypes(true) {
+		avail, err := g.GetAvailablePairs(a)
+		require.NoError(t, err)
+		if len(avail) > 1 {
+			avail = avail[:1]
+		}
+		require.NoError(t, g.SetPairs(avail, a, true))
+	}
+	require.NoError(t, g.Websocket.Connect())
+	g.GetBase().API.AuthenticatedSupport = true
+	g.GetBase().API.AuthenticatedWebsocketSupport = true
+
+	got, err := g.WebsocketOrderCancelAllByPair(context.Background(), currency.EMPTYPAIR, order.Buy, "", asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+var amendOrderError = []byte(`{"header":{"response_time":"1722420643127","status":"404","channel":"spot.order_amend","event":"api","client_id":"58.169.146.133-0xc1e615e6e0","conn_id":"71eb27ad8803a9bd","trace_id":"4d80b11b184b49bd540abd039f42a84d"},"data":{"errs":{"label":"ORDER_NOT_FOUND","message":"label: ORDER_NOT_FOUND, message: Order not found"}},"request_id":"1722420642896203600"}`)
+var ammendOrderSuccess = []byte(`"header":{"response_time":"1722420772699","status":"200","channel":"spot.order_amend","event":"api","client_id":"58.169.146.133-0xc08c7c2f20"},"data":{"result":{"left":"0.0004","update_time":"1722420772","amount":"0.0004","create_time":"1722420733","price":"20000","finish_as":"open","time_in_force":"gtc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1722420733733908700","status":"open","iceberg":"0","filled_total":"0","id":"645029162673","fill_price":"0","update_time_ms":1722420772698,"create_time_ms":1722420733966}},"request_id":"1722420772476042600"}`)
+
+func TestWebsocketOrderAmend(t *testing.T) {
+	t.Parallel()
+
+	_, err := g.WebsocketOrderAmend(context.Background(), nil, 0)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	amend := &WebsocketAmendOrder{}
+	_, err = g.WebsocketOrderAmend(context.Background(), amend, 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	amend.OrderID = "1337"
+	_, err = g.WebsocketOrderAmend(context.Background(), amend, 0)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	amend.Pair, err = currency.NewPairFromString("BTC_USDT")
+	require.NoError(t, err)
+
+	_, err = g.WebsocketOrderAmend(context.Background(), amend, 0)
+	require.ErrorIs(t, err, errInvalidAmount)
+
+	amend.Amount = "0.0004"
+
+	_, err = g.WebsocketOrderAmend(context.Background(), amend, 0)
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
+	require.NoError(t, g.UpdateTradablePairs(context.Background(), false))
+	for _, a := range g.GetAssetTypes(true) {
+		avail, err := g.GetAvailablePairs(a)
+		require.NoError(t, err)
+		if len(avail) > 1 {
+			avail = avail[:1]
+		}
+		require.NoError(t, g.SetPairs(avail, a, true))
+	}
+	require.NoError(t, g.Websocket.Connect())
+	g.GetBase().API.AuthenticatedSupport = true
+	g.GetBase().API.AuthenticatedWebsocketSupport = true
+
+	amend.OrderID = "645029162673"
+	got, err := g.WebsocketOrderAmend(context.Background(), amend, asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+var getOrderStatusError = []byte(`{"header":{"response_time":"1722417357718","status":"404","channel":"spot.order_status","event":"api","client_id":"58.169.146.133-0xc0e6013600","conn_id":"8ae56147f8a55b08","trace_id":"127ac043f3a762ae88b746122aba5e3b"},"data":{"errs":{"label":"ORDER_NOT_FOUND","message":"label: ORDER_NOT_FOUND, message: Order with ID 644999648436 not found"}},"request_id":"1722417357478800700"}`)
+var getOrderStatusSuccess = []byte(`{"header":{"response_time":"1722417915985","status":"200","channel":"spot.order_status","event":"api","client_id":"58.169.146.133-0xc06e7ff1e0"},"data":{"result":{"left":"0.0003","update_time":"1722417700","amount":"0.0003","create_time":"1722416858","price":"20000","finish_as":"cancelled","time_in_force":"gtc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1722416858697102100","status":"cancelled","iceberg":"0","filled_total":"0","id":"644999650452","fill_price":"0","update_time_ms":1722417700653,"create_time_ms":1722416858942}},"request_id":"1722417915744467800"}`)
+
+func TestWebsocketGetOrderStatus(t *testing.T) {
+	t.Parallel()
+
+	_, err := g.WebsocketGetOrderStatus(context.Background(), "", currency.EMPTYPAIR, "", 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = g.WebsocketGetOrderStatus(context.Background(), "1337", currency.EMPTYPAIR, "", 0)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	pair, err := currency.NewPairFromString("LTC_USDT")
+	require.NoError(t, err)
+
+	_, err = g.WebsocketGetOrderStatus(context.Background(), "1337", pair, "", 0)
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
+	require.NoError(t, g.UpdateTradablePairs(context.Background(), false))
+	for _, a := range g.GetAssetTypes(true) {
+		avail, err := g.GetAvailablePairs(a)
+		require.NoError(t, err)
+		if len(avail) > 1 {
+			avail = avail[:1]
+		}
+		require.NoError(t, g.SetPairs(avail, a, true))
+	}
+	require.NoError(t, g.Websocket.Connect())
+	g.GetBase().API.AuthenticatedSupport = true
+	g.GetBase().API.AuthenticatedWebsocketSupport = true
+
+	pair, err = currency.NewPairFromString("BTC_USDT")
+	require.NoError(t, err)
+
+	got, err := g.WebsocketGetOrderStatus(context.Background(), "644999650452", pair, "", asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
 }

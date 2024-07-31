@@ -118,3 +118,28 @@ type WebsocketOrderCancelRequest struct {
 	Pair    currency.Pair `json:"currency_pair"`
 	Account string        `json:"account,omitempty"`
 }
+
+// WebsocketOrderCancelResponse defines a websocket order cancel response
+type WebsocketCancellAllResponse struct {
+	Pair      currency.Pair `json:"currency_pair"`
+	Label     string        `json:"label"`
+	Message   string        `json:"message"`
+	Succeeded bool          `json:"succeeded"`
+}
+
+// WebsocketCancelParam is a struct to hold the parameters for cancelling orders
+type WebsocketCancelParam struct {
+	Pair    currency.Pair `json:"pair"`
+	Side    string        `json:"side"`
+	Account string        `json:"account,omitempty"`
+}
+
+// WebsocketAmendOrder defines a websocket amend order
+type WebsocketAmendOrder struct {
+	OrderID   string        `json:"order_id"`
+	Pair      currency.Pair `json:"currency_pair"`
+	Account   string        `json:"account,omitempty"`
+	AmendText string        `json:"amend_text,omitempty"`
+	Price     string        `json:"price,omitempty"`
+	Amount    string        `json:"amount,omitempty"`
+}

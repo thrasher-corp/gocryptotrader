@@ -6,6 +6,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,8 +19,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
-var errBatchSliceEmpty = fmt.Errorf("batch cannot be empty")
-var errNoOrdersToCancel = fmt.Errorf("no orders to cancel")
+var (
+	errBatchSliceEmpty  = errors.New("batch cannot be empty")
+	errNoOrdersToCancel = errors.New("no orders to cancel")
+	errEdgeCaseIssue    = errors.New("edge case issue")
+)
 
 // GetWebsocketRoute returns the route for a websocket request, this is a POC
 // for the websocket wrapper.
@@ -116,21 +120,13 @@ func (g *Gateio) WebsocketOrderPlace(ctx context.Context, batch []WebsocketOrder
 	}
 
 	if len(batch) == 1 {
-		singleOutbound, err := json.Marshal(batch[0])
-		if err != nil {
-			return nil, err
-		}
 		var singleResponse WebsocketOrderResponse
-		err = g.SendWebsocketRequest(ctx, "spot.order_place", route, singleOutbound, &singleResponse, 2)
+		err = g.SendWebsocketRequest(ctx, "spot.order_place", route, batch[0], &singleResponse, 2)
 		return []WebsocketOrderResponse{singleResponse}, err
 	}
 
-	multiOutbound, err := json.Marshal(batch)
-	if err != nil {
-		return nil, err
-	}
 	var resp []WebsocketOrderResponse
-	err = g.SendWebsocketRequest(ctx, "spot.order_place", route, multiOutbound, &resp, 2)
+	err = g.SendWebsocketRequest(ctx, "spot.order_place", route, batch, &resp, 2)
 	return resp, err
 }
 
@@ -147,7 +143,7 @@ func (g *Gateio) WebsocketOrderCancel(ctx context.Context, orderID string, pair 
 		return nil, err
 	}
 
-	out := struct {
+	params := &struct {
 		OrderID string `json:"order_id"` // This requires order_id tag
 		Pair    string `json:"pair"`
 		Account string `json:"account,omitempty"`
@@ -156,20 +152,10 @@ func (g *Gateio) WebsocketOrderCancel(ctx context.Context, orderID string, pair 
 		Pair:    pair.String(),
 		Account: account,
 	}
-	outbound, err := json.Marshal(out)
-	if err != nil {
-		return nil, err
-	}
-	var resp WebsocketOrderResponse
-	err = g.SendWebsocketRequest(ctx, "spot.order_cancel", route, outbound, &resp, 1)
-	return &resp, err
-}
 
-type WebsocketCancellAllResponse struct {
-	Pair      currency.Pair `json:"currency_pair"`
-	Label     string        `json:"label"`
-	Message   string        `json:"message"`
-	Succeeded bool          `json:"succeeded"`
+	var resp WebsocketOrderResponse
+	err = g.SendWebsocketRequest(ctx, "spot.order_cancel", route, params, &resp, 1)
+	return &resp, err
 }
 
 // WebsocketOrderCancelAllByIDs cancels multiple orders via the websocket
@@ -192,47 +178,119 @@ func (g *Gateio) WebsocketOrderCancelAllByIDs(ctx context.Context, o []Websocket
 		return nil, err
 	}
 
-	outbound, err := json.Marshal(o)
+	var resp []WebsocketCancellAllResponse
+	err = g.SendWebsocketRequest(ctx, "spot.order_cancel_ids", route, o, &resp, 2)
+	return resp, err
+}
+
+// WebsocketOrderCancelAllByPair cancels all orders for a specific pair
+func (g *Gateio) WebsocketOrderCancelAllByPair(ctx context.Context, pair currency.Pair, side order.Side, account string, a asset.Item) ([]WebsocketOrderResponse, error) {
+	if !pair.IsEmpty() && side == order.UnknownSide {
+		return nil, fmt.Errorf("%w: side cannot be unknown when pair is set as this will purge *ALL* open orders", errEdgeCaseIssue)
+	}
+
+	sideStr := ""
+	if side != order.UnknownSide {
+		sideStr = side.Lower()
+	}
+
+	route, err := g.GetWebsocketRoute(a)
 	if err != nil {
 		return nil, err
 	}
 
-	var resp []WebsocketCancellAllResponse
-	err = g.SendWebsocketRequest(ctx, "spot.order_cancel_ids", route, outbound, &resp, 2)
+	params := &WebsocketCancelParam{
+		Pair:    pair,
+		Side:    sideStr,
+		Account: account,
+	}
+
+	var resp []WebsocketOrderResponse
+	err = g.SendWebsocketRequest(ctx, "spot.order_cancel_cp", route, params, &resp, 1)
 	return resp, err
 }
 
-// OrderCancelAllByIDList
-// OrderCancelAllByPair
-// OrderAmend
-// OrderStatus
+// WebsocketOrderAmend amends an order via the websocket connection
+func (g *Gateio) WebsocketOrderAmend(ctx context.Context, amend *WebsocketAmendOrder, a asset.Item) (*WebsocketOrderResponse, error) {
+	if amend == nil {
+		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
+	}
+
+	if amend.OrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+
+	if amend.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	if amend.Amount == "" && amend.Price == "" {
+		return nil, fmt.Errorf("%w: amount or price must be set", errInvalidAmount)
+	}
+
+	route, err := g.GetWebsocketRoute(a)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp WebsocketOrderResponse
+	err = g.SendWebsocketRequest(ctx, "spot.order_amend", route, amend, &resp, 1)
+	return &resp, err
+}
+
+// WebsocketGetOrderStatus gets the status of an order via the websocket connection
+func (g *Gateio) WebsocketGetOrderStatus(ctx context.Context, orderID string, pair currency.Pair, account string, a asset.Item) (*WebsocketOrderResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	route, err := g.GetWebsocketRoute(a)
+	if err != nil {
+		return nil, err
+	}
+
+	params := &struct {
+		OrderID string `json:"order_id"` // This requires order_id tag
+		Pair    string `json:"pair"`
+		Account string `json:"account,omitempty"`
+	}{
+		OrderID: orderID,
+		Pair:    pair.String(),
+		Account: account,
+	}
+
+	var resp WebsocketOrderResponse
+	err = g.SendWebsocketRequest(ctx, "spot.order_status", route, params, &resp, 1)
+	return &resp, err
+}
 
 // SendWebsocketRequest sends a websocket request to the exchange
-func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel, route string, params json.RawMessage, result any, expectedResponses int) error {
+func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel, route string, params, result any, expectedResponses int) error {
+	paramPayload, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+
 	conn, err := g.Websocket.GetOutboundConnection(route)
 	if err != nil {
 		return err
 	}
 
 	tn := time.Now()
-	mainPayload := WebsocketPayload{
-		// This request ID associated with the payload is the match to the
-		// response.
-		RequestID:    strconv.FormatInt(tn.UnixNano(), 10),
-		RequestParam: params,
-		Timestamp:    strconv.FormatInt(tn.Unix(), 10),
-	}
-
-	request := WebsocketRequest{
+	request := &WebsocketRequest{
 		Time:    tn.Unix(),
 		Channel: channel,
 		Event:   "api",
-		Payload: mainPayload,
+		Payload: WebsocketPayload{
+			// This request ID associated with the payload is the match to the
+			// response.
+			RequestID:    strconv.FormatInt(tn.UnixNano(), 10),
+			RequestParam: paramPayload,
+			Timestamp:    strconv.FormatInt(tn.Unix(), 10),
+		},
 	}
-
-	out, _ := json.Marshal(request)
-
-	fmt.Println("outbound:", string(out))
 
 	responses, err := conn.SendMessageReturnResponses(ctx, request.Payload.RequestID, request, expectedResponses, InspectPayloadForAck)
 	if err != nil {
@@ -248,8 +306,6 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel, route string
 	// an ack. If the request fails on the ACK then we can unmarshal the error
 	// from that as the next response won't come anyway.
 	endResponse := responses[len(responses)-1]
-
-	fmt.Println("response:", string(endResponse))
 
 	err = json.Unmarshal(endResponse, &inbound)
 	if err != nil {

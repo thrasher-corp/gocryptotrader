@@ -144,21 +144,21 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Error("GetAccountInfo() error", err)
 	}
-	// if _, err := g.UpdateAccountInfo(context.Background(), asset.Margin); err != nil {
-	// 	t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
-	// }
-	// if _, err := g.UpdateAccountInfo(context.Background(), asset.CrossMargin); err != nil {
-	// 	t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
-	// }
-	// if _, err := g.UpdateAccountInfo(context.Background(), asset.Options); err != nil {
-	// 	t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
-	// }
-	// if _, err := g.UpdateAccountInfo(context.Background(), asset.Futures); err != nil {
-	// 	t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
-	// }
-	// if _, err := g.UpdateAccountInfo(context.Background(), asset.DeliveryFutures); err != nil {
-	// 	t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
-	// }
+	if _, err := g.UpdateAccountInfo(context.Background(), asset.Margin); err != nil {
+		t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
+	}
+	if _, err := g.UpdateAccountInfo(context.Background(), asset.CrossMargin); err != nil {
+		t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
+	}
+	if _, err := g.UpdateAccountInfo(context.Background(), asset.Options); err != nil {
+		t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
+	}
+	if _, err := g.UpdateAccountInfo(context.Background(), asset.Futures); err != nil {
+		t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
+	}
+	if _, err := g.UpdateAccountInfo(context.Background(), asset.DeliveryFutures); err != nil {
+		t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
+	}
 }
 
 func TestWithdraw(t *testing.T) {
