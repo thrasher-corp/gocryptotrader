@@ -288,7 +288,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, sig
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, signature, request any, expected int) ([][]byte, error) {
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, signature, request any, expected int, isFinalMessage ...Inspector) ([][]byte, error) {
 	outbound, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -318,6 +318,12 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 		case <-ctx.Done():
 			w.Match.RemoveSignature(signature)
 			err = ctx.Err()
+		}
+		// Checks recently received message to determine if this is in fact the
+		// final message in a sequence of messages.
+		if len(isFinalMessage) == 1 && isFinalMessage[0](resps[len(resps)-1]) {
+			w.Match.RemoveSignature(signature)
+			break
 		}
 	}
 

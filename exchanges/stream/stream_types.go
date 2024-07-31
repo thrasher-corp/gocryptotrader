@@ -21,13 +21,16 @@ type Connection interface {
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(highPrecision bool) int64
 	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
-	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int) ([][]byte, error)
+	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int, isFinalMessage ...Inspector) ([][]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
 }
+
+// Inspector is a hook that allows for custom message inspection
+type Inspector func([]byte) bool
 
 // Response defines generalised data from the stream connection
 type Response struct {
