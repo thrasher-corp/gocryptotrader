@@ -881,27 +881,30 @@ type WalletBalance struct {
 		AccountType            string       `json:"accountType"`
 		TotalAvailableBalance  types.Number `json:"totalAvailableBalance"`
 		AccountMMRate          types.Number `json:"accountMMRate"`
-		TotalPerpUPL           string       `json:"totalPerpUPL"`
+		TotalPerpUPL           types.Number `json:"totalPerpUPL"`
 		TotalWalletBalance     types.Number `json:"totalWalletBalance"`
-		AccountLTV             string       `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
+		AccountLTV             types.Number `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
-		SpotHedgingQuantity    types.Number `json:"spotHedgingQty"`
 		Coin                   []struct {
-			AvailableToBorrow       types.Number `json:"availableToBorrow"`
-			Bonus                   types.Number `json:"bonus"`
-			AccruedInterest         string       `json:"accruedInterest"`
-			AvailableToWithdraw     types.Number `json:"availableToWithdraw"`
-			AvailableBalanceForSpot types.Number `json:"free"`
-			TotalOrderIM            string       `json:"totalOrderIM"`
-			Equity                  types.Number `json:"equity"`
-			TotalPositionMM         string       `json:"totalPositionMM"`
-			USDValue                types.Number `json:"usdValue"`
-			UnrealisedPnl           types.Number `json:"unrealisedPnl"`
-			BorrowAmount            types.Number `json:"borrowAmount"`
-			TotalPositionIM         string       `json:"totalPositionIM"`
-			WalletBalance           types.Number `json:"walletBalance"`
-			CumulativeRealisedPnl   types.Number `json:"cumRealisedPnl"`
-			Coin                    string       `json:"coin"`
+			AvailableToBorrow       types.Number  `json:"availableToBorrow"`
+			Bonus                   types.Number  `json:"bonus"`
+			AccruedInterest         types.Number  `json:"accruedInterest"`
+			AvailableToWithdraw     types.Number  `json:"availableToWithdraw"`
+			AvailableBalanceForSpot types.Number  `json:"free"`
+			TotalOrderIM            types.Number  `json:"totalOrderIM"`
+			Equity                  types.Number  `json:"equity"`
+			Locked                  types.Number  `json:"locked"`
+			MarginCollateral        bool          `json:"marginCollateral"`
+			SpotHedgingQuantity     types.Number  `json:"spotHedgingQty"`
+			TotalPositionMM         types.Number  `json:"totalPositionMM"`
+			USDValue                types.Number  `json:"usdValue"`
+			UnrealisedPNL           types.Number  `json:"unrealisedPnl"`
+			BorrowAmount            types.Number  `json:"borrowAmount"`
+			TotalPositionIM         types.Number  `json:"totalPositionIM"`
+			WalletBalance           types.Number  `json:"walletBalance"`
+			CumulativeRealisedPNL   types.Number  `json:"cumRealisedPnl"`
+			Coin                    currency.Code `json:"coin"`
+			CollateralSwitch        bool          `json:"collateralSwitch"`
 		} `json:"coin"`
 	} `json:"list"`
 }

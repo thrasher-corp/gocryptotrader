@@ -414,17 +414,23 @@ var m sync.Mutex
 var set bool
 var exclusionFile = DefaultDirectory + "exclusion.json"
 
-var defaultExcludedHeaders = []string{"Key",
+var defaultExcludedHeaders = []string{
+	"Key",
 	"X-Mbx-Apikey",
 	"Rest-Key",
-	"Apiauth-Key"}
-var defaultExcludedVariables = []string{"bsb",
+	"Apiauth-Key",
+	"X-Bapi-Api-Key",
+}
+var defaultExcludedVariables = []string{
+	"bsb",
 	"user",
 	"name",
 	"real_name",
 	"receiver_name",
 	"account_number",
-	"username"}
+	"username",
+	"apiKey",
+}
 
 // Exclusion defines a list of items to be excluded from the main mock output
 // this attempts a catch all approach and needs to be updated per exchange basis
