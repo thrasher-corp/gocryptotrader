@@ -426,6 +426,20 @@ func (w *Websocket) Connect() error {
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
 
+		if w.connectionManager[i].Setup.Authenticate != nil && w.CanUseAuthenticatedEndpoints() {
+			fmt.Println("Authenticating")
+			err = w.connectionManager[i].Setup.Authenticate(context.TODO(), conn)
+			if err != nil {
+				fmt.Println("Error authenticating", err)
+			} else {
+				fmt.Println("Authenticated")
+			}
+		}
+
+		for _, sub := range subs {
+			fmt.Printf("Subscribing to %+v\n", sub)
+		}
+
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
 			multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)

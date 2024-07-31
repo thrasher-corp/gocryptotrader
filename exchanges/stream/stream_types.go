@@ -67,6 +67,11 @@ type ConnectionSetup struct {
 	// send messages to the exchange's websocket server. This will allow the
 	// connection to be established without subscriptions needing to be made.
 	AllowOutbound bool
+	// Authenticate is a function that will be called to authenticate the
+	// connection to the exchange's websocket server. This function should
+	// handle the authentication process and return an error if the
+	// authentication fails.
+	Authenticate func(ctx context.Context, conn Connection) error
 }
 
 // ConnectionWrapper contains the connection setup details to be used when
