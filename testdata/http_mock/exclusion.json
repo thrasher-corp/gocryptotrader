@@ -4,7 +4,8 @@
   "X-Mbx-Apikey",
   "Rest-Key",
   "Apiauth-Key",
-  "X-Gemini-Apikey"
+  "X-Gemini-Apikey",
+  "X-Bapi-Api-Key"
  ],
  "variables": [
   "bsb",
@@ -14,6 +15,7 @@
   "receiver_name",
   "account_number",
   "username",
-  "login"
+  "login",
+  "apiKey"
  ]
 }

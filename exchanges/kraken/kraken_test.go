@@ -2320,3 +2320,79 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
+
+func TestErrorResponse(t *testing.T) {
+	var g genericRESTResponse
+
+	tests := []struct {
+		name          string
+		jsonStr       string
+		expectError   bool
+		errorMsg      string
+		warningMsg    string
+		requiresReset bool
+	}{
+		{
+			name:    "No errors or warnings",
+			jsonStr: `{"error":[],"result":{"unixtime":1721884425,"rfc1123":"Thu, 25 Jul 24 05:13:45 +0000"}}`,
+		},
+		{
+			name:        "Invalid error type int",
+			jsonStr:     `{"error":[69420],"result":{}}`,
+			expectError: true,
+			errorMsg:    "unable to convert 69420 to string",
+		},
+		{
+			name:        "Unhandled error type float64",
+			jsonStr:     `{"error":124,"result":{}}`,
+			expectError: true,
+			errorMsg:    "unhandled error response type float64",
+		},
+		{
+			name:     "Known error string",
+			jsonStr:  `{"error":["EQuery:Unknown asset pair"],"result":{}}`,
+			errorMsg: "EQuery:Unknown asset pair",
+		},
+		{
+			name:     "Known error string (single)",
+			jsonStr:  `{"error":"EService:Unavailable","result":{}}`,
+			errorMsg: "EService:Unavailable",
+		},
+		{
+			name:          "Warning string in array",
+			jsonStr:       `{"error":["WGeneral:Danger"],"result":{}}`,
+			warningMsg:    "WGeneral:Danger",
+			requiresReset: true,
+		},
+		{
+			name:          "Warning string",
+			jsonStr:       `{"error":"WGeneral:Unknown warning","result":{}}`,
+			warningMsg:    "WGeneral:Unknown warning",
+			requiresReset: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.requiresReset {
+				g = genericRESTResponse{}
+			}
+			err := json.Unmarshal([]byte(tt.jsonStr), &g)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.errorMsg, "Unmarshal should error")
+			} else {
+				require.NoError(t, err)
+				if tt.errorMsg != "" {
+					assert.ErrorContains(t, g.Error.Errors(), tt.errorMsg, "Errors should contain %s", tt.errorMsg)
+				} else {
+					assert.NoError(t, g.Error.Errors(), "Errors should not error")
+				}
+				if tt.warningMsg != "" {
+					assert.Contains(t, g.Error.Warnings(), tt.warningMsg, "Warnings should contain %s", tt.warningMsg)
+				} else {
+					assert.Empty(t, g.Error.Warnings(), "Warnings should be empty")
+				}
+			}
+		})
+	}
+}

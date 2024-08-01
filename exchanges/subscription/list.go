@@ -46,6 +46,15 @@ func (l List) GroupPairs() (n List) {
 	return s.List()
 }
 
+// Clone returns a deep clone of the List
+func (l List) Clone() List {
+	n := make(List, len(l))
+	for i, s := range l {
+		n[i] = s.Clone()
+	}
+	return n
+}
+
 // QualifiedChannels returns a sorted list of all the qualified Channels in the list
 func (l List) QualifiedChannels() []string {
 	c := make([]string, len(l))

@@ -90,24 +90,26 @@ func TestSubscriptionMarshaling(t *testing.T) {
 	assert.Equal(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
 }
 
-// TestClone exercises Clone
-func TestClone(t *testing.T) {
+func TestSubscriptionClone(t *testing.T) {
 	t.Parallel()
+	params := map[string]any{"a": 42}
 	a := &Subscription{
 		Channel:  TickerChannel,
 		Interval: kline.OneHour,
 		Pairs:    currency.Pairs{btcusdtPair},
-		Params:   map[string]any{"a": 42},
+		Params:   params,
 	}
 	a.EnsureKeyed()
 	b := a.Clone()
 	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone should return a new Subscription")
 	assert.Nil(t, b.Key, "Clone should have a nil key")
-	b.Pairs[0] = ethusdcPair
-	assert.Equal(t, btcusdtPair, a.Pairs[0], "Pairs should be (relatively) deep copied")
+	b.Pairs[0].Delimiter = "🐳"
+	assert.Empty(t, a.Pairs[0].Delimiter, "Pairs should be (relatively) deep copied")
 	b.Params["a"] = 12
 	assert.Equal(t, 42, a.Params["a"], "Params should be (relatively) deep copied")
+	assert.NotEqual(t, params, b.Params, "Params should be cloned")
+	assert.Equal(t, params, a.Params, "Original Params should be left alone")
 	a.m.Lock()
 	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
 }
