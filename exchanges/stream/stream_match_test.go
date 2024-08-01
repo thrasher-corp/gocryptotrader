@@ -24,11 +24,17 @@ func TestMatch(t *testing.T) {
 	assert.True(t, match.IncomingWithData("hello", []byte("hello")))
 	assert.Equal(t, "hello", string(<-ch))
 
-	_, err = match.Set("hello", 1)
+	_, err = match.Set("hello", 2)
 	assert.ErrorIs(t, err, errSignatureCollision, "Should error on signature collision")
 
 	assert.True(t, match.IncomingWithData("hello", load), "Should match with matching message and signature")
-	assert.True(t, match.IncomingWithData("hello", load), "Should match with matching message and signature")
+	assert.False(t, match.IncomingWithData("hello", load), "Should not match with matching message and signature")
 
-	assert.Len(t, ch, 2, "Channel should have 2 items")
+	assert.Len(t, ch, 1, "Channel should have 1 items, 1 was already read above")
+
+	ch, err = match.Set("masterblaster", 1)
+	require.NoError(t, err)
+	match.RemoveSignature("masterblaster")
+	garbage := <-ch // Should be closed and super slipery
+	require.Empty(t, garbage)
 }

@@ -12,7 +12,7 @@ var (
 
 // NewMatch returns a new Match
 func NewMatch() *Match {
-	return &Match{m: make(map[any]incoming)}
+	return &Match{m: make(map[any]*incoming)}
 }
 
 // Match is a distributed subtype that handles the matching of requests and
@@ -20,7 +20,7 @@ func NewMatch() *Match {
 // connections. Stream systems fan in all incoming payloads to one routine for
 // processing.
 type Match struct {
-	m  map[any]incoming
+	m  map[any]*incoming
 	mu sync.Mutex
 }
 
@@ -58,7 +58,7 @@ func (m *Match) Set(signature any, bufSize int) (<-chan []byte, error) {
 		return nil, errSignatureCollision
 	}
 	ch := make(chan []byte, bufSize)
-	m.m[signature] = incoming{expected: bufSize, c: ch}
+	m.m[signature] = &incoming{expected: bufSize, c: ch}
 	return ch, nil
 }
 
