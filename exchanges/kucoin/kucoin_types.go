@@ -35,7 +35,6 @@ var (
 	errInvalidLeverage           = errors.New("invalid leverage value")
 	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
 	errInvalidMsgType            = errors.New("message type field not valid")
-	errSubscriptionPairRequired  = errors.New("pair required for manual subscriptions")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -956,19 +955,6 @@ type WsPriceIndicator struct {
 	Value       float64              `json:"value"`
 }
 
-// WsMarginFundingBook represents order book changes on margin.
-type WsMarginFundingBook struct {
-	Sequence           int64                `json:"sequence"`
-	Currency           string               `json:"currency"`
-	DailyInterestRate  float64              `json:"dailyIntRate"`
-	AnnualInterestRate float64              `json:"annualIntRate"`
-	Term               int64                `json:"term"`
-	Size               float64              `json:"size"`
-	Side               string               `json:"side"`
-	Timestamp          convert.ExchangeTime `json:"ts"` // In Nanosecond
-
-}
-
 // WsTradeOrder represents a private trade order push data.
 type WsTradeOrder struct {
 	Symbol     string               `json:"symbol"`
@@ -1079,8 +1065,8 @@ type WsFuturesTicker struct {
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
 
-// WsFuturesOrderbokInfo represents Level 2 order book information.
-type WsFuturesOrderbokInfo struct {
+// WsFuturesOrderbookInfo represents Level 2 order book information.
+type WsFuturesOrderbookInfo struct {
 	Sequence  int64                `json:"sequence"`
 	Change    string               `json:"change"`
 	Timestamp convert.ExchangeTime `json:"timestamp"`

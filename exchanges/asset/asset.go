@@ -153,8 +153,7 @@ func (a Items) JoinToString(separator string) string {
 	return strings.Join(a.Strings(), separator)
 }
 
-// IsValid returns whether or not the supplied asset type is valid or
-// not
+// IsValid returns whether or not the supplied asset type is valid or not
 func (a Item) IsValid() bool {
 	return a != Empty && supportedFlag&a == a
 }
