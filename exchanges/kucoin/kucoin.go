@@ -1714,7 +1714,7 @@ func (ku *Kucoin) GetAllFuturesSubAccountBalances(ctx context.Context, ccy curre
 		params.Set("currency", ccy.String())
 	}
 	var resp *FuturesSubAccountBalance
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, allFuturesSubAccountBalancesEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview-all", params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, allFuturesSubAccountBalancesEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview-all", params), nil, &resp)
 }
 
 // PopulateParams populates account ledger request parameters.

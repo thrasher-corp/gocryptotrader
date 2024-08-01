@@ -239,11 +239,11 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
 		var response WsPriceIndicator
 		return ku.ProcessData(resp.Data, &response)
-	case strings.HasPrefix(privateSpotTradeOrders, topicInfo[0]):
+	case privateSpotTradeOrders == topicInfo[0]:
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
-	case strings.HasPrefix(accountBalanceChannel, topicInfo[0]):
+	case accountBalanceChannel == topicInfo[0]:
 		return ku.processAccountBalanceChange(resp.Data)
-	case strings.HasPrefix(marginPositionChannel, topicInfo[0]):
+	case marginPositionChannel == topicInfo[0]:
 		if resp.Subject == "debt.ratio" {
 			var response WsDebtRatioChange
 			return ku.ProcessData(resp.Data, &response)
@@ -255,9 +255,9 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.ProcessData(resp.Data, &response)
 	case strings.HasPrefix(marginLoanChannel, topicInfo[0]):
 		return ku.processMarginLendingTradeOrderEvent(resp.Data)
-	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
+	case spotMarketAdvancedChannel == topicInfo[0]:
 		return ku.processStopOrderEvent(resp.Data)
-	case strings.HasPrefix(topicInfo[0], futuresLimitCandles):
+	case topicInfo[0] == futuresLimitCandles:
 		instrumentInfos := strings.Split(topicInfo[1], "_")
 		if len(instrumentInfos) != 2 {
 			return errors.New("invalid instrument information")
@@ -322,16 +322,16 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		} else if resp.Subject == "funding.rate" {
 			return ku.processFuturesFundingData(resp.Data, topicInfo[1])
 		}
-	case strings.HasPrefix(futuresSystemAnnouncementChannel, topicInfo[0]):
+	case futuresSystemAnnouncementChannel == topicInfo[0]:
 		return ku.processFuturesSystemAnnouncement(resp.Data, resp.Subject)
 	case strings.HasPrefix(futuresTransactionStatisticsTimerEventChannel, topicInfo[0]):
 		return ku.processFuturesTransactionStatistics(resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresTradeOrdersBySymbolChannel, topicInfo[0]),
-		strings.HasPrefix(futuresTradeOrderChannel, topicInfo[0]):
+		futuresTradeOrderChannel == topicInfo[0]:
 		return ku.processFuturesPrivateTradeOrders(resp.Data)
-	case strings.HasPrefix(futuresStopOrdersLifecycleEventChannel, topicInfo[0]):
+	case futuresStopOrdersLifecycleEventChannel == topicInfo[0]:
 		return ku.processFuturesStopOrderLifecycleEvent(resp.Data)
-	case strings.HasPrefix(futuresAccountBalanceEventChannel, topicInfo[0]):
+	case futuresAccountBalanceEventChannel == topicInfo[0]:
 		switch resp.Subject {
 		case "orderMargin.change":
 			var response WsFuturesOrderMarginEvent

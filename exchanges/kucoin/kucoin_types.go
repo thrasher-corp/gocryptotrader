@@ -759,7 +759,7 @@ type FuturesAccountOverview struct {
 	MarginBalance    float64 `json:"marginBalance"`
 	PositionMargin   float64 `json:"positionMargin"`
 	OrderMargin      float64 `json:"orderMargin"`
-	FrozenFunds      int64   `json:"frozenFunds"`
+	FrozenFunds      float64 `json:"frozenFunds"`
 	AvailableBalance float64 `json:"availableBalance"`
 	Currency         string  `json:"currency"`
 }
@@ -797,7 +797,7 @@ type FuturesSubAccountBalance struct {
 		Currency              string  `json:"currency"`
 	} `json:"summary"`
 	Accounts []struct {
-		AccountName      float64 `json:"accountName"`
+		AccountName      string  `json:"accountName"`
 		AccountEquity    float64 `json:"accountEquity"`
 		UnrealisedPNL    float64 `json:"unrealisedPNL"`
 		MarginBalance    float64 `json:"marginBalance"`
