@@ -175,7 +175,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 }
 
 // SendWebsocketRequest sends a websocket request to the server
-func (ok *Okx) SendWebsocketRequest(id string, operation string, payload, response any) error {
+func (ok *Okx) SendWebsocketRequest(id, operation string, payload, response any) error {
 	if id == "" || operation == "" || payload == nil || response == nil {
 		return errInvalidWebsocketRequest
 	}
@@ -191,8 +191,9 @@ func (ok *Okx) SendWebsocketRequest(id string, operation string, payload, respon
 	}
 
 	if ok.Verbose {
-		payload, _ := json.Marshal(outbound)
-		log.Debugf(log.ExchangeSys, "%s sending outbound request via websocket: %v", ok.Name, string(payload))
+		if payload, err := json.Marshal(outbound); err != nil {
+			log.Debugf(log.ExchangeSys, "%s sending outbound request via websocket: %v", ok.Name, string(payload))
+		}
 	}
 
 	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(id, outbound)
