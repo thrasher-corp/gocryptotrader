@@ -501,7 +501,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil && id != "" {
-		fmt.Printf("INCOMING MATCH %v\n", string(respRaw))
 		if !ok.Websocket.Match.IncomingWithData(id, respRaw) {
 			return fmt.Errorf("%s: %w to payload %v", ok.Name, errWebsocketDataNotMatchedWithID, string(respRaw))
 		}
@@ -521,8 +520,6 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 			(resp.Event == "error" &&
 				slices.Contains([]string{"60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009", "60005", "60021", "60031"}, resp.Code))) {
 		// find error codes and corresponding reasons: https://www.okx.com/docs-v5/en/#error-code-websocket-public
-
-		fmt.Printf("INCOMING MATCH LOGIN %v\n", string(respRaw))
 		if !ok.Websocket.Match.IncomingWithData("login-response", respRaw) {
 			return fmt.Errorf("%s: %w to payload %v", ok.Name, errWebsocketDataNotMatchedWithID, string(respRaw))
 		}
