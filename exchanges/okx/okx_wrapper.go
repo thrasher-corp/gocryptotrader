@@ -910,7 +910,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	for x := range canceledOrders {
 		resp.Status[canceledOrders[x].OrderID] = func() string {
-			if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
+			if canceledOrders[x].SCode > 0 {
 				return ""
 			}
 			return order.Cancelled.String()
@@ -1007,7 +1007,7 @@ ordersLoop:
 			}
 		}
 		for y := range response {
-			if response[y].SCode == "0" {
+			if response[y].SCode == 0 {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
 				cancelAllResponse.Status[response[y].OrderID] = response[y].SMessage

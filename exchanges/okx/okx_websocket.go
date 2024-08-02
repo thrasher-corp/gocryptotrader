@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -110,14 +111,6 @@ const (
 	okxChannelBBOTBT          = "bbo-tbt"
 	okxChannelOptSummary      = "opt-summary"
 	okxChannelFundingRate     = "funding-rate"
-
-	// Websocket trade endpoint operations
-	okxOpOrder             = "order"
-	okxOpBatchOrders       = "batch-orders"
-	okxOpCancelOrder       = "cancel-order"
-	okxOpBatchCancelOrders = "batch-cancel-orders"
-	okxOpAmendOrder        = "amend-order"
-	okxOpBatchAmendOrders  = "batch-amend-orders"
 
 	// Candlestick lengths
 	okxChannelCandle1Y     = candle + "1Y"
@@ -546,6 +539,13 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
+	if id, err := jsonparser.GetString(respRaw, "id"); err == nil && id != "" {
+		if !ok.Websocket.Match.IncomingWithData(id, respRaw) {
+			return fmt.Errorf("%s: %w to payload %v", ok.Name, errWebsocketDataNotMatchedWithID, string(respRaw))
+		}
+		return nil
+	}
+
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -680,9 +680,6 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 
 // wsProcessIndexCandles processes index candlestick data
 func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
-	if respRaw == nil {
-		return errNilArgument
-	}
 	response := struct {
 		Argument SubscriptionInfo `json:"arg"`
 		Data     [][5]string      `json:"data"`
@@ -1178,9 +1175,6 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 
 // wsProcessCandles handler to get a list of candlestick messages.
 func (ok *Okx) wsProcessCandles(respRaw []byte) error {
-	if respRaw == nil {
-		return errNilArgument
-	}
 	response := struct {
 		Argument SubscriptionInfo `json:"arg"`
 		Data     [][7]string      `json:"data"`
@@ -1347,406 +1341,6 @@ func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
 	}
 	ok.Websocket.DataHandler <- resp
 	return nil
-}
-
-// Websocket Trade methods
-
-// WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	err := ok.validatePlaceOrderParams(arg)
-	if err != nil {
-		return nil, err
-	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsPlaceOrderInput{
-		ID:        randomID,
-		Arguments: []PlaceOrderRequestParam{*arg},
-		Operation: okxOpOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpOrder && data.ID == input.ID {
-				if data.Code == "0" || data.Code == "1" {
-					resp, err := data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					if len(resp.Data) != 1 {
-						return nil, errNoValidResponseFromServer
-					}
-					if data.Code == "1" {
-						return nil, fmt.Errorf("error code:%s message: %s", resp.Data[0].SCode, resp.Data[0].SMessage)
-					}
-					return &resp.Data[0], nil
-				}
-				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsPlaceMultipleOrder creates an order through the websocket stream.
-func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData, error) {
-	var err error
-	for x := range args {
-		arg := args[x]
-		err = ok.validatePlaceOrderParams(&arg)
-		if err != nil {
-			return nil, err
-		}
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsPlaceOrderInput{
-		ID:        randomID,
-		Arguments: args,
-		Operation: okxOpBatchOrders,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpBatchOrders && data.ID == input.ID {
-				if data.Code == "0" || data.Code == "2" {
-					var resp *WSOrderResponse
-					resp, err = data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					return resp.Data, nil
-				}
-				var resp WsOrderActionResponse
-				err = resp.populateFromIncomingData(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(data.Data, &(resp.Data))
-				if err != nil {
-					return nil, err
-				}
-				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
-				}
-				var errs error
-				for x := range resp.Data {
-					if resp.Data[x].SCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %s", resp.Data[x].SCode, resp.Data[x].SMessage))
-					}
-				}
-				return nil, errs
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsCancelOrder websocket function to cancel a trade order
-func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
-	if arg.InstrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, errors.New("either order id or client supplier id is required")
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsCancelOrderInput{
-		ID:        randomID,
-		Arguments: []CancelOrderRequestParam{arg},
-		Operation: okxOpCancelOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpCancelOrder && data.ID == input.ID {
-				if data.Code == "0" || data.Code == "1" {
-					resp, err := data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					if len(resp.Data) != 1 {
-						return nil, errNoValidResponseFromServer
-					}
-					if data.Code == "1" {
-						return nil, fmt.Errorf("error code: %s message: %s", resp.Data[0].SCode, resp.Data[0].SMessage)
-					}
-					return &resp.Data[0], nil
-				}
-				return nil, fmt.Errorf("error code: %s message: %v", data.Code, ErrorCodes[data.Code])
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsCancelMultipleOrder cancel multiple order through the websocket channel.
-func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderData, error) {
-	for x := range args {
-		arg := args[x]
-		if arg.InstrumentID == "" {
-			return nil, errMissingInstrumentID
-		}
-		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, errors.New("either order id or client supplier id is required")
-		}
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsCancelOrderInput{
-		ID:        randomID,
-		Arguments: args,
-		Operation: okxOpBatchCancelOrders,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpBatchCancelOrders && data.ID == input.ID {
-				if data.Code == "0" || data.Code == "2" {
-					var resp *WSOrderResponse
-					resp, err = data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					return resp.Data, nil
-				}
-				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
-				}
-				var resp WsOrderActionResponse
-				err = resp.populateFromIncomingData(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(data.Data, &(resp.Data))
-				if err != nil {
-					return nil, err
-				}
-				var errs error
-				for x := range resp.Data {
-					if resp.Data[x].SCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
-					}
-				}
-				return nil, errs
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsAmendOrder method to amend trade order using a request thought the websocket channel.
-func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.InstrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	if arg.ClientOrderID == "" && arg.OrderID == "" {
-		return nil, errMissingClientOrderIDOrOrderID
-	}
-	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
-		return nil, errInvalidNewSizeOrPriceInformation
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsAmendOrderInput{
-		ID:        randomID,
-		Operation: okxOpAmendOrder,
-		Arguments: []AmendOrderRequestParams{*arg},
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpAmendOrder && data.ID == input.ID {
-				if data.Code == "0" || data.Code == "1" {
-					resp, err := data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					if len(resp.Data) != 1 {
-						return nil, errNoValidResponseFromServer
-					}
-					if data.Code == "1" {
-						return nil, fmt.Errorf("error code: %s message: %s", resp.Data[0].SCode, resp.Data[0].SMessage)
-					}
-					return &resp.Data[0], nil
-				}
-				return nil, fmt.Errorf("error code: %s message: %v", data.Code, ErrorCodes[data.Code])
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsAmendMultipleOrders a request through the websocket connection to amend multiple trade orders.
-func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderData, error) {
-	for x := range args {
-		if args[x].InstrumentID == "" {
-			return nil, errMissingInstrumentID
-		}
-		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
-			return nil, errMissingClientOrderIDOrOrderID
-		}
-		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
-			return nil, errInvalidNewSizeOrPriceInformation
-		}
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := &WsAmendOrderInput{
-		ID:        randomID,
-		Operation: okxOpBatchAmendOrders,
-		Arguments: args,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpBatchAmendOrders && data.ID == input.ID {
-				if data.Code == "0" || data.Code == "2" {
-					var resp *WSOrderResponse
-					resp, err = data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					return resp.Data, nil
-				}
-				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
-				}
-				var resp WsOrderActionResponse
-				err = resp.populateFromIncomingData(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(data.Data, &(resp.Data))
-				if err != nil {
-					return nil, err
-				}
-				var errs error
-				for x := range resp.Data {
-					if resp.Data[x].SCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
-					}
-				}
-				return nil, errs
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
 }
 
 // Run this functions distributes websocket request responses to

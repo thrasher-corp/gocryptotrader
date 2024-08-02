@@ -2,9 +2,13 @@ package okx
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -604,14 +608,62 @@ type PlaceOrderRequestParam struct {
 	ExpiryTime okxUnixMilliTime `json:"expTime,omitempty"`
 }
 
+// Validate validates the PlaceOrderRequestParam
+func (arg *PlaceOrderRequestParam) Validate() error {
+	if arg == nil {
+		return fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
+	}
+
+	if arg.InstrumentID == "" {
+		return errMissingInstrumentID
+	}
+	arg.Side = strings.ToLower(arg.Side)
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+		return fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
+	}
+	if arg.TradeMode != "" &&
+		arg.TradeMode != TradeModeCross &&
+		arg.TradeMode != TradeModeIsolated &&
+		arg.TradeMode != TradeModeCash {
+		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
+	}
+	if arg.PositionSide != "" {
+		if (arg.PositionSide == positionSideLong || arg.PositionSide == positionSideShort) &&
+			(arg.AssetType != asset.Futures && arg.AssetType != asset.PerpetualSwap) {
+			return errors.New("invalid position mode, 'long' or 'short' for Futures/SWAP, otherwise 'net'(default)  are allowed")
+		}
+	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
+	if arg.OrderType == order.OptimalLimitIOC.Lower() &&
+		(arg.AssetType != asset.Futures && arg.AssetType != asset.PerpetualSwap) {
+		return errors.New("\"optimal_limit_ioc\": market order with immediate-or-cancel order (applicable only to Futures and Perpetual swap)")
+	}
+	if arg.OrderType != OkxOrderMarket &&
+		arg.OrderType != OkxOrderLimit &&
+		arg.OrderType != OkxOrderPostOnly &&
+		arg.OrderType != OkxOrderFOK &&
+		arg.OrderType != OkxOrderIOC &&
+		arg.OrderType != OkxOrderOptimalLimitIOC {
+		return fmt.Errorf("%w %v", errInvalidOrderType, arg.OrderType)
+	}
+	if arg.Amount <= 0 {
+		return errInvalidAmount
+	}
+	if arg.QuantityType != "" && arg.QuantityType != "base_ccy" && arg.QuantityType != "quote_ccy" {
+		return errors.New("only base_ccy and quote_ccy quantity types are supported")
+	}
+	return nil
+}
+
 // OrderData response message for place, cancel, and amend an order requests.
 type OrderData struct {
-	OrderID       string `json:"ordId,omitempty"`
-	RequestID     string `json:"reqId,omitempty"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
-	Tag           string `json:"tag,omitempty"`
-	SCode         string `json:"sCode,omitempty"`
-	SMessage      string `json:"sMsg,omitempty"`
+	Tag           string `json:"tag"`
+	Timestamp     string `json:"ts"`
+	OrderID       string `json:"ordId"`
+	ClientOrderID string `json:"clOrdId"`
+	SCode         int    `json:"sCode,string"`
+	SMessage      string `json:"sMsg"`
+	RequestID     string `json:"reqId"`
 }
 
 // CancelOrderRequestParam represents order parameters to cancel an order.
@@ -2283,15 +2335,6 @@ type WSPlaceOrder struct {
 	Arguments []WSPlaceOrderData `json:"args"`
 }
 
-// WSOrderResponse place order response thought the websocket connection.
-type WSOrderResponse struct {
-	ID        string      `json:"id"`
-	Operation string      `json:"op"`
-	Data      []OrderData `json:"data"`
-	Code      string      `json:"code,omitempty"`
-	Msg       string      `json:"msg,omitempty"`
-}
-
 // WebsocketDataResponse represents all pushed websocket data coming thought the websocket connection
 type WebsocketDataResponse struct {
 	Argument SubscriptionInfo `json:"arg"`
@@ -2318,23 +2361,6 @@ type wsIncomingData struct {
 	ID        string          `json:"id,omitempty"`
 	Operation string          `json:"op,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
-}
-
-// copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
-func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
-	if len(w.Data) == 0 {
-		return nil, errEmptyPlaceOrderResponse
-	}
-	var placeOrds []OrderData
-	err := json.Unmarshal(w.Data, &placeOrds)
-	if err != nil {
-		return nil, err
-	}
-	return &WSOrderResponse{
-		Operation: w.Operation,
-		ID:        w.ID,
-		Data:      placeOrds,
-	}, nil
 }
 
 // WSInstrumentResponse represents websocket instruments push message.
@@ -2426,17 +2452,6 @@ type WsOrderActionResponse struct {
 	Data      []OrderData `json:"data"`
 	Code      string      `json:"code"`
 	Msg       string      `json:"msg"`
-}
-
-func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingData) error {
-	if incoming == nil {
-		return errNilArgument
-	}
-	a.ID = incoming.ID
-	a.Code = incoming.Code
-	a.Operation = incoming.Operation
-	a.Msg = incoming.Msg
-	return nil
 }
 
 // SubscriptionOperationInput represents the account channel input data

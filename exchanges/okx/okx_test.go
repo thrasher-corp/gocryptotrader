@@ -37,7 +37,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	useTestNet              = false
 )
 
@@ -2043,6 +2043,8 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+const placeOrderArgs = `{	"id": "1513",	"op": "batch-orders",	"args": [	  {		"side": "buy",		"instId": "BTC-USDT",		"tdMode": "cash",		"ordType": "market",		"sz": "100"	  },	  {		"side": "buy",		"instId": "LTC-USDT",		"tdMode": "cash",		"ordType": "market",		"sz": "1"	  }	]}`
+
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -2890,111 +2892,6 @@ func TestWsAccountSubscription(t *testing.T) {
 
 	if err := ok.WsAccountSubscription("subscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s WsAccountSubscription() error: %v", ok.Name, err)
-	}
-}
-
-const placeOrderJSON = `{	"id": "1512",	"op": "order",	"args": [{ "instId":"BTC-USDC",    "tdMode":"cash",    "clOrdId":"b15",    "side":"Buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}	]}`
-
-func TestWsPlaceOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	var resp WsPlaceOrderInput
-	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
-	if err != nil {
-		t.Error(err)
-	}
-	var response OrderData
-	err = json.Unmarshal([]byte(placeOrderJSON), &response)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if _, err := ok.WsPlaceOrder(&PlaceOrderRequestParam{
-		InstrumentID: "BTC-USDC",
-		TradeMode:    "cross",
-		Side:         "Buy",
-		OrderType:    "limit",
-		Amount:       2.6,
-		Price:        2.1,
-		Currency:     "BTC",
-	}); err != nil {
-		t.Errorf("%s WsPlaceOrder() error: %v", ok.Name, err)
-	}
-}
-
-const placeOrderArgs = `{	"id": "1513",	"op": "batch-orders",	"args": [	  {		"side": "buy",		"instId": "BTC-USDT",		"tdMode": "cash",		"ordType": "market",		"sz": "100"	  },	  {		"side": "buy",		"instId": "LTC-USDT",		"tdMode": "cash",		"ordType": "market",		"sz": "1"	  }	]}`
-
-func TestWsPlaceMultipleOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	var resp WsPlaceOrderInput
-	if err := json.Unmarshal([]byte(placeOrderArgs), &resp); err != nil {
-		t.Error(err)
-	}
-	pairs, err := ok.FetchTradablePairs(contextGenerate(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	} else if len(pairs) == 0 {
-		t.Skip("no pairs found")
-	}
-	if _, err := ok.WsPlaceMultipleOrder(resp.Arguments); err != nil {
-		t.Error("Okx WsPlaceMultipleOrder() error", err)
-	}
-}
-
-func TestWsCancelOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	if _, err := ok.WsCancelOrder(CancelOrderRequestParam{
-		InstrumentID: "BTC-USD-190927",
-		OrderID:      "2510789768709120",
-	}); err != nil {
-		t.Error("Okx WsCancelOrder() error", err)
-	}
-}
-
-func TestWsCancleMultipleOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	if _, err := ok.WsCancelMultipleOrder([]CancelOrderRequestParam{{
-		InstrumentID: "DCR-BTC",
-		OrderID:      "2510789768709120",
-	}}); err != nil && !strings.Contains(err.Error(), "Cancellation failed as the order does not exist.") {
-		t.Error("Okx WsCancleMultipleOrder() error", err)
-	}
-}
-
-func TestWsAmendOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	if _, err := ok.WsAmendOrder(&AmendOrderRequestParams{
-		InstrumentID: "DCR-BTC",
-		OrderID:      "2510789768709120",
-		NewPrice:     1233324.332,
-		NewQuantity:  1234,
-	}); err != nil && !strings.Contains(err.Error(), "order does not exist.") {
-		t.Errorf("%s WsAmendOrder() error %v", ok.Name, err)
-	}
-}
-
-func TestWsAmendMultipleOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	if _, err := ok.WsAmendMultipleOrders([]AmendOrderRequestParams{
-		{
-			InstrumentID: "DCR-BTC",
-			OrderID:      "2510789768709120",
-			NewPrice:     1233324.332,
-			NewQuantity:  1234,
-		},
-	}); err != nil && !strings.Contains(err.Error(), "Order modification failed as the order does not exist.") {
-		t.Errorf("%s WsAmendMultipleOrders() %v", ok.Name, err)
 	}
 }
 
