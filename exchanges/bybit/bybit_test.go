@@ -11,6 +11,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,8 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -3682,4 +3685,59 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+// TestGenerateSubscriptions exercises generateSubscriptions
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	for _, s := range b.Features.Subscriptions {
+		for _, a := range b.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := b.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if isSymbolChannel(channelName(s)) {
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					switch s.Channel {
+					case subscription.OrderbookChannel:
+						s.QualifiedChannel = fmt.Sprintf("%s.%d.%s", channelName(s), s.Levels, p)
+					default:
+						s.QualifiedChannel = channelName(s) + "." + p.String()
+					}
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s.Pairs = pairs
+				s.QualifiedChannel = channelName(s)
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	b.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, b)
+	err = b.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
 }
