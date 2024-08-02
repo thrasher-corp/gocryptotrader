@@ -37,7 +37,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	useTestNet              = false
 )
 

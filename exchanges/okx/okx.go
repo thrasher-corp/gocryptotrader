@@ -30,9 +30,6 @@ import (
 type Okx struct {
 	exchange.Base
 
-	// TODO: Remove this when the websocket multi-connection management integration is complete
-	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
-
 	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
 	// it is made to hold up to 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
 	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.

@@ -2342,15 +2342,6 @@ type WebsocketDataResponse struct {
 	Data     []interface{}    `json:"data"`
 }
 
-type wsRequestInfo struct {
-	ID             string
-	Chan           chan *wsIncomingData
-	Event          string
-	Channel        string
-	InstrumentType string
-	InstrumentID   string
-}
-
 type wsIncomingData struct {
 	Event    string           `json:"event,omitempty"`
 	Argument SubscriptionInfo `json:"arg,omitempty"`
@@ -3189,16 +3180,6 @@ type FundingOrder struct {
 	PurchasedTime okxUnixMilliTime `json:"purchasedTime"`
 	RedeemedTime  okxUnixMilliTime `json:"redeemedTime"`
 	EarningCcy    []string         `json:"earningCcy,omitempty"`
-}
-
-// wsRequestDataChannelsMultiplexer a single multiplexer instance to multiplex websocket messages multiplexer channels
-type wsRequestDataChannelsMultiplexer struct {
-	// To Synchronize incoming messages coming through the websocket channel
-	WsResponseChannelsMap map[string]*wsRequestInfo
-	Register              chan *wsRequestInfo
-	Unregister            chan string
-	Message               chan *wsIncomingData
-	shutdown              chan bool
 }
 
 // wsSubscriptionParameters represents toggling boolean values for subscription parameters.

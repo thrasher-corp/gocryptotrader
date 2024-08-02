@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -274,56 +274,17 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	base64Sign := crypto.Base64Encode(hmac)
-	request := WebsocketEventRequest{
-		Operation: operationLogin,
-		Arguments: []WebsocketLoginData{
-			{
-				APIKey:     creds.Key,
-				Passphrase: creds.ClientID,
-				Timestamp:  timeUnix,
-				Sign:       base64Sign,
-			},
+	args := []WebsocketLoginData{
+		{
+			APIKey:     creds.Key,
+			Passphrase: creds.ClientID,
+			Timestamp:  timeUnix,
+			Sign:       base64Sign,
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
-	if err != nil {
-		return err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseCheckTimeout)
-	randomID, err := common.GenerateRandomString(16)
-	if err != nil {
-		return fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
-	}
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:    randomID,
-		Chan:  wsResponse,
-		Event: operationLogin,
-	}
-	ok.WsRequestSemaphore <- 1
-	defer func() {
-		<-ok.WsRequestSemaphore
-	}()
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Event == operationLogin && data.Code == "0" {
-				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-				return nil
-			} else if data.Event == "error" &&
-				(data.Code == "60022" || data.Code == "60009") {
-				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.Code])
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				request.Operation)
-		}
-	}
+	var nothing interface{}
+	err = ok.SendWebsocketRequest("login-response", operationLogin, args, &nothing)
+	return err
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
@@ -540,6 +501,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil && id != "" {
+		fmt.Printf("INCOMING MATCH %v\n", string(respRaw))
 		if !ok.Websocket.Match.IncomingWithData(id, respRaw) {
 			return fmt.Errorf("%s: %w to payload %v", ok.Name, errWebsocketDataNotMatchedWithID, string(respRaw))
 		}
@@ -554,8 +516,16 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%w unmarshalling %v", err, respRaw)
 	}
-	if (resp.Event != "" && (resp.Event == "login" || resp.Event == "error")) || resp.Operation != "" {
-		ok.WsResponseMultiplexer.Message <- &resp
+	if resp.Event != "" &&
+		(resp.Event == "login" ||
+			(resp.Event == "error" &&
+				slices.Contains([]string{"60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009", "60005", "60021", "60031"}, resp.Code))) {
+		// find error codes and corresponding reasons: https://www.okx.com/docs-v5/en/#error-code-websocket-public
+
+		fmt.Printf("INCOMING MATCH LOGIN %v\n", string(respRaw))
+		if !ok.Websocket.Match.IncomingWithData("login-response", respRaw) {
+			return fmt.Errorf("%s: %w to payload %v", ok.Name, errWebsocketDataNotMatchedWithID, string(respRaw))
+		}
 		return nil
 	}
 	if len(resp.Data) == 0 {
@@ -1341,55 +1311,6 @@ func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
 	}
 	ok.Websocket.DataHandler <- resp
 	return nil
-}
-
-// Run this functions distributes websocket request responses to
-func (m *wsRequestDataChannelsMultiplexer) Run() {
-	tickerData := time.NewTicker(time.Second)
-	for {
-		select {
-		case <-m.shutdown:
-			// We've consumed the shutdown, so create a new chan for subsequent runs
-			m.shutdown = make(chan bool)
-			return
-		case <-tickerData.C:
-			for x, myChan := range m.WsResponseChannelsMap {
-				if myChan == nil {
-					delete(m.WsResponseChannelsMap, x)
-				}
-			}
-		case id := <-m.Unregister:
-			delete(m.WsResponseChannelsMap, id)
-		case reg := <-m.Register:
-			m.WsResponseChannelsMap[reg.ID] = reg
-		case msg := <-m.Message:
-			if msg.ID != "" && m.WsResponseChannelsMap[msg.ID] != nil {
-				m.WsResponseChannelsMap[msg.ID].Chan <- msg
-				continue
-			}
-			for _, myChan := range m.WsResponseChannelsMap {
-				if (msg.Event == "error" || myChan.Event == operationLogin) &&
-					(msg.Code == "60009" || msg.Code == "60022" || msg.Code == "0") &&
-					strings.Contains(msg.Msg, myChan.Channel) {
-					myChan.Chan <- msg
-					continue
-				} else if msg.Event != myChan.Event ||
-					msg.Argument.Channel != myChan.Channel ||
-					msg.Argument.InstrumentType != myChan.InstrumentType ||
-					msg.Argument.InstrumentID != myChan.InstrumentID {
-					continue
-				}
-				myChan.Chan <- msg
-				break
-			}
-		}
-	}
-}
-
-// Shutdown causes the multiplexer to exit its Run loop
-// All channels are left open, but websocket shutdown first will ensure no more messages block on multiplexer reading
-func (m *wsRequestDataChannelsMultiplexer) Shutdown() {
-	close(m.shutdown)
 }
 
 // wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket stream.
