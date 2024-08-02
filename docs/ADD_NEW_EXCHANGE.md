@@ -210,6 +210,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No | // <-------- new exchange
 | CoinbasePro | Yes | Yes | No|
+| CoinbaseInternational | Yes | Yes | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -234,6 +235,7 @@ var Exchanges = []string{
 	"bitstamp",
 	"btc markets",
 	"btse",
+	"coinbaseinternational",
 	"bybit",
 	"coinbasepro",
 	"coinut",
