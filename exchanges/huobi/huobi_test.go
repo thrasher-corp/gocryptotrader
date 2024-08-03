@@ -26,8 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -3009,4 +3011,41 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			assert.NotEmpty(t, resp)
 		}
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := h.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	for _, s := range h.Features.Subscriptions {
+		for _, a := range h.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := h.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: false, Delimiter: ""})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			for i, p := range pairs {
+				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+				s.QualifiedChannel = channelName(s, p)
+				switch s.Channel {
+				case subscription.OrderbookChannel:
+					s.QualifiedChannel += ".step0"
+				case subscription.CandlesChannel:
+					s.QualifiedChannel += ".1min"
+				}
+				s.Pairs = pairs[i : i+1]
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
 }
