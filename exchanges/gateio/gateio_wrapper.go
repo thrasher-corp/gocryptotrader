@@ -204,16 +204,17 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 	// Spot connection
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                   gateioWebsocketEndpoint,
-		RateLimit:             gateioWebsocketRateLimit,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Handler:               g.WsHandleSpotData,
-		Subscriber:            g.SpotSubscribe,
-		Unsubscriber:          g.SpotUnsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptionsSpot,
-		Connector:             g.WsConnectSpot,
-		Authenticate:          g.AuthenticateSpot,
+		URL:                      gateioWebsocketEndpoint,
+		RateLimit:                gateioWebsocketRateLimit,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Handler:                  g.WsHandleSpotData,
+		Subscriber:               g.SpotSubscribe,
+		Unsubscriber:             g.SpotUnsubscribe,
+		GenerateSubscriptions:    g.GenerateDefaultSubscriptionsSpot,
+		Connector:                g.WsConnectSpot,
+		Authenticate:             g.AuthenticateSpot,
+		OutboundRequestSignature: asset.Spot,
 	})
 	if err != nil {
 		return err
@@ -227,10 +228,11 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, incoming []byte) error {
 			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
 		},
-		Subscriber:            g.FuturesSubscribe,
-		Unsubscriber:          g.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
-		Connector:             g.WsFuturesConnect,
+		Subscriber:               g.FuturesSubscribe,
+		Unsubscriber:             g.FuturesUnsubscribe,
+		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
+		Connector:                g.WsFuturesConnect,
+		OutboundRequestSignature: asset.USDTMarginedFutures,
 	})
 	if err != nil {
 		return err
@@ -245,10 +247,11 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, incoming []byte) error {
 			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
 		},
-		Subscriber:            g.FuturesSubscribe,
-		Unsubscriber:          g.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.BTC) },
-		Connector:             g.WsFuturesConnect,
+		Subscriber:               g.FuturesSubscribe,
+		Unsubscriber:             g.FuturesUnsubscribe,
+		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.BTC) },
+		Connector:                g.WsFuturesConnect,
+		OutboundRequestSignature: asset.CoinMarginedFutures,
 	})
 	if err != nil {
 		return err
@@ -264,10 +267,11 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, incoming []byte) error {
 			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
 		},
-		Subscriber:            g.DeliveryFuturesSubscribe,
-		Unsubscriber:          g.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
-		Connector:             g.WsDeliveryFuturesConnect,
+		Subscriber:               g.DeliveryFuturesSubscribe,
+		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
+		Connector:                g.WsDeliveryFuturesConnect,
+		OutboundRequestSignature: asset.DeliveryFutures,
 	})
 	if err != nil {
 		return err
@@ -275,15 +279,16 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 
 	// Futures connection - Options
 	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                   optionsWebsocketURL,
-		RateLimit:             gateioWebsocketRateLimit,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Handler:               g.WsHandleOptionsData,
-		Subscriber:            g.OptionsSubscribe,
-		Unsubscriber:          g.OptionsUnsubscribe,
-		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
-		Connector:             g.WsOptionsConnect,
+		URL:                      optionsWebsocketURL,
+		RateLimit:                gateioWebsocketRateLimit,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Handler:                  g.WsHandleOptionsData,
+		Subscriber:               g.OptionsSubscribe,
+		Unsubscriber:             g.OptionsUnsubscribe,
+		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
+		Connector:                g.WsOptionsConnect,
+		OutboundRequestSignature: asset.Options,
 	})
 }
 

@@ -50,8 +50,14 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
-	connectionManager []ConnectionWrapper
+	connectionManager []*ConnectionWrapper
 	connections       map[Connection]*ConnectionWrapper
+	// outbound is map holding wrapper specific signatures to an active
+	// connection for outbound messaging. Wrapper specific connections
+	// might be asset specific e.g. spot, margin, futures or
+	// authenticated/unauthenticated or a mix of both. This map is used
+	// to send messages to the correct connection.
+	outbound map[any]*ConnectionWrapper
 
 	subscriptions *subscription.Store
 

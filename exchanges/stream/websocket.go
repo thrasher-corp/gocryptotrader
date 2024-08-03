@@ -71,7 +71,7 @@ var (
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 	errConnSetup                            = errors.New("error in connection setup")
 	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
-	errConnectionCandidateDuplication       = errors.New("connection candidate duplication")
+	errConnectionWrapperDuplication         = errors.New("connection wrapper duplication")
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 )
@@ -104,6 +104,7 @@ func NewWebsocket() *Websocket {
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
 		connections:       make(map[Connection]*ConnectionWrapper),
+		outbound:          make(map[any]*ConnectionWrapper),
 	}
 }
 
@@ -263,15 +264,20 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		}
 
 		for x := range w.connectionManager {
-			if w.connectionManager[x].Setup.URL == c.URL {
-				return fmt.Errorf("%w: %w", errConnSetup, errConnectionCandidateDuplication)
+			// Below allows for multiple connections to the same URL with different
+			// outbound request signatures. This allows for easier determination of
+			// inbound and outbound messages. e.g. Gateio cross_margin, margin on
+			// a spot connection.
+			if w.connectionManager[x].Setup.URL == c.URL && c.OutboundRequestSignature == w.connectionManager[x].Setup.OutboundRequestSignature {
+				return fmt.Errorf("%w: %w", errConnSetup, errConnectionWrapperDuplication)
 			}
 		}
 
-		w.connectionManager = append(w.connectionManager, ConnectionWrapper{
+		w.connectionManager = append(w.connectionManager, &ConnectionWrapper{
 			Setup:         c,
 			Subscriptions: subscription.NewStore(),
 		})
+		w.outbound[c.OutboundRequestSignature] = w.connectionManager[len(w.connectionManager)-1]
 		return nil
 	}
 
@@ -421,7 +427,7 @@ func (w *Websocket) Connect() error {
 			break
 		}
 
-		w.connections[conn] = &w.connectionManager[i]
+		w.connections[conn] = w.connectionManager[i]
 		w.connectionManager[i].Connection = conn
 
 		if !conn.IsConnected() {
@@ -1324,14 +1330,13 @@ func drain(ch <-chan error) {
 }
 
 // GetOutboundConnection returns a connection specifically for outbound requests
-// for multi connection management. TODO: Upgrade routeID so that if there is
-// a URL change it can be handled.
-func (w *Websocket) GetOutboundConnection(routeID string) (Connection, error) {
+// for multi connection management.
+func (w *Websocket) GetOutboundConnection(connSignature any) (Connection, error) {
 	if w == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, w)
 	}
 
-	if routeID == "" {
+	if connSignature == "" {
 		return nil, ErrRequestRouteNotSet
 	}
 
@@ -1346,15 +1351,14 @@ func (w *Websocket) GetOutboundConnection(routeID string) (Connection, error) {
 		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", w.exchangeName, errCannotObtainOutboundConnection)
 	}
 
-	for x := range w.connectionManager {
-		if w.connectionManager[x].Setup.URL != routeID {
-			continue
-		}
-		if w.connectionManager[x].Connection == nil {
-			return nil, fmt.Errorf("%s: %w", w.connectionManager[x].Setup.URL, ErrNotConnected)
-		}
-		return w.connectionManager[x].Connection, nil
+	wrapper, ok := w.outbound[connSignature]
+	if !ok {
+		return nil, fmt.Errorf("%s: %w: %v", w.exchangeName, ErrRequestRouteNotFound, connSignature)
 	}
 
-	return nil, fmt.Errorf("%w: %s", ErrRequestRouteNotFound, routeID)
+	if wrapper.Connection == nil {
+		return nil, fmt.Errorf("%s: %s %w: %v", w.exchangeName, wrapper.Setup.URL, ErrNotConnected, connSignature)
+	}
+
+	return wrapper.Connection, nil
 }

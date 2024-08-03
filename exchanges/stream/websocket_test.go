@@ -369,7 +369,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
@@ -613,7 +613,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
 	multi.connections = map[Connection]*ConnectionWrapper{
-		amazingConn: &multi.connectionManager[0],
+		amazingConn: multi.connectionManager[0],
 	}
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
@@ -1357,7 +1357,7 @@ func TestSetupNewConnection(t *testing.T) {
 	require.Nil(t, multi.Conn)
 
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errConnectionCandidateDuplication)
+	require.ErrorIs(t, err, errConnectionWrapperDuplication)
 }
 
 func TestWebsocketConnectionShutdown(t *testing.T) {
@@ -1478,18 +1478,19 @@ func TestGetOutboundConnection(t *testing.T) {
 	_, err = ws.GetOutboundConnection("testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
-	ws.connectionManager = []ConnectionWrapper{{
+	ws.connectionManager = []*ConnectionWrapper{{
 		Setup: &ConnectionSetup{URL: "testURL"},
 	}}
+
+	ws.outbound = map[any]*ConnectionWrapper{
+		"testURL": ws.connectionManager[0],
+	}
 
 	_, err = ws.GetOutboundConnection("testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &WebsocketConnection{}
-	ws.connectionManager = []ConnectionWrapper{{
-		Setup:      &ConnectionSetup{URL: "testURL"},
-		Connection: expected,
-	}}
+	ws.connectionManager[0].Connection = expected
 
 	conn, err := ws.GetOutboundConnection("testURL")
 	require.NoError(t, err)
