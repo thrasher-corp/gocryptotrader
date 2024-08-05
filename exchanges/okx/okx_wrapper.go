@@ -187,14 +187,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
-		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
-		Register:              make(chan *wsRequestInfo),
-		Unregister:            make(chan string),
-		Message:               make(chan *wsIncomingData),
-		shutdown:              make(chan bool),
-	}
-
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -216,8 +208,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	go ok.WsResponseMultiplexer.Run()
-
 	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -234,18 +224,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Authenticated:        true,
 		RateLimit:            500,
 	})
-}
-
-// Shutdown calls Base.Shutdown and then shuts down the response multiplexer
-func (ok *Okx) Shutdown() error {
-	if err := ok.Base.Shutdown(); err != nil {
-		return err
-	}
-
-	// Must happen after the Websocket shutdown in Base.Shutdown, so there are no new blocking writes to the multiplexer
-	ok.WsResponseMultiplexer.Shutdown()
-
-	return nil
 }
 
 // GetServerTime returns the current exchange server time.
@@ -910,7 +888,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	for x := range canceledOrders {
 		resp.Status[canceledOrders[x].OrderID] = func() string {
-			if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
+			if canceledOrders[x].SCode > 0 {
 				return ""
 			}
 			return order.Cancelled.String()
@@ -1007,7 +985,7 @@ ordersLoop:
 			}
 		}
 		for y := range response {
-			if response[y].SCode == "0" {
+			if response[y].SCode == 0 {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
 				cancelAllResponse.Status[response[y].OrderID] = response[y].SMessage
