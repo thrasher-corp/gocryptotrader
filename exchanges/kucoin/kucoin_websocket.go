@@ -1674,8 +1674,8 @@ func channelInterval(s *subscription.Subscription) string {
 	return ""
 }
 
-// currencies returns the currencies from all pairs in an asset
-// Updates the AssetPairs map parameter to contain only those currencies as Base items
+// assetCurrencies returns the currencies from all pairs in an asset
+// Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
 	p := currency.Pairs{}
