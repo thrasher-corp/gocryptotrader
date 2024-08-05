@@ -102,6 +102,8 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		BatchSize:      deviceControl + "BS",
 	}
 
+	subs := List{}
+
 	switch s.Asset {
 	case asset.All:
 		subCtx.AssetPairs = ap
@@ -111,6 +113,9 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 			s.Asset: ap[s.Asset],
 		}
 		assets = asset.Items{s.Asset}
+		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
+			return List{}, nil // Nothing is enabled for this sub asset
+		}
 	}
 
 	if len(s.Pairs) != 0 {
@@ -139,7 +144,6 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		return nil, fmt.Errorf("%w: Got %d; Expected %d", errAssetRecords, len(assetRecords), len(assets))
 	}
 
-	subs := List{}
 	for i, assetChannels := range assetRecords {
 		a := assets[i]
 		pairs := subCtx.AssetPairs[a]
