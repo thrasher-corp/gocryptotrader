@@ -2558,7 +2558,7 @@ func TestSubscribeTickerAll(t *testing.T) {
 
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "Must generate one subscriptions")
+	require.Len(t, subs, 1, "Must generate one subscription")
 	require.Equal(t, "/market/ticker:all", subs[0].QualifiedChannel, "QualifiedChannel must be correct")
 
 	err = ku.Subscribe(subs)
