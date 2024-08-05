@@ -65,11 +65,12 @@ func TestExpandTemplates(t *testing.T) {
 	)
 	equalLists(t, exp, got)
 
-	// Test with just one asset to ensure asset.All works
+	// Test with just one asset to ensure asset.All works, and disabled assets don't error
 	e.assets = e.assets[:1]
 	l = List{
 		{Channel: "expand-assets", Asset: asset.All, Interval: kline.OneHour},
 		{Channel: "expand-pairs", Asset: asset.All, Levels: 4},
+		{Channel: "single-channel", Asset: asset.Futures},
 	}
 	got, err = l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
