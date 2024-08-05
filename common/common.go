@@ -677,7 +677,7 @@ func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 	return batches
 }
 
-// SortStrings takes a slice of fmt.Stringer implementers and returns a new sorted slice
+// SortStrings takes a slice of fmt.Stringer implementers and returns a new ascending sorted slice
 func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
 	n := slices.Clone(x)
 	slices.SortFunc(n, func(a, b E) int {
