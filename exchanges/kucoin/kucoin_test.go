@@ -1974,9 +1974,16 @@ func TestPushData(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
-var subPairs currency.Pairs
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
 
-func init() {
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
+	// Pairs overlap for spot/margin tests:
+	// Only in Spot: BTC-USDT, ETH-USDT
+	// In Both: ETH-BTC, LTC-USDT
+	// Only in Margin: TRX-BTC, SOL-USDC
+	subPairs := currency.Pairs{}
 	for _, pp := range [][]string{
 		{"BTC", "USDT", "-"}, {"ETH", "BTC", "-"}, {"ETH", "USDT", "-"}, {"LTC", "USDT", "-"}, // Spot
 		{"ETH", "BTC", "-"}, {"LTC", "USDT", "-"}, {"SOL", "USDC", "-"}, {"TRX", "BTC", "-"}, // Margin
@@ -1984,17 +1991,6 @@ func init() {
 	} {
 		subPairs = append(subPairs, currency.NewPairWithDelimiter(pp[0], pp[1], pp[2]))
 	}
-}
-
-// Pairs for Subscription tests:
-// Only in Spot: BTC-USDT, ETH-USDT
-// In Both: ETH-BTC, LTC-USDT
-// Only in Margin: TRX-BTC, SOL-USDC
-
-func TestGenerateSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: subPairs[0:4], QualifiedChannel: "/market/ticker:" + subPairs[0:4].Join()},
