@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -120,30 +119,4 @@ type WebsocketSetup struct {
 	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxWebsocketSubscriptionsPerConnection int
-}
-
-// WebsocketConnection contains all the data needed to send a message to a WS
-// connection
-type WebsocketConnection struct {
-	Verbose   bool
-	connected int32
-
-	// Gorilla websocket does not allow more than one goroutine to utilise
-	// writes methods
-	writeControl sync.Mutex
-
-	RateLimit    int64
-	ExchangeName string
-	URL          string
-	ProxyURL     string
-	Wg           *sync.WaitGroup
-	Connection   *websocket.Conn
-	ShutdownC    chan struct{}
-
-	Match             *Match
-	ResponseMaxLimit  time.Duration
-	Traffic           chan struct{}
-	readMessageErrors chan error
-
-	Reporter Reporter
 }

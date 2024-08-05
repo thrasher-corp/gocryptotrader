@@ -20,7 +20,6 @@ type Connection interface {
 	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
-	SetProxy(string)
 	GetURL() string
 	Shutdown() error
 }
