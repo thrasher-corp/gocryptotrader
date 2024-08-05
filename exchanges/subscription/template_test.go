@@ -107,7 +107,7 @@ func TestExpandTemplates(t *testing.T) {
 	assert.ErrorIs(t, err, errPairRecords, "Should error correctly when invalid number of pair entries")
 
 	_, err = List{{Channel: "error4", Asset: asset.Spot}}.ExpandTemplates(e)
-	assert.ErrorIs(t, err, errTooManyBatchSize, "Should error correctly when too many BatchSize directives")
+	assert.ErrorIs(t, err, errTooManyBatchSizePerAsset, "Should error correctly when too many BatchSize directives")
 
 	_, err = List{{Channel: "error5", Asset: asset.Spot}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, common.ErrTypeAssertFailure, "Should error correctly when batch size isn't an int")
