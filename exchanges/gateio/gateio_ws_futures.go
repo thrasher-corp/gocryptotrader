@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -106,6 +107,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			return nil, err
 		}
 	case settlement.Equal(currency.BTC):
+		// Technically there is only one BTC pair available BTC-USD
 		offset := 0
 		for x := range pairs {
 			if pairs[x].Quote.Equal(currency.USDT) {
@@ -161,6 +163,13 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
+	if requestID, err := jsonparser.GetString(respRaw, "request_id"); err == nil && requestID != "" {
+		if !g.Websocket.Match.IncomingWithData(requestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", requestID)
+		}
+		return nil
+	}
+
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {

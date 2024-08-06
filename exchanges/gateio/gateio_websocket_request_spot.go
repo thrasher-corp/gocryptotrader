@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -25,6 +26,12 @@ var (
 	errEdgeCaseIssue    = errors.New("edge case issue")
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
+
+// AuthenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) AuthenticateSpot(ctx context.Context, conn stream.Connection) error {
+	_, err := g.WebsocketLogin(ctx, conn, "spot.login")
+	return err
+}
 
 // WebsocketLogin authenticates the websocket connection
 func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
@@ -262,9 +269,21 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		},
 	}
 
+	if g.Verbose {
+		if payload, err := json.Marshal(request); err == nil {
+			log.Debugf(log.WebsocketMgr, "Sending request: %v", string(payload))
+		}
+	}
+
 	responses, err := conn.SendMessageReturnResponses(ctx, request.Payload.RequestID, request, expectedResponses, InspectPayloadForAck)
 	if err != nil {
 		return err
+	}
+
+	if g.Verbose {
+		for i := range responses {
+			log.Debugf(log.WebsocketMgr, "Received response [%d out of %d]: %v", i+1, len(responses), string(responses[i]))
+		}
 	}
 
 	if len(responses) == 0 {

@@ -204,15 +204,31 @@ func getWebsocketInstance(t *testing.T, g *Gateio) *Gateio {
 	require.NoError(t, cpy.Setup(gConf), "Test instance Setup must not error")
 	cpy.CurrencyPairs.Load(&g.CurrencyPairs)
 
+assetLoader:
 	for _, a := range cpy.GetAssetTypes(true) {
-		if a != asset.Spot {
+		var avail currency.Pairs
+		switch a {
+		case asset.Spot:
+			avail, err = cpy.GetAvailablePairs(a)
+			require.NoError(t, err)
+			if len(avail) > 1 { // reduce pairs to 1 to speed up tests
+				avail = avail[:1]
+			}
+		case asset.Futures:
+			avail, err = cpy.GetAvailablePairs(a)
+			require.NoError(t, err)
+			usdtPairs, err := avail.GetPairsByQuote(currency.USDT) // Get USDT margin pairs
+			require.NoError(t, err)
+			btcPairs, err := avail.GetPairsByQuote(currency.USD) // Get BTC margin pairs
+			require.NoError(t, err)
+			// below makes sure there is both a USDT and BTC pair available
+			// so that allows two connections to be made.
+			avail[0] = usdtPairs[0]
+			avail[1] = btcPairs[0]
+			avail = avail[:2]
+		default:
 			require.NoError(t, cpy.CurrencyPairs.SetAssetEnabled(a, false))
-			continue
-		}
-		avail, err := cpy.GetAvailablePairs(a)
-		require.NoError(t, err)
-		if len(avail) > 1 {
-			avail = avail[:1]
+			continue assetLoader
 		}
 		require.NoError(t, cpy.SetPairs(avail, a, true))
 	}

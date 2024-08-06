@@ -112,6 +112,42 @@ type WebsocketOrderResponse struct {
 	STPAct             string        `json:"stp_act"`
 }
 
+// WebsocketFuturesOrder defines a websocket futures order
+type WebsocketFuturesOrder struct {
+	Contract    currency.Pair `json:"contract"`
+	Size        int64         `json:"size"`    // positive long, negative short
+	Iceberg     int64         `json:"iceberg"` // required; can be zero
+	Price       string        `json:"price,omitempty"`
+	Close       bool          `json:"close,omitempty"` // Size needs to be zero if true
+	ReduceOnly  bool          `json:"reduce_only,omitempty"`
+	TimeInForce string        `json:"tif,omitempty"`
+	Text        string        `json:"text,omitempty"`
+	AutoSize    string        `json:"auto_size,omitempty"` // either close_long or close_short, size needs to be zero.
+	StpAct      string        `json:"stp_act,omitempty"`
+}
+
+// WebsocketFuturesOrderResponse defines a websocket futures order response
+type WebsocketFuturesOrderResponse struct {
+	Text        string        `json:"text"`
+	Price       types.Number  `json:"price"`
+	BizInfo     string        `json:"biz_info"`
+	TimeInForce string        `json:"tif"`
+	AmendText   string        `json:"amend_text"`
+	Status      string        `json:"status"`
+	Contract    currency.Pair `json:"contract"`
+	STPAct      string        `json:"stp_act"`
+	FinishAs    string        `json:"finish_as"`
+	FillPrice   types.Number  `json:"fill_price"`
+	ID          int64         `json:"id"`
+	CreateTime  Time          `json:"create_time"`
+	UpdateTime  Time          `json:"update_time"`
+	FinishTime  Time          `json:"finish_time"`
+	Size        int64         `json:"size"`
+	Left        int64         `json:"left"`
+	User        int64         `json:"user"`
+	Succeeded   *bool         `json:"succeeded"` // Nil if not present in returned response.
+}
+
 // WebsocketOrderCancelRequest defines a websocket order cancel request
 type WebsocketOrderCancelRequest struct {
 	OrderID string        `json:"id"` // This require id tag not order_id
@@ -142,4 +178,22 @@ type WebsocketAmendOrder struct {
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
 	Amount    string        `json:"amount,omitempty"`
+}
+
+// WebsocketAmendOrder defines a websocket amend order
+type WebsocketFuturesAmendOrder struct {
+	OrderID   string        `json:"order_id"`
+	Contract  currency.Pair `json:"-"` // This is not required in the payload, it is used to determine the asset type.
+	AmendText string        `json:"amend_text,omitempty"`
+	Price     string        `json:"price,omitempty"`
+	Size      int64         `json:"size,omitempty"`
+}
+
+// WebsocketFutureOrdersList defines a websocket future orders list
+type WebsocketFutureOrdersList struct {
+	Contract currency.Pair `json:"contract,omitempty"`
+	Status   string        `json:"status"`
+	Limit    int64         `json:"limit,omitempty"`
+	Offset   int64         `json:"offset,omitempty"`
+	LastID   string        `json:"last_id,omitempty"`
 }

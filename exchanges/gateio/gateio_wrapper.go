@@ -232,6 +232,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.FuturesUnsubscribe,
 		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
 		Connector:                g.WsFuturesConnect,
+		Authenticate:             g.AuthenticateFutures,
 		OutboundRequestSignature: asset.USDTMarginedFutures,
 	})
 	if err != nil {
