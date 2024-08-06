@@ -55,6 +55,13 @@ func (l List) Clone() List {
 	return n
 }
 
+// Authenticated returns true if the list contains a subscription that needs Authentication
+func (l List) Authenticated() bool {
+	return slices.ContainsFunc(l, func(s *Subscription) bool {
+		return s.Authenticated
+	})
+}
+
 // QualifiedChannels returns a sorted list of all the qualified Channels in the list
 func (l List) QualifiedChannels() []string {
 	c := make([]string, len(l))
@@ -85,7 +92,7 @@ func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
 	if err != nil {
 		return err
 	}
-	ap[a] = p.Format(f)
+	ap[a] = common.SortStrings(p.Format(f))
 	return nil
 }
 

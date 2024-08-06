@@ -394,42 +394,30 @@ func TestDisablePair(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
 
-	if err := p.DisablePair(asset.Empty, EMPTYPAIR); !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	err := p.DisablePair(asset.Empty, EMPTYPAIR)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "Empty asset should error")
 
-	if err := p.DisablePair(asset.Spot, EMPTYPAIR); !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
-	}
+	err = p.DisablePair(asset.Spot, EMPTYPAIR)
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Empty pair should error")
 
 	p.Pairs = nil
-	// Test disabling a pair when the pair manager is not initialised
-	if err := p.DisablePair(asset.Spot, NewPair(BTC, USD)); err == nil {
-		t.Error("unexpected result")
-	}
+	err = p.DisablePair(asset.Spot, NewPair(BTC, USD))
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised, "Uninitialised PairManager should error")
 
-	// Test asset type which doesn't exist
 	p = initTest(t)
-	if err := p.DisablePair(asset.Futures, EMPTYPAIR); err == nil {
-		t.Error("unexpected result")
-	}
+	err = p.DisablePair(asset.CoinMarginedFutures, EMPTYPAIR)
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Non-existent asset type should error")
 
-	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.DisablePair(asset.Spot, EMPTYPAIR); err == nil {
-		t.Error("unexpected result")
-	}
+	err = p.DisablePair(asset.Spot, EMPTYPAIR)
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Empty pair store should error")
 
-	// Test disabling a pair which isn't enabled
 	p = initTest(t)
-	if err := p.DisablePair(asset.Spot, NewPair(LTC, USD)); err == nil {
-		t.Error("unexpected result")
-	}
+	err = p.DisablePair(asset.Spot, NewPair(LTC, USD))
+	assert.ErrorIs(t, err, ErrPairNotFound, "Not Enabled pair should error")
 
-	// Test disabling a valid pair and ensure nil is empty
-	if err := p.DisablePair(asset.Spot, NewPair(BTC, USD)); err != nil {
-		t.Error("unexpected result")
-	}
+	err = p.DisablePair(asset.Spot, NewPair(BTC, USD))
+	assert.NoError(t, err, "DisablePair should not error")
 }
 
 func TestEnablePair(t *testing.T) {

@@ -25,100 +25,34 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + REST Support
 + Websocket Support
 
-### How to enable
+### Subscriptions
 
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
+Default Public Subscriptions:
+- Ticker for spot, margin and futures
+- Orderbook for spot, margin and futures
+- All trades for spot and margin
 
-+ Individual package example below:
+Default Authenticated Subscriptions:
+- All trades for futures
+- Stop Order Lifecycle events for futures
+- Account Balance events for spot, margin and futures
+- Margin Position updates
+- Margin Loan updates
 
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
-```
+Subscriptions are subject to enabled assets and pairs.
 
-### How to do REST public/private calls
+Limitations:
+- 100 symbols per subscription
+- 300 symbols per connection
 
-+ If enabled via "configuration".json file the exchange will be added to the
-IBotExchange array in the ```go var bot Bot``` and you will only be able to use
-the wrapper interface functions for accessing exchange data. View routines.go
-for an example of integration usage with GoCryptoTrader. Rudimentary example
-below:
+Due to these limitations, if more than 10 symbols are enabled, ticker will subscribe to ticker:all.
 
-main.go
-```go
-var b exchange.IBotExchange
-
-for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "Kucoin" {
-		b = bot.Exchanges[i]
-	}
-}
-
-// Public calls - wrapper functions
-
-// Fetches current ticker information
-tick, err := b.FetchTicker()
-if err != nil {
-	// Handle error
-}
-
-// Fetches current orderbook information
-ob, err := b.FetchOrderbook()
-if err != nil {
-	// Handle error
-}
-
-// Private calls - wrapper functions - make sure your APIKEY and APISECRET are
-// set and AuthenticatedAPISupport is set to true
-
-// Fetches current account information
-accountInfo, err := b.GetAccountInfo()
-if err != nil {
-	// Handle error
-}
-```
-
-+ If enabled via individually importing package, rudimentary example below:
-
-```go
-// Public calls
-
-// Fetches current ticker information
-ticker, err := b.GetTicker()
-if err != nil {
-	// Handle error
-}
-
-// Fetches current orderbook information
-ob, err := b.GetOrderBook()
-if err != nil {
-	// Handle error
-}
-
-// Private calls - make sure your APIKEY and APISECRET are set and
-// AuthenticatedAPISupport is set to true
-
-// GetUserInfo returns account info
-accountInfo, err := b.GetUserInfo(...)
-if err != nil {
-	// Handle error
-}
-
-// Submits an order and the exchange and returns its tradeID
-tradeID, err := b.Trade(...)
-if err != nil {
-	// Handle error
-}
-```
-
-### How to do Websocket public/private calls
-
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
-```
+Unimplemented subscriptions:
+- Candles for Futures
+- Market snapshot for currency
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
+
 
 ## Contribution
 
