@@ -3049,3 +3049,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	testsubs.EqualLists(t, exp, subs)
 }
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	h.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, h)
+	err = h.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+}
