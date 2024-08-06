@@ -44,7 +44,7 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 	tn := time.Now()
 	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn.Unix(), 10)
 	mac := hmac.New(sha512.New, []byte(creds.Secret))
-	if _, err := mac.Write([]byte(msg)); err != nil {
+	if _, err = mac.Write([]byte(msg)); err != nil {
 		return nil, err
 	}
 	signature := hex.EncodeToString(mac.Sum(nil))
@@ -147,7 +147,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 	return &resp, err
 }
 
-// WebsocketOrderCancelAllByIDsSpots cancels multiple orders via the websocket
+// WebsocketOrderCancelAllByIDsSpot cancels multiple orders via the websocket
 func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []WebsocketOrderCancelRequest) ([]WebsocketCancellAllResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
@@ -189,7 +189,7 @@ func (g *Gateio) WebsocketOrderCancelAllByPairSpot(ctx context.Context, pair cur
 	return resp, err
 }
 
-// WebsocketOrderAmend amends an order via the websocket connection
+// WebsocketOrderAmendSpot amends an order via the websocket connection
 func (g *Gateio) WebsocketOrderAmendSpot(ctx context.Context, amend *WebsocketAmendOrder) (*WebsocketOrderResponse, error) {
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
@@ -268,7 +268,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 	}
 
 	if len(responses) == 0 {
-		return fmt.Errorf("no responses received")
+		return errors.New("no responses received")
 	}
 
 	var inbound WebsocketAPIResponse

@@ -119,7 +119,7 @@ type WebsocketOrderCancelRequest struct {
 	Account string        `json:"account,omitempty"`
 }
 
-// WebsocketOrderCancelResponse defines a websocket order cancel response
+// WebsocketCancellAllResponse defines a websocket order cancel response
 type WebsocketCancellAllResponse struct {
 	Pair      currency.Pair `json:"currency_pair"`
 	Label     string        `json:"label"`
