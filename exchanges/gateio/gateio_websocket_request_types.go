@@ -150,7 +150,7 @@ type WebsocketAmendOrder struct {
 	Amount    string        `json:"amount,omitempty"`
 }
 
-// WebsocketAmendOrder defines a websocket amend order
+// WebsocketFuturesAmendOrder defines a websocket amend order
 type WebsocketFuturesAmendOrder struct {
 	OrderID   string        `json:"order_id"`
 	Contract  currency.Pair `json:"-"` // This is not required in the payload, it is used to determine the asset type.

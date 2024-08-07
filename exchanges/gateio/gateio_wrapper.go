@@ -1131,7 +1131,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var status = order.Open
-		if fOrder.Status != "open" {
+		if fOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1178,7 +1178,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var status = order.Open
-		if newOrder.Status != "open" {
+		if newOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(newOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1496,7 +1496,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			return nil, err
 		}
 		orderStatus := order.Open
-		if fOrder.Status != "open" {
+		if fOrder.Status != statusOpen {
 			orderStatus, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1655,7 +1655,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				return nil, err
 			}
 			for y := range spotOrders[x].Orders {
-				if spotOrders[x].Orders[y].Status != "open" {
+				if spotOrders[x].Orders[y].Status != statusOpen {
 					continue
 				}
 				var side order.Side
@@ -1713,9 +1713,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		for settlement := range settlements {
 			var futuresOrders []Order
 			if req.AssetType == asset.Futures {
-				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, "open", "", settlement, 0, 0, 0)
+				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, statusOpen, "", settlement, 0, 0, 0)
 			} else {
-				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, "open", settlement, "", 0, 0, 0)
+				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settlement, "", 0, 0, 0)
 			}
 			if err != nil {
 				if strings.Contains(err.Error(), unfundedFuturesAccount) {
@@ -1731,7 +1731,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return nil, err
 				}
 
-				if futuresOrders[x].Status != "open" || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
+				if futuresOrders[x].Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
 					continue
 				}
 
@@ -1761,7 +1761,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		}
 	case asset.Options:
 		var optionsOrders []OptionOrderResponse
-		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", "open", 0, 0, req.StartTime, req.EndTime)
+		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", statusOpen, 0, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -2644,7 +2644,8 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 
 	switch s.AssetType {
 	case asset.Spot:
-		req, err := g.getSpotOrderRequest(s)
+		var req *CreateOrderRequestData
+		req, err = g.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
@@ -2714,7 +2715,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 		resp.Status = order.Open
-		if got[0].Status != "open" {
+		if got[0].Status != statusOpen {
 			resp.Status, err = order.StringToOrderStatus(got[0].FinishAs)
 			if err != nil {
 				return nil, err

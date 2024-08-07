@@ -168,7 +168,7 @@ func TestWebsocketOrderListFutures(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	list.Status = "open"
+	list.Status = statusOpen
 	got, err := g.WebsocketOrderListFutures(context.Background(), list)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
