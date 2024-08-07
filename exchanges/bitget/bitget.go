@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -271,6 +272,7 @@ var (
 	errUnknownPairQuote              = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
 	errStrategyMutex                 = errors.New("only one of immediate or cancel, fill or kill, and post only can be set to true")
 	errOrderNotFound                 = errors.New("order not found")
+	errReturnEmpty                   = errors.New("returned data unexpectedly empty")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
@@ -1999,9 +2001,6 @@ func (bi *Bitget) GetFundingCurrent(ctx context.Context, pair, productType strin
 
 // GetContractConfig returns details for a given contract
 func (bi *Bitget) GetContractConfig(ctx context.Context, pair, productType string) (*ContractConfigResp, error) {
-	if pair == "" {
-		return nil, errPairEmpty
-	}
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -4494,8 +4493,13 @@ func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 				return nil, err
 			}
 		}
+		// $ gets escaped in URLs, but the exchange reverses this before checking the signature; if we don't
+		// reverse it ourselves, they'll consider it invalid. This technically applies to other escape characters
+		// too, but $ is one we need to worry about, since it's included in some currencies supported by the
+		// exchange
+		unescapedPath := strings.ReplaceAll(path, "%24", "$")
 		t := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		message := t + method + "/api/v2/" + path + string(payload)
+		message := t + method + "/api/v2/" + unescapedPath + string(payload)
 		// The exchange also supports user-generated RSA keys, but we haven't implemented that yet
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))

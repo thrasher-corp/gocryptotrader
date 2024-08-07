@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -108,6 +109,7 @@ func (bi *Bitget) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneWeek},
 					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
+				GlobalResultLimit: 200,
 			},
 		},
 	}
@@ -1183,7 +1185,11 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					return nil, err
 				}
 				for y := range newPairs {
-					resp, err = bi.spotCurrentPlanOrdersHelper(ctx, newPairs[y].String(), newPairs[y], resp)
+					callStr, err := bi.FormatExchangeCurrency(newPairs[y], asset.Spot)
+					if err != nil {
+						return nil, err
+					}
+					resp, err = bi.spotCurrentPlanOrdersHelper(ctx, callStr.String(), newPairs[y], resp)
 					if err != nil {
 						return nil, err
 					}
@@ -1297,11 +1303,15 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					return nil, err
 				}
 				for y := range newPairs {
-					err = bi.spotFillsHelper(ctx, newPairs[y].String(), fillMap)
+					callStr, err := bi.FormatExchangeCurrency(newPairs[y], asset.Spot)
 					if err != nil {
 						return nil, err
 					}
-					resp, err = bi.spotHistoricPlanOrdersHelper(ctx, newPairs[y].String(), newPairs[y], resp,
+					err = bi.spotFillsHelper(ctx, callStr.String(), fillMap)
+					if err != nil {
+						return nil, err
+					}
+					resp, err = bi.spotHistoricPlanOrdersHelper(ctx, callStr.String(), newPairs[y], resp,
 						fillMap)
 					if err != nil {
 						return nil, err
@@ -1592,18 +1602,152 @@ func (bi *Bitget) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (bi *Bitget) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrNotYetImplemented
+func (bi *Bitget) GetFuturesContractDetails(ctx context.Context, _ asset.Item) ([]futures.Contract, error) {
+	var contracts []futures.Contract
+	for i := range prodTypes {
+		resp, err := bi.GetContractConfig(ctx, "", prodTypes[i])
+		if err != nil {
+			return nil, err
+		}
+		temp := make([]futures.Contract, len(resp.Data))
+		for x := range resp.Data {
+			temp[x] = futures.Contract{
+				Exchange: bi.Name,
+				Name: currency.NewPair(currency.NewCode(resp.Data[x].BaseCoin),
+					currency.NewCode(resp.Data[x].QuoteCoin)),
+				Multiplier:  resp.Data[x].SizeMultiplier,
+				Asset:       itemDecoder(resp.Data[x].SymbolType),
+				Type:        contractTypeDecoder(resp.Data[x].SymbolType),
+				Status:      resp.Data[x].SymbolStatus,
+				StartDate:   resp.Data[x].DeliveryStartTime.Time(),
+				EndDate:     resp.Data[x].DeliveryTime.Time(),
+				MaxLeverage: resp.Data[x].MaxLever,
+			}
+			set := make(currency.Currencies, len(resp.Data[x].SupportMarginCoins))
+			for y := range resp.Data[x].SupportMarginCoins {
+				set[y] = currency.NewCode(resp.Data[x].SupportMarginCoins[y])
+			}
+			temp[x].SettlementCurrencies = set
+			if resp.Data[x].SymbolStatus == "listed" || resp.Data[x].SymbolStatus == "normal" {
+				temp[x].IsActive = true
+			}
+		}
+		contracts = append(contracts, temp...)
+	}
+	return contracts, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (bi *Bitget) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
+func (bi *Bitget) GetLatestFundingRates(ctx context.Context, req *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	curRate, err := bi.GetFundingCurrent(ctx, req.Pair.String(), getProductType(req.Pair))
+	if err != nil {
+		return nil, err
+	}
+	nextTime, err := bi.GetNextFundingTime(ctx, req.Pair.String(), getProductType(req.Pair))
+	if err != nil {
+		return nil, err
+	}
+	resp := []fundingrate.LatestRateResponse{
+		{
+			Exchange:       bi.Name,
+			Pair:           req.Pair,
+			TimeOfNextRate: nextTime.Data[0].NextFundingTime.Time(),
+			TimeChecked:    time.Now(),
+		},
+	}
+	dec := decimal.NewFromFloat(curRate.Data[0].FundingRate)
+	resp[0].LatestRate.Rate = dec
+	return resp, nil
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (bi *Bitget) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		resp, err := bi.GetSymbolInfo(ctx, "")
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, len(resp.Data))
+		for i := range resp.Data {
+			limits[i] = order.MinMaxLevel{
+				Asset: a,
+				Pair: currency.NewPair(currency.NewCode(resp.Data[i].BaseCoin),
+					currency.NewCode(resp.Data[i].QuoteCoin)),
+				PriceStepIncrementSize:  float64(resp.Data[i].PricePrecision),
+				AmountStepIncrementSize: float64(resp.Data[i].QuantityPrecision),
+				QuoteStepIncrementSize:  float64(resp.Data[i].QuotePrecision),
+				MinNotional:             resp.Data[i].MinTradeUSDT,
+				MarketMinQty:            resp.Data[i].MinTradeAmount,
+				MarketMaxQty:            resp.Data[i].MaxTradeAmount,
+			}
+		}
+	case asset.Futures:
+		for i := range prodTypes {
+			resp, err := bi.GetContractConfig(ctx, "", prodTypes[i])
+			if err != nil {
+				return err
+			}
+			tempResp := make([]order.MinMaxLevel, len(resp.Data))
+			for x := range resp.Data {
+				tempResp[x] = order.MinMaxLevel{
+					Asset: a,
+					Pair: currency.NewPair(currency.NewCode(resp.Data[x].BaseCoin),
+						currency.NewCode(resp.Data[x].QuoteCoin)),
+					MinNotional:    resp.Data[x].MinTradeUSDT,
+					MaxTotalOrders: resp.Data[x].MaxSymbolOpenOrderNum,
+				}
+			}
+			limits = append(limits, tempResp...)
+		}
+	case asset.Margin, asset.CrossMargin:
+		resp, err := bi.GetSupportedCurrencies(ctx)
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, len(resp.Data))
+		for i := range resp.Data {
+			limits[i] = order.MinMaxLevel{
+				Asset: a,
+				Pair: currency.NewPair(currency.NewCode(resp.Data[i].BaseCoin),
+					currency.NewCode(resp.Data[i].QuoteCoin)),
+				MinNotional:             resp.Data[i].MinTradeUSDT,
+				MarketMinQty:            resp.Data[i].MinTradeAmount,
+				MarketMaxQty:            resp.Data[i].MaxTradeAmount,
+				QuoteStepIncrementSize:  float64(resp.Data[i].PricePrecision),
+				AmountStepIncrementSize: float64(resp.Data[i].QuantityPrecision),
+			}
+		}
+	default:
+		return asset.ErrNotSupported
+	}
+	return bi.LoadLimits(limits)
+}
+
+// UpdateCurrencyStates updates currency states
+func (bi *Bitget) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetAvailableTransferChains returns a list of supported transfer chains based
+// on the supplied cryptocurrency
+func (bi *Bitget) GetAvailableTransferChains(ctx context.Context, cur currency.Code) ([]string, error) {
+	if cur.IsEmpty() {
+		return nil, errCurrencyEmpty
+	}
+	resp, err := bi.GetCoinInfo(ctx, cur.String())
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) == 0 {
+		return nil, errReturnEmpty
+	}
+	chains := make([]string, len(resp.Data[0].Chains))
+	for i := range resp.Data[0].Chains {
+		chains[i] = resp.Data[0].Chains[i].Chain
+	}
+	return chains, nil
 }
 
 // GetProductType is a helper function that returns the appropriate product type for a given currency pair
@@ -2240,4 +2384,32 @@ func formatExchangeKlineIntervalFutures(interval kline.Interval) string {
 		return "1M"
 	}
 	return errIntervalNotSupported
+}
+
+// ItemDecoder is a helper function that returns the appropriate asset.Item for a given string
+func itemDecoder(s string) asset.Item {
+	switch s {
+	case "spot":
+		return asset.Spot
+	case "margin":
+		return asset.Margin
+	case "futures":
+		return asset.Futures
+	case "perpetual":
+		return asset.PerpetualContract
+	case "delivery":
+		return asset.DeliveryFutures
+	}
+	return asset.Empty
+}
+
+// contractTypeDecoder is a helper function that returns the appropriate contract type for a given string
+func contractTypeDecoder(s string) futures.ContractType {
+	switch s {
+	case "delivery":
+		return futures.LongDated
+	case "perpetual":
+		return futures.Perpetual
+	}
+	return futures.Unknown
 }

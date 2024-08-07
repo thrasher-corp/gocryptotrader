@@ -2506,7 +2506,8 @@
       "uppercase": true
      },
      "configFormat": {
-      "uppercase": true
+      "uppercase": true,
+      "delimiter": "-"
      },
      "useGlobalFormat": true,
      "pairs": {
@@ -2516,7 +2517,9 @@
            "available": "BTC-USDT"
          },
          "futures": {
-           "assetEnabled": true
+           "assetEnabled": true,
+           "enabled": "BTC-USDT",
+           "available": "BTC-USDT"
          },
          "margin": {
            "assetEnabled": true

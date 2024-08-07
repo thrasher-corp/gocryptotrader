@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -1061,7 +1063,10 @@ func TestGetFundingCurrent(t *testing.T) {
 
 func TestGetContractConfig(t *testing.T) {
 	t.Parallel()
-	testGetTwoArgs(t, bi.GetContractConfig)
+	_, err := bi.GetContractConfig(context.Background(), "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetContractConfig(context.Background(), "", prodTypes[0])
+	assert.NoError(t, err)
 }
 
 func TestGetOneFuturesAccount(t *testing.T) {
@@ -2657,7 +2662,6 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.NoError(t, err)
 	req.AssetType = asset.Spot
 	_, err = bi.GetActiveOrders(context.Background(), req)
-	// This is failing since the String() method on these novel pairs returns them with a delimiter for some reason
 	assert.NoError(t, err)
 	req.Pairs = []currency.Pair{testPair}
 	_, err = bi.GetActiveOrders(context.Background(), req)
@@ -2727,20 +2731,12 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetHistoricCandles(context.Background(), currency.Pair{}, asset.Spot, kline.Raw, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.OneDay, time.Time{}, time.Time{})
+	_, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.OneDay,
+		time.Now().Add(-time.Hour*24*20), time.Now())
 	assert.NoError(t, err)
-	_, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Futures, kline.OneDay, time.Time{}, time.Time{})
+	_, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Futures, kline.OneDay,
+		time.Now().Add(-time.Hour*24*20), time.Now())
 	assert.NoError(t, err)
-
-	// _, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Binary, kline.OneMin, time.Now().Add(-time.Hour),
-	// 	time.Now())
-	// assert.ErrorIs(t, err, asset.ErrNotSupported)
-	// _, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour),
-	// time.Now())
-	// assert.NoError(t, err)
-	// _, err = bi.GetHistoricCandles(context.Background(), testPair, asset.Futures, kline.OneMin, time.Now().Add(-time.Hour),
-	// 	time.Now())
-	// assert.NoError(t, err)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -2748,7 +2744,46 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	_, err := bi.GetHistoricCandlesExtended(context.Background(), currency.Pair{}, asset.Spot, kline.Raw, time.Time{},
 		time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	// Rest of this is being put on ice until the issue with the previous test has been figured out
+	_, err = bi.GetHistoricCandlesExtended(context.Background(), testPair, asset.Spot, kline.OneDay,
+		time.Now().Add(-time.Hour*24*20), time.Now())
+	assert.NoError(t, err)
+	_, err = bi.GetHistoricCandlesExtended(context.Background(), testPair, asset.Futures, kline.OneDay,
+		time.Now().Add(-time.Hour*24*20), time.Now())
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetFuturesContractDetails, asset.Empty, asset.Empty, nil, false, false, true)
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	req1 := new(fundingrate.LatestRateRequest)
+	req1.Pair = currency.Pair{}
+	req2 := new(fundingrate.LatestRateRequest)
+	req2.Pair = testPair
+	testGetOneArg(t, bi.GetLatestFundingRates, req1, req2, errPairEmpty, false, false, true)
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := bi.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	err = bi.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	err = bi.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+	err = bi.UpdateOrderExecutionLimits(context.Background(), asset.Margin)
+	assert.NoError(t, err)
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetAvailableTransferChains, currency.EMPTYCODE, testCrypto, errCurrencyEmpty, false, false, true)
+	_, err := bi.GetAvailableTransferChains(context.Background(), currency.NewCode("fakecurrencynotrealmeowmeow"))
+	assert.NoError(t, err)
+	// See if there's an established fake currency you can use instead of reinventing this one
 }
 
 // The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests
@@ -3126,11 +3161,12 @@ type getOneArgResp interface {
 		*SubOrderResp | *BatchOrderResp | *BoolData | *FutureTickerResp | *AllAccResp | *SubaccountFuturesResp |
 		*CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | *IntRateMaxBorrowCross | *TierConfigCross |
 		*FlashRepayCross | *IsoAssetResp | *IntRateMaxBorrowIso | *MaxBorrowIso | *MaxTransferIso | *FlashRepayIso |
-		*EarnAssets | *LoanCurList | currency.Pairs | time.Time
+		*EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse |
+		[]string
 }
 
 type getOneArgParam interface {
-	string | []string | bool | asset.Item
+	string | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code
 }
 
 type getOneArgGen[R getOneArgResp, P getOneArgParam] func(context.Context, P) (R, error)

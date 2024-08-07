@@ -1186,11 +1186,11 @@ type ContractConfigResp struct {
 		SymbolStatus          string        `json:"symbolStatus"`
 		OffTime               int64         `json:"offTime,string"`
 		LimitOpenTime         int64         `json:"limitOpenTime,string"`
-		DeliveryTime          EmptyInt      `json:"deliveryTime"`
-		DeliveryStartTime     EmptyInt      `json:"deliveryStartTime"`
-		DeliveryPeriod        EmptyInt      `json:"deliveryPeriod"`
-		LaunchTime            EmptyInt      `json:"launchTime"`
-		FundInterval          uint16        `json:"fundInterval,string"`
+		DeliveryTime          UnixTimestamp `json:"deliveryTime"`
+		DeliveryStartTime     UnixTimestamp `json:"deliveryStartTime"`
+		DeliveryPeriod        string        `json:"deliveryPeriod"`
+		LaunchTime            UnixTimestamp `json:"launchTime"`
+		FundInterval          EmptyInt      `json:"fundInterval"`
 		MinLever              float64       `json:"minLever,string"`
 		MaxLever              float64       `json:"maxLever,string"`
 		PosLimit              float64       `json:"posLimit,string"`
