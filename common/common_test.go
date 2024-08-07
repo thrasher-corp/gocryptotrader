@@ -856,3 +856,27 @@ func TestErrorCollector(t *testing.T) {
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
 }
+
+// TestBatch exercises the Batch function
+func TestBatch(t *testing.T) {
+	s := []int{1, 2, 3, 4, 5, 6, 7}
+	b := Batch(s, 3)
+	require.Len(t, b, 3)
+	require.Len(t, b[0], 3)
+	require.Len(t, b[1], 3)
+	require.Len(t, b[2], 1)
+	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
+	done := make(chan any, 1)
+	go func() { done <- Batch(s, 0) }()
+	require.Eventually(t, func() bool { return len(done) > 0 }, time.Second, time.Millisecond, "Batch 0 must not hang")
+}
+
+type A int
+
+func (a A) String() string {
+	return strconv.Itoa(int(a))
+}
+
+func TestSortStrings(t *testing.T) {
+	assert.Equal(t, []A{1, 2, 5, 6}, SortStrings([]A{6, 2, 5, 1}))
+}

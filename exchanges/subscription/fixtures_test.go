@@ -8,11 +8,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type mockEx struct {
+	pairs     currency.Pairs
 	tpl       string
 	auth      bool
 	errPairs  error
@@ -20,14 +22,17 @@ type mockEx struct {
 }
 
 func (m *mockEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
-	return currency.Pairs{btcusdtPair, ethusdcPair}, m.errPairs
+	return m.pairs, m.errPairs
 }
 
 func (m *mockEx) GetPairFormat(_ asset.Item, _ bool) (currency.PairFormat, error) {
 	return currency.PairFormat{Uppercase: true}, m.errFormat
 }
 
-func (m *mockEx) GetSubscriptionTemplate(_ *Subscription) (*template.Template, error) {
+func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, error) {
+	if s.Channel == "nil" {
+		return nil, nil
+	}
 	return template.New(m.tpl).
 		Funcs(template.FuncMap{
 			"assetName": func(a asset.Item) string {
@@ -35,7 +40,14 @@ func (m *mockEx) GetSubscriptionTemplate(_ *Subscription) (*template.Template, e
 					return "future"
 				}
 				return a.String()
-			}}).
+			},
+			"feature5": func(ap assetPairs) string {
+				ap[asset.Futures] = nil
+				ap[asset.Spot] = ap[asset.Spot][0:1]
+				return ""
+			},
+			"batch": common.Batch[currency.Pairs],
+		}).
 		ParseFiles("testdata/" + m.tpl)
 }
 
