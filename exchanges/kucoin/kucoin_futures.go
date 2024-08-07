@@ -250,7 +250,7 @@ func (ku *Kucoin) GetFuturesPremiumIndex(ctx context.Context, symbol string, sta
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresPremiumIndexEPL, common.EncodeURLValues("/v1/premium/query", params), &resp)
 }
 
-// Get24HourFuturesTransactionVolume retrieves a 24 hour transaction volume.
+// Get24HourFuturesTransactionVolume retrieves a 24 hour transaction volume
 func (ku *Kucoin) Get24HourFuturesTransactionVolume(ctx context.Context) (*TransactionVolume, error) {
 	var resp *TransactionVolume
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTransactionVolumeEPL, http.MethodGet, "/v1/trade-statistics", nil, &resp)
@@ -265,7 +265,7 @@ func (ku *Kucoin) GetFuturesCurrentFundingRate(ctx context.Context, symbol strin
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresCurrentFundingRateEPL, "/v1/funding-rate/"+symbol+"/current", &resp)
 }
 
-// GetPublicFundingRate query the funding rate at each settlement time point within a certain time range of the corresponding contract.
+// GetPublicFundingRate query the funding rate at each settlement time point within a certain time range of the corresponding contract
 func (ku *Kucoin) GetPublicFundingRate(ctx context.Context, symbol string, from, to time.Time) ([]FundingHistoryItem, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -313,7 +313,7 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	// The granularity (granularity parameter of K-line) represents the number of minutes, the available granularity scope is: 1,5,15,30,60,120,240,480,720,1440,10080. Requests beyond the above range will be rejected.
+	// The granularity (granularity parameter of K-line) represents the number of minutes, the available granularity scope is: 1,5,15,30,60,120,240,480,720,1440,10080. Requests beyond the above range will be rejected
 	params.Set("granularity", strconv.FormatInt(granularity, 10))
 	params.Set("symbol", symbol)
 	if !from.IsZero() {
@@ -353,7 +353,7 @@ func (ku *Kucoin) PostFuturesOrder(ctx context.Context, arg *FuturesOrderParam) 
 	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder, &arg, &resp)
 }
 
-// PostFuturesOrderTest a test endpoint to place a single futures order.
+// PostFuturesOrderTest a test endpoint to place a single futures order
 func (ku *Kucoin) PostFuturesOrderTest(ctx context.Context, arg *FuturesOrderParam) (string, error) {
 	err := ku.FillFuturesPostOrderArgumentFilter(arg)
 	if err != nil {
@@ -365,7 +365,7 @@ func (ku *Kucoin) PostFuturesOrderTest(ctx context.Context, arg *FuturesOrderPar
 	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder+"/test", &arg, &resp)
 }
 
-// FillFuturesPostOrderArgumentFilter verifies futures order request parameters.
+// FillFuturesPostOrderArgumentFilter verifies futures order request parameters
 func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) error {
 	if arg == nil || *arg == (FuturesOrderParam{}) {
 		return common.ErrNilPointer
@@ -411,8 +411,8 @@ func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) err
 	return nil
 }
 
-// PlaceMultipleFuturesOrders used to place multiple futures orders.
-// The maximum limit orders for a single contract is 100 per account, and the maximum stop orders for a single contract is 50 per account.
+// PlaceMultipleFuturesOrders used to place multiple futures orders
+// The maximum limit orders for a single contract is 100 per account, and the maximum stop orders for a single contract is 50 per account
 func (ku *Kucoin) PlaceMultipleFuturesOrders(ctx context.Context, args []FuturesOrderParam) ([]FuturesOrderRespItem, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, not order to place", common.ErrNilPointer)
@@ -629,7 +629,7 @@ func (ku *Kucoin) SetAutoDepositMargin(ctx context.Context, symbol string, statu
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, setAutoDepositMarginEPL, http.MethodPost, "/v1/position/margin/auto-deposit-status", params, &resp)
 }
 
-// GetMaxWithdrawMargin query the maximum amount of margin that the current position supports withdrawal.
+// GetMaxWithdrawMargin query the maximum amount of margin that the current position supports withdrawal
 func (ku *Kucoin) GetMaxWithdrawMargin(ctx context.Context, symbol string) (float64, error) {
 	if symbol == "" {
 		return 0, currency.ErrSymbolStringEmpty
@@ -859,7 +859,7 @@ func constructFuturesOrderbook(o *futuresOrderbookResponse) *Orderbook {
 	}
 }
 
-// GetFuturesTradingPairsActualFees retrieves the actual fee rate of the trading pair. The fee rate of your sub-account is the same as that of the master account.
+// GetFuturesTradingPairsActualFees retrieves the actual fee rate of the trading pair. The fee rate of your sub-account is the same as that of the master account
 func (ku *Kucoin) GetFuturesTradingPairsActualFees(ctx context.Context, symbol string) (*TradingPairFee, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty

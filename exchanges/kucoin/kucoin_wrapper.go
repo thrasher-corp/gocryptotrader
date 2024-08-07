@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -1488,12 +1487,8 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if !singlePair.IsEmpty() && cp.Equal(singlePair) {
+				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(cp, true) {
 					continue
-				} else if len(getOrdersRequest.Pairs) > 1 {
-					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, cp) {
-						continue
-					}
 				}
 				status, err := order.StringToOrderStatus(response.Items[a].Status)
 				if err != nil {
@@ -1527,12 +1522,8 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if !enabled {
 					continue
 				}
-				if !singlePair.IsEmpty() && dPair.Equal(singlePair) {
+				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 					continue
-				} else if len(getOrdersRequest.Pairs) > 1 {
-					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, dPair) {
-						continue
-					}
 				}
 				side, err := order.StringToOrderSide(response.Items[a].Side)
 				if err != nil {
@@ -1720,12 +1711,8 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if !singlePair.IsEmpty() && cp.Equal(singlePair) {
+				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(cp, true) {
 					continue
-				} else if len(getOrdersRequest.Pairs) > 1 {
-					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, cp) {
-						continue
-					}
 				}
 				var status order.Status
 				status, err = order.StringToOrderStatus(response.Items[a].Status)
@@ -1758,12 +1745,8 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if !enabled {
 					continue
 				}
-				if !singlePair.IsEmpty() && dPair.Equal(singlePair) {
+				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 					continue
-				} else if len(getOrdersRequest.Pairs) > 1 {
-					if !slices.Contains[[]currency.Pair](getOrdersRequest.Pairs, dPair) {
-						continue
-					}
 				}
 				var (
 					side   order.Side

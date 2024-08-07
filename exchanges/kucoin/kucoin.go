@@ -491,7 +491,8 @@ func (ku *Kucoin) ValidatePlaceOrderParams(arg *PlaceHFParam) error {
 	return nil
 }
 
-// SendSpotHFPlaceOrder sends a spot high-frequency order and the test for placing the order.
+// SendSpotHFPlaceOrder sends a spot high-frequency order to the specified path
+// Use HFSpotPlaceOrder to place an order or  SpotPlaceHFOrderTest to send a test order
 func (ku *Kucoin) SendSpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, path string) (string, error) {
 	err := ku.ValidatePlaceOrderParams(arg)
 	if err != nil {
@@ -513,7 +514,7 @@ func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*Syn
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfSyncPlaceOrderEPL, http.MethodPost, "/v1/hf/orders/sync", arg, &resp)
 }
 
-// PlaceMultipleOrders endpoint supports sequential batch order placement from a single endpoint. A maximum of 5orders can be placed simultaneously.
+// PlaceMultipleOrders endpoint supports sequential batch order placement from a single endpoint. A maximum of 5 orders can be placed simultaneously.
 func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) ([]PlaceOrderResp, error) {
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
@@ -587,7 +588,7 @@ func (ku *Kucoin) SyncCancelHFOrderByClientOrderID(ctx context.Context, clientOr
 	return ku.SendSyncCancelHFOrder(ctx, clientOrderID, symbol, "/v1/hf/orders/sync/client-order/")
 }
 
-// SendSyncCancelHFOrder sends a sync-cancel higgh-frequency order by order ID or client supplied order ID.
+// SendSyncCancelHFOrder sends a sync-cancel high-frequency order by order ID or client supplied order ID.
 func (ku *Kucoin) SendSyncCancelHFOrder(ctx context.Context, id, symbol, path string) (*SyncCancelHFOrderResp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -628,7 +629,7 @@ func (ku *Kucoin) CancelSpecifiedNumberHFOrdersByOrderID(ctx context.Context, or
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelSpecifiedNumberHFOrdersByOrderIDEPL, http.MethodDelete, common.EncodeURLValues("/v1/hf/orders/cancel/"+orderID, params), nil, &resp)
 }
 
-// CancelAllHFOrdersBySymbol cancel all open high-frequency orders (orders created through
+// CancelAllHFOrdersBySymbol cancel all open high-frequency orders
 func (ku *Kucoin) CancelAllHFOrdersBySymbol(ctx context.Context, symbol string) (string, error) {
 	if symbol == "" {
 		return "", currency.ErrSymbolStringEmpty
@@ -637,13 +638,13 @@ func (ku *Kucoin) CancelAllHFOrdersBySymbol(ctx context.Context, symbol string) 
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfCancelAllOrdersBySymbolEPL, http.MethodDelete, "/v1/hf/orders?symbol="+symbol, nil, &resp)
 }
 
-// CancelAllHFOrders cancels all HF orders for all symbol.
+// CancelAllHFOrders cancels all high-frequency orders for all symbols
 func (ku *Kucoin) CancelAllHFOrders(ctx context.Context) (*CancelAllHFOrdersResponse, error) {
 	var resp *CancelAllHFOrdersResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfCancelAllOrdersEPL, http.MethodDelete, "/v1/hf/orders/cancelAll", nil, &resp)
 }
 
-// GetActiveHFOrders obtain all active order lists, and the return value of the active order interface is the paged data of all uncompleted order lists.
+// GetActiveHFOrders retrieves all high-frequency active orders
 func (ku *Kucoin) GetActiveHFOrders(ctx context.Context, symbol string) ([]HFOrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -736,7 +737,7 @@ func (ku *Kucoin) AutoCancelHFOrderSettingQuery(ctx context.Context) (*AutoCance
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, autoCancelHFOrderSettingQueryEPL, http.MethodGet, "/v1/hf/orders/dead-cancel-all/query", nil, &resp)
 }
 
-// GetHFFilledList retrievesa list of the latest HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.
+// GetHFFilledList retrieves a list of the latest HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.
 func (ku *Kucoin) GetHFFilledList(ctx context.Context, orderID, symbol, side, orderType, lastID string, startAt, endAt time.Time, limit int64) (*HFOrderFills, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty

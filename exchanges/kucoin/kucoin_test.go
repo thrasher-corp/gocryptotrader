@@ -1875,7 +1875,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	var result *kline.Item
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.GetHistoricCandlesExtended(context.Background(), tp, assetType, kline.FiveMin, startTime, endTime)
+		result, err = ku.GetHistoricCandlesExtended(context.Background(), tp, assetType, kline.FifteenMin, startTime, endTime)
 		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
 		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
 	}
