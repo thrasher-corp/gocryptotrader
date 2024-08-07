@@ -40,8 +40,6 @@ const (
 var (
 	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
-	// ErrExchangeNameUnset message to return when an exchange name is unset
-	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
 	// ErrStrAddressNotWhiteListed occurs when a withdrawal attempts to withdraw from a non-whitelisted address
@@ -93,6 +91,9 @@ type Request struct {
 
 	// Used exclusively in Binance.US
 	ClientOrderID string `json:"clientID"`
+
+	// Currently used exclusively in Coinbase
+	WalletID string `json:"walletID"`
 
 	// Used exclusively in Okcoin to classify internal represented by '3' or on chain represented by '4'
 	InternalTransfer bool

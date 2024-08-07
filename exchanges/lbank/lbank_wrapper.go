@@ -122,7 +122,7 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 	}
 
 	if l.API.AuthenticatedSupport {
-		err = l.loadPrivKey(context.TODO())
+		err = l.LoadPrivKey(context.TODO())
 		if err != nil {
 			l.API.AuthenticatedSupport = false
 			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)

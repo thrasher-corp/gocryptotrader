@@ -210,7 +210,7 @@ func (p Pairs) Remove(pair Pair) (Pairs, error) {
 	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
 }
 
-// Add adds a specified pair to the list of pairs if it doesn't exist
+// Add adds specified pairs to the list of pairs if they don't exist
 func (p Pairs) Add(pairs ...Pair) Pairs {
 	merge := append(slices.Clone(p), pairs...)
 	var filterInt int
