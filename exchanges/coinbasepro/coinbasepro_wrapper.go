@@ -608,10 +608,38 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	var status order.CancelBatchResponse
-	var err error
-	status.Status, _, err = c.cancelOrdersReturnMapAndCount(ctx, o)
-	if err != nil {
-		return nil, err
+	ordToCancel := len(o)
+	if ordToCancel == 0 {
+		return nil, errOrderIDEmpty
+	}
+	status.Status = make(map[string]string)
+	ordIDSlice := make([]string, ordToCancel)
+	for i := range o {
+		err := o[i].Validate(o[i].StandardCancel())
+		if err != nil {
+			return nil, err
+		}
+		ordIDSlice[i] = o[i].OrderID
+		status.Status[o[i].OrderID] = "Failed to cancel"
+	}
+	var resp CancelOrderResp
+	for i := 0; i < ordToCancel; i += 100 {
+		var tempOrdIDSlice []string
+		if ordToCancel-i < 100 {
+			tempOrdIDSlice = ordIDSlice[i:]
+		} else {
+			tempOrdIDSlice = ordIDSlice[i : i+100]
+		}
+		tempResp, err := c.CancelOrders(ctx, tempOrdIDSlice)
+		if err != nil {
+			return nil, err
+		}
+		resp.Results = append(resp.Results, tempResp...)
+	}
+	for i := range resp.Results {
+		if resp.Results[i].Success {
+			status.Status[resp.Results[i].OrderID] = order.Cancelled.String()
+		}
 	}
 	return &status, nil
 }
@@ -924,12 +952,12 @@ func (c *CoinbasePro) GetLatestFundingRates(ctx context.Context, r *fundingrate.
 	if err != nil {
 		return nil, err
 	}
-	products, err := c.fetchFutures(ctx, verified)
+	products, perpStart, err := c.fetchFutures(ctx, verified)
 	if err != nil {
 		return nil, err
 	}
 	funding := make([]fundingrate.LatestRateResponse, len(products.Products))
-	for i := range products.Products {
+	for i := perpStart; i < len(products.Products); i++ {
 		pair, err := currency.NewPairFromString(products.Products[i].ID)
 		if err != nil {
 			return nil, err
@@ -960,7 +988,7 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 	if err != nil {
 		return nil, err
 	}
-	products, err := c.fetchFutures(ctx, verified)
+	products, perpStart, err := c.fetchFutures(ctx, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -980,10 +1008,14 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 			EndDate:              products.Products[i].FutureProductDetails.ContractExpiry,
 			IsActive:             !products.Products[i].IsDisabled,
 			Status:               products.Products[i].Status,
-			Type:                 futures.LongDated,
 			SettlementCurrencies: []currency.Code{currency.NewCode(products.Products[i].QuoteCurrencyID)},
 			Multiplier:           products.Products[i].BaseIncrement.Float64(),
 			LatestRate:           funRate,
+		}
+		if i < perpStart {
+			contracts[i].Type = futures.LongDated
+		} else {
+			contracts[i].Type = futures.Perpetual
 		}
 	}
 	return contracts, nil
@@ -1040,64 +1072,24 @@ func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.It
 // fetchFutures is a helper function for FetchTradablePairs, GetLatestFundingRates, GetFuturesContractDetails,
 // and UpdateOrderExecutionLimits that calls the List Products endpoint twice, to get both
 // expiring futures and perpetual futures
-func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProducts, error) {
+func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProducts, int, error) {
 	products, err := c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "", "", nil, verified)
 	if err != nil {
 		if verified {
 			return c.fetchFutures(ctx, false)
 		}
-		return nil, err
+		return nil, 0, err
 	}
 	products2, err := c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "PERPETUAL", "", nil, verified)
 	if err != nil {
 		if verified {
 			return c.fetchFutures(ctx, false)
 		}
-		return nil, err
+		return nil, 0, err
 	}
+	perpStart := len(products.Products)
 	products.Products = append(products.Products, products2.Products...)
-	return products, nil
-}
-
-// cancelOrdersReturnMapAndCount is a helper function for CancelBatchOrders, calling the appropriate Coinbase
-// endpoint, and returning useful information
-func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []order.Cancel) (status map[string]string, count int64, err error) {
-	ordToCancel := len(o)
-	if ordToCancel == 0 {
-		return nil, 0, errOrderIDEmpty
-	}
-	status = make(map[string]string)
-	ordIDSlice := make([]string, ordToCancel)
-	for i := range o {
-		err := o[i].Validate(o[i].StandardCancel())
-		if err != nil {
-			return nil, 0, err
-		}
-		ordIDSlice[i] = o[i].OrderID
-		status[o[i].OrderID] = "Failed to cancel"
-	}
-	var resp CancelOrderResp
-	for i := 0; i < ordToCancel; i += 100 {
-		var tempOrdIDSlice []string
-		if ordToCancel-i < 100 {
-			tempOrdIDSlice = ordIDSlice[i:]
-		} else {
-			tempOrdIDSlice = ordIDSlice[i : i+100]
-		}
-		tempResp, err := c.CancelOrders(ctx, tempOrdIDSlice)
-		if err != nil {
-			return nil, 0, err
-		}
-		resp.Results = append(resp.Results, tempResp...)
-	}
-	var counter int64
-	for i := range resp.Results {
-		if resp.Results[i].Success {
-			status[resp.Results[i].OrderID] = order.Cancelled.String()
-			counter++
-		}
-	}
-	return status, counter, nil
+	return products, perpStart, nil
 }
 
 // processFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory,
@@ -1142,9 +1134,18 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 // iterativeGetAllOrders is a helper function used in GetActiveOrders and GetOrderHistory
 // to repeatedly call GetAllOrders until all orders have been retrieved
 func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orderType, orderSide, productType string, orderStatus []string, limit int32, startDate, endDate time.Time) ([]GetOrderResponse, error) {
-	var hasNext bool
+	hasNext := true
 	var resp []GetOrderResponse
 	var cursor string
+	if orderSide == "ANY" {
+		orderSide = ""
+	}
+	if orderType == "ANY" {
+		orderType = ""
+	}
+	if productType == "FUTURES" {
+		productType = "FUTURE"
+	}
 	for hasNext {
 		interResp, err := c.GetAllOrders(ctx, productID, "", orderType, orderSide, cursor, productType, "", "", "",
 			orderStatus, nil, limit, startDate, endDate)
@@ -1188,73 +1189,36 @@ func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse
 	var amount float64
 	var quoteAmount float64
 	var orderType order.Type
-	var err error
 	if genOrderDetail.OrderConfiguration.MarketMarketIOC != nil {
-		err = stringToFloatPtr(&quoteAmount, genOrderDetail.OrderConfiguration.MarketMarketIOC.QuoteSize)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.MarketMarketIOC.BaseSize)
-		if err != nil {
-			return nil, err
-		}
+		quoteAmount = genOrderDetail.OrderConfiguration.MarketMarketIOC.QuoteSize.Float64()
+		amount = genOrderDetail.OrderConfiguration.MarketMarketIOC.BaseSize.Float64()
 		orderType = order.Market
 	}
 	var price float64
 	var postOnly bool
 	if genOrderDetail.OrderConfiguration.LimitLimitGTC != nil {
-		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.LimitLimitGTC.BaseSize)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.LimitLimitGTC.LimitPrice)
-		if err != nil {
-			return nil, err
-		}
+		amount = genOrderDetail.OrderConfiguration.LimitLimitGTC.BaseSize.Float64()
+		price = genOrderDetail.OrderConfiguration.LimitLimitGTC.LimitPrice.Float64()
 		postOnly = genOrderDetail.OrderConfiguration.LimitLimitGTC.PostOnly
 		orderType = order.Limit
 	}
 	if genOrderDetail.OrderConfiguration.LimitLimitGTD != nil {
-		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.LimitLimitGTD.BaseSize)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.LimitLimitGTD.LimitPrice)
-		if err != nil {
-			return nil, err
-		}
+		amount = genOrderDetail.OrderConfiguration.LimitLimitGTD.BaseSize.Float64()
+		price = genOrderDetail.OrderConfiguration.LimitLimitGTD.LimitPrice.Float64()
 		postOnly = genOrderDetail.OrderConfiguration.LimitLimitGTD.PostOnly
 		orderType = order.Limit
 	}
 	var triggerPrice float64
 	if genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC != nil {
-		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.BaseSize)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.LimitPrice)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&triggerPrice, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.StopPrice)
-		if err != nil {
-			return nil, err
-		}
+		amount = genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.BaseSize.Float64()
+		price = genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.LimitPrice.Float64()
+		triggerPrice = genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.StopPrice.Float64()
 		orderType = order.StopLimit
 	}
 	if genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD != nil {
-		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.BaseSize)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.LimitPrice)
-		if err != nil {
-			return nil, err
-		}
-		err = stringToFloatPtr(&triggerPrice, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.StopPrice)
-		if err != nil {
-			return nil, err
-		}
+		amount = genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.BaseSize.Float64()
+		price = genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.LimitPrice.Float64()
+		triggerPrice = genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.StopPrice.Float64()
 		orderType = order.StopLimit
 	}
 	var remainingAmount float64
@@ -1319,20 +1283,6 @@ func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse
 	return &response, nil
 }
 
-// stringToFloatPtr essentially calls ParseFloat, but leaves the float alone instead of erroring out
-// if the string is empty.
-func stringToFloatPtr(outgoing *float64, incoming string) error {
-	if outgoing == nil {
-		return errPointerNil
-	}
-	var err error
-	if incoming != "" {
-		*outgoing, err = strconv.ParseFloat(incoming, 64)
-		return err
-	}
-	return nil
-}
-
 // VerificationCheck returns whether authentication support is enabled or not
 func (c *CoinbasePro) verificationCheck(ctx context.Context) (bool, error) {
 	_, err := c.GetCredentials(ctx)
@@ -1359,11 +1309,14 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 	}
 	var ticks *Ticker
 	ticks, err = c.GetTicker(ctx, name, 1, time.Time{}, time.Time{}, verified)
-	if err != nil {
+	if err != nil || len(ticks.Trades) != 1 {
 		if verified {
 			return c.tickerHelper(ctx, name, assetType, false)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return errExpectedOneTickerReturned
 	}
 	var last float64
 	if len(ticks.Trades) != 0 {

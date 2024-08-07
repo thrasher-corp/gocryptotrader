@@ -21,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -123,45 +124,45 @@ const (
 )
 
 var (
-	errAccountIDEmpty         = errors.New("account id cannot be empty")
-	errClientOrderIDEmpty     = errors.New("client order id cannot be empty")
-	errProductIDEmpty         = errors.New("product id cannot be empty")
-	errOrderIDEmpty           = errors.New("order ids cannot be empty")
-	errOpenPairWithOtherTypes = errors.New("cannot pair open orders with other order types")
-	errSizeAndPriceZero       = errors.New("size and price cannot both be 0")
-	errCurrencyEmpty          = errors.New("currency cannot be empty")
-	errCurrWalletConflict     = errors.New("exactly one of walletID and currency must be specified")
-	errWalletIDEmpty          = errors.New("wallet id cannot be empty")
-	errAddressIDEmpty         = errors.New("address id cannot be empty")
-	errTransactionTypeEmpty   = errors.New("transaction type cannot be empty")
-	errToEmpty                = errors.New("to cannot be empty")
-	errAmountEmpty            = errors.New("amount cannot be empty")
-	errTransactionIDEmpty     = errors.New("transaction id cannot be empty")
-	errPaymentMethodEmpty     = errors.New("payment method cannot be empty")
-	errDepositIDEmpty         = errors.New("deposit id cannot be empty")
-	errInvalidPriceType       = errors.New("price type must be spot, buy, or sell")
-	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
-	errNoMatchingWallets      = errors.New("no matching wallets returned")
-	errOrderModFailNoRet      = errors.New("order modification failed but no error returned")
-	errPointerNil             = errors.New("relevant pointer is nil")
-	errNameEmpty              = errors.New("name cannot be empty")
-	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
-	errFeeTypeNotSupported    = errors.New("fee type not supported")
-	errCantDecodePrivKey      = errors.New("cannot decode private key")
-	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
-	errChannelNameUnknown     = errors.New("unknown channel name")
-	errNoWalletsReturned      = errors.New("no wallets returned")
-	errPayMethodNotFound      = errors.New("payment method not found")
-	errUnknownL2DataType      = errors.New("unknown l2update data type")
-	errUnknownSide            = errors.New("unknown side")
-	errInvalidGranularity     = errors.New("invalid granularity")
-	errOrderFailedToCancel    = errors.New("failed to cancel order")
-	errUnrecognisedStatusType = errors.New("unrecognised status type")
-	errPairEmpty              = errors.New("pair cannot be empty")
-	errStringConvert          = errors.New("unable to convert into string value")
-	errFloatConvert           = errors.New("unable to convert into float64 value")
-	errNoCredsUser            = errors.New("no credentials when attempting to subscribe to authenticated channel user")
-	errWrappedAssetEmpty      = errors.New("wrapped asset cannot be empty")
+	errAccountIDEmpty            = errors.New("account id cannot be empty")
+	errClientOrderIDEmpty        = errors.New("client order id cannot be empty")
+	errProductIDEmpty            = errors.New("product id cannot be empty")
+	errOrderIDEmpty              = errors.New("order ids cannot be empty")
+	errOpenPairWithOtherTypes    = errors.New("cannot pair open orders with other order types")
+	errSizeAndPriceZero          = errors.New("size and price cannot both be 0")
+	errCurrencyEmpty             = errors.New("currency cannot be empty")
+	errCurrWalletConflict        = errors.New("exactly one of walletID and currency must be specified")
+	errWalletIDEmpty             = errors.New("wallet id cannot be empty")
+	errAddressIDEmpty            = errors.New("address id cannot be empty")
+	errTransactionTypeEmpty      = errors.New("transaction type cannot be empty")
+	errToEmpty                   = errors.New("to cannot be empty")
+	errAmountEmpty               = errors.New("amount cannot be empty")
+	errTransactionIDEmpty        = errors.New("transaction id cannot be empty")
+	errPaymentMethodEmpty        = errors.New("payment method cannot be empty")
+	errDepositIDEmpty            = errors.New("deposit id cannot be empty")
+	errInvalidPriceType          = errors.New("price type must be spot, buy, or sell")
+	errInvalidOrderType          = errors.New("order type must be market, limit, or stop")
+	errNoMatchingWallets         = errors.New("no matching wallets returned")
+	errOrderModFailNoRet         = errors.New("order modification failed but no error returned")
+	errNameEmpty                 = errors.New("name cannot be empty")
+	errPortfolioIDEmpty          = errors.New("portfolio id cannot be empty")
+	errFeeTypeNotSupported       = errors.New("fee type not supported")
+	errCantDecodePrivKey         = errors.New("cannot decode private key")
+	errNoWalletForCurrency       = errors.New("no wallet found for currency, address creation impossible")
+	errChannelNameUnknown        = errors.New("unknown channel name")
+	errNoWalletsReturned         = errors.New("no wallets returned")
+	errPayMethodNotFound         = errors.New("payment method not found")
+	errUnknownL2DataType         = errors.New("unknown l2update data type")
+	errUnknownSide               = errors.New("unknown side")
+	errInvalidGranularity        = errors.New("invalid granularity")
+	errOrderFailedToCancel       = errors.New("failed to cancel order")
+	errUnrecognisedStatusType    = errors.New("unrecognised status type")
+	errPairEmpty                 = errors.New("pair cannot be empty")
+	errStringConvert             = errors.New("unable to convert into string value")
+	errFloatConvert              = errors.New("unable to convert into float64 value")
+	errNoCredsUser               = errors.New("no credentials when attempting to subscribe to authenticated channel user")
+	errWrappedAssetEmpty         = errors.New("wrapped asset cannot be empty")
+	errExpectedOneTickerReturned = errors.New("expected one ticker to be returned")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -1629,38 +1630,36 @@ func prepareOrderConfig(orderType, side, stopDirection string, amount, limitPric
 	case order.Market.String(), order.ImmediateOrCancel.String():
 		orderConfig.MarketMarketIOC = &MarketMarketIOC{}
 		if side == order.Buy.String() {
-			orderConfig.MarketMarketIOC.QuoteSize = strconv.FormatFloat(amount, 'f', -1, 64)
+			orderConfig.MarketMarketIOC.QuoteSize = types.Number(amount)
 		}
 		if side == order.Sell.String() {
-			orderConfig.MarketMarketIOC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
+			orderConfig.MarketMarketIOC.BaseSize = types.Number(amount)
 		}
 	case order.Limit.String():
 		if endTime == (time.Time{}) {
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
-			orderConfig.LimitLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.LimitLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
+			orderConfig.LimitLimitGTC.BaseSize = types.Number(amount)
+			orderConfig.LimitLimitGTC.LimitPrice = types.Number(limitPrice)
 			orderConfig.LimitLimitGTC.PostOnly = postOnly
 		} else {
 			orderConfig.LimitLimitGTD = &LimitLimitGTD{}
-			orderConfig.LimitLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.LimitLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
+			orderConfig.LimitLimitGTD.BaseSize = types.Number(amount)
+			orderConfig.LimitLimitGTD.LimitPrice = types.Number(limitPrice)
 			orderConfig.LimitLimitGTD.PostOnly = postOnly
 			orderConfig.LimitLimitGTD.EndTime = endTime
 		}
 	case order.StopLimit.String():
 		if endTime == (time.Time{}) {
 			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
-			orderConfig.StopLimitStopLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.StopLimitStopLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
-				64)
-			orderConfig.StopLimitStopLimitGTC.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(amount)
+			orderConfig.StopLimitStopLimitGTC.LimitPrice = types.Number(limitPrice)
+			orderConfig.StopLimitStopLimitGTC.StopPrice = types.Number(stopPrice)
 			orderConfig.StopLimitStopLimitGTC.StopDirection = stopDirection
 		} else {
 			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{}
-			orderConfig.StopLimitStopLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.StopLimitStopLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
-				64)
-			orderConfig.StopLimitStopLimitGTD.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTD.BaseSize = types.Number(amount)
+			orderConfig.StopLimitStopLimitGTD.LimitPrice = types.Number(limitPrice)
+			orderConfig.StopLimitStopLimitGTD.StopPrice = types.Number(stopPrice)
 			orderConfig.StopLimitStopLimitGTD.StopDirection = stopDirection
 			orderConfig.StopLimitStopLimitGTD.EndTime = endTime
 		}

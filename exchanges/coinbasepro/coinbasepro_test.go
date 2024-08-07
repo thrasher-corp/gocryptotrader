@@ -1382,6 +1382,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
+	c.Verbose = true
 	_, err := c.GetFuturesContractDetails(context.Background(), asset.Empty)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = c.GetFuturesContractDetails(context.Background(), asset.UpsideProfitContract)
@@ -1452,17 +1453,6 @@ func TestFormatExchangeKlineIntervalV3(t *testing.T) {
 			t.Errorf(errExpectMismatch, resp, testSequence[k])
 		}
 	}
-}
-
-func TestStringToFloatPtr(t *testing.T) {
-	t.Parallel()
-	err := stringToFloatPtr(nil, "")
-	assert.ErrorIs(t, err, errPointerNil)
-	var fl float64
-	err = stringToFloatPtr(&fl, "")
-	assert.NoError(t, err)
-	err = stringToFloatPtr(&fl, "1.1")
-	assert.NoError(t, err)
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

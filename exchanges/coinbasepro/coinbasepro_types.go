@@ -125,19 +125,23 @@ type Product struct {
 	QuoteCurrencyID           string       `json:"quote_currency_id"`
 	BaseCurrencyID            string       `json:"base_currency_id"`
 	FCMTradingSessionDetails  struct {
-		IsSessionOpen bool      `json:"is_session_open"`
-		OpenTime      time.Time `json:"open_time"`
-		CloseTime     time.Time `json:"close_time"`
+		IsSessionOpen                bool      `json:"is_session_open"`
+		OpenTime                     time.Time `json:"open_time"`
+		CloseTime                    time.Time `json:"close_time"`
+		SessionState                 string    `json:"session_state"`
+		AfterHoursOrderEntryDisabled bool      `json:"after_hours_order_entry_disabled"`
 	} `json:"fcm_trading_session_details"`
-	MidMarketPrice       types.Number `json:"mid_market_price"`
-	Alias                string       `json:"alias"`
-	AliasTo              []string     `json:"alias_to"`
-	BaseDisplaySymbol    string       `json:"base_display_symbol"`
-	QuoteDisplaySymbol   string       `json:"quote_display_symbol"`
-	ViewOnly             bool         `json:"view_only"`
-	PriceIncrement       types.Number `json:"price_increment"`
-	DisplayName          string       `json:"display_name"`
-	FutureProductDetails struct {
+	MidMarketPrice            types.Number `json:"mid_market_price"`
+	Alias                     string       `json:"alias"`
+	AliasTo                   []string     `json:"alias_to"`
+	BaseDisplaySymbol         string       `json:"base_display_symbol"`
+	QuoteDisplaySymbol        string       `json:"quote_display_symbol"`
+	ViewOnly                  bool         `json:"view_only"`
+	PriceIncrement            types.Number `json:"price_increment"`
+	DisplayName               string       `json:"display_name"`
+	ProductVenue              string       `json:"product_venue"`
+	ApproximateQuote24HVolume types.Number `json:"approximate_quote_24h_volume"`
+	FutureProductDetails      struct {
 		Venue                  string       `json:"venue"`
 		ContractCode           string       `json:"contract_code"`
 		ContractExpiry         time.Time    `json:"contract_expiry"`
@@ -149,12 +153,16 @@ type Product struct {
 		RiskManagedBy          string       `json:"risk_managed_by"`
 		ContractExpiryType     string       `json:"contract_expiry_type"`
 		PerpetualDetails       struct {
-			OpenInterest types.Number `json:"open_interest"`
-			FundingRate  types.Number `json:"funding_rate"`
-			FundingTime  time.Time    `json:"funding_time"`
-			MaxLeverage  types.Number `json:"max_leverage"`
+			OpenInterest  types.Number `json:"open_interest"`
+			FundingRate   types.Number `json:"funding_rate"`
+			FundingTime   time.Time    `json:"funding_time"`
+			MaxLeverage   types.Number `json:"max_leverage"`
+			BaseAssetUUID uuid.UUID    `json:"base_asset_uuid"`
 		} `json:"perpetual_details"`
 		ContractDisplayName string `json:"contract_display_name"`
+		TimeToExpiryMS      uint64 `json:"time_to_expiry_ms,string"`
+		NonCrypto           bool   `json:"non_crypto"`
+		ContractExpiryName  string `json:"contract_expiry_name"`
 	} `json:"future_product_details"`
 }
 
@@ -203,40 +211,40 @@ type Ticker struct {
 
 // MarketMarketIOC is a sub-struct used in the type OrderConfiguration
 type MarketMarketIOC struct {
-	QuoteSize string `json:"quote_size,omitempty"`
-	BaseSize  string `json:"base_size,omitempty"`
+	QuoteSize types.Number `json:"quote_size,omitempty"`
+	BaseSize  types.Number `json:"base_size,omitempty"`
 }
 
 // LimitLimitGTC is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTC struct {
-	BaseSize   string `json:"base_size"`
-	LimitPrice string `json:"limit_price"`
-	PostOnly   bool   `json:"post_only"`
+	BaseSize   types.Number `json:"base_size"`
+	LimitPrice types.Number `json:"limit_price"`
+	PostOnly   bool         `json:"post_only"`
 }
 
 // LimitLimitGTD is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTD struct {
-	BaseSize   string    `json:"base_size"`
-	LimitPrice string    `json:"limit_price"`
-	EndTime    time.Time `json:"end_time"`
-	PostOnly   bool      `json:"post_only"`
+	BaseSize   types.Number `json:"base_size"`
+	LimitPrice types.Number `json:"limit_price"`
+	EndTime    time.Time    `json:"end_time"`
+	PostOnly   bool         `json:"post_only"`
 }
 
 // StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
 type StopLimitStopLimitGTC struct {
-	BaseSize      string `json:"base_size"`
-	LimitPrice    string `json:"limit_price"`
-	StopPrice     string `json:"stop_price"`
-	StopDirection string `json:"stop_direction"`
+	BaseSize      types.Number `json:"base_size"`
+	LimitPrice    types.Number `json:"limit_price"`
+	StopPrice     types.Number `json:"stop_price"`
+	StopDirection string       `json:"stop_direction"`
 }
 
 // StopLimitStopLimitGTD is a sub-struct used in the type OrderConfiguration
 type StopLimitStopLimitGTD struct {
-	BaseSize      string    `json:"base_size"`
-	LimitPrice    string    `json:"limit_price"`
-	StopPrice     string    `json:"stop_price"`
-	EndTime       time.Time `json:"end_time"`
-	StopDirection string    `json:"stop_direction"`
+	BaseSize      types.Number `json:"base_size"`
+	LimitPrice    types.Number `json:"limit_price"`
+	StopPrice     types.Number `json:"stop_price"`
+	EndTime       time.Time    `json:"end_time"`
+	StopDirection string       `json:"stop_direction"`
 }
 
 // OrderConfiguration is a struct used in the formation of requests in PrepareOrderConfig, and is

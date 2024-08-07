@@ -308,7 +308,6 @@ func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 		"candles",
 		"market_trades",
 		"level2",
-		"user",
 	}
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
