@@ -16,30 +16,30 @@ func TestWebsocketOrderPlaceFutures(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketOrderPlaceFutures(context.Background(), nil)
 	require.ErrorIs(t, err, errBatchSliceEmpty)
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), make([]WebsocketFuturesOrder, 1))
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), make([]OrderCreateParams, 1))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	out := WebsocketFuturesOrder{}
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out})
+	out := OrderCreateParams{}
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	out.Contract, err = currency.NewPairFromString("BTC_USDT")
 	require.NoError(t, err)
 
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out})
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
 	require.ErrorIs(t, err, errInvalidPrice)
 
 	out.Price = "40000"
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out})
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	out.Size = 1 // 1 lovely long contract
 	out.AutoSize = "silly_billies"
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out})
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
 	out.AutoSize = "close_long"
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out})
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	out.AutoSize = ""
@@ -47,11 +47,11 @@ func TestWebsocketOrderPlaceFutures(t *testing.T) {
 	outBad.Contract, err = currency.NewPairFromString("BTC_USD")
 	require.NoError(t, err)
 
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out, outBad})
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out, outBad})
 	require.ErrorIs(t, err, errSettlementCurrencyConflict)
 
 	outBad.Contract, out.Contract = out.Contract, outBad.Contract // swapsies
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out, outBad})
+	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out, outBad})
 	require.ErrorIs(t, err, errSettlementCurrencyConflict)
 
 	outBad.Contract, out.Contract = out.Contract, outBad.Contract // swapsies back
@@ -62,12 +62,12 @@ func TestWebsocketOrderPlaceFutures(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
-	got, err := g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out})
+	got, err := g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	// test batch orders
-	got, err = g.WebsocketOrderPlaceFutures(context.Background(), []WebsocketFuturesOrder{out, out})
+	got, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out, out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

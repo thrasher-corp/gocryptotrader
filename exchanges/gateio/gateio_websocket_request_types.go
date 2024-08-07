@@ -61,22 +61,6 @@ type WebsocketLoginResponse struct {
 	} `json:"result"`
 }
 
-// WebsocketOrder defines a websocket order
-type WebsocketOrder struct {
-	Text         string `json:"text"`
-	CurrencyPair string `json:"currency_pair,omitempty"`
-	Type         string `json:"type,omitempty"`
-	Account      string `json:"account,omitempty"`
-	Side         string `json:"side,omitempty"`
-	Amount       string `json:"amount,omitempty"`
-	Price        string `json:"price,omitempty"`
-	TimeInForce  string `json:"time_in_force,omitempty"`
-	Iceberg      string `json:"iceberg,omitempty"`
-	AutoBorrow   bool   `json:"auto_borrow,omitempty"`
-	AutoRepay    bool   `json:"auto_repay,omitempty"`
-	StpAct       string `json:"stp_act,omitempty"`
-}
-
 // WebsocketOrderResponse defines a websocket order response
 type WebsocketOrderResponse struct {
 	Left               types.Number  `json:"left"`
@@ -110,20 +94,6 @@ type WebsocketOrderResponse struct {
 	RebatedFeeCurrency currency.Code `json:"rebated_fee_currency"`
 	STPID              int           `json:"stp_id"`
 	STPAct             string        `json:"stp_act"`
-}
-
-// WebsocketFuturesOrder defines a websocket futures order
-type WebsocketFuturesOrder struct {
-	Contract    currency.Pair `json:"contract"`
-	Size        int64         `json:"size"`    // positive long, negative short
-	Iceberg     int64         `json:"iceberg"` // required; can be zero
-	Price       string        `json:"price,omitempty"`
-	Close       bool          `json:"close,omitempty"` // Size needs to be zero if true
-	ReduceOnly  bool          `json:"reduce_only,omitempty"`
-	TimeInForce string        `json:"tif,omitempty"`
-	Text        string        `json:"text,omitempty"`
-	AutoSize    string        `json:"auto_size,omitempty"` // either close_long or close_short, size needs to be zero.
-	StpAct      string        `json:"stp_act,omitempty"`
 }
 
 // WebsocketFuturesOrderResponse defines a websocket futures order response

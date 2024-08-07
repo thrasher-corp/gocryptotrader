@@ -29,7 +29,7 @@ func (g *Gateio) AuthenticateFutures(ctx context.Context, conn stream.Connection
 // send multiple orders in a single request. NOTE: When sending multiple orders
 // the response will be an array of responses and a succeeded bool will be
 // returned in the response.
-func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, batch []WebsocketFuturesOrder) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, batch []OrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
 	if len(batch) == 0 {
 		return nil, errBatchSliceEmpty
 	}

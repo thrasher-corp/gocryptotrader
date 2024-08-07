@@ -1388,6 +1388,8 @@ type CreateOrderRequestData struct {
 	Price        types.Number  `json:"price,omitempty"`
 	TimeInForce  string        `json:"time_in_force,omitempty"`
 	AutoBorrow   bool          `json:"auto_borrow,omitempty"`
+	AutoRepay    bool          `json:"auto_repay,omitempty"`
+	StpAct       string        `json:"stp_act,omitempty"`
 }
 
 // SpotOrder represents create order response.
@@ -1818,15 +1820,16 @@ type DualModeResponse struct {
 // OrderCreateParams represents future order creation parameters
 type OrderCreateParams struct {
 	Contract      currency.Pair `json:"contract"`
-	Size          float64       `json:"size"`
-	Iceberg       int64         `json:"iceberg"`
-	Price         string        `json:"price"` // NOTE: Market orders require string "0"
+	Size          float64       `json:"size"`    // positive long, negative short
+	Iceberg       int64         `json:"iceberg"` // required; can be zero
+	Price         string        `json:"price"`   // NOTE: Market orders require string "0"
 	TimeInForce   string        `json:"tif"`
 	Text          string        `json:"text"`
-	ClosePosition bool          `json:"close,omitempty"`
+	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
-	AutoSize      string        `json:"auto_size,omitempty"`
-	Settle        string        `json:"-"` // Used in URL.
+	AutoSize      string        `json:"auto_size,omitempty"` // either close_long or close_short, size needs to be zero.
+	Settle        string        `json:"-"`                   // Used in URL. REST Calls only.
+	StpAct        string        `json:"stp_act,omitempty"`
 }
 
 // Order represents future order response

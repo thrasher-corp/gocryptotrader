@@ -3077,3 +3077,8 @@ func TestGetTradingRequirements(t *testing.T) {
 	requirements = (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
 	require.NotEmpty(t, requirements)
 }
+
+func TestWebsocketSubmitOrder(t *testing.T) {
+	_, err := (&Base{}).WebsocketSubmitOrder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}

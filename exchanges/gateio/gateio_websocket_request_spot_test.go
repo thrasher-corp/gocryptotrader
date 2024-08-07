@@ -41,19 +41,21 @@ func TestWebsocketOrderPlaceSpot(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketOrderPlaceSpot(context.Background(), nil)
 	require.ErrorIs(t, err, errBatchSliceEmpty)
-	_, err = g.WebsocketOrderPlaceSpot(context.Background(), make([]WebsocketOrder, 1))
+	_, err = g.WebsocketOrderPlaceSpot(context.Background(), make([]CreateOrderRequestData, 1))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := WebsocketOrder{CurrencyPair: "BTC_USDT"}
-	_, err = g.WebsocketOrderPlaceSpot(context.Background(), []WebsocketOrder{out})
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	require.NoError(t, err)
+	out := CreateOrderRequestData{CurrencyPair: pair}
+	_, err = g.WebsocketOrderPlaceSpot(context.Background(), []CreateOrderRequestData{out})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
-	_, err = g.WebsocketOrderPlaceSpot(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketOrderPlaceSpot(context.Background(), []CreateOrderRequestData{out})
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = "0.0003"
+	out.Amount = 0.0003
 	out.Type = "limit"
-	_, err = g.WebsocketOrderPlaceSpot(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketOrderPlaceSpot(context.Background(), []CreateOrderRequestData{out})
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = "20000"
+	out.Price = 20000
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
@@ -61,12 +63,12 @@ func TestWebsocketOrderPlaceSpot(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
-	got, err := g.WebsocketOrderPlaceSpot(context.Background(), []WebsocketOrder{out})
+	got, err := g.WebsocketOrderPlaceSpot(context.Background(), []CreateOrderRequestData{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	// test batch orders
-	got, err = g.WebsocketOrderPlaceSpot(context.Background(), []WebsocketOrder{out, out})
+	got, err = g.WebsocketOrderPlaceSpot(context.Background(), []CreateOrderRequestData{out, out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

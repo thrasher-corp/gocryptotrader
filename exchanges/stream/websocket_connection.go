@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -278,8 +279,8 @@ func (w *WebsocketConnection) GetURL() string {
 }
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, request any) ([]byte, error) {
-	resps, err := w.SendMessageReturnResponses(ctx, signature, request, 1)
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, payload any) ([]byte, error) {
+	resps, err := w.SendMessageReturnResponses(ctx, signature, payload, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -288,8 +289,8 @@ func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, sig
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, signature, request any, expected int, isFinalMessage ...Inspector) ([][]byte, error) {
-	outbound, err := json.Marshal(request)
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, signature, payload any, expected int, isFinalMessage ...Inspector) ([][]byte, error) {
+	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
 	}
@@ -300,6 +301,11 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 	}
 
 	start := time.Now()
+
+	if request.IsVerbose(ctx, w.Verbose) {
+		log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Sending message: %v\n", w.ExchangeName, w.URL, string(outbound))
+	}
+
 	err = w.SendRawMessage(websocket.TextMessage, outbound)
 	if err != nil {
 		return nil, err
@@ -324,6 +330,12 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 		if len(isFinalMessage) == 1 && isFinalMessage[0](resps[len(resps)-1]) {
 			w.Match.RemoveSignature(signature)
 			break
+		}
+	}
+
+	if request.IsVerbose(ctx, w.Verbose) {
+		for i := range resps {
+			log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Received response [%d out of %d]: %v", w.ExchangeName, w.URL, i+1, len(resps), string(resps[i]))
 		}
 	}
 

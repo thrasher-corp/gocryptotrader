@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -92,7 +91,7 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 // WebsocketOrderPlaceSpot places an order via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
 // So this can only batch spot orders or futures orders, not both.
-func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []WebsocketOrder) ([]WebsocketOrderResponse, error) {
+func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []CreateOrderRequestData) ([]WebsocketOrderResponse, error) {
 	if len(batch) == 0 {
 		return nil, errBatchSliceEmpty
 	}
@@ -105,16 +104,16 @@ func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []WebsocketO
 			// TODO: Remove and use common counter.
 			batch[i].Text = "t-" + strconv.FormatInt(time.Now().UnixNano()+int64(i), 10)
 		}
-		if batch[i].CurrencyPair == "" {
+		if batch[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 		if batch[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if batch[i].Amount == "" {
+		if batch[i].Amount == 0 {
 			return nil, errInvalidAmount
 		}
-		if batch[i].Type == "limit" && batch[i].Price == "" {
+		if batch[i].Type == "limit" && batch[i].Price == 0 {
 			return nil, errInvalidPrice
 		}
 	}
@@ -269,21 +268,9 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		},
 	}
 
-	if g.Verbose {
-		if payload, err := json.Marshal(request); err == nil {
-			log.Debugf(log.WebsocketMgr, "Sending request: %v", string(payload))
-		}
-	}
-
 	responses, err := conn.SendMessageReturnResponses(ctx, request.Payload.RequestID, request, expectedResponses, InspectPayloadForAck)
 	if err != nil {
 		return err
-	}
-
-	if g.Verbose {
-		for i := range responses {
-			log.Debugf(log.WebsocketMgr, "Received response [%d out of %d]: %v", i+1, len(responses), string(responses[i]))
-		}
 	}
 
 	if len(responses) == 0 {
