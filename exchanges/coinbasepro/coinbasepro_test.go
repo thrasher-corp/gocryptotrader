@@ -69,7 +69,7 @@ const (
 	errExpectedNonEmpty       = "expected non-empty response"
 	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
 	errPortTransferInsufFunds = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
-	errInvalidProductID       = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"INVALID_ARGUMENT","error_details":"valid product_id is required","message":"valid product_id is required"}`
+	errInvalidProductID       = `CoinbasePro unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
 	errExpectedFeeRange       = "expected fee range of %v and %v, received %v"
 	errOptionInvalid          = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTION\" is not a valid value","message":"parsing field \"product_type\": \"OPTION\" is not a valid value"}`
 
@@ -1382,7 +1382,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	c.Verbose = true
 	_, err := c.GetFuturesContractDetails(context.Background(), asset.Empty)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = c.GetFuturesContractDetails(context.Background(), asset.UpsideProfitContract)
@@ -1661,8 +1660,7 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	comparison := subscription.List{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
-		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
-		{Channel: "user"}}
+		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"}}
 	for i := range comparison {
 		comparison[i].Pairs = currency.Pairs{
 			currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}

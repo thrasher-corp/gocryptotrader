@@ -655,10 +655,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 	if err != nil {
 		return nil, err
 	}
-	response, err := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
-	if err != nil {
-		return nil, err
-	}
+	response := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
 	fillData, err := c.GetFills(ctx, orderID, "", "", time.Time{}, time.Now(), 2<<15-1)
 	if err != nil {
 		return nil, err
@@ -826,10 +823,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 	}
 	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
-		orderRec, err := c.getOrderRespToOrderDetail(&respOrders[i], req.Pairs[i], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
+		orderRec := c.getOrderRespToOrderDetail(&respOrders[i], req.Pairs[i], asset.Spot)
 		orders[i] = *orderRec
 	}
 	return req.Filter(c.Name, orders), nil
@@ -874,10 +868,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 	}
 	orders := make([]order.Detail, len(ord))
 	for i := range ord {
-		singleOrder, err := c.getOrderRespToOrderDetail(&ord[i], req.Pairs[0], req.AssetType)
-		if err != nil {
-			return nil, err
-		}
+		singleOrder := c.getOrderRespToOrderDetail(&ord[i], req.Pairs[0], req.AssetType)
 		orders[i] = *singleOrder
 	}
 	return req.Filter(c.Name, orders), nil
@@ -1185,7 +1176,7 @@ func formatExchangeKlineIntervalV3(interval kline.Interval) string {
 
 // getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory
 // to convert data returned by the Coinbase API into a format suitable for the exchange package
-func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, pair currency.Pair, assetItem asset.Item) (*order.Detail, error) {
+func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, pair currency.Pair, assetItem asset.Item) *order.Detail {
 	var amount float64
 	var quoteAmount float64
 	var orderType order.Type
@@ -1280,7 +1271,7 @@ func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse
 		LastUpdated:          lastUpdateTime,
 		Pair:                 pair,
 	}
-	return &response, nil
+	return &response
 }
 
 // VerificationCheck returns whether authentication support is enabled or not
