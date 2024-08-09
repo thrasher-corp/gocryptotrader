@@ -118,7 +118,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(req.RequestID, req)
+	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), req.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -220,12 +220,12 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe su
 	for a := range payloads {
 		var response []byte
 		if payloads[a].auth {
-			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
+			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
 		} else {
-			response, err = by.Websocket.Conn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
+			response, err = by.Websocket.Conn.SendMessageReturnResponse(context.TODO(), payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}

@@ -152,7 +152,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
@@ -161,7 +161,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,

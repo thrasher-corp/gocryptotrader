@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -38,6 +39,8 @@ import (
 // with a settlement currency has not been funded. Use specific pairs to avoid
 // this error.
 const unfundedFuturesAccount = `please transfer funds first to create futures account`
+
+var errNoResponseReceived = errors.New("no response received")
 
 // SetDefaults sets default values for the exchange
 func (g *Gateio) SetDefaults() {
@@ -90,12 +93,12 @@ func (g *Gateio) SetDefaults() {
 				OrderbookFetching:      true,
 				TradeFetching:          true,
 				KlineFetching:          true,
-				FullPayloadSubscribe:   true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
 				GetOrder:               true,
 				AccountBalance:         true,
 				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -151,23 +154,12 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	// TODO: Add websocket margin and cross margin support.
 	err = g.DisableAssetWebsocketSupport(asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.Futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.Options)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -202,31 +194,104 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
-		FillsFeed:             g.Features.Enabled.FillsFeed,
-		TradeFeed:             g.Features.Enabled.TradeFeed,
+		ExchangeConfig:               exch,
+		Features:                     &g.Features.Supports.WebsocketCapabilities,
+		FillsFeed:                    g.Features.Enabled.FillsFeed,
+		TradeFeed:                    g.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement: true,
 	})
 	if err != nil {
 		return err
 	}
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
+	// Spot connection
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                      gateioWebsocketEndpoint,
+		RateLimit:                gateioWebsocketRateLimit,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Handler:                  g.WsHandleSpotData,
+		Subscriber:               g.SpotSubscribe,
+		Unsubscriber:             g.SpotUnsubscribe,
+		GenerateSubscriptions:    g.GenerateDefaultSubscriptionsSpot,
+		Connector:                g.WsConnectSpot,
+		Authenticate:             g.AuthenticateSpot,
+		OutboundRequestSignature: asset.Spot,
+	})
+	if err != nil {
+		return err
+	}
+	// Futures connection - USDT margined
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                  futuresWebsocketUsdtURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
+		},
+		Subscriber:               g.FuturesSubscribe,
+		Unsubscriber:             g.FuturesUnsubscribe,
+		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
+		Connector:                g.WsFuturesConnect,
+		Authenticate:             g.AuthenticateFutures,
+		OutboundRequestSignature: asset.USDTMarginedFutures,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Futures connection - BTC margined
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                  futuresWebsocketBtcURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
+		},
+		Subscriber:               g.FuturesSubscribe,
+		Unsubscriber:             g.FuturesUnsubscribe,
+		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.BTC) },
+		Connector:                g.WsFuturesConnect,
+		OutboundRequestSignature: asset.CoinMarginedFutures,
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: Add BTC margined delivery futures.
+	// Futures connection - Delivery - USDT margined
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                  deliveryRealUSDTTradingURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
+		},
+		Subscriber:               g.DeliveryFuturesSubscribe,
+		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
+		Connector:                g.WsDeliveryFuturesConnect,
+		OutboundRequestSignature: asset.DeliveryFutures,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Futures connection - Options
+	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                      optionsWebsocketURL,
+		RateLimit:                gateioWebsocketRateLimit,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Handler:                  g.WsHandleOptionsData,
+		Subscriber:               g.OptionsSubscribe,
+		Unsubscriber:             g.OptionsUnsubscribe,
+		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
+		Connector:                g.WsOptionsConnect,
+		OutboundRequestSignature: asset.Options,
 	})
 }
 
@@ -998,34 +1063,14 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 	s.Pair = s.Pair.Upper()
+
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		switch {
-		case s.Side.IsLong():
-			s.Side = order.Buy
-		case s.Side.IsShort():
-			s.Side = order.Sell
-		default:
-			return nil, errInvalidOrderSide
-		}
-		timeInForce, err := getTimeInForce(s)
+		req, err := g.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
-
-		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
-			Side:    s.Side.Lower(),
-			Type:    s.Type.Lower(),
-			Account: g.assetTypeToString(s.AssetType),
-			// When doing spot market orders when purchasing base currency, the
-			// quote currency amount is used. When selling the base currency the
-			// base currency amount is used.
-			Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
-			Price:        types.Number(s.Price),
-			CurrencyPair: s.Pair,
-			Text:         s.ClientOrderID,
-			TimeInForce:  timeInForce,
-		})
+		sOrder, err := g.PlaceSpotOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -1086,7 +1131,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var status = order.Open
-		if fOrder.Status != "open" {
+		if fOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1133,7 +1178,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var status = order.Open
-		if newOrder.Status != "open" {
+		if newOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(newOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1451,7 +1496,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			return nil, err
 		}
 		orderStatus := order.Open
-		if fOrder.Status != "open" {
+		if fOrder.Status != statusOpen {
 			orderStatus, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1610,7 +1655,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				return nil, err
 			}
 			for y := range spotOrders[x].Orders {
-				if spotOrders[x].Orders[y].Status != "open" {
+				if spotOrders[x].Orders[y].Status != statusOpen {
 					continue
 				}
 				var side order.Side
@@ -1668,9 +1713,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		for settlement := range settlements {
 			var futuresOrders []Order
 			if req.AssetType == asset.Futures {
-				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, "open", "", settlement, 0, 0, 0)
+				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, statusOpen, "", settlement, 0, 0, 0)
 			} else {
-				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, "open", settlement, "", 0, 0, 0)
+				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settlement, "", 0, 0, 0)
 			}
 			if err != nil {
 				if strings.Contains(err.Error(), unfundedFuturesAccount) {
@@ -1686,7 +1731,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return nil, err
 				}
 
-				if futuresOrders[x].Status != "open" || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
+				if futuresOrders[x].Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
 					continue
 				}
 
@@ -1716,7 +1761,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		}
 	case asset.Options:
 		var optionsOrders []OptionOrderResponse
-		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", "open", 0, 0, req.StartTime, req.EndTime)
+		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", statusOpen, 0, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -2581,4 +2626,140 @@ func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+// WebsocketSubmitOrder submits an order to the exchange through the websocket
+// connection.
+func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	err := s.Validate(g.GetTradingRequirements())
+	if err != nil {
+		return nil, err
+	}
+
+	s.Pair, err = g.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	s.Pair = s.Pair.Upper()
+
+	switch s.AssetType {
+	case asset.Spot:
+		var req *CreateOrderRequestData
+		req, err = g.getSpotOrderRequest(s)
+		if err != nil {
+			return nil, err
+		}
+
+		var got []WebsocketOrderResponse
+		got, err = g.WebsocketOrderPlaceSpot(ctx, []CreateOrderRequestData{*req})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(got) == 0 {
+			return nil, errNoResponseReceived
+		}
+
+		resp, err := s.DeriveSubmitResponse(getClientOrderIDFromText(got[0].ID))
+		if err != nil {
+			return nil, err
+		}
+		resp.Side, err = order.StringToOrderSide(got[0].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp.Status, err = order.StringToOrderStatus(got[0].Status)
+		if err != nil {
+			return nil, err
+		}
+		resp.Pair = s.Pair
+		resp.Date = got[0].CreateTime.Time()
+		resp.ClientOrderID = got[0].Text
+		resp.Date = got[0].CreateTimeMs.Time()
+		resp.LastUpdated = got[0].UpdateTimeMs.Time()
+		return resp, nil
+	case asset.Futures:
+		var amountWithDirection float64
+		amountWithDirection, err = getFutureOrderSize(s)
+		if err != nil {
+			return nil, err
+		}
+
+		var timeInForce string
+		timeInForce, err = getTimeInForce(s)
+		if err != nil {
+			return nil, err
+		}
+
+		out := OrderCreateParams{
+			Contract:    s.Pair,
+			Size:        amountWithDirection,
+			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
+			ReduceOnly:  s.ReduceOnly,
+			TimeInForce: timeInForce,
+			Text:        s.ClientOrderID,
+		}
+
+		var got []WebsocketFuturesOrderResponse
+		got, err = g.WebsocketOrderPlaceFutures(ctx, []OrderCreateParams{out})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(got) == 0 {
+			return nil, errNoResponseReceived
+		}
+
+		resp, err := s.DeriveSubmitResponse(strconv.FormatInt(got[0].ID, 10))
+		if err != nil {
+			return nil, err
+		}
+		resp.Status = order.Open
+		if got[0].Status != statusOpen {
+			resp.Status, err = order.StringToOrderStatus(got[0].FinishAs)
+			if err != nil {
+				return nil, err
+			}
+		}
+		resp.Pair = s.Pair
+		resp.Date = got[0].CreateTime.Time()
+		resp.ClientOrderID = getClientOrderIDFromText(got[0].Text)
+		resp.ReduceOnly = s.ReduceOnly
+		resp.Amount = math.Abs(float64(got[0].Size))
+		resp.Price = got[0].Price.Float64()
+		resp.AverageExecutedPrice = got[0].FillPrice.Float64()
+		return resp, nil
+	default:
+		return nil, common.ErrNotYetImplemented
+	}
+}
+
+func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequestData, error) {
+	switch {
+	case s.Side.IsLong():
+		s.Side = order.Buy
+	case s.Side.IsShort():
+		s.Side = order.Sell
+	default:
+		return nil, errInvalidOrderSide
+	}
+
+	timeInForce, err := getTimeInForce(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CreateOrderRequestData{
+		Side:    s.Side.Lower(),
+		Type:    s.Type.Lower(),
+		Account: g.assetTypeToString(s.AssetType),
+		// When doing spot market orders when purchasing base currency, the
+		// quote currency amount is used. When selling the base currency the
+		// base currency amount is used.
+		Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
+		Price:        types.Number(s.Price),
+		CurrencyPair: s.Pair,
+		Text:         s.ClientOrderID,
+		TimeInForce:  timeInForce,
+	}, nil
 }

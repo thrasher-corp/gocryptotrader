@@ -698,31 +698,11 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 	}
 }
 
-func TestContextVerbosity(t *testing.T) {
+func TestIsVerbose(t *testing.T) {
 	t.Parallel()
-	if isVerbose(context.Background(), false) {
-		t.Fatal("unexpected value")
-	}
-
-	if !isVerbose(context.Background(), true) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx := context.Background()
-	ctx = WithVerbose(ctx)
-	if !isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, false)
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, "bruh")
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
+	require.False(t, IsVerbose(context.Background(), false))
+	require.True(t, IsVerbose(context.Background(), true))
+	require.True(t, IsVerbose(WithVerbose(context.Background()), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, false), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, "bruh"), false))
 }

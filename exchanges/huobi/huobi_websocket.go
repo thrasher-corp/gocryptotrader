@@ -570,7 +570,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe subscription.List) error {
 			})
 		}
 		if err == nil {
-			err = h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+			err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, channelsToSubscribe[i])
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -604,7 +604,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 			})
 		}
 		if err == nil {
-			err = h.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+			err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, channelsToUnsubscribe[i])
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -700,7 +700,7 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +752,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -794,7 +794,7 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}

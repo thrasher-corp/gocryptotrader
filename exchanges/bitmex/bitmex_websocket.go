@@ -601,7 +601,7 @@ func (b *Bitmex) Subscribe(subs subscription.List) error {
 	}
 	err := b.Websocket.Conn.SendJSONMessage(req)
 	if err == nil {
-		err = b.Websocket.AddSuccessfulSubscriptions(subs...)
+		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subs...)
 	}
 	return err
 }
@@ -620,7 +620,7 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 	}
 	err := b.Websocket.Conn.SendJSONMessage(req)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(subs...)
+		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
 	}
 	return err
 }

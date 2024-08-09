@@ -956,7 +956,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse("msgID:"+msgID, req); err != nil {
+		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(context.TODO(), "msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
@@ -974,9 +974,9 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
 				if operation == "unsubscribe" {
-					err = ku.Websocket.RemoveSubscriptions(s)
+					err = ku.Websocket.RemoveSubscriptions(ku.Websocket.Conn, s)
 				} else {
-					err = ku.Websocket.AddSuccessfulSubscriptions(s)
+					err = ku.Websocket.AddSuccessfulSubscriptions(ku.Websocket.Conn, s)
 					if ku.Verbose {
 						log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", ku.Name, s.Channel)
 					}

@@ -211,7 +211,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	// setup option decimal regex at startup to make constant checks more efficient
 	optionRegex = regexp.MustCompile(optionDecimalRegex)
 
-	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return d.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
