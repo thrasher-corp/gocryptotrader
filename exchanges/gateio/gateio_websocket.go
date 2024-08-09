@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -47,6 +48,9 @@ const (
 	spotFundingBalanceChannel  = "spot.funding_balances"
 	crossMarginBalanceChannel  = "spot.cross_balances"
 	crossMarginLoanChannel     = "spot.cross_loan"
+
+	subscribeEvent   = "subscribe"
+	unsubscribeEvent = "unsubscribe"
 )
 
 var defaultSubscriptions = []string{
@@ -57,16 +61,13 @@ var defaultSubscriptions = []string{
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
-// WsConnect initiates a websocket connection
-func (g *Gateio) WsConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
-	}
+// WsConnectSpot initiates a websocket connection
+func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -74,15 +75,19 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
-	g.Websocket.Wg.Add(1)
-	go g.wsReadConnData()
 	return nil
+}
+
+// AuthenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) AuthenticateSpot(ctx context.Context, conn stream.Connection) error {
+	_, err := g.WebsocketLogin(ctx, conn, "spot.login")
+	return err
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.Time) (string, error) {
@@ -94,29 +99,23 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// wsReadConnData receives and passes on websocket messages for processing
-func (g *Gateio) wsReadConnData() {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := g.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
+// WsHandleSpotData handles spot data
+func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+	if requestID, err := jsonparser.GetString(respRaw, "request_id"); err == nil && requestID != "" {
+		fmt.Println("HANDLE: ", string(respRaw))
+		if !g.Websocket.Match.IncomingWithData(requestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", requestID)
 		}
-		err := g.wsHandleData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
-		}
+		return nil
 	}
-}
 
-func (g *Gateio) wsHandleData(respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
 
-	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
 		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}
@@ -624,8 +623,8 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
+// GenerateDefaultSubscriptionsSpot returns default subscriptions
+func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, []string{
@@ -651,6 +650,8 @@ func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
 			assetType = asset.CrossMargin
 			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
 		default:
+			// TODO: Check and add balance support as spot balances can be
+			// subscribed without a currency pair supplied.
 			assetType = asset.Spot
 			pairs, err = g.GetEnabledPairs(asset.Spot)
 		}
@@ -690,14 +691,14 @@ func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(event, channelsToSubscribe)
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
+	payloads, err := g.generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(ctx, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -710,10 +711,10 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscripti
 				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
-			if payloads[k].Event == "subscribe" {
-				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+			if payloads[k].Event == subscribeEvent {
+				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
 			} else {
-				err = g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -723,14 +724,14 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscripti
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(context.TODO())
+		creds, err = g.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -816,7 +817,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 		}
 
 		payload := WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			ID:      conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -842,14 +843,14 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 	return payloads, nil
 }
 
-// Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription("subscribe", channelsToUnsubscribe)
+// SpotSubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
+// SpotUnsubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {

@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,22 +9,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
+	DialContext(context.Context, *websocket.Dialer, http.Header) error
 	ReadMessage() Response
-	SendJSONMessage(interface{}) error
+	SendJSONMessage(any) error
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(highPrecision bool) int64
-	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
+	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int, isFinalMessage ...Inspector) ([][]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
 }
+
+// Inspector is a hook that allows for custom message inspection
+type Inspector func([]byte) bool
 
 // Response defines generalised data from the stream connection
 type Response struct {
@@ -36,9 +43,54 @@ type ConnectionSetup struct {
 	ResponseCheckTimeout    time.Duration
 	ResponseMaxLimit        time.Duration
 	RateLimit               int64
-	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+
+	// URL defines the websocket server URL to connect to
+	URL string
+	// Connector is the function that will be called to connect to the
+	// exchange's websocket server. This will be called once when the stream
+	// service is started. Any bespoke connection logic should be handled here.
+	Connector func(ctx context.Context, conn Connection) error
+	// GenerateSubscriptions is a function that will be called to generate a
+	// list of subscriptions to be made to the exchange's websocket server.
+	GenerateSubscriptions func() (subscription.List, error)
+	// Subscriber is a function that will be called to send subscription
+	// messages based on the exchange's websocket server requirements to
+	// subscribe to specific channels.
+	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) error
+	// Unsubscriber is a function that will be called to send unsubscription
+	// messages based on the exchange's websocket server requirements to
+	// unsubscribe from specific channels. NOTE: IF THE FEATURE IS ENABLED.
+	Unsubscriber func(ctx context.Context, conn Connection, unsub subscription.List) error
+	// Handler defines the function that will be called when a message is
+	// received from the exchange's websocket server. This function should
+	// handle the incoming message and pass it to the appropriate data handler.
+	Handler func(ctx context.Context, incoming []byte) error
+	// Authenticate is a function that will be called to authenticate the
+	// connection to the exchange's websocket server. This function should
+	// handle the authentication process and return an error if the
+	// authentication fails.
+	Authenticate func(ctx context.Context, conn Connection) error
+	// OutboundRequestSignature is any type that will match outbound
+	// requests to this specific connection. This could be an asset type
+	// `asset.Spot`, a string type denoting the individual URL, an
+	// authenticated or unauthenticated string or a mixture of these.
+	OutboundRequestSignature any
+}
+
+// ConnectionWrapper contains the connection setup details to be used when
+// attempting a new connection. It also contains the subscriptions that are
+// associated with the specific connection.
+type ConnectionWrapper struct {
+	// Setup contains the connection setup details
+	Setup *ConnectionSetup
+	// Subscriptions contains the subscriptions that are associated with the
+	// specific connection(s)
+	Subscriptions *subscription.Store
+	// Connection contains the active connection based off the connection
+	// details above.
+	Connection Connection // TODO: Upgrade to slice of connections.
 }
 
 // PingHandler container for ping handler settings

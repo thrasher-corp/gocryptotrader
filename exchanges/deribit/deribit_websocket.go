@@ -147,7 +147,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"signature":  crypto.HexEncodeToString(hmac),
 		},
 	}
-	resp, err := d.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -1165,7 +1165,7 @@ func (d *Deribit) handleSubscription(operation string, channels subscription.Lis
 		return err
 	}
 	for x := range payloads {
-		data, err := d.Websocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
+		data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), payloads[x].ID, payloads[x])
 		if err != nil {
 			return err
 		}

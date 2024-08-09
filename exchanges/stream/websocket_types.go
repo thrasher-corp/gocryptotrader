@@ -50,6 +50,15 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
+	connectionManager []*ConnectionWrapper
+	connections       map[Connection]*ConnectionWrapper
+	// outbound is map holding wrapper specific signatures to an active
+	// connection for outbound messaging. Wrapper specific connections
+	// might be asset specific e.g. spot, margin, futures or
+	// authenticated/unauthenticated or a mix of both. This map is used
+	// to send messages to the correct connection.
+	outbound map[any]*ConnectionWrapper
+
 	subscriptions *subscription.Store
 
 	// Subscriber function for exchange specific subscribe implementation
@@ -58,6 +67,8 @@ type Websocket struct {
 	Unsubscriber func(subscription.List) error
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() (subscription.List, error)
+
+	useMultiConnectionManagement bool
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -111,6 +122,11 @@ type WebsocketSetup struct {
 
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config
+
+	// UseMultiConnectionManagement allows the connections to be managed by the
+	// connection manager. If false, this will default to the global fields
+	// provided in this struct.
+	UseMultiConnectionManagement bool
 
 	TradeFeed bool
 

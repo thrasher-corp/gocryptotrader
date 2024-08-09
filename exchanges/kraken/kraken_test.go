@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2290,7 +2291,7 @@ func TestGetOpenInterest(t *testing.T) {
 }
 
 // curryWsMockUpgrader handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
-func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc {
+func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
 	tb.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
@@ -2298,7 +2299,7 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 			require.NoError(tb, err, "Write should not error")
 			return
 		}
-		testexch.WsMockUpgrader(tb, w, r, h)
+		mockws.WsMockUpgrader(tb, w, r, h)
 	}
 }
 

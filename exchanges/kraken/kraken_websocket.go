@@ -800,7 +800,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 			go func(resub *subscription.Subscription) {
 				// This was locking the main websocket reader routine and a
 				// backlog occurred. So put this into it's own go routine.
-				errResub := k.Websocket.ResubscribeToChannel(resub)
+				errResub := k.Websocket.ResubscribeToChannel(k.Websocket.Conn, resub)
 				if errResub != nil {
 					log.Errorf(log.WebsocketMgr,
 						"resubscription failure for %v: %v",
@@ -1229,13 +1229,16 @@ channels:
 	for _, subs := range subscriptions {
 		for i := range *subs {
 			var err error
+			var conn stream.Connection
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
-				_, err = k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
+				conn = k.Websocket.AuthConn
 			} else {
-				_, err = k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
+				conn = k.Websocket.Conn
 			}
 			if err == nil {
-				err = k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
+				err = k.Websocket.AddSuccessfulSubscriptions(conn, (*subs)[i].Channels...)
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -1288,13 +1291,16 @@ channels:
 	var errs error
 	for i := range unsubs {
 		var err error
+		var conn stream.Connection
 		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
-			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
+			conn = k.Websocket.AuthConn
 		} else {
-			_, err = k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
+			conn = k.Websocket.Conn
 		}
 		if err == nil {
-			err = k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
+			err = k.Websocket.RemoveSubscriptions(conn, unsubs[i].Channels...)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -1309,7 +1315,7 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 	request.RequestID = id
 	request.Event = krakenWsAddOrder
 	request.Token = authToken
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return "", err
 	}
@@ -1348,7 +1354,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 		RequestID:      id,
 	}
 
-	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
 	}
@@ -1378,7 +1384,7 @@ func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 		RequestID: id,
 	}
 
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
 	}

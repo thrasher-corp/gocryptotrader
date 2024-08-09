@@ -294,7 +294,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -316,7 +316,7 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(s)
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
