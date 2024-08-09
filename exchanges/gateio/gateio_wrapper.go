@@ -2350,7 +2350,7 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 			Rate: contract.FundingRate.Decimal(),
 		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
-		TimeChecked:    time.Now(),
+		TimeChecked:    time.Now().UTC(),
 	}
 	if includeUpcomingRate {
 		resp.PredictedUpcomingRate = fundingrate.Rate{

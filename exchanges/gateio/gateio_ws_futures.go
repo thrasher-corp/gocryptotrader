@@ -444,7 +444,7 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 			Last:         resp.Result[x].Last.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
-			LastUpdated:  time.Unix(resp.Time, 0),
+			LastUpdated:  time.Unix(resp.Time, 0).UTC(),
 		}
 	}
 	g.Websocket.DataHandler <- tickerPriceDatas

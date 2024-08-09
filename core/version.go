@@ -21,8 +21,7 @@ const (
 
 // vars related to the app version
 var (
-	Copyright = fmt.Sprintf("Copyright (c) 2014-%d The GoCryptoTrader Developers.",
-		time.Now().Year())
+	Copyright = fmt.Sprintf("Copyright (c) 2014-%d The GoCryptoTrader Developers.", time.Now().UTC().Year())
 )
 
 // Version returns the version string

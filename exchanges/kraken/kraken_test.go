@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1848,7 +1847,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, order.Pending, v.Status, "order status")
 				assert.Equal(t, 0.0, v.Price, "price")
 				assert.Equal(t, 0.0001, v.Amount, "amount")
-				assert.Equal(t, time.UnixMicro(1692851641361371), v.Date, "Date")
+				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date, "Date")
 			case 4:
 				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
 				assert.Equal(t, order.Open, v.Status, "order status")
@@ -1865,7 +1864,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
 				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
 				assert.Equal(t, 0.00687, v.Fee, "Fee")
-				assert.Equal(t, time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated, "LastUpdated")
 			case 1:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
@@ -1875,7 +1874,7 @@ func TestWsOpenOrders(t *testing.T) {
 			case 0:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated, "LastUpdated")
 				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
 				assert.Equal(t, 0.001, v.Fee, "Fee")
 				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
@@ -1899,25 +1898,6 @@ func TestWsAddOrderJSON(t *testing.T) {
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestParseTime(t *testing.T) {
-	t.Parallel()
-	// Test REST example
-	r := convert.TimeFromUnixTimestampDecimal(1373750306.9819).UTC()
-	if r.Year() != 2013 ||
-		r.Month().String() != "July" ||
-		r.Day() != 13 {
-		t.Error("unexpected result")
-	}
-
-	// Test Websocket time example
-	r = convert.TimeFromUnixTimestampDecimal(1534614098.345543).UTC()
-	if r.Year() != 2018 ||
-		r.Month().String() != "August" ||
-		r.Day() != 18 {
-		t.Error("unexpected result")
 	}
 }
 

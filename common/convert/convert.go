@@ -56,19 +56,18 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	if !ok {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
 	}
-	return time.UnixMilli(int64(ts)), nil
+	return time.UnixMilli(int64(ts)).UTC(), nil
 }
 
-// TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to
-// a time.Time
+// TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to a time.Time
 func TimeFromUnixTimestampDecimal(input float64) time.Time {
 	i, f := math.Modf(input)
-	return time.Unix(int64(i), int64(f*(1e9)))
+	return time.Unix(int64(i), int64(f*(1e9))).UTC()
 }
 
 // UnixTimestampToTime returns time.time
 func UnixTimestampToTime(timeint64 int64) time.Time {
-	return time.Unix(timeint64, 0)
+	return time.Unix(timeint64, 0).UTC()
 }
 
 // UnixTimestampStrToTime returns a time.time and an error
@@ -77,7 +76,7 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(i, 0), nil
+	return time.Unix(i, 0).UTC(), nil
 }
 
 // BoolPtr takes in boolean condition and returns pointer version of it
@@ -227,11 +226,11 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 	case standard == 0:
 		*k = ExchangeTime(time.Time{})
 	case standard >= 1e13:
-		*k = ExchangeTime(time.Unix(standard/1e9, standard%1e9))
+		*k = ExchangeTime(time.Unix(standard/1e9, standard%1e9).UTC())
 	case standard > 9999999999:
-		*k = ExchangeTime(time.UnixMilli(standard))
+		*k = ExchangeTime(time.UnixMilli(standard).UTC())
 	default:
-		*k = ExchangeTime(time.Unix(standard, 0))
+		*k = ExchangeTime(time.Unix(standard, 0).UTC())
 	}
 	return nil
 }

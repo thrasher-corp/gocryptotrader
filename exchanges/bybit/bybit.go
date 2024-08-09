@@ -167,7 +167,9 @@ func processKlineResponse(in [][]string) ([]KlineItem, error) {
 		if err != nil {
 			return nil, err
 		}
-		klines[x] = KlineItem{StartTime: time.UnixMilli(startTimestamp)}
+		klines[x] = KlineItem{
+			StartTime: time.UnixMilli(startTimestamp).UTC(),
+		}
 		klines[x].Open, err = strconv.ParseFloat(in[x][1], 64)
 		if err != nil {
 			return nil, err

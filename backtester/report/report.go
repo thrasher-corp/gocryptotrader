@@ -79,7 +79,7 @@ func (d *Data) GenerateReport() error {
 		fn += "-"
 	}
 	fn += d.Statistics.StrategyName + "-"
-	fn += time.Now().Format("2006-01-02-15-04-05")
+	fn += time.Now().UTC().Format("2006-01-02T15-04-05")
 
 	fileName, err := common.GenerateFileName(fn, "html")
 	if err != nil {

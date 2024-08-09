@@ -69,7 +69,7 @@ func (c *PositionController) TrackNewOrder(d *order.Detail) error {
 	if err != nil {
 		return err
 	}
-	c.updated = time.Now()
+	c.updated = time.Now().UTC()
 	return nil
 }
 
@@ -161,7 +161,7 @@ func (c *PositionController) TrackFundingDetails(d *fundingrate.HistoricalRates)
 	if err != nil {
 		return err
 	}
-	c.updated = time.Now()
+	c.updated = time.Now().UTC()
 	return nil
 }
 
@@ -513,7 +513,7 @@ func SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error)
 		openingDirection:          setup.Side,
 		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
 		offlinePNLCalculation:     setup.OfflineCalculation,
-		lastUpdated:               time.Now(),
+		lastUpdated:               time.Now().UTC(),
 	}
 	if !setup.UseExchangePNLCalculation {
 		// use position tracker's pnl calculation by default
@@ -630,7 +630,7 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	var err error
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	p.unrealisedPNL = result.UnrealisedPNL
-	p.lastUpdated = time.Now()
+	p.lastUpdated = time.Now().UTC()
 
 	return err
 }
@@ -744,7 +744,7 @@ fundingRates:
 	}
 
 	p.fundingRateDetails.FundingRates = append(p.fundingRateDetails.FundingRates, rates...)
-	p.lastUpdated = time.Now()
+	p.lastUpdated = time.Now().UTC()
 	return nil
 }
 
@@ -825,7 +825,7 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 		}
 		p.shortPositions[i] = ord
 		updated = true
-		p.lastUpdated = time.Now()
+		p.lastUpdated = time.Now().UTC()
 		break
 	}
 	for i := range p.longPositions {
@@ -839,7 +839,7 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 		}
 		p.longPositions[i] = ord
 		updated = true
-		p.lastUpdated = time.Now()
+		p.lastUpdated = time.Now().UTC()
 		break
 	}
 
