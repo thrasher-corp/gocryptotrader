@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -14,10 +15,11 @@ import (
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
 	ReadMessage() Response
-	SendJSONMessage(interface{}) error
+	SendJSONMessage(any) error
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(highPrecision bool) int64
-	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
+	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int) ([][]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
 	SetProxy(string)
