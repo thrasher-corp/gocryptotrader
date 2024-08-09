@@ -89,7 +89,7 @@ func MockHTTPInstance(e exchange.IBotExchange) error {
 var upgrader = websocket.Upgrader{}
 
 // WsMockFunc is a websocket handler to be called with each websocket message
-type WsMockFunc func([]byte, *websocket.Conn) error
+type WsMockFunc func(testing.TB, []byte, *websocket.Conn) error
 
 // MockWsInstance creates a new Exchange instance with a mock websocket instance and HTTP server
 // It accepts an exchange package type argument and a http.HandlerFunc
@@ -150,7 +150,7 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 		}
 		require.NoError(tb, err, "ReadMessage should not error")
 
-		err = wsHandler(p, c)
+		err = wsHandler(tb, p, c)
 		assert.NoError(tb, err, "WS Mock Function should not error")
 	}
 }
