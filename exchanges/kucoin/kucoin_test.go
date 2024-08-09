@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -58,7 +59,7 @@ func TestMain(m *testing.M) {
 
 	getFirstTradablePairOfAssets()
 	ku.setupOrderbookManager()
-	fetchedFuturesSnapshotOrderbook = map[string]bool{}
+	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
 }
@@ -1973,130 +1974,141 @@ func TestPushData(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
-func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
-	tb.Helper()
-	var sub *subscription.Subscription
-	for i, s := range subs {
-		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
-			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
-				continue
-			}
-			if sub != nil {
-				assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
-				return
-			}
-			sub = subs[i]
-		}
-	}
-	if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
-		suffix := strings.TrimPrefix(sub.Channel, prefix)
-		if len(expected) == 0 {
-			assert.Empty(tb, suffix, "Sub for asset %s with prefix %s should have no symbol suffix", a.String(), prefix)
-		} else {
-			currs := strings.Split(suffix, ",")
-			assert.ElementsMatch(tb, currs, expected, "Currencies should match in sub for asset %s with prefix %s", a.String(), prefix)
-		}
-	}
-}
-
-// Pairs for Subscription tests:
-// Only in Spot: BTC-USDT, ETH-USDT
-// In Both: ETH-BTC, LTC-USDT
-// Only in Margin: TRX-BTC, SOL-USDC
-
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
+	// Pairs overlap for spot/margin tests:
+	// Only in Spot: BTC-USDT, ETH-USDT
+	// In Both: ETH-BTC, LTC-USDT
+	// Only in Margin: TRX-BTC, SOL-USDC
+	subPairs := currency.Pairs{}
+	for _, pp := range [][]string{
+		{"BTC", "USDT", "-"}, {"ETH", "BTC", "-"}, {"ETH", "USDT", "-"}, {"LTC", "USDT", "-"}, // Spot
+		{"ETH", "BTC", "-"}, {"LTC", "USDT", "-"}, {"SOL", "USDC", "-"}, {"TRX", "BTC", "-"}, // Margin
+		{"ETH", "USDCM", ""}, {"SOL", "USDTM", ""}, {"XBT", "USDCM", ""}, // Futures
+	} {
+		subPairs = append(subPairs, currency.NewPairWithDelimiter(pp[0], pp[1], pp[2]))
+	}
+
+	exp := subscription.List{
+		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: subPairs[0:4], QualifiedChannel: "/market/ticker:" + subPairs[0:4].Join()},
+		{Channel: subscription.TickerChannel, Asset: asset.Margin, Pairs: subPairs[6:8], QualifiedChannel: "/market/ticker:" + subPairs[6:8].Join()},
+		{Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: subPairs[8:], QualifiedChannel: "/contractMarket/tickerV2:" + subPairs[8:].Join()},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: subPairs[0:4], QualifiedChannel: "/spotMarket/level2Depth5:" + subPairs[0:4].Join(),
+			Interval: kline.HundredMilliseconds},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Margin, Pairs: subPairs[6:8], QualifiedChannel: "/spotMarket/level2Depth5:" + subPairs[6:8].Join(),
+			Interval: kline.HundredMilliseconds},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: subPairs[8:], QualifiedChannel: "/contractMarket/level2Depth5:" + subPairs[8:].Join(),
+			Interval: kline.HundredMilliseconds},
+		{Channel: subscription.AllTradesChannel, Asset: asset.Spot, Pairs: subPairs[0:4], QualifiedChannel: "/market/match:" + subPairs[0:4].Join()},
+		{Channel: subscription.AllTradesChannel, Asset: asset.Margin, Pairs: subPairs[6:8], QualifiedChannel: "/market/match:" + subPairs[6:8].Join()},
+	}
+
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	testsubs.EqualLists(t, exp, subs)
 
-	assert.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
-
-	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
-
-	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-	verifySubs(t, subs, asset.Margin, "/market/match:", "SOL-USDC", "TRX-BTC")
-
-	verifySubs(t, subs, asset.Spot, "/spotMarket/level2Depth5:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-	verifySubs(t, subs, asset.Margin, "/spotMarket/level2Depth5:", "SOL-USDC", "TRX-BTC")
-
-	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
-		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
-		verifySubs(t, subs, asset.Futures, "/contractMarket/level2Depth50:", c)
-	}
-}
-
-func TestGenerateAuthSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
+	var loanPairs currency.Pairs
+	loanCurrs := common.SortStrings(subPairs[0:8].GetCurrencies())
+	for _, c := range loanCurrs {
+		loanPairs = append(loanPairs, currency.Pair{Base: c})
+	}
+
+	exp = append(exp, subscription.List{
+		{Asset: asset.Futures, Channel: futuresTradeOrderChannel, QualifiedChannel: "/contractMarket/tradeOrders", Pairs: subPairs[8:]},
+		{Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, QualifiedChannel: "/contractMarket/advancedOrders", Pairs: subPairs[8:]},
+		{Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, QualifiedChannel: "/contractAccount/wallet", Pairs: subPairs[8:]},
+		{Asset: asset.Margin, Channel: marginPositionChannel, QualifiedChannel: "/margin/position", Pairs: subPairs[4:8]},
+		{Asset: asset.Margin, Channel: marginLoanChannel, QualifiedChannel: "/margin/loan:" + loanCurrs.Join(), Pairs: loanPairs},
+		{Channel: accountBalanceChannel, QualifiedChannel: "/account/balance"},
+	}...)
+
+	subs, err = ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions with Auth must not error")
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestGenerateTickerAllSub(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	avail, err := ku.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	for i := 0; i <= 10; i++ {
+		err = ku.CurrencyPairs.EnablePair(asset.Spot, avail[i])
+		require.NoError(t, common.ExcludeError(err, currency.ErrPairAlreadyEnabled), "EnablePair must not error")
+	}
+
+	enabled, err := ku.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot}}
+	exp := subscription.List{
+		{Channel: subscription.TickerChannel, Asset: asset.Spot, QualifiedChannel: "/market/ticker:all", Pairs: enabled},
+	}
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
-	assert.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
-
-	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
-
-	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-	verifySubs(t, subs, asset.Margin, "/market/match:", "SOL-USDC", "TRX-BTC")
-
-	verifySubs(t, subs, asset.Spot, "/spotMarket/level2Depth5:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-	verifySubs(t, subs, asset.Margin, "/spotMarket/level2Depth5:", "SOL-USDC", "TRX-BTC")
-
-	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
-		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
-		verifySubs(t, subs, asset.Futures, "/contractMarket/level2Depth50:", c)
-	}
-	for _, c := range []string{"SOL", "BTC", "TRX", "LTC", "USDC", "USDT", "ETH"} {
-		verifySubs(t, subs, asset.Margin, "/margin/loan:", c)
-	}
-	verifySubs(t, subs, asset.Spot, "/account/balance")
-	verifySubs(t, subs, asset.Margin, "/margin/position")
-	verifySubs(t, subs, asset.Margin, "/margin/fundingBook:", "SOL", "BTC", "TRX", "LTC", "USDT", "USDC", "ETH")
-	verifySubs(t, subs, asset.Futures, "/contractAccount/wallet")
-	verifySubs(t, subs, asset.Futures, "/contractMarket/advancedOrders")
-	verifySubs(t, subs, asset.Futures, "/contractMarket/tradeOrders")
+	testsubs.EqualLists(t, exp, subs)
 }
 
-func TestGenerateCandleSubscription(t *testing.T) {
+// TestGenerateOtherSubscriptions exercises non-default subscriptions
+func TestGenerateOtherSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	ku.Features.Subscriptions = subscription.List{
-		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
+
+	subs := subscription.List{
+		{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FourHour},
+		{Channel: marketSnapshotChannel, Asset: asset.Spot},
 	}
 
-	subs, err := ku.generateSubscriptions()
-	assert.NoError(t, err, "generateSubscriptions with Candles should not error")
-
-	assert.Len(t, subs, 6, "Should generate the correct number of subs for candles")
-	for _, c := range []string{"BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC"} {
-		verifySubs(t, subs, asset.Spot, "/market/candles:", c+"_4hour")
-	}
-	for _, c := range []string{"SOL-USDC", "TRX-BTC"} {
-		verifySubs(t, subs, asset.Margin, "/market/candles:", c+"_4hour")
+	for _, s := range subs {
+		ku.Features.Subscriptions = subscription.List{s}
+		got, err := ku.generateSubscriptions()
+		require.NoError(t, err, "generateSubscriptions should not error")
+		require.Len(t, got, 1, "Should generate just one sub")
+		assert.NotEmpty(t, got[0].QualifiedChannel, "Qualified Channel should not be empty")
+		if got[0].Channel == subscription.CandlesChannel {
+			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
+		}
 	}
 }
 
-func TestGenerateMarketSubscription(t *testing.T) {
+// TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
+func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	ku.Features.Subscriptions = subscription.List{
-		{Channel: marketSnapshotChannel},
+	ku := &Kucoin{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+		Base: exchange.Base{
+			Config: &config.Exchange{
+				Features: &config.FeaturesConfig{
+					Subscriptions: subscription.List{
+						{Enabled: true, Channel: "ticker"},
+						{Enabled: true, Channel: "allTrades"},
+						{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
+						{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
+						{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
+						{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
+						{Enabled: true, Channel: "/account/balance", Authenticated: true},
+						{Enabled: true, Channel: "/margin/position", Authenticated: true},
+						{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
+						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
+						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
+						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
+					},
+				},
+			},
+			Features: exchange.Features{},
+		},
 	}
 
-	subs, err := ku.generateSubscriptions()
-	assert.NoError(t, err, "generateSubscriptions with MarketSnapshot should not error")
-
-	assert.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
-	for _, c := range []string{"BTC", "ETH", "LTC", "USDT"} {
-		verifySubs(t, subs, asset.Spot, "/market/snapshot:", c)
-	}
-	for _, c := range []string{"SOL", "USDC", "TRX"} {
-		verifySubs(t, subs, asset.Margin, "/market/snapshot:", c)
-	}
+	ku.checkSubscriptions()
+	testsubs.EqualLists(t, defaultSubscriptions, ku.Features.Subscriptions)
+	testsubs.EqualLists(t, defaultSubscriptions, ku.Config.Features.Subscriptions)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -2490,14 +2502,90 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	}
 }
 
-func TestSubscribeMarketSnapshot(t *testing.T) {
+// TestSubscribeBatches ensures that endpoints support batching, contrary to kucoin api docs
+func TestSubscribeBatches(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
 
-	err := ku.Subscribe(subscription.List{{Channel: marketSymbolSnapshotChannel, Pairs: currency.Pairs{currency.Pair{Base: currency.BTC}}}})
-	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
+	ku.Features.Subscriptions = subscription.List{
+		{Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+		{Asset: asset.Futures, Channel: subscription.TickerChannel},
+		{Asset: asset.Spot, Channel: marketSnapshotChannel},
+	}
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, len(ku.Features.Subscriptions), "Must generate batched subscriptions")
+
+	err = ku.Subscribe(subs)
+	require.NoError(t, err, "Subscribe to small batches should not error")
+}
+
+// TestSubscribeTickerAll ensures that ticker subscriptions switch to using all and it works
+
+// TestSubscribeBatchLimit exercises the kucoin batch limits of 300 per connection
+// Ensures batching of 100 pairs and the connection symbol limit is still 300 at Kucoin's end
+func TestSubscribeBatchLimit(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, ku)
+
+	avail, err := ku.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:299], true)
+	require.NoError(t, err, "StorePairs must not error")
+
+	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, 3, "Must get 3 subs")
+
+	err = ku.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+
+	err = ku.Unsubscribe(subs)
+	require.NoError(t, err, "Unsubscribe must not error")
+
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:320], true)
+	require.NoError(t, err, "StorePairs must not error")
+
+	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
+	subs, err = ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, 4, "Must get 4 subs")
+
+	err = ku.Subscribe(subs)
+	require.ErrorContains(t, err, "exceed max subscription count limitation of 300 per session", "Subscribe to MarketSnapshot must error above connection symbol limit")
+}
+
+func TestSubscribeTickerAll(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, ku)
+
+	avail, err := ku.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:500], true)
+	require.NoError(t, err, "StorePairs must not error")
+
+	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel}}
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, 1, "Must generate one subscription")
+	require.Equal(t, "/market/ticker:all", subs[0].QualifiedChannel, "QualifiedChannel must be correct")
+
+	err = ku.Subscribe(subs)
+	require.NoError(t, err, "Subscribe to must not error")
 }
 
 func TestSeedLocalCache(t *testing.T) {
