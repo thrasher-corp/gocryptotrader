@@ -150,10 +150,11 @@ type WithdrawalHistory struct {
 // Features stores the supported and enabled features
 // for the exchange
 type Features struct {
-	Supports            FeaturesSupported
-	Enabled             FeaturesEnabled
-	Subscriptions       subscription.List
-	TradingRequirements protocol.TradingRequirements
+	Supports             FeaturesSupported
+	Enabled              FeaturesEnabled
+	Subscriptions        subscription.List
+	CurrencyTranslations currency.Translations
+	TradingRequirements  protocol.TradingRequirements
 }
 
 // FeaturesEnabled stores the exchange enabled features

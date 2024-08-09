@@ -74,6 +74,32 @@ func (by *Bybit) SetDefaults() {
 	}
 
 	by.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(
+			map[currency.Code]currency.Code{
+				currency.NewCode("10000000AIDOGE"):  currency.AIDOGE,
+				currency.NewCode("1000000BABYDOGE"): currency.BABYDOGE,
+				currency.NewCode("1000000MOG"):      currency.NewCode("MOG"),
+				currency.NewCode("10000COQ"):        currency.NewCode("COQ"),
+				currency.NewCode("10000LADYS"):      currency.NewCode("LADYS"),
+				currency.NewCode("10000NFT"):        currency.NFT,
+				currency.NewCode("10000SATS"):       currency.NewCode("SATS"),
+				currency.NewCode("10000STARL"):      currency.STARL,
+				currency.NewCode("10000WEN"):        currency.NewCode("WEN"),
+				currency.NewCode("1000APU"):         currency.NewCode("APU"),
+				currency.NewCode("1000BEER"):        currency.NewCode("BEER"),
+				currency.NewCode("1000BONK"):        currency.BONK,
+				currency.NewCode("1000BTT"):         currency.BTT,
+				currency.NewCode("1000FLOKI"):       currency.FLOKI,
+				currency.NewCode("1000IQ50"):        currency.NewCode("IQ50"),
+				currency.NewCode("1000LUNC"):        currency.LUNC,
+				currency.NewCode("1000PEPE"):        currency.PEPE,
+				currency.NewCode("1000RATS"):        currency.NewCode("RATS"),
+				currency.NewCode("1000TURBO"):       currency.NewCode("TURBO"),
+				currency.NewCode("1000XEC"):         currency.XEC,
+				currency.NewCode("LUNA2"):           currency.LUNA,
+				currency.NewCode("SHIB1000"):        currency.SHIB,
+			},
+		),
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,

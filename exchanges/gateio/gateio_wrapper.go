@@ -55,6 +55,9 @@ func (g *Gateio) SetDefaults() {
 	}
 
 	g.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
+			currency.NewCode("MBABYDOGE"): currency.BABYDOGE,
+		}),
 		TradingRequirements: protocol.TradingRequirements{
 			SpotMarketOrderAmountPurchaseQuotationOnly: true,
 			SpotMarketOrderAmountSellBaseOnly:          true,
