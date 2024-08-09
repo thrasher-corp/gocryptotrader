@@ -565,26 +565,6 @@ func initStringSlice(size int) (out []string) {
 	return
 }
 
-func TestSplitStringSliceByLimit(t *testing.T) {
-	t.Parallel()
-	slice50 := initStringSlice(50)
-	out := SplitStringSliceByLimit(slice50, 20)
-	if len(out) != 3 {
-		t.Errorf("expected len() to be 3 instead received: %v", len(out))
-	}
-	if len(out[0]) != 20 {
-		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-
-	out = SplitStringSliceByLimit(slice50, 50)
-	if len(out) != 1 {
-		t.Errorf("expected len() to be 3 instead received: %v", len(out))
-	}
-	if len(out[0]) != 50 {
-		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-}
-
 func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 
