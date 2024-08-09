@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -82,7 +83,7 @@ func (g *Gateio) WsFuturesConnect() error {
 
 	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
-		RateLimit:            gateioWebsocketRateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     g.Config.WebsocketResponseMaxLimit,
 		Authenticated:        true,

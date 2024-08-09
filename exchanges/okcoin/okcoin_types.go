@@ -526,7 +526,6 @@ type WebsocketErrorResponse struct {
 
 // List of all websocket channels to subscribe to
 const (
-	okcoinWsRateLimit   = 30
 	allowableIterations = 25
 	maxConnByteLen      = 4096
 )

@@ -52,7 +52,6 @@ const (
 	krakenWsAddOrderStatus       = "addOrderStatus"
 	krakenWsCancelOrderStatus    = "cancelOrderStatus"
 	krakenWsCancelAllOrderStatus = "cancelAllStatus"
-	krakenWsRateLimit            = 50
 	krakenWsPingDelay            = time.Second * 27
 	krakenWsOrderbookDepth       = 1000
 )

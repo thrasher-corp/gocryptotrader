@@ -1710,7 +1710,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // ConfigureWS to send checksums and sequence numbers
 func (b *Bitfinex) ConfigureWS() error {
-	return b.Websocket.Conn.SendJSONMessage(map[string]interface{}{
+	return b.Websocket.Conn.SendJSONMessage(context.TODO(), map[string]interface{}{
 		"event": "conf",
 		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
 	})
@@ -1914,7 +1914,7 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	}
-	err = b.Websocket.AuthConn.SendJSONMessage(request)
+	err = b.Websocket.AuthConn.SendJSONMessage(ctx, request)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -2028,7 +2028,7 @@ func (b *Bitfinex) WsCancelMultiOrders(orderIDs []int64) error {
 		OrderID: orderIDs,
 	}
 	request := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	return b.Websocket.AuthConn.SendJSONMessage(request)
+	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request)
 }
 
 // WsCancelOrder authenticated cancel order request
@@ -2079,13 +2079,13 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 func (b *Bitfinex) WsCancelAllOrders() error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	request := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	return b.Websocket.AuthConn.SendJSONMessage(request)
+	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request)
 }
 
 // WsNewOffer authenticated new offer request
 func (b *Bitfinex) WsNewOffer(data *WsNewOfferRequest) error {
 	request := makeRequestInterface(wsFundingOfferNew, data)
-	return b.Websocket.AuthConn.SendJSONMessage(request)
+	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request)
 }
 
 // WsCancelOffer authenticated cancel offer request

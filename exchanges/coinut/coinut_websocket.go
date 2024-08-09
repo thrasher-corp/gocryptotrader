@@ -618,7 +618,7 @@ func (c *COINUT) Subscribe(subs subscription.List) error {
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
-		err = c.Websocket.Conn.SendJSONMessage(subscribe)
+		err = c.Websocket.Conn.SendJSONMessage(context.TODO(), subscribe)
 		if err == nil {
 			err = c.Websocket.AddSuccessfulSubscriptions(s)
 		}

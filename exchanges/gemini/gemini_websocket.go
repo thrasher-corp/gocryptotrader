@@ -112,7 +112,7 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 		})
 	}
 
-	if err := g.Websocket.Conn.SendJSONMessage(req); err != nil {
+	if err := g.Websocket.Conn.SendJSONMessage(context.TODO(), req); err != nil {
 		return err
 	}
 
