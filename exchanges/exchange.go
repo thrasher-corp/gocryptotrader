@@ -781,10 +781,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			if err != nil {
 				continue
 			}
-			diff.Remove, err = diff.Remove.Remove(enabledPairs[x])
-			if err != nil {
-				return err
-			}
+			diff.Remove = diff.Remove.Remove(enabledPairs[x])
 			enabledPairs[target] = match.Format(pFmt)
 		}
 		target++
@@ -1828,19 +1825,14 @@ func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.Li
 		return errBatchSizeZero
 	}
 
-	var j int
-	for i := 0; i < len(channels); i += batchSize {
-		j += batchSize
-		if j >= len(channels) {
-			j = len(channels)
-		}
+	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)
 		go func(c subscription.List) {
 			defer wg.Done()
 			if err := m(c); err != nil {
 				errC <- err
 			}
-		}(channels[i:j])
+		}(b)
 	}
 
 	wg.Wait()

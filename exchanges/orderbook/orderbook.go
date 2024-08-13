@@ -123,8 +123,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	return book, nil
 }
 
-// GetDepth returns the actual depth struct for potential subsystems and
-// strategies to interact with
+// GetDepth returns the actual depth struct for potential subsystems and strategies to interact with
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -140,9 +139,7 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			errCannotFindOrderbook,
-			p.Quote)
+		return nil, fmt.Errorf("%w associated with base currency %s", errCannotFindOrderbook, p.Quote)
 	}
 	return book, nil
 }
@@ -161,9 +158,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s exchange",
-			errCannotFindOrderbook,
-			exchange)
+		return nil, fmt.Errorf("%w for %s exchange", errCannotFindOrderbook, exchange)
 	}
 	book, ok := m1.m[key.PairAsset{
 		Base:  p.Base.Item,
@@ -171,9 +166,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			errCannotFindOrderbook,
-			p.Quote)
+		return nil, fmt.Errorf("%w associated with base currency %s", errCannotFindOrderbook, p.Quote)
 	}
 	return book.Retrieve()
 }
