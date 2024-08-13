@@ -559,7 +559,6 @@ func TestCommitConvertTrade(t *testing.T) {
 }
 
 func TestGetConvertTradeByID(t *testing.T) {
-	c.Verbose = true
 	convertTestShared(t, c.GetConvertTradeByID)
 }
 
@@ -1079,6 +1078,8 @@ func TestUpdateTickers(t *testing.T) {
 	err := c.UpdateTickers(context.Background(), asset.Options)
 	assert.ErrorIs(t, err, currency.ErrAssetNotFound)
 	err = c.UpdateTickers(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	err = c.UpdateTickers(context.Background(), asset.Futures)
 	assert.NoError(t, err)
 }
 

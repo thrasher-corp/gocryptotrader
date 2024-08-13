@@ -1300,14 +1300,11 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 	}
 	var ticks *Ticker
 	ticks, err = c.GetTicker(ctx, name, 1, time.Time{}, time.Time{}, verified)
-	if err != nil || len(ticks.Trades) != 1 {
+	if err != nil {
 		if verified {
 			return c.tickerHelper(ctx, name, assetType, false)
 		}
-		if err != nil {
-			return err
-		}
-		return errExpectedOneTickerReturned
+		return err
 	}
 	var last float64
 	if len(ticks.Trades) != 0 {
