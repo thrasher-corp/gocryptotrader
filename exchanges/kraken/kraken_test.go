@@ -1663,3 +1663,16 @@ func TestGetFuturesErr(t *testing.T) {
 	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")
 }
+
+func TestEnforceStandardChannelNames(t *testing.T) {
+	for _, n := range []string{
+		krakenWsSpread, krakenWsTicker, subscription.TickerChannel, subscription.OrderbookChannel, subscription.CandlesChannel,
+		subscription.AllTradesChannel, subscription.MyTradesChannel, subscription.MyOrdersChannel,
+	} {
+		assert.NoError(t, enforceStandardChannelNames(&subscription.Subscription{Channel: n}), "Standard channel names and bespoke names should not error")
+	}
+	for _, n := range []string{krakenWsOrderbook, krakenWsOHLC, krakenWsTrade, krakenWsOwnTrades, krakenWsOpenOrders, krakenWsOrderbook + "-5"} {
+		err := enforceStandardChannelNames(&subscription.Subscription{Channel: n})
+		assert.ErrorIsf(t, err, subscription.ErrPrivateChannelName, "Private channel names should not be allowed for %s", n)
+	}
+}

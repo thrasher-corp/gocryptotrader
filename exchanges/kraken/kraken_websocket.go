@@ -1235,7 +1235,7 @@ func channelName(s *subscription.Subscription) string {
 }
 
 func enforceStandardChannelNames(s *subscription.Subscription) error {
-	name := strings.Split(s.Channel, "-")
+	name := strings.Split(s.Channel, "-") // Protect against attempted usage of book-N as a channel name
 	if n, ok := reverseChannelNames[name[0]]; ok && n != s.Channel {
 		return fmt.Errorf("%w: %s => subscription.%s%sChannel", subscription.ErrPrivateChannelName, s.Channel, bytes.ToUpper([]byte{n[0]}), n[1:])
 	}
