@@ -2251,6 +2251,9 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
+
 	_, err := k.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
@@ -2258,8 +2261,8 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	cp1 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
-	cp2 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp1 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp2 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, k, asset.Futures, cp1, cp2)
 
 	resp, err := k.GetOpenInterest(context.Background(), key.PairAsset{
