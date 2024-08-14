@@ -441,7 +441,6 @@ func (bi *Bitget) GetMerchantP2POrders(ctx context.Context, startTime, endTime t
 	params.Values.Set("status", status)
 	params.Values.Set("side", side)
 	params.Values.Set("coin", cryptoCurrency)
-	// params.Values.Set("language", "en-US")
 	params.Values.Set("fiat", fiatCurrency)
 	var resp *P2POrdersResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
@@ -467,7 +466,6 @@ func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, e
 	params.Values.Set("status", status)
 	params.Values.Set("side", side)
 	params.Values.Set("coin", cryptoCurrency)
-	// params.Values.Set("language", "en-US")
 	params.Values.Set("fiat", fiatCurrency)
 	params.Values.Set("orderBy", orderBy)
 	params.Values.Set("sourceType", sourceType)
@@ -686,7 +684,7 @@ func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination i
 	vals.Set("status", status)
 	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetList
 	var resp *GetVirSubResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate2, http.MethodGet, path, vals,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
 		nil, &resp)
 }
 
@@ -751,7 +749,7 @@ func (bi *Bitget) GetAPIKeys(ctx context.Context, subaccountID string) (*GetAPIK
 	vals.Set("subAccountUid", subaccountID)
 	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetAPIKey + "-" + bitgetList
 	var resp *GetAPIKeyResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals,
 		nil, &resp)
 }
 
@@ -780,7 +778,7 @@ func (bi *Bitget) GetBotAccountAssets(ctx context.Context, accountType string) (
 // GetAssetOverview returns an overview of the user's assets across various account types
 func (bi *Bitget) GetAssetOverview(ctx context.Context) (*AssetOverviewResp, error) {
 	var resp *AssetOverviewResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet,
 		bitgetAccount+bitgetAllAccountBalance, nil, nil, &resp)
 }
 
@@ -1395,7 +1393,7 @@ func (bi *Bitget) BatchCancelSpotPlanOrders(ctx context.Context, pairs []string)
 	}
 	path := bitgetSpot + bitgetTrade + bitgetBatchCancelPlanOrder
 	var resp *BatchOrderResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req,
 		&resp)
 }
 
@@ -1651,7 +1649,7 @@ func (bi *Bitget) SwitchBGBDeductionStatus(ctx context.Context, deduct bool) (*B
 	}
 	path := bitgetSpot + bitgetAccount + bitgetSwitchDeduct
 	var resp *BoolData
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req,
 		&resp)
 }
 
@@ -1691,7 +1689,7 @@ func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID,
 func (bi *Bitget) GetBGBDeductionStatus(ctx context.Context) (*BGBDeductResp, error) {
 	path := bitgetSpot + bitgetAccount + bitgetDeductInfo
 	var resp *BGBDeductResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, nil, nil,
 		&resp)
 }
 
@@ -2055,7 +2053,7 @@ func (bi *Bitget) GetFuturesSubaccountAssets(ctx context.Context, productType st
 	vals.Set("productType", productType)
 	path := bitgetMix + bitgetAccount + bitgetSubaccountAssets2
 	var resp *SubaccountFuturesResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path, vals, nil,
 		&resp)
 }
 
@@ -2295,7 +2293,7 @@ func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair, productType 
 	}
 	path := bitgetMix + bitgetPosition + bitgetHistoryPosition
 	var resp *HistPositionResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
 
@@ -2428,7 +2426,7 @@ func (bi *Bitget) BatchPlaceFuturesOrders(ctx context.Context, pair, productType
 		"orderList":   orders,
 	}
 	path := bitgetMix + bitgetOrder + bitgetBatchPlaceOrder
-	rLim := Rate10
+	rLim := Rate5
 	if isCopyTradeLeader {
 		rLim = Rate1
 	}

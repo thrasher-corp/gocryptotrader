@@ -1506,11 +1506,6 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
 
-// GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
 func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time, fixedAPICandleLength bool) (*kline.Request, error) {

@@ -15,6 +15,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -1639,6 +1641,9 @@ func (bi *Bitget) GetFuturesContractDetails(ctx context.Context, _ asset.Item) (
 
 // GetLatestFundingRates returns the latest funding rates data
 func (bi *Bitget) GetLatestFundingRates(ctx context.Context, req *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
+	}
 	curRate, err := bi.GetFundingCurrent(ctx, req.Pair.String(), getProductType(req.Pair))
 	if err != nil {
 		return nil, err
@@ -1727,7 +1732,33 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 
 // UpdateCurrencyStates updates currency states
 func (bi *Bitget) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
-	return common.ErrNotYetImplemented
+	payload := make(map[currency.Code]currencystate.Options)
+	resp, err := bi.GetCoinInfo(ctx, "")
+	if err != nil {
+		return err
+	}
+	for i := range resp.Data {
+		var withdraw bool
+		var deposit bool
+		var trade bool
+		for j := range resp.Data[i].Chains {
+			if resp.Data[i].Chains[j].Withdrawable {
+				withdraw = true
+			}
+			if resp.Data[i].Chains[j].Rechargeable {
+				deposit = true
+			}
+		}
+		if withdraw && deposit {
+			trade = true
+		}
+		payload[currency.NewCode(resp.Data[i].Coin)] = currencystate.Options{
+			Withdraw: &withdraw,
+			Deposit:  &deposit,
+			Trade:    &trade,
+		}
+	}
+	return bi.States.UpdateAll(a, payload)
 }
 
 // GetAvailableTransferChains returns a list of supported transfer chains based
@@ -1748,6 +1779,138 @@ func (bi *Bitget) GetAvailableTransferChains(ctx context.Context, cur currency.C
 		chains[i] = resp.Data[0].Chains[i].Chain
 	}
 	return chains, nil
+}
+
+// CalculatePNL is an overridable function to allow PNL to be calculated on an
+// open position
+// It will also determine whether the position is considered to be liquidated
+// For live trading, an overriding function may wish to confirm the liquidation by
+// requesting the status of the asset
+func (bi *Bitget) CalculatePNL(ctx context.Context, req *futures.PNLCalculatorRequest) (*futures.PNLResult, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
+	}
+
+	// Putting this on ice until later, I could copy the code for calculating it offline from futures.go but that seems
+	// bad. Also unsure whether I could call i.e. GetSinglePosition when CalculateOffline is false
+	return nil, common.ErrNotYetImplemented
+}
+
+// ScaleCollateral is an overridable function to determine how much
+// collateral is usable in futures positions
+func (bi *Bitget) ScaleCollateral(context.Context, *futures.CollateralCalculator) (*collateral.ByCurrency, error) {
+	// Skipping until I learn how to calculate collateral
+	return nil, common.ErrNotYetImplemented
+}
+
+// CalculateTotalCollateral takes in n collateral calculators to determine an overall
+// standing in a singular currency
+func (bi *Bitget) CalculateTotalCollateral(_ context.Context, _ *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
+	// Skipping until I learn how to calculate collateral
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (bi *Bitget) GetCollateralCurrencyForContract(a asset.Item, p currency.Pair) (currency.Code, asset.Item, error) {
+	// Due to the lack of a context, I can't get this to work unless I deduce the currency from the pair, which
+	// seems like a real waste of a function
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
+// GetCurrencyForRealisedPNL returns where to put realised PNL
+// example 1: Bybit universal margin PNL is paid out in USD to your spot wallet
+// example 2: Binance coin margined futures pays returns using the same currency eg BTC
+func (bi *Bitget) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	// Skipped since I'm not sure where to get this information from
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
+// GetMarginRatesHistory returns the margin rate history for the supplied currency
+func (bi *Bitget) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	// Skipped since I'm not fully sure waht this means, or where to get it from
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositionSummary returns stats for a future position
+func (bi *Bitget) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
+	}
+	resp, err := bi.GetSinglePosition(ctx, getProductType(req.Pair), req.Pair.String(), req.Pair.Quote.String())
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) != 1 {
+		// I'm not sure that it should actually return one data point in this case, replace this with a properly
+		// formatted error message once certain
+		return nil, fmt.Errorf("expected 1 position, received %v", len(resp.Data))
+	}
+	summary := &futures.PositionSummary{
+		Pair:  req.Pair,
+		Asset: req.Asset,
+		// OpenDelegateSize is "Amount to be filled of the current order", would this be AvailableEquity?
+		// What is MarginSize?
+		AvailableEquity:  decimal.NewFromFloat(resp.Data[0].Available),
+		FrozenBalance:    decimal.NewFromFloat(resp.Data[0].Locked),
+		Leverage:         decimal.NewFromFloat(resp.Data[0].Leverage),
+		RealisedPNL:      decimal.NewFromFloat(resp.Data[0].AchievedProfits),
+		AverageOpenPrice: decimal.NewFromFloat(resp.Data[0].OpenPriceAverage),
+		UnrealisedPNL:    decimal.NewFromFloat(resp.Data[0].UnrealizedPL),
+		// Not sure if these are actually equivalent
+		MaintenanceMarginRequirement: decimal.NewFromFloat(resp.Data[0].KeepMarginRate),
+		MarkPrice:                    decimal.NewFromFloat(resp.Data[0].MarkPrice),
+		StartDate:                    resp.Data[0].CreationTime.Time(),
+	}
+
+	// Okay so the only two exchanges which invoke CalculateOffline use it to print a warning that they can't do that
+	// Why have it then?
+	// EstimatePosition isn't used at all either
+	return summary, nil
+}
+
+// GetFuturesPositions returns futures positions for all currencies
+func (bi *Bitget) GetFuturesPositions(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionDetails, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
+	}
+	var resp []futures.PositionDetails
+	// This exchange essentially needs these listed, since a MarginCoin has to be provided
+	for i := range req.Pairs {
+		temp, err := bi.GetAllPositions(ctx, getProductType(req.Pairs[i]), req.Pairs[i].Quote.String())
+		if err != nil {
+			return nil, err
+		}
+		for x := range temp.Data {
+			pair, err := pairFromStringHelper(temp.Data[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			ord := []order.Detail{
+				{
+					Exchange:        bi.Name,
+					AssetType:       req.Asset,
+					Pair:            pair,
+					Side:            sideDecoder(temp.Data[x].HoldSide),
+					RemainingAmount: temp.Data[x].OpenDelegateSize,
+					// Is this accurate? If so, ExecutedAmount should = Locked, which sounds weird
+					Amount:               temp.Data[x].Total,
+					Leverage:             temp.Data[x].Leverage,
+					AverageExecutedPrice: temp.Data[x].OpenPriceAverage,
+					MarginType:           marginDecoder(temp.Data[x].MarginMode),
+					// Not 100% certain about this one
+					Price: temp.Data[x].MarkPrice,
+					Date:  temp.Data[x].CreationTime.Time(),
+				},
+			}
+			resp = append(resp, futures.PositionDetails{
+				Exchange: bi.Name,
+				Pair:     pair,
+				Asset:    req.Asset,
+				Orders:   ord,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetProductType is a helper function that returns the appropriate product type for a given currency pair

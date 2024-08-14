@@ -73,12 +73,12 @@ const (
 
 	errAPIKeyLimitPartial              = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
 	errCurrentlyHoldingPositionPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"45117","msg":"Currently holding positions or orders, the margin mode cannot be adjusted","requestTime":`
-	errFakePairDoesNotExistPartial     = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40034","msg":"Parameter FAKEPAIRNOTREALMEOWMEOW does not exist","requestTime"`
 )
 
 // Developer-defined variables to aid testing
 var (
-	fakePair = currency.NewPair(currency.NewCode("FAKEPAIRNOT"), currency.NewCode("REALMEOWMEOW"))
+	fakeCurrency = currency.NewCode("FAKECURRENCYNOT")
+	fakePair     = currency.NewPair(fakeCurrency, currency.NewCode("REALMEOWMEOW"))
 )
 
 var bi = &Bitget{}
@@ -2778,12 +2778,46 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUpdateCurrencyStates(t *testing.T) {
+	t.Parallel()
+	err := bi.UpdateCurrencyStates(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+}
+
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	testGetOneArg(t, bi.GetAvailableTransferChains, currency.EMPTYCODE, testCrypto, errCurrencyEmpty, false, false, true)
-	_, err := bi.GetAvailableTransferChains(context.Background(), currency.NewCode("fakecurrencynotrealmeowmeow"))
+	_, err := bi.GetAvailableTransferChains(context.Background(), fakeCurrency)
+	assert.Error(t, err)
+}
+
+func TestCalculatePNL(t *testing.T) {
+	bi.Verbose = true
+	_, err := bi.CalculatePNL(context.Background(), nil)
 	assert.NoError(t, err)
-	// See if there's an established fake currency you can use instead of reinventing this one
+}
+
+func TestGetFuturesPositionSummary(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesPositionSummary(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{})
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{Pair: testPair})
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesPositions(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	req := &futures.PositionsRequest{
+		Pairs: currency.Pairs{testPair, currency.NewPair(currency.BTC, currency.ETH)},
+	}
+	_, err = bi.GetFuturesPositions(context.Background(), req)
+	assert.NoError(t, err)
 }
 
 // The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests

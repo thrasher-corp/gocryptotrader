@@ -579,7 +579,6 @@ var excludedMethodNames = map[string]struct{}{
 	"CalculatePNL":                     {},
 	"CalculateTotalCollateral":         {},
 	"ScaleCollateral":                  {},
-	"GetPositionSummary":               {},
 	"GetFuturesPositionSummary":        {},
 	"GetFuturesPositionOrders":         {},
 	"SetCollateralMode":                {},

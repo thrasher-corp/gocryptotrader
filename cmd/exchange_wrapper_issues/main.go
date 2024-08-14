@@ -919,24 +919,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   marginRateHistoryResponse,
 		})
 
-		positionSummaryRequest := &futures.PositionSummaryRequest{
-			Asset: assetTypes[i],
-			Pair:  p,
-		}
-		var positionSummaryResponse *futures.PositionSummary
-		positionSummaryResponse, err = e.GetPositionSummary(context.TODO(), positionSummaryRequest)
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{positionSummaryRequest}),
-			Function:   "GetFuturesPositionSummary",
-			Error:      msg,
-			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
-		})
-
 		calculatePNLRequest := &futures.PNLCalculatorRequest{
 			Pair:             p,
 			Underlying:       p.Base,

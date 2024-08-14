@@ -164,7 +164,6 @@ type FunctionalityChecker interface {
 type FuturesManagement interface {
 	GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error)
 	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*collateral.ByCurrency, error)
-	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
 	GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error)
 	GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error)
