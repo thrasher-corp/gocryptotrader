@@ -933,7 +933,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true)
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -968,7 +968,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true)
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1079,7 +1079,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true) //nolint:gocritic
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true) //nolint:gocritic
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1098,7 +1098,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true) //nolint:gocritic
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true) //nolint:gocritic
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1134,7 +1134,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	err = book.LoadSnapshot(bids, bids, 0, time.Now(), true)
+	err = book.LoadSnapshot(bids, bids, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
