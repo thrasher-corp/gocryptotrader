@@ -1005,6 +1005,35 @@ func TestWsSubscribe(t *testing.T) {
 	}
 }
 
+// TestWsResubscribe tests websocket resubscription
+func TestWsResubscribe(t *testing.T) {
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
+	testexch.SetupWs(t, k)
+
+	err := k.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 1000}})
+	require.NoError(t, err, "Subscribe must not error")
+	subs := k.Websocket.GetSubscriptions()
+	require.Len(t, subs, 1, "Should add 1 Subscription")
+	require.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription should be subscribed state")
+
+	require.Eventually(t, func() bool {
+		b, e2 := k.Websocket.Orderbook.GetOrderbook(spotTestPair, asset.Spot)
+		if e2 == nil {
+			return !b.LastUpdated.IsZero()
+		}
+		return false
+	}, time.Second*4, time.Millisecond*10, "orderbook must start streaming")
+
+	// Set the state to Unsub so we definitely know Resub worked
+	err = subs[0].SetState(subscription.UnsubscribingState)
+	require.NoError(t, err)
+
+	err = k.Websocket.ResubscribeToChannel(subs[0])
+	require.NoError(t, err, "Resubscribe must not error")
+	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
+}
+
 // TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params
 func TestWsOrderbookSub(t *testing.T) {
 	t.Parallel()
