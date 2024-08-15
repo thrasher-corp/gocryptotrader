@@ -26,7 +26,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
 
 	var orderResp []OrderData
-	err = ok.SendWebsocketRequest(id, "order", []PlaceOrderRequestParam{*arg}, &orderResp)
+	err = ok.SendAuthenticatedWebsocketRequest(id, "order", []PlaceOrderRequestParam{*arg}, &orderResp)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
 	var orderResp []OrderData
-	return orderResp, ok.SendWebsocketRequest(id, "batch-orders", args, &orderResp)
+	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-orders", args, &orderResp)
 }
 
 // WsCancelOrder websocket function to cancel a trade order
@@ -75,7 +75,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
 
 	var orderResp []OrderData
-	err := ok.SendWebsocketRequest(id, "cancel-order", []CancelOrderRequestParam{arg}, &orderResp)
+	err := ok.SendAuthenticatedWebsocketRequest(id, "cancel-order", []CancelOrderRequestParam{arg}, &orderResp)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
 	var orderResp []OrderData
-	return orderResp, ok.SendWebsocketRequest(id, "batch-cancel-orders", args, &orderResp)
+	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-cancel-orders", args, &orderResp)
 }
 
 // WsAmendOrder method to amend trade order using a request thought the websocket channel.
@@ -132,7 +132,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
 
 	var orderResp []OrderData
-	err := ok.SendWebsocketRequest(id, "amend-order", []AmendOrderRequestParams{*arg}, &orderResp)
+	err := ok.SendAuthenticatedWebsocketRequest(id, "amend-order", []AmendOrderRequestParams{*arg}, &orderResp)
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +171,11 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
 	var orderResp []OrderData
-	return orderResp, ok.SendWebsocketRequest(id, "batch-amend-orders", args, &orderResp)
+	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-amend-orders", args, &orderResp)
 }
 
 // SendWebsocketRequest sends a websocket request to the server
-func (ok *Okx) SendWebsocketRequest(id, operation string, payload, response any) error {
+func (ok *Okx) SendAuthenticatedWebsocketRequest(id, operation string, payload, response any) error {
 	if id == "" || operation == "" || payload == nil || response == nil {
 		return errInvalidWebsocketRequest
 	}

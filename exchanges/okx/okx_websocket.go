@@ -283,7 +283,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		},
 	}
 	var nothing interface{}
-	err = ok.SendWebsocketRequest("login-response", operationLogin, args, &nothing)
+	err = ok.SendAuthenticatedWebsocketRequest("login-response", operationLogin, args, &nothing)
 	return err
 }
 
@@ -518,7 +518,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	if resp.Event != "" &&
 		(resp.Event == "login" ||
 			(resp.Event == "error" &&
-				slices.Contains([]string{"60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009", "60005", "60021", "60031"}, resp.Code))) {
+				slices.Contains([]string{"60007", "60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009", "60005", "60021", "60031"}, resp.Code))) {
 		// find error codes and corresponding reasons: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 		if !ok.Websocket.Match.IncomingWithData("login-response", respRaw) {
 			return fmt.Errorf("%s: %w to payload %v", ok.Name, errWebsocketDataNotMatchedWithID, string(respRaw))
