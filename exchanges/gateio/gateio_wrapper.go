@@ -223,8 +223,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
+		Handler: func(ctx context.Context, conn stream.Connection, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, conn, incoming, asset.Futures)
 		},
 		Subscriber:            g.FuturesSubscribe,
 		Unsubscriber:          g.FuturesUnsubscribe,
@@ -241,8 +241,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.Futures)
+		Handler: func(ctx context.Context, conn stream.Connection, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, conn, incoming, asset.Futures)
 		},
 		Subscriber:            g.FuturesSubscribe,
 		Unsubscriber:          g.FuturesUnsubscribe,
@@ -260,8 +260,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
+		Handler: func(ctx context.Context, conn stream.Connection, incoming []byte) error {
+			return g.WsHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
 		},
 		Subscriber:            g.DeliveryFuturesSubscribe,
 		Unsubscriber:          g.DeliveryFuturesUnsubscribe,

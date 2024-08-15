@@ -286,6 +286,13 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 	if c.URL != "" {
 		connectionURL = c.URL
 	}
+	match := w.Match
+	if w.useMultiConnectionManagement {
+		// If we are using multi connection management, we can decouple
+		// the match from the global match and have a match per connection.
+		match = NewMatch()
+	}
+
 	return &WebsocketConnection{
 		ExchangeName:      w.exchangeName,
 		URL:               connectionURL,
@@ -296,7 +303,7 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		readMessageErrors: w.ReadMessageErrors,
 		ShutdownC:         w.ShutdownC,
 		Wg:                &w.Wg,
-		Match:             w.Match,
+		Match:             match,
 		RateLimit:         c.RateLimit,
 		Reporter:          c.ConnectionLevelReporter,
 	}
@@ -1286,14 +1293,14 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 }
 
 // Reader reads and handles data from a specific connection
-func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, message []byte) error) {
+func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer w.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return // Connection has been closed
 		}
-		if err := handler(ctx, resp.Raw); err != nil {
+		if err := handler(ctx, conn, resp.Raw); err != nil {
 			w.DataHandler <- err
 		}
 	}

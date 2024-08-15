@@ -329,3 +329,9 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 
 	return resps, err
 }
+
+// RouteIncomingWebsocketData routes incoming websocket data to the correct handler.
+// Returns true if a handler was found and data was passed to it.
+func (w *WebsocketConnection) RouteIncomingWebsocketData(signature any, incoming []byte) (matched bool) {
+	return w.Match.IncomingWithData(signature, incoming)
+}

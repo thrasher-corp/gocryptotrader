@@ -321,7 +321,7 @@ func (g *Gateio) handleOptionsSubscription(ctx context.Context, conn stream.Conn
 }
 
 // WsHandleOptionsData handles options websocket data
-func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleOptionsData(_ context.Context, conn stream.Connection, respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
@@ -329,7 +329,7 @@ func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
+		if !conn.RouteIncomingWebsocketData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}
 		return nil

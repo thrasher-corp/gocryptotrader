@@ -93,7 +93,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleSpotData(_ context.Context, conn stream.Connection, respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
@@ -101,7 +101,7 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
+		if !conn.RouteIncomingWebsocketData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}
 		return nil
