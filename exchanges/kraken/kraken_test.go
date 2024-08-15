@@ -2293,7 +2293,7 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
 			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
-			require.NoError(tb, err, "Write should not error")
+			assert.NoError(tb, err, "Write should not error")
 			return
 		}
 		testexch.WsMockUpgrader(tb, w, r, h)

@@ -100,8 +100,7 @@ func TestNew(t *testing.T) {
 		{Input: "option_combo", Expected: OptionCombo},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			returned, err := New(tt.Input)

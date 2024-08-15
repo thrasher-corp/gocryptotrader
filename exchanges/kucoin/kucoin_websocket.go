@@ -1564,14 +1564,14 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 	default:
 		resp := make([]asset.Item, 0, 2)
 		spotEnabled, err := ku.IsPairEnabled(cp, asset.Spot)
-		if err != nil && !errors.Is(currency.ErrCurrencyNotFound, err) {
+		if err != nil && !errors.Is(err, currency.ErrCurrencyNotFound) {
 			return nil, err
 		}
 		if spotEnabled {
 			resp = append(resp, asset.Spot)
 		}
 		marginEnabled, err := ku.IsPairEnabled(cp, asset.Margin)
-		if err != nil && !errors.Is(currency.ErrCurrencyNotFound, err) {
+		if err != nil && !errors.Is(err, currency.ErrCurrencyNotFound) {
 			return nil, err
 		}
 		if marginEnabled {

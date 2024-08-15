@@ -718,7 +718,6 @@ func TestMovementMethods(t *testing.T) {
 	}
 
 	for _, tt := range movementTests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)

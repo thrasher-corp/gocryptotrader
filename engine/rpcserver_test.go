@@ -4214,7 +4214,6 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
 		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
 	} {
-		creds := creds
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 
@@ -4259,7 +4258,7 @@ func TestRPCProxyAuthClient(t *testing.T) {
 	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("MEOW"))
-		require.NoError(t, err, "Write should not error")
+		assert.NoError(t, err, "Write should not error")
 	})
 
 	handler := s.authClient(dummyHandler)
@@ -4274,7 +4273,6 @@ func TestRPCProxyAuthClient(t *testing.T) {
 		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
 		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
 	} {
-		creds := creds
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 

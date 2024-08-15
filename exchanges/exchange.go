@@ -1299,7 +1299,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil //nolint:nilerr // non-fatal error as we won't update the running URL
+		return nil
 	}
 	e.defaults[key] = val
 	return nil

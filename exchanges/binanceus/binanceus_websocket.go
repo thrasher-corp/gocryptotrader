@@ -117,8 +117,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 			err := bi.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				bi.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					bi.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", bi.Name)
 			}
 		}
 	}

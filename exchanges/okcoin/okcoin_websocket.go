@@ -219,7 +219,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 				if resp.Data[x].RescheduleDescription != "" {
 					systemStatus = fmt.Sprintf("%s Rescheduled Description: %s", systemStatus, resp.Data[x].RescheduleDescription)
 				}
-				log.Warnf(log.ExchangeSys, systemStatus)
+				log.Warnln(log.ExchangeSys, systemStatus)
 			}
 			o.Websocket.DataHandler <- resp
 			return nil
@@ -258,8 +258,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 			o.Websocket.DataHandler <- eventResponse
 		case "error":
 			if o.Verbose {
-				log.Debugf(log.ExchangeSys,
-					o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
+				log.Debugf(log.ExchangeSys, "%s - %s on channel: %s\n", o.Name, eventResponse.Event, eventResponse.Channel)
 			}
 		}
 	}
@@ -860,8 +859,8 @@ func (o *Okcoin) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) error {
 	subscriptionRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
-	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
-	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	temp := WebsocketEventRequest{Arguments: []map[string]string{}}
+	authTemp := WebsocketEventRequest{Arguments: []map[string]string{}}
 	var err error
 	var channels subscription.List
 	var authChannels subscription.List

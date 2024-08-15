@@ -80,8 +80,7 @@ func TestWithdraw(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
