@@ -199,28 +199,26 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 	return pairs
 }
 
-// Remove removes the specified pair from the list of pairs if it exists
-func (p Pairs) Remove(pair Pair) (Pairs, error) {
-	pairs := slices.Clone(p)
-	for x := range p {
-		if p[x].Equal(pair) {
-			return append(pairs[:x], pairs[x+1:]...), nil
+// Remove removes the specified pairs from the list of pairs if they exist
+func (p Pairs) Remove(rem ...Pair) Pairs {
+	n := make(Pairs, 0, len(p))
+	for _, pN := range p {
+		if !slices.ContainsFunc(rem, func(pX Pair) bool { return pX.Equal(pN) }) {
+			n = append(n, pN)
 		}
 	}
-	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
+	return slices.Clip(n)
 }
 
-// Add adds a specified pair to the list of pairs if it doesn't exist
+// Add adds pairs to the list of pairs ignoring duplicates
 func (p Pairs) Add(pairs ...Pair) Pairs {
-	merge := append(slices.Clone(p), pairs...)
-	var filterInt int
-	for x := len(p); x < len(merge); x++ {
-		if !merge[:len(p)+filterInt].Contains(merge[x], true) {
-			merge[len(p)+filterInt] = merge[x]
-			filterInt++
+	n := slices.Clone(p)
+	for _, a := range pairs {
+		if !n.Contains(a, true) {
+			n = append(n, a)
 		}
 	}
-	return merge[:len(p)+filterInt]
+	return n
 }
 
 // GetMatch returns either the pair that is equal including the reciprocal for

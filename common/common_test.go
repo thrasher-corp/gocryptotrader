@@ -565,26 +565,6 @@ func initStringSlice(size int) (out []string) {
 	return
 }
 
-func TestSplitStringSliceByLimit(t *testing.T) {
-	t.Parallel()
-	slice50 := initStringSlice(50)
-	out := SplitStringSliceByLimit(slice50, 20)
-	if len(out) != 3 {
-		t.Errorf("expected len() to be 3 instead received: %v", len(out))
-	}
-	if len(out[0]) != 20 {
-		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-
-	out = SplitStringSliceByLimit(slice50, 50)
-	if len(out) != 1 {
-		t.Errorf("expected len() to be 3 instead received: %v", len(out))
-	}
-	if len(out[0]) != 50 {
-		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-}
-
 func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 
@@ -855,4 +835,37 @@ func TestErrorCollector(t *testing.T) {
 	errs, ok := v.(*multiError)
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
+}
+
+// TestBatch ensures the Batch function does not regress into common behavioural faults if implementation changes
+func TestBatch(t *testing.T) {
+	s := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	b := Batch(s, 3)
+	require.Len(t, b, 4)
+	assert.Len(t, b[0], 3)
+	assert.Len(t, b[3], 1)
+
+	b[0][0] = 42
+	assert.Equal(t, 1, s[0], "Changing the batches must not change the source")
+
+	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
+	done := make(chan any, 1)
+	go func() { done <- Batch(s, 0) }()
+	require.Eventually(t, func() bool { return len(done) > 0 }, time.Second, time.Millisecond, "Batch 0 must not hang")
+
+	for _, i := range []int{-1, 0, 50} {
+		b = Batch(s, i)
+		require.Lenf(t, b, 1, "A batch size of %v should produce a single batch", i)
+		assert.Lenf(t, b[0], len(s), "A batch size of %v should produce a single batch", i)
+	}
+}
+
+type A int
+
+func (a A) String() string {
+	return strconv.Itoa(int(a))
+}
+
+func TestSortStrings(t *testing.T) {
+	assert.Equal(t, []A{1, 2, 5, 6}, SortStrings([]A{6, 2, 5, 1}))
 }
