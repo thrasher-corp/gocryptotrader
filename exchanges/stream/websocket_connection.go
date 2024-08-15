@@ -205,12 +205,12 @@ func (w *WebsocketConnection) IsConnected() bool {
 func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		// Any error condition will return a Response{Raw: nil, Type: 0} which
-		// will force the reader routine to return. The connection will hang
-		// with no reader routine and its buffer will be written to from the
-		// active websocket connection. This should be handed over to
-		// `w.readMessageErrors` and managed by 'connectionMonitor' which needs
-		// to flush, reconnect and resubscribe the connection.
+		// If any error occurs, a Response{Raw: nil, Type: 0} is returned, causing the
+		// reader routine to exit. This leaves the connection without an active reader,
+		// leading to potential buffer issue from the ongoing websocket writes.
+		// Such errors are passed to `w.readMessageErrors` when the connection is active.
+		// The `connectionMonitor` handles these errors by flushing the buffer, reconnecting,
+		// and resubscribing to the websocket to restore the connection.
 		if w.setConnectedStatus(false) {
 			// NOTE: When w.setConnectedStatus() returns true the underlying
 			// state was changed and this infers that the connection was

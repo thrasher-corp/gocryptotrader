@@ -414,13 +414,13 @@ func (w *Websocket) Connect() error {
 			break
 		}
 
-		w.connections[conn] = &w.connectionManager[i]
-		w.connectionManager[i].Connection = conn
-
 		if !conn.IsConnected() {
 			multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn.URL)
 			break
 		}
+
+		w.connections[conn] = &w.connectionManager[i]
+		w.connectionManager[i].Connection = conn
 
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
