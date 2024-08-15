@@ -62,8 +62,8 @@ func (p Pairs) Join() string {
 func (p Pairs) Format(pairFmt PairFormat) Pairs {
 	pairs := slices.Clone(p)
 	for x := range pairs {
-		pairs[x].Base.UpperCase = pairFmt.Uppercase
-		pairs[x].Quote.UpperCase = pairFmt.Uppercase
+		pairs[x].Base.upperCase = pairFmt.Uppercase
+		pairs[x].Quote.upperCase = pairFmt.Uppercase
 		pairs[x].Delimiter = pairFmt.Delimiter
 	}
 	return pairs
@@ -297,8 +297,8 @@ func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
 
 func (p Pair) hasFormatDifference(pairFmt PairFormat) bool {
 	return p.Delimiter != pairFmt.Delimiter ||
-		(!p.Base.IsEmpty() && p.Base.UpperCase != pairFmt.Uppercase) ||
-		(!p.Quote.IsEmpty() && p.Quote.UpperCase != pairFmt.Uppercase)
+		(!p.Base.IsEmpty() && p.Base.Item.CaseSensitive && p.Base.upperCase != pairFmt.Uppercase) ||
+		(!p.Quote.IsEmpty() && p.Quote.Item.CaseSensitive && p.Quote.upperCase != pairFmt.Uppercase)
 }
 
 // GetRandomPair returns a random pair from a list of pairs
@@ -348,10 +348,10 @@ func (p Pairs) GetCrypto() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		if p[x].Base.IsCryptocurrency() {
-			m[p[x].Base.Item] = p[x].Base.UpperCase
+			m[p[x].Base.Item] = p[x].Base.upperCase
 		}
 		if p[x].Quote.IsCryptocurrency() {
-			m[p[x].Quote.Item] = p[x].Quote.UpperCase
+			m[p[x].Quote.Item] = p[x].Quote.upperCase
 		}
 	}
 	return currencyConstructor(m)
@@ -362,10 +362,10 @@ func (p Pairs) GetFiat() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		if p[x].Base.IsFiatCurrency() {
-			m[p[x].Base.Item] = p[x].Base.UpperCase
+			m[p[x].Base.Item] = p[x].Base.upperCase
 		}
 		if p[x].Quote.IsFiatCurrency() {
-			m[p[x].Quote.Item] = p[x].Quote.UpperCase
+			m[p[x].Quote.Item] = p[x].Quote.upperCase
 		}
 	}
 	return currencyConstructor(m)
@@ -376,8 +376,8 @@ func (p Pairs) GetFiat() Currencies {
 func (p Pairs) GetCurrencies() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
-		m[p[x].Base.Item] = p[x].Base.UpperCase
-		m[p[x].Quote.Item] = p[x].Quote.UpperCase
+		m[p[x].Base.Item] = p[x].Base.upperCase
+		m[p[x].Quote.Item] = p[x].Quote.upperCase
 	}
 	return currencyConstructor(m)
 }
@@ -387,10 +387,10 @@ func (p Pairs) GetStables() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		if p[x].Base.IsStableCurrency() {
-			m[p[x].Base.Item] = p[x].Base.UpperCase
+			m[p[x].Base.Item] = p[x].Base.upperCase
 		}
 		if p[x].Quote.IsStableCurrency() {
-			m[p[x].Quote.Item] = p[x].Quote.UpperCase
+			m[p[x].Quote.Item] = p[x].Quote.upperCase
 		}
 	}
 	return currencyConstructor(m)
@@ -403,7 +403,7 @@ func currencyConstructor(m map[*Item]bool) Currencies {
 	var target int
 	for code, upper := range m {
 		cryptos[target].Item = code
-		cryptos[target].UpperCase = upper
+		cryptos[target].upperCase = upper
 		target++
 	}
 	return cryptos

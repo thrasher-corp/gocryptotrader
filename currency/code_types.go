@@ -40,7 +40,7 @@ type Code struct {
 	// TODO: Below will force the use of the Equal method for comparison. Big
 	// job to update all maps and instances through the code base.
 	// _         []struct{}
-	UpperCase bool
+	upperCase bool
 }
 
 // Item defines a sub type containing the main attributes of a designated
@@ -55,6 +55,8 @@ type Item struct {
 	Lower      string `json:"-"`
 	Role       Role   `json:"role"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
+
+	CaseSensitive bool `json:"-"`
 }
 
 // Lock implements the sync.Locker interface and forces a govet check nocopy

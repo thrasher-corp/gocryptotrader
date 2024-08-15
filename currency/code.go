@@ -187,18 +187,12 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 	}
 
 	var format bool
-	// Digits fool upper and lower casing. So find first letter and check case.
-	var letterfound bool
 	for x := range c {
-		if letterfound = unicode.IsLetter(rune(c[x])); letterfound {
+		if unicode.IsLetter(rune(c[x])) {
+			// Digits fool upper and lower casing. So find first letter and check case.
 			format = unicode.IsUpper(rune(c[x]))
 			break
 		}
-	}
-
-	// If no letter found, default to upper case
-	if !format && !letterfound {
-		format = true
 	}
 
 	// Force upper string storage and matching
@@ -224,13 +218,20 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 				}
 				stored[x].Role = newRole
 			}
-			return Code{Item: stored[x], UpperCase: format}
+			if !stored[x].CaseSensitive {
+				format = true
+			}
+			return Code{Item: stored[x], upperCase: format}
 		}
 	}
 
 	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: newRole}
+	newItem.CaseSensitive = newItem.Symbol != newItem.Lower
+	if !newItem.CaseSensitive {
+		format = true
+	}
 	b.Items[c] = append(b.Items[c], newItem)
-	return Code{Item: newItem, UpperCase: format}
+	return Code{Item: newItem, upperCase: format}
 }
 
 // LoadItem sets item data
@@ -281,7 +282,7 @@ func (c Code) String() string {
 	if c.Item == nil {
 		return ""
 	}
-	if c.UpperCase {
+	if !c.Item.CaseSensitive || c.upperCase {
 		return c.Item.Symbol
 	}
 	return c.Item.Lower
@@ -289,13 +290,19 @@ func (c Code) String() string {
 
 // Lower converts the code to lowercase formatting
 func (c Code) Lower() Code {
-	c.UpperCase = false
+	if c.Item != nil && !c.Item.CaseSensitive {
+		return c
+	}
+	c.upperCase = false
 	return c
 }
 
 // Upper converts the code to uppercase formatting
 func (c Code) Upper() Code {
-	c.UpperCase = true
+	if c.Item != nil && !c.Item.CaseSensitive {
+		return c
+	}
+	c.upperCase = true
 	return c
 }
 
@@ -351,22 +358,4 @@ func (i *Item) Currency() Code {
 		return EMPTYCODE
 	}
 	return NewCode(i.Symbol)
-}
-
-// UpperCurrency allows an item to revert to a code
-// taking an upper
-func (i *Item) UpperCurrency() Code {
-	if i == nil {
-		return EMPTYCODE.Upper()
-	}
-	return NewCode(i.Symbol).Upper()
-}
-
-// LowerCurrency allows an item to revert to a code
-// returning in lower format
-func (i *Item) LowerCurrency() Code {
-	if i == nil {
-		return EMPTYCODE.Lower()
-	}
-	return NewCode(i.Symbol).Lower()
 }
