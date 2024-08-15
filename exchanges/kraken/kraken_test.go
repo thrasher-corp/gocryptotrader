@@ -2079,20 +2079,15 @@ func TestChecksumCalculation(t *testing.T) {
 func TestGetCharts(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cp.Delimiter = "_"
 	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Candles)
 
 	end := time.UnixMilli(resp.Candles[0].Time)
 	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetFuturesTrades(t *testing.T) {
@@ -2398,4 +2393,21 @@ func TestErrorResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetFuturesErr(t *testing.T) {
+	t.Parallel()
+
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid character", "Bad JSON should error correctly")
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
+	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"Result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
+	err := getFuturesErr(json.RawMessage(`{"Result":"error", "errors": ["2 goats", "3 goats"]}`))
+	assert.ErrorContains(t, err, "2 goat", "JSON with errors should error correctly")
+	assert.ErrorContains(t, err, "3 goat", "JSON with errors should error correctly")
+	err = getFuturesErr(json.RawMessage(`{"Result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
+	assert.ErrorContains(t, err, "2 goat", "JSON with both error and errors should error correctly")
+	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
+	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")
 }

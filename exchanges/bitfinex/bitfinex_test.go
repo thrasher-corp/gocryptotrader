@@ -1979,7 +1979,7 @@ func TestGetErrResp(t *testing.T) {
 		case 3: // event != 'error'
 			assert.NoError(t, testErr, "Message with non-'error' event field should not error")
 		case 4: // event="error"
-			assert.ErrorIs(t, testErr, errUnknownError, "error without a message should throw unknown error")
+			assert.ErrorIs(t, testErr, common.ErrUnknownError, "error without a message should throw unknown error")
 			assert.ErrorContains(t, testErr, "code: 0", "error without a code should throw code 0")
 		case 5: // Fully formatted
 			assert.ErrorContains(t, testErr, "redcoats", "message field should be in the error")

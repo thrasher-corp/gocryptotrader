@@ -66,7 +66,6 @@ var (
 	m                           sync.Mutex
 	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
 	errParsingWSField           = errors.New("error parsing WS field")
-	errUnknownError             = errors.New("unknown error")
 	errCancellingOrder          = errors.New("error cancelling order")
 )
 
@@ -1360,7 +1359,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 		return nil
 	}
 
-	err = errUnknownError
+	err = common.ErrUnknownError
 	if msg, pErr := jsonparser.GetUnsafeString(resp, "errorMessage"); pErr == nil && msg != "" {
 		err = errors.New(msg)
 	}
