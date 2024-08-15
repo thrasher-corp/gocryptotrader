@@ -1416,21 +1416,10 @@ func TestRunLive(t *testing.T) {
 	bt.LiveDataHandler = dc
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	i := &gctkline.Item{
-		Exchange:       testExchange,
 		Pair:           cp,
 		UnderlyingPair: cp,
 		Asset:          asset.Spot,
 		Interval:       gctkline.FifteenSecond,
-		Candles: []gctkline.Candle{
-			{
-				Time:   time.Now(),
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
-			},
-		},
 	}
 	// 	AppendDataSource(exchange gctexchange.IBotExchange, interval gctkline.Interval, asset asset.Asset, pair, underlyingPair currency.Pair, dataType int64) error
 	setup := &liveDataSourceSetup{

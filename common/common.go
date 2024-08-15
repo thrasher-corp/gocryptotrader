@@ -139,7 +139,7 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 // returns an individual string array
 func StringSliceDifference(slice1, slice2 []string) []string {
 	var diff []string
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		for _, s1 := range slice1 {
 			found := false
 			for _, s2 := range slice2 {
@@ -399,7 +399,7 @@ func AddPaddingOnUpperCase(s string) string {
 	}
 	var result []string
 	left := 0
-	for x := 0; x < len(s); x++ {
+	for x := range s {
 		if x == 0 {
 			continue
 		}
@@ -431,7 +431,7 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	switch reflect.TypeOf(array).Kind() {
 	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(array)
-		for i := 0; i < s.Len(); i++ {
+		for i := range s.Len() {
 			if reflect.DeepEqual(val, s.Index(i).Interface()) {
 				index = i
 				exists = true

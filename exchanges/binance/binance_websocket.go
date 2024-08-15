@@ -120,7 +120,7 @@ func (b *Binance) setupOrderbookManager() {
 		}
 	}
 
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		b.SynchroniseWebsocketOrderbook()
 	}

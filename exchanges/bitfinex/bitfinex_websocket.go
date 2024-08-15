@@ -2145,7 +2145,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 
 	// RO precision calculation is based on order ID's and amount values
 	var bids, asks []orderbook.Tranche
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if i < len(book.Bids) {
 			bids = append(bids, book.Bids[i])
 		}
@@ -2167,7 +2167,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 	}
 
 	var check strings.Builder
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if i < len(bids) {
 			check.WriteString(strconv.FormatInt(bids[i].ID, 10))
 			check.WriteString(":")

@@ -686,7 +686,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	// currency pairs
 	pairs = append(pairs, NewPair(ETH, USD))
 	expectedResults := make(map[string]bool)
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		result, err = pairs.GetRandomPair()
 		if !errors.Is(err, nil) {
 			t.Fatalf("received: '%v' but expected: '%v'", err, nil)

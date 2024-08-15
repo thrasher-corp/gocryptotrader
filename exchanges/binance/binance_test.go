@@ -1970,7 +1970,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 		}
 	}()
 	bb.ResetTimer()
-	for i := 0; i < bb.N; i++ {
+	for range bb.N {
 		for x := range lines {
 			assert.NoError(bb, b.wsHandleData(lines[x]))
 		}

@@ -230,8 +230,6 @@ func TestExists(t *testing.T) {
 		isCollateral:      baseItem.isCollateral,
 		collateralCandles: baseItem.collateralCandles,
 	}
-	quoteCopy := Item{pairedWith: quoteItem.pairedWith}
-	quoteCopy.pairedWith = &baseCopy
 	if !f.Exists(&baseCopy) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}

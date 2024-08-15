@@ -37,7 +37,6 @@ const (
 )
 
 var b *Bitfinex
-var wsConnected bool
 var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 func TestMain(m *testing.M) {

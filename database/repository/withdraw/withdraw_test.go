@@ -111,7 +111,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func seedWithdrawData() {
-	for x := 0; x < 20; x++ {
+	for x := range 20 {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
 			Exchange: withdraw.ExchangeResponse{

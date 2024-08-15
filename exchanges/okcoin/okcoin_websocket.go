@@ -714,7 +714,7 @@ func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.
 func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
 	orderbookData.prepareOrderbook()
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0]
 			bidAmount := orderbookData.Bids[i][1]
@@ -739,7 +739,7 @@ func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, er
 // CalculateOrderbookUpdateChecksum calculated the orderbook update checksum using currency pair full snapshot.
 func (o *Okcoin) CalculateOrderbookUpdateChecksum(orderbookData *orderbook.Base) int32 {
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			bidAmount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)

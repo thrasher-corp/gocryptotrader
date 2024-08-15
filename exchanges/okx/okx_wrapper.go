@@ -685,7 +685,7 @@ allTrades:
 		if len(trades) == 0 {
 			break
 		}
-		for i := 0; i < len(trades); i++ {
+		for i := range trades {
 			if timestampStart.Equal(trades[i].Timestamp.Time()) ||
 				trades[i].Timestamp.Time().Before(timestampStart) ||
 				tradeIDEnd == trades[len(trades)-1].TradeID {
@@ -990,7 +990,7 @@ ordersLoop:
 	}
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
-	for b := 0; b < loop; b++ {
+	for range loop {
 		var response []OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {

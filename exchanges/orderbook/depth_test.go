@@ -87,7 +87,7 @@ func TestRetrieve(t *testing.T) {
 	// If we add anymore options to the options struct later this will complain
 	// generally want to return a full carbon copy
 	mirrored := reflect.Indirect(reflect.ValueOf(d.options))
-	for n := 0; n < mirrored.NumField(); n++ {
+	for n := range mirrored.NumField() {
 		structVal := mirrored.Field(n)
 		assert.Falsef(t, structVal.IsZero(), "struct field '%s' not tested", mirrored.Type().Field(n).Name)
 	}
@@ -737,7 +737,7 @@ func TestMovementMethods(t *testing.T) {
 				assert.NoErrorf(t, err, "sub test %d should not error", i)
 				meta := reflect.Indirect(reflect.ValueOf(move))
 				metaExpect := reflect.Indirect(reflect.ValueOf(subT.expect))
-				for j := 0; j < metaExpect.NumField(); j++ {
+				for j := range metaExpect.NumField() {
 					field := meta.Field(j)
 					expect := metaExpect.Field(j)
 					if field.CanFloat() && !expect.IsZero() {

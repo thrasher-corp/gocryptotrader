@@ -120,7 +120,7 @@ func TestSupported(t *testing.T) {
 	if len(supportedList) != len(s) {
 		t.Fatal("TestSupported mismatched lengths")
 	}
-	for i := 0; i < len(supportedList); i++ {
+	for i := range supportedList {
 		if s[i] != supportedList[i] {
 			t.Fatal("TestSupported returned an unexpected result")
 		}
