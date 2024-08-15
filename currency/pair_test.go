@@ -930,6 +930,11 @@ func TestPair_GetFormatting(t *testing.T) {
 	if !errors.Is(err, errPairFormattingInconsistent) {
 		t.Error(err)
 	}
+
+	p = EMPTYPAIR
+	pFmt, err = p.GetFormatting()
+	require.NoError(t, err)
+	assert.Equal(t, EMPTYFORMAT, pFmt)
 }
 
 func TestNewBTCUSD(t *testing.T) {
