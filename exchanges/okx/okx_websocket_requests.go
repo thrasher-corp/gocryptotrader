@@ -174,7 +174,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-amend-orders", args, &orderResp)
 }
 
-// SendWebsocketRequest sends a websocket request to the server
+// SendAuthenticatedWebsocketRequest sends a websocket request to the server
 func (ok *Okx) SendAuthenticatedWebsocketRequest(id, operation string, payload, response any) error {
 	if id == "" || operation == "" || payload == nil || response == nil {
 		return errInvalidWebsocketRequest
