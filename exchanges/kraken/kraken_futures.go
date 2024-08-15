@@ -377,20 +377,20 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 		}, nil
 	}
 
-	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
-	if err != nil {
+	if err := k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest); err != nil {
 		return err
 	}
 
-	var errCap AuthErrorData
-	if err = json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.Result != "success" && errCap.Error != "" {
-			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
-		}
+	var resp genericFuturesResponse
+	if err := json.Unmarshal(interim, &resp); err != nil {
+		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+	} else if resp.Error != "" && resp.Result != "success" {
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, resp.Error)
 	}
-	err = json.Unmarshal(interim, result)
-	if err != nil {
-		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+
+	if err := json.Unmarshal(interim, result); err != nil {
+		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 	}
+
 	return nil
 }
