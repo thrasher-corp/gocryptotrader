@@ -3,6 +3,7 @@ package currency
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,14 +47,8 @@ func TestNewTranslations(t *testing.T) {
 		USDM: USD,
 	})
 	require.NotNil(t, translations)
-
-	if !translationsTest.Translate(XBT).Equal(BTC) {
-		t.Error("NewTranslations: translation failed")
-	}
-
-	if !translationsTest.Translate(LTC).Equal(LTC) {
-		t.Error("NewTranslations: translation failed")
-	}
+	assert.Equal(t, BTC, translationsTest.Translate(XBT), "Translate should return BTC")
+	assert.Equal(t, LTC, translationsTest.Translate(LTC), "Translate should return LTC")
 }
 
 func TestFindMatchingPairsBetween(t *testing.T) {
@@ -78,9 +73,7 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	matchingPairs := FindMatchingPairsBetween(PairsWithTranslation{spotPairs, nil}, PairsWithTranslation{futuresPairs, nil})
 	require.Len(t, matchingPairs, 1)
 
-	if !matchingPairs[ltcusd].Equal(ltcusd) {
-		t.Error("FindMatchingPairsBetween: matching pair not found")
-	}
+	assert.True(t, ltcusd.Equal(matchingPairs[ltcusd]), "Pairs should match")
 
 	translationsTest := NewTranslations(map[Code]Code{
 		XBT:  BTC,
@@ -101,18 +94,14 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	require.Len(t, matchingPairs, 4)
 
 	for k, v := range matchingPairs {
-		if !expected[k.keyPair()].Equal(v) {
-			t.Error("FindMatchingPairsBetween: translation failed")
-		}
+		assert.True(t, v.Equal(expected[k.keyPair()]), "Pairs should match")
 	}
 
 	matchingPairs = FindMatchingPairsBetween(PairsWithTranslation{spotPairs, translationsTest}, PairsWithTranslation{futuresPairs, translationsTest})
 	require.Len(t, matchingPairs, 4)
 
 	for k, v := range matchingPairs {
-		if !expected[k.keyPair()].Equal(v) {
-			t.Error("FindMatchingPairsBetween: translation failed")
-		}
+		assert.True(t, v.Equal(expected[k.keyPair()]), "Pairs should match")
 	}
 
 	expected = map[keyPair]Pair{
@@ -123,9 +112,7 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	require.Len(t, matchingPairs, 1)
 
 	for k, v := range matchingPairs {
-		if !expected[k.keyPair()].Equal(v) {
-			t.Error("FindMatchingPairsBetween: translation failed")
-		}
+		assert.True(t, v.Equal(expected[k.keyPair()]), "Pairs should match")
 	}
 }
 
