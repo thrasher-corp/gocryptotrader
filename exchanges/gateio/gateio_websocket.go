@@ -819,7 +819,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 		}
 
 		payload := WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			ID:      g.Counter.IncrementAndGet(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
