@@ -1546,7 +1546,6 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
@@ -1602,7 +1601,6 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := b.GetAggregatedTrades(context.Background(), tt.args)
@@ -1972,7 +1970,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 		}
 	}()
 	bb.ResetTimer()
-	for i := 0; i < bb.N; i++ {
+	for range bb.N {
 		for x := range lines {
 			assert.NoError(bb, b.wsHandleData(lines[x]))
 		}
@@ -2730,8 +2728,7 @@ func TestFormatSymbol(t *testing.T) {
 			expectedString: "BTCUSDT_211231",
 		},
 	}
-	for i := range testerinos {
-		tt := testerinos[i]
+	for _, tt := range testerinos {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			result, err := b.FormatSymbol(tt.pair, tt.asset)

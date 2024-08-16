@@ -120,7 +120,7 @@ func (b *Binance) setupOrderbookManager() {
 		}
 	}
 
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		b.SynchroniseWebsocketOrderbook()
 	}
@@ -141,8 +141,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 			err := b.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					b.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", b.Name)
 			}
 		}
 	}

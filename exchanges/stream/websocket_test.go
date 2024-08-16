@@ -201,7 +201,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, connectedState, ws.state.Load(), "websocket must be connected")
 
-	for i := 0; i < 6; i++ { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
+	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
 		select {
 		case ws.TrafficAlert <- signal:
 			if i == 0 {
@@ -896,7 +896,7 @@ func TestGenerateMessageID(t *testing.T) {
 	wc := WebsocketConnection{}
 	const spins = 1000
 	ids := make([]int64, spins)
-	for i := 0; i < spins; i++ {
+	for i := range spins {
 		id := wc.GenerateMessageID(true)
 		assert.NotContains(t, ids, id, "GenerateMessageID must not generate the same ID twice")
 		ids[i] = id

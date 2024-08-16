@@ -140,8 +140,7 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 			expectedErr:    errCurrencyNotFoundInPairs,
 		},
 	}
-	for i := range tests {
-		tt := tests[i]
+	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
 			basePair, quotePair, err := findMatchingUSDPairs(tt.initialPair, tt.availablePairs)
@@ -222,8 +221,7 @@ func TestPairContainsUSD(t *testing.T) {
 			currency.NewPair(currency.BTC, currency.PAX),
 		},
 	}
-	for i := range pairs {
-		tt := pairs[i]
+	for _, tt := range pairs {
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
 			resp := pairContainsUSD(tt.pair)

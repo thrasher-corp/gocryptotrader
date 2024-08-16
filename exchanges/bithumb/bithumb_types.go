@@ -262,7 +262,7 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.LRC:   10,
 	currency.GTO:   15,
 	currency.STEEM: 0.01,
-	currency.STRAT: 0.2,
+	currency.STRAT: 0.2, //nolint:misspell // Not a misspelling
 	currency.PPT:   0.5,
 	currency.CTXC:  4,
 	currency.CMT:   20,

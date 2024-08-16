@@ -107,11 +107,11 @@ func TestTrades(t *testing.T) {
 
 func tradeSQLTester(t *testing.T) {
 	t.Helper()
-	var trades, trades2 []Data
+	trades := make([]Data, 20)
 	firstTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		uu, _ := uuid.NewV4()
-		trades = append(trades, Data{
+		trades[i] = Data{
 			ID:        uu.String(),
 			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),
 			Exchange:  testExchanges[0].Name,
@@ -122,16 +122,18 @@ func tradeSQLTester(t *testing.T) {
 			Amount:    float64(i * (i + 2)),
 			Side:      order.Buy.String(),
 			TID:       strconv.Itoa(i),
-		})
+		}
 	}
 	err := Insert(trades...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// insert the same trades to test conflict resolution
-	for i := 0; i < 20; i++ {
+
+	trades2 := make([]Data, 20)
+	for i := range 20 {
 		uu, _ := uuid.NewV4()
-		trades2 = append(trades2, Data{
+		trades2[i] = Data{
 			ID:        uu.String(),
 			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),
 			Exchange:  testExchanges[0].Name,
@@ -142,7 +144,7 @@ func tradeSQLTester(t *testing.T) {
 			Amount:    float64(i * (i + 2)),
 			Side:      order.Buy.String(),
 			TID:       strconv.Itoa(i),
-		})
+		}
 	}
 	err = Insert(trades2...)
 	if err != nil {

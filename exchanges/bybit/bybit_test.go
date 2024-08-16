@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -3661,15 +3660,15 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 	is, err = b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, inverseTradablePair)
 	assert.NoError(t, err)
-	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair))
+	assert.Truef(t, is, "%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair)
 
 	is, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, usdtMarginedTradablePair)
 	assert.NoError(t, err)
-	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair))
+	assert.Truef(t, is, "%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair)
 
 	is, err = b.IsPerpetualFutureCurrency(asset.USDCMarginedFutures, usdcMarginedTradablePair)
 	assert.NoError(t, err)
-	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair))
+	assert.Truef(t, is, "%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair)
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

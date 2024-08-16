@@ -1,6 +1,6 @@
 module github.com/thrasher-corp/gocryptotrader
 
-go 1.22.0
+go 1.23.0
 
 require (
 	github.com/buger/jsonparser v1.1.1
