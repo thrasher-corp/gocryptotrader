@@ -83,13 +83,15 @@ func TestListSetStates(t *testing.T) {
 // All other code is covered under TestExpandTemplates
 func TestAssetPairs(t *testing.T) {
 	t.Parallel()
-	expErr := errors.New("Krypton is gone")
 	for _, a := range []asset.Item{asset.Spot, asset.All} {
+		e := newMockEx()
 		l := &List{{Channel: CandlesChannel, Asset: a}}
-		_, err := l.assetPairs(&mockEx{errPairs: expErr})
-		assert.ErrorIs(t, err, expErr, "Should error correctly on GetEnabledPairs")
-		_, err = l.assetPairs(&mockEx{errFormat: expErr})
-		assert.ErrorIs(t, err, expErr, "Should error correctly on GetPairFormat")
+		e.errFormat = errors.New("Krypton is back")
+		_, err := l.assetPairs(e)
+		assert.ErrorIs(t, err, e.errFormat, "Should error correctly on GetPairFormat")
+		e.errPairs = errors.New("Krypton is gone")
+		_, err = l.assetPairs(e)
+		assert.ErrorIs(t, err, e.errPairs, "Should error correctly on GetEnabledPairs")
 	}
 }
 

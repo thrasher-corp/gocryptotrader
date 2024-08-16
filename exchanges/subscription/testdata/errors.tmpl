@@ -1,13 +1,36 @@
 {{- if eq .S.Channel "error1" }}
-  {{/* Error 1: Expand pairs but not assets, without specific asset */}}
-  {{- .PairSeparator -}}
+	{{/* Runtime error from executing */}}
+	{{ .S.String 42 }}
 {{- else if eq .S.Channel "error2" }}
-  {{/* Error 2: Runtime error from executing */}}
-  {{ .S.String 42 }}
+	{{/* Incorrect number of asset entries */}}
+	{{- .AssetSeparator -}}
+	{{- .AssetSeparator -}}
+	{{- .AssetSeparator -}}
 {{- else if eq .S.Channel "error3" }}
-  {{/* Error 3: Incorrect number of asset entries */}}
-  {{- .AssetSeparator }}
+	{{/* Incorrect number of pair entries */}}
+	{{- .PairSeparator -}}
+	{{- .PairSeparator -}}
+	{{- .PairSeparator -}}
 {{- else if eq .S.Channel "error4" }}
-  {{/* Error 3: Incorrect number of pair entries */}}
-  {{- .PairSeparator }}
+	{{/* Too many BatchSize commands */}}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- $pairs.Join -}}
+		{{- $.BatchSize -}}1
+		{{- $.BatchSize -}}2
+		{{- $.AssetSeparator -}}
+	{{- end -}}
+{{- else if eq .S.Channel "error5" }}
+	{{/* BatchSize without number */}}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- $pairs.Join -}}
+		{{- $.BatchSize -}}
+		{{- $.AssetSeparator -}}
+	{{- end -}}
+{{- else if eq .S.Channel "empty-content" }}
+	{{/* Empty response for the pair */}}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- range $pair := $pairs -}}
+			{{- $.PairSeparator -}}
+		{{- end -}}
+	{{- end -}}
 {{- end -}}

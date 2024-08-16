@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -144,21 +143,7 @@ func (ku *Kucoin) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
-		Subscriptions: subscription.List{
-			// Where we can we use generic names
-			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
-			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
-			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
-			{Enabled: true, Channel: futuresTickerV2Channel},
-			{Enabled: true, Channel: futuresOrderbookLevel2Depth50Channel},
-			{Enabled: true, Channel: marginFundingbookChangeChannel, Authenticated: true},
-			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
-			{Enabled: true, Channel: marginPositionChannel, Authenticated: true},
-			{Enabled: true, Channel: marginLoanChannel, Authenticated: true},
-			{Enabled: true, Channel: futuresTradeOrderChannel, Authenticated: true},
-			{Enabled: true, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
-			{Enabled: true, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
-		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -196,6 +181,8 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
+	ku.checkSubscriptions()
 
 	wsRunningEndpoint, err := ku.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
@@ -1390,7 +1377,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				})
 		}
 	case asset.Spot, asset.Margin:
-		intervalString, err := ku.intervalToString(interval)
+		intervalString, err := intervalToString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -1442,7 +1429,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 		case asset.Spot, asset.Margin:
 			var intervalString string
-			intervalString, err = ku.intervalToString(interval)
+			intervalString, err = intervalToString(interval)
 			if err != nil {
 				return nil, err
 			}

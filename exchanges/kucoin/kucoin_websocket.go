@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -18,6 +20,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -28,59 +31,47 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedFuturesSnapshotOrderbook map[string]bool
+var fetchedFuturesOrderbookMutex sync.Mutex
+var fetchedFuturesOrderbook map[string]bool
 
 const (
 	publicBullets  = "/v1/bullet-public"
 	privateBullets = "/v1/bullet-private"
 
 	// spot channels
-	marketAllTickersChannel         = "/market/ticker:all"
-	marketTickerChannel             = "/market/ticker:%s"            // /market/ticker:{symbol},{symbol}...
-	marketSymbolSnapshotChannel     = "/market/snapshot:%s"          // /market/snapshot:{symbol}
-	marketSnapshotChannel           = "/market/snapshot:%v"          // /market/snapshot:{market} <--- market represents a currency
-	marketOrderbookLevel2Channels   = "/market/level2:%s"            // /market/level2:{pair},{pair}...
-	marketOrderbookLevel2to5Channel = "/spotMarket/level2Depth5:%s"  // /spotMarket/level2Depth5:{symbol},{symbol}...
-	marketOrderbokLevel2To50Channel = "/spotMarket/level2Depth50:%s" // /spotMarket/level2Depth50:{symbol},{symbol}...
-	marketCandlesChannel            = "/market/candles:%s_%s"        // /market/candles:{symbol}_{interval}
-	marketMatchChannel              = "/market/match:%s"             // /market/match:{symbol},{symbol}...
-	indexPriceIndicatorChannel      = "/indicator/index:%s"          // /indicator/index:{symbol0},{symbol1}..
-	markPriceIndicatorChannel       = "/indicator/markPrice:%s"      // /indicator/markPrice:{symbol0},{symbol1}...
-	marginFundingbookChangeChannel  = "/margin/fundingBook:%s"       // /margin/fundingBook:{currency0},{currency1}...
+	marketTickerChannel           = "/market/ticker"            // /market/ticker:{symbol},...
+	marketSnapshotChannel         = "/market/snapshot"          // /market/snapshot:{symbol},...
+	marketOrderbookChannel        = "/market/level2"            // /market/level2:{symbol},...
+	marketOrderbookDepth5Channel  = "/spotMarket/level2Depth5"  // /spotMarket/level2Depth5:{symbol},...
+	marketOrderbookDepth50Channel = "/spotMarket/level2Depth50" // /spotMarket/level2Depth50:{symbol},...
+	marketCandlesChannel          = "/market/candles"           // /market/candles:{symbol}_{interval},...
+	marketMatchChannel            = "/market/match"             // /market/match:{symbol},...
+	indexPriceIndicatorChannel    = "/indicator/index"          // /indicator/index:{symbol},...
+	markPriceIndicatorChannel     = "/indicator/markPrice"      // /indicator/markPrice:{symbol},...
 
 	// Private channels
 	privateSpotTradeOrders    = "/spotMarket/tradeOrders"
 	accountBalanceChannel     = "/account/balance"
 	marginPositionChannel     = "/margin/position"
-	marginLoanChannel         = "/margin/loan:%s" // /margin/loan:{currency}
+	marginLoanChannel         = "/margin/loan" // /margin/loan:{currency}
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
 
 	// futures channels
-	futuresTickerV2Channel                       = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
-	futuresTickerChannel                         = "/contractMarket/ticker:%s"        // /contractMarket/ticker:{symbol}
-	futuresOrderbookLevel2Channel                = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
-	futuresExecutionDataChannel                  = "/contractMarket/execution:%s"     // /contractMarket/execution:{symbol}
-	futuresOrderbookLevel2Depth5Channel          = "/contractMarket/level2Depth5:%s"  // /contractMarket/level2Depth5:{symbol}
-	futuresOrderbookLevel2Depth50Channel         = "/contractMarket/level2Depth50:%s" // /contractMarket/level2Depth50:{symbol}
-	futuresContractMarketDataChannel             = "/contract/instrument:%s"          // /contract/instrument:{symbol}
+	futuresTickerChannel                         = "/contractMarket/tickerV2"      // /contractMarket/tickerV2:{symbol},...
+	futuresOrderbookChannel                      = "/contractMarket/level2"        // /contractMarket/level2:{symbol},...
+	futuresOrderbookDepth5Channel                = "/contractMarket/level2Depth5"  // /contractMarket/level2Depth5:{symbol},...
+	futuresOrderbookDepth50Channel               = "/contractMarket/level2Depth50" // /contractMarket/level2Depth50:{symbol},...
+	futuresExecutionDataChannel                  = "/contractMarket/execution"     // /contractMarket/execution:{symbol},...
+	futuresContractMarketDataChannel             = "/contract/instrument"          // /contract/instrument:{symbol},...
 	futuresSystemAnnouncementChannel             = "/contract/announcement"
-	futuresTrasactionStatisticsTimerEventChannel = "/contractMarket/snapshot:%s" // /contractMarket/snapshot:{symbol}
+	futuresTrasactionStatisticsTimerEventChannel = "/contractMarket/snapshot" // /contractMarket/snapshot:{symbol},...
 
 	// futures private channels
-	futuresTradeOrdersBySymbolChannel      = "/contractMarket/tradeOrders:%s" // /contractMarket/tradeOrders:{symbol}
-	futuresTradeOrderChannel               = "/contractMarket/tradeOrders"
+	futuresTradeOrderChannel               = "/contractMarket/tradeOrders" // /contractMarket/tradeOrders:{symbol},...
+	futuresPositionChangeEventChannel      = "/contract/position"          // /contract/position:{symbol},...
 	futuresStopOrdersLifecycleEventChannel = "/contractMarket/advancedOrders"
 	futuresAccountBalanceEventChannel      = "/contractAccount/wallet"
-	futuresPositionChangeEventChannel      = "/contract/position:%s" // /contract/position:{symbol}
 )
-
-var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
-	subscription.OrderbookChannel: marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
-	subscription.CandlesChannel:   marketCandlesChannel,
-	subscription.AllTradesChannel: marketMatchChannel,
-	// No equivalents for: AllOrders, MyTrades, MyOrders
-}
 
 var (
 	// maxWSUpdateBuffer defines max websocket updates to apply when an
@@ -94,12 +85,27 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Margin, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Margin, Channel: marginPositionChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Margin, Channel: marginLoanChannel, Authenticated: true},
+	{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
+}
+
 // WsConnect creates a new websocket connection.
 func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
-	fetchedFuturesSnapshotOrderbook = map[string]bool{}
+	fetchedFuturesOrderbookMutex.Lock()
+	fetchedFuturesOrderbook = map[string]bool{}
+	fetchedFuturesOrderbookMutex.Unlock()
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
@@ -206,9 +212,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return nil
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
-	switch {
-	case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]),
-		strings.HasPrefix(marketTickerChannel, topicInfo[0]):
+	switch topicInfo[0] {
+	case marketTickerChannel:
 		var instruments string
 		if topicInfo[1] == "all" {
 			instruments = resp.Subject
@@ -216,117 +221,74 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			instruments = topicInfo[1]
 		}
 		return ku.processTicker(resp.Data, instruments, topicInfo[0])
-	case strings.HasPrefix(marketSymbolSnapshotChannel, topicInfo[0]):
+	case marketSnapshotChannel:
 		return ku.processMarketSnapshot(resp.Data, topicInfo[0])
-	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]):
+	case marketOrderbookChannel:
 		return ku.processOrderbookWithDepth(respData, topicInfo[1], topicInfo[0])
-	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
-		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
+	case marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
 		return ku.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
-	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
+	case marketCandlesChannel:
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
 			return errMalformedData
 		}
 		return ku.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1], topicInfo[0])
-	case strings.HasPrefix(marketMatchChannel, topicInfo[0]):
+	case marketMatchChannel:
 		return ku.processTradeData(resp.Data, topicInfo[1], topicInfo[0])
-	case strings.HasPrefix(indexPriceIndicatorChannel, topicInfo[0]):
+	case indexPriceIndicatorChannel, markPriceIndicatorChannel:
 		var response WsPriceIndicator
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
-		var response WsPriceIndicator
-		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(marginFundingbookChangeChannel, topicInfo[0]):
-		var response WsMarginFundingBook
-		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(privateSpotTradeOrders, topicInfo[0]):
+	case privateSpotTradeOrders:
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
-	case strings.HasPrefix(accountBalanceChannel, topicInfo[0]):
+	case accountBalanceChannel:
 		return ku.processAccountBalanceChange(resp.Data)
-	case strings.HasPrefix(marginPositionChannel, topicInfo[0]):
+	case marginPositionChannel:
 		if resp.Subject == "debt.ratio" {
 			var response WsDebtRatioChange
 			return ku.processData(resp.Data, &response)
 		}
 		var response WsPositionStatus
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(marginLoanChannel, topicInfo[0]) && resp.Subject == "order.done":
-		var response WsMarginTradeOrderDoneEvent
-		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(marginLoanChannel, topicInfo[0]):
-		return ku.processMarginLendingTradeOrderEvent(resp.Data)
-	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
-		return ku.processStopOrderEvent(resp.Data)
-	case strings.HasPrefix(futuresTickerV2Channel, topicInfo[0]),
-		strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
-		return ku.processFuturesTickerV2(resp.Data)
-	case strings.HasPrefix(futuresOrderbookLevel2Channel, topicInfo[0]):
-		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
-			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
-			var enabledPairs currency.Pairs
-			enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				return err
-			}
-			var cp currency.Pair
-			cp, err = enabledPairs.DeriveFrom(topicInfo[1])
-			if err != nil {
-				return err
-			}
-			var orderbooks *orderbook.Base
-			orderbooks, err = ku.FetchOrderbook(context.Background(), cp, asset.Futures)
-			if err != nil {
-				return err
-			}
-			err = ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
-			if err != nil {
-				return err
-			}
+	case marginLoanChannel:
+		if resp.Subject == "order.done" {
+			var response WsMarginTradeOrderDoneEvent
+			return ku.processData(resp.Data, &response)
+		} else {
+			return ku.processMarginLendingTradeOrderEvent(resp.Data)
 		}
-		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
-	case strings.HasPrefix(futuresExecutionDataChannel, topicInfo[0]):
+	case spotMarketAdvancedChannel:
+		return ku.processStopOrderEvent(resp.Data)
+	case futuresTickerChannel:
+		return ku.processFuturesTickerV2(resp.Data)
+	case futuresExecutionDataChannel:
 		var response WsFuturesExecutionData
 		return ku.processData(resp.Data, &response)
-	case strings.HasPrefix(futuresOrderbookLevel2Depth5Channel, topicInfo[0]),
-		strings.HasPrefix(futuresOrderbookLevel2Depth50Channel, topicInfo[0]):
-		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
-			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
-			var enabledPairs currency.Pairs
-			enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				return err
-			}
-			cp, err := enabledPairs.DeriveFrom(topicInfo[1])
-			if err != nil {
-				return err
-			}
-			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
-			if err != nil {
-				return err
-			}
-			err = ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
-			if err != nil {
-				return err
-			}
+	case futuresOrderbookChannel:
+		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
+			return err
 		}
-		return ku.processFuturesOrderbookLevel5(resp.Data, topicInfo[1])
-	case strings.HasPrefix(futuresContractMarketDataChannel, topicInfo[0]):
-		if resp.Subject == "mark.index.price" {
+		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
+	case futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
+		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
+			return err
+		}
+		return ku.processFuturesOrderbookSnapshot(resp.Data, topicInfo[1])
+	case futuresContractMarketDataChannel:
+		switch resp.Subject {
+		case "mark.index.price":
 			return ku.processFuturesMarkPriceAndIndexPrice(resp.Data, topicInfo[1])
-		} else if resp.Subject == "funding.rate" {
+		case "funding.rate":
 			return ku.processFuturesFundingData(resp.Data, topicInfo[1])
 		}
-	case strings.HasPrefix(futuresSystemAnnouncementChannel, topicInfo[0]):
+	case futuresSystemAnnouncementChannel:
 		return ku.processFuturesSystemAnnouncement(resp.Data, resp.Subject)
-	case strings.HasPrefix(futuresTrasactionStatisticsTimerEventChannel, topicInfo[0]):
+	case futuresTrasactionStatisticsTimerEventChannel:
 		return ku.processFuturesTransactionStatistics(resp.Data, topicInfo[1])
-	case strings.HasPrefix(futuresTradeOrdersBySymbolChannel, topicInfo[0]),
-		strings.HasPrefix(futuresTradeOrderChannel, topicInfo[0]):
+	case futuresTradeOrderChannel:
 		return ku.processFuturesPrivateTradeOrders(resp.Data)
-	case strings.HasPrefix(futuresStopOrdersLifecycleEventChannel, topicInfo[0]):
+	case futuresStopOrdersLifecycleEventChannel:
 		return ku.processFuturesStopOrderLifecycleEvent(resp.Data)
-	case strings.HasPrefix(futuresAccountBalanceEventChannel, topicInfo[0]):
+	case futuresAccountBalanceEventChannel:
 		switch resp.Subject {
 		case "orderMargin.change":
 			var response WsFuturesOrderMarginEvent
@@ -337,15 +299,16 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			var response WsFuturesWithdrawalAmountAndTransferOutAmountEvent
 			return ku.processData(resp.Data, &response)
 		}
-	case strings.HasPrefix(futuresPositionChangeEventChannel, topicInfo[0]):
-		if resp.Subject == "position.change" {
+	case futuresPositionChangeEventChannel:
+		switch resp.Subject {
+		case "position.change":
 			if resp.ChannelType == "private" {
 				var response WsFuturesPosition
 				return ku.processData(resp.Data, &response)
 			}
 			var response WsFuturesMarkPricePositionChanges
 			return ku.processData(resp.Data, &response)
-		} else if resp.Subject == "position.settlement" {
+		case "position.settlement":
 			var response WsFuturesPositionFundingSettlement
 			return ku.processData(resp.Data, &response)
 		}
@@ -502,7 +465,30 @@ func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrume
 	return nil
 }
 
-func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument string) error {
+// ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
+func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
+	fetchedFuturesOrderbookMutex.Lock()
+	defer fetchedFuturesOrderbookMutex.Unlock()
+	if fetchedFuturesOrderbook[symbol] {
+		return nil
+	}
+	fetchedFuturesOrderbook[symbol] = true
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	cp, err := enabledPairs.DeriveFrom(symbol)
+	if err != nil {
+		return err
+	}
+	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	if err != nil {
+		return err
+	}
+	return ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
+}
+
+func (ku *Kucoin) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
 	response := WsOrderbookLevel5Response{}
 	if err := json.Unmarshal(respData, &response); err != nil {
 		return err
@@ -527,7 +513,7 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument stri
 }
 
 func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
-	resp := WsFuturesOrderbokInfo{}
+	resp := WsFuturesOrderbookInfo{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -959,40 +945,14 @@ func (ku *Kucoin) Unsubscribe(subscriptions subscription.List) error {
 	return ku.manageSubscriptions(subscriptions, "unsubscribe")
 }
 
-// expandManualSubscription takes a subscription list and expand all the subscriptions across the relevant assets and pairs
-func (ku *Kucoin) expandManualSubscriptions(in subscription.List) (subscription.List, error) {
-	subs := make(subscription.List, 0, len(in))
-	for _, s := range in {
-		if isSymbolChannel(s.Channel) {
-			if len(s.Pairs) == 0 {
-				return nil, errSubscriptionPairRequired
-			}
-			a := s.Asset
-			if !a.IsValid() {
-				a = getChannelsAssetType(s.Channel)
-			}
-			assetPairs := map[asset.Item]currency.Pairs{a: s.Pairs}
-			n, err := ku.expandSubscription(s, assetPairs)
-			if err != nil {
-				return nil, err
-			}
-			subs = append(subs, n...)
-		} else {
-			subs = append(subs, s)
-		}
-	}
-	return subs, nil
-}
-
 func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) error {
 	var errs error
-	subs, errs = ku.expandManualSubscriptions(subs)
 	for _, s := range subs {
 		msgID := strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10)
 		req := WsSubscriptionInput{
 			ID:             msgID,
 			Type:           operation,
-			Topic:          s.Channel,
+			Topic:          s.QualifiedChannel,
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
@@ -1003,6 +963,13 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			switch {
 			case err != nil:
 				errs = common.AppendError(errs, err)
+			case rType == "error":
+				code, _ := jsonparser.GetUnsafeString(respRaw, "code")
+				msg, msgErr := jsonparser.GetUnsafeString(respRaw, "data")
+				if msgErr != nil {
+					msg = "unknown error"
+				}
+				errs = common.AppendError(errs, fmt.Errorf("%s (%s)", msg, code))
 			case rType != "ack":
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
@@ -1023,192 +990,28 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 	return errs
 }
 
-// getChannelsAssetType returns the asset type to which the subscription channel belongs to or asset.Empty
-func getChannelsAssetType(channelName string) asset.Item {
-	switch channelName {
-	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
-		return asset.Futures
-	case marketTickerChannel, marketAllTickersChannel,
-		marketSnapshotChannel, marketSymbolSnapshotChannel,
-		marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel,
-		marketOrderbokLevel2To50Channel, marketCandlesChannel,
-		marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel,
-		privateSpotTradeOrders, accountBalanceChannel, spotMarketAdvancedChannel:
-		return asset.Spot
-	case marginFundingbookChangeChannel, marginPositionChannel, marginLoanChannel:
-		return asset.Margin
-	default:
-		return asset.Empty
-	}
-}
-
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
-	assetPairs := map[asset.Item]currency.Pairs{}
-	for _, a := range ku.GetAssetTypes(false) {
-		if p, err := ku.GetEnabledPairs(a); err == nil {
-			assetPairs[a] = p
-		} else {
-			assetPairs[a] = currency.Pairs{} // err is probably that Asset isn't enabled, but we don't care about errors of any type
-		}
-	}
-	authed := ku.Websocket.CanUseAuthenticatedEndpoints()
-	subscriptions := subscription.List{}
-	for _, s := range ku.Features.Subscriptions {
-		if !authed && s.Authenticated {
-			continue
-		}
-		subs, err := ku.expandSubscription(s, assetPairs)
-		if err != nil {
-			return nil, err
-		}
-		subscriptions = append(subscriptions, subs...)
-	}
-	return subscriptions, nil
+	return ku.Features.Subscriptions.ExpandTemplates(ku)
 }
 
-// expandSubscription takes a subscription and expands it across the relevant assets and pairs passed in
-func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPairs map[asset.Item]currency.Pairs) (subscription.List, error) {
-	var subscriptions = subscription.List{}
-	if baseSub == nil {
-		return nil, common.ErrNilPointer
-	}
-	s := baseSub.Clone()
-	s.Channel = channelName(s.Channel)
-	if !s.Asset.IsValid() {
-		s.Asset = getChannelsAssetType(s.Channel)
-	}
-
-	if len(assetPairs[s.Asset]) == 0 {
-		return nil, nil
-	}
-
-	switch {
-	case s.Channel == marginLoanChannel:
-		for _, c := range assetPairs[asset.Margin].GetCurrencies() {
-			i := s.Clone()
-			i.Channel = fmt.Sprintf(s.Channel, c)
-			subscriptions = append(subscriptions, i)
-		}
-	case s.Channel == marketCandlesChannel:
-		interval, err := ku.intervalToString(s.Interval)
-		if err != nil {
-			return nil, err
-		}
-		subs := spotOrMarginPairSubs(assetPairs, s, false, interval)
-		subscriptions = append(subscriptions, subs...)
-	case s.Channel == marginFundingbookChangeChannel:
-		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Margin].GetCurrencies().Join())
-		subscriptions = append(subscriptions, s)
-	case s.Channel == marketSnapshotChannel:
-		subs, err := spotOrMarginCurrencySubs(assetPairs, s)
-		if err != nil {
-			return nil, err
-		}
-		subscriptions = append(subscriptions, subs...)
-	case getChannelsAssetType(s.Channel) == asset.Futures && isSymbolChannel(s.Channel):
-		for _, p := range assetPairs[asset.Futures] {
-			c, err := ku.FormatExchangeCurrency(p, asset.Futures)
-			if err != nil {
-				continue
-			}
-			i := s.Clone()
-			i.Channel = fmt.Sprintf(s.Channel, c)
-			subscriptions = append(subscriptions, i)
-		}
-	case isSymbolChannel(s.Channel):
-		// Subscriptions which can use a single comma-separated sub per asset
-		subs := spotOrMarginPairSubs(assetPairs, s, true)
-		subscriptions = append(subscriptions, subs...)
-	default:
-		subscriptions = append(subscriptions, s)
-	}
-	return subscriptions, nil
-}
-
-// isSymbolChannel returns true it this channel path ends in a formatting %s to accept a Symbol
-func isSymbolChannel(c string) bool {
-	return strings.HasSuffix(c, "%s") || strings.HasSuffix(c, "%v")
-}
-
-// channelName converts global channel Names used in config of channel input into kucoin channel names
-// returns the name unchanged if no match is found
-func channelName(name string) string {
-	if s, ok := subscriptionNames[name]; ok {
-		return s
-	}
-	return name
-}
-
-// spotOrMarginPairSubs accepts a map of pairs and a template subscription and returns a list of subscriptions for Spot and Margin pairs
-// If there's a Spot subscription, it won't be added again as a Margin subscription
-// If joined param is true then one subscription per asset type with the currencies comma delimited
-func spotOrMarginPairSubs(assetPairs map[asset.Item]currency.Pairs, b *subscription.Subscription, join bool, fmtArgs ...any) subscription.List {
-	subs := subscription.List{}
-	add := func(a asset.Item, pairs currency.Pairs) {
-		if len(pairs) == 0 {
-			return
-		}
-		if join {
-			f := append([]any{pairs.Join()}, fmtArgs...)
-			s := b.Clone()
-			s.Asset = a
-			s.Channel = fmt.Sprintf(b.Channel, f...)
-			subs = append(subs, s)
-		} else {
-			for i := range pairs {
-				f := append([]any{pairs[i].String()}, fmtArgs...)
-				s := b.Clone()
-				s.Asset = a
-				s.Channel = fmt.Sprintf(b.Channel, f...)
-				subs = append(subs, s)
-			}
-		}
-	}
-
-	add(asset.Spot, assetPairs[asset.Spot])
-
-	marginPairs := currency.Pairs{}
-	for _, p := range assetPairs[asset.Margin] {
-		if !assetPairs[asset.Spot].Contains(p, false) {
-			marginPairs = marginPairs.Add(p)
-		}
-	}
-	add(asset.Margin, marginPairs)
-
-	return subs
-}
-
-// spotOrMarginCurrencySubs accepts a map of pairs and a template subscription and returns a list of subscriptions for every currency in Spot and Margin pairs
-// If there's a Spot subscription, it won't be added again as a Margin subscription
-func spotOrMarginCurrencySubs(assetPairs map[asset.Item]currency.Pairs, b *subscription.Subscription) (subscription.List, error) {
-	if b == nil {
-		return nil, common.ErrNilPointer
-	}
-	subs := subscription.List{}
-	add := func(a asset.Item, currs currency.Currencies) {
-		if len(currs) == 0 {
-			return
-		}
-		for _, c := range currs {
-			s := b.Clone()
-			s.Asset = a
-			s.Channel = fmt.Sprintf(b.Channel, c)
-			subs = append(subs, s)
-		}
-	}
-
-	add(asset.Spot, assetPairs[asset.Spot].GetCurrencies())
-
-	marginCurrencies := currency.Currencies{}
-	for _, c := range assetPairs[asset.Margin].GetCurrencies() {
-		if !assetPairs[asset.Spot].ContainsCurrency(c) {
-			marginCurrencies = marginCurrencies.Add(c)
-		}
-	}
-	add(asset.Margin, marginCurrencies)
-
-	return subs, nil
+// GetSubscriptionTemplate returns a subscription channel template
+func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").
+		Funcs(template.FuncMap{
+			"channelName": channelName,
+			"removeSpotFromMargin": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
+				spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
+				return removeSpotFromMargin(s, ap, spotPairs)
+			},
+			"isCurrencyChannel":     isCurrencyChannel,
+			"isSymbolChannel":       isSymbolChannel,
+			"channelInterval":       channelInterval,
+			"assetCurrencies":       assetCurrencies,
+			"joinPairsWithInterval": joinPairsWithInterval,
+			"batch":                 common.Batch[currency.Pairs],
+		}).
+		Parse(subTplText)
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation
@@ -1777,3 +1580,158 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 		return resp, nil
 	}
 }
+
+// checkSubscriptions looks for any backwards incompatibilities with missing assets
+// This should be unnecessary and removable by 2025
+func (ku *Kucoin) checkSubscriptions() {
+	upgraded := false
+	for _, s := range ku.Config.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		upgraded = true
+		s.Channel = strings.TrimSuffix(s.Channel, ":%s")
+		switch s.Channel {
+		case subscription.TickerChannel, subscription.OrderbookChannel:
+			s.Asset = asset.All
+		case subscription.AllTradesChannel:
+			for _, d := range defaultSubscriptions {
+				if d.Channel == s.Channel {
+					ku.Config.Features.Subscriptions = append(ku.Config.Features.Subscriptions, d)
+				}
+			}
+		case futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
+			s.Asset = asset.Futures
+		case marginPositionChannel, marginLoanChannel:
+			s.Asset = asset.Margin
+		}
+	}
+	ku.Config.Features.Subscriptions = slices.DeleteFunc(ku.Config.Features.Subscriptions, func(s *subscription.Subscription) bool {
+		switch s.Channel {
+		case "/contractMarket/level2Depth50", // Replaced by subsctiption.Orderbook for asset.All
+			"/contractMarket/tickerV2", // Replaced by subscription.Ticker for asset.All
+			"/margin/fundingBook":      // Deprecated and removed
+			return true
+		case subscription.AllTradesChannel:
+			return s.Asset == asset.Empty
+		}
+		return false
+	})
+	if upgraded {
+		ku.Features.Subscriptions = subscription.List{}
+		for _, s := range ku.Config.Features.Subscriptions {
+			if s.Enabled {
+				ku.Features.Subscriptions = append(ku.Features.Subscriptions, s)
+			}
+		}
+	}
+}
+
+// channelName returns the correct channel name for the asset
+func channelName(s *subscription.Subscription, a asset.Item) string {
+	switch s.Channel {
+	case subscription.TickerChannel:
+		if a == asset.Futures {
+			return futuresTickerChannel
+		}
+		return marketTickerChannel
+	case subscription.OrderbookChannel:
+		if a == asset.Futures {
+			return futuresOrderbookDepth5Channel
+		}
+		return marketOrderbookDepth5Channel // This does not require a REST request to get the orderbook.
+	case subscription.CandlesChannel:
+		return marketCandlesChannel // No support in GCT yet for Futures candles
+	case subscription.AllTradesChannel:
+		return marketMatchChannel // No support in GCT yet for Futures all trades
+	}
+	return s.Channel
+}
+
+// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map for subscriptions to non-margin endpoints
+func removeSpotFromMargin(s *subscription.Subscription, ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+	if strings.HasPrefix(s.Channel, "/margin") {
+		return ""
+	}
+	if p, ok := ap[asset.Margin]; ok {
+		ap[asset.Margin] = p.Remove(spotPairs...)
+	}
+	return ""
+}
+
+// isSymbolChannel returns if the channel expects receive a symbol
+func isSymbolChannel(s *subscription.Subscription) bool {
+	switch channelName(s, s.Asset) {
+	case privateSpotTradeOrders, accountBalanceChannel, marginPositionChannel, spotMarketAdvancedChannel, futuresSystemAnnouncementChannel,
+		futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
+		return false
+	}
+	return true
+}
+
+// isCurrencyChannel returns if the channel expects receive a currency
+func isCurrencyChannel(s *subscription.Subscription) bool {
+	return s.Channel == marginLoanChannel
+}
+
+// channelInterval returns the channel interval if it has one
+func channelInterval(s *subscription.Subscription) string {
+	if channelName(s, s.Asset) == marketCandlesChannel {
+		if i, err := intervalToString(s.Interval); err == nil {
+			return i
+		}
+	}
+	return ""
+}
+
+// assetCurrencies returns the currencies from all pairs in an asset
+// Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
+func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
+	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
+	p := currency.Pairs{}
+	for _, c := range cs {
+		p = append(p, currency.Pair{Base: c})
+	}
+	ap[s.Asset] = p
+	return cs
+}
+
+// joinPairsWithInterval returns a list of currency pair symbols joined by comma
+// If the subscription has a viable interval it's appended after each symbol
+func joinPairsWithInterval(b currency.Pairs, s *subscription.Subscription) string {
+	out := make([]string, len(b))
+	suffix, err := intervalToString(s.Interval)
+	if err == nil {
+		suffix = "_" + suffix
+	}
+	for i, p := range b {
+		out[i] = p.String() + suffix
+	}
+	return strings.Join(out, ",")
+}
+
+const subTplText = `
+{{- removeSpotFromMargin $.S $.AssetPairs -}}
+{{- if isCurrencyChannel $.S }}
+	{{ channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join -}}
+{{- else if isSymbolChannel $.S }}
+	{{ range $asset, $pairs := $.AssetPairs }}
+		{{- with $name := channelName $.S $asset }}
+			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) -}}
+				{{- $name -}} :all
+				{{- with $i := channelInterval $.S -}}_{{- $i -}}{{- end -}}
+				{{- $.BatchSize -}} {{ len $pairs }}
+			{{- else -}}
+				{{- range $b := batch $pairs 100 -}}
+					{{- $name -}} : {{- joinPairsWithInterval $b $.S -}}
+					{{ $.PairSeparator }}
+				{{- end -}}
+				{{- $.BatchSize -}} 100
+			{{- end }}
+		{{- end }}
+		{{ $.AssetSeparator }}
+	{{- end }}
+{{- else -}}
+	{{ channelName $.S $.S.Asset }}
+{{- end }}
+`
