@@ -78,7 +78,7 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn stream.Connection) e
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      g.Counter.IncrementAndGet(),
 		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: optionsPingChannel,
 	})
@@ -163,7 +163,7 @@ getEnabledPairs:
 	return subscriptions, nil
 }
 
-func (g *Gateio) generateOptionsPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -265,7 +265,7 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn stream.Connect
 				params...)
 		}
 		payloads[i] = WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      g.Counter.IncrementAndGet(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -288,7 +288,7 @@ func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // handleOptionsSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleOptionsSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generateOptionsPayload(ctx, conn, event, channelsToSubscribe)
+	payloads, err := g.generateOptionsPayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -530,7 +530,7 @@ func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, pushTime time.Time) error {
+func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, updatePushedAt time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -542,6 +542,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
+			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -594,7 +595,8 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     pushTime,
+			LastUpdated:     updatePushedAt,
+			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {

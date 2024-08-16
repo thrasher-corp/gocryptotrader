@@ -85,7 +85,7 @@ func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
 	if err != nil {
 		return err
 	}
-	ap[a] = p.Format(f)
+	ap[a] = common.SortStrings(p.Format(f))
 	return nil
 }
 
