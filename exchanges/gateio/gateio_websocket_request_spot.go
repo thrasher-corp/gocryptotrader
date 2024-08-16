@@ -50,7 +50,7 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 	signature := hex.EncodeToString(mac.Sum(nil))
 
 	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(tn.UnixNano(), 10),
+		RequestID: strconv.FormatInt(g.Counter.IncrementAndGet(), 10),
 		APIKey:    creds.Key,
 		Signature: signature,
 		Timestamp: strconv.FormatInt(tn.Unix(), 10),
@@ -94,9 +94,7 @@ func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []WebsocketO
 		if batch[i].Text == "" {
 			// For some reason the API requires a text field, or it will be
 			// rejected in the second response. This is a workaround.
-			// +1 index for uniqueness in batch, when clock hasn't updated yet.
-			// TODO: Remove and use common counter.
-			batch[i].Text = "t-" + strconv.FormatInt(time.Now().UnixNano()+int64(i), 10)
+			batch[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
 		}
 		if batch[i].CurrencyPair == "" {
 			return nil, currency.ErrCurrencyPairEmpty
@@ -256,7 +254,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		Payload: WebsocketPayload{
 			// This request ID associated with the payload is the match to the
 			// response.
-			RequestID:    strconv.FormatInt(tn.UnixNano(), 10),
+			RequestID:    strconv.FormatInt(g.Counter.IncrementAndGet(), 10),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn.Unix(), 10),
 		},
