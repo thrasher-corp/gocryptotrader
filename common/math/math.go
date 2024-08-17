@@ -330,7 +330,7 @@ func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decim
 	diffs := make([]decimal.Decimal, len(values))
 	for x := range values {
 		val := values[x].Sub(valAvg)
-		exp := decimal.NewFromInt(2)
+		exp := two
 		pow := DecimalPow(val, exp)
 		diffs[x] = pow
 	}
@@ -362,7 +362,7 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 	superMean := make([]decimal.Decimal, len(values))
 	var combined decimal.Decimal
 	for i := range values {
-		pow := values[i].Sub(mean).Pow(decimal.NewFromInt(2))
+		pow := values[i].Sub(mean).Pow(two)
 		superMean[i] = pow
 		combined.Add(pow)
 	}
@@ -459,7 +459,7 @@ func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInt
 	totalNegativeResultsSquared := decimal.Zero
 	for x := range movementPerCandle {
 		if movementPerCandle[x].Sub(riskFreeRatePerInterval).LessThan(decimal.Zero) {
-			totalNegativeResultsSquared = totalNegativeResultsSquared.Add(movementPerCandle[x].Sub(riskFreeRatePerInterval).Pow(decimal.NewFromInt(2)))
+			totalNegativeResultsSquared = totalNegativeResultsSquared.Add(movementPerCandle[x].Sub(riskFreeRatePerInterval).Pow(two))
 		}
 	}
 	if totalNegativeResultsSquared.IsZero() {
