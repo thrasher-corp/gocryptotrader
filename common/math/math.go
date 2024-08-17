@@ -24,6 +24,10 @@ var (
 	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
+
+	one         = decimal.NewFromInt(1)
+	two         = decimal.NewFromInt(2)
+	oneZeroZero = decimal.NewFromInt(100)
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -42,10 +46,19 @@ func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
 	return (priceNow - priceThen) / priceThen * 100
 }
 
-// CalculatePercentageDifference returns the percentage of difference between
-// multiple time periods
-func CalculatePercentageDifference(amount, secondAmount float64) float64 {
-	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
+// CalculatePercentageDifference returns the percentage difference between two
+// numbers
+func CalculatePercentageDifference(a, b float64) float64 {
+	return math.Abs(a-b) / ((a + b) / 2) * 100
+}
+
+// DecimalPercentageDifference returns the percentage difference between
+// decimal values.
+func DecimalPercentageDifference(d1, d2 decimal.Decimal) decimal.Decimal {
+	if d1.IsZero() && d2.IsZero() {
+		return decimal.Zero
+	}
+	return d1.Sub(d2).Abs().Div(d1.Add(d2).Div(two)).Mul(oneZeroZero)
 }
 
 // CalculateNetProfit returns net profit
@@ -267,7 +280,7 @@ func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, nu
 	if pow.IsZero() {
 		return decimal.Zero, ErrPowerDifferenceTooSmall
 	}
-	k := pow.Sub(decimal.NewFromInt(1)).Mul(decimal.NewFromInt(100))
+	k := pow.Sub(one).Mul(oneZeroZero)
 	return k, nil
 }
 
@@ -353,7 +366,7 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 		superMean[i] = pow
 		combined.Add(pow)
 	}
-	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(decimal.NewFromInt(1)))
+	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(one))
 	f, exact := avg.Float64()
 	err = nil
 	if !exact {
@@ -370,7 +383,7 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 	if len(values) == 0 {
 		return decimal.Zero, errZeroValue
 	}
-	product := decimal.NewFromInt(1)
+	product := one
 	for i := range values {
 		if values[i].LessThanOrEqual(decimal.Zero) {
 			// cannot use negative or zero values in geometric calculation
@@ -378,7 +391,7 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 		}
 		product = product.Mul(values[i])
 	}
-	exp := decimal.NewFromInt(1).Div(decimal.NewFromInt(int64(len(values))))
+	exp := one.Div(decimal.NewFromInt(int64(len(values))))
 	pow := DecimalPow(product, exp)
 	geometricPower := pow
 	return geometricPower, nil
@@ -413,7 +426,7 @@ func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, e
 		// as we cannot have negative or zero value geometric numbers
 		// adding a 1 to the percentage movements allows for differentiation between
 		// negative numbers (eg -0.1 translates to 0.9) and positive numbers (eg 0.1 becomes 1.1)
-		modVal := values[i].Add(decimal.NewFromInt(1)).InexactFloat64()
+		modVal := values[i].Add(one).InexactFloat64()
 		product *= modVal
 	}
 	prod := 1 / float64(len(values))
