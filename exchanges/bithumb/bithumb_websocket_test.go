@@ -4,11 +4,17 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
 
 var (
@@ -87,13 +93,40 @@ func TestWsHandleData(t *testing.T) {
 	}
 }
 
+func TestSubToReq(t *testing.T) {
+	t.Parallel()
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}
+	r := subToReq(&subscription.Subscription{Channel: subscription.AllTradesChannel}, p)
+	assert.Equal(t, "transaction", r.Type)
+	assert.True(t, p.Equal(r.Symbols))
+	r = subToReq(&subscription.Subscription{Channel: subscription.OrderbookChannel}, p)
+	assert.Equal(t, "orderbookdepth", r.Type)
+	assert.True(t, p.Equal(r.Symbols))
+	r = subToReq(&subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.OneHour}, p)
+	assert.Equal(t, "ticker", r.Type)
+	assert.True(t, p.Equal(r.Symbols))
+	assert.Equal(t, []string{"1H"}, r.TickTypes)
+	assert.PanicsWithError(t,
+		"subscription channel not supported: myTrades",
+		func() { subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p) },
+		"should panic on invalid channel",
+	)
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	sub, err := b.generateSubscriptions()
-	if err != nil {
-		t.Fatal(err)
+	b := new(Bithumb)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, false))
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, true))
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err)
+	exp := subscription.List{
+		{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: p, QualifiedChannel: `{"type":"transaction","symbols":["BTC_KRW","ETH_KRW"]}`},
+		{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: p, QualifiedChannel: `{"type":"orderbookdepth","symbols":["BTC_KRW","ETH_KRW"]}`},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
+			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`},
 	}
-	if sub == nil {
-		t.Fatal("unexpected value")
-	}
+	testsubs.EqualLists(t, exp, subs)
 }
