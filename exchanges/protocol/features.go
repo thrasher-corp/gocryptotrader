@@ -93,6 +93,7 @@ const (
 	Websocket Type = 1
 )
 
+// Target holds the asset and protocol type for a map lookup
 type Target struct {
 	Asset    asset.Item
 	Protocol Type

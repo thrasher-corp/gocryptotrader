@@ -577,7 +577,7 @@ func GetFeatures(name string) []ProtocolFeature {
 		t := reflect.TypeOf(v)
 
 		// Iterate over the struct fields
-		for i := 0; i < t.NumField(); i++ {
+		for i := range t.NumField() {
 			value := reflect.ValueOf(v).Field(i)
 			if value.Kind() != reflect.Bool || !value.Bool() {
 				continue
