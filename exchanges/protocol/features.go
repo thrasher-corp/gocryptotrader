@@ -1,5 +1,7 @@
 package protocol
 
+import "github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+
 // Features holds all variables for the exchanges supported features
 // for a protocol (e.g REST or Websocket)
 type Features struct {
@@ -69,3 +71,32 @@ type TradingRequirements struct {
 	// the client and is required for order submission.
 	ClientOrderID bool
 }
+
+// Type is a protocol type
+type Type uint8
+
+// String returns the protocol type as a string
+func (t Type) String() string {
+	switch t {
+	case REST:
+		return "REST"
+	case Websocket:
+		return "Websocket"
+	default:
+		return "Unknown"
+	}
+}
+
+// const for protocol types
+const (
+	REST      Type = 0
+	Websocket Type = 1
+)
+
+type Target struct {
+	Asset    asset.Item
+	Protocol Type
+}
+
+// FeatureSet holds the protocol type and asset type
+type FeatureSet map[Target]Features

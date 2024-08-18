@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -17,6 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -111,6 +114,27 @@ type Attributes struct {
 	Year            int
 	CapitalName     string
 	DonationAddress string
+	Features        []ProtocolFeature
+}
+
+// ProtocolFeature defines a protocol feature set
+type ProtocolFeature struct {
+	Protocol string
+	Assets   []AssetFeature
+}
+
+func (a ProtocolFeature) String() string {
+	return a.Protocol
+}
+
+// AssetFeature defines an asset feature set
+type AssetFeature struct {
+	Asset   string
+	Methods []string
+}
+
+func (a AssetFeature) String() string {
+	return a.Asset
 }
 
 func main() {
@@ -505,13 +529,15 @@ func GetContributorList(repo string, verbose bool) ([]Contributor, error) {
 
 // GetDocumentationAttributes returns specific attributes for a file template
 func GetDocumentationAttributes(packageName string, contributors []Contributor) Attributes {
+	name := GetPackageName(packageName, false)
 	return Attributes{
-		Name:            GetPackageName(packageName, false),
+		Name:            name,
 		Contributors:    contributors,
 		NameURL:         GetGoDocURL(packageName),
 		Year:            time.Now().Year(),
 		CapitalName:     GetPackageName(packageName, true),
 		DonationAddress: core.BitcoinDonationAddress,
+		Features:        GetFeatures(name),
 	}
 }
 
@@ -527,6 +553,49 @@ func GetPackageName(name string, capital bool) string {
 		return strings.Replace(cases.Title(language.English).String(newStrings[i]), "_", " ", -1)
 	}
 	return newStrings[i]
+}
+
+// GetFeatures returns a dynamic list of supported functionality for a specific asset type.
+func GetFeatures(name string) []ProtocolFeature {
+	if name != "gateio" { // TODO: Remove and implement across all exchanges after POC.
+		return nil
+	}
+	exch, _ := engine.NewExchangeByNameWithDefaults(context.Background(), name)
+	if exch == nil {
+		return nil
+	}
+
+	set := exchange.AutomaticPreFlightCheck(exch)
+	if set == nil {
+		return nil
+	}
+
+	lookup := make(map[string][]AssetFeature)
+	for k, v := range set {
+		var f AssetFeature
+		f.Asset = k.Asset.String()
+		t := reflect.TypeOf(v)
+
+		// Iterate over the struct fields
+		for i := 0; i < t.NumField(); i++ {
+			value := reflect.ValueOf(v).Field(i)
+			if value.Kind() != reflect.Bool || !value.Bool() {
+				continue
+			}
+			f.Methods = append(f.Methods, t.Field(i).Name)
+		}
+		lookup[k.Protocol.String()] = append(lookup[k.Protocol.String()], f)
+	}
+	features := make([]ProtocolFeature, 0)
+	for k, v := range lookup {
+		v = common.SortStrings(v)
+		features = append(features, ProtocolFeature{
+			Protocol: k,
+			Assets:   v,
+		})
+	}
+	features = common.SortStrings(features)
+	return features
 }
 
 // GetGoDocURL returns a string for godoc package names
