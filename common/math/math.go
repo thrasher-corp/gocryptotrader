@@ -27,7 +27,7 @@ var (
 
 	one         = decimal.NewFromInt(1)
 	two         = decimal.NewFromInt(2)
-	oneZeroZero = decimal.NewFromInt(100)
+	oneHundred = decimal.NewFromInt(100)
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
