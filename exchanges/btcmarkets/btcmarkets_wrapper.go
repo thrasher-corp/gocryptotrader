@@ -613,7 +613,7 @@ func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	var resp order.CancelAllResponse
+	resp := order.CancelAllResponse{Status: map[string]string{}}
 	orders, err := b.GetOrders(ctx, "", -1, -1, -1, true)
 	if err != nil {
 		return resp, err
@@ -623,21 +623,18 @@ func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (orde
 	for x := range orders {
 		orderIDs[x] = orders[x].OrderID
 	}
-	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
-	tempMap := make(map[string]string)
-	for z := range splitOrders {
-		tempResp, err := b.CancelBatch(ctx, splitOrders[z])
+	for _, batch := range common.Batch(orderIDs, 20) {
+		cancelResp, err := b.CancelBatch(ctx, batch)
 		if err != nil {
 			return resp, err
 		}
-		for y := range tempResp.CancelOrders {
-			tempMap[tempResp.CancelOrders[y].OrderID] = "Success"
+		for _, r := range cancelResp.CancelOrders {
+			resp.Status[r.OrderID] = "Success"
 		}
-		for z := range tempResp.UnprocessedRequests {
-			tempMap[tempResp.UnprocessedRequests[z].RequestID] = "Cancellation Failed"
+		for _, r := range cancelResp.UnprocessedRequests {
+			resp.Status[r.RequestID] = "Cancellation Failed"
 		}
 	}
-	resp.Status = tempMap
 	return resp, nil
 }
 
@@ -883,9 +880,8 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 			tempArray = append(tempArray, orders[z].OrderID)
 		}
 	}
-	splitOrders := common.SplitStringSliceByLimit(tempArray, 50)
-	for x := range splitOrders {
-		tempData, err := b.GetBatchTrades(ctx, splitOrders[x])
+	for _, batch := range common.Batch(tempArray, 50) {
+		tempData, err := b.GetBatchTrades(ctx, batch)
 		if err != nil {
 			return resp, err
 		}

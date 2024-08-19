@@ -142,12 +142,12 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 690 |
-| [shazbert](https://github.com/shazbert) | 330 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 287 |
+| [thrasher-](https://github.com/thrasher-) | 692 |
+| [shazbert](https://github.com/shazbert) | 333 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 293 |
 | [gloriousCode](https://github.com/gloriousCode) | 234 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
-| [gbjk](https://github.com/gbjk) | 76 |
+| [gbjk](https://github.com/gbjk) | 80 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Beadko](https://github.com/Beadko) | 17 |
@@ -162,8 +162,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
+| [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |

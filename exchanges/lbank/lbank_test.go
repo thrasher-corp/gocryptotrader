@@ -573,7 +573,6 @@ func TestGetStatus(t *testing.T) {
 		{status: 4, resp: order.Cancelling},
 		{status: 5, resp: order.UnknownStatus},
 	} {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			resp := l.GetStatus(tt.status)

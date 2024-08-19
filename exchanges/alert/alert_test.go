@@ -14,7 +14,7 @@ func TestWait(t *testing.T) {
 
 	// standard alert
 	wg.Add(100)
-	for x := 0; x < 100; x++ {
+	for range 100 {
 		go func() {
 			w := wait.Wait(nil)
 			wg.Done()
@@ -35,7 +35,7 @@ func TestWait(t *testing.T) {
 	// use kick
 	ch := make(chan struct{})
 	wg.Add(100)
-	for x := 0; x < 100; x++ {
+	for range 100 {
 		go func() {
 			w := wait.Wait(ch)
 			wg.Done()
@@ -55,7 +55,7 @@ func TestWait(t *testing.T) {
 
 	// late receivers
 	wg.Add(100)
-	for x := 0; x < 100; x++ {
+	for x := range 100 {
 		go func(x int) {
 			bb := wait.Wait(ch)
 			wg.Done()

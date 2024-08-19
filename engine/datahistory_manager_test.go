@@ -1410,7 +1410,7 @@ func TestSaveCandlesInBatches(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		candles.Candles = append(candles.Candles, kline.Candle{
 			Volume: float64(i),
 		})
@@ -1524,17 +1524,17 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	start = start.Truncate(interval.Duration())
 	end = end.Truncate(interval.Duration())
-	var candles []kline.Candle
 	intervals := end.Sub(start) / interval.Duration()
-	for i := 0; i < int(intervals); i++ {
-		candles = append(candles, kline.Candle{
+	candles := make([]kline.Candle, int(intervals))
+	for x := range int(intervals) {
+		candles[x] = kline.Candle{
 			Time:   start,
 			Open:   1,
 			High:   10,
 			Low:    1,
 			Close:  4,
 			Volume: 8,
-		})
+		}
 		start = start.Add(interval.Duration())
 	}
 	return &kline.Item{

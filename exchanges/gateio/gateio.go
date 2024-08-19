@@ -712,7 +712,7 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 	} else if len(args) > 20 {
 		return nil, fmt.Errorf("%w maximum order size to cancel is 20", errInvalidOrderSize)
 	}
-	for x := 0; x < len(args); x++ {
+	for x := range args {
 		if args[x].CurrencyPair.IsEmpty() || args[x].ID == "" {
 			return nil, errors.New("currency pair and order ID are required")
 		}

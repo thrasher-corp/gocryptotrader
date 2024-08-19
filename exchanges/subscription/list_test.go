@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // TestListStrings exercises List.Strings()
@@ -82,12 +83,26 @@ func TestListSetStates(t *testing.T) {
 // All other code is covered under TestExpandTemplates
 func TestAssetPairs(t *testing.T) {
 	t.Parallel()
-	expErr := errors.New("Krypton is gone")
 	for _, a := range []asset.Item{asset.Spot, asset.All} {
+		e := newMockEx()
 		l := &List{{Channel: CandlesChannel, Asset: a}}
-		_, err := l.assetPairs(&mockEx{errPairs: expErr})
-		assert.ErrorIs(t, err, expErr, "Should error correctly on GetEnabledPairs")
-		_, err = l.assetPairs(&mockEx{errFormat: expErr})
-		assert.ErrorIs(t, err, expErr, "Should error correctly on GetPairFormat")
+		e.errFormat = errors.New("Krypton is back")
+		_, err := l.assetPairs(e)
+		assert.ErrorIs(t, err, e.errFormat, "Should error correctly on GetPairFormat")
+		e.errPairs = errors.New("Krypton is gone")
+		_, err = l.assetPairs(e)
+		assert.ErrorIs(t, err, e.errPairs, "Should error correctly on GetEnabledPairs")
 	}
+}
+
+func TestListClone(t *testing.T) {
+	t.Parallel()
+	l := List{{Channel: TickerChannel}, {Channel: OrderbookChannel}}
+	n := l.Clone()
+	assert.NotSame(t, n, l, "Slices must not be the same")
+	require.NotEmpty(t, n, "List must not be empty")
+	assert.NotSame(t, n[0], l[0], "Subscriptions must be cloned")
+	assert.Equal(t, n[0], l[0], "Subscriptions should be equal")
+	l[0].Interval = kline.OneHour
+	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
 }

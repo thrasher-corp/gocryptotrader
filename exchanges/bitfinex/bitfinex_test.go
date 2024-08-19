@@ -37,7 +37,6 @@ const (
 )
 
 var b *Bitfinex
-var wsConnected bool
 var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 func TestMain(m *testing.M) {
@@ -1316,7 +1315,7 @@ func TestWsCancelOffer(t *testing.T) {
 }
 
 func TestWsSubscribedResponse(t *testing.T) {
-	m, err := b.Websocket.Match.Set("subscribe:waiter1")
+	ch, err := b.Websocket.Match.Set("subscribe:waiter1", 1)
 	assert.NoError(t, err, "Setting a matcher should not error")
 	err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	if assert.Error(t, err, "Should error if sub is not registered yet") {
@@ -1329,13 +1328,12 @@ func TestWsSubscribedResponse(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 	err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	assert.NoError(t, err, "wsHandleData should not error")
-	if assert.NotEmpty(t, m.C, "Matcher should have received a sub notification") {
-		msg := <-m.C
+	if assert.NotEmpty(t, ch, "Matcher should have received a sub notification") {
+		msg := <-ch
 		cID, err := jsonparser.GetInt(msg, "chanId")
 		assert.NoError(t, err, "Should get chanId from sub notification without error")
 		assert.EqualValues(t, 224555, cID, "Should get the correct chanId through the matcher notification")
 	}
-	m.Cleanup()
 }
 
 func TestWsOrderBook(t *testing.T) {
@@ -1979,7 +1977,7 @@ func TestGetErrResp(t *testing.T) {
 		case 3: // event != 'error'
 			assert.NoError(t, testErr, "Message with non-'error' event field should not error")
 		case 4: // event="error"
-			assert.ErrorIs(t, testErr, errUnknownError, "error without a message should throw unknown error")
+			assert.ErrorIs(t, testErr, common.ErrUnknownError, "error without a message should throw unknown error")
 			assert.ErrorContains(t, testErr, "code: 0", "error without a code should throw code 0")
 		case 5: // Fully formatted
 			assert.ErrorContains(t, testErr, "redcoats", "message field should be in the error")

@@ -35,7 +35,6 @@ func TestNewManager(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := NewManager(tt.args.config)
@@ -108,7 +107,6 @@ func TestGctScriptManagerGetMaxVirtualMachines(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			g := &GctScriptManager{
 				config:             tt.fields.config,

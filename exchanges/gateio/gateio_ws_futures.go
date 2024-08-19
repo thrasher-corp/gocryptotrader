@@ -228,7 +228,7 @@ func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Conn
 	var errs error
 	var respByte []byte
 	for i, val := range payloads {
-		respByte, err = conn.SendMessageReturnResponse(val.ID, val)
+		respByte, err = conn.SendMessageReturnResponse(ctx, val.ID, val)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -509,7 +509,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 	return g.Websocket.Orderbook.Update(&updates)
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, pushTime time.Time) error {
+func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
 	if event == "all" {
 		var data WsFuturesOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -521,6 +521,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.TimestampInMs.Time(),
+			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -575,7 +576,8 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     pushTime,
+			LastUpdated:     updatePushedAt,
+			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
