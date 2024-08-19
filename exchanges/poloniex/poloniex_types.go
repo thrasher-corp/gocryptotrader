@@ -445,7 +445,7 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.SBD:   0.01,
 	currency.XLM:   0.00001,
 	currency.STORJ: 1,
-	currency.STRAT: 0.01,
+	currency.STRAT: 0.01, //nolint:misspell // Not a misspelling
 	currency.AMP:   5,
 	currency.SYS:   0.01,
 	currency.USDT:  10,

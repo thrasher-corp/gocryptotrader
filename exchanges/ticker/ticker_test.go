@@ -369,7 +369,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	var sm sync.Mutex
 
 	var catastrophicFailure bool
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		if catastrophicFailure {
 			break
 		}

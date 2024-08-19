@@ -3569,7 +3569,6 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			processed, err := g.processFuturesOrdersPushData([]byte(tc.incoming), asset.Futures)

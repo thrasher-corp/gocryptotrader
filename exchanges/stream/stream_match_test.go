@@ -1,50 +1,53 @@
 package stream
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMatch(t *testing.T) {
 	t.Parallel()
-	bm := &Match{}
-	if bm.Incoming("wow") {
-		t.Fatal("Should not have matched")
-	}
+	load := []byte("42")
+	assert.False(t, new(Match).IncomingWithData("hello", load), "Should not match an uninitialised Match")
 
-	nm := NewMatch()
-	// try to match with unset signature
-	if nm.Incoming("hello") {
-		t.Fatal("should not be able to match")
-	}
+	match := NewMatch()
+	assert.False(t, match.IncomingWithData("hello", load), "Should not match an empty signature")
 
-	m, err := nm.Set("hello")
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := match.Set("hello", 0)
+	require.ErrorIs(t, err, errInvalidBufferSize, "Must error on zero buffer size")
+	_, err = match.Set("hello", -1)
+	require.ErrorIs(t, err, errInvalidBufferSize, "Must error on negative buffer size")
+	ch, err := match.Set("hello", 2)
+	require.NoError(t, err, "Set must not error")
+	assert.True(t, match.IncomingWithData("hello", []byte("hello")))
+	assert.Equal(t, "hello", string(<-ch))
 
-	_, err = nm.Set("hello")
-	if err == nil {
-		t.Fatal("error cannot be nil as this collision cannot occur")
-	}
+	_, err = match.Set("hello", 2)
+	assert.ErrorIs(t, err, errSignatureCollision, "Should error on signature collision")
 
-	if m.sig != "hello" {
-		t.Fatal(err)
-	}
+	assert.True(t, match.IncomingWithData("hello", load), "Should match with matching message and signature")
+	assert.False(t, match.IncomingWithData("hello", load), "Should not match with matching message and signature")
 
-	// try and match with initial payload
-	if !nm.Incoming("hello") {
-		t.Fatal("should of matched")
-	}
+	assert.Len(t, ch, 1, "Channel should have 1 items, 1 was already read above")
+}
 
-	// put in secondary payload with conflicting signature
-	if nm.Incoming("hello") {
-		fmt.Println("should not have been able to match")
+func TestRemoveSignature(t *testing.T) {
+	t.Parallel()
+	match := NewMatch()
+	ch, err := match.Set("masterblaster", 1)
+	select {
+	case <-ch:
+		t.Fatal("Should not be able to read from an empty channel")
+	default:
 	}
-
-	if data := <-m.C; data != nil {
-		t.Fatal("data chan should be nil")
+	require.NoError(t, err)
+	match.RemoveSignature("masterblaster")
+	select {
+	case garbage := <-ch:
+		require.Empty(t, garbage)
+	default:
+		t.Fatal("Should be able to read from a closed channel")
 	}
-
-	m.Cleanup()
 }
