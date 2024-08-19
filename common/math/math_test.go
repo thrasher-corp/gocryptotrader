@@ -43,10 +43,18 @@ func TestCalculatePercentageGainOrLoss(t *testing.T) {
 
 func TestCalculatePercentageDifference(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, 0.13605442176870758, CalculatePercentageDifference(1.469, 1.471))
-	require.Equal(t, 0.13605442176870758, CalculatePercentageDifference(1.471, 1.469))
+	require.Equal(t, -196.03960396039605, CalculatePercentageDifference(1, 100))
+	require.Equal(t, 196.03960396039605, CalculatePercentageDifference(100, 1))
 	require.Equal(t, 0.0, CalculatePercentageDifference(1.0, 1.0))
 	require.True(t, math.IsNaN(CalculatePercentageDifference(0.0, 0.0)))
+}
+
+func TestCalculateAbsPercentageDifference(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, 0.13605442176870758, CalculateAbsPercentageDifference(1.469, 1.471))
+	require.Equal(t, 0.13605442176870758, CalculateAbsPercentageDifference(1.471, 1.469))
+	require.Equal(t, 0.0, CalculateAbsPercentageDifference(1.0, 1.0))
+	require.True(t, math.IsNaN(CalculateAbsPercentageDifference(0.0, 0.0)))
 }
 
 // 1000000000	         0.2215 ns/op	       0 B/op	       0 allocs/op
@@ -58,10 +66,18 @@ func BenchmarkCalculatePercentageDifference(b *testing.B) {
 
 func TestDecimalPercentageDifference(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, "0.13605442176871", DecimalPercentageDifference(decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)).String())
-	require.Equal(t, "0.13605442176871", DecimalPercentageDifference(decimal.NewFromFloat(1.471), decimal.NewFromFloat(1.469)).String())
+	require.Equal(t, "-196.03960396039604", DecimalPercentageDifference(decimal.NewFromFloat(1), decimal.NewFromFloat(100)).String())
+	require.Equal(t, "196.03960396039604", DecimalPercentageDifference(decimal.NewFromFloat(100), decimal.NewFromFloat(1)).String())
 	require.Equal(t, "0", DecimalPercentageDifference(decimal.NewFromFloat(1.0), decimal.NewFromFloat(1.0)).String())
 	require.Equal(t, "0", DecimalPercentageDifference(decimal.Zero, decimal.Zero).String())
+}
+
+func TestDecimalAbsPercentageDifference(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "0.13605442176871", DecimalAbsPercentageDifference(decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)).String())
+	require.Equal(t, "0.13605442176871", DecimalAbsPercentageDifference(decimal.NewFromFloat(1.471), decimal.NewFromFloat(1.469)).String())
+	require.Equal(t, "0", DecimalAbsPercentageDifference(decimal.NewFromFloat(1.0), decimal.NewFromFloat(1.0)).String())
+	require.Equal(t, "0", DecimalAbsPercentageDifference(decimal.Zero, decimal.Zero).String())
 }
 
 // 1585596	       751.8 ns/op	     792 B/op	      27 allocs/op

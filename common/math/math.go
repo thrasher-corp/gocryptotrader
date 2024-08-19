@@ -25,8 +25,8 @@ var (
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
 
-	one         = decimal.NewFromInt(1)
-	two         = decimal.NewFromInt(2)
+	one        = decimal.NewFromInt(1)
+	two        = decimal.NewFromInt(2)
 	oneHundred = decimal.NewFromInt(100)
 )
 
@@ -49,6 +49,12 @@ func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
 // CalculatePercentageDifference returns the percentage difference between two
 // numbers
 func CalculatePercentageDifference(a, b float64) float64 {
+	return (a - b) / ((a + b) / 2) * 100
+}
+
+// CalculateAbsPercentageDifference returns the percentage difference between
+// two numbers.
+func CalculateAbsPercentageDifference(a, b float64) float64 {
 	return math.Abs(a-b) / ((a + b) / 2) * 100
 }
 
@@ -58,7 +64,16 @@ func DecimalPercentageDifference(d1, d2 decimal.Decimal) decimal.Decimal {
 	if d1.IsZero() && d2.IsZero() {
 		return decimal.Zero
 	}
-	return d1.Sub(d2).Abs().Div(d1.Add(d2).Div(two)).Mul(oneZeroZero)
+	return d1.Sub(d2).Div(d1.Add(d2).Div(two)).Mul(oneHundred)
+}
+
+// DecimalAbsPercentageDifference returns the percentage difference between
+// decimal values.
+func DecimalAbsPercentageDifference(d1, d2 decimal.Decimal) decimal.Decimal {
+	if d1.IsZero() && d2.IsZero() {
+		return decimal.Zero
+	}
+	return d1.Sub(d2).Abs().Div(d1.Add(d2).Div(two)).Mul(oneHundred)
 }
 
 // CalculateNetProfit returns net profit
@@ -280,7 +295,7 @@ func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, nu
 	if pow.IsZero() {
 		return decimal.Zero, ErrPowerDifferenceTooSmall
 	}
-	k := pow.Sub(one).Mul(oneZeroZero)
+	k := pow.Sub(one).Mul(oneHundred)
 	return k, nil
 }
 
