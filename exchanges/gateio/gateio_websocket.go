@@ -694,7 +694,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(event, channelsToSubscribe)
+	payloads, err := g.generatePayload(g.Websocket.Conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -726,7 +726,7 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscripti
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generatePayload(conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -819,7 +819,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.
 		}
 
 		payload := WsInput{
-			ID:      g.Counter.IncrementAndGet(),
+			ID:      conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -867,4 +867,10 @@ func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.
 		assetPairEnabled[assetTypes[i]] = pairs.Contains(cp, true)
 	}
 	return assetPairEnabled
+}
+
+// GenerateWebsocketMessageID generates a message ID for the individual
+// connection.
+func (g *Gateio) GenerateWebsocketMessageID(highPrec bool) int64 {
+	return g.Counter.IncrementAndGet()
 }

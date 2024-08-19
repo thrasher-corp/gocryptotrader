@@ -103,7 +103,7 @@ func (g *Gateio) WsFuturesConnect() error {
 			g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID: g.Counter.IncrementAndGet(),
+		ID: g.Websocket.Conn.GenerateMessageID(false),
 		Time: func() int64 {
 			return time.Now().Unix()
 		}(),
@@ -401,7 +401,7 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe subscr
 		}
 		if strings.HasPrefix(channelsToSubscribe[i].Pairs[0].Quote.Upper().String(), "USDT") {
 			payloads[0] = append(payloads[0], WsInput{
-				ID:      g.Counter.IncrementAndGet(),
+				ID:      g.Websocket.Conn.GenerateMessageID(false),
 				Event:   event,
 				Channel: channelsToSubscribe[i].Channel,
 				Payload: params,
@@ -410,7 +410,7 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe subscr
 			})
 		} else {
 			payloads[1] = append(payloads[1], WsInput{
-				ID:      g.Counter.IncrementAndGet(),
+				ID:      g.Websocket.Conn.GenerateMessageID(false),
 				Event:   event,
 				Channel: channelsToSubscribe[i].Channel,
 				Payload: params,

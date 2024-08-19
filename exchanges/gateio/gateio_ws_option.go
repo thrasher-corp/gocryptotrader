@@ -86,7 +86,7 @@ func (g *Gateio) WsOptionsConnect() error {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Counter.IncrementAndGet(),
+		ID:      g.Websocket.Conn.GenerateMessageID(false),
 		Time:    time.Now().Unix(),
 		Channel: optionsPingChannel,
 	})
@@ -275,7 +275,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe subscr
 				params...)
 		}
 		payloads[i] = WsInput{
-			ID:      g.Counter.IncrementAndGet(),
+			ID:      g.Websocket.Conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
