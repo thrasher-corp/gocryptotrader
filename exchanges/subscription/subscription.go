@@ -33,6 +33,7 @@ const (
 	MyOrdersChannel  = "myOrders"
 	MyWalletChannel  = "myWallet"
 	MyAccountChannel = "myAccount"
+	HeartbeatChannel = "heartbeat"
 )
 
 // Public errors
