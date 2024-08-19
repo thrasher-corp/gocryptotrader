@@ -34,7 +34,7 @@ const (
 	bitgetWhaleNetFlow      = "whale-net-flow"
 	bitgetTakerBuySell      = "taker-buy-sell"
 	bitgetPositionLongShort = "position-long-short"
-	// bitgetLongShortRatio      = "long-short-ratio"
+	// bitgetLongShortRatio    = "long-short-ratio"
 	// bitgetLoanGrowth          = "loan-growth"
 	// bitgetIsolatedBorrowRate  = "isolated-borrow-rate"
 	bitgetLongShort           = "long-short"

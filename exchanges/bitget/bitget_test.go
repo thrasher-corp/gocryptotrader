@@ -17,9 +17,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -1902,6 +1904,11 @@ func TestGetIsolatedInterestRateAndMaxBorrowable(t *testing.T) {
 		true)
 }
 
+func TestGetIsolatedTierConfiguration(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetIsolatedTierConfiguration, "", testPair.String(), errPairEmpty, false, true, true)
+}
+
 func TestGetIsolatedMaxborrowable(t *testing.T) {
 	t.Parallel()
 	testGetOneArg(t, bi.GetIsolatedMaxBorrowable, "", testPair.String(), errPairEmpty, false, true, true)
@@ -2624,8 +2631,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 func TestWithdrawFiatFunds(t *testing.T) {
 	t.Parallel()
-	_, err := bi.WithdrawFiatFunds(context.Background(), nil)
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	testGetOneArg(t, bi.WithdrawFiatFunds, nil, nil, common.ErrFunctionNotSupported, false, true, false)
 }
 
 func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
@@ -2791,10 +2797,20 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCalculatePNL(t *testing.T) {
-	bi.Verbose = true
-	_, err := bi.CalculatePNL(context.Background(), nil)
-	assert.NoError(t, err)
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+	req1 := &margin.RateHistoryRequest{
+		Asset: asset.Margin,
+		Pair:  testPair,
+	}
+	req2 := new(margin.RateHistoryRequest)
+	*req2 = *req1
+	req2.StartDate = time.Now().Add(-time.Hour * 24 * 90)
+	testGetOneArg(t, bi.GetMarginRatesHistory, nil, req2, common.ErrNilPointer, false, true, true)
+	req2.Asset = asset.CrossMargin
+	testGetOneArg(t, bi.GetMarginRatesHistory, req1, req2, common.ErrDateUnset, false, true, true)
+	req1.Asset = asset.CrossMargin
+	testGetOneArg(t, bi.GetMarginRatesHistory, req1, nil, common.ErrDateUnset, false, true, false)
 }
 
 func TestGetFuturesPositionSummary(t *testing.T) {
@@ -2817,6 +2833,84 @@ func TestGetFuturesPositions(t *testing.T) {
 		Pairs: currency.Pairs{testPair, currency.NewPair(currency.BTC, currency.ETH)},
 	}
 	_, err = bi.GetFuturesPositions(context.Background(), req)
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesPositionOrders(t *testing.T) {
+	t.Parallel()
+	req := new(futures.PositionsRequest)
+	testGetOneArg(t, bi.GetFuturesPositionOrders, nil, req, common.ErrNilPointer, false, true, true)
+	req.Pairs = currency.Pairs{testPair}
+	testGetOneArg(t, bi.GetFuturesPositionOrders, nil, req, nil, false, true, true)
+}
+
+func TestGetHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	req := &fundingrate.HistoricalRatesRequest{
+		Pair: testPair,
+	}
+	testGetOneArg(t, bi.GetHistoricalFundingRates, nil, req, common.ErrNilPointer, false, false, false)
+}
+
+func TestSetCollateralMode(t *testing.T) {
+	t.Parallel()
+	err := bi.SetCollateralMode(context.Background(), 0, 0)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestGetCollateralMode(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetCollateralMode, 0, 0, common.ErrFunctionNotSupported, false, true, false)
+}
+
+func TestSetMarginType(t *testing.T) {
+	t.Parallel()
+	err := bi.SetMarginType(context.Background(), 0, currency.Pair{}, 0)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	err = bi.SetMarginType(context.Background(), asset.Futures, currency.Pair{}, margin.Isolated)
+	assert.ErrorIs(t, err, errPairEmpty)
+	err = bi.SetMarginType(context.Background(), asset.Futures, testPair, margin.Multi)
+	assert.NoError(t, err)
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.ChangePositionMargin, nil, nil, common.ErrFunctionNotSupported, false, true, false)
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	err := bi.SetLeverage(context.Background(), 0, currency.Pair{}, 0, 0, 0)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	err = bi.SetLeverage(context.Background(), asset.Futures, currency.Pair{}, 0, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	err = bi.SetLeverage(context.Background(), asset.Futures, testPair, 0, 1, order.Long)
+	assert.NoError(t, err)
+}
+
+func TestGetLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetLeverage(context.Background(), 0, currency.Pair{}, 0, 0)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = bi.GetLeverage(context.Background(), asset.Futures, currency.Pair{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, 0, 0)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, margin.Isolated, 0)
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, margin.Isolated, order.Long)
+	assert.NoError(t, err)
+	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, margin.Isolated, order.Short)
+	assert.NoError(t, err)
+	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, margin.Multi, 0)
+	assert.NoError(t, err)
+	_, err = bi.GetLeverage(context.Background(), asset.Margin, currency.Pair{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetLeverage(context.Background(), asset.Margin, testPair, 0, 0)
+	assert.NoError(t, err)
+	_, err = bi.GetLeverage(context.Background(), asset.CrossMargin, currency.Pair{}, 0, 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.GetLeverage(context.Background(), asset.CrossMargin, testPair, 0, 0)
 	assert.NoError(t, err)
 }
 
@@ -3194,13 +3288,16 @@ type getOneArgResp interface {
 		*BotAccAssetsResp | *ConvertBGBResp | *CoinInfoResp | *SymbolInfoResp | *TickerResp | *SymbolResp |
 		*SubOrderResp | *BatchOrderResp | *BoolData | *FutureTickerResp | *AllAccResp | *SubaccountFuturesResp |
 		*CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | *IntRateMaxBorrowCross | *TierConfigCross |
-		*FlashRepayCross | *IsoAssetResp | *IntRateMaxBorrowIso | *MaxBorrowIso | *MaxTransferIso | *FlashRepayIso |
-		*EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse |
-		[]string
+		*FlashRepayCross | *IsoAssetResp | *IntRateMaxBorrowIso | *TierConfigIso | *MaxBorrowIso | *MaxTransferIso |
+		*FlashRepayIso | *EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract |
+		[]fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates |
+		[]futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse
 }
 
 type getOneArgParam interface {
-	string | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code
+	string | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code | *margin.RateHistoryRequest |
+		*fundingrate.HistoricalRatesRequest | *futures.PositionsRequest | *withdraw.Request |
+		*margin.PositionChangeRequest
 }
 
 type getOneArgGen[R getOneArgResp, P getOneArgParam] func(context.Context, P) (R, error)

@@ -10,6 +10,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -572,15 +573,11 @@ func (bi *Bitget) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 		if err != nil {
 			return nil, err
 		}
-		if len(resp.Data) == 0 {
-			break
-		}
 		// Not sure that this is the right end to use for pagination
-		if pagination == resp.Data[len(resp.Data)-1].OrderID {
+		if resp == nil || len(resp.Data) == 0 || pagination == resp.Data[len(resp.Data)-1].OrderID {
 			break
-		} else {
-			pagination = resp.Data[len(resp.Data)-1].OrderID
 		}
+		pagination = resp.Data[len(resp.Data)-1].OrderID
 		tempHist := make([]exchange.FundingHistory, len(resp.Data))
 		for x := range resp.Data {
 			tempHist[x] = exchange.FundingHistory{
@@ -749,7 +746,7 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			s.Price, s.Amount, false)
 	case asset.Futures:
 		IDs, err = bi.PlaceFuturesOrder(ctx, s.Pair.String(), getProductType(s.Pair), marginStringer(s.MarginType),
-			s.Pair.Quote.String(), sideEncoder(s.Side), "", s.Type.Lower(), strat, cID.String(), 0, 0,
+			s.Pair.Quote.String(), sideEncoder(s.Side, false), "", s.Type.Lower(), strat, cID.String(), 0, 0,
 			s.Amount, s.Price, s.ReduceOnly, false)
 	case asset.Margin, asset.CrossMargin:
 		loanType := "normal"
@@ -1140,10 +1137,8 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if len(genOrds.Data) == 0 {
-					break
-				}
-				if pagination == int64(genOrds.Data[len(genOrds.Data)-1].OrderID) {
+				if genOrds == nil || len(genOrds.Data) == 0 ||
+					pagination == int64(genOrds.Data[len(genOrds.Data)-1].OrderID) {
 					break
 				}
 				pagination = int64(genOrds.Data[len(genOrds.Data)-1].OrderID)
@@ -1227,10 +1222,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if len(genOrds.Data.OrderList) == 0 {
-					break
-				}
-				if pagination == int64(genOrds.Data.MaxID) {
+				if genOrds == nil || len(genOrds.Data.OrderList) == 0 || pagination == int64(genOrds.Data.MaxID) {
 					break
 				}
 				pagination = int64(genOrds.Data.MaxID)
@@ -1326,10 +1318,8 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if len(genOrds.Data) == 0 {
-					break
-				}
-				if pagination == int64(genOrds.Data[len(genOrds.Data)-1].OrderID) {
+				if genOrds == nil || len(genOrds.Data) == 0 ||
+					pagination == int64(genOrds.Data[len(genOrds.Data)-1].OrderID) {
 					break
 				}
 				pagination = int64(genOrds.Data[len(genOrds.Data)-1].OrderID)
@@ -1399,10 +1389,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if len(genFills.Data.Fills) == 0 {
-					break
-				}
-				if pagination == int64(genFills.Data.MaxID) {
+				if genFills == nil || len(genFills.Data.Fills) == 0 || pagination == int64(genFills.Data.MaxID) {
 					break
 				}
 				pagination = int64(genFills.Data.MaxID)
@@ -1433,10 +1420,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if len(genOrds.Data.OrderList) == 0 {
-					break
-				}
-				if pagination == int64(genOrds.Data.MaxID) {
+				if genOrds == nil || len(genOrds.Data.OrderList) == 0 || pagination == int64(genOrds.Data.MaxID) {
 					break
 				}
 				pagination = int64(genOrds.Data.MaxID)
@@ -1781,54 +1765,53 @@ func (bi *Bitget) GetAvailableTransferChains(ctx context.Context, cur currency.C
 	return chains, nil
 }
 
-// CalculatePNL is an overridable function to allow PNL to be calculated on an
-// open position
-// It will also determine whether the position is considered to be liquidated
-// For live trading, an overriding function may wish to confirm the liquidation by
-// requesting the status of the asset
-func (bi *Bitget) CalculatePNL(ctx context.Context, req *futures.PNLCalculatorRequest) (*futures.PNLResult, error) {
+// GetMarginRatesHistory returns the margin rate history for the supplied currency
+func (bi *Bitget) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
 	}
-
-	// Putting this on ice until later, I could copy the code for calculating it offline from futures.go but that seems
-	// bad. Also unsure whether I could call i.e. GetSinglePosition when CalculateOffline is false
-	return nil, common.ErrNotYetImplemented
-}
-
-// ScaleCollateral is an overridable function to determine how much
-// collateral is usable in futures positions
-func (bi *Bitget) ScaleCollateral(context.Context, *futures.CollateralCalculator) (*collateral.ByCurrency, error) {
-	// Skipping until I learn how to calculate collateral
-	return nil, common.ErrNotYetImplemented
-}
-
-// CalculateTotalCollateral takes in n collateral calculators to determine an overall
-// standing in a singular currency
-func (bi *Bitget) CalculateTotalCollateral(_ context.Context, _ *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
-	// Skipping until I learn how to calculate collateral
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (bi *Bitget) GetCollateralCurrencyForContract(a asset.Item, p currency.Pair) (currency.Code, asset.Item, error) {
-	// Due to the lack of a context, I can't get this to work unless I deduce the currency from the pair, which
-	// seems like a real waste of a function
-	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
-}
-
-// GetCurrencyForRealisedPNL returns where to put realised PNL
-// example 1: Bybit universal margin PNL is paid out in USD to your spot wallet
-// example 2: Binance coin margined futures pays returns using the same currency eg BTC
-func (bi *Bitget) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
-	// Skipped since I'm not sure where to get this information from
-	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
-}
-
-// GetMarginRatesHistory returns the margin rate history for the supplied currency
-func (bi *Bitget) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
-	// Skipped since I'm not fully sure waht this means, or where to get it from
-	return nil, common.ErrNotYetImplemented
+	var pagination int64
+	rates := new(margin.RateHistoryResponse)
+loop:
+	for {
+		switch req.Asset {
+		case asset.Margin:
+			resp, err := bi.GetIsolatedInterestHistory(ctx, req.Pair.String(), req.Currency.String(),
+				req.StartDate, req.EndDate, 500, pagination)
+			if err != nil {
+				return nil, err
+			}
+			if resp == nil || len(resp.Data.ResultList) == 0 || pagination == int64(resp.Data.MaxID) {
+				break loop
+			}
+			pagination = int64(resp.Data.MaxID)
+			for i := range resp.Data.ResultList {
+				rates.Rates = append(rates.Rates, margin.Rate{
+					DailyBorrowRate: decimal.NewFromFloat(resp.Data.ResultList[i].DailyInterestRate),
+					Time:            resp.Data.ResultList[i].CreationTime.Time(),
+				})
+			}
+		case asset.CrossMargin:
+			resp, err := bi.GetCrossInterestHistory(ctx, req.Currency.String(), req.StartDate, req.EndDate, 500,
+				pagination)
+			if err != nil {
+				return nil, err
+			}
+			if resp == nil || len(resp.Data.ResultList) == 0 || pagination == int64(resp.Data.MaxID) {
+				break loop
+			}
+			pagination = int64(resp.Data.MaxID)
+			for i := range resp.Data.ResultList {
+				rates.Rates = append(rates.Rates, margin.Rate{
+					DailyBorrowRate: decimal.NewFromFloat(resp.Data.ResultList[i].DailyInterestRate),
+					Time:            resp.Data.ResultList[i].CreationTime.Time(),
+				})
+			}
+		default:
+			return nil, asset.ErrNotSupported
+		}
+	}
+	return rates, nil
 }
 
 // GetFuturesPositionSummary returns stats for a future position
@@ -1842,29 +1825,24 @@ func (bi *Bitget) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 	}
 	if len(resp.Data) != 1 {
 		// I'm not sure that it should actually return one data point in this case, replace this with a properly
-		// formatted error message once certain
+		// formatted error message once certain (i.e. once you can test GetSinglePosition properly)
 		return nil, fmt.Errorf("expected 1 position, received %v", len(resp.Data))
 	}
 	summary := &futures.PositionSummary{
-		Pair:  req.Pair,
-		Asset: req.Asset,
-		// OpenDelegateSize is "Amount to be filled of the current order", would this be AvailableEquity?
-		// What is MarginSize?
-		AvailableEquity:  decimal.NewFromFloat(resp.Data[0].Available),
-		FrozenBalance:    decimal.NewFromFloat(resp.Data[0].Locked),
-		Leverage:         decimal.NewFromFloat(resp.Data[0].Leverage),
-		RealisedPNL:      decimal.NewFromFloat(resp.Data[0].AchievedProfits),
-		AverageOpenPrice: decimal.NewFromFloat(resp.Data[0].OpenPriceAverage),
-		UnrealisedPNL:    decimal.NewFromFloat(resp.Data[0].UnrealizedPL),
-		// Not sure if these are actually equivalent
+		Pair:                         req.Pair,
+		Asset:                        req.Asset,
+		CurrentSize:                  decimal.NewFromFloat(resp.Data[0].OpenDelegateSize),
+		InitialMarginRequirement:     decimal.NewFromFloat(resp.Data[0].MarginSize),
+		AvailableEquity:              decimal.NewFromFloat(resp.Data[0].Available),
+		FrozenBalance:                decimal.NewFromFloat(resp.Data[0].Locked),
+		Leverage:                     decimal.NewFromFloat(resp.Data[0].Leverage),
+		RealisedPNL:                  decimal.NewFromFloat(resp.Data[0].AchievedProfits),
+		AverageOpenPrice:             decimal.NewFromFloat(resp.Data[0].OpenPriceAverage),
+		UnrealisedPNL:                decimal.NewFromFloat(resp.Data[0].UnrealizedPL),
 		MaintenanceMarginRequirement: decimal.NewFromFloat(resp.Data[0].KeepMarginRate),
 		MarkPrice:                    decimal.NewFromFloat(resp.Data[0].MarkPrice),
 		StartDate:                    resp.Data[0].CreationTime.Time(),
 	}
-
-	// Okay so the only two exchanges which invoke CalculateOffline use it to print a warning that they can't do that
-	// Why have it then?
-	// EstimatePosition isn't used at all either
 	return summary, nil
 }
 
@@ -1874,7 +1852,7 @@ func (bi *Bitget) GetFuturesPositions(ctx context.Context, req *futures.Position
 		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
 	}
 	var resp []futures.PositionDetails
-	// This exchange essentially needs these listed, since a MarginCoin has to be provided
+	// This exchange needs pairs to be passed through, since a MarginCoin has to be provided
 	for i := range req.Pairs {
 		temp, err := bi.GetAllPositions(ctx, getProductType(req.Pairs[i]), req.Pairs[i].Quote.String())
 		if err != nil {
@@ -1887,19 +1865,17 @@ func (bi *Bitget) GetFuturesPositions(ctx context.Context, req *futures.Position
 			}
 			ord := []order.Detail{
 				{
-					Exchange:        bi.Name,
-					AssetType:       req.Asset,
-					Pair:            pair,
-					Side:            sideDecoder(temp.Data[x].HoldSide),
-					RemainingAmount: temp.Data[x].OpenDelegateSize,
-					// Is this accurate? If so, ExecutedAmount should = Locked, which sounds weird
+					Exchange:             bi.Name,
+					AssetType:            req.Asset,
+					Pair:                 pair,
+					Side:                 sideDecoder(temp.Data[x].HoldSide),
+					RemainingAmount:      temp.Data[x].OpenDelegateSize,
 					Amount:               temp.Data[x].Total,
 					Leverage:             temp.Data[x].Leverage,
 					AverageExecutedPrice: temp.Data[x].OpenPriceAverage,
 					MarginType:           marginDecoder(temp.Data[x].MarginMode),
-					// Not 100% certain about this one
-					Price: temp.Data[x].MarkPrice,
-					Date:  temp.Data[x].CreationTime.Time(),
+					Price:                temp.Data[x].MarkPrice,
+					Date:                 temp.Data[x].CreationTime.Time(),
 				},
 			}
 			resp = append(resp, futures.PositionDetails{
@@ -1911,6 +1887,176 @@ func (bi *Bitget) GetFuturesPositions(ctx context.Context, req *futures.Position
 		}
 	}
 	return resp, nil
+}
+
+// GetFuturesPositionOrders returns futures positions orders
+func (bi *Bitget) GetFuturesPositionOrders(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
+	}
+	pairs := make([]string, len(req.Pairs))
+	for x := range req.Pairs {
+		pairs[x] = req.Pairs[x].String()
+	}
+	if len(pairs) == 0 {
+		pairs = append(pairs, "")
+	}
+	var resp []futures.PositionResponse
+	var err error
+	for x := range pairs {
+		if pairs[x] != "" {
+			resp, err = bi.allFuturesOrderHelper(ctx, pairs[x], getProductType(req.Pairs[x]), req.Pairs[x], resp)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			for y := range prodTypes {
+				resp, err = bi.allFuturesOrderHelper(ctx, "", prodTypes[y], currency.Pair{}, resp)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return resp, nil
+}
+
+// GetHistoricalFundingRates returns historical funding rates for a future
+func (bi *Bitget) GetHistoricalFundingRates(ctx context.Context, req *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
+	}
+	resp, err := bi.GetFundingHistorical(ctx, req.Pair.String(), getProductType(req.Pair), 100, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) == 0 {
+		return nil, errReturnEmpty
+	}
+	rates := make([]fundingrate.Rate, len(resp.Data))
+	for i := range resp.Data {
+		rates[i] = fundingrate.Rate{
+			Time: resp.Data[i].FundingTime.Time(),
+			Rate: decimal.NewFromFloat(resp.Data[i].FundingRate),
+		}
+	}
+	rateStruct := &fundingrate.HistoricalRates{
+		Exchange:     bi.Name,
+		Asset:        req.Asset,
+		Pair:         req.Pair,
+		StartDate:    rates[0].Time,
+		EndDate:      rates[len(rates)-1].Time,
+		LatestRate:   rates[0],
+		FundingRates: rates,
+	}
+	if len(rates) > 1 {
+		rateStruct.TimeOfNextRate = rates[0].Time.Add(rates[0].Time.Sub(rates[1].Time))
+	}
+	return rateStruct, nil
+}
+
+// SetCollateralMode sets the account's collateral mode for the asset type
+func (bi *Bitget) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetCollateralMode returns the account's collateral mode for the asset type
+func (bi *Bitget) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
+	return 0, common.ErrFunctionNotSupported
+}
+
+// SetMarginType sets the account's margin type for the asset type
+func (bi *Bitget) SetMarginType(ctx context.Context, a asset.Item, p currency.Pair, t margin.Type) error {
+	switch a {
+	case asset.Futures:
+		var str string
+		switch t {
+		case margin.Isolated:
+			str = "isolated"
+		case margin.Multi:
+			str = "crossed"
+		}
+		_, err := bi.ChangeMarginMode(ctx, p.String(), getProductType(p), p.Quote.String(), str)
+		if err != nil {
+			return err
+		}
+	default:
+		return asset.ErrNotSupported
+	}
+	return nil
+}
+
+// ChangePositionMargin changes the margin type for a position
+func (bi *Bitget) ChangePositionMargin(_ context.Context, _ *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (bi *Bitget) SetLeverage(ctx context.Context, a asset.Item, p currency.Pair, _ margin.Type, f float64, s order.Side) error {
+	switch a {
+	case asset.Futures:
+		_, err := bi.ChangeLeverage(ctx, p.String(), getProductType(p), p.Quote.String(), sideEncoder(s, true), f)
+		if err != nil {
+			return err
+		}
+	default:
+		return asset.ErrNotSupported
+	}
+	return nil
+}
+
+// GetLeverage gets the account's initial leverage for the asset type and pair
+func (bi *Bitget) GetLeverage(ctx context.Context, a asset.Item, p currency.Pair, t margin.Type, s order.Side) (float64, error) {
+	lev := -1.1
+	switch a {
+	case asset.Futures:
+		resp, err := bi.GetOneFuturesAccount(ctx, p.String(), getProductType(p), p.Quote.String())
+		if err != nil {
+			return lev, err
+		}
+		switch t {
+		case margin.Isolated:
+			switch s {
+			case order.Buy, order.Long:
+				lev = resp.Data.IsolatedLongLever
+			case order.Sell, order.Short:
+				lev = resp.Data.IsolatedShortLever
+			default:
+				return lev, order.ErrSideIsInvalid
+			}
+		case margin.Multi:
+			lev = resp.Data.CrossedMarginleverage
+		default:
+			return lev, margin.ErrMarginTypeUnsupported
+		}
+	case asset.Margin:
+		resp, err := bi.GetIsolatedInterestRateAndMaxBorrowable(ctx, p.String())
+		if err != nil {
+			return lev, err
+		}
+		if len(resp.Data) == 0 {
+			return lev, errReturnEmpty
+		}
+		lev = resp.Data[0].Leverage
+	case asset.CrossMargin:
+		resp, err := bi.GetCrossInterestRateAndMaxBorrowable(ctx, p.Quote.String())
+		if err != nil {
+			return lev, err
+		}
+		if len(resp.Data) == 0 {
+			return lev, errReturnEmpty
+		}
+		lev = resp.Data[0].Leverage
+	default:
+		return lev, asset.ErrNotSupported
+	}
+	return lev, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (bi *Bitget) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
+	// What's the *open* interest rate?
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetProductType is a helper function that returns the appropriate product type for a given currency pair
@@ -1977,11 +2123,17 @@ func marginStringer(m margin.Type) string {
 }
 
 // SideEncoder is a helper function that returns the appropriate string for a given order side
-func sideEncoder(s order.Side) string {
+func sideEncoder(s order.Side, longshort bool) string {
 	switch s {
 	case order.Buy, order.Long:
+		if longshort {
+			return "long"
+		}
 		return "buy"
 	case order.Sell, order.Short:
+		if longshort {
+			return "short"
+		}
 		return "sell"
 	}
 	return "unknown side"
@@ -2069,10 +2221,7 @@ func (bi *Bitget) withdrawalHistGrabber(ctx context.Context, currency string) (*
 		if err != nil {
 			return nil, err
 		}
-		if len(resp.Data) == 0 {
-			break
-		}
-		if pagination == resp.Data[len(resp.Data)-1].OrderID {
+		if resp == nil || len(resp.Data) == 0 || pagination == resp.Data[len(resp.Data)-1].OrderID {
 			break
 		}
 		pagination = resp.Data[len(resp.Data)-1].OrderID
@@ -2116,10 +2265,7 @@ func (bi *Bitget) spotCurrentPlanOrdersHelper(ctx context.Context, pairStr strin
 		if err != nil {
 			return nil, err
 		}
-		if len(genOrds.Data.OrderList) == 0 {
-			break
-		}
-		if pagination == int64(genOrds.Data.IDLessThan) {
+		if genOrds == nil || len(genOrds.Data.OrderList) == 0 || pagination == int64(genOrds.Data.IDLessThan) {
 			break
 		}
 		pagination = int64(genOrds.Data.IDLessThan)
@@ -2170,10 +2316,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, pairStr, product
 		if err != nil {
 			return nil, err
 		}
-		if len(genOrds.Data.EntrustedList) == 0 {
-			break
-		}
-		if pagination == int64(genOrds.Data.EndID) {
+		if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination == int64(genOrds.Data.EndID) {
 			break
 		}
 		pagination = int64(genOrds.Data.EndID)
@@ -2221,10 +2364,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, pairStr, product
 			if err != nil {
 				return nil, err
 			}
-			if len(genOrds.Data.EntrustedList) == 0 {
-				break
-			}
-			if pagination == int64(genOrds.Data.EndID) {
+			if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination == int64(genOrds.Data.EndID) {
 				break
 			}
 			pagination = int64(genOrds.Data.EndID)
@@ -2274,10 +2414,7 @@ func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairStr stri
 		if err != nil {
 			return nil, err
 		}
-		if len(genOrds.Data.OrderList) == 0 {
-			break
-		}
-		if pagination == int64(genOrds.Data.IDLessThan) {
+		if genOrds == nil || len(genOrds.Data.OrderList) == 0 || pagination == int64(genOrds.Data.IDLessThan) {
 			break
 		}
 		pagination = int64(genOrds.Data.IDLessThan)
@@ -2320,10 +2457,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, pairStr, pro
 		if err != nil {
 			return nil, err
 		}
-		if len(fillOrds.Data.FillList) == 0 {
-			break
-		}
-		if pagination == int64(fillOrds.Data.EndID) {
+		if fillOrds == nil || len(fillOrds.Data.FillList) == 0 || pagination == int64(fillOrds.Data.EndID) {
 			break
 		}
 		pagination = int64(fillOrds.Data.EndID)
@@ -2350,10 +2484,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, pairStr, pro
 		if err != nil {
 			return nil, err
 		}
-		if len(genOrds.Data.EntrustedList) == 0 {
-			break
-		}
-		if pagination == int64(genOrds.Data.EndID) {
+		if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination == int64(genOrds.Data.EndID) {
 			break
 		}
 		pagination = int64(genOrds.Data.EndID)
@@ -2404,10 +2535,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, pairStr, pro
 			if err != nil {
 				return nil, err
 			}
-			if len(genOrds.Data.EntrustedList) == 0 {
-				break
-			}
-			if pagination == int64(genOrds.Data.EndID) {
+			if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination == int64(genOrds.Data.EndID) {
 				break
 			}
 			pagination = int64(genOrds.Data.EndID)
@@ -2459,10 +2587,8 @@ func (bi *Bitget) spotFillsHelper(ctx context.Context, pairStr string, fillMap m
 		if err != nil {
 			return err
 		}
-		if len(genFills.Data) == 0 {
-			break
-		}
-		if pagination == int64(genFills.Data[len(genFills.Data)-1].TradeID) {
+		if genFills == nil || len(genFills.Data) == 0 ||
+			pagination == int64(genFills.Data[len(genFills.Data)-1].TradeID) {
 			break
 		}
 		pagination = int64(genFills.Data[len(genFills.Data)-1].TradeID)
@@ -2575,4 +2701,180 @@ func contractTypeDecoder(s string) futures.ContractType {
 		return futures.Perpetual
 	}
 	return futures.Unknown
+}
+
+// AllFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and
+// GetPendingFuturesTriggerOrders, returning the data formatted appropriately
+func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, pairStr, productType string, pairCan currency.Pair, resp []futures.PositionResponse) ([]futures.PositionResponse, error) {
+	var pagination1 int64
+	var pagination2 int64
+	var breakbool1 bool
+	var breakbool2 bool
+	tempOrds := make(map[currency.Pair][]order.Detail)
+	for {
+		var genOrds *FuturesOrdResp
+		var err error
+		if !breakbool1 {
+			genOrds, err = bi.GetPendingFuturesOrders(ctx, 0, pagination1, 100, "", pairStr, productType, "",
+				time.Time{}, time.Time{})
+			if err != nil {
+				return nil, err
+			}
+			if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination1 == int64(genOrds.Data.EndID) {
+				breakbool1 = true
+			}
+			pagination1 = int64(genOrds.Data.EndID)
+		}
+		if !breakbool2 {
+			genOrds2, err := bi.GetHistoricalFuturesOrders(ctx, 0, pagination2, 100, "", pairStr, productType,
+				time.Time{}, time.Time{})
+			if err != nil {
+				return nil, err
+			}
+			if genOrds2 == nil || len(genOrds2.Data.EntrustedList) == 0 || pagination2 == int64(genOrds2.Data.EndID) {
+				breakbool2 = true
+			} else {
+				if genOrds == nil {
+					genOrds = new(FuturesOrdResp)
+				}
+				genOrds.Data.EntrustedList = append(genOrds.Data.EntrustedList, genOrds2.Data.EntrustedList...)
+			}
+			pagination2 = int64(genOrds.Data.EndID)
+		}
+		if breakbool1 && breakbool2 {
+			break
+		}
+		for i := range genOrds.Data.EntrustedList {
+			var thisPair currency.Pair
+			if pairStr != "" {
+				thisPair = pairCan
+			} else {
+				thisPair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			}
+			ioc, fok, po := strategyDecoder(genOrds.Data.EntrustedList[i].Force)
+			tempOrds[thisPair] = append(tempOrds[thisPair], order.Detail{
+				Exchange:             bi.Name,
+				Pair:                 thisPair,
+				AssetType:            asset.Futures,
+				Amount:               genOrds.Data.EntrustedList[i].Size,
+				OrderID:              strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID), 10),
+				ClientOrderID:        genOrds.Data.EntrustedList[i].ClientOrderID,
+				Fee:                  float64(genOrds.Data.EntrustedList[i].Fee),
+				Price:                float64(genOrds.Data.EntrustedList[i].Price),
+				AverageExecutedPrice: float64(genOrds.Data.EntrustedList[i].PriceAverage),
+				Status:               statusDecoder(genOrds.Data.EntrustedList[i].Status),
+				Side:                 sideDecoder(genOrds.Data.EntrustedList[i].Side),
+				SettlementCurrency:   currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+				QuoteAmount:          genOrds.Data.EntrustedList[i].QuoteVolume,
+				Leverage:             genOrds.Data.EntrustedList[i].Leverage,
+				MarginType:           marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+				Type:                 typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+				Date:                 genOrds.Data.EntrustedList[i].CreationTime.Time(),
+				LastUpdated:          genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+				LimitPriceUpper:      float64(genOrds.Data.EntrustedList[i].PresetStopSurplusPrice),
+				LimitPriceLower:      float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+				ImmediateOrCancel:    ioc,
+				FillOrKill:           fok,
+				PostOnly:             po,
+			})
+		}
+	}
+	for y := range planTypes {
+		pagination1 = 0
+		for {
+			genOrds, err := bi.GetPendingTriggerFuturesOrders(ctx, 0, pagination1, 100, "", pairStr, planTypes[y],
+				productType, time.Time{}, time.Time{})
+			if err != nil {
+				return nil, err
+			}
+			if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination1 == int64(genOrds.Data.EndID) {
+				break
+			}
+			pagination1 = int64(genOrds.Data.EndID)
+			for i := range genOrds.Data.EntrustedList {
+				var thisPair currency.Pair
+				if pairStr != "" {
+					thisPair = pairCan
+				} else {
+					thisPair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+					if err != nil {
+						return nil, err
+					}
+				}
+				tempOrds[thisPair] = append(tempOrds[thisPair], order.Detail{
+					Exchange:           bi.Name,
+					Pair:               thisPair,
+					AssetType:          asset.Futures,
+					Amount:             genOrds.Data.EntrustedList[i].Size,
+					OrderID:            strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID), 10),
+					ClientOrderID:      genOrds.Data.EntrustedList[i].ClientOrderID,
+					Price:              float64(genOrds.Data.EntrustedList[i].Price),
+					TriggerPrice:       float64(genOrds.Data.EntrustedList[i].TriggerPrice),
+					Status:             statusDecoder(genOrds.Data.EntrustedList[i].PlanStatus),
+					Side:               sideDecoder(genOrds.Data.EntrustedList[i].Side),
+					SettlementCurrency: currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+					MarginType:         marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+					Type:               typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+					Date:               genOrds.Data.EntrustedList[i].CreationTime.Time(),
+					LastUpdated:        genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+					LimitPriceUpper:    float64(genOrds.Data.EntrustedList[i].PresetTakeProfitPrice),
+					LimitPriceLower:    float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+				})
+			}
+		}
+		pagination1 = 0
+		for {
+			genOrds, err := bi.GetHistoricalTriggerFuturesOrders(ctx, 0, pagination1, 100, "", planTypes[y], "",
+				pairStr, productType, time.Time{}, time.Time{})
+			if err != nil {
+				return nil, err
+			}
+			if genOrds == nil || len(genOrds.Data.EntrustedList) == 0 || pagination1 == int64(genOrds.Data.EndID) {
+				break
+			}
+			pagination1 = int64(genOrds.Data.EndID)
+			for i := range genOrds.Data.EntrustedList {
+				var thisPair currency.Pair
+				if pairStr != "" {
+					thisPair = pairCan
+				} else {
+					thisPair, err = pairFromStringHelper(genOrds.Data.EntrustedList[i].Symbol)
+					if err != nil {
+						return nil, err
+					}
+				}
+				tempOrds[thisPair] = append(tempOrds[thisPair], order.Detail{
+					Exchange:             bi.Name,
+					Pair:                 thisPair,
+					AssetType:            asset.Futures,
+					Amount:               genOrds.Data.EntrustedList[i].Size,
+					OrderID:              strconv.FormatInt(int64(genOrds.Data.EntrustedList[i].OrderID), 10),
+					ClientOrderID:        genOrds.Data.EntrustedList[i].ClientOrderID,
+					Status:               statusDecoder(genOrds.Data.EntrustedList[i].PlanStatus),
+					Price:                float64(genOrds.Data.EntrustedList[i].Price),
+					AverageExecutedPrice: float64(genOrds.Data.EntrustedList[i].PriceAverage),
+					TriggerPrice:         float64(genOrds.Data.EntrustedList[i].TriggerPrice),
+					Side:                 sideDecoder(genOrds.Data.EntrustedList[i].Side),
+					SettlementCurrency:   currency.NewCode(genOrds.Data.EntrustedList[i].MarginCoin),
+					MarginType:           marginDecoder(genOrds.Data.EntrustedList[i].MarginMode),
+					Type:                 typeDecoder(genOrds.Data.EntrustedList[i].OrderType),
+					Date:                 genOrds.Data.EntrustedList[i].CreationTime.Time(),
+					LastUpdated:          genOrds.Data.EntrustedList[i].UpdateTime.Time(),
+					LimitPriceUpper:      float64(genOrds.Data.EntrustedList[i].PresetTakeProfitPrice),
+					LimitPriceLower:      float64(genOrds.Data.EntrustedList[i].PresetStopLossPrice),
+				})
+			}
+		}
+	}
+	for x, y := range tempOrds {
+		resp = append(resp, futures.PositionResponse{
+			Pair:   x,
+			Orders: y,
+			Asset:  asset.Futures,
+		})
+	}
+	return resp, nil
 }

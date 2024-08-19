@@ -5322,12 +5322,12 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		if r.TakerFeeRate == "" {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
-		req.TakeFeeRate, err = decimal.NewFromString(r.TakerFeeRate)
+		req.TakerFeeRate, err = decimal.NewFromString(r.TakerFeeRate)
 		if err != nil {
 			return nil, err
 		}
 
-		if req.TakeFeeRate.LessThanOrEqual(decimal.Zero) {
+		if req.TakerFeeRate.LessThanOrEqual(decimal.Zero) {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
 		if len(r.Rates) == 0 {
