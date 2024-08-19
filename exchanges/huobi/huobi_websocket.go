@@ -554,7 +554,7 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 func (h *HUOBI) Subscribe(subs subscription.List) error {
 	var errs error
 	var creds *account.Credentials
-	if subs.Authenticated() {
+	if len(subs.Authenticated()) > 0 {
 		if creds, errs = h.GetCredentials(context.TODO()); errs != nil {
 			return errs
 		}
@@ -578,7 +578,7 @@ func (h *HUOBI) Subscribe(subs subscription.List) error {
 func (h *HUOBI) Unsubscribe(subs subscription.List) error {
 	var errs error
 	var creds *account.Credentials
-	if subs.Authenticated() {
+	if len(subs.Authenticated()) > 0 {
 		if creds, errs = h.GetCredentials(context.TODO()); errs != nil {
 			return errs
 		}
