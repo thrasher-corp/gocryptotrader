@@ -999,7 +999,7 @@ allTrades:
 		if len(trades) == 0 {
 			break
 		}
-		for i := 0; i < len(trades); i++ {
+		for i := range trades {
 			if start.Equal(trades[i].Timestamp.Time()) ||
 				trades[i].Timestamp.Time().Before(start) ||
 				tradeIDEnd == trades[len(trades)-1].TradeID {

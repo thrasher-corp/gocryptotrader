@@ -98,12 +98,12 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
 
 	var funcs []string
-	for x := 0; x < iExchange.NumMethod(); x++ {
+	for x := range iExchange.NumMethod() {
 		name := iExchange.Method(x).Name
 		method := actualExchange.MethodByName(name)
 		inputs := make([]reflect.Value, method.Type().NumIn())
 
-		for y := 0; y < method.Type().NumIn(); y++ {
+		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
 
 			if input.Implements(contextParam) {

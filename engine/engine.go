@@ -272,7 +272,7 @@ func (s *Settings) PrintLoadedSettings() {
 	gctlog.Debugln(gctlog.Global)
 	gctlog.Debugf(gctlog.Global, "ENGINE SETTINGS")
 	settings := reflect.ValueOf(*s)
-	for x := 0; x < settings.NumField(); x++ {
+	for x := range settings.NumField() {
 		field := settings.Field(x)
 		if field.Kind() != reflect.Struct {
 			continue
@@ -280,7 +280,7 @@ func (s *Settings) PrintLoadedSettings() {
 
 		fieldName := field.Type().Name()
 		gctlog.Debugln(gctlog.Global, "- "+common.AddPaddingOnUpperCase(fieldName)+":")
-		for y := 0; y < field.NumField(); y++ {
+		for y := range field.NumField() {
 			indvSetting := field.Field(y)
 			indvName := field.Type().Field(y).Name
 			if indvSetting.Kind() == reflect.String && indvSetting.IsZero() {

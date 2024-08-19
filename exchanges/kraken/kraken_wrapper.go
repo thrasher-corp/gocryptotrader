@@ -500,15 +500,15 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
 			book.Bids[x] = orderbook.Tranche{
-				Amount: orderbookNew.Bids[x].Amount,
-				Price:  orderbookNew.Bids[x].Price,
+				Amount: orderbookNew.Bids[x].Amount.Float64(),
+				Price:  orderbookNew.Bids[x].Price.Float64(),
 			}
 		}
 		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
 			book.Asks[y] = orderbook.Tranche{
-				Amount: orderbookNew.Asks[y].Amount,
-				Price:  orderbookNew.Asks[y].Price,
+				Amount: orderbookNew.Asks[y].Amount.Float64(),
+				Price:  orderbookNew.Asks[y].Price.Float64(),
 			}
 		}
 	case asset.Futures:
@@ -742,7 +742,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 				return nil, err
 			}
 		} else {
-			var response AddOrderResponse
+			var response *AddOrderResponse
 			response, err = k.AddOrder(ctx,
 				s.Pair,
 				s.Side.String(),
@@ -1507,15 +1507,11 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		}
 
 		for x := range candles {
-			timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
-			if err != nil {
-				return nil, err
-			}
-			if timeValue.Before(req.Start) || timeValue.After(req.End) {
+			if candles[x].Time.Before(req.Start) || candles[x].Time.After(req.End) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   timeValue,
+				Time:   candles[x].Time,
 				Open:   candles[x].Open,
 				High:   candles[x].High,
 				Low:    candles[x].Low,
