@@ -16,7 +16,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1034,4 +1036,29 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	for _, baseSub := range b.Features.Subscriptions {
+		for _, p := range pairs.Format(currency.PairFormat{Uppercase: false}) {
+			s := baseSub.Clone()
+			s.Pairs = currency.Pairs{p}
+			s.QualifiedChannel = channelName(s) + "_" + p.String()
+			exp = append(exp, s)
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+	assert.PanicsWithError(t,
+		"subscription channel not supported: wibble",
+		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
+		"should panic on invalid channel",
+	)
 }
