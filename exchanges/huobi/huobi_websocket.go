@@ -319,7 +319,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			Side:            oSide,
 			Status:          oStatus,
 			AssetType:       a,
-			LastUpdated:     time.Unix(response.TS*1000, 0),
+			LastUpdated:     time.Unix(response.TS*1000, 0).UTC(),
 			Pair:            p,
 		}
 
@@ -356,7 +356,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		h.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  time.UnixMilli(kline.Timestamp),
+			Timestamp:  time.UnixMilli(kline.Timestamp).UTC(),
 			Exchange:   h.Name,
 			AssetType:  a,
 			Pair:       p,
@@ -393,7 +393,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
-				Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
+				Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp).UTC(),
 				Amount:       t.Tick.Data[i].Amount,
 				Price:        t.Tick.Data[i].Price,
 				Side:         side,
@@ -431,7 +431,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			QuoteVolume:  wsTicker.Tick.Volume,
 			High:         wsTicker.Tick.High,
 			Low:          wsTicker.Tick.Low,
-			LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
+			LastUpdated:  time.UnixMilli(wsTicker.Timestamp).UTC(),
 			AssetType:    a,
 			Pair:         p,
 		}
@@ -509,7 +509,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = h.Name
 	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
-	newOrderBook.LastUpdated = time.UnixMilli(update.Timestamp)
+	newOrderBook.LastUpdated = time.UnixMilli(update.Timestamp).UTC()
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

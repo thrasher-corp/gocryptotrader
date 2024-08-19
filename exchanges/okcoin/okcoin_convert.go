@@ -37,9 +37,9 @@ func (o *okcoinTime) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("cannot unmarshal %T into okcoinTime", value)
 	}
 	if timestamp > 9999999999 {
-		*o = okcoinTime(time.UnixMilli(timestamp))
+		*o = okcoinTime(time.UnixMilli(timestamp).UTC())
 	} else {
-		*o = okcoinTime(time.Unix(timestamp, 0))
+		*o = okcoinTime(time.Unix(timestamp, 0).UTC())
 	}
 	return nil
 }

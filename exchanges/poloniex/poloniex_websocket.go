@@ -479,7 +479,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	book.Bids.SortBids()
 	book.Asset = asset.Spot
 	book.VerifyOrderbook = p.CanVerifyOrderbook
-	book.LastUpdated = time.UnixMilli(tsMilli)
+	book.LastUpdated = time.UnixMilli(tsMilli).UTC()
 	book.Pair, err = currency.NewPairFromString(pair)
 	if err != nil {
 		return err
@@ -530,7 +530,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 		Pair:       pair,
 		Asset:      asset.Spot,
 		UpdateID:   int64(sequenceNumber),
-		UpdateTime: time.UnixMilli(tsMilli),
+		UpdateTime: time.UnixMilli(tsMilli).UTC(),
 	}
 	if bs == 1 {
 		update.Bids = []orderbook.Tranche{{Price: price, Amount: volume}}
@@ -1143,6 +1143,6 @@ func (p *Poloniex) processTrades(currencyID float64, subData []interface{}) erro
 		Side:         side,
 		Price:        price,
 		Amount:       volume,
-		Timestamp:    time.Unix(int64(timestamp), 0),
+		Timestamp:    time.Unix(int64(timestamp), 0).UTC(),
 	})
 }

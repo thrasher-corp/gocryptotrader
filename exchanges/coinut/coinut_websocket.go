@@ -181,7 +181,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			Exchange:    c.Name,
 			OrderID:     strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
-			LastUpdated: time.Now(),
+			LastUpdated: time.Now().UTC(),
 			AssetType:   asset.Spot,
 		}
 	case "cancel_orders":
@@ -195,7 +195,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 				Exchange:    c.Name,
 				OrderID:     strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
-				LastUpdated: time.Now(),
+				LastUpdated: time.Now().UTC(),
 				AssetType:   asset.Spot,
 			}
 		}
@@ -243,7 +243,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			High:         wsTicker.High24,
 			Low:          wsTicker.Low24,
 			Last:         wsTicker.Last,
-			LastUpdated:  time.Unix(0, wsTicker.Timestamp),
+			LastUpdated:  time.Unix(0, wsTicker.Timestamp).UTC(),
 			AssetType:    asset.Spot,
 			Pair:         p,
 		}
@@ -299,7 +299,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			}
 
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000),
+				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000).UTC(),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     c.Name,
@@ -341,7 +341,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 		}
 
 		return trade.AddTradesToBuffer(c.Name, trade.Data{
-			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
+			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000).UTC(),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     c.Name,
@@ -433,7 +433,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		OrderID:         orderID,
 		Side:            oSide,
 		Status:          oStatus,
-		Date:            time.Unix(0, oContainer.Timestamp),
+		Date:            time.Unix(0, oContainer.Timestamp).UTC(),
 		Trades:          nil,
 	}
 	if oContainer.Reply == "order_filled" {
@@ -448,7 +448,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
 		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
-		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
+		o.LastUpdated = time.Unix(0, oContainer.Timestamp).UTC()
 		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		if err != nil {
 			return nil, err
@@ -460,7 +460,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 				Exchange:  c.Name,
 				TID:       strconv.FormatInt(oContainer.TransactionID, 10),
 				Side:      oSide,
-				Timestamp: time.Unix(0, oContainer.Timestamp),
+				Timestamp: time.Unix(0, oContainer.Timestamp).UTC(),
 			},
 		}
 	} else {
@@ -540,7 +540,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = c.Name
-	newOrderBook.LastUpdated = time.Now() // No time sent
+	newOrderBook.LastUpdated = time.Now().UTC() // No time sent
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -569,7 +569,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		Pair:       p,
 		UpdateID:   update.TransID,
 		Asset:      asset.Spot,
-		UpdateTime: time.Now(), // No time sent
+		UpdateTime: time.Now().UTC(), // No time sent
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
 		bufferUpdate.Bids = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}

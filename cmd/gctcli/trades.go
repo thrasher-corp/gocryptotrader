@@ -577,16 +577,16 @@ func getHistoricTrades(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
-			End:       e.Format(common.SimpleTimeFormatWithTimezone),
+			Start:     s.UTC().Format(common.SimpleTimeFormatWithTimezone),
+			End:       e.UTC().Format(common.SimpleTimeFormatWithTimezone),
 		})
 	if err != nil {
 		return err
 	}
 	fmt.Printf("%v\t| Beginning stream retrieving trades in 1 hour batches from %v to %v\n",
 		time.Now().Format(time.Kitchen),
-		s.UTC().Format(common.SimpleTimeFormatWithTimezone),
-		e.UTC().Format(common.SimpleTimeFormatWithTimezone))
+		s.Format(common.SimpleTimeFormatWithTimezone),
+		e.Format(common.SimpleTimeFormatWithTimezone))
 	fmt.Printf("%v\t| If you have provided a large time range, please be patient\n\n",
 		time.Now().Format(time.Kitchen))
 	for {

@@ -171,7 +171,7 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 		side = order.Sell
 	}
 	return trade.AddTradesToBuffer(b.Name, trade.Data{
-		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
+		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0).UTC(),
 		CurrencyPair: wsResp.pair,
 		AssetType:    asset.Spot,
 		Exchange:     b.Name,
@@ -334,7 +334,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		Bids:            make(orderbook.Tranches, len(update.Bids)),
 		Asks:            make(orderbook.Tranches, len(update.Asks)),
 		Pair:            p,
-		LastUpdated:     time.UnixMicro(update.Microtimestamp),
+		LastUpdated:     time.UnixMicro(update.Microtimestamp).UTC(),
 		Asset:           assetType,
 		Exchange:        b.Name,
 		VerifyOrderbook: b.CanVerifyOrderbook,
@@ -389,7 +389,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			VerifyOrderbook: b.CanVerifyOrderbook,
 			Bids:            make(orderbook.Tranches, len(orderbookSeed.Bids)),
 			Asks:            make(orderbook.Tranches, len(orderbookSeed.Asks)),
-			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
+			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0).UTC(),
 		}
 
 		for i := range orderbookSeed.Asks {

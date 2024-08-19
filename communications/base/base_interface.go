@@ -32,7 +32,7 @@ func (c IComm) Setup() {
 				continue
 			}
 			log.Debugf(log.CommunicationMgr, "Communications: %v is enabled and online.", c[i].GetName())
-			c[i].SetServiceStarted(time.Now())
+			c[i].SetServiceStarted(time.Now().UTC())
 		}
 	}
 }

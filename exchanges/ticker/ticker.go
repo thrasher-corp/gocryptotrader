@@ -184,7 +184,7 @@ func ProcessTicker(p *Price) error {
 	}
 
 	if p.LastUpdated.IsZero() {
-		p.LastUpdated = time.Now()
+		p.LastUpdated = time.Now().UTC()
 	}
 
 	return service.update(p)

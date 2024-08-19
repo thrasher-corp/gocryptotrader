@@ -286,7 +286,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		if !ok {
 			return nil, errors.New("type assertion failed for open time")
 		}
-		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		tempData.OpenTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][1].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for open")
@@ -336,7 +336,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		if !ok {
 			return nil, errors.New("type assertion failed for close time")
 		}
-		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		tempData.CloseTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][7].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for base asset volume")
@@ -405,7 +405,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		if !ok {
 			return nil, errors.New("type assertion failed for open time")
 		}
-		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		tempData.OpenTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][1].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for open")
@@ -455,7 +455,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		if !ok {
 			return nil, errors.New("type assertion failed for close time")
 		}
-		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		tempData.CloseTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][7].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for base asset volume")
@@ -520,7 +520,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 		if !ok {
 			return nil, errors.New("type assertion failed for open time")
 		}
-		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		tempData.OpenTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][1].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for open")
@@ -570,7 +570,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 		if !ok {
 			return nil, errors.New("type assertion failed for close time")
 		}
-		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		tempData.CloseTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][7].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for base asset volume")
@@ -639,7 +639,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 		if !ok {
 			return nil, errors.New("type assertion failed for open time")
 		}
-		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		tempData.OpenTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][1].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for open")
@@ -689,7 +689,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 		if !ok {
 			return nil, errors.New("type assertion failed for close time")
 		}
-		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		tempData.CloseTime = time.Unix(int64(floatData), 0).UTC()
 		strData, ok = data[x][7].(string)
 		if !ok {
 			return nil, errors.New("type assertion failed for base asset volume")

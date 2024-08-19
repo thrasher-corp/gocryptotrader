@@ -407,7 +407,7 @@ func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	end := time.Now()
+	end := time.Now().UTC()
 	walletActivity, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "")
 	if err != nil {
 		return nil, err
@@ -417,7 +417,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Deposits[i].Status,
-			Timestamp:       time.Unix(walletActivity.Deposits[i].Timestamp, 0),
+			Timestamp:       time.Unix(walletActivity.Deposits[i].Timestamp, 0).UTC(),
 			Currency:        walletActivity.Deposits[i].Currency.String(),
 			Amount:          walletActivity.Deposits[i].Amount,
 			CryptoToAddress: walletActivity.Deposits[i].Address,
@@ -428,7 +428,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Withdrawals[i].Status,
-			Timestamp:       time.Unix(walletActivity.Withdrawals[i].Timestamp, 0),
+			Timestamp:       time.Unix(walletActivity.Withdrawals[i].Timestamp, 0).UTC(),
 			Currency:        walletActivity.Withdrawals[i].Currency.String(),
 			Amount:          walletActivity.Withdrawals[i].Amount,
 			Fee:             walletActivity.Withdrawals[i].Fee,
@@ -441,7 +441,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	end := time.Now()
+	end := time.Now().UTC()
 	withdrawals, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "withdrawals")
 	if err != nil {
 		return nil, err
@@ -453,7 +453,7 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Withdrawals[i].Status,
-			Timestamp:       time.Unix(withdrawals.Withdrawals[i].Timestamp, 0),
+			Timestamp:       time.Unix(withdrawals.Withdrawals[i].Timestamp, 0).UTC(),
 			Currency:        withdrawals.Withdrawals[i].Currency.String(),
 			Amount:          withdrawals.Withdrawals[i].Amount,
 			Fee:             withdrawals.Withdrawals[i].Fee,
@@ -466,7 +466,7 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return p.GetHistoricTrades(ctx, pair, assetType, time.Now().Add(-time.Minute*15), time.Now())
+	return p.GetHistoricTrades(ctx, pair, assetType, time.Now().UTC().Add(-time.Minute*15), time.Now().UTC())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -989,7 +989,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, len(resp))
 	for x := range resp {
 		timeSeries[x] = kline.Candle{
-			Time:   time.UnixMilli(resp[x].Date),
+			Time:   time.UnixMilli(resp[x].Date).UTC(),
 			Open:   resp[x].Open,
 			High:   resp[x].High,
 			Low:    resp[x].Low,
@@ -1019,7 +1019,7 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 		for x := range resp {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.UnixMilli(resp[x].Date),
+				Time:   time.UnixMilli(resp[x].Date).UTC(),
 				Open:   resp[x].Open,
 				High:   resp[x].High,
 				Low:    resp[x].Low,

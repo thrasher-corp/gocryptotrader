@@ -1143,7 +1143,7 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 	k.Websocket.DataHandler <- stream.KlineData{
 		AssetType: asset.Spot,
 		Pair:      channelData.Pair,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		Exchange:  k.Name,
 		StartTime: convert.TimeFromUnixTimestampDecimal(startTime),
 		CloseTime: convert.TimeFromUnixTimestampDecimal(endTime),
