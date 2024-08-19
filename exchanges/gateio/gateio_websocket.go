@@ -871,6 +871,6 @@ func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.
 
 // GenerateWebsocketMessageID generates a message ID for the individual
 // connection.
-func (g *Gateio) GenerateWebsocketMessageID(highPrec bool) int64 {
+func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
 	return g.Counter.IncrementAndGet()
 }
