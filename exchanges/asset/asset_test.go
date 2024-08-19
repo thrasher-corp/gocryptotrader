@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestString(t *testing.T) {
@@ -21,15 +21,9 @@ func TestString(t *testing.T) {
 	}
 }
 
-func TestToStringArray(t *testing.T) {
+func TestStrings(t *testing.T) {
 	t.Parallel()
-	a := Items{Spot, Futures}
-	result := a.Strings()
-	for x := range a {
-		if !common.StringDataCompare(result, a[x].String()) {
-			t.Fatal("TestToStringArray returned an unexpected result")
-		}
-	}
+	assert.ElementsMatch(t, Items{Spot, Futures}.Strings(), []string{"spot", "futures"})
 }
 
 func TestContains(t *testing.T) {

@@ -267,9 +267,9 @@ func TestGetEnabledExchanges(t *testing.T) {
 		t.Errorf("received: '%v' but expected '%v'", len(exchanges), defaultEnabledExchanges)
 	}
 
-	if !common.StringDataCompare(exchanges, "Bitfinex") {
+	if !slices.Contains(exchanges, "Bitfinex") {
 		t.Errorf("received: '%v' but expected '%v'", 
-			common.StringDataCompare(exchanges, "Bitfinex"), 
+			slices.Contains(exchanges, "Bitfinex"), 
 			true)
 	}
 }

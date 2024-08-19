@@ -45,7 +45,7 @@ func GetBankAccountByID(id string) (*Account, error) {
 // ExchangeSupported Checks if exchange is supported by bank account
 func (b *Account) ExchangeSupported(exchange string) bool {
 	exchList := strings.Split(b.SupportedExchanges, ",")
-	return common.StringDataCompareInsensitive(exchList, exchange)
+	return common.StringSliceCompareInsensitive(exchList, exchange)
 }
 
 // Validate validates bank account settings
@@ -98,7 +98,7 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 		err = append(err, ErrAccountCannotBeEmpty)
 	}
 
-	if !common.StringDataCompareInsensitive(strings.Split(b.SupportedCurrencies, ","), cur.String()) {
+	if !common.StringSliceCompareInsensitive(strings.Split(b.SupportedCurrencies, ","), cur.String()) {
 		err = append(err, ErrCurrencyNotSupportedByAccount)
 	}
 
