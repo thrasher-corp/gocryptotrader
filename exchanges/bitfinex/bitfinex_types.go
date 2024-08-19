@@ -13,7 +13,6 @@ import (
 var (
 	errSetCannotBeEmpty        = errors.New("set cannot be empty")
 	errNoSeqNo                 = errors.New("no sequence number")
-	errUnknownError            = errors.New("unknown error")
 	errParamNotAllowed         = errors.New("param not allowed")
 	errParsingWSField          = errors.New("error parsing WS field")
 	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")

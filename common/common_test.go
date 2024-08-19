@@ -558,13 +558,6 @@ func TestChangePermission(t *testing.T) {
 	}
 }
 
-func initStringSlice(size int) (out []string) {
-	for x := 0; x < size; x++ {
-		out = append(out, "gct-"+strconv.Itoa(x))
-	}
-	return
-}
-
 func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 

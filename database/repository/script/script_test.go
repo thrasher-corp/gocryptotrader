@@ -99,7 +99,7 @@ func TestScript(t *testing.T) {
 
 func writeScript() {
 	var wg sync.WaitGroup
-	for x := 0; x < 20; x++ {
+	for x := range 20 {
 		wg.Add(1)
 
 		go func(x int) {

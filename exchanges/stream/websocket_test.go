@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -201,7 +202,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, connectedState, ws.state.Load(), "websocket must be connected")
 
-	for i := 0; i < 6; i++ { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
+	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
 		select {
 		case ws.TrafficAlert <- signal:
 			if i == 0 {
@@ -724,8 +725,7 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
-// TestSendMessageWithResponse logic test
-func TestSendMessageWithResponse(t *testing.T) {
+func TestSendMessageReturnResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
 		Verbose:          true,
@@ -753,10 +753,20 @@ func TestSendMessageWithResponse(t *testing.T) {
 		RequestID: wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(request.RequestID, request)
+	_, err = wc.SendMessageReturnResponse(context.Background(), request.RequestID, request)
 	if err != nil {
 		t.Error(err)
 	}
+
+	cancelledCtx, fn := context.WithDeadline(context.Background(), time.Now())
+	fn()
+	_, err = wc.SendMessageReturnResponse(cancelledCtx, "123", request)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+
+	// with timeout
+	wc.ResponseMaxLimit = 1
+	_, err = wc.SendMessageReturnResponse(context.Background(), "123", request)
+	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
 type reporter struct {
@@ -896,7 +906,7 @@ func TestGenerateMessageID(t *testing.T) {
 	wc := WebsocketConnection{}
 	const spins = 1000
 	ids := make([]int64, spins)
-	for i := 0; i < spins; i++ {
+	for i := range spins {
 		id := wc.GenerateMessageID(true)
 		assert.NotContains(t, ids, id, "GenerateMessageID must not generate the same ID twice")
 		ids[i] = id
@@ -1182,7 +1192,7 @@ func TestLatency(t *testing.T) {
 		RequestID: wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(request.RequestID, request)
+	_, err = wc.SendMessageReturnResponse(context.Background(), request.RequestID, request)
 	if err != nil {
 		t.Error(err)
 	}

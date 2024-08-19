@@ -307,13 +307,13 @@ pairs:
 		}
 		base := p[x].Base.Lower().String()
 		baseLength := len(base)
-		for y := 0; y < baseLength; y++ {
+		for y := range baseLength {
 			if base[y] != symbol[y] {
 				continue pairs
 			}
 		}
 		quote := p[x].Quote.Lower().String()
-		for y := 0; y < len(quote); y++ {
+		for y := range quote {
 			if quote[y] != symbol[baseLength+y] {
 				continue pairs
 			}

@@ -1613,7 +1613,7 @@ func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	for errCounter := 0; errCounter < maxAuthFailures; errCounter++ {
+	for range maxAuthFailures {
 		key, err := keyProvider()
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
