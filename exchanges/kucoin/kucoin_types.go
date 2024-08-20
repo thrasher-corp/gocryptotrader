@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -28,7 +29,7 @@ var (
 	errInvalidSubAccountName      = errors.New("invalid sub-account name")
 	errRemarkIsRequired           = errors.New("remark with a 24 characters max-length is required")
 	errAPIKeyRequired             = errors.New("account API key is required")
-	errInvalidPassphraseInstance  = errors.New("invalid passphrase string")
+	errInvalidPassPhraseInstance  = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer  = errors.New("no valid response from server")
 	errMissingOrderbookSequence   = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired       = errors.New("at least one required among size and funds")
@@ -50,6 +51,9 @@ var (
 	errTransferDirectionRequired  = errors.New("transfer direction cannot be empty")
 	errPageSizeRequired           = errors.New("pageSize is required")
 	errCurrentPageRequired        = errors.New("current page value is required")
+
+	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
+	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
 )
 
 // UnmarshalTo acts as interface to exchange API response
@@ -1455,8 +1459,8 @@ type WsFuturesTicker struct {
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
 
-// WsFuturesOrderbokInfo represents Level 2 order book information.
-type WsFuturesOrderbokInfo struct {
+// WsFuturesOrderbookInfo represents Level 2 order book information.
+type WsFuturesOrderbookInfo struct {
 	Sequence  int64                `json:"sequence"`
 	Change    string               `json:"change"`
 	Timestamp convert.ExchangeTime `json:"timestamp"`

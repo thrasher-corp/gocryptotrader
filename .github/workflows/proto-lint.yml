@@ -12,7 +12,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
 
       - name: Setup build depends
         run: |
@@ -21,7 +21,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
-      - uses: bufbuild/buf-setup-action@v1.35.1
+      - uses: bufbuild/buf-setup-action@v1.37.0
 
       - name: buf generate
         working-directory: ./gctrpc

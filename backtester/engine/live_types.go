@@ -22,7 +22,6 @@ var (
 	ErrLiveDataTimeout = errors.New("no data processed within timeframe")
 
 	errDataSourceExists             = errors.New("data source already exists")
-	errInvalidCredentials           = errors.New("credentials are invalid, please check your config")
 	errNoCredsNoLive                = errors.New("cannot use real orders without credentials to fulfil those real orders")
 	errNoDataSetForClosingPositions = errors.New("no data was set for closing positions")
 	errNilError                     = errors.New("nil error received when expecting an error")

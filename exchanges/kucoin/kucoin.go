@@ -1532,7 +1532,7 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 		return nil, fmt.Errorf("%w, subaccount name is required", errInvalidSubAccountName)
 	}
 	if password == "" {
-		return nil, errInvalidPassphraseInstance
+		return nil, errInvalidPassPhraseInstance
 	}
 	arg := &struct {
 		SubAccountName string `json:"subName"`
@@ -1569,7 +1569,7 @@ func (ku *Kucoin) CreateSpotAPIsForSubAccount(ctx context.Context, arg *SpotAPIS
 		return nil, errInvalidSubAccountName
 	}
 	if arg.Passphrase == "" {
-		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassphraseInstance)
+		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
 	if arg.Remark == "" {
 		return nil, errRemarkIsRequired
@@ -1587,7 +1587,7 @@ func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubA
 		return nil, errAPIKeyRequired
 	}
 	if arg.Passphrase == "" {
-		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassphraseInstance)
+		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
 	var resp *SpotAPISubAccount
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, modifySubAccountSpotAPIEPL, http.MethodPut, "/v1/sub/api-key/update", &arg, &resp)
@@ -1602,7 +1602,7 @@ func (ku *Kucoin) DeleteSubAccountSpotAPI(ctx context.Context, apiKey, subAccoun
 		return nil, errAPIKeyRequired
 	}
 	if passphrase == "" {
-		return nil, errInvalidPassphraseInstance
+		return nil, errInvalidPassPhraseInstance
 	}
 	params := url.Values{}
 	params.Set("apiKey", apiKey)
@@ -2486,7 +2486,7 @@ var intervalMap = map[kline.Interval]string{
 }
 
 // IntervalToString returns a string from kline.Interval input.
-func (ku *Kucoin) IntervalToString(interval kline.Interval) (string, error) {
+func IntervalToString(interval kline.Interval) (string, error) {
 	intervalString, okay := intervalMap[interval]
 	if okay {
 		return intervalString, nil

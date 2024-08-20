@@ -160,7 +160,7 @@ func TestGetAccountTradingFees(t *testing.T) {
 
 	fees, err := b.GetAccountTradingFees(context.Background())
 	require.NoError(t, err, "GetAccountTradingFee must not error")
-	if assert.Positive(t, len(fees), "Should get back multiple fees") {
+	if assert.NotEmpty(t, fees, "Should get back multiple fees") {
 		fee := fees[0]
 		assert.NotEmpty(t, fee.Symbol, "Should get back a symbol")
 		if mockTests {

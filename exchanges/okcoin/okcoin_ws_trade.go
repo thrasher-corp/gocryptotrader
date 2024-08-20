@@ -1,6 +1,7 @@
 package okcoin
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -153,9 +154,9 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 	var err error
 	// TODO: ratelimits for websocket
 	if authenticated {
-		byteData, err = o.Websocket.AuthConn.SendMessageReturnResponse(req.ID, req)
+		byteData, err = o.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), req.ID, req)
 	} else {
-		byteData, err = o.Websocket.Conn.SendMessageReturnResponse(req.ID, req)
+		byteData, err = o.Websocket.Conn.SendMessageReturnResponse(context.TODO(), req.ID, req)
 	}
 	if err != nil {
 		return err
