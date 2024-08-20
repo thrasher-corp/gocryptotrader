@@ -120,6 +120,7 @@ jobs:
         if [ "${{ matrix.sonic }}" = "true" ]; then
           TEST_FLAGS="-tags sonic"
         fi
+      shell: bash
 
     - name: Test
       run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
