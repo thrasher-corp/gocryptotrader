@@ -1047,9 +1047,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := subscription.List{}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	for _, s := range b.Features.Subscriptions {
+	for _, baseSub := range b.Features.Subscriptions {
 		for _, p := range pairs.Format(currency.PairFormat{Uppercase: false}) {
-			s = s.Clone()
+			s := baseSub.Clone()
 			s.Pairs = currency.Pairs{p}
 			s.QualifiedChannel = channelName(s) + "_" + p.String()
 			exp = append(exp, s)
