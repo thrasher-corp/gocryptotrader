@@ -1028,7 +1028,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 }
 
 func jsonifyInterface(params []interface{}) json.RawMessage {
-	response, _ := json.MarshalIndent(params, "", " ") //nolint:errchkjson // TODO: ignore this for now
+	response, _ := json.MarshalIndent(params, "", " ")
 	return response
 }
 
