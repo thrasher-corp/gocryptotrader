@@ -78,6 +78,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + WebGUI (discontinued).
 + Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
++ **Sonic JSON Integration**: Swap between the default Go 'encoding/json' package and the sonic library using go build tags for optimized JSON handling `-tags=sonic` or by using the make file `make sonic`
 
 ## Planned Features
 
