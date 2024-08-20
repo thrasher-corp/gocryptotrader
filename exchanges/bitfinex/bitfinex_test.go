@@ -1146,15 +1146,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := b.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions should not error")
 	exp := subscription.List{}
-	for _, s := range b.Features.Subscriptions {
+	for _, baseSub := range b.Features.Subscriptions {
 		for _, a := range b.GetAssetTypes(true) {
-			if s.Asset != asset.All && s.Asset != a {
+			if baseSub.Asset != asset.All && baseSub.Asset != a {
 				continue
 			}
 			pairs, err := b.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			for _, p := range pairs.Format(currency.PairFormat{Uppercase: true}) {
-				s = s.Clone()
+				s := baseSub.Clone()
 				s.Asset = a
 				s.Pairs = currency.Pairs{p}
 				switch s.Channel {
