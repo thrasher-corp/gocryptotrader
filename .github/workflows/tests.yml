@@ -13,22 +13,27 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
+            sonic: false
           - os: ubuntu-latest
             goarch: 386
             psql: true
             skip_wrapper_tests: true
+            sonic: false
           - os: macos-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: false
           - os: macos-13 # beta
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: false
           - os: windows-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: false
           - os: ubuntu-latest-sonic
             goarch: amd64
             psql: true
