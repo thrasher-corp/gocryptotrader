@@ -29,6 +29,31 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+          - os: ubuntu-latest-sonic
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: false
+            sonic: true
+          - os: ubuntu-latest-sonic
+            goarch: 386
+            psql: true
+            skip_wrapper_tests: true
+            sonic: true
+          - os: macos-latest-sonic
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: true
+            sonic: true
+          - os: macos-13-sonic # beta
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: true
+            sonic: true
+          - os: windows-latest-sonic
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: true
+            sonic: true
 
     runs-on: ${{ matrix.os }}
 
@@ -84,13 +109,20 @@ jobs:
         echo "CGO_ENABLED=1" >> $GITHUB_ENV
       shell: bash
 
+    - name: Set test flags
+      run: |
+        TEST_FLAGS=""
+        if [ "${{ matrix.sonic }}" = "true" ]; then
+          TEST_FLAGS="-tags sonic"
+        fi
+
     - name: Test
       run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
         unset PGSERVICEFILE
         if [ "${{ matrix.goarch }}" = "386" ]; then
-          go test -coverprofile coverage.txt -covermode atomic ./...
+          go test $TEST_FLAGS -coverprofile coverage.txt -covermode atomic ./...
         else
-          go test -race -coverprofile coverage.txt -covermode atomic ./...
+          go test $TEST_FLAGS -race -coverprofile coverage.txt -covermode atomic ./...
         fi
       shell: bash
       env:

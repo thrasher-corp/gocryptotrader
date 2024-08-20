@@ -1,10 +1,8 @@
-//go:build sonic
+//go:build sonic && !(darwin || arm64)
 
 package json
 
-import (
-	"github.com/bytedance/sonic"
-)
+import "github.com/bytedance/sonic"
 
 var (
 	Marshal       = sonic.ConfigStd.Marshal
