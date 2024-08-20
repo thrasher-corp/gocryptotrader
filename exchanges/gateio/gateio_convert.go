@@ -1,11 +1,12 @@
 package gateio
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.

@@ -1,12 +1,12 @@
 package convert
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestFloatFromString(t *testing.T) {

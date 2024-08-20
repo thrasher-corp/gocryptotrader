@@ -1,11 +1,12 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (

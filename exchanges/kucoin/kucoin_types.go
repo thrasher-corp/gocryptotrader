@@ -1,7 +1,6 @@
 package kucoin
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )

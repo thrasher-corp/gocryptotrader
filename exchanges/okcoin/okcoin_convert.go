@@ -1,10 +1,11 @@
 package okcoin
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 type okcoinTime time.Time

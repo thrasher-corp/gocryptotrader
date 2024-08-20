@@ -1,11 +1,11 @@
 package asset
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestString(t *testing.T) {

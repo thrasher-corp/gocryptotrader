@@ -1,9 +1,10 @@
 package bithumb
 
 import (
-	"encoding/json"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // bithumbMSTime provides an internal conversion helper for microsecond parsing

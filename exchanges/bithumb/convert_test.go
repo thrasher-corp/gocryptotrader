@@ -1,8 +1,9 @@
 package bithumb
 
 import (
-	"encoding/json"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestBithumbTime(t *testing.T) {

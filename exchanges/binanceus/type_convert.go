@@ -1,8 +1,9 @@
 package binanceus
 
 import (
-	"encoding/json"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp

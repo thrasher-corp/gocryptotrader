@@ -1,10 +1,11 @@
 package binance
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // binanceTime provides an internal conversion helper

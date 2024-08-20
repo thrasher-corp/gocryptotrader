@@ -1,7 +1,6 @@
 package convert
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // FloatFromString format

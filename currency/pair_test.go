@@ -1,13 +1,13 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 const (
