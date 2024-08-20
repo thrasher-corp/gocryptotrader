@@ -1788,9 +1788,9 @@ func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	assetTypes := ku.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
-		result, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String())
+		result, err := ku.FetchTradablePairs(context.Background(), assetType)
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 
@@ -1800,8 +1800,8 @@ func TestUpdateOrderbook(t *testing.T) {
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.UpdateOrderbook(context.Background(), tp, assetType)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 func TestUpdateTickers(t *testing.T) {
@@ -1831,9 +1831,9 @@ func TestUpdateTicker(t *testing.T) {
 	var result *ticker.Price
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.UpdateTicker(context.Background(), futuresTradablePair, asset.Futures)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
+		result, err = ku.UpdateTicker(context.Background(), tp, assetType)
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 
@@ -1842,9 +1842,9 @@ func TestFetchTicker(t *testing.T) {
 	var result *ticker.Price
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.FetchTicker(context.Background(), futuresTradablePair, asset.Futures)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
+		result, err = ku.FetchTicker(context.Background(), tp, assetType)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
 	}
 }
 
@@ -1854,8 +1854,8 @@ func TestFetchOrderbook(t *testing.T) {
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.FetchOrderbook(context.Background(), tp, assetType)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 
@@ -1866,8 +1866,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.GetHistoricCandles(context.Background(), tp, assetType, kline.OneHour, startTime, endTime)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 
@@ -1878,8 +1878,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.GetHistoricCandlesExtended(context.Background(), tp, assetType, kline.FifteenMin, startTime, endTime)
-		require.NoErrorf(t, err, "%w asset type: %s pair: %s", assetType.String(), tp.String())
-		assert.NotNilf(t, result, "%w asset type: %s pair: %s", assetType.String(), tp.String())
+		require.NoError(t, err)
+		assert.NotNil(t, result)
 	}
 }
 
@@ -1903,7 +1903,7 @@ func TestGetRecentTrades(t *testing.T) {
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.GetRecentTrades(context.Background(), tp, assetType)
 		require.NoError(t, err)
-		assert.NotNil(t, result)
+		require.NotNil(t, result)
 	}
 }
 
@@ -1919,8 +1919,8 @@ func TestGetOrderHistory(t *testing.T) {
 			Side:      order.AnySide,
 		}
 		result, err := ku.GetOrderHistory(context.Background(), &getOrdersRequest)
-		require.NoErrorf(t, err, "%w for asset type: %s pair: %s", assetType.String(), tp.String())
-		require.NotNilf(t, result, "%w for asset type: %s pair: %s", assetType.String(), tp.String())
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 
@@ -2505,8 +2505,8 @@ func TestFetchAccountInfo(t *testing.T) {
 	assetTypes := ku.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
 		result, err := ku.FetchAccountInfo(context.Background(), assetType)
-		require.NoErrorf(t, err, "%w for asset type: %s", assetType.String())
-		require.NotNilf(t, result, "%w for asset type: %s", assetType.String())
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 
@@ -2516,8 +2516,8 @@ func TestUpdateAccountInfo(t *testing.T) {
 	assetTypes := ku.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
 		result, err := ku.UpdateAccountInfo(context.Background(), assetType)
-		require.NoErrorf(t, err, "%w for asset type: %s pair: %s", assetType.String())
-		require.NotNilf(t, result, "%w for asset type: %s pair: %s", assetType.String())
+		require.NoError(t, err)
+		require.NotNil(t, result)
 	}
 }
 

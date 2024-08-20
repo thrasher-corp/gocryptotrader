@@ -2560,17 +2560,13 @@ func (ku *Kucoin) SubscribeToEarnFixedIncomeProduct(ctx context.Context, product
 	if accountType == "" {
 		return nil, errAccountTypeMissing
 	}
-	arg := &struct {
-		ProductID   string  `json:"productId"`
-		AccountType string  `json:"accountType"`
-		Amount      float64 `json:"amount,string"`
-	}{
-		ProductID:   productID,
-		AccountType: accountType,
-		Amount:      amount,
-	}
 	var resp *SusbcribeEarn
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, subscribeToEarnEPL, http.MethodPost, "/v1/earn/orders", arg, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, subscribeToEarnEPL, http.MethodPost, "/v1/earn/orders",
+		&map[string]interface{}{
+			"productId":     productID,
+			"accountType":   accountType,
+			"amount,string": amount,
+		}, &resp)
 }
 
 // RedeemByEarnHoldingID allows initiating redemption by holding ID.
