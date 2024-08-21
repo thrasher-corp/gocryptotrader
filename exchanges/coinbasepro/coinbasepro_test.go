@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1659,17 +1660,30 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
-	comparison := subscription.List{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
-		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"}}
-	for i := range comparison {
-		comparison[i].Pairs = currency.Pairs{
-			currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}
-		comparison[i].Asset = asset.Spot
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	c := new(CoinbasePro) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	if err := testexch.Setup(c); err != nil {
+		log.Fatal(err)
 	}
-	resp, err := c.generateSubscriptions()
+	c.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	p, err := c.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, comparison, resp)
+	exp := subscription.List{}
+	for _, baseSub := range defaultSubscriptions.Enabled() {
+		s := baseSub.Clone()
+		s.QualifiedChannel = subscriptionNames[s.Channel]
+		if s.Asset != asset.Empty {
+			s.Pairs = p
+		}
+		exp = append(exp, s)
+	}
+	subs, err := c.generateSubscriptions()
+	require.NoError(t, err)
+	testsubs.EqualLists(t, exp, subs)
+
+	_, err = subscription.List{{Channel: "wibble"}}.ExpandTemplates(c)
+	assert.ErrorContains(t, err, "subscription channel not supported: wibble")
 }
 
 func TestSubscribeUnsubscribe(t *testing.T) {
@@ -1919,4 +1933,25 @@ func testGetOneArg[G getOneArgResp](t *testing.T, f getOneArgAssertNotEmpty[G], 
 	resp, err := f(context.Background(), arg)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestCheckSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	c := &CoinbasePro{
+		Base: exchange.Base{
+			Config: &config.Exchange{
+				Features: &config.FeaturesConfig{
+					Subscriptions: subscription.List{
+						{Enabled: true, Channel: "matches"},
+					},
+				},
+			},
+			Features: exchange.Features{},
+		},
+	}
+
+	c.checkSubscriptions()
+	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), c.Features.Subscriptions)
+	testsubs.EqualLists(t, defaultSubscriptions, c.Config.Features.Subscriptions)
 }
