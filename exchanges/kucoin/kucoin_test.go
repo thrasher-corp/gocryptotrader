@@ -2198,8 +2198,8 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 	for _, s := range subs {
 		ku.Features.Subscriptions = subscription.List{s}
 		got, err := ku.generateSubscriptions()
-		require.NoError(t, err, "generateSubscriptions should not error")
-		require.Len(t, got, 1, "Should generate just one sub")
+		assert.NoError(t, err, "generateSubscriptions should not error")
+		assert.Len(t, got, 1, "Should generate just one sub")
 		assert.NotEmpty(t, got[0].QualifiedChannel, "Qualified Channel should not be empty")
 		if got[0].Channel == subscription.CandlesChannel {
 			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
@@ -2255,10 +2255,10 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	result, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures)
-	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	result, err = ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
