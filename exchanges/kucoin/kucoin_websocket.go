@@ -246,7 +246,6 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.ProcessData(resp.Data, &response)
 	case privateSpotTradeOrders:
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
-
 	case accountBalanceChannel:
 		return ku.processAccountBalanceChange(resp.Data)
 	case marginPositionChannel:
@@ -326,7 +325,6 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			return errors.New("invalid instrument information")
 		}
 		return ku.processFuturesKline(resp.Data, instrumentInfos[1])
-		// ----------------------------------------------------------------
 	default:
 		ku.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: ku.Name + stream.UnhandledMessage + string(respData),

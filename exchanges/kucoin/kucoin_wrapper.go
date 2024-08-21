@@ -146,7 +146,7 @@ func (ku *Kucoin) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneDay},
 					kline.IntervalCapacity{Interval: kline.OneWeek},
 				),
-				GlobalResultLimit: 1500,
+				GlobalResultLimit: 500,
 			},
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
@@ -476,7 +476,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		assetTypeString := "main"
 		switch assetType {
 		case asset.Spot:
-			assetTypeString = "trade"
+			assetTypeString = SpotTradeType
 		case asset.Margin:
 			assetTypeString = "margin"
 		case asset.Empty:
@@ -654,16 +654,9 @@ func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(ku.GetTradingRequirements())
-	if err != nil {
-		return nil, err
-	}
 	sideString, err := ku.OrderSideString(s.Side)
 	if err != nil {
 		return nil, err
-	}
-	if s.Type != order.UnknownType && s.Type != order.Limit && s.Type != order.Market {
-		return nil, fmt.Errorf("%w only limit and market are supported", order.ErrTypeIsInvalid)
 	}
 	s.Pair, err = ku.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
@@ -736,7 +729,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				ClientOrderID: s.ClientOrderID,
 				Symbol:        s.Pair,
 				OrderType:     s.Type.Lower(),
-				Side:          s.Side.String(),
+				Side:          sideString,
 				Price:         s.Price,
 				Size:          s.Amount,
 				PostOnly:      s.PostOnly,
@@ -752,9 +745,9 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			case order.Limit, order.Market, order.StopLimit, order.StopMarket:
 				var oType order.Type
 				switch s.Type {
-				case order.Limit:
+				case order.Limit, order.StopLimit:
 					oType = order.Limit
-				case order.Market:
+				case order.Market, order.StopMarket:
 					oType = order.Market
 				}
 				var timeInForce string
@@ -787,7 +780,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 						s.ClientOrderID,
 						sideString,
 						s.Pair.String(),
-						oType.Lower(), "", stopType, "", s.TradeMode,
+						oType.Lower(), "", stopType, "", SpotTradeType,
 						timeInForce, s.Amount, s.Price, stopPrice, 0,
 						0, 0, s.PostOnly, s.Hidden, s.Iceberg)
 					if err != nil {
@@ -806,7 +799,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 					Hidden:        s.Hidden,
 					TimeInForce:   timeInForce,
 					Iceberg:       s.Iceberg,
-					TradeType:     "TRADE",
+					TradeType:     SpotTradeType,
 					ReduceOnly:    s.ReduceOnly,
 				})
 				if err != nil {
@@ -815,9 +808,9 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				return s.DeriveSubmitResponse(o)
 			case order.OCO:
 				switch {
-				case !s.RiskManagementModes.TakeProfit.Enabled:
+				case !s.RiskManagementModes.TakeProfit.Enabled || s.RiskManagementModes.TakeProfit.Price <= 0:
 					return nil, errors.New("take profit price is required")
-				case !s.RiskManagementModes.StopLoss.Enabled:
+				case !s.RiskManagementModes.StopLoss.Enabled || s.RiskManagementModes.StopLoss.Price <= 0:
 					return nil, errors.New("stop loss price is required")
 				}
 
@@ -827,7 +820,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				var o string
 				o, err = ku.PlaceOCOOrder(ctx, &OCOOrderParams{
 					Symbol:        s.Pair,
-					Side:          s.Side.Lower(),
+					Side:          sideString,
 					Price:         s.Price,
 					Size:          s.Amount,
 					StopPrice:     stopPrice,
@@ -848,7 +841,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				ClientOrderID: s.ClientOrderID,
 				Side:          s.Side.Lower(),
 				Symbol:        s.Pair,
-				OrderType:     s.Type.String(),
+				OrderType:     s.Type.Lower(),
 				AutoBorrow:    s.AutoBorrow,
 				Price:         s.Price,
 				Size:          s.Amount,
@@ -919,10 +912,11 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	err = ord.Validate(ord.StandardCancel())
+	pairFormat, err := ku.GetPairFormat(ord.AssetType, true)
 	if err != nil {
 		return err
 	}
+	ord.Pair = ord.Pair.Format(pairFormat)
 	switch ord.AssetType {
 	case asset.Spot, asset.Margin:
 		if ord.OrderID == "" && ord.ClientOrderID == "" {
@@ -944,6 +938,9 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		default:
 			// If the HFMargin(High Frequency margin is enabled, the request will be a High frequency order)
 			if ku.HFMargin && ord.AssetType == asset.Margin {
+				if ord.Pair.IsEmpty() {
+					return fmt.Errorf("%w, symbol information is required", currency.ErrCurrencyPairEmpty)
+				}
 				if ord.OrderID != "" {
 					_, err = ku.CancelMarginHFOrderByOrderID(ctx, ord.OrderID, ord.Pair.String())
 				} else {
@@ -967,7 +964,17 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		return err
 	case asset.Futures:
-		_, err := ku.CancelFuturesOrderByOrderID(ctx, ord.OrderID)
+		if ord.OrderID == "" && ord.ClientOrderID == "" {
+			return fmt.Errorf("%w, either clientOrderID or OrderID is required", order.ErrOrderIDNotSet)
+		}
+		if ord.OrderID == "" {
+			if ord.Pair.IsEmpty() {
+				return fmt.Errorf("%w, symbol information is required", currency.ErrCurrencyPairEmpty)
+			}
+			_, err = ku.CancelFuturesOrderByClientOrderID(ctx, ord.Pair.String(), ord.ClientOrderID)
+		} else {
+			_, err = ku.CancelFuturesOrderByOrderID(ctx, ord.OrderID)
+		}
 		if err != nil {
 			return err
 		}
@@ -1031,26 +1038,29 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 				return order.CancelAllResponse{}, err
 			}
 		default:
-			var result string
+			var cancellationResponse string
 			if ku.HFMargin && orderCancellation.AssetType == asset.Margin {
-				result, err = ku.CancelAllMarginHFOrdersBySymbol(ctx, pairString, orderCancellation.MarginType.String())
+				if pairString == "" {
+					return order.CancelAllResponse{}, currency.ErrCurrencyPairEmpty
+				}
+				cancellationResponse, err = ku.CancelAllMarginHFOrdersBySymbol(ctx, pairString, MarginModeToString(orderCancellation.MarginType))
 				if err != nil {
 					return order.CancelAllResponse{}, err
 				}
 				return order.CancelAllResponse{
 					Status: map[string]string{
-						result: "success",
+						cancellationResponse: "success",
 					},
 				}, nil
 			} else if ku.HFSpot && orderCancellation.AssetType == asset.Spot {
 				if pairString != "" {
-					result, err = ku.CancelAllHFOrdersBySymbol(ctx, pairString)
+					cancellationResponse, err = ku.CancelAllHFOrdersBySymbol(ctx, pairString)
 					if err != nil {
 						return order.CancelAllResponse{}, err
 					}
 					return order.CancelAllResponse{
 						Status: map[string]string{
-							result: "success",
+							cancellationResponse: "success",
 						},
 					}, nil
 				}
@@ -1113,7 +1123,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			return nil, err
 		}
 		var nPair currency.Pair
-		nPair, err = ku.MatchSymbolWithAvailablePairs(orderDetail.Symbol, assetType, true)
+		nPair, err = currency.NewPairFromString(orderDetail.Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -1165,18 +1175,19 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			LastUpdated:          orderDetail.UpdatedAt.Time(),
 		}, nil
 	case asset.Spot, asset.Margin:
-		if ku.HFMargin || ku.HFSpot {
+		if (ku.HFMargin && assetType == asset.Margin) || ku.HFSpot && assetType == asset.Spot {
 			var orderDetail *HFOrderDetail
-			if ku.HFMargin && assetType == asset.Margin {
+			switch assetType {
+			case asset.Margin:
 				orderDetail, err = ku.GetMarginHFOrderDetailByOrderID(ctx, orderID, pair.String())
-			} else if ku.HFSpot && assetType == asset.Spot {
+			case asset.Spot:
 				orderDetail, err = ku.GetHFOrderDetailsByOrderID(ctx, orderID, pair.String())
 			}
 			if err != nil {
 				return nil, err
 			}
 			var nPair currency.Pair
-			nPair, err = ku.MatchSymbolWithAvailablePairs(orderDetail.Symbol, assetType, true)
+			nPair, err = currency.NewPairFromString(orderDetail.Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -1200,9 +1211,9 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 
 			var mType margin.Type
 			switch orderDetail.TradeType {
-			case "MARGIN_TRADE":
+			case CrossMarginTradeType:
 				mType = margin.Multi
-			case "MARGIN_ISOLATED_TRADE":
+			case IsolatedMarginTradeType:
 				mType = margin.Isolated
 			}
 			return &order.Detail{
@@ -1256,12 +1267,12 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		var orderAssetType asset.Item
 		var mType margin.Type
 		switch orderDetail.TradeType {
-		case "TRADE":
+		case SpotTradeType:
 			orderAssetType = asset.Spot
-		case "MARGIN_TRADE":
+		case CrossMarginTradeType:
 			mType = margin.Multi
 			orderAssetType = asset.Margin
-		case "MARGIN_ISOLATED_TRADE":
+		case IsolatedMarginTradeType:
 			mType = margin.Isolated
 			orderAssetType = asset.Margin
 		}
@@ -1469,7 +1480,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		}
 		switch getOrdersRequest.Type {
 		case order.OCO:
-			response, err := ku.GetOCOOrderList(ctx, 100, 0, singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
+			response, err := ku.GetOCOOrderList(ctx, 500, 1, singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
 			if err != nil {
 				return nil, err
 			}
@@ -1498,8 +1509,18 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Status:        status,
 				})
 			}
-		case order.Stop, order.StopLimit, order.StopMarket:
-			response, err := ku.ListStopOrders(ctx, singlePair.String(), getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "", []string{getOrdersRequest.FromOrderID}, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+		case order.Stop, order.StopLimit, order.StopMarket, order.ConditionalStop:
+			// NOTE: The orderType values 'limit', 'market', 'limit_stop', and 'market_stop' trigger an "The order type is invalid" error.
+			// As a result, these options are currently unavailable.
+			tradeType := SpotTradeType
+			if getOrdersRequest.AssetType == asset.Margin {
+				if getOrdersRequest.MarginType == margin.Multi {
+					tradeType = CrossMarginTradeType
+				} else {
+					tradeType = IsolatedMarginTradeType
+				}
+			}
+			response, err := ku.ListStopOrders(ctx, singlePair.String(), getOrdersRequest.Side.Lower(), "", tradeType, []string{getOrdersRequest.FromOrderID}, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -1695,7 +1716,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 		switch getOrdersRequest.Type {
 		case order.OCO:
 			var response *OCOOrders
-			response, err = ku.GetOCOOrderList(ctx, 100, 0, singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
+			response, err = ku.GetOCOOrderList(ctx, 500, 1, singlePair.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, []string{})
 			if err != nil {
 				return nil, err
 			}
@@ -1723,9 +1744,19 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Status:        status,
 				})
 			}
-		case order.Stop, order.StopLimit, order.StopMarket:
+		case order.Stop, order.StopLimit, order.StopMarket, order.ConditionalStop:
+			// NOTE: The orderType values 'limit', 'market', 'limit_stop', and 'market_stop' trigger an "The order type is invalid" error.
+			// As a result, these options are currently unavailable.
+			tradeType := SpotTradeType
+			if getOrdersRequest.AssetType == asset.Margin {
+				if getOrdersRequest.MarginType == margin.Multi {
+					tradeType = CrossMarginTradeType
+				} else {
+					tradeType = IsolatedMarginTradeType
+				}
+			}
 			var response *StopOrderListResponse
-			response, err = ku.ListStopOrders(ctx, singlePair.String(), getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "", []string{getOrdersRequest.FromOrderID}, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+			response, err = ku.ListStopOrders(ctx, singlePair.String(), sideString, "", tradeType, []string{getOrdersRequest.FromOrderID}, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -1950,15 +1981,15 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			if err != nil {
 				return nil, err
 			}
-			for x := range candles {
+			for y := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[x].StartTime,
-						Open:   candles[x].Open,
-						High:   candles[x].High,
-						Low:    candles[x].Low,
-						Close:  candles[x].Close,
-						Volume: candles[x].Volume,
+						Time:   candles[y].StartTime,
+						Open:   candles[y].Open,
+						High:   candles[y].High,
+						Low:    candles[y].Low,
+						Close:  candles[y].Close,
+						Volume: candles[y].Volume,
 					})
 			}
 		}

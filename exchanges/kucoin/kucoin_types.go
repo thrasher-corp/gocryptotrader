@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -12,6 +11,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
+)
+
+// Trade type values for Spot, Isolated Margin, and Cross Margin accounts
+const (
+	SpotTradeType           = "TRADE"
+	IsolatedMarginTradeType = "MARGIN_ISOLATED_TRADE"
+	CrossMarginTradeType    = "MARGIN_TRADE"
 )
 
 var (
@@ -50,9 +56,6 @@ var (
 	errTransferDirectionRequired  = errors.New("transfer direction cannot be empty")
 	errPageSizeRequired           = errors.New("pageSize is required")
 	errCurrentPageRequired        = errors.New("current page value is required")
-
-	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
-	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
 )
 
 // UnmarshalTo acts as interface to exchange API response

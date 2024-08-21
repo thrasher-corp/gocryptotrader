@@ -307,6 +307,8 @@ type MultiOrderRequest struct {
 	// FromOrderID for some APIs require order history searching
 	// from a specific orderID rather than via timestamps
 	FromOrderID string
+
+	MarginType margin.Type
 }
 
 // Status defines order status types

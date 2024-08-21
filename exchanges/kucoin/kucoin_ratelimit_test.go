@@ -190,7 +190,6 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimit()))
 	require.NoError(t, err)
 	for name, tt := range testTable {
-		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

@@ -43,7 +43,6 @@ var locker sync.Mutex
 
 const (
 	kucoinAPIURL = "https://api.kucoin.com/api"
-	// kucoinAPIKeyVersion = "2"
 	tradeBaseURL = "https://www.kucoin.com/"
 	tradeSpot    = "trade/"
 	tradeMargin  = "margin/"
@@ -57,7 +56,7 @@ const (
 func (ku *Kucoin) GetSymbols(ctx context.Context, market string) ([]SymbolInfo, error) {
 	params := url.Values{}
 	if market != "" {
-		params.Set("market", market)
+		params.Set(order.Market.Lower(), market)
 	}
 	var resp []SymbolInfo
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, symbolsEPL, common.EncodeURLValues("/v2/symbols", params), &resp)
@@ -468,33 +467,33 @@ func (ku *Kucoin) SpotPlaceHFOrderTest(ctx context.Context, arg *PlaceHFParam) (
 }
 
 // ValidatePlaceOrderParams validates an order placement parameters.
-func (ku *Kucoin) ValidatePlaceOrderParams(arg *PlaceHFParam) error {
-	if arg == nil || *arg == (PlaceHFParam{}) {
+func (a *PlaceHFParam) ValidatePlaceOrderParams() error {
+	if a == nil || *a == (PlaceHFParam{}) {
 		return common.ErrNilPointer
 	}
-	if arg.Symbol.IsEmpty() {
+	if a.Symbol.IsEmpty() {
 		return currency.ErrSymbolStringEmpty
 	}
-	if arg.OrderType == "" {
+	if a.OrderType == "" {
 		return order.ErrTypeIsInvalid
 	}
-	if arg.Side == "" {
+	if a.Side == "" {
 		return order.ErrSideIsInvalid
 	}
-	arg.Side = strings.ToLower(arg.Side)
-	if arg.Price <= 0 {
+	a.Side = strings.ToLower(a.Side)
+	if a.Price <= 0 {
 		return order.ErrPriceBelowMin
 	}
-	if arg.Size <= 0 {
+	if a.Size <= 0 {
 		return order.ErrAmountBelowMin
 	}
 	return nil
 }
 
 // SendSpotHFPlaceOrder sends a spot high-frequency order to the specified path
-// Use HFSpotPlaceOrder to place an order or  SpotPlaceHFOrderTest to send a test order
+// Use HFSpotPlaceOrder to place an order or SpotPlaceHFOrderTest to send a test order
 func (ku *Kucoin) SendSpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, path string) (string, error) {
-	err := ku.ValidatePlaceOrderParams(arg)
+	err := arg.ValidatePlaceOrderParams()
 	if err != nil {
 		return "", err
 	}
@@ -506,7 +505,7 @@ func (ku *Kucoin) SendSpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, p
 
 // SyncPlaceHFOrder this interface will synchronously return the order information after the order matching is completed.
 func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*SyncPlaceHFOrderResp, error) {
-	err := ku.ValidatePlaceOrderParams(arg)
+	err := arg.ValidatePlaceOrderParams()
 	if err != nil {
 		return nil, err
 	}
@@ -520,7 +519,7 @@ func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) 
 		return nil, common.ErrNilPointer
 	}
 	for i := range args {
-		err := ku.ValidatePlaceOrderParams(&(args[i]))
+		err := args[i].ValidatePlaceOrderParams()
 		if err != nil {
 			return nil, err
 		}
@@ -535,7 +534,7 @@ func (ku *Kucoin) SyncPlaceMultipleHFOrders(ctx context.Context, args []PlaceHFP
 		return nil, common.ErrNilPointer
 	}
 	for i := range args {
-		err := ku.ValidatePlaceOrderParams(&(args[i]))
+		err := args[i].ValidatePlaceOrderParams()
 		if err != nil {
 			return nil, err
 		}
@@ -684,7 +683,7 @@ func (ku *Kucoin) GetHFCompletedOrderList(ctx context.Context, symbol, side, ord
 		params.Set("lastId", lastID)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(order.Limit.Lower(), strconv.FormatInt(limit, 10))
 	}
 	var resp *CompletedHFOrder
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfCompletedOrderListEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/orders/done", params), nil, &resp)
@@ -710,7 +709,14 @@ func (ku *Kucoin) GetHFOrderDetailsByID(ctx context.Context, orderID, symbol, pa
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *HFOrderDetail
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfOrderDetailByOrderIDEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfOrderDetailByOrderIDEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, order.ErrOrderNotFound
+	}
+	return resp, nil
 }
 
 // AutoCancelHFOrderSetting automatically cancel all orders of the set trading pair after the specified time.
@@ -763,7 +769,7 @@ func (ku *Kucoin) GetHFFilledList(ctx context.Context, orderID, symbol, side, or
 		params.Set("lastId", lastID)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(order.Limit.Lower(), strconv.FormatInt(limit, 10))
 	}
 	var resp *HFOrderFills
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfFilledListEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/fills", params), nil, &resp)
@@ -795,7 +801,7 @@ func (ku *Kucoin) HandlePostOrder(ctx context.Context, arg *SpotOrderParam, path
 		return "", fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
 	}
 	switch arg.OrderType {
-	case "limit", "":
+	case order.Limit.Lower(), "":
 		if arg.Price <= 0 {
 			return "", fmt.Errorf("%w, price =%.3f", order.ErrPriceBelowMin, arg.Price)
 		}
@@ -805,7 +811,7 @@ func (ku *Kucoin) HandlePostOrder(ctx context.Context, arg *SpotOrderParam, path
 		if arg.VisibleSize < 0 {
 			return "", fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
 		}
-	case "market":
+	case order.Market.Lower():
 		if arg.Size == 0 && arg.Funds == 0 {
 			return "", errSizeOrFundIsRequired
 		}
@@ -845,7 +851,7 @@ func (ku *Kucoin) SendPostMarginOrder(ctx context.Context, arg *MarginOrderParam
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
 	switch arg.OrderType {
-	case "limit", "":
+	case order.Limit.Lower(), "":
 		if arg.Price <= 0 {
 			return nil, fmt.Errorf("%w, price=%.3f", order.ErrPriceBelowMin, arg.Price)
 		}
@@ -855,7 +861,7 @@ func (ku *Kucoin) SendPostMarginOrder(ctx context.Context, arg *MarginOrderParam
 		if arg.VisibleSize < 0 {
 			return nil, fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
 		}
-	case "market":
+	case order.Market.Lower():
 		sum := arg.Size + arg.Funds
 		if sum <= 0 || (sum != arg.Size && sum != arg.Funds) {
 			return nil, fmt.Errorf("%w, either 'size' or 'funds' has to be set, but not both", errSizeOrFundIsRequired)
@@ -1057,7 +1063,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	}
 	orderType = strings.ToLower(orderType)
 	switch orderType {
-	case "limit", "":
+	case order.Limit.Lower(), "":
 		if price <= 0 {
 			return "", order.ErrPriceBelowMin
 		}
@@ -1078,7 +1084,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		if visibleSize > 0 {
 			arg["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
 		}
-	case "market":
+	case order.Market.Lower():
 		switch {
 		case size > 0:
 			arg["size"] = strconv.FormatFloat(size, 'f', -1, 64)
@@ -1452,7 +1458,7 @@ func (ku *Kucoin) GetFilledHFMarginOrders(ctx context.Context, symbol, tradeType
 		params.Set("lastId", strconv.FormatInt(lastID, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(order.Limit.Lower(), strconv.FormatInt(limit, 10))
 	}
 	var resp *FilledMarginHFOrdersResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getFilledHFMarginOrdersEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/done", params), nil, &resp)
@@ -1520,7 +1526,7 @@ func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tr
 		params.Set("lastId", strconv.FormatInt(lastID, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(order.Limit.Lower(), strconv.FormatInt(limit, 10))
 	}
 	var resp *HFMarginOrderTransaction
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginHFTradeFillsEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/fills", params), nil, &resp)
@@ -1734,7 +1740,7 @@ func PopulateParams(ccy currency.Code, direction, bizType string, lastID, limit 
 		params.Set("lastId", strconv.FormatInt(lastID, 10))
 	}
 	if limit != 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(order.Limit.Lower(), strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1990,7 +1996,7 @@ func (ku *Kucoin) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTra
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.RecieveAccountType != "MAIN" && arg.RecieveAccountType != "TRADE" {
+	if arg.RecieveAccountType != "MAIN" && arg.RecieveAccountType != SpotTradeType {
 		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.RecieveAccountType)
 	}
 	var resp *InnerTransferToMainAndTradeResponse
@@ -2008,7 +2014,7 @@ func (ku *Kucoin) TransferToFuturesAccount(ctx context.Context, arg *FundTransfe
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.PaymentAccountType != "MAIN" && arg.PaymentAccountType != "TRADE" {
+	if arg.PaymentAccountType != "MAIN" && arg.PaymentAccountType != SpotTradeType {
 		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.PaymentAccountType)
 	}
 	var resp *FundTransferToFuturesResponse
@@ -2475,6 +2481,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	if err != nil {
 		return err
 	}
+
 	if result == nil {
 		return errNoValidResponseFromServer
 	}
@@ -2512,12 +2519,12 @@ func (ku *Kucoin) StringToOrderStatus(status string) (order.Status, error) {
 func (ku *Kucoin) AccountToTradeTypeString(a asset.Item, marginMode string) string {
 	switch a {
 	case asset.Spot:
-		return "TRADE"
+		return SpotTradeType
 	case asset.Margin:
 		if strings.EqualFold(marginMode, "isolated") {
-			return "MARGIN_ISOLATED_TRADE"
+			return IsolatedMarginTradeType
 		}
-		return "MARGIN_TRADE"
+		return CrossMarginTradeType
 	default:
 		return ""
 	}
