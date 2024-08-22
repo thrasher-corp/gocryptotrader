@@ -528,8 +528,8 @@ type CancelAllHFOrdersResponse struct {
 
 // CompletedHFOrder represents a completed HF orders list
 type CompletedHFOrder struct {
-	LastID int64           `json:"lastId"`
-	Items  []HFOrderDetail `json:"items"`
+	LastID int64         `json:"lastId"`
+	Items  []OrderDetail `json:"items"`
 }
 
 // AutoCancelHFOrderResponse represents an auto cancel HF order response
@@ -540,32 +540,10 @@ type AutoCancelHFOrderResponse struct {
 	TriggerTime convert.ExchangeTime `json:"triggerTime"`
 }
 
-// HFOrderFill represents an HF order fill
-type HFOrderFill struct {
-	ID             int64                `json:"id"`
-	Symbol         string               `json:"symbol"`
-	TradeID        int64                `json:"tradeId"`
-	OrderID        string               `json:"orderId"`
-	CounterOrderID string               `json:"counterOrderId"`
-	Side           string               `json:"side"`
-	Liquidity      string               `json:"liquidity"`
-	ForceTaker     bool                 `json:"forceTaker"`
-	Price          types.Number         `json:"price"`
-	Size           types.Number         `json:"size"`
-	Funds          string               `json:"funds"`
-	Fee            types.Number         `json:"fee"`
-	FeeRate        types.Number         `json:"feeRate"`
-	FeeCurrency    string               `json:"feeCurrency"`
-	Stop           string               `json:"stop"`
-	TradeType      string               `json:"tradeType"`
-	OrderType      string               `json:"type"`
-	CreatedAt      convert.ExchangeTime `json:"createdAt"`
-}
-
 // HFOrderFills represents an HF order list
 type HFOrderFills struct {
-	Items  []HFOrderFill `json:"items"`
-	LastID int64         `json:"lastId"`
+	Items  []Fill `json:"items"`
+	LastID int64  `json:"lastId"`
 }
 
 // PlaceOrderParams represents a batch place order parameters
@@ -626,21 +604,47 @@ type OrdersListResponse struct {
 
 // OrderDetail represents order detail
 type OrderDetail struct {
-	OrderRequest
-	Channel       string               `json:"channel"`
-	ID            string               `json:"id"`
-	OperationType string               `json:"opType"` // operation type: DEAL
-	Funds         string               `json:"funds"`
-	DealFunds     string               `json:"dealFunds"`
-	DealSize      float64              `json:"dealSize,string"`
-	Fee           float64              `json:"fee,string"`
-	FeeCurrency   string               `json:"feeCurrency"`
-	StopTriggered bool                 `json:"stopTriggered"`
-	Tags          string               `json:"tags"`
-	IsActive      bool                 `json:"isActive"`
-	CancelExist   bool                 `json:"cancelExist"`
-	CreatedAt     convert.ExchangeTime `json:"createdAt"`
-	TradeType     string               `json:"tradeType"`
+	ID                  string               `json:"id"`
+	ClientOID           string               `json:"clientOid"`
+	Symbol              string               `json:"symbol"`
+	Side                string               `json:"side"`
+	Type                string               `json:"type"`          // optional
+	Remark              string               `json:"remark"`        // optional
+	Stop                string               `json:"stop"`          // optional
+	StopPrice           types.Number         `json:"stopPrice"`     // optional
+	SelfTradePrevention string               `json:"stp,omitempty"` // optional
+	Price               types.Number         `json:"price"`
+	Size                types.Number         `json:"size"`
+	TimeInForce         string               `json:"timeInForce"` // optional
+	CancelAfter         int64                `json:"cancelAfter"` // optional
+	PostOnly            bool                 `json:"postOnly"`    // optional
+	Hidden              bool                 `json:"hidden"`      // optional
+	Iceberg             bool                 `json:"iceberg"`     // optional
+	VisibleSize         types.Number         `json:"visibleSize"` // optional
+	Channel             string               `json:"channel"`
+	OperationType       string               `json:"opType"` // operation type: DEAL
+	Funds               string               `json:"funds"`
+	DealFunds           string               `json:"dealFunds"`
+	DealSize            types.Number         `json:"dealSize"`
+	Fee                 types.Number         `json:"fee"`
+	FeeCurrency         string               `json:"feeCurrency"`
+	StopTriggered       bool                 `json:"stopTriggered"`
+	Tags                string               `json:"tags"`
+	IsActive            bool                 `json:"isActive"`
+	CancelExist         bool                 `json:"cancelExist"`
+	CreatedAt           convert.ExchangeTime `json:"createdAt"`
+	TradeType           string               `json:"tradeType"`
+
+	// Used by HF Orders
+	Active        bool                 `json:"active"`
+	InOrderBook   bool                 `json:"inOrderBook"`
+	LastUpdatedAt convert.ExchangeTime `json:"lastUpdatedAt"`
+
+	// Added for HF Spot orders
+	CancelledSize  types.Number `json:"cancelledSize"`
+	CancelledFunds string       `json:"cancelledFunds"`
+	RemainSize     types.Number `json:"remainSize"`
+	RemainFunds    string       `json:"remainFunds"`
 }
 
 // ListFills represents fills response list detail
@@ -671,6 +675,9 @@ type Fill struct {
 	OrderType      string               `json:"type"`
 	CreatedAt      convert.ExchangeTime `json:"createdAt"`
 	TradeType      string               `json:"tradeType"`
+
+	// Used by HF orders
+	ID int64 `json:"id"`
 }
 
 // StopOrderListResponse represents a list of spot orders details
@@ -857,7 +864,6 @@ type MainAccountInfo struct {
 type AccountSummaryInformation struct {
 	Level                 float64 `json:"level"`
 	SubQuantity           float64 `json:"subQuantity"`
-	MaxDefaultSubQuantity float64 `json:"maxDefaultSubQuantity"`
 	MaxSubQuantity        float64 `json:"maxSubQuantity"`
 	SpotSubQuantity       float64 `json:"spotSubQuantity"`
 	MarginSubQuantity     float64 `json:"marginSubQuantity"`
@@ -865,6 +871,7 @@ type AccountSummaryInformation struct {
 	MaxSpotSubQuantity    float64 `json:"maxSpotSubQuantity"`
 	MaxMarginSubQuantity  float64 `json:"maxMarginSubQuantity"`
 	MaxFuturesSubQuantity float64 `json:"maxFuturesSubQuantity"`
+	MaxDefaultSubQuantity float64 `json:"maxDefaultSubQuantity"`
 }
 
 // SubAccountsResponse represents a sub-accounts items response instance
@@ -2018,49 +2025,10 @@ type MarginHFOrderResponse struct {
 	LoanApplyID string  `json:"loanApplyId"`
 }
 
-// HFOrderDetail represents a high-frequency spot/margin order detail
-type HFOrderDetail struct {
-	ID                  string               `json:"id"`
-	Symbol              string               `json:"symbol"`
-	OpType              string               `json:"opType"`
-	OrderType           string               `json:"type"`
-	Side                string               `json:"side"`
-	Price               types.Number         `json:"price"`
-	Size                types.Number         `json:"size"`
-	Funds               string               `json:"funds"`
-	DealFunds           string               `json:"dealFunds"`
-	DealSize            types.Number         `json:"dealSize"`
-	Fee                 types.Number         `json:"fee"`
-	FeeCurrency         string               `json:"feeCurrency"`
-	SelfTradePrevention string               `json:"stp"`
-	TimeInForce         string               `json:"timeInForce"`
-	PostOnly            bool                 `json:"postOnly"`
-	Hidden              bool                 `json:"hidden"`
-	Iceberg             bool                 `json:"iceberg"`
-	VisibleSize         types.Number         `json:"visibleSize"`
-	CancelAfter         int64                `json:"cancelAfter"`
-	Channel             string               `json:"channel"`
-	ClientOrderID       string               `json:"clientOid"`
-	Remark              string               `json:"remark"`
-	Tags                string               `json:"tags"`
-	Active              bool                 `json:"active"`
-	InOrderBook         bool                 `json:"inOrderBook"`
-	CancelExist         bool                 `json:"cancelExist"`
-	CreatedAt           convert.ExchangeTime `json:"createdAt"`
-	LastUpdatedAt       convert.ExchangeTime `json:"lastUpdatedAt"`
-	TradeType           string               `json:"tradeType"`
-
-	// Added for Spot HF orders
-	CancelledSize  types.Number `json:"cancelledSize"`
-	CancelledFunds string       `json:"cancelledFunds"`
-	RemainSize     types.Number `json:"remainSize"`
-	RemainFunds    string       `json:"remainFunds"`
-}
-
 // FilledMarginHFOrdersResponse represents a filled HF margin orders
 type FilledMarginHFOrdersResponse struct {
-	LastID int64           `json:"lastId"`
-	Items  []HFOrderDetail `json:"items"`
+	LastID int64         `json:"lastId"`
+	Items  []OrderDetail `json:"items"`
 }
 
 // HFMarginOrderTrade represents a HF margin order trade item

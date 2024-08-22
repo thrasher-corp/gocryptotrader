@@ -1176,7 +1176,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		}, nil
 	case asset.Spot, asset.Margin:
 		if (ku.HFMargin && assetType == asset.Margin) || ku.HFSpot && assetType == asset.Spot {
-			var orderDetail *HFOrderDetail
+			var orderDetail *OrderDetail
 			switch assetType {
 			case asset.Margin:
 				orderDetail, err = ku.GetMarginHFOrderDetailByOrderID(ctx, orderID, pair.String())
@@ -1191,7 +1191,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(orderDetail.OrderType)
+			oType, err := order.StringToOrderType(orderDetail.Type)
 			if err != nil {
 				return nil, err
 			}
@@ -1233,7 +1233,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 				AverageExecutedPrice: orderDetail.Price.Float64(),
 				Fee:                  orderDetail.Fee.Float64(),
 				FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
-				ClientOrderID:        orderDetail.ClientOrderID,
+				ClientOrderID:        orderDetail.ClientOID,
 				Status:               oStatus,
 				LastUpdated:          orderDetail.LastUpdatedAt.Time(),
 				MarginType:           mType,
@@ -1285,16 +1285,16 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Pair:                 pair,
 			Type:                 oType,
 			Side:                 side,
-			Fee:                  orderDetail.Fee,
+			Fee:                  orderDetail.Fee.Float64(),
 			AssetType:            assetType,
-			ExecutedAmount:       orderDetail.DealSize,
-			RemainingAmount:      orderDetail.Size - orderDetail.DealSize,
-			Amount:               orderDetail.Size,
-			Price:                orderDetail.Price,
+			ExecutedAmount:       orderDetail.DealSize.Float64(),
+			RemainingAmount:      orderDetail.Size.Float64() - orderDetail.DealSize.Float64(),
+			Amount:               orderDetail.Size.Float64(),
+			Price:                orderDetail.Price.Float64(),
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
 			PostOnly:             orderDetail.PostOnly,
-			AverageExecutedPrice: orderDetail.Price,
+			AverageExecutedPrice: orderDetail.Price.Float64(),
 			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
 			ClientOrderID:        orderDetail.ClientOID,
 			Status:               oStatus,
@@ -1608,12 +1608,12 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				}
 				orders = append(orders, order.Detail{
 					OrderID:         spotOrders.Items[x].ID,
-					Amount:          spotOrders.Items[x].Size,
-					RemainingAmount: spotOrders.Items[x].Size - spotOrders.Items[x].DealSize,
-					ExecutedAmount:  spotOrders.Items[x].DealSize,
+					Amount:          spotOrders.Items[x].Size.Float64(),
+					RemainingAmount: spotOrders.Items[x].Size.Float64() - spotOrders.Items[x].DealSize.Float64(),
+					ExecutedAmount:  spotOrders.Items[x].DealSize.Float64(),
 					Exchange:        ku.Name,
 					Date:            spotOrders.Items[x].CreatedAt.Time(),
-					Price:           spotOrders.Items[x].Price,
+					Price:           spotOrders.Items[x].Price.Float64(),
 					Side:            side,
 					Type:            oType,
 					Pair:            dPair,
@@ -1842,10 +1842,10 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 				}
 				orders[i] = order.Detail{
-					Price:           responseOrders.Items[i].Price,
-					Amount:          responseOrders.Items[i].Size,
-					ExecutedAmount:  responseOrders.Items[i].DealSize,
-					RemainingAmount: responseOrders.Items[i].Size - responseOrders.Items[i].DealSize,
+					Price:           responseOrders.Items[i].Price.Float64(),
+					Amount:          responseOrders.Items[i].Size.Float64(),
+					ExecutedAmount:  responseOrders.Items[i].DealSize.Float64(),
+					RemainingAmount: responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
 					Date:            responseOrders.Items[i].CreatedAt.Time(),
 					Exchange:        ku.Name,
 					OrderID:         responseOrders.Items[i].ID,

@@ -50,3 +50,4 @@ __debug_bin
 # Coverage reports
 coverage.txt
 wrapperconfig.json
+.history/
