@@ -89,7 +89,7 @@ type Submit struct {
 
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
-	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
+	// TradeMode specifies the trading mode for margin and non-margin orders: see okx_wrapper.go
 	TradeMode string
 }
 
