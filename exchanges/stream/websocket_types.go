@@ -69,7 +69,7 @@ type Websocket struct {
 	ToRoutine   chan interface{}
 
 	// TODO: Disconnect this as an exported field and make it a connection level method.
-	// This impedes mutliple connection matches on startup between routines as they
+	// This impedes multiple connection matches on startup between routines as they
 	// will all share the same match object, which is not needed.
 	Match *Match
 

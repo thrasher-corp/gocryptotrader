@@ -422,8 +422,8 @@ func (w *Websocket) Connect() error {
 
 		conn := w.getConnectionFromSetup(w.connectionManager[i].Setup)
 
-		// Set these values right away, as any failure futher down the line will clean
-		// the values anyway but they can be done in parallel.
+		// Set these values right away, as any failure further down the line will clean
+		// the values anyway, but they can be done in parallel.
 		w.connectionManager[i].Connection = conn
 		w.connections[conn] = &w.connectionManager[i]
 
