@@ -12,6 +12,9 @@ import (
 // List is a container of subscription pointers
 type List []*Subscription
 
+// Hook is a function that modifies a List
+type Hook func(List) List
+
 type assetPairs map[asset.Item]currency.Pairs
 
 type iExchange interface {
