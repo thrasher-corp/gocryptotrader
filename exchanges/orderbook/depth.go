@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -778,11 +779,21 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 }
 
 // GetPair returns the pair associated with the depth
-func (d *Depth) GetPair() (currency.Pair, error) {
+func (d *Depth) GetPair() currency.Pair {
+	if d == nil {
+		return currency.EMPTYPAIR
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
-	if d.pair.IsEmpty() {
-		return currency.Pair{}, currency.ErrCurrencyPairEmpty
+	return d.pair
+}
+
+// GetAsset returns the asset associated with the depth
+func (d *Depth) GetAsset() asset.Item {
+	if d == nil {
+		return asset.Empty
 	}
-	return d.pair, nil
+	d.m.Lock()
+	defer d.m.Unlock()
+	return d.asset
 }

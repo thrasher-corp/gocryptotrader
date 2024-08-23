@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -679,18 +680,18 @@ func TestGetTranches(t *testing.T) {
 
 func TestGetPair(t *testing.T) {
 	t.Parallel()
+	require.Equal(t, currency.EMPTYPAIR, (*Depth)(nil).GetPair())
 	depth := NewDepth(id)
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	require.Equal(t, depth.pair, depth.GetPair())
+}
 
-	_, err := depth.GetPair()
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPair should error correctly")
-
-	expected := currency.NewPair(currency.BTC, currency.WABI)
-	depth.pair = expected
-
-	pair, err := depth.GetPair()
-	assert.NoError(t, err, "GetPair should not error")
-
-	assert.Equal(t, expected, pair, "GetPair should return correct pair")
+func TestGetAsset(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, asset.Empty, (*Depth)(nil).GetAsset())
+	depth := NewDepth(id)
+	depth.asset = asset.Spot
+	require.Equal(t, depth.asset, depth.GetAsset())
 }
 
 func getInvalidDepth() *Depth {
