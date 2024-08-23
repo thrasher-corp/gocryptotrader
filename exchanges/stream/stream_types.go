@@ -18,10 +18,11 @@ type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
 	DialContext(context.Context, *websocket.Dialer, http.Header) error
 	ReadMessage() Response
-	SendJSONMessage(ctx context.Context, payload interface{}) error
+	SendJSONMessage(ctx context.Context, payload any) error
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(highPrecision bool) int64
-	SendMessageReturnResponse(ctx context.Context, signature interface{}, request interface{}) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
+	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int) ([][]byte, error)
 	SendRawMessage(ctx context.Context, messageType int, message []byte) error
 	SetURL(string)
 	SetProxy(string)

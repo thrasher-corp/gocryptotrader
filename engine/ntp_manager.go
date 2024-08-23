@@ -52,7 +52,7 @@ func (m *ntpManager) Start() error {
 		// Sometimes the NTP client can have transient issues due to UDP, try
 		// the default retry limits before giving up
 	check:
-		for i := 0; i < m.retryLimit; i++ {
+		for i := range m.retryLimit {
 			err := m.processTime()
 			switch err {
 			case nil:

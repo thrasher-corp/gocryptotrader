@@ -220,7 +220,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
 	sep := fmt.Sprintf("%v %v %v |\t", fSIL(e, limit12), fSIL(a.String(), limit10), fSIL(p.String(), limit14))
 	currStr := fmt.Sprintf(common.CMDColours.H1+"------------------Stats for %v %v %v------------------------------------------------------"+common.CMDColours.Default, e, a, p)
-	log.Infof(common.CurrencyStatistics, currStr[:70])
+	log.Infoln(common.CurrencyStatistics, currStr[:70])
 	if a.IsFutures() {
 		log.Infof(common.CurrencyStatistics, "%s Long orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
 		log.Infof(common.CurrencyStatistics, "%s Short orders: %s", sep, convert.IntToHumanFriendlyString(c.SellOrders, ","))

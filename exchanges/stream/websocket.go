@@ -32,6 +32,8 @@ var (
 	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
 	ErrAlreadyDisabled          = errors.New("websocket already disabled")
 	ErrNotConnected             = errors.New("websocket is not connected")
+	ErrNoMessageListener        = errors.New("websocket listener not found for message")
+	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
 )
 
 // Private websocket errors
@@ -84,11 +86,15 @@ func SetupGlobalReporter(r Reporter) {
 // NewWebsocket initialises the websocket struct
 func NewWebsocket() *Websocket {
 	return &Websocket{
-		DataHandler:       make(chan interface{}, jobBuffer),
-		ToRoutine:         make(chan interface{}, jobBuffer),
-		ShutdownC:         make(chan struct{}),
-		TrafficAlert:      make(chan struct{}, 1),
-		ReadMessageErrors: make(chan error),
+		DataHandler:  make(chan interface{}, jobBuffer),
+		ToRoutine:    make(chan interface{}, jobBuffer),
+		ShutdownC:    make(chan struct{}),
+		TrafficAlert: make(chan struct{}, 1),
+		// ReadMessageErrors is buffered for an edge case when `Connect` fails
+		// after subscriptions are made but before the connectionMonitor has
+		// started. This allows the error to be read and handled in the
+		// connectionMonitor and start a connection cycle again.
+		ReadMessageErrors: make(chan error, 1),
 		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
@@ -415,6 +421,9 @@ func (w *Websocket) Connect() error {
 		// TODO: Add window for max subscriptions per connection, to spawn new connections if needed.
 
 		conn := w.getConnectionFromSetup(w.connectionManager[i].Setup)
+
+		// Set these values right away, as any failure futher down the line will clean
+		// the values anyway but they can be done in parallel.
 		w.connectionManager[i].Connection = conn
 		w.connections[conn] = &w.connectionManager[i]
 
@@ -490,6 +499,12 @@ func (w *Websocket) Connect() error {
 		clear(w.connections)
 		w.setState(disconnectedState) // Flip from connecting to disconnected.
 		w.ShutdownC = make(chan struct{})
+
+		// Drain residual error in the single buffered channel, this mitigates
+		// the cycle when `Connect` is called again and the connectionMonitor
+		// starts but there is an old error in the channel.
+		drain(w.ReadMessageErrors)
+
 		return multiConnectFatalError
 	}
 
@@ -693,6 +708,11 @@ func (w *Websocket) Shutdown() error {
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", w.exchangeName)
 	}
+
+	// Drain residual error in the single buffered channel, this mitigates
+	// the cycle when `Connect` is called again and the connectionMonitor
+	// starts but there is an old error in the channel.
+	drain(w.ReadMessageErrors)
 	return nil
 }
 
@@ -1347,6 +1367,16 @@ func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ct
 		}
 		if err := handler(ctx, resp.Raw); err != nil {
 			w.DataHandler <- err
+		}
+	}
+}
+
+func drain(ch <-chan error) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
 		}
 	}
 }

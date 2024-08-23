@@ -29,42 +29,6 @@ var (
 	errMatchTimeout    = errors.New("websocket connection: timeout waiting for response with signature")
 )
 
-// SendMessageReturnResponse will send a WS message to the connection and wait
-// for response
-func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, request interface{}) ([]byte, error) {
-	outbound, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
-	}
-
-	ch, err := w.Match.Set(signature)
-	if err != nil {
-		return nil, err
-	}
-
-	start := time.Now()
-	err = w.SendRawMessage(ctx, websocket.TextMessage, outbound)
-	if err != nil {
-		return nil, err
-	}
-
-	timer := time.NewTimer(w.ResponseMaxLimit)
-	select {
-	case payload := <-ch:
-		timer.Stop()
-		if w.Reporter != nil {
-			w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
-		}
-		return payload, nil
-	case <-timer.C:
-		w.Match.RemoveSignature(signature)
-		return nil, fmt.Errorf("%s %w: %v", w.ExchangeName, errMatchTimeout, signature)
-	case <-ctx.Done():
-		w.Match.RemoveSignature(signature)
-		return nil, ctx.Err()
-	}
-}
-
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
 	return w.DialContext(context.Background(), dialer, headers)
@@ -221,12 +185,12 @@ func (w *WebsocketConnection) IsConnected() bool {
 func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		// Any error condition will return a Response{Raw: nil, Type: 0} which
-		// will force the reader routine to return. The connection will hang
-		// with no reader routine and its buffer will be written to from the
-		// active websocket connection. This should be handed over to
-		// `w.readMessageErrors` and managed by 'connectionMonitor' which needs
-		// to flush, reconnect and resubscribe the connection.
+		// If any error occurs, a Response{Raw: nil, Type: 0} is returned, causing the
+		// reader routine to exit. This leaves the connection without an active reader,
+		// leading to potential buffer issue from the ongoing websocket writes.
+		// Such errors are passed to `w.readMessageErrors` when the connection is active.
+		// The `connectionMonitor` handles these errors by flushing the buffer, reconnecting,
+		// and resubscribing to the websocket to restore the connection.
 		if w.setConnectedStatus(false) {
 			// NOTE: When w.setConnectedStatus() returns true the underlying
 			// state was changed and this infers that the connection was
@@ -287,19 +251,19 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 
 // GenerateMessageID Creates a random message ID
 func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
-	var min int64 = 1e8
-	var max int64 = 2e8
+	var minValue int64 = 1e8
+	var maxValue int64 = 2e8
 	if highPrec {
-		max = 2e12
-		min = 1e12
+		maxValue = 2e12
+		minValue = 1e12
 	}
 	// utilization of hard coded positive numbers and default crypto/rand
 	// io.reader will panic on error instead of returning
-	randomNumber, err := rand.Int(rand.Reader, big.NewInt(max-min+1))
+	randomNumber, err := rand.Int(rand.Reader, big.NewInt(maxValue-minValue+1))
 	if err != nil {
 		panic(err)
 	}
-	return randomNumber.Int64() + min
+	return randomNumber.Int64() + minValue
 }
 
 // Shutdown shuts down and closes specific connection
@@ -310,9 +274,7 @@ func (w *WebsocketConnection) Shutdown() error {
 	w.setConnectedStatus(false)
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
-	defer w.Connection.NetConn().Close() // Ungraceful close as backup
-	// Gracefully close the connection
-	return w.Connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	return w.Connection.NetConn().Close()
 }
 
 // SetURL sets connection URL
@@ -328,4 +290,57 @@ func (w *WebsocketConnection) SetProxy(proxy string) {
 // GetURL returns the connection URL
 func (w *WebsocketConnection) GetURL() string {
 	return w.URL
+}
+
+// SendMessageReturnResponse will send a WS message to the connection and wait for response
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, signature, request any) ([]byte, error) {
+	resps, err := w.SendMessageReturnResponses(ctx, signature, request, 1)
+	if err != nil {
+		return nil, err
+	}
+	return resps[0], nil
+}
+
+// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
+// An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, signature, request any, expected int) ([][]byte, error) {
+	outbound, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
+	}
+
+	ch, err := w.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
+	}
+
+	start := time.Now()
+	err = w.SendRawMessage(ctx, websocket.TextMessage, outbound)
+	if err != nil {
+		return nil, err
+	}
+
+	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
+
+	resps := make([][]byte, 0, expected)
+	for err == nil && len(resps) < expected {
+		select {
+		case resp := <-ch:
+			resps = append(resps, resp)
+		case <-timeout.C:
+			w.Match.RemoveSignature(signature)
+			err = fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
+		case <-ctx.Done():
+			w.Match.RemoveSignature(signature)
+			err = ctx.Err()
+		}
+	}
+
+	timeout.Stop()
+
+	if err == nil && w.Reporter != nil {
+		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
+	}
+
+	return resps, err
 }

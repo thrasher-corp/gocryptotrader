@@ -46,7 +46,6 @@ var (
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
-	errUnknownError       = errors.New("unknown error")
 )
 
 // WsConnect initiates a websocket connection
@@ -121,7 +120,7 @@ func (b *Binance) setupOrderbookManager() {
 		}
 	}
 
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		b.SynchroniseWebsocketOrderbook()
 	}
@@ -142,8 +141,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 			err := b.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					b.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", b.Name)
 			}
 		}
 	}
@@ -584,7 +582,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
 		} else if d != jsonparser.Null { // null is the only expected and acceptable response
-			err = fmt.Errorf("%w: %s", errUnknownError, v)
+			err = fmt.Errorf("%w: %s", common.ErrUnknownError, v)
 		}
 	}
 

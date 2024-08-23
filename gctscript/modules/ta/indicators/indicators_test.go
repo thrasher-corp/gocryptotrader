@@ -9,6 +9,8 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -22,7 +24,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	for x := 0; x < 100; x++ {
+	for x := range 100 {
 		v := rand.Float64() //nolint:gosec // no need to import crypo/rand for testing
 		candle := &objects.Array{}
 		candle.Value = append(candle.Value, &objects.Time{Value: time.Now()},
@@ -35,7 +37,7 @@ func TestMain(m *testing.M) {
 		ohlcvData.Value = append(ohlcvData.Value, candle)
 	}
 
-	for x := 0; x < 5; x++ {
+	for range 5 {
 		candle := &objects.Array{}
 		candle.Value = append(candle.Value, &objects.String{Value: testString},
 			&objects.String{Value: testString},
@@ -96,47 +98,26 @@ func TestMfi(t *testing.T) {
 
 func TestRsi(t *testing.T) {
 	_, err := rsi()
-	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	v := &objects.String{Value: testString}
 	_, err = rsi(ohlcvData, v)
-	if err != nil {
-		if err.Error() != errFailedConversion {
-			t.Error(err)
-		}
-	}
+	assert.ErrorContains(t, err, errFailedConversion)
 
 	_, err = rsi(ohlcvData, &objects.Int{Value: 14})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "rsi should not throw an error on valid input")
 
 	_, err = rsi(v, &objects.Int{Value: 14})
-	if err == nil {
-		if err.Error() != "OHLCV data failed conversion" {
-			t.Error(err)
-		}
-	}
+	assert.ErrorContains(t, err, "failed conversion")
 
 	_, err = rsi(ohlcvDataInvalid, &objects.Int{Value: 14})
-	if err == nil {
-		if err.Error() != "OHLCV data failed conversion" {
-			t.Error(err)
-		}
-	}
+	assert.ErrorContains(t, err, "failed conversion")
 
 	validator.IsTestExecution.Store(true)
 	ret, err := rsi(ohlcvData, &objects.Int{Value: 14})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if (ret == &objects.Array{}) {
-		t.Error("expected empty Array on test execution received data")
-	}
+	require.NoError(t, err, "rsi should not throw an error")
+	assert.NotNil(t, ret)
+
 	validator.IsTestExecution.Store(false)
 }
 
@@ -507,8 +488,7 @@ func TestParseIndicatorSelector(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			v, err := ParseIndicatorSelector(test.name)
 			if err != nil {
@@ -546,8 +526,7 @@ func TestParseMAType(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			v, err := ParseMAType(test.name)
 			if err != nil {

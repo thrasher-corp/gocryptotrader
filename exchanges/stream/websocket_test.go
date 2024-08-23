@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 const (
@@ -109,14 +110,11 @@ func (d *dodgyConnection) Connect() error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
-var mock *httptest.Server
-
 func TestMain(m *testing.M) {
 	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
 	trafficCheckInterval = 50 * time.Millisecond
-	mock = httptest.NewServer(http.HandlerFunc(websocketServerMockEcho))
 	r := m.Run()
-	mock.Close()
+
 	os.Exit(r)
 }
 
@@ -211,7 +209,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, connectedState, ws.state.Load(), "websocket must be connected")
 
-	for i := 0; i < 6; i++ { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
+	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
 		select {
 		case ws.TrafficAlert <- signal:
 			if i == 0 {
@@ -367,6 +365,9 @@ func TestConnectionMessageErrors(t *testing.T) {
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
 	ws.useMultiConnectionManagement = true
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
 	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
@@ -578,15 +579,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	multi := NewWebsocket()
 	set := *defaultSetup
-	// Values below are now not necessary as this will be set per connection
-	// candidate in SetupNewConnection.
 	set.UseMultiConnectionManagement = true
-	set.Connector = nil
-	set.Subscriber = nil
-	set.Unsubscriber = nil
-	set.GenerateSubscriptions = nil
-	set.DefaultURL = ""
-	set.RunningURL = ""
 	assert.NoError(t, multi.Setup(&set))
 
 	amazingCandidate := &ConnectionSetup{
@@ -877,8 +870,7 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
-// TestSendMessageWithResponse logic test
-func TestSendMessageWithResponse(t *testing.T) {
+func TestSendMessageReturnResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
 		Verbose:          true,
@@ -919,7 +911,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 	// with timeout
 	wc.ResponseMaxLimit = 1
 	_, err = wc.SendMessageReturnResponse(context.Background(), "123", request)
-	assert.ErrorIs(t, err, errMatchTimeout, "SendMessageReturnResponse should error when request ID not found")
+	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
 type reporter struct {
@@ -1059,7 +1051,7 @@ func TestGenerateMessageID(t *testing.T) {
 	wc := WebsocketConnection{}
 	const spins = 1000
 	ids := make([]int64, spins)
-	for i := 0; i < spins; i++ {
+	for i := range spins {
 		id := wc.GenerateMessageID(true)
 		assert.NotContains(t, ids, id, "GenerateMessageID must not generate the same ID twice")
 		ids[i] = id
@@ -1458,33 +1450,4 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	err = ws.checkSubscriptions(nil, subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
-}
-
-// websocketServerMockEcho is a mock websocket server that echos messages back to the client
-func websocketServerMockEcho(w http.ResponseWriter, r *http.Request) {
-	upgrader := websocket.Upgrader{CheckOrigin: func(_ *http.Request) bool { return true }}
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println("Upgrade error:", err)
-		return
-	}
-	defer conn.Close()
-
-	for {
-		messageType, message, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-				panic(err)
-			}
-			break
-		}
-		err = conn.WriteMessage(messageType, message)
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-				panic(err)
-			}
-			break
-		}
-	}
 }

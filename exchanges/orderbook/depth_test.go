@@ -28,7 +28,7 @@ func TestGetLength(t *testing.T) {
 	_, err = d.GetAskLength()
 	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetAskLength should error with invalid depth")
 
-	err = d.LoadSnapshot([]Tranche{{Price: 1337}}, nil, 0, time.Now(), true)
+	err = d.LoadSnapshot([]Tranche{{Price: 1337}}, nil, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	askLen, err := d.GetAskLength()
@@ -48,7 +48,7 @@ func TestGetLength(t *testing.T) {
 	_, err = d.GetBidLength()
 	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetBidLength should error with invalid depth")
 
-	err = d.LoadSnapshot(nil, []Tranche{{Price: 1337}}, 0, time.Now(), true)
+	err = d.LoadSnapshot(nil, []Tranche{{Price: 1337}}, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	bidLen, err := d.GetBidLength()
@@ -72,6 +72,8 @@ func TestRetrieve(t *testing.T) {
 		pair:                   currency.NewPair(currency.THETA, currency.USD),
 		asset:                  asset.DownsideProfitContract,
 		lastUpdated:            time.Now(),
+		updatePushedAt:         time.Now(),
+		insertedAt:             time.Now(),
 		lastUpdateID:           1337,
 		priceDuplication:       true,
 		isFundingRate:          true,
@@ -85,7 +87,7 @@ func TestRetrieve(t *testing.T) {
 	// If we add anymore options to the options struct later this will complain
 	// generally want to return a full carbon copy
 	mirrored := reflect.Indirect(reflect.ValueOf(d.options))
-	for n := 0; n < mirrored.NumField(); n++ {
+	for n := range mirrored.NumField() {
 		structVal := mirrored.Field(n)
 		assert.Falsef(t, structVal.IsZero(), "struct field '%s' not tested", mirrored.Type().Field(n).Name)
 	}
@@ -142,10 +144,10 @@ func TestTotalAmounts(t *testing.T) {
 func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1}}, Tranches{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1}}, Tranches{{Price: 1337, Amount: 10}}, 0, time.Time{}, time.Now(), false)
 	assert.ErrorIs(t, err, errLastUpdatedNotSet, "LoadSnapshot should error correctly")
 
-	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 2}}, Tranches{{Price: 1338, Amount: 10}}, 0, time.Now(), false)
+	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 2}}, Tranches{{Price: 1338, Amount: 10}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
@@ -164,7 +166,7 @@ func TestInvalidate(t *testing.T) {
 	d.pair = currency.NewPair(currency.BTC, currency.WABI)
 	d.asset = asset.Spot
 
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1}}, Tranches{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1}}, Tranches{{Price: 1337, Amount: 10}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
@@ -192,7 +194,7 @@ func TestInvalidate(t *testing.T) {
 func TestUpdateBidAskByPrice(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1338, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1338, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	err = d.UpdateBidAskByPrice(&Update{})
@@ -236,7 +238,7 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 func TestDeleteBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -281,7 +283,7 @@ func TestDeleteBidAskByID(t *testing.T) {
 func TestUpdateBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -320,7 +322,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 func TestInsertBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -334,7 +336,7 @@ func TestInsertBidAskByID(t *testing.T) {
 	err = d.InsertBidAskByID(updates)
 	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
 
-	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -345,7 +347,7 @@ func TestInsertBidAskByID(t *testing.T) {
 	err = d.InsertBidAskByID(updates)
 	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
 
-	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -365,7 +367,7 @@ func TestInsertBidAskByID(t *testing.T) {
 func TestUpdateInsertByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -383,7 +385,7 @@ func TestUpdateInsertByID(t *testing.T) {
 	_, err = d.Retrieve()
 	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
 
-	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -398,7 +400,7 @@ func TestUpdateInsertByID(t *testing.T) {
 	_, err = d.Retrieve()
 	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
 
-	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	err = d.LoadSnapshot(Tranches{{Price: 1337, Amount: 1, ID: 1}}, Tranches{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -519,7 +521,7 @@ func TestGetMidPrice_Depth(t *testing.T) {
 	_, err = depth.GetMidPrice()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetMidPrice should error correctly")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	mid, err := depth.GetMidPrice()
@@ -533,13 +535,13 @@ func TestGetMidPriceNoLock_Depth(t *testing.T) {
 	_, err := depth.getMidPriceNoLock()
 	assert.ErrorIs(t, err, errNoLiquidity, "getMidPriceNoLock should error correctly")
 
-	err = depth.LoadSnapshot(bid, nil, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, nil, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	_, err = depth.getMidPriceNoLock()
 	assert.ErrorIs(t, err, errNoLiquidity, "getMidPriceNoLock should error correctly")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	mid, err := depth.getMidPriceNoLock()
@@ -562,7 +564,7 @@ func TestGetBestBidASk_Depth(t *testing.T) {
 	_, err = depth.GetBestAsk()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetBestAsk should error correctly")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	mid, err := depth.GetBestBid()
@@ -584,13 +586,13 @@ func TestGetSpreadAmount(t *testing.T) {
 	_, err = depth.GetSpreadAmount()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadAmount should error correctly")
 
-	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	_, err = depth.GetSpreadAmount()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadAmount should error correctly")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	spread, err := depth.GetSpreadAmount()
@@ -608,13 +610,13 @@ func TestGetSpreadPercentage(t *testing.T) {
 	_, err = depth.GetSpreadPercentage()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadPercentage should error correctly")
 
-	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	_, err = depth.GetSpreadPercentage()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadPercentage should error correctly")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	spread, err := depth.GetSpreadPercentage()
@@ -632,13 +634,13 @@ func TestGetImbalance_Depth(t *testing.T) {
 	_, err = depth.GetImbalance()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetImbalance should error correctly")
 
-	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	_, err = depth.GetImbalance()
 	assert.ErrorIs(t, err, errNoLiquidity, "GetImbalance should error correctly")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	imbalance, err := depth.GetImbalance()
@@ -661,7 +663,7 @@ func TestGetTranches(t *testing.T) {
 	assert.Empty(t, askT, "Ask tranche should be empty")
 	assert.Empty(t, bidT, "Bid tranche should be empty")
 
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	askT, bidT, err = depth.GetTranches(0)
@@ -716,7 +718,6 @@ func TestMovementMethods(t *testing.T) {
 	}
 
 	for _, tt := range movementTests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
@@ -728,7 +729,7 @@ func TestMovementMethods(t *testing.T) {
 			_, err = callMethod(depth, methodName, tt.tests[0].inputs)
 			assert.ErrorIs(t, err, errNoLiquidity, "should error correctly with no liquidity")
 
-			err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+			err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 			assert.NoError(t, err, "LoadSnapshot should not error")
 
 			for i, subT := range tt.tests {
@@ -736,7 +737,7 @@ func TestMovementMethods(t *testing.T) {
 				assert.NoErrorf(t, err, "sub test %d should not error", i)
 				meta := reflect.Indirect(reflect.ValueOf(move))
 				metaExpect := reflect.Indirect(reflect.ValueOf(subT.expect))
-				for j := 0; j < metaExpect.NumField(); j++ {
+				for j := range metaExpect.NumField() {
 					field := meta.Field(j)
 					expect := metaExpect.Field(j)
 					if field.CanFloat() && !expect.IsZero() {
