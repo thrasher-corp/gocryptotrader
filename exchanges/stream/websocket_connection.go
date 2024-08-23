@@ -69,65 +69,46 @@ func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *websocket
 
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interface{}) error {
-	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
-	}
-
-	if w.Verbose {
-		if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-			log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.ExchangeName, msg)
+	return w.writeToConn(ctx, func() error {
+		if w.Verbose {
+			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
+				log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.ExchangeName, msg)
+			}
 		}
-	}
-
-	if w.RateLimit != nil {
-		err := request.RateLimit(ctx, w.RateLimit)
-		if err != nil {
-			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
-		}
-	}
-
-	// This lock is only acting as rolling gate and stops panic for
-	// WriteJSON, need access to rate limit above as priority if available.
-	w.writeControl.Lock()
-	defer w.writeControl.Unlock()
-
-	// NOTE: Secondary check to ensure the connection is still active after
-	// semacquire and potential rate limit.
-	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
-	}
-
-	return w.Connection.WriteJSON(data)
+		return w.Connection.WriteJSON(data)
+	})
 }
 
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(ctx context.Context, messageType int, message []byte) error {
+	return w.writeToConn(ctx, func() error {
+		if w.Verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
+		}
+		return w.Connection.WriteMessage(messageType, message)
+	})
+}
+
+func (w *WebsocketConnection) writeToConn(ctx context.Context, writeConn func() error) error {
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
-
-	if w.Verbose {
-		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
-	}
-
 	if w.RateLimit != nil {
 		err := request.RateLimit(ctx, w.RateLimit)
 		if err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}
 	}
-
 	// This lock is only acting as rolling gate and stops panic for
 	// WriteMessage, need access to rate limit above as priority if available.
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
-
 	// NOTE: Secondary check to ensure the connection is still active after
 	// semacquire and potential rate limit.
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.ExchangeName)
 	}
-	return w.Connection.WriteMessage(messageType, message)
+	return writeConn()
 }
 
 // SetupPingHandler will automatically send ping or pong messages based on
@@ -135,9 +116,7 @@ func (w *WebsocketConnection) SendRawMessage(ctx context.Context, messageType in
 func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 	if handler.UseGorillaHandler {
 		h := func(msg string) error {
-			err := w.Connection.WriteControl(handler.MessageType,
-				[]byte(msg),
-				time.Now().Add(handler.Delay))
+			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
 			if err == websocket.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
