@@ -345,7 +345,7 @@ func TestDoRequest(t *testing.T) {
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func(wg *sync.WaitGroup) {
 			var resp struct {
 				Response bool `json:"response"`
@@ -388,7 +388,7 @@ func TestDoRequest_Retries(t *testing.T) {
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(4)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			var resp struct {

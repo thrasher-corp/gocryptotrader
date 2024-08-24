@@ -846,8 +846,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
 			c.Exchanges[i].Name = "CoinbasePro"
-		} else if strings.EqualFold(c.Exchanges[i].Name, "OKCOIN International") {
-			c.Exchanges[i].Name = "Okcoin"
 		}
 
 		// Check to see if the old API storage format is used
@@ -1613,7 +1611,7 @@ func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	for errCounter := 0; errCounter < maxAuthFailures; errCounter++ {
+	for range maxAuthFailures {
 		key, err := keyProvider()
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)

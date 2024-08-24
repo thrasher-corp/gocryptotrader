@@ -175,7 +175,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
-	for x := 0; x < iExchange.NumMethod(); x++ {
+	for x := range iExchange.NumMethod() {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
@@ -183,7 +183,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		method := actualExchange.MethodByName(methodName)
 
 		var assetLen int
-		for y := 0; y < method.Type().NumIn(); y++ {
+		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
 			for _, t := range []reflect.Type{
 				assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
@@ -213,7 +213,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 				Start:       s,
 				End:         e,
 			}
-			for z := 0; z < method.Type().NumIn(); z++ {
+			for z := range method.Type().NumIn() {
 				argGenerator.MethodInputType = method.Type().In(z)
 				generatedArg := generateMethodArg(ctx, t, argGenerator)
 				inputs[z] = *generatedArg

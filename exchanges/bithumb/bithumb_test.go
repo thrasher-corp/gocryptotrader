@@ -643,8 +643,7 @@ func TestGetAmountMinimum(t *testing.T) {
 		},
 	}
 
-	for i := range testCases {
-		tt := &testCases[i]
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			minAmount := getAmountMinimum(tt.unitprice)

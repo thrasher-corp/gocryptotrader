@@ -80,8 +80,7 @@ func TestWithdraw(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
@@ -112,7 +111,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func seedWithdrawData() {
-	for x := 0; x < 20; x++ {
+	for x := range 20 {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
 			Exchange: withdraw.ExchangeResponse{

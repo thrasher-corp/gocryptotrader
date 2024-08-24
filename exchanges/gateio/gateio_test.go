@@ -3569,7 +3569,6 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			processed, err := g.processFuturesOrdersPushData([]byte(tc.incoming), asset.Futures)
@@ -3606,4 +3605,9 @@ func TestGetUnifiedAccount(t *testing.T) {
 	payload, err := g.GetUnifiedAccount(context.Background(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	require.NotEmpty(t, payload)
+}
+
+func TestGenerateWebsocketMessageID(t *testing.T) {
+	t.Parallel()
+	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
 }

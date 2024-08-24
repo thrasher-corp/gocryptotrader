@@ -377,20 +377,46 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 		}, nil
 	}
 
-	if err := k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest); err != nil {
-		return err
+	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
+
+	if err == nil {
+		err = getFuturesErr(interim)
 	}
 
-	var resp genericFuturesResponse
-	if err := json.Unmarshal(interim, &resp); err != nil {
-		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
-	} else if resp.Error != "" && resp.Result != "success" {
-		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, resp.Error)
+	if err == nil {
+		err = json.Unmarshal(interim, result)
 	}
 
-	if err := json.Unmarshal(interim, result); err != nil {
+	if err != nil {
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 	}
 
 	return nil
+}
+
+func getFuturesErr(msg json.RawMessage) error {
+	var resp genericFuturesResponse
+	if err := json.Unmarshal(msg, &resp); err != nil {
+		return err
+	}
+
+	// Result may be omitted entirely, so we don't test for == "success"
+	if resp.Result != "error" {
+		return nil
+	}
+
+	var errs error
+	if resp.Error != "" {
+		errs = errors.New(resp.Error)
+	}
+
+	for _, err := range resp.Errors {
+		errs = common.AppendError(errs, errors.New(err))
+	}
+
+	if errs == nil {
+		return fmt.Errorf("%w from message: %s", common.ErrUnknownError, msg)
+	}
+
+	return errs
 }

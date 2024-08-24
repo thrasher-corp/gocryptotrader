@@ -58,6 +58,9 @@ func (g *Gateio) SetDefaults() {
 	}
 
 	g.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
+			currency.NewCode("MBABYDOGE"): currency.BABYDOGE,
+		}),
 		TradingRequirements: protocol.TradingRequirements{
 			SpotMarketOrderAmountPurchaseQuotationOnly: true,
 			SpotMarketOrderAmountSellBaseOnly:          true,
@@ -217,6 +220,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Connector:                g.WsConnectSpot,
 		Authenticate:             g.AuthenticateSpot,
 		OutboundRequestSignature: asset.Spot,
+		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
 		return err
@@ -236,6 +240,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Connector:                g.WsFuturesConnect,
 		Authenticate:             g.AuthenticateFutures,
 		OutboundRequestSignature: asset.USDTMarginedFutures,
+		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
 		return err
@@ -255,6 +260,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.BTC) },
 		Connector:                g.WsFuturesConnect,
 		OutboundRequestSignature: asset.CoinMarginedFutures,
+		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
 		return err
@@ -275,6 +281,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:                g.WsDeliveryFuturesConnect,
 		OutboundRequestSignature: asset.DeliveryFutures,
+		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
 		return err
@@ -292,6 +299,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
 		Connector:                g.WsOptionsConnect,
 		OutboundRequestSignature: asset.Options,
+		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 }
 
@@ -1294,7 +1302,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*orde
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		loop := int(math.Ceil(float64(len(cancelSpotOrdersParam)) / 10))
-		for count := 0; count < loop; count++ {
+		for count := range loop {
 			var input []CancelOrderByIDParam
 			if (count + 1) == loop {
 				input = cancelSpotOrdersParam[count*10:]
