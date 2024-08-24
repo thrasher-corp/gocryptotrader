@@ -17,6 +17,10 @@ type Connection interface {
 	ReadMessage() Response
 	SendJSONMessage(any) error
 	SetupPingHandler(PingHandler)
+	// GenerateMessageID generates a message ID for the individual connection.
+	// If a bespoke function is set (by using SetupNewConnection) it will use
+	// that, otherwise it will use the defaultGenerateMessageID function defined
+	// in websocket_connection.go.
 	GenerateMessageID(highPrecision bool) int64
 	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
 	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int) ([][]byte, error)
@@ -41,6 +45,10 @@ type ConnectionSetup struct {
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+	// BespokeGenerateMessageID is a function that returns a unique message ID.
+	// This is useful for when an exchange connection requires a unique or
+	// structured message ID for each message sent.
+	BespokeGenerateMessageID func(highPrecision bool) int64
 }
 
 // PingHandler container for ping handler settings
