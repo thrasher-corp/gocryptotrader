@@ -159,5 +159,10 @@ type WebsocketConnection struct {
 	Traffic           chan struct{}
 	readMessageErrors chan error
 
+	// bespokeGenerateMessageID is a function that returns a unique message ID
+	// defined externally. This is used for exchanges that require a unique
+	// message ID for each message sent.
+	bespokeGenerateMessageID func(highPrecision bool) int64
+
 	Reporter Reporter
 }

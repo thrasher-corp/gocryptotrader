@@ -3606,3 +3606,8 @@ func TestGetUnifiedAccount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, payload)
 }
+
+func TestGenerateWebsocketMessageID(t *testing.T) {
+	t.Parallel()
+	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
+}

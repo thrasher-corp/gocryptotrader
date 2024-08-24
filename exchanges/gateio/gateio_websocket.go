@@ -814,7 +814,7 @@ func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, ev
 		}
 
 		payload := WsInput{
-			ID:      g.Counter.Get(),
+			ID:      conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -848,4 +848,10 @@ func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, chan
 // SpotUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) (*subscription.Result, error) {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generatePayload)
+}
+
+// GenerateWebsocketMessageID generates a message ID for the individual
+// connection.
+func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
+	return g.Counter.IncrementAndGet()
 }

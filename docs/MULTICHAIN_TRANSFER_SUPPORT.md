@@ -64,7 +64,6 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
 | Kucoin |  Yes | Yes | |
 | Lbank | No | No | |
-| Okcoin | Yes | Yes | |
 | Okx | Yes | Yes | |
 | Poloniex | Yes | Yes | |
 | Yobit | No | No | |
