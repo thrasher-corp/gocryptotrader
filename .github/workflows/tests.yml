@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: CI
 env:
-  GO_VERSION: 1.22.x
+  GO_VERSION: 1.23.x
 jobs:
   backend-psql:
     name: GoCryptoTrader back-end

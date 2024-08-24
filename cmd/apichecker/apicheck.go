@@ -32,7 +32,6 @@ const (
 	github               = "GitHub Sha Check"
 	htmlScrape           = "HTML String Check"
 	pathBinance          = "https://binance-docs.github.io/apidocs/spot/en/#change-log"
-	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
 	pathBTSE             = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
 	pathBitfinex         = "https://docs.bitfinex.com/docs/changelog"
 	pathBitmex           = "https://www.bitmex.com/static/md/en-US/apiChangelog"
@@ -63,7 +62,6 @@ const (
 	createCard           = "UpdatesCard"
 	createChecklist      = "UpdatesChecklist"
 	btcMarkets           = "BTC Markets"
-	okcoin               = "Okcoin"
 )
 
 var (
@@ -483,8 +481,6 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = htmlScrapeAlphaPoint(htmlData)
 	case pathYobit:
 		dataStrings, err = htmlScrapeYobit(htmlData)
-	case pathOkCoin:
-		dataStrings, err = htmlScrapeOk(htmlData)
 	default:
 		dataStrings, err = htmlScrapeDefault(htmlData)
 	}
@@ -1143,7 +1139,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 	var num int64
 	var err error
 	switch currentName {
-	case btcMarkets, okcoin:
+	case btcMarkets:
 		if strings.Count(currentName, " ") == 2 {
 			exists = true
 		}

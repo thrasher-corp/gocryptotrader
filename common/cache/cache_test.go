@@ -46,7 +46,7 @@ func TestContainsOrAdd(t *testing.T) {
 
 func TestClear(t *testing.T) {
 	lruCache := New(5)
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		lruCache.Add(x, x)
 	}
 	if lruCache.Len() != 5 {

@@ -10,7 +10,7 @@ import (
 func TestMatch(t *testing.T) {
 	t.Parallel()
 	load := []byte("42")
-	assert.False(t, new(Match).IncomingWithData("hello", load), "Should not match an uninitilized Match")
+	assert.False(t, new(Match).IncomingWithData("hello", load), "Should not match an uninitialised Match")
 
 	match := NewMatch()
 	assert.False(t, match.IncomingWithData("hello", load), "Should not match an empty signature")

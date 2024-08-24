@@ -2,11 +2,6 @@ run:
   timeout: 10m
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor
-    - web/
-    - testdata
-    - database/models/
 
 linters:
   disable-all: true
@@ -24,24 +19,25 @@ linters:
     - asciicheck
     - bidichk
     - bodyclose
+#   - canonicalheader
     - containedctx
 #   - contextcheck
+    - copyloopvar
 #   - cyclop
-#   - deadcode // abandoned by its owner, replaced by unused
     - decorder
 #   - depguard
     - dogsled
 #   - dupl
     - dupword
     - durationcheck
+#   - err113
     - errchkjson
     - errname
 #   - errorlint
-    - execinquery
 #   - exhaustive
-#   - exhaustivestruct // abandoned by its owner, replaced by exhaustruct
 #   - exhaustruct
     - exportloopref
+    - fatcontext
 #   - forbidigo
     - forcetypeassert
 #   - funlen
@@ -57,32 +53,28 @@ linters:
 #   - gocyclo
 #   - godot
 #   - godox
-#   - goerr113
     - gofmt
 #   - gofumpt
 #   - goheader
     - goimports
-#   - golint // deprecated since 1.41.0, replaced by revive
-#   - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
 #   - gosmopolitan
     - grouper
-#   - ifshort // deprecated by its owner
 #   - importas
 #   - inamedparam
 #   - interfacebloat
-#   - interfacer // deprecated by its owner
+    - intrange
 #   - ireturn
 #   - lll 
 #   - loggercheck
 #   - maintidx
     - makezero
-#   - maligned // deprecated by its owner, replaced by govet 'fieldalignment'
     - mirror
     - misspell
+#   - mnd
 #   - musttag
 #   - nakedret
 #   - nestif
@@ -92,7 +84,6 @@ linters:
     - noctx
     - nolintlint
 #   - nonamedreturns
-#   - nosnakecase // deprecated by its owner, replaced by revive 'var-naming'
     - nosprintfhostport
 #   - paralleltest
     - perfsprint
@@ -103,9 +94,9 @@ linters:
     - reassign
     - revive
     - rowserrcheck
-#   - scopelint // deprecated since v1.39.0, replaced by exportloopref
+#   - sloglint
+#   - spancheck
     - sqlclosecheck
-#   - structcheck // abandoned by its owner, replaced by unused
     - stylecheck
     - tagalign
 #   - tagliatelle
@@ -118,7 +109,6 @@ linters:
     - unconvert
     - unparam
     - usestdlibvars
-#   - varcheck // abandoned by its owner, replaced by unused
 #   - varnamelen
     - wastedassign
     - whitespace
@@ -128,7 +118,10 @@ linters:
 
 linters-settings:
   govet:
-    check-shadowing: true
+    enable: 
+      - shadow
+      - nilness
+      - unusedwrite
   goconst:
     min-occurrences: 6
   gocritic:
@@ -157,6 +150,12 @@ issues:
     - text: "Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec
+
+  exclude-dirs:
+    - vendor
+    - web/
+    - testdata
+    - database/models/
 
   # List of regexps of issue texts to exclude, empty list by default.
   # But independently from this option we use default exclude patterns,

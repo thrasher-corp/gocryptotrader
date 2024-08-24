@@ -293,7 +293,7 @@ func genOHCLVData() (out Item, err error) {
 	out.Asset = "spot"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := 0; x < 365; x++ {
+	for x := range 365 {
 		out.Candles = append(out.Candles, Candle{
 			Timestamp:        start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:             1000,

@@ -219,6 +219,7 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
+
 	if w.exchangeName == "" {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigNameEmpty)
 	}
@@ -294,18 +295,19 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 	}
 
 	return &WebsocketConnection{
-		ExchangeName:      w.exchangeName,
-		URL:               connectionURL,
-		ProxyURL:          w.GetProxyAddress(),
-		Verbose:           w.verbose,
-		ResponseMaxLimit:  c.ResponseMaxLimit,
-		Traffic:           w.TrafficAlert,
-		readMessageErrors: w.ReadMessageErrors,
-		ShutdownC:         w.ShutdownC,
-		Wg:                &w.Wg,
-		Match:             match,
-		RateLimit:         c.RateLimit,
-		Reporter:          c.ConnectionLevelReporter,
+		ExchangeName:             w.exchangeName,
+		URL:                      connectionURL,
+		ProxyURL:                 w.GetProxyAddress(),
+		Verbose:                  w.verbose,
+		ResponseMaxLimit:         c.ResponseMaxLimit,
+		Traffic:                  w.TrafficAlert,
+		readMessageErrors:        w.ReadMessageErrors,
+		ShutdownC:                w.ShutdownC,
+		Wg:                       &w.Wg,
+		Match:                    match,
+		RateLimit:                c.RateLimit,
+		Reporter:                 c.ConnectionLevelReporter,
+		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
 	}
 }
 

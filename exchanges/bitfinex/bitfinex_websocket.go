@@ -1866,7 +1866,7 @@ func (b *Bitfinex) unsubscribeFromChan(chans subscription.List) error {
 // getErrResp takes a json response string and looks for an error event type
 // If found it parses the error code and message as a wrapped error and returns it
 // It might log parsing errors about the nature of the error
-// If the error message is not defined it will return a wrapped errUnknownError
+// If the error message is not defined it will return a wrapped common.ErrUnknownError
 func (b *Bitfinex) getErrResp(resp []byte) error {
 	event, err := jsonparser.GetUnsafeString(resp, "event")
 	if err != nil {
@@ -1883,7 +1883,7 @@ func (b *Bitfinex) getErrResp(resp []byte) error {
 	var apiErr error
 	if msg, e2 := jsonparser.GetString(resp, "msg"); e2 != nil {
 		log.Errorf(log.ExchangeSys, "%s %s 'msg': %s from message: %s", b.Name, errParsingWSField, e2, resp)
-		apiErr = errUnknownError
+		apiErr = common.ErrUnknownError
 	} else {
 		apiErr = errors.New(msg)
 	}
@@ -2145,7 +2145,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 
 	// RO precision calculation is based on order ID's and amount values
 	var bids, asks []orderbook.Tranche
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if i < len(book.Bids) {
 			bids = append(bids, book.Bids[i])
 		}
@@ -2167,7 +2167,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 	}
 
 	var check strings.Builder
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if i < len(bids) {
 			check.WriteString(strconv.FormatInt(bids[i].ID, 10))
 			check.WriteString(":")
