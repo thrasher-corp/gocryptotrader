@@ -569,12 +569,12 @@ func TestVMCount(t *testing.T) {
 	}
 }
 
-func configHelper(enabled, imports bool, max uint8) *Config {
+func configHelper(enabled, imports bool, maxVMs uint8) *Config {
 	return &Config{
 		Enabled:            enabled,
 		AllowImports:       imports,
 		ScriptTimeout:      testVirtualMachineTimeout,
-		MaxVirtualMachines: max,
+		MaxVirtualMachines: maxVMs,
 		Verbose:            true,
 	}
 }

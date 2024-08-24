@@ -1970,7 +1970,6 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run(tt.Endpoint, func(t *testing.T) {
 			t.Parallel()
 			u, err := getURLTypeFromString(tt.Endpoint)

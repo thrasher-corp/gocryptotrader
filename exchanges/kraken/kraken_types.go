@@ -93,6 +93,7 @@ type genericFuturesResponse struct {
 	Result     string    `json:"result"`
 	ServerTime time.Time `json:"serverTime"`
 	Error      string    `json:"error"`
+	Errors     []string  `json:"errors"`
 }
 
 // Asset holds asset information

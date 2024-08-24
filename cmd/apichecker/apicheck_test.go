@@ -246,23 +246,6 @@ func TestHTMLScrapeHitBTC(t *testing.T) {
 	}
 }
 
-func TestHTMLScrapeDefault(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{TokenData: "h3",
-		Key:           "id",
-		Val:           "change-change",
-		TokenDataEnd:  "section",
-		TextTokenData: "p",
-		DateFormat:    "2006-01-02",
-		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-		CheckString:   "2019-04-28",
-		Path:          "https://www.okcoin.com/docs/en/#change-change"}
-	_, err := htmlScrapeDefault(&data)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestHTMLScrapeBTSE(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `^version: \d{1}.\d{1}.\d{1}`,

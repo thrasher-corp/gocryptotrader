@@ -225,6 +225,7 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
+
 	if w.exchangeName == "" {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigNameEmpty)
 	}
@@ -298,18 +299,19 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		connectionURL = c.URL
 	}
 	return &WebsocketConnection{
-		ExchangeName:      w.exchangeName,
-		URL:               connectionURL,
-		ProxyURL:          w.GetProxyAddress(),
-		Verbose:           w.verbose,
-		ResponseMaxLimit:  c.ResponseMaxLimit,
-		Traffic:           w.TrafficAlert,
-		readMessageErrors: w.ReadMessageErrors,
-		ShutdownC:         w.ShutdownC,
-		Wg:                &w.Wg,
-		Match:             w.Match,
-		RateLimit:         c.RateLimit,
-		Reporter:          c.ConnectionLevelReporter,
+		ExchangeName:             w.exchangeName,
+		URL:                      connectionURL,
+		ProxyURL:                 w.GetProxyAddress(),
+		Verbose:                  w.verbose,
+		ResponseMaxLimit:         c.ResponseMaxLimit,
+		Traffic:                  w.TrafficAlert,
+		readMessageErrors:        w.ReadMessageErrors,
+		ShutdownC:                w.ShutdownC,
+		Wg:                       &w.Wg,
+		Match:                    w.Match,
+		RateLimit:                c.RateLimit,
+		Reporter:                 c.ConnectionLevelReporter,
+		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
 	}
 }
 
@@ -427,13 +429,13 @@ func (w *Websocket) Connect() error {
 			break
 		}
 
-		w.connections[conn] = w.connectionManager[i]
-		w.connectionManager[i].Connection = conn
-
 		if !conn.IsConnected() {
 			multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn.URL)
 			break
 		}
+
+		w.connections[conn] = w.connectionManager[i]
+		w.connectionManager[i].Connection = conn
 
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)

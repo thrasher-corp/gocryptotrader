@@ -878,8 +878,7 @@ func TestTrim(t *testing.T) {
 		{Value: 1.01, Expected: "101"},
 	}
 
-	for x := range testCases {
-		tt := testCases[x]
+	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
 			received := trim(tt.Value)
 			if received != tt.Expected {

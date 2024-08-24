@@ -1252,8 +1252,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 		},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
@@ -1387,8 +1386,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
@@ -1495,8 +1493,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 		},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
@@ -1581,8 +1578,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 		},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
@@ -1714,8 +1710,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 		},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
@@ -1803,8 +1798,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)

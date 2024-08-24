@@ -241,7 +241,7 @@ func (f fExchange) GetHistoricCandles(_ context.Context, p currency.Pair, a asse
 
 func generateCandles(amount int, timeStart time.Time, interval kline.Interval) []kline.Candle {
 	candy := make([]kline.Candle, amount)
-	for x := 0; x < amount; x++ {
+	for x := range amount {
 		candy[x] = kline.Candle{
 			Time:   timeStart,
 			Open:   1337,
@@ -1630,8 +1630,8 @@ func TestCheckVars(t *testing.T) {
 func TestParseEvents(t *testing.T) {
 	t.Parallel()
 	var exchangeName = "Binance"
-	var testData []*withdraw.Response
-	for x := 0; x < 5; x++ {
+	testData := make([]*withdraw.Response, 5)
+	for x := range 5 {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
 			ID: withdraw.DryRunID,
@@ -1668,13 +1668,13 @@ func TestParseEvents(t *testing.T) {
 			resp.RequestDetails.Crypto.FeeAmount = 0
 			resp.RequestDetails.Crypto.AddressTag = test
 		}
-		testData = append(testData, resp)
+		testData[x] = resp
 	}
 	v := parseMultipleEvents(testData)
 	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
 		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
 	}
-	if testData == nil || len(testData) < 2 {
+	if len(testData) < 2 {
 		t.Fatal("expected at least 2")
 	}
 
@@ -4214,7 +4214,6 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
 		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
 	} {
-		creds := creds
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 
@@ -4259,7 +4258,7 @@ func TestRPCProxyAuthClient(t *testing.T) {
 	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("MEOW"))
-		require.NoError(t, err, "Write should not error")
+		assert.NoError(t, err, "Write should not error")
 	})
 
 	handler := s.authClient(dummyHandler)
@@ -4274,7 +4273,6 @@ func TestRPCProxyAuthClient(t *testing.T) {
 		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
 		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
 	} {
-		creds := creds
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 

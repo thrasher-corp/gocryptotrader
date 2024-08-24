@@ -848,13 +848,8 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 		return genResponse.Error.Errors()
 	}
 
-	var genResp genericFuturesResponse
-	if err := json.Unmarshal(rawMessage, &genResp); err != nil {
+	if err := getFuturesErr(rawMessage); err != nil {
 		return err
-	}
-
-	if genResp.Error != "" && genResp.Result != "success" {
-		return errors.New(genResp.Error)
 	}
 
 	return json.Unmarshal(rawMessage, result)

@@ -41,30 +41,30 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 	}
 
 	var status string
-	var percent, min, max, amount float64
+	var percent, minPrice, maxPrice, amount float64
 	if buy {
-		min = action.ReferencePrice
-		max = action.TranchePositionPrice
+		minPrice = action.ReferencePrice
+		maxPrice = action.TranchePositionPrice
 		amount = action.QuoteAmount
 		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
 		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
-			amount, b.Pair.Quote, b.Pair.Base, min, max,
+			amount, b.Pair.Quote, b.Pair.Base, minPrice, maxPrice,
 			percent, len(action.Tranches), warning)
 	} else {
-		min = action.TranchePositionPrice
-		max = action.ReferencePrice
+		minPrice = action.TranchePositionPrice
+		maxPrice = action.ReferencePrice
 		amount = action.BaseAmount
 		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
 		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
-			amount, b.Pair.Base, b.Pair.Quote, max, min,
+			amount, b.Pair.Base, b.Pair.Quote, maxPrice, minPrice,
 			percent, len(action.Tranches), warning)
 	}
 
 	return &WhaleBombResult{
 		Amount:               amount,
 		Orders:               action.Tranches,
-		MinimumPrice:         min,
-		MaximumPrice:         max,
+		MinimumPrice:         minPrice,
+		MaximumPrice:         maxPrice,
 		Status:               status,
 		PercentageGainOrLoss: percent,
 	}, err

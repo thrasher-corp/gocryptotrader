@@ -10,7 +10,7 @@ import (
 func TestMatch(t *testing.T) {
 	t.Parallel()
 	load := []byte("42")
-	assert.False(t, new(Match).IncomingWithData("hello", load), "Should not match an uninitilized Match")
+	assert.False(t, new(Match).IncomingWithData("hello", load), "Should not match an uninitialised Match")
 
 	match := NewMatch()
 	assert.False(t, match.IncomingWithData("hello", load), "Should not match an empty signature")
@@ -31,10 +31,23 @@ func TestMatch(t *testing.T) {
 	assert.False(t, match.IncomingWithData("hello", load), "Should not match with matching message and signature")
 
 	assert.Len(t, ch, 1, "Channel should have 1 items, 1 was already read above")
+}
 
-	ch, err = match.Set("masterblaster", 1)
+func TestRemoveSignature(t *testing.T) {
+	t.Parallel()
+	match := NewMatch()
+	ch, err := match.Set("masterblaster", 1)
+	select {
+	case <-ch:
+		t.Fatal("Should not be able to read from an empty channel")
+	default:
+	}
 	require.NoError(t, err)
 	match.RemoveSignature("masterblaster")
-	garbage := <-ch // Should be closed and super slipery
-	require.Empty(t, garbage)
+	select {
+	case garbage := <-ch:
+		require.Empty(t, garbage)
+	default:
+		t.Fatal("Should be able to read from a closed channel")
+	}
 }
