@@ -204,7 +204,13 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
-	if c == (ConnectionSetup{}) {
+
+	if c.ResponseCheckTimeout == 0 &&
+		c.ResponseMaxLimit == 0 &&
+		c.RateLimit == 0 &&
+		c.URL == "" &&
+		c.ConnectionLevelReporter == nil &&
+		c.BespokeGenerateMessageID == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
@@ -234,11 +240,12 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	}
 
 	newConn := &WebsocketConnection{
-		_URL:             connectionURL,
-		responseMaxLimit: c.ResponseMaxLimit,
-		rateLimit:        c.RateLimit,
-		reporter:         c.ConnectionLevelReporter,
-		parent:           w,
+		_URL:                     connectionURL,
+		responseMaxLimit:         c.ResponseMaxLimit,
+		rateLimit:                c.RateLimit,
+		reporter:                 c.ConnectionLevelReporter,
+		parent:                   w,
+		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
 	}
 
 	if c.Authenticated {

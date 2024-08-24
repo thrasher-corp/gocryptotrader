@@ -226,10 +226,11 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                      gateioWebsocketEndpoint,
+		RateLimit:                gateioWebsocketRateLimit,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 }
 
