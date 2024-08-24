@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -671,4 +672,20 @@ func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
 		return strings.Compare(a.String(), b.String())
 	})
 	return n
+}
+
+// Counter is a thread-safe counter.
+type Counter struct {
+	n int64 // privatised so you can't use counter as a value type
+}
+
+// IncrementAndGet returns the next count after incrementing.
+func (c *Counter) IncrementAndGet() int64 {
+	newID := atomic.AddInt64(&c.n, 1)
+	// Handle overflow by resetting the counter to 1 if it becomes negative
+	if newID < 0 {
+		atomic.StoreInt64(&c.n, 1)
+		return 1
+	}
+	return newID
 }
