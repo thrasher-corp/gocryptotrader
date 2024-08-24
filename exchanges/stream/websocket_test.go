@@ -1057,6 +1057,9 @@ func TestGenerateMessageID(t *testing.T) {
 		assert.NotContains(t, ids, id, "GenerateMessageID must not generate the same ID twice")
 		ids[i] = id
 	}
+
+	wc.bespokeGenerateMessageID = func(bool) int64 { return 42 }
+	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID must use bespokeGenerateMessageID")
 }
 
 // BenchmarkGenerateMessageID-8   	 2850018	       408 ns/op	      56 B/op	       4 allocs/op

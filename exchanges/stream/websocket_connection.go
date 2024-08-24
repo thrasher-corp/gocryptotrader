@@ -234,8 +234,18 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	return standardMessage, reader.Close()
 }
 
-// GenerateMessageID Creates a random message ID
+// GenerateMessageID generates a message ID for the individual connection.
+// If a bespoke function is set (by using SetupNewConnection) it will use that,
+// otherwise it will use the defaultGenerateMessageID function.
 func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
+	if w.bespokeGenerateMessageID != nil {
+		return w.bespokeGenerateMessageID(highPrec)
+	}
+	return w.defaultGenerateMessageID(highPrec)
+}
+
+// defaultGenerateMessageID generates the default message ID
+func (w *WebsocketConnection) defaultGenerateMessageID(highPrec bool) int64 {
 	var minValue int64 = 1e8
 	var maxValue int64 = 2e8
 	if highPrec {

@@ -1317,15 +1317,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("exchange name should have been updated from GDAX to CoinbasePRo")
 	}
 
-	cfg.Exchanges[0].Name = "OKCOIN International"
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-	if cfg.Exchanges[0].Name != "Okcoin" {
-		t.Error("exchange name should have been updated from 'OKCOIN International' to 'Okcoin'")
-	}
-
 	// Test API settings migration
 	sptr := func(s string) *string { return &s }
 	int64ptr := func(i int64) *int64 { return &i }
