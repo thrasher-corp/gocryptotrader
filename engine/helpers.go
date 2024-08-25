@@ -49,7 +49,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
@@ -1036,8 +1035,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(kucoin.Kucoin), nil
 	case "lbank":
 		return new(lbank.Lbank), nil
-	case "okcoin":
-		return new(okcoin.Okcoin), nil
 	case "okx":
 		return new(okx.Okx), nil
 	case "poloniex":
