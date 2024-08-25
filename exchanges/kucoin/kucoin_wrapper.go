@@ -479,8 +479,6 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			assetTypeString = SpotTradeType
 		case asset.Margin:
 			assetTypeString = "margin"
-		case asset.Empty:
-			assetTypeString = ""
 		}
 		accountH, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, assetTypeString)
 		if err != nil {
@@ -1014,7 +1012,7 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	var values []string
 	switch orderCancellation.AssetType {
 	case asset.Margin, asset.Spot:
-		orderIDs := []string{}
+		var orderIDs []string
 		if orderCancellation.OrderID != "" {
 			orderIDs = append(orderIDs, orderCancellation.OrderID)
 		}
@@ -1025,10 +1023,10 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 		case order.OCO:
 			var response *OCOOrderCancellationResponse
 			response, err = ku.CancelOCOMultipleOrders(ctx, orderIDs, orderCancellation.Pair.String())
-			values = response.CancelledOrderIDs
 			if err != nil {
 				return order.CancelAllResponse{}, err
 			}
+			values = response.CancelledOrderIDs
 		case order.Stop, order.StopLimit:
 			values, err = ku.CancelStopOrders(ctx,
 				orderCancellation.Pair.String(),
@@ -1081,9 +1079,6 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 			if err != nil {
 				return order.CancelAllResponse{}, err
 			}
-		}
-		if err != nil {
-			return order.CancelAllResponse{}, err
 		}
 	case asset.Futures:
 		values, err = ku.CancelMultipleFuturesLimitOrders(ctx, orderCancellation.Pair.String())
