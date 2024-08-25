@@ -293,7 +293,7 @@ func (w *Websocket) Connect(subscriptionModifier ...subscription.Hook) error {
 	w.setState(connectedState)
 
 	if !w.IsConnectionMonitorRunning() {
-		err = w.connectionMonitor()
+		err = w.connectionMonitor(subscriptionModifier...)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
@@ -329,13 +329,13 @@ func (w *Websocket) Disable() error {
 }
 
 // Enable enables the exchange websocket protocol
-func (w *Websocket) Enable() error {
+func (w *Websocket) Enable(subscriptionModifier ...subscription.Hook) error {
 	if w.IsConnected() || w.IsEnabled() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyEnabled)
 	}
 
 	w.setEnabled(true)
-	return w.Connect()
+	return w.Connect(subscriptionModifier...)
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -376,7 +376,7 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() error {
+func (w *Websocket) connectionMonitor(subscriptionModifier ...subscription.Hook) error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
@@ -417,7 +417,7 @@ func (w *Websocket) connectionMonitor() error {
 				}
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
-					err := w.Connect()
+					err := w.Connect(subscriptionModifier...)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
@@ -542,7 +542,7 @@ func (w *Websocket) FlushChannels(subscriptionModifier ...subscription.Hook) err
 	if err := w.Shutdown(); err != nil {
 		return err
 	}
-	return w.Connect()
+	return w.Connect(subscriptionModifier...)
 }
 
 // trafficMonitor waits trafficCheckInterval before checking for a trafficAlert
@@ -737,7 +737,7 @@ func (w *Websocket) GetWebsocketURL() string {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(proxyAddr string) error {
+func (w *Websocket) SetProxyAddress(proxyAddr string, subscriptionModifier ...subscription.Hook) error {
 	w.m.Lock()
 
 	if proxyAddr != "" {
@@ -770,7 +770,7 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		if err := w.Shutdown(); err != nil {
 			return err
 		}
-		return w.Connect()
+		return w.Connect(subscriptionModifier...)
 	}
 
 	w.m.Unlock()
