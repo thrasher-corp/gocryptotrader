@@ -744,7 +744,6 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 
 func TestGetAllAccounts(t *testing.T) {
 	t.Parallel()
-	ku.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	result, err := ku.GetAllAccounts(context.Background(), currency.EMPTYCODE, "")
 	assert.NoError(t, err)
@@ -2029,7 +2028,6 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest)
 	assert.NoError(t, err)
 
-	ku.Verbose = true
 	getOrdersRequest.Type = order.StopMarket
 	_, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest)
 	assert.NoError(t, err)
