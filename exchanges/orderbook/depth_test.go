@@ -11,6 +11,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -678,6 +679,48 @@ func TestGetTranches(t *testing.T) {
 	assert.Len(t, bidT, 5, "bids should have correct number of tranches")
 }
 
+func TestGetBids(t *testing.T) {
+	t.Parallel()
+	_, err := getInvalidDepth().GetBids(0)
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetBids should error correctly")
+
+	depth := NewDepth(id)
+
+	_, err = depth.GetBids(-1)
+	assert.ErrorIs(t, err, errInvalidBookDepth)
+
+	_, err = depth.GetBids(0)
+	assert.NoError(t, err)
+
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
+	require.NoError(t, err, "LoadSnapshot should not error")
+
+	bids, err := depth.GetBids(0)
+	assert.NoError(t, err, "GetBids should not error")
+	assert.Len(t, bids, 20, "bids should have correct number of tranches")
+}
+
+func TestGetAsks(t *testing.T) {
+	t.Parallel()
+	_, err := getInvalidDepth().GetAsks(0)
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetAsks should error correctly")
+
+	depth := NewDepth(id)
+
+	_, err = depth.GetAsks(-1)
+	assert.ErrorIs(t, err, errInvalidBookDepth)
+
+	_, err = depth.GetAsks(0)
+	assert.NoError(t, err)
+
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
+	require.NoError(t, err, "LoadSnapshot should not error")
+
+	asks, err := depth.GetAsks(0)
+	assert.NoError(t, err, "GetAsks should not error")
+	assert.Len(t, asks, 20, "asks should have correct number of tranches")
+}
+
 func TestGetPair(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, currency.EMPTYPAIR, (*Depth)(nil).GetPair())
@@ -692,6 +735,31 @@ func TestGetAsset(t *testing.T) {
 	depth := NewDepth(id)
 	depth.asset = asset.Spot
 	require.Equal(t, depth.asset, depth.GetAsset())
+}
+
+func TestGetKey(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, key.PairAsset{}, (*Depth)(nil).GetKey())
+	depth := NewDepth(id)
+	depth.asset = asset.Spot
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	exp := key.PairAsset{Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset}
+	require.Equal(t, exp, depth.GetKey())
+}
+
+func TestGetState(t *testing.T) {
+	t.Parallel()
+	require.Empty(t, (*Depth)(nil).GetState())
+	depth := NewDepth(id)
+	depth.lastUpdated = time.Now()
+	depth.updatePushedAt = time.Now()
+	depth.insertedAt = time.Now()
+	depth.restSnapshot = true
+	require.Equal(t, &State{
+		LastUpdated:    depth.lastUpdated,
+		UpdatePushedAt: depth.updatePushedAt,
+		InsertedAt:     depth.insertedAt,
+		RestSnapshot:   depth.restSnapshot}, depth.GetState())
 }
 
 func getInvalidDepth() *Depth {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
@@ -778,6 +779,38 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 	return d.askTranches.retrieve(count), d.bidTranches.retrieve(count), nil
 }
 
+// GetBids returns the desired tranchse for the required depth count. If
+// count is 0, it will return the entire in memory side. Count == 1 will
+// retrieve the best bid. If the required count exceeds the orderbook depth, it
+// will return the entire side.
+func (d *Depth) GetBids(count int) ([]Tranche, error) {
+	if count < 0 {
+		return nil, errInvalidBookDepth
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
+	return d.bidTranches.retrieve(count), nil
+}
+
+// GetAsks returns the desired tranches for the required depth count. If
+// count is 0, it will return the entire in memory side. Count == 1 will
+// retrieve the best ask. If the required count exceeds the orderbook depth, it
+// will return the entire side.
+func (d *Depth) GetAsks(count int) ([]Tranche, error) {
+	if count < 0 {
+		return nil, errInvalidBookDepth
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
+	return d.bidTranches.retrieve(count), nil
+}
+
 // GetPair returns the pair associated with the depth
 func (d *Depth) GetPair() currency.Pair {
 	if d == nil {
@@ -796,4 +829,24 @@ func (d *Depth) GetAsset() asset.Item {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.asset
+}
+
+// GetKey return an immutable key pair asset
+func (d *Depth) GetKey() key.PairAsset {
+	if d == nil {
+		return key.PairAsset{}
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	return key.PairAsset{Base: d.pair.Base.Item, Quote: d.pair.Quote.Item, Asset: d.asset}
+}
+
+// GetState returns the current state of the depth
+func (d *Depth) GetState() *State {
+	if d == nil {
+		return &State{}
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	return &State{LastUpdated: d.lastUpdated, UpdatePushedAt: d.updatePushedAt, InsertedAt: d.insertedAt, RestSnapshot: d.restSnapshot}
 }
