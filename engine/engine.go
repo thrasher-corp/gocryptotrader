@@ -897,12 +897,36 @@ func (bot *Engine) SetupExchanges() error {
 		bot.dryRunParamInteraction("exchangehttpdebugging")
 	}
 
+	var exchangesOverride []string
+	if bot.Settings.Exchanges != "" {
+		bot.dryRunParamInteraction("exchanges")
+		exchangesOverride = strings.Split(bot.Settings.Exchanges, ",")
+		for x := range exchangesOverride {
+			if !common.StringDataCompareInsensitive(exchange.Exchanges, exchangesOverride[x]) {
+				return fmt.Errorf("exchange %s not found", exchangesOverride[x])
+			}
+		}
+	}
+
 	var wg sync.WaitGroup
 	for x := range configs {
-		if !configs[x].Enabled && !bot.Settings.EnableAllExchanges {
+		shouldLoad := false
+		if len(exchangesOverride) > 0 {
+			for y := range exchangesOverride {
+				if strings.EqualFold(configs[x].Name, exchangesOverride[y]) {
+					shouldLoad = true
+					break
+				}
+			}
+		} else {
+			shouldLoad = configs[x].Enabled || bot.Settings.EnableAllExchanges
+		}
+
+		if !shouldLoad {
 			gctlog.Debugf(gctlog.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
 			continue
 		}
+
 		wg.Add(1)
 		go func(c config.Exchange) {
 			defer wg.Done()
