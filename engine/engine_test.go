@@ -421,35 +421,43 @@ func TestGetDefaultConfigurations(t *testing.T) {
 
 func TestSetupExchanges(t *testing.T) {
 	t.Parallel()
-	e := &Engine{
-		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
-	}
-	assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
 
-	settings := Settings{
-		CoreSettings: CoreSettings{
-			EnableAllPairs:     true,
-			EnableAllExchanges: true,
-		},
-		ExchangeTuningSettings: ExchangeTuningSettings{
-			EnableExchangeVerbose:          true,
-			EnableExchangeWebsocketSupport: true,
-			EnableExchangeAutoPairUpdates:  true,
-			DisableExchangeAutoPairUpdates: true,
-			HTTPUserAgent:                  "test",
-			HTTPProxy:                      "test",
-			HTTPTimeout:                    1,
-			EnableExchangeHTTPDebugging:    true,
-		},
-	}
+	t.Run("No enabled exchanges", func(t *testing.T) {
+		t.Parallel()
+		e := &Engine{
+			Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
+		}
+		assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
+	})
 
 	// Test that adjusting settings induces dry run mode correctly
-	e.Settings = settings
-	assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
-	assert.False(t, e.Settings.EnableDryRun)
-	e.Settings.CheckParamInteraction = true
-	assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
-	assert.True(t, e.Settings.EnableDryRun)
+	t.Run("Settings dry run toggling", func(t *testing.T) {
+		t.Parallel()
+		e := &Engine{
+			Config: &config.Config{},
+			Settings: Settings{
+				CoreSettings: CoreSettings{
+					EnableAllPairs:     true,
+					EnableAllExchanges: true,
+				},
+				ExchangeTuningSettings: ExchangeTuningSettings{
+					EnableExchangeVerbose:          true,
+					EnableExchangeWebsocketSupport: true,
+					EnableExchangeAutoPairUpdates:  true,
+					DisableExchangeAutoPairUpdates: true,
+					HTTPUserAgent:                  "test",
+					HTTPProxy:                      "test",
+					HTTPTimeout:                    1,
+					EnableExchangeHTTPDebugging:    true,
+				},
+			},
+		}
+		assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
+		assert.False(t, e.Settings.EnableDryRun)
+		e.Settings.CheckParamInteraction = true
+		assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
+		assert.True(t, e.Settings.EnableDryRun)
+	})
 
 	// Test that overridden exchange inputs are handled correctly
 	testCases := []struct {
@@ -460,35 +468,54 @@ func TestSetupExchanges(t *testing.T) {
 		{"Invalid exchange pair", "bob|jill", "exchange bob|jill not found"},
 		{"Single invalid exchange", "bob", "exchange bob not found"},
 		{"Mixed valid and invalid exchanges", "bob,bitstamp", "exchange bob not found"},
+		{"Valid exchange", "BiTSTaMp", "no exchanges have been loaded"}, // Proper exchange name, but not loaded
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			e.Settings = Settings{CoreSettings: CoreSettings{Exchanges: tc.exchangeString}}
+			e := &Engine{
+				Config:   &config.Config{},
+				Settings: Settings{CoreSettings: CoreSettings{Exchanges: tc.exchangeString}},
+			}
 			assert.ErrorContains(t, e.SetupExchanges(), tc.expectedError)
 		})
 	}
 
-	// Create two valid enabled exchanges, then ensure only the overridden exchange is loaded
-	exchLoader := func(exch exchange.IBotExchange) {
-		exch.SetDefaults()
-		exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
-		cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
-		require.NoError(t, err)
-		e.Config.Exchanges = append(e.Config.Exchanges, *cfg)
-	}
+	t.Run("Two valid exchanges with exchanges flag toggled", func(t *testing.T) {
+		t.Parallel()
+		e := &Engine{Config: &config.Config{}}
 
-	e.ExchangeManager = NewExchangeManager()
-	e.Config.Exchanges = []config.Exchange{}
-	e.Settings = Settings{}
-	exchLoader(new(bitstamp.Bitstamp))
-	exchLoader(new(bitfinex.Bitfinex))
-	assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, e.Config.GetEnabledExchanges())
-	e.Settings.Exchanges = "BiTfInEx"
-	assert.NoError(t, e.SetupExchanges(), "SetupExchanges with a valid exchange should not error")
-	echanges, err := e.ExchangeManager.GetExchanges()
-	require.NoError(t, err)
-	assert.Equal(t, "Bitfinex", echanges[0].GetName())
-	assert.Len(t, echanges, 1)
+		exchLoader := func(exch exchange.IBotExchange) {
+			exch.SetDefaults()
+			exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
+			cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+			require.NoError(t, err)
+			e.Config.Exchanges = append(e.Config.Exchanges, *cfg)
+		}
+
+		e.ExchangeManager = NewExchangeManager()
+		exchLoader(new(bitstamp.Bitstamp))
+		exchLoader(new(bitfinex.Bitfinex))
+		assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, e.Config.GetEnabledExchanges())
+
+		t.Run("Load specific exchange", func(t *testing.T) {
+			e.Settings.Exchanges = "BiTfInEx"
+			assert.NoError(t, e.SetupExchanges(), "SetupExchanges with a valid exchange should not error")
+			exchanges, err := e.ExchangeManager.GetExchanges()
+			require.NoError(t, err)
+			require.Len(t, exchanges, 1)
+			assert.Equal(t, "Bitfinex", exchanges[0].GetName())
+		})
+
+		t.Run("Load all enabled exchanges", func(t *testing.T) {
+			e.Settings.Exchanges = ""
+			assert.NoError(t, e.SetupExchanges(), "SetupExchanges with all enabled exchanges should not error")
+			exchanges, err := e.ExchangeManager.GetExchanges()
+			require.NoError(t, err)
+			require.Len(t, exchanges, 2)
+			exchangeNames := []string{exchanges[0].GetName(), exchanges[1].GetName()}
+			assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, exchangeNames)
+		})
+	})
 }
