@@ -23,15 +23,14 @@ const (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
-	ErrSubscriptionFailure      = errors.New("subscription failure")
-	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
-	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
-	ErrAlreadyDisabled          = errors.New("websocket already disabled")
-	ErrNotConnected             = errors.New("websocket is not connected")
-	ErrWebsocketAlreadyEnabled  = errors.New("websocket already enabled")
-	ErrNoMessageListener        = errors.New("websocket listener not found for message")
-	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
+	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
+	ErrSubscriptionFailure     = errors.New("subscription failure")
+	ErrUnsubscribeFailure      = errors.New("unsubscribe failure")
+	ErrAlreadyDisabled         = errors.New("websocket already disabled")
+	ErrNotConnected            = errors.New("websocket is not connected")
+	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
+	ErrNoMessageListener       = errors.New("websocket listener not found for message")
+	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
 )
 
 // Private websocket errors

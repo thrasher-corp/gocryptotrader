@@ -99,6 +99,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var dialer websocket.Dialer
+	err = c.Websocket.Conn.Dial(&dialer, http.Header{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	go c.wsReadData()
 	os.Exit(m.Run())
 }
 
@@ -827,6 +833,8 @@ func TestGetAllFiatTransfers(t *testing.T) {
 	wID, err := c.GetWalletByID(context.Background(), "", "AUD")
 	require.NoError(t, err)
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
+	// Fiat deposits/withdrawals aren't accepted for fiat currencies for Australian business accounts; the error
+	// "id not found" possibly reflects this
 	_, err = c.GetAllFiatTransfers(context.Background(), wID.Data.ID, pag, FiatDeposit)
 	assert.NoError(t, err)
 	_, err = c.GetAllFiatTransfers(context.Background(), wID.Data.ID, pag, FiatWithdrawal)
@@ -843,6 +851,8 @@ func TestGetFiatTransferByID(t *testing.T) {
 	wID, err := c.GetWalletByID(context.Background(), "", "AUD")
 	require.NoError(t, err)
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
+	// Fiat deposits/withdrawals aren't accepted for fiat currencies for Australian business accounts; the error
+	// "id not found" possibly reflects this
 	dID, err := c.GetAllFiatTransfers(context.Background(), wID.Data.ID, PaginationInp{}, FiatDeposit)
 	assert.NoError(t, err)
 	if dID == nil || len(dID.Data) == 0 {
@@ -1511,6 +1521,12 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
+	t.Parallel()
+	p := currency.Pairs{testPair}
+	for _, a := range c.GetAssetTypes(true) {
+		require.NoError(t, c.CurrencyPairs.StorePairs(a, p, false))
+		require.NoError(t, c.CurrencyPairs.StorePairs(a, p, true))
+	}
 	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
@@ -1518,11 +1534,11 @@ func TestWsAuth(t *testing.T) {
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	require.NoError(t, err)
 	go c.wsReadData()
-
 	err = c.Subscribe(subscription.List{
 		{
-			Channel: "user",
-			Pairs:   currency.Pairs{testPair},
+			Channel: "account",
+			Asset:   asset.All,
+			Pairs:   p,
 		},
 	})
 	assert.NoError(t, err)
@@ -1536,6 +1552,7 @@ func TestWsAuth(t *testing.T) {
 }
 
 func TestStatusToStandardStatus(t *testing.T) {
+	t.Parallel()
 	type TestCases struct {
 		Case   string
 		Result order.Status
@@ -1647,6 +1664,7 @@ func TestWsHandleData(t *testing.T) {
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {
+	t.Parallel()
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1,
 		NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
 	err := c.ProcessSnapshot(&req, time.Time{})
@@ -1687,8 +1705,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 }
 
 func TestSubscribeUnsubscribe(t *testing.T) {
+	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	req := subscription.List{{Channel: "heartbeats", Asset: asset.Spot,
+	req := subscription.List{{Channel: "heartbeat", Asset: asset.Spot,
 		Pairs: currency.Pairs{currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}}
 	err := c.Subscribe(req)
 	assert.NoError(t, err)
@@ -1698,7 +1717,6 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
-
 	c := &CoinbasePro{
 		Base: exchange.Base{
 			Config: &config.Exchange{
@@ -1711,13 +1729,13 @@ func TestCheckSubscriptions(t *testing.T) {
 			Features: exchange.Features{},
 		},
 	}
-
 	c.checkSubscriptions()
 	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), c.Features.Subscriptions)
 	testsubs.EqualLists(t, defaultSubscriptions, c.Config.Features.Subscriptions)
 }
 
 func TestGetJWT(t *testing.T) {
+	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	creds, err := c.GetCredentials(context.Background())
 	assert.NoError(t, err)
