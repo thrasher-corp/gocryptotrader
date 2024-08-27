@@ -372,7 +372,7 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 		}
 		errs = common.AppendError(errs, err)
 	}
-	return nil
+	return errs
 }
 
 func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
