@@ -160,7 +160,6 @@ var (
 	errPairEmpty                 = errors.New("pair cannot be empty")
 	errStringConvert             = errors.New("unable to convert into string value")
 	errFloatConvert              = errors.New("unable to convert into float64 value")
-	errNoCredsUser               = errors.New("no credentials when attempting to subscribe to authenticated channel user")
 	errWrappedAssetEmpty         = errors.New("wrapped asset cannot be empty")
 	errExpectedOneTickerReturned = errors.New("expected one ticker to be returned")
 )

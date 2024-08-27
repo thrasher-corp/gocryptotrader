@@ -106,3 +106,12 @@ func TestListClone(t *testing.T) {
 	l[0].Interval = kline.OneHour
 	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
 }
+
+func TestListEnabled(t *testing.T) {
+	t.Parallel()
+	l := List{{Channel: TickerChannel}, {Enabled: true, Channel: OrderbookChannel}, {Channel: MyAccountChannel}}
+	n := l.Enabled()
+	require.Len(t, l, 3, "Original should not be effected")
+	require.Len(t, n, 1, "New should be filtered")
+	require.Equal(t, OrderbookChannel, n[0].Channel, "New should be filtered")
+}

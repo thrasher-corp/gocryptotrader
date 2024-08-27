@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -106,13 +105,7 @@ func (c *CoinbasePro) SetDefaults() {
 				GlobalResultLimit: 300,
 			},
 		},
-		Subscriptions: subscription.List{
-			{Enabled: true, Channel: "heartbeat"},
-			{Enabled: true, Channel: "level2_batch"}, // Other orderbook feeds require authentication; This is batched in 50ms lots
-			{Enabled: true, Channel: "ticker"},
-			{Enabled: true, Channel: "user", Authenticated: true},
-			{Enabled: true, Channel: "matches"},
-		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -150,6 +143,9 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
+	c.checkSubscriptions()
+
 	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
