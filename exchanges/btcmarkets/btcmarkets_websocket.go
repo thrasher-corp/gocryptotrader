@@ -464,7 +464,7 @@ func concat(liquidity orderbook.Tranches) string {
 		length = len(liquidity)
 	}
 	var c string
-	for x := 0; x < length; x++ {
+	for x := range length {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
 	return c

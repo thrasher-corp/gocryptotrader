@@ -1757,7 +1757,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 	if exchCfg.API.Credentials.PIN != "" {
 		pinCode, errPin := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
-		if err != nil {
+		if errPin != nil {
 			return nil, errPin
 		}
 		req.PIN = pinCode
@@ -1814,12 +1814,12 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 	if exchCfg.API.Credentials.OTPSecret != "" {
 		code, errOTP := totp.GenerateCode(exchCfg.API.Credentials.OTPSecret, time.Now())
-		if err != nil {
+		if errOTP != nil {
 			return nil, errOTP
 		}
 
 		codeNum, errOTP := strconv.ParseInt(code, 10, 64)
-		if err != nil {
+		if errOTP != nil {
 			return nil, errOTP
 		}
 		req.OneTimePassword = codeNum
@@ -1827,7 +1827,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 	if exchCfg.API.Credentials.PIN != "" {
 		pinCode, errPIN := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
-		if err != nil {
+		if errPIN != nil {
 			return nil, errPIN
 		}
 		req.PIN = pinCode
@@ -4937,7 +4937,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			}
 			tick, err = exch.FetchTicker(ctx, tickerCurr, asset.Spot)
 			if err != nil {
-				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err))
+				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err)
 				continue
 			}
 			if tick.Last == 0 {

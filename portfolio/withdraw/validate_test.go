@@ -227,8 +227,7 @@ func TestValidateFiat(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			if test.requestType < 3 {
 				test.request.Type = test.requestType
@@ -305,8 +304,7 @@ func TestValidateCrypto(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.request.Validate()
 			if err != nil {

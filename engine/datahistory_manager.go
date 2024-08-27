@@ -958,7 +958,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	}
 	var validationIssues []string
 	multiplier := int64(1)
-	for i := int64(0); i < job.DecimalPlaceComparison; i++ {
+	for range job.DecimalPlaceComparison {
 		multiplier *= 10
 	}
 	for i := range apiCandles.Candles {

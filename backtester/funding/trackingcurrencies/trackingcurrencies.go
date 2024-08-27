@@ -69,9 +69,6 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 		} else {
 			b := exch.GetBase()
 			a := tp[i].Asset
-			if err != nil {
-				return nil, err
-			}
 			if a.IsFutures() {
 				// futures matches to spot, not like this
 				continue

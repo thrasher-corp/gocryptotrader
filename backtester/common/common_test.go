@@ -89,7 +89,6 @@ func TestCanTransact(t *testing.T) {
 			expected: false,
 		},
 	} {
-		ti := ti
 		t.Run(ti.side.String(), func(t *testing.T) {
 			t.Parallel()
 			if CanTransact(ti.side) != ti.expected {
@@ -124,7 +123,6 @@ func TestDataTypeConversion(t *testing.T) {
 			expectErr: true,
 		},
 	} {
-		ti := ti
 		t.Run(ti.title, func(t *testing.T) {
 			t.Parallel()
 			got, err := DataTypeToInt(ti.dataType)

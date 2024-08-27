@@ -229,7 +229,7 @@ func (m *SyncManager) Start() error {
 		return nil
 	}
 
-	for i := 0; i < m.config.NumWorkers; i++ {
+	for range m.config.NumWorkers {
 		go m.worker()
 	}
 	m.initSyncWG.Done()

@@ -212,7 +212,7 @@ func TestGetHoldings(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(p dispatch.Pipe, wg *sync.WaitGroup) {
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			c := time.NewTimer(time.Second)
 			select {
 			case <-p.Channel():

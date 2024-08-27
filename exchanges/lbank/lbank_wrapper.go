@@ -686,7 +686,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
-			for y := 0; y < len(getOrdersRequest.Pairs); y++ {
+			for y := range getOrdersRequest.Pairs {
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
@@ -742,7 +742,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 			if err != nil {
 				return finalResp, err
 			}
-			for x := 0; x < len(tempResp.Orders); x++ {
+			for x := range tempResp.Orders {
 				resp.Exchange = l.Name
 				resp.Pair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
 				if err != nil {
@@ -843,9 +843,8 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 				return resp, nil
 			}
 
-			for c := 0; c < tempData; c++ {
-				resp[fPair.String()] = append(resp[fPair.String()],
-					tempResp.Orders[c].OrderID)
+			for c := range tempData {
+				resp[fPair.String()] = append(resp[fPair.String()], tempResp.Orders[c].OrderID)
 			}
 			tempData = len(tempResp.Orders)
 			b++

@@ -89,12 +89,10 @@ type Submit struct {
 
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
-	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
-	TradeMode string
-
 	// EndTime is the moment which a good til date order is valid until
 	EndTime time.Time
 
+	// StopDirection is the direction from which the stop order will trigger
 	StopDirection StopDirection
 }
 
