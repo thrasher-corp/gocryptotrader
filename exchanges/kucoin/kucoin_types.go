@@ -69,7 +69,7 @@ type Error struct {
 	Msg  string `json:"msg"`
 }
 
-// GetError checks and returns an error if it is supplied.
+// GetError checks and returns an error if it is supplied
 func (e Error) GetError() error {
 	code, err := strconv.ParseInt(e.Code, 10, 64)
 	if err != nil {
@@ -119,7 +119,8 @@ type Ticker struct {
 	Time        convert.ExchangeTime `json:"time"`
 }
 
-type tickerInfoBase struct {
+// TickerInfoBase represents base price ticker details
+type TickerInfoBase struct {
 	Symbol           string  `json:"symbol"`
 	Buy              float64 `json:"buy,string"`
 	Sell             float64 `json:"sell,string"`
@@ -141,13 +142,13 @@ type tickerInfoBase struct {
 
 // TickerInfo stores ticker information
 type TickerInfo struct {
-	tickerInfoBase
+	TickerInfoBase
 	SymbolName string `json:"symbolName"`
 }
 
 // Stats24hrs stores 24 hrs statistics
 type Stats24hrs struct {
-	tickerInfoBase
+	TickerInfoBase
 	Time convert.ExchangeTime `json:"time"`
 }
 
@@ -186,7 +187,8 @@ type Kline struct {
 	Amount    float64 // Transaction amount
 }
 
-type currencyBase struct {
+// CurrencyBase represents currency code response details
+type CurrencyBase struct {
 	Currency        string `json:"currency"` // a unique currency code that will never change
 	Name            string `json:"name"`     // will change after renaming
 	FullName        string `json:"fullName"`
@@ -199,7 +201,7 @@ type currencyBase struct {
 
 // Currency stores currency data
 type Currency struct {
-	currencyBase
+	CurrencyBase
 	WithdrawalMinSize float64 `json:"withdrawalMinSize,string"`
 	WithdrawalMinFee  float64 `json:"withdrawalMinFee,string"`
 	IsWithdrawEnabled bool    `json:"isWithdrawEnabled"`
@@ -208,18 +210,22 @@ type Currency struct {
 
 // Chain stores blockchain data
 type Chain struct {
-	Name              string  `json:"chainName"`
-	Confirms          int64   `json:"confirms"`
-	ContractAddress   string  `json:"contractAddress"`
-	WithdrawalMinSize float64 `json:"withdrawalMinSize,string"`
-	WithdrawalMinFee  float64 `json:"withdrawalMinFee,string"`
-	IsWithdrawEnabled bool    `json:"isWithdrawEnabled"`
-	IsDepositEnabled  bool    `json:"isDepositEnabled"`
+	ChainName         string       `json:"chainName"`
+	Confirms          int64        `json:"confirms"`
+	ContractAddress   string       `json:"contractAddress"`
+	WithdrawalMinSize float64      `json:"withdrawalMinSize,string"`
+	WithdrawalMinFee  float64      `json:"withdrawalMinFee,string"`
+	IsWithdrawEnabled bool         `json:"isWithdrawEnabled"`
+	IsDepositEnabled  bool         `json:"isDepositEnabled"`
+	DepositMinSize    any          `json:"depositMinSize"`
+	WithdrawFeeRate   types.Number `json:"withdrawFeeRate"`
+	PreConfirms       int64        `json:"preConfirms"`
+	ChainID           string       `json:"chainId"`
 }
 
 // CurrencyDetail stores currency details
 type CurrencyDetail struct {
-	currencyBase
+	CurrencyBase
 	Chains []Chain `json:"chains"`
 }
 
@@ -227,6 +233,7 @@ type CurrencyDetail struct {
 type LeveragedTokenInfo struct {
 	Currency              string       `json:"currency"`
 	NetAsset              float64      `json:"netAsset"`
+	IssuedSize            types.Number `json:"issuedSize"`
 	TargetLeverage        types.Number `json:"targetLeverage"`
 	ActualLeverage        types.Number `json:"actualLeverage"`
 	AssetsUnderManagement string       `json:"assetsUnderManagement"`
@@ -265,8 +272,8 @@ type MarginAccounts struct {
 	DebtRatio float64         `json:"debtRatio,string"`
 }
 
-// RiskLimitCurrencyConfig currency configuration of cross margin/isolated margin
-type RiskLimitCurrencyConfig struct {
+// CrossMarginRiskLimitCurrencyConfig currency configuration of cross margin accounts
+type CrossMarginRiskLimitCurrencyConfig struct {
 	Timestamp         convert.ExchangeTime `json:"timestamp"`
 	Currency          string               `json:"currency"`
 	BorrowMaxAmount   types.Number         `json:"borrowMaxAmount"`
@@ -278,6 +285,30 @@ type RiskLimitCurrencyConfig struct {
 	BorrowMinAmount   types.Number         `json:"borrowMinAmount"`
 	BorrowMinUnit     string               `json:"borrowMinUnit"`
 	BorrowEnabled     bool                 `json:"borrowEnabled"`
+}
+
+// IsolatedMarginRiskLimitCurrencyConfig represents a currency configuration of isolated margin account
+type IsolatedMarginRiskLimitCurrencyConfig struct {
+	Timestamp              convert.ExchangeTime `json:"timestamp"`
+	Symbol                 string               `json:"symbol"`
+	BaseMaxBorrowAmount    types.Number         `json:"baseMaxBorrowAmount"`
+	QuoteMaxBorrowAmount   types.Number         `json:"quoteMaxBorrowAmount"`
+	BaseMaxBuyAmount       types.Number         `json:"baseMaxBuyAmount"`
+	QuoteMaxBuyAmount      types.Number         `json:"quoteMaxBuyAmount"`
+	BaseMaxHoldAmount      types.Number         `json:"baseMaxHoldAmount"`
+	QuoteMaxHoldAmount     types.Number         `json:"quoteMaxHoldAmount"`
+	BasePrecision          int64                `json:"basePrecision"`
+	QuotePrecision         int64                `json:"quotePrecision"`
+	BaseBorrowCoefficient  types.Number         `json:"baseBorrowCoefficient"`
+	QuoteBorrowCoefficient types.Number         `json:"quoteBorrowCoefficient"`
+	BaseMarginCoefficient  types.Number         `json:"baseMarginCoefficient"`
+	QuoteMarginCoefficient types.Number         `json:"quoteMarginCoefficient"`
+	BaseBorrowMinAmount    string               `json:"baseBorrowMinAmount"`
+	BaseBorrowMinUnit      string               `json:"baseBorrowMinUnit"`
+	QuoteBorrowMinAmount   types.Number         `json:"quoteBorrowMinAmount"`
+	QuoteBorrowMinUnit     types.Number         `json:"quoteBorrowMinUnit"`
+	BaseBorrowEnabled      bool                 `json:"baseBorrowEnabled"`
+	QuoteBorrowEnabled     bool                 `json:"quoteBorrowEnabled"`
 }
 
 // MarginRiskLimit stores margin risk limit
@@ -1222,7 +1253,7 @@ type WsSnapshot struct {
 	Data     WsSnapshotDetail `json:"data"`
 }
 
-// WsSnapshotDetail represents the detail of a spot ticker data.
+// WsSnapshotDetail represents the detail of a spot ticker data
 // This represents all websocket ticker information pushed as a result of subscription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
 type WsSnapshotDetail struct {
 	AveragePrice     float64              `json:"averagePrice"`
@@ -1410,7 +1441,7 @@ type WsPositionStatus struct {
 type WsMarginTradeOrderEntersEvent struct {
 	Currency     string               `json:"currency"`
 	OrderID      string               `json:"orderId"`      // Trade ID
-	DailyIntRate float64              `json:"dailyIntRate"` // Daily interest rate.
+	DailyIntRate float64              `json:"dailyIntRate"` // Daily interest rate
 	Term         int64                `json:"term"`         // Term (Unit: Day)
 	Size         float64              `json:"size"`         // Size
 	LentSize     float64              `json:"lentSize"`     // Size executed -- filled when the subject is order.update
@@ -1430,12 +1461,12 @@ type WsMarginTradeOrderDoneEvent struct {
 // WsFuturesKline represents a futures kline data
 type WsFuturesKline struct {
 	Symbol  string               `json:"symbol"`
-	Candles [7]types.Number      `json:"candles"` // Start Time, Open Price, Close Price, High Price, Low Price, Transaction Volume, and Transaction Amount respectively.
+	Candles [7]types.Number      `json:"candles"` // Start Time, Open Price, Close Price, High Price, Low Price, Transaction Volume, and Transaction Amount respectively
 	Time    convert.ExchangeTime `json:"time"`
 }
 
-// WsStopOrder represents a stop order.
-// When a stop order is received by the system, you will receive a message with "open" type.
+// WsStopOrder represents a stop order
+// When a stop order is received by the system, you will receive a message with "open" type
 // It means that this order entered the system and waited to be triggered
 type WsStopOrder struct {
 	CreatedAt      convert.ExchangeTime `json:"createdAt"`
@@ -1585,7 +1616,7 @@ type WsFuturesTradeOrder struct {
 	FilledSize       float64              `json:"filledSize,string"`   // Remaining Size for Trading
 	CanceledSize     float64              `json:"canceledSize,string"` // In the update message, the Size of order reduced
 	TradeID          string               `json:"tradeId"`             // Trade ID (when the type is "match")
-	ClientOid        string               `json:"clientOid"`           // Client supplied order id.
+	ClientOid        string               `json:"clientOid"`           // Client supplied order id
 	OrderTime        convert.ExchangeTime `json:"orderTime"`
 	OldSize          string               `json:"oldSize "`  // Size Before Update (when the type is "update")
 	TradingDirection string               `json:"liquidity"` // Liquidity, Trading direction, buy or sell in taker
@@ -1858,7 +1889,7 @@ type FuturesOrderParam struct {
 	OrderType           string  `json:"type"`
 	Remark              string  `json:"remark,omitempty"`
 	Stop                string  `json:"stop,omitempty"`          // Either down or up. Requires stopPrice and stopPriceType to be defined
-	StopPriceType       string  `json:"stopPriceType,omitempty"` // [optional] Either TP, IP or MP, Need to be defined if stop is specified. `TP` for trade price, `MP` for Mark price, and "IP" for index price.
+	StopPriceType       string  `json:"stopPriceType,omitempty"` // [optional] Either TP, IP or MP, Need to be defined if stop is specified. `TP` for trade price, `MP` for Mark price, and "IP" for index price
 	StopPrice           float64 `json:"stopPrice,omitempty,string"`
 	ReduceOnly          bool    `json:"reduceOnly,omitempty"`
 	CloseOrder          bool    `json:"closeOrder,omitempty"`
@@ -1886,7 +1917,7 @@ type SpotOrderParam struct {
 	Side                string        `json:"side"`
 	Symbol              currency.Pair `json:"symbol"`
 	OrderType           string        `json:"type,omitempty"`
-	TradeType           string        `json:"tradeType,omitempty"` // [Optional] The type of trading : TRADE（Spot Trade）, MARGIN_TRADE (Margin Trade). Default is TRADE.
+	TradeType           string        `json:"tradeType,omitempty"` // [Optional] The type of trading : TRADE（Spot Trade）, MARGIN_TRADE (Margin Trade). Default is TRADE
 	Remark              string        `json:"remark,omitempty"`
 	SelfTradePrevention string        `json:"stp,omitempty"`         // [Optional] self trade prevention , CN, CO, CB or DC. `CN` for Cancel newest, `DC` for Decrease and Cancel, `CO` for cancel oldest, and `CB` for Cancel both
 	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
@@ -1909,7 +1940,7 @@ type MarginOrderParam struct {
 	OrderType           string        `json:"type,omitempty"`
 	Remark              string        `json:"remark,omitempty"`
 	SelfTradePrevention string        `json:"stp,omitempty"`         // [Optional] self trade prevention , CN, CO, CB or DC. `CN` for Cancel newest, `DC` for Decrease and Cancel, `CO` for cancel oldest, and `CB` for Cancel both
-	MarginModel         string        `json:"marginModel,omitempty"` // [Optional] The type of trading, including cross (cross mode) and isolated (isolated mode). It is set at cross by default.
+	MarginModel         string        `json:"marginModel,omitempty"` // [Optional] The type of trading, including cross (cross mode) and isolated (isolated mode). It is set at cross by default
 	AutoBorrow          bool          `json:"autoBorrow,omitempty"`  // [Optional] Auto-borrow to place order. The system will first borrow you funds at the optimal interest rate and then place an order for you. Currently autoBorrow parameter only supports cross mode, not isolated mode. When add this param, stop profit and stop loss are not supported
 	AutoRepay           bool          `json:"autoRepay,omitempty"`
 	Price               float64       `json:"price,string,omitempty"`
@@ -1944,7 +1975,7 @@ type OCOOrderParams struct {
 	Price         float64       `json:"price,string"`
 	Size          float64       `json:"size,string"`
 	StopPrice     float64       `json:"stopPrice,string"`
-	LimitPrice    float64       `json:"limitPrice,string"` // The limit order price after take-profit and stop-loss are triggered.
+	LimitPrice    float64       `json:"limitPrice,string"` // The limit order price after take-profit and stop-loss are triggered
 	TradeType     string        `json:"tradeType,omitempty"`
 	ClientOrderID string        `json:"clientOid"`
 	Remark        string        `json:"remark,omitempty"`
@@ -2261,6 +2292,27 @@ type MarginPairConfigs struct {
 	Items     []MarginPairConfig   `json:"items"`
 }
 
+// MarginActiveSymbolDetail represents an active high frequency margin symbols information
+type MarginActiveSymbolDetail struct {
+	SymbolSize int64    `json:"symbolSize"`
+	Symbols    []string `json:"symbols"`
+}
+
+// MarginInterestRecords represents a cross/isolated margin interest records
+type MarginInterestRecords struct {
+	Timestamp   int64 `json:"timestamp"`
+	CurrentPage int64 `json:"currentPage"`
+	PageSize    int64 `json:"pageSize"`
+	TotalNum    int64 `json:"totalNum"`
+	TotalPage   int64 `json:"totalPage"`
+	Items       []struct {
+		CreatedAt      convert.ExchangeTime `json:"createdAt"`
+		Currency       string               `json:"currency"`
+		InterestAmount types.Number         `json:"interestAmount"`
+		DayRatio       types.Number         `json:"dayRatio"`
+	} `json:"items"`
+}
+
 // MarginPairConfig represents a margin pair configuration detail
 type MarginPairConfig struct {
 	Symbol         string       `json:"symbol"`
@@ -2279,4 +2331,11 @@ type MarginPairConfig struct {
 	FeeCurrency    string       `json:"feeCurrency"`
 	PriceLimitRate types.Number `json:"priceLimitRate"`
 	MinFunds       types.Number `json:"minFunds"`
+}
+
+// FuturesMaxOpenPositionSize represents maximum buy/sell open positions an account could have.
+type FuturesMaxOpenPositionSize struct {
+	Symbol          string `json:"symbol"`
+	MaxBuyOpenSize  int64  `json:"maxBuyOpenSize"`
+	MaxSellOpenSize int64  `json:"maxSellOpenSize"`
 }

@@ -32,11 +32,6 @@ import (
 type Kucoin struct {
 	exchange.Base
 	obm *orderbookManager
-
-	// HFSpot whether a high-frequency spot order is enabled or not.
-	HFSpot bool
-	// HFMargin whether a high-frequency margin order is enabled or not.
-	HFMargin bool
 }
 
 var locker sync.Mutex
@@ -274,6 +269,12 @@ func (ku *Kucoin) GetMarkPrice(ctx context.Context, symbol string) (*MarkPrice, 
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, getMarkPriceEPL, "/v1/mark-price/"+symbol+"/current", &resp)
 }
 
+// GetAllMarginTradingPairsMarkPrices retrieves all margin trading pairs ticker mark price information
+func (ku *Kucoin) GetAllMarginTradingPairsMarkPrices(ctx context.Context) ([]MarkPrice, error) {
+	var resp []MarkPrice
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, getAllMarginMarkPriceEPL, "/v3/mark-price/all-symbols", &resp)
+}
+
 // GetMarginConfiguration gets configure info of the margin
 func (ku *Kucoin) GetMarginConfiguration(ctx context.Context) (*MarginConfiguration, error) {
 	var resp *MarginConfiguration
@@ -286,9 +287,20 @@ func (ku *Kucoin) GetMarginAccount(ctx context.Context) (*MarginAccounts, error)
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginAccountDetailEPL, http.MethodGet, "/v1/margin/account", nil, &resp)
 }
 
-// GetCrossIsolatedMarginRiskLimitCurrencyConfig risk limit and currency configuration of cross margin/isolated margin.
+// GetCrossMarginRiskLimitCurrencyConfig risk limit and currency configuration of cross margin account
 // isIsolated: true - isolated, false - cross ; default false
-func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol string, ccy currency.Code) ([]RiskLimitCurrencyConfig, error) {
+func (ku *Kucoin) GetCrossMarginRiskLimitCurrencyConfig(ctx context.Context, symbol string, ccy currency.Code) ([]CrossMarginRiskLimitCurrencyConfig, error) {
+	var resp []CrossMarginRiskLimitCurrencyConfig
+	return resp, ku.getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx, false, symbol, ccy, &resp)
+}
+
+// GetIsolatedMarginRiskLimitCurrencyConfig risk limit and currency configuration of cross isolated margin
+func (ku *Kucoin) GetIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, symbol string, ccy currency.Code) ([]IsolatedMarginRiskLimitCurrencyConfig, error) {
+	var resp []IsolatedMarginRiskLimitCurrencyConfig
+	return resp, ku.getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx, true, symbol, ccy, &resp)
+}
+
+func (ku *Kucoin) getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol string, ccy currency.Code, resp interface{}) error {
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "true")
@@ -299,8 +311,7 @@ func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Cont
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var resp []RiskLimitCurrencyConfig
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, crossIsolatedMarginRiskLimitCurrencyConfigEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/currencies", params), nil, &resp)
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, crossIsolatedMarginRiskLimitCurrencyConfigEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/currencies", params), nil, &resp)
 }
 
 // PostMarginBorrowOrder used to post borrow order
@@ -370,6 +381,34 @@ func (ku *Kucoin) PostRepayment(ctx context.Context, arg *RepayParam) (*BorrowAn
 	}
 	var resp *BorrowAndRepaymentOrderResp
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, postMarginRepaymentEPL, http.MethodPost, "/v3/margin/repay", arg, &resp)
+}
+
+// GetCrossIsolatedMarginInterestRecords request via this endpoint to get the interest records of the cross/isolated margin lending
+func (ku *Kucoin) GetCrossIsolatedMarginInterestRecords(ctx context.Context, isIsolated bool, symbol string, ccy currency.Code, startTime, endTime time.Time, currentPage, pageSize int64) (*MarginInterestRecords, error) {
+	params := url.Values{}
+	if isIsolated {
+		params.Set("isIsolated", "true")
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if currentPage > 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *MarginInterestRecords
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getCrossIsolatedMarginInterestRecordsEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/interest", params), nil, &resp)
 }
 
 // GetRepaymentHistory retrieves the repayment orders for cross and isolated margin accounts.
@@ -2736,4 +2775,34 @@ func (ku *Kucoin) GetMarginPairsConfigurations(ctx context.Context, symbol strin
 	params.Set("symbol", symbol)
 	var resp *MarginPairConfigs
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginPairsConfigurationEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/symbols", params), nil, &resp)
+}
+
+// ModifyLeverageMultiplier this endpoint allows modifying the leverage multiplier for cross margin or isolated margin
+func (ku *Kucoin) ModifyLeverageMultiplier(ctx context.Context, symbol string, leverage int64, isIsolated bool) error {
+	if leverage <= 0 {
+		return errInvalidLeverage
+	}
+	arg := &struct {
+		Symbol     string `json:"symbol,omitempty"`
+		Leverage   int64  `json:"leverage"`
+		IsIsolated bool   `json:"isIsolated,omitempty"`
+	}{
+		Symbol:     symbol,
+		Leverage:   leverage,
+		IsIsolated: isIsolated,
+	}
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, modifyLeverageMultiplierEPL, http.MethodPost, "/v3/position/update-user-leverage", arg, &struct{}{})
+}
+
+// GetActiveHFOrderSymbols retrieves the symbols of active high-frequency orders.
+// Possible values for tradeType are MARGIN_TRADE for cross-margin trading
+// and MARGIN_ISOLATED_TRADE for isolated margin trading.
+func (ku *Kucoin) GetActiveHFOrderSymbols(ctx context.Context, tradeType string) (*MarginActiveSymbolDetail, error) {
+	if tradeType == "" {
+		return nil, errTradeTypeMissing
+	}
+	params := url.Values{}
+	params.Set("tradeType", tradeType)
+	var resp *MarginActiveSymbolDetail
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginActiveHFOrdersEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/order/active/symbols", params), nil, &resp)
 }

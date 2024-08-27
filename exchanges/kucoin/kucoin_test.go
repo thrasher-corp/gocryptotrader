@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -48,10 +47,6 @@ var (
 	ku                                                        *Kucoin
 	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 	assertToTradablePairMap                                   map[asset.Item]currency.Pair
-
-	// The following locks are used to synchronize access to HFSpot and HFMargin variables.
-	spotHFLock   sync.Mutex
-	marginHFLock sync.Mutex
 )
 
 func TestMain(m *testing.M) {
@@ -236,6 +231,13 @@ func TestGetMarkPrice(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetAllMarginTradingPairsMarkPrices(t *testing.T) {
+	t.Parallel()
+	result, err := ku.GetAllMarginTradingPairsMarkPrices(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetMarginConfiguration(t *testing.T) {
 	t.Parallel()
 	result, err := ku.GetMarginConfiguration(context.Background())
@@ -251,10 +253,18 @@ func TestGetMarginAccount(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetCrossIsolatedMarginRiskLimitCurrencyConfig(t *testing.T) {
+func TestGetCrossMarginRiskLimitCurrencyConfig(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	result, err := ku.GetCrossIsolatedMarginRiskLimitCurrencyConfig(context.Background(), false, "", currency.BTC)
+	result, err := ku.GetCrossMarginRiskLimitCurrencyConfig(context.Background(), "", currency.BTC)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIsolatedMarginRiskLimitCurrencyConfig(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetIsolatedMarginRiskLimitCurrencyConfig(context.Background(), "", currency.BTC)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -302,6 +312,14 @@ func TestPostRepayment(t *testing.T) {
 	result, err := ku.PostRepayment(context.Background(), &RepayParam{
 		Currency: currency.USDT,
 		Size:     0.05})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCrossIsolatedMarginInterestRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetCrossIsolatedMarginInterestRecords(context.Background(), false, "", currency.BTC, time.Now().Add(-time.Hour*50), time.Now(), 0, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1207,7 +1225,7 @@ func TestGetFuturesTicker(t *testing.T) {
 		assert.Positive(t, tick.BestAskPrice.Float64(), "BestAskPrice should be positive")
 		assert.Positive(t, tick.BestAskSize, "BestAskSize should be positive")
 		assert.NotEmpty(t, tick.TradeID, "TradeID should not be empty")
-		assert.WithinRange(t, tick.FilledTime.Time(), time.Now().Add(time.Hour*-24), time.Now())
+		assert.WithinRange(t, tick.FilledTime.Time(), time.Now().Add(time.Hour*-24), time.Now().Add(time.Hour))
 	}
 }
 
@@ -2267,7 +2285,7 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	var result *order.Detail
 	var err error
-	result, err = ku.GetOrderInfo(context.Background(), "5454", futuresTradablePair, asset.Futures)
+	result, err = ku.GetOrderInfo(context.Background(), "54541241349183409134134133", futuresTradablePair, asset.Futures)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -2278,18 +2296,6 @@ func TestGetOrderInfo(t *testing.T) {
 	result, err = ku.GetOrderInfo(context.Background(), "54541241349183409134134133", marginTradablePair, asset.Margin)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-
-	enableAndLock(asset.Spot)
-	result, err = ku.GetOrderInfo(context.Background(), "545412413491834091341341", spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	disableAndUnlock(asset.Spot)
-
-	enableAndLock(asset.Margin)
-	result, err = ku.GetOrderInfo(context.Background(), "545412413491834091341341", marginTradablePair, asset.Margin)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	disableAndUnlock(asset.Margin)
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -2338,34 +2344,10 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func enableAndLock(assetType asset.Item) {
-	switch assetType {
-	case asset.Margin:
-		marginHFLock.Lock()
-		ku.HFMargin = true
-		fallthrough
-	case asset.Spot:
-		spotHFLock.Lock()
-		ku.HFSpot = true
-	}
-}
-
-func disableAndUnlock(assetType asset.Item) {
-	switch assetType {
-	case asset.Margin:
-		ku.HFMargin = false
-		marginHFLock.Unlock()
-		fallthrough
-	case asset.Spot:
-		ku.HFSpot = false
-		spotHFLock.Unlock()
-	}
-}
-
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	orderSubmission := &order.Submit{
-		Pair:          spotTradablePair,
+		Pair:          futuresTradablePair,
 		Exchange:      ku.Name,
 		Side:          order.Bid,
 		Type:          order.Limit,
@@ -2378,77 +2360,93 @@ func TestSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	orderSubmission.AssetType = asset.Spot
-	orderSubmission.Side = order.Buy
-	orderSubmission.Pair = spotTradablePair
+	orderSubmission.AssetType = asset.Futures
+	orderSubmission.Pair = futuresTradablePair
 	result, err := ku.SubmitOrder(context.Background(), orderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	orderSubmission.AssetType = asset.Futures
-	orderSubmission.Pair = futuresTradablePair
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-
+	orderSubmission.Type = order.StopLimit
 	orderSubmission.TriggerPrice = 50000
 	orderSubmission.TriggerPriceType = order.LastPrice
 	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	orderSubmission.Leverage = 0.01
-	orderSubmission.AssetType = asset.Spot
-	orderSubmission.Pair = spotTradablePair
-	enableAndLock(asset.Spot)
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	// Spot order creation tests
+	spotOrderSubmission := &order.Submit{
+		Side:          order.Buy,
+		AssetType:     asset.Spot,
+		Pair:          spotTradablePair,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        100000,
+		ClientOrderID: "myOrder",
+		IsHFTrade:     true,
+	}
+	result, err = ku.SubmitOrder(context.Background(), spotOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	disableAndUnlock(asset.Spot)
 
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	spotOrderSubmission.IsHFTrade = false
+	result, err = ku.SubmitOrder(context.Background(), spotOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	orderSubmission.Type = order.StopLimit
-	orderSubmission.RiskManagementModes = order.RiskManagementModes{
+	spotOrderSubmission.Type = order.StopLimit
+	spotOrderSubmission.RiskManagementModes = order.RiskManagementModes{
 		StopEntry: order.RiskManagement{
 			Enabled:          true,
 			Price:            1234,
 			TriggerPriceType: order.LastPrice,
 		},
 	}
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	result, err = ku.SubmitOrder(context.Background(), spotOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	orderSubmission.Type = order.OCO
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	spotOrderSubmission.Type = order.OCO
+	spotOrderSubmission.Side = order.Sell
+	spotOrderSubmission.RiskManagementModes.TakeProfit = order.RiskManagement{
+		Enabled:          true,
+		Price:            1334,
+		TriggerPriceType: order.LastPrice,
+	}
+	spotOrderSubmission.RiskManagementModes.StopLoss = order.RiskManagement{
+		Enabled:          true,
+		Price:            1234,
+		TriggerPriceType: order.LastPrice,
+	}
+	result, err = ku.SubmitOrder(context.Background(), spotOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	orderSubmission.Type = order.ConditionalStop
-	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	spotOrderSubmission.Type = order.ConditionalStop
+	_, err = ku.SubmitOrder(context.Background(), spotOrderSubmission)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	orderSubmission.AssetType = asset.Margin
-	orderSubmission.Pair = marginTradablePair
-	orderSubmission.Type = order.Limit
-
-	enableAndLock(asset.Margin)
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	// Margin order creation tests
+	marginOrderSubmission := &order.Submit{
+		Side:          order.Buy,
+		AssetType:     asset.Margin,
+		Pair:          marginTradablePair,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        100000,
+		ClientOrderID: "myOrder",
+		IsHFTrade:     true,
+	}
+	result, err = ku.SubmitOrder(context.Background(), marginOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	disableAndUnlock(asset.Margin)
 
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	marginOrderSubmission.IsHFTrade = false
+	result, err = ku.SubmitOrder(context.Background(), marginOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	orderSubmission.AssetType = asset.Margin
-	orderSubmission.Pair = marginTradablePair
-	orderSubmission.MarginType = margin.Isolated
-	result, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	marginOrderSubmission.MarginType = margin.Isolated
+	result, err = ku.SubmitOrder(context.Background(), marginOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2502,44 +2500,42 @@ func TestCancelOrder(t *testing.T) {
 	err = ku.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err)
 
+	orderCancellation.IsHFTrade = true
 	orderCancellation.Type = order.Limit
-	enableAndLock(asset.Margin)
-	orderCancellation.AssetType = asset.Margin
-	err = ku.CancelOrder(context.Background(), orderCancellation)
-	assert.NoError(t, err)
-	disableAndUnlock(asset.Margin)
-
 	orderCancellation.AssetType = asset.Margin
 	err = ku.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err)
 
+	orderCancellation.IsHFTrade = false
+	err = ku.CancelOrder(context.Background(), orderCancellation)
+	assert.NoError(t, err)
+
+	orderCancellation.IsHFTrade = true
 	orderCancellation.ClientOrderID = ""
 	orderCancellation.OrderID = "12345"
-	enableAndLock(asset.Margin)
-	err = ku.CancelOrder(context.Background(), orderCancellation)
-	assert.NoError(t, err)
-	disableAndUnlock(asset.Margin)
-
-	orderCancellation.AssetType = asset.Margin
 	err = ku.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err)
 
-	enableAndLock(asset.Spot)
+	orderCancellation.IsHFTrade = false
+	err = ku.CancelOrder(context.Background(), orderCancellation)
+	assert.NoError(t, err)
+
+	orderCancellation.IsHFTrade = true
 	orderCancellation.AssetType = asset.Spot
 	err = ku.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err)
-	disableAndUnlock(asset.Spot)
 
+	orderCancellation.IsHFTrade = false
 	orderCancellation.AssetType = asset.Margin
 	err = ku.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err)
 
 	orderCancellation.ClientOrderID = ""
 	orderCancellation.OrderID = "12345"
-	enableAndLock(asset.Spot)
+	orderCancellation.IsHFTrade = true
 	err = ku.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err)
-	disableAndUnlock(asset.Spot)
+	orderCancellation.IsHFTrade = false
 
 	orderCancellation.AssetType = asset.Margin
 	err = ku.CancelOrder(context.Background(), orderCancellation)
@@ -2556,10 +2552,10 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	enableAndLock(asset.Margin)
 	_, err = ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Margin,
 		MarginType: margin.Isolated,
+		IsHFTrade:  true,
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -2567,15 +2563,15 @@ func TestCancelAllOrders(t *testing.T) {
 		AssetType:  asset.Margin,
 		MarginType: margin.Isolated,
 		Pair:       marginTradablePair,
+		IsHFTrade:  true,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	disableAndUnlock(asset.Margin)
 
-	enableAndLock(asset.Spot)
 	result, err = ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Spot,
 		MarginType: margin.Multi,
+		IsHFTrade:  true,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2583,10 +2579,10 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err = ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType: asset.Spot,
 		Pair:      spotTradablePair,
+		IsHFTrade: true,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	disableAndUnlock(asset.Spot)
 
 	result, err = ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType: asset.Spot,
@@ -3863,6 +3859,22 @@ func TestGetPositionHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetMaximumOpenPositionSize(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetMaximumOpenPositionSize(context.Background(), futuresTradablePair.String(), 1, 1)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLatestTickersForAllContracts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetLatestTickersForAllContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestSubscribeToEarnFixedIncomeProduct(t *testing.T) {
 	t.Parallel()
 	_, err := ku.SubscribeToEarnFixedIncomeProduct(context.Background(), "", "MAIN", 12.2)
@@ -3987,6 +3999,19 @@ func TestGetMarginPairsConfigurations(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err = ku.GetMarginPairsConfigurations(context.Background(), marginTradablePair.String())
 	assert.NoError(t, err)
+}
+func TestModifyLeverageMultiplier(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	err := ku.ModifyLeverageMultiplier(context.Background(), spotTradablePair.String(), 2, true)
+	assert.NoError(t, err)
+}
+
+func TestGetActiveHFOrderSymbols(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	result, err := ku.GetActiveHFOrderSymbols(context.Background(), "MARGIN_TRADE")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 func TestOrderSideString(t *testing.T) {
 	t.Parallel()

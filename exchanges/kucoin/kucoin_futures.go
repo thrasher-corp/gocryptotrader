@@ -893,3 +893,28 @@ func (ku *Kucoin) GetPositionHistory(ctx context.Context, symbol string, from, t
 	var resp *FuturesPositionHistory
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPositionHistoryEPL, http.MethodGet, common.EncodeURLValues("/v1/history-positions", params), nil, &resp)
 }
+
+// GetMaximumOpenPositionSize retrieves a maximum open position size
+func (ku *Kucoin) GetMaximumOpenPositionSize(ctx context.Context, symbol string, price float64, leverage int64) (*FuturesMaxOpenPositionSize, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if price <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	if leverage <= 0 {
+		return nil, fmt.Errorf("%w, leverage is required", errInvalidLeverage)
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	var resp *FuturesMaxOpenPositionSize
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresMaxOpenPositionsSizeEPL, http.MethodGet, common.EncodeURLValues("/v2/getMaxOpenSize", params), nil, &resp)
+}
+
+// GetLatestTickersForAllContracts retrieves all futures instruments ticker information
+func (ku *Kucoin) GetLatestTickersForAllContracts(ctx context.Context) ([]WsFuturesTicker, error) {
+	var resp []WsFuturesTicker
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAllTickersInfoEPL, http.MethodGet, "/v1/allTickers", nil, &resp)
+}

@@ -36,6 +36,8 @@ const (
 	allFuturesSubAccountBalancesEPL
 	futuresTradingPairFeeEPL
 	futuresPositionHistoryEPL
+	futuresMaxOpenPositionsSizeEPL
+	futuresAllTickersInfoEPL
 	createDepositAddressEPL
 	depositAddressesV2EPL
 	depositAddressesV1EPL
@@ -123,6 +125,7 @@ const (
 	placeMarginOrdersEPL
 	leveragedTokenInfoEPL
 	getMarkPriceEPL
+	getAllMarginMarkPriceEPL
 	getMarginConfigurationEPL
 	crossIsolatedMarginRiskLimitCurrencyConfigEPL
 	isolatedMarginPairConfigEPL
@@ -130,6 +133,7 @@ const (
 	singleIsolatedMarginAccountInfoEPL
 	postMarginBorrowOrderEPL
 	postMarginRepaymentEPL
+	getCrossIsolatedMarginInterestRecordsEPL
 	marginBorrowingHistoryEPL
 	marginRepaymentHistoryEPL
 	lendingCurrencyInfoEPL
@@ -203,11 +207,13 @@ const (
 	vipLendingEPL
 	affilateUserRebateInfoEPL
 	marginPairsConfigurationEPL
+	modifyLeverageMultiplierEPL
+	marginActiveHFOrdersEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
 func GetRateLimit() request.RateLimitDefinitions {
-	spotRate := request.NewRateLimit(thirtySecondsInterval, 3000)
+	spotRate := request.NewRateLimit(thirtySecondsInterval, 4000)
 	futuresRate := request.NewRateLimit(thirtySecondsInterval, 2000)
 	managementRate := request.NewRateLimit(thirtySecondsInterval, 2000)
 	publicRate := request.NewRateLimit(thirtySecondsInterval, 2000)
@@ -239,6 +245,8 @@ func GetRateLimit() request.RateLimitDefinitions {
 		allFuturesSubAccountBalancesEPL:               request.GetRateLimiterWithWeight(futuresRate, 6),
 		futuresTradingPairFeeEPL:                      request.GetRateLimiterWithWeight(futuresRate, 3),
 		futuresPositionHistoryEPL:                     request.GetRateLimiterWithWeight(futuresRate, 2),
+		futuresMaxOpenPositionsSizeEPL:                request.GetRateLimiterWithWeight(futuresRate, 2),
+		futuresAllTickersInfoEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
 		createDepositAddressEPL:                       request.GetRateLimiterWithWeight(managementRate, 20),
 		depositAddressesV2EPL:                         request.GetRateLimiterWithWeight(managementRate, 5),
 		depositAddressesV1EPL:                         request.GetRateLimiterWithWeight(managementRate, 5),
@@ -326,6 +334,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		placeMarginOrdersEPL:                          request.GetRateLimiterWithWeight(spotRate, 5),
 		leveragedTokenInfoEPL:                         request.GetRateLimiterWithWeight(spotRate, 25),
 		getMarkPriceEPL:                               request.GetRateLimiterWithWeight(publicRate, 2),
+		getAllMarginMarkPriceEPL:                      request.GetRateLimiterWithWeight(publicRate, 10),
 		getMarginConfigurationEPL:                     request.GetRateLimiterWithWeight(spotRate, 25),
 		crossIsolatedMarginRiskLimitCurrencyConfigEPL: request.GetRateLimiterWithWeight(spotRate, 20),
 		isolatedMarginPairConfigEPL:                   request.GetRateLimiterWithWeight(spotRate, 20),
@@ -333,6 +342,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		singleIsolatedMarginAccountInfoEPL:            request.GetRateLimiterWithWeight(spotRate, 50),
 		postMarginBorrowOrderEPL:                      request.GetRateLimiterWithWeight(spotRate, 15),
 		postMarginRepaymentEPL:                        request.GetRateLimiterWithWeight(spotRate, 10),
+		getCrossIsolatedMarginInterestRecordsEPL:      request.GetRateLimiterWithWeight(spotRate, 20),
 		marginBorrowingHistoryEPL:                     request.GetRateLimiterWithWeight(spotRate, 15),
 		marginRepaymentHistoryEPL:                     request.GetRateLimiterWithWeight(spotRate, 15),
 		lendingCurrencyInfoEPL:                        request.GetRateLimiterWithWeight(spotRate, 10),
@@ -407,5 +417,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		vipLendingEPL:               request.GetRateLimiterWithWeight(spotRate, 1),
 		affilateUserRebateInfoEPL:   request.GetRateLimiterWithWeight(spotRate, 30),
 		marginPairsConfigurationEPL: request.GetRateLimiterWithWeight(spotRate, 5),
+		modifyLeverageMultiplierEPL: request.GetRateLimiterWithWeight(spotRate, 5),
+		marginActiveHFOrdersEPL:     request.GetRateLimiterWithWeight(spotRate, 2),
 	}
 }
