@@ -430,7 +430,20 @@ func TestSetupExchanges(t *testing.T) {
 		assert.ErrorIs(t, e.SetupExchanges(), ErrNoExchangesLoaded)
 	})
 
-	// Test that adjusting settings induces dry run mode correctly
+	t.Run("EnableAllExchanges with specific exchanges set", func(t *testing.T) {
+		t.Parallel()
+		e := &Engine{
+			Config: &config.Config{},
+			Settings: Settings{
+				CoreSettings: CoreSettings{
+					EnableAllExchanges: true,
+					Exchanges:          "Bitstamp,Bitfinex",
+				},
+			},
+		}
+		assert.EqualError(t, e.SetupExchanges(), "cannot enable all exchanges and specific exchanges concurrently")
+	})
+
 	t.Run("Settings dry run toggling", func(t *testing.T) {
 		t.Parallel()
 		e := &Engine{

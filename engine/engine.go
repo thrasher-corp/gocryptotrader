@@ -854,11 +854,12 @@ func (bot *Engine) dryRunParamInteraction(param string) {
 		return
 	}
 
+	gctlog.Warnf(gctlog.Global,
+		"Command line argument '-%s' induces dry run mode."+
+			" Set -dryrun=false if you wish to override this.",
+		param)
+
 	if !bot.Settings.EnableDryRun {
-		gctlog.Warnf(gctlog.Global,
-			"Command line argument '-%s' induces dry run mode."+
-				" Set -dryrun=false if you wish to override this.",
-			param)
 		bot.Settings.EnableDryRun = true
 	}
 }
@@ -906,6 +907,10 @@ func (bot *Engine) SetupExchanges() error {
 				return fmt.Errorf("exchange %s not found", exchangesOverride[x])
 			}
 		}
+	}
+
+	if bot.Settings.EnableAllExchanges && len(exchangesOverride) > 0 {
+		return errors.New("cannot enable all exchanges and specific exchanges concurrently")
 	}
 
 	var wg sync.WaitGroup
