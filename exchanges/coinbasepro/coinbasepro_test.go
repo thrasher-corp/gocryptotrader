@@ -1696,6 +1696,27 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCheckSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	c := &CoinbasePro{
+		Base: exchange.Base{
+			Config: &config.Exchange{
+				Features: &config.FeaturesConfig{
+					Subscriptions: subscription.List{
+						{Enabled: true, Channel: "matches"},
+					},
+				},
+			},
+			Features: exchange.Features{},
+		},
+	}
+
+	c.checkSubscriptions()
+	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), c.Features.Subscriptions)
+	testsubs.EqualLists(t, defaultSubscriptions, c.Config.Features.Subscriptions)
+}
+
 func TestGetJWT(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	creds, err := c.GetCredentials(context.Background())
@@ -1933,25 +1954,4 @@ func testGetOneArg[G getOneArgResp](t *testing.T, f getOneArgAssertNotEmpty[G], 
 	resp, err := f(context.Background(), arg)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestCheckSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	c := &CoinbasePro{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
-				},
-			},
-			Features: exchange.Features{},
-		},
-	}
-
-	c.checkSubscriptions()
-	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), c.Features.Subscriptions)
-	testsubs.EqualLists(t, defaultSubscriptions, c.Config.Features.Subscriptions)
 }
