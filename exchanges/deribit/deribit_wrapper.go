@@ -34,27 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	d.SetDefaults()
-	exchCfg, err := d.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if d.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := d.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Deribit
 func (d *Deribit) SetDefaults() {
 	d.Name = "Deribit"
