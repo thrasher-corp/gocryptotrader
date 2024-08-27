@@ -298,7 +298,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 	return c.Websocket.Orderbook.Update(&obU)
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 	var channels = []string{
 		"heartbeats",
