@@ -144,7 +144,7 @@ jobs:
     
     - name: Run Docker image
       run: |
-        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --rm gct-backend-arm64
+        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --env GCT_DOCKER_CI=true --rm gct-backend-arm64
 
   frontend:
     name: GoCryptoTrader front-end
