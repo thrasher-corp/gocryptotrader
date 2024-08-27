@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -20,8 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -34,6 +33,34 @@ import (
 const (
 	coinbaseproWebsocketURL = "wss://advanced-trade-ws.coinbase.com"
 )
+
+var subscriptionNames = map[string]string{
+	subscription.HeartbeatChannel: "heartbeats",
+	subscription.TickerChannel:    "ticker",
+	subscription.CandlesChannel:   "candles",
+	subscription.AllTradesChannel: "market_trades",
+	subscription.OrderbookChannel: "level2",
+	subscription.MyAccountChannel: "user",
+	"status":                      "status",
+	"ticker_batch":                "ticker_batch",
+	/* Not Implemented:
+	"futures_balance_summary":                "futures_balance_summary",
+	*/
+}
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Channel: subscription.HeartbeatChannel},
+	{Enabled: true, Channel: "status"},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: false, Asset: asset.Spot, Channel: "ticker_batch"},
+	/* Not Implemented:
+	{Enabled: false, Asset: asset.Spot, Channel: "futures_balance_summary", Authenticated: true},
+	*/
+}
 
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
@@ -300,61 +327,67 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 
 // GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
-	var channels = []string{
-		"heartbeats",
-		"status",
-		"ticker",
-		"ticker_batch",
-		"candles",
-		"market_trades",
-		"level2",
+	return c.Features.Subscriptions.ExpandTemplates(c)
+}
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (c *CoinbasePro) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
+}
+
+// Subscribe sends a websocket message to receive data from a list of channels
+func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs("subscribe", subs) }, 1)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from a list of channels
+func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs("unsubscribe", subs) }, 1)
+}
+
+// manageSub subscribes or unsubscribes from a list of websocket channels
+func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
+	var errs error
+	subs, errs = subs.ExpandTemplates(c)
+	for _, s := range subs {
+		r := &WebsocketRequest{
+			Type:       op,
+			ProductIDs: s.Pairs.Strings(),
+			Channel:    s.QualifiedChannel,
+			Timestamp:  strconv.FormatInt(time.Now().Unix(), 10),
+		}
+		var err error
+		limitType := WSUnauthRate
+		if s.Authenticated {
+			limitType = WSAuthRate
+			err = c.signWsRequest(r)
+		}
+		if err == nil {
+			err = c.InitiateRateLimit(context.Background(), limitType)
+		}
+		if err == nil {
+			if err = c.Websocket.Conn.SendJSONMessage(r); err == nil {
+				err = c.Websocket.AddSuccessfulSubscriptions(s)
+			}
+		}
+		errs = common.AppendError(errs, err)
 	}
-	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
+	return errs
+}
+
+func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
+	creds, err := c.GetCredentials(context.Background())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var subscriptions subscription.List
-	for i := range channels {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: channels[i],
-			Pairs:   enabledPairs,
-			Asset:   asset.Spot,
-		})
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(r.Timestamp+r.Channel+strings.Join(r.ProductIDs, ",")), []byte(creds.Secret))
+	if err != nil {
+		return err
 	}
-	return subscriptions, nil
-}
-
-// Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe subscription.List) error {
-	chanKeys := make(map[string]currency.Pairs)
-	for i := range channelsToSubscribe {
-		chanKeys[channelsToSubscribe[i].Channel] =
-			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Pairs...)
-	}
-	for s := range chanKeys {
-		err := c.sendRequest("subscribe", s, chanKeys[s])
-		if err != nil {
-			return err
-		}
-		time.Sleep(time.Millisecond * 10)
-	}
-	return nil
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	chanKeys := make(map[string]currency.Pairs)
-	for i := range channelsToUnsubscribe {
-		chanKeys[channelsToUnsubscribe[i].Channel] =
-			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Pairs...)
-	}
-	for s := range chanKeys {
-		err := c.sendRequest("unsubscribe", s, chanKeys[s])
-		if err != nil {
-			return err
-		}
-		time.Sleep(time.Millisecond * 10)
-	}
+	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
+	// an exchange-wide reform to enable multiple sets of authentication credentials
+	r.Key = creds.Key
+	r.Signature = hex.EncodeToString(hmac)
 	return nil
 }
 
@@ -421,51 +454,6 @@ func getTimestamp(rawData []byte) (time.Time, error) {
 	return timestamp, nil
 }
 
-// sendRequest is a helper function which sends a websocket message to the Coinbase server
-func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.Pairs) error {
-	authenticated := true
-	creds, err := c.GetCredentials(context.Background())
-	if err != nil {
-		if errors.Is(err, exchange.ErrCredentialsAreEmpty) ||
-			errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-			authenticated = false
-			if channel == "user" {
-				return errNoCredsUser
-			}
-		} else {
-			return err
-		}
-	}
-	n := strconv.FormatInt(time.Now().Unix(), 10)
-	req := WebsocketRequest{
-		Type:       msgType,
-		ProductIDs: productIDs.Strings(),
-		Channel:    channel,
-		Timestamp:  n,
-	}
-	if authenticated {
-		message := n + channel + productIDs.Join()
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(message),
-			[]byte(creds.Secret))
-		if err != nil {
-			return err
-		}
-		// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
-		// an exchange-wide reform to enable multiple sets of authentication credentials
-		req.Key = creds.Key
-		req.Signature = hex.EncodeToString(hmac)
-		err = c.InitiateRateLimit(context.Background(), WSAuthRate)
-	} else {
-		err = c.InitiateRateLimit(context.Background(), WSUnauthRate)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to rate limit websocket request: %w", err)
-	}
-	return c.Websocket.Conn.SendJSONMessage(req)
-}
-
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
 // of bids and asks
 func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks orderbook.Tranches, err error) {
@@ -515,3 +503,30 @@ func base64URLEncode(b []byte) string {
 	s = strings.ReplaceAll(s, "/", "_")
 	return s
 }
+
+// checkSubscriptions looks for incompatible subscriptions and if found replaces all with defaults
+// This should be unnecessary and removable by mid-2025
+func (c *CoinbasePro) checkSubscriptions() {
+	for _, s := range c.Config.Features.Subscriptions {
+		switch s.Channel {
+		case "heartbeat", "level2_batch", "matches":
+			c.Config.Features.Subscriptions = defaultSubscriptions.Clone()
+			c.Features.Subscriptions = c.Config.Features.Subscriptions.Enabled()
+			return
+		}
+	}
+}
+
+func channelName(s *subscription.Subscription) string {
+	if n, ok := subscriptionNames[s.Channel]; ok {
+		return n
+	}
+	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+}
+
+const subTplText = `
+{{ range $asset, $pairs := $.AssetPairs }}
+	{{- channelName $.S -}}
+	{{- $.AssetSeparator }}
+{{- end }}
+`
