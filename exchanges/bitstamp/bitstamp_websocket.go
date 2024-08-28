@@ -251,7 +251,7 @@ func (b *Bitstamp) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (b *Bitstamp) Subscribe(subs subscription.List) error {
 	var errs error
 	var creds *WebsocketAuthResponse
-	if authed := subs.Authenticated(); len(authed) > 0 {
+	if authed := subs.Private(); len(authed) > 0 {
 		creds, errs = b.FetchWSAuth(context.TODO())
 	}
 	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.subscribe(s, creds) }, 1))
