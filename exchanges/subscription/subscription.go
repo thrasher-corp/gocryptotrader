@@ -31,7 +31,7 @@ const (
 	AllTradesChannel = "allTrades"
 	MyTradesChannel  = "myTrades"
 	MyOrdersChannel  = "myOrders"
-	WalletChannel    = "wallet"
+	MyWalletChannel  = "myWallet"
 )
 
 // Public errors

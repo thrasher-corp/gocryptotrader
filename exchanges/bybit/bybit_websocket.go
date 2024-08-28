@@ -60,7 +60,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 50},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
-	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.WalletChannel},
+	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanPositions},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanExecution},
 }
