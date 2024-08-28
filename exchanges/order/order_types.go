@@ -92,13 +92,6 @@ type Submit struct {
 
 	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
 	Iceberg bool
-
-	// IsHFTrade (short for High-Frequency Trade) is used in the KuCoin exchange to determine
-	// whether an order should be executed in high-frequency mode.
-	// For more details, refer to the following documentation:
-	// - https://www.kucoin.com/docs/rest/spot-trading/spot-hf-trade-pro-account/place-hf-order
-	// - https://www.kucoin.com/docs/rest/margin-trading/margin-hf-trade/place-hf-order
-	IsHFTrade bool
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -267,13 +260,6 @@ type Cancel struct {
 	AssetType     asset.Item
 	Pair          currency.Pair
 	MarginType    margin.Type
-
-	// IsHFTrade (short for High-Frequency Trade) is used in the KuCoin exchange to determine
-	// whether an order should be executed in high-frequency mode.
-	// For more details, refer to the following documentation:
-	// - https://www.kucoin.com/docs/rest/spot-trading/spot-hf-trade-pro-account/place-hf-order
-	// - https://www.kucoin.com/docs/rest/margin-trading/margin-hf-trade/place-hf-order
-	IsHFTrade bool
 }
 
 // CancelAllResponse returns the status from attempting to

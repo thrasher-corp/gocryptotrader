@@ -923,25 +923,31 @@ type SubAccountInfo struct {
 	MarginAccounts []MainAccountInfo `json:"marginAccounts"`
 }
 
-// SubAccountBalanceV2 represents a sub-account balance detail through the V2 API
-type SubAccountBalanceV2 struct {
-	CurrentPage int64 `json:"currentPage"`
-	PageSize    int64 `json:"pageSize"`
-	TotalNum    int64 `json:"totalNum"`
-	TotalPage   int64 `json:"totalPage"`
-	Items       []struct {
-		SubUserID    string `json:"subUserId"`
-		SubName      string `json:"subName"`
-		MainAccounts []struct {
-			Currency          string       `json:"currency"`
-			BaseCurrency      string       `json:"baseCurrency"`
-			Balance           types.Number `json:"balance"`
-			Available         types.Number `json:"available"`
-			Holds             types.Number `json:"holds"`
-			BaseCurrencyPrice types.Number `json:"baseCurrencyPrice"`
-			BaseAmount        types.Number `json:"baseAmount"`
-		} `json:"mainAccounts"`
-	} `json:"items"`
+// SubAccountsBalanceV2 represents a sub-account balance detail through the V2 API
+type SubAccountsBalanceV2 struct {
+	CurrentPage int64                     `json:"currentPage"`
+	PageSize    int64                     `json:"pageSize"`
+	TotalNum    int64                     `json:"totalNum"`
+	TotalPage   int64                     `json:"totalPage"`
+	Items       []SubAccountBalanceDetail `json:"items"`
+}
+
+// SubAccountBalanceDetail represents a sub-account balance detail
+type SubAccountBalanceDetail struct {
+	SubUserID    string                            `json:"subUserId"`
+	SubName      string                            `json:"subName"`
+	MainAccounts []SubAccountCurrencyBalanceDetail `json:"mainAccounts"`
+}
+
+// SubAccountCurrencyBalanceDetail represents a sub-account currency balance detail
+type SubAccountCurrencyBalanceDetail struct {
+	Currency          string       `json:"currency"`
+	BaseCurrency      string       `json:"baseCurrency"`
+	Balance           types.Number `json:"balance"`
+	Available         types.Number `json:"available"`
+	Holds             types.Number `json:"holds"`
+	BaseCurrencyPrice types.Number `json:"baseCurrencyPrice"`
+	BaseAmount        types.Number `json:"baseAmount"`
 }
 
 // TransferableBalanceInfo represents transferable balance information
@@ -2015,17 +2021,11 @@ type OCOOrderDetail struct {
 
 // OCOOrders represents an OCO orders list
 type OCOOrders struct {
-	CurrentPage int64 `json:"currentPage"`
-	PageSize    int64 `json:"pageSize"`
-	TotalNum    int64 `json:"totalNum"`
-	TotalPage   int64 `json:"totalPage"`
-	Items       []struct {
-		OrderID   string               `json:"orderId"`
-		Symbol    string               `json:"symbol"`
-		ClientOid string               `json:"clientOid"`
-		OrderTime convert.ExchangeTime `json:"orderTime"`
-		Status    string               `json:"status"`
-	} `json:"items"`
+	CurrentPage int64          `json:"currentPage"`
+	PageSize    int64          `json:"pageSize"`
+	TotalNum    int64          `json:"totalNum"`
+	TotalPage   int64          `json:"totalPage"`
+	Items       []OCOOrderInfo `json:"items"`
 }
 
 // PlaceMarginHFOrderParam represents a margin HF order parameters
@@ -2107,32 +2107,35 @@ type TradingPairFee struct {
 
 // FuturesPositionHistory represents a position history of futures asset
 type FuturesPositionHistory struct {
-	CurrentPage int64 `json:"currentPage"`
-	PageSize    int64 `json:"pageSize"`
-	TotalNum    int64 `json:"totalNum"`
-	TotalPage   int64 `json:"totalPage"`
-	Items       []struct {
-		CloseID            string               `json:"closeId"`
-		PositionID         string               `json:"positionId"`
-		UID                int64                `json:"uid"`
-		UserID             string               `json:"userId"`
-		Symbol             string               `json:"symbol"`
-		SettleCurrency     string               `json:"settleCurrency"`
-		Leverage           types.Number         `json:"leverage"`
-		Type               string               `json:"type"`
-		Side               string               `json:"side"`
-		CloseSize          types.Number         `json:"closeSize"`
-		PNL                types.Number         `json:"pnl"`
-		RealisedGrossCost  types.Number         `json:"realisedGrossCost"`
-		WithdrawPNL        types.Number         `json:"withdrawPnl"`
-		ReturnOnEquityRate types.Number         `json:"roe"`
-		TradeFee           types.Number         `json:"tradeFee"`
-		FundingFee         types.Number         `json:"fundingFee"`
-		OpenTime           convert.ExchangeTime `json:"openTime"`
-		CloseTime          convert.ExchangeTime `json:"closeTime"`
-		OpenPrice          types.Number         `json:"openPrice"`
-		ClosePrice         types.Number         `json:"closePrice"`
-	} `json:"items"`
+	CurrentPage int64                   `json:"currentPage"`
+	PageSize    int64                   `json:"pageSize"`
+	TotalNum    int64                   `json:"totalNum"`
+	TotalPage   int64                   `json:"totalPage"`
+	Items       []FuturesPositionDetail `json:"items"`
+}
+
+// FuturesPositionDetail represents a futures position detail
+type FuturesPositionDetail struct {
+	CloseID            string               `json:"closeId"`
+	PositionID         string               `json:"positionId"`
+	UID                int64                `json:"uid"`
+	UserID             string               `json:"userId"`
+	Symbol             string               `json:"symbol"`
+	SettleCurrency     string               `json:"settleCurrency"`
+	Leverage           types.Number         `json:"leverage"`
+	Type               string               `json:"type"`
+	Side               string               `json:"side"`
+	CloseSize          types.Number         `json:"closeSize"`
+	PNL                types.Number         `json:"pnl"`
+	RealisedGrossCost  types.Number         `json:"realisedGrossCost"`
+	WithdrawPNL        types.Number         `json:"withdrawPnl"`
+	ReturnOnEquityRate types.Number         `json:"roe"`
+	TradeFee           types.Number         `json:"tradeFee"`
+	FundingFee         types.Number         `json:"fundingFee"`
+	OpenTime           convert.ExchangeTime `json:"openTime"`
+	CloseTime          convert.ExchangeTime `json:"closeTime"`
+	OpenPrice          types.Number         `json:"openPrice"`
+	ClosePrice         types.Number         `json:"closePrice"`
 }
 
 // SusbcribeEarn represents a subscription to earn
@@ -2300,17 +2303,20 @@ type MarginActiveSymbolDetail struct {
 
 // MarginInterestRecords represents a cross/isolated margin interest records
 type MarginInterestRecords struct {
-	Timestamp   int64 `json:"timestamp"`
-	CurrentPage int64 `json:"currentPage"`
-	PageSize    int64 `json:"pageSize"`
-	TotalNum    int64 `json:"totalNum"`
-	TotalPage   int64 `json:"totalPage"`
-	Items       []struct {
-		CreatedAt      convert.ExchangeTime `json:"createdAt"`
-		Currency       string               `json:"currency"`
-		InterestAmount types.Number         `json:"interestAmount"`
-		DayRatio       types.Number         `json:"dayRatio"`
-	} `json:"items"`
+	Timestamp   int64                `json:"timestamp"`
+	CurrentPage int64                `json:"currentPage"`
+	PageSize    int64                `json:"pageSize"`
+	TotalNum    int64                `json:"totalNum"`
+	TotalPage   int64                `json:"totalPage"`
+	Items       []MarginInterestInfo `json:"items"`
+}
+
+// MarginInterestInfo represents a margin account currency interest information
+type MarginInterestInfo struct {
+	CreatedAt      convert.ExchangeTime `json:"createdAt"`
+	Currency       string               `json:"currency"`
+	InterestAmount types.Number         `json:"interestAmount"`
+	DayRatio       types.Number         `json:"dayRatio"`
 }
 
 // MarginPairConfig represents a margin pair configuration detail

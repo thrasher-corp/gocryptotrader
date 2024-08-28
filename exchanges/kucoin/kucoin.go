@@ -300,7 +300,7 @@ func (ku *Kucoin) GetIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, 
 	return resp, ku.getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx, true, symbol, ccy, &resp)
 }
 
-func (ku *Kucoin) getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol string, ccy currency.Code, resp interface{}) error {
+func (ku *Kucoin) getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol string, ccy currency.Code, resp any) error {
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "true")
@@ -1889,8 +1889,8 @@ func (ku *Kucoin) GetAggregatedSubAccountBalance(ctx context.Context) ([]SubAcco
 }
 
 // GetAllSubAccountsBalanceV2 retrieves sub-account balance information through the V2 API
-func (ku *Kucoin) GetAllSubAccountsBalanceV2(ctx context.Context) (*SubAccountBalanceV2, error) {
-	var resp *SubAccountBalanceV2
+func (ku *Kucoin) GetAllSubAccountsBalanceV2(ctx context.Context) (*SubAccountsBalanceV2, error) {
+	var resp *SubAccountsBalanceV2
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, allSubAccountBalancesV2EPL, http.MethodGet, "/v2/sub-accounts", nil, &resp)
 }
 
