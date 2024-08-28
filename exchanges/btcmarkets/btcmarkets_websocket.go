@@ -359,18 +359,13 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 	}
 
 	var errs error
-	if authed := subs.Authenticated(); len(authed) > 0 {
+	if authed := subs.Private(); len(authed) > 0 {
 		if err := b.signWsReq(baseReq); err != nil {
 			errs = err
-			n := subscription.List{}
-			for _, s := range subs {
-				if s.Authenticated {
-					errs = common.AppendError(errs, fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, s))
-				} else {
-					n = append(n, s)
-				}
+			for _, s := range authed {
+				errs = common.AppendError(errs, fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, s))
 			}
-			subs = n
+			subs = subs.Public()
 		}
 	}
 
