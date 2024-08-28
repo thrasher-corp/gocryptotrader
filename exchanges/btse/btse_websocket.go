@@ -27,6 +27,11 @@ const (
 	btseWebsocketTimer = time.Second * 57
 )
 
+var subscriptionNames = map[string]string{
+	subscription.MyTradesChannel:  "notificationApi",
+	subscription.AllTradesChannel: "tradeHistory",
+}
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
@@ -406,11 +411,8 @@ func (b *BTSE) Unsubscribe(subs subscription.List) error {
 
 // channelName returns the correct channel name for the asset
 func channelName(s *subscription.Subscription) string {
-	switch s.Channel {
-	case subscription.MyTradesChannel:
-		return "notificationApi"
-	case subscription.AllTradesChannel:
-		return "tradeHistory"
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
 	}
 	panic("Channel not supported: " + s.Channel)
 }
