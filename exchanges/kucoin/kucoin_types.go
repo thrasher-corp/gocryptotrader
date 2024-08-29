@@ -339,8 +339,15 @@ type RepayParam struct {
 
 // BorrowAndRepaymentOrderResp stores borrow order response
 type BorrowAndRepaymentOrderResp struct {
-	OrderNo    string  `json:"orderNo"`
-	ActualSize float64 `json:"actualSize"`
+	OrderNo     string               `json:"orderNo"`
+	ActualSize  float64              `json:"actualSize"`
+	Symbol      string               `json:"symbol"`
+	Currency    string               `json:"currency"`
+	Size        types.Number         `json:"size"`
+	Principal   types.Number         `json:"principal"`
+	Interest    types.Number         `json:"interest"`
+	Status      string               `json:"status"`
+	CreatedTime convert.ExchangeTime `json:"createdTime"`
 }
 
 // BorrowRepayDetailResponse a full response of borrow and repay order
@@ -794,6 +801,8 @@ type MarginAssetDetail struct {
 	Available       types.Number `json:"available"`
 	Hold            types.Number `json:"hold"`
 	MaxBorrowSize   types.Number `json:"maxBorrowSize"`
+	Liability       string       `json:"liability"`
+	Total           types.Number `json:"total"`
 }
 
 // FuturesAccountOverview represents a futures account detail
@@ -1142,7 +1151,7 @@ type LendingCurrencyInfo struct {
 // InterestRate represents a currency interest rate
 type InterestRate struct {
 	Time               convert.ExchangeTime `json:"time"`
-	MarketInterestRate string               `json:"marketInterestRate"`
+	MarketInterestRate types.Number         `json:"marketInterestRate"`
 }
 
 // OrderNumberResponse represents a response for margin trading lending and redemption
@@ -1192,10 +1201,13 @@ type PurchaseSubscriptionResponseItem struct {
 	Currency        string               `json:"currency"`
 	PurchaseOrderNo string               `json:"purchaseOrderNo"`
 	PurchaseAmount  types.Number         `json:"purchaseAmount"`
-	LendAmount      types.Number         `json:"lendAmount"`
+	MatchSize       types.Number         `json:"matchSize"`
+	RedeemSize      types.Number         `json:"redeemSize"`
 	RedeemAmount    types.Number         `json:"redeemAmount"`
+	LendAmount      types.Number         `json:"lendAmount"`
 	InterestRate    types.Number         `json:"interestRate"`
 	IncomeAmount    types.Number         `json:"incomeAmount"`
+	IncomeSize      types.Number         `json:"incomeSize"`
 	ApplyTime       convert.ExchangeTime `json:"applyTime"`
 	Status          string               `json:"status"`
 }

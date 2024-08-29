@@ -3730,6 +3730,7 @@ func TestGetRedemptionOrders(t *testing.T) {
 
 func TestGetSubscriptionOrders(t *testing.T) {
 	t.Parallel()
+	ku.Verbose = true
 	_, err := ku.GetSubscriptionOrders(context.Background(), currency.EMPTYCODE, "2234", "DONE", 0, 20)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ku.GetSubscriptionOrders(context.Background(), currency.ETH, "", "", 0, 20)

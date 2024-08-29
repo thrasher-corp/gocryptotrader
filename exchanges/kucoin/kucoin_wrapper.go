@@ -473,18 +473,16 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			Currencies: balances,
 		})
 	case asset.Spot, asset.Margin:
-		assetTypeString := "main"
-		switch assetType {
-		case asset.Spot:
-			assetTypeString = SpotTradeType
-		case asset.Margin:
-			assetTypeString = "margin"
-		}
-		accountH, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, assetTypeString)
+		accountH, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, "")
 		if err != nil {
 			return account.Holdings{}, err
 		}
 		for x := range accountH {
+			if accountH[x].AccountType == "margin" && assetType == asset.Spot {
+				continue
+			} else if accountH[x].AccountType == "trade" && assetType == asset.Margin {
+				continue
+			}
 			holding.Accounts = append(holding.Accounts, account.SubAccount{
 				AssetType: assetType,
 				Currencies: []account.Balance{
