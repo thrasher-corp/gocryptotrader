@@ -372,19 +372,22 @@ type BorrowRepayDetailItem struct {
 
 // BorrowOrder stores borrow order
 type BorrowOrder struct {
-	OrderID   string  `json:"orderId"`
-	Currency  string  `json:"currency"`
-	Size      float64 `json:"size,string"`
-	Filled    float64 `json:"filled"`
-	MatchList []struct {
-		TradeID      string               `json:"tradeId"`
-		Currency     string               `json:"currency"`
-		DailyIntRate float64              `json:"dailyIntRate,string"`
-		Size         float64              `json:"size,string"`
-		Term         int64                `json:"term"`
-		Timestamp    convert.ExchangeTime `json:"timestamp"`
-	} `json:"matchList"`
-	Status string `json:"status"`
+	OrderID   string                 `json:"orderId"`
+	Currency  string                 `json:"currency"`
+	Size      float64                `json:"size,string"`
+	Filled    float64                `json:"filled"`
+	MatchList []BorrowOrderMatchItem `json:"matchList"`
+	Status    string                 `json:"status"`
+}
+
+// BorrowOrderMatchItem represents a borrow order match item detail
+type BorrowOrderMatchItem struct {
+	TradeID      string               `json:"tradeId"`
+	Currency     string               `json:"currency"`
+	DailyIntRate float64              `json:"dailyIntRate,string"`
+	Size         float64              `json:"size,string"`
+	Term         int64                `json:"term"`
+	Timestamp    convert.ExchangeTime `json:"timestamp"`
 }
 
 type baseRecord struct {
@@ -557,11 +560,14 @@ type CancelOrderByNumberResponse struct {
 
 // CancelAllHFOrdersResponse represents a response for cancelling all high-frequency orders
 type CancelAllHFOrdersResponse struct {
-	SucceedSymbols []string `json:"succeedSymbols"`
-	FailedSymbols  []struct {
-		Symbol string `json:"symbol"`
-		Error  string `json:"error"`
-	} `json:"failedSymbols"`
+	SucceedSymbols []string                        `json:"succeedSymbols"`
+	FailedSymbols  []FailedHFOrderCancellationInfo `json:"failedSymbols"`
+}
+
+// FailedHFOrderCancellationInfo represents a failed order cancellation information
+type FailedHFOrderCancellationInfo struct {
+	Symbol string `json:"symbol"`
+	Error  string `json:"error"`
 }
 
 // CompletedHFOrder represents a completed HF orders list
@@ -778,16 +784,19 @@ type CrossMarginStatusAndAssets struct {
 
 // IsolatedMarginAccountDetail represents an isolated-margin account detail
 type IsolatedMarginAccountDetail struct {
-	TotalAssetOfQuoteCurrency     string               `json:"totalAssetOfQuoteCurrency"`
-	TotalLiabilityOfQuoteCurrency string               `json:"totalLiabilityOfQuoteCurrency"`
-	Timestamp                     convert.ExchangeTime `json:"timestamp"`
-	Assets                        []struct {
-		Symbol     string            `json:"symbol"`
-		DebtRatio  string            `json:"debtRatio"`
-		Status     string            `json:"status"`
-		BaseAsset  MarginAssetDetail `json:"baseAsset"`
-		QuoteAsset MarginAssetDetail `json:"quoteAsset"`
-	} `json:"assets"`
+	TotalAssetOfQuoteCurrency     string                      `json:"totalAssetOfQuoteCurrency"`
+	TotalLiabilityOfQuoteCurrency string                      `json:"totalLiabilityOfQuoteCurrency"`
+	Timestamp                     convert.ExchangeTime        `json:"timestamp"`
+	Assets                        []IsolatedMarginAssetDetail `json:"assets"`
+}
+
+// IsolatedMarginAssetDetail represents an isolated margin asset detail
+type IsolatedMarginAssetDetail struct {
+	Symbol     string            `json:"symbol"`
+	Status     string            `json:"status"`
+	DebtRatio  types.Number      `json:"debtRatio"`
+	BaseAsset  MarginAssetDetail `json:"baseAsset"`
+	QuoteAsset MarginAssetDetail `json:"quoteAsset"`
 }
 
 // MarginAssetDetail represents an asset detailed information
@@ -849,17 +858,20 @@ type FuturesSubAccountBalance struct {
 		AvailableBalanceTotal float64 `json:"availableBalanceTotal"`
 		Currency              string  `json:"currency"`
 	} `json:"summary"`
-	Accounts []struct {
-		AccountName      string  `json:"accountName"`
-		AccountEquity    float64 `json:"accountEquity"`
-		UnrealisedPNL    float64 `json:"unrealisedPNL"`
-		MarginBalance    float64 `json:"marginBalance"`
-		PositionMargin   float64 `json:"positionMargin"`
-		OrderMargin      float64 `json:"orderMargin"`
-		FrozenFunds      float64 `json:"frozenFunds"`
-		AvailableBalance float64 `json:"availableBalance"`
-		Currency         string  `json:"currency"`
-	} `json:"accounts"`
+	Accounts []FuturesSubAccountBalanceDetail `json:"accounts"`
+}
+
+// FuturesSubAccountBalanceDetail represents a futures sub-account balance detail
+type FuturesSubAccountBalanceDetail struct {
+	AccountName      string  `json:"accountName"`
+	AccountEquity    float64 `json:"accountEquity"`
+	UnrealisedPNL    float64 `json:"unrealisedPNL"`
+	MarginBalance    float64 `json:"marginBalance"`
+	PositionMargin   float64 `json:"positionMargin"`
+	OrderMargin      float64 `json:"orderMargin"`
+	FrozenFunds      float64 `json:"frozenFunds"`
+	AvailableBalance float64 `json:"availableBalance"`
+	Currency         string  `json:"currency"`
 }
 
 // LedgerInfo represents account ledger information
@@ -878,22 +890,25 @@ type LedgerInfo struct {
 
 // FuturesLedgerInfo represents account ledger information for futures trading
 type FuturesLedgerInfo struct {
-	HasMore  bool `json:"hasMore"`
-	DataList []struct {
-		Time          convert.ExchangeTime `json:"time"`
-		Type          string               `json:"type"`
-		Amount        float64              `json:"amount"`
-		Fee           float64              `json:"fee"`
-		AccountEquity float64              `json:"accountEquity"`
-		Status        string               `json:"status"`
-		Remark        string               `json:"remark"`
-		Offset        int64                `json:"offset"`
-		Currency      string               `json:"currency"`
-	} `json:"dataList"`
+	HasMore  bool                        `json:"hasMore"`
+	DataList []FuturesLedgerInfoDataItem `json:"dataList"`
 }
 
-// MainAccountInfo represents main account detailed information
-type MainAccountInfo struct {
+// FuturesLedgerInfoDataItem represents a futures ledger info data item
+type FuturesLedgerInfoDataItem struct {
+	Time          convert.ExchangeTime `json:"time"`
+	Type          string               `json:"type"`
+	Amount        float64              `json:"amount"`
+	Fee           float64              `json:"fee"`
+	AccountEquity float64              `json:"accountEquity"`
+	Status        string               `json:"status"`
+	Remark        string               `json:"remark"`
+	Offset        int64                `json:"offset"`
+	Currency      string               `json:"currency"`
+}
+
+// AccountCurrencyInfo represents main account detailed information
+type AccountCurrencyInfo struct {
 	AccountInfo
 	BaseCurrency      string  `json:"baseCurrency"`
 	BaseCurrencyPrice float64 `json:"baseCurrencyPrice,string"`
@@ -925,11 +940,11 @@ type SubAccountsResponse struct {
 
 // SubAccountInfo holds subaccount data for main, spot(trade), and margin accounts
 type SubAccountInfo struct {
-	SubUserID      string            `json:"subUserId"`
-	SubName        string            `json:"subName"`
-	MainAccounts   []MainAccountInfo `json:"mainAccounts"`
-	TradeAccounts  []MainAccountInfo `json:"tradeAccounts"`
-	MarginAccounts []MainAccountInfo `json:"marginAccounts"`
+	SubUserID      string                `json:"subUserId"`
+	SubName        string                `json:"subName"`
+	MainAccounts   []AccountCurrencyInfo `json:"mainAccounts"`
+	TradeAccounts  []AccountCurrencyInfo `json:"tradeAccounts"`
+	MarginAccounts []AccountCurrencyInfo `json:"marginAccounts"`
 }
 
 // SubAccountsBalanceV2 represents a sub-account balance detail through the V2 API
@@ -1839,6 +1854,7 @@ type SpotAPISubAccount struct {
 	// TODO: to be removed if not used any other place
 	APISecret  string `json:"apiSecret"`
 	Passphrase string `json:"passphrase"`
+	APIVersion string `json:"apiVersion"`
 }
 
 // DeleteSubAccountResponse represents delete sub-account response
@@ -2020,15 +2036,18 @@ type OCOOrderDetail struct {
 	ClientOid string               `json:"clientOid"`
 	OrderTime convert.ExchangeTime `json:"orderTime"`
 	Status    string               `json:"status"`
-	Orders    []struct {
-		ID        string       `json:"id"`
-		Symbol    string       `json:"symbol"`
-		Side      string       `json:"side"`
-		Price     types.Number `json:"price"`
-		StopPrice types.Number `json:"stopPrice"`
-		Size      types.Number `json:"size"`
-		Status    string       `json:"status"`
-	} `json:"orders"`
+	Orders    []OCOOrderItem       `json:"orders"`
+}
+
+// OCOOrderItem represents an OCO order item
+type OCOOrderItem struct {
+	ID        string       `json:"id"`
+	Symbol    string       `json:"symbol"`
+	Side      string       `json:"side"`
+	Price     types.Number `json:"price"`
+	StopPrice types.Number `json:"stopPrice"`
+	Size      types.Number `json:"size"`
+	Status    string       `json:"status"`
 }
 
 // OCOOrders represents an OCO orders list
@@ -2204,28 +2223,31 @@ type EarnSavingProduct struct {
 
 // FixedIncomeEarnHoldings represents a fixed income earn holdings
 type FixedIncomeEarnHoldings struct {
-	TotalNum int64 `json:"totalNum"`
-	Items    []struct {
-		OrderID              string               `json:"orderId"`
-		ProductID            string               `json:"productId"`
-		ProductCategory      string               `json:"productCategory"`
-		ProductType          string               `json:"productType"`
-		Currency             string               `json:"currency"`
-		IncomeCurrency       string               `json:"incomeCurrency"`
-		ReturnRate           types.Number         `json:"returnRate"`
-		HoldAmount           types.Number         `json:"holdAmount"`
-		RedeemedAmount       types.Number         `json:"redeemedAmount"`
-		RedeemingAmount      types.Number         `json:"redeemingAmount"`
-		LockStartTime        convert.ExchangeTime `json:"lockStartTime"`
-		LockEndTime          convert.ExchangeTime `json:"lockEndTime"`
-		PurchaseTime         convert.ExchangeTime `json:"purchaseTime"`
-		RedeemPeriod         int64                `json:"redeemPeriod"`
-		Status               string               `json:"status"`
-		EarlyRedeemSupported int64                `json:"earlyRedeemSupported"`
-	} `json:"items"`
-	CurrentPage int64 `json:"currentPage"`
-	PageSize    int64 `json:"pageSize"`
-	TotalPage   int64 `json:"totalPage"`
+	TotalNum    int64                `json:"totalNum"`
+	Items       []FixedIncomeHolding `json:"items"`
+	CurrentPage int64                `json:"currentPage"`
+	PageSize    int64                `json:"pageSize"`
+	TotalPage   int64                `json:"totalPage"`
+}
+
+// FixedIncomeHolding represents a fixed income earn holding detail
+type FixedIncomeHolding struct {
+	OrderID              string               `json:"orderId"`
+	ProductID            string               `json:"productId"`
+	ProductCategory      string               `json:"productCategory"`
+	ProductType          string               `json:"productType"`
+	Currency             string               `json:"currency"`
+	IncomeCurrency       string               `json:"incomeCurrency"`
+	ReturnRate           types.Number         `json:"returnRate"`
+	HoldAmount           types.Number         `json:"holdAmount"`
+	RedeemedAmount       types.Number         `json:"redeemedAmount"`
+	RedeemingAmount      types.Number         `json:"redeemingAmount"`
+	LockStartTime        convert.ExchangeTime `json:"lockStartTime"`
+	LockEndTime          convert.ExchangeTime `json:"lockEndTime"`
+	PurchaseTime         convert.ExchangeTime `json:"purchaseTime"`
+	RedeemPeriod         int64                `json:"redeemPeriod"`
+	Status               string               `json:"status"`
+	EarlyRedeemSupported int64                `json:"earlyRedeemSupported"`
 }
 
 // EarnProduct represents a time-limited earn limited product item
@@ -2257,13 +2279,8 @@ type EarnProduct struct {
 
 // OffExchangeFundingAndLoan represents information of off-exchange funding and loan
 type OffExchangeFundingAndLoan struct {
-	MasterAccountUID string `json:"parentUid"`
-	Orders           []struct {
-		OrderID   string       `json:"orderId"`
-		Currency  string       `json:"currency"`
-		Principal types.Number `json:"principal"`
-		Interest  types.Number `json:"interest"`
-	} `json:"orders"`
+	MasterAccountUID string                           `json:"parentUid"`
+	Orders           []OffExchangeFundingAndLoanOrder `json:"orders"`
 	LoanToValueRatio struct {
 		TransferLtv           types.Number `json:"transferLtv"`
 		OnlyClosePosLtv       types.Number `json:"onlyClosePosLtv"`
@@ -2271,13 +2288,24 @@ type OffExchangeFundingAndLoan struct {
 		InstantLiquidationLtv types.Number `json:"instantLiquidationLtv"`
 		CurrentLtv            types.Number `json:"currentLtv"`
 	} `json:"ltv"`
-	TotalMarginAmount    types.Number `json:"totalMarginAmount"`
-	TransferMarginAmount types.Number `json:"transferMarginAmount"`
-	Margins              []struct {
-		MarginCcy    string       `json:"marginCcy"`
-		MarginQty    types.Number `json:"marginQty"`
-		MarginFactor string       `json:"marginFactor"`
-	} `json:"margins"`
+	TotalMarginAmount    types.Number                   `json:"totalMarginAmount"`
+	TransferMarginAmount types.Number                   `json:"transferMarginAmount"`
+	Margins              []ExchangeFundingAndLoanMargin `json:"margins"`
+}
+
+// ExchangeFundingAndLoanMargin represents an exchange funding and loan margin
+type ExchangeFundingAndLoanMargin struct {
+	MarginCcy    string       `json:"marginCcy"`
+	MarginQty    types.Number `json:"marginQty"`
+	MarginFactor string       `json:"marginFactor"`
+}
+
+// OffExchangeFundingAndLoanOrder represents an exchange funding and loan order detail
+type OffExchangeFundingAndLoanOrder struct {
+	OrderID   string       `json:"orderId"`
+	Currency  string       `json:"currency"`
+	Principal types.Number `json:"principal"`
+	Interest  types.Number `json:"interest"`
 }
 
 // VIPLendingAccounts represents VIP accounts involved in off-exchange loans
