@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -187,9 +186,6 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	// setup option decimal regex at startup to make constant checks more efficient
-	optionRegex = regexp.MustCompile(optionDecimalRegex)
 
 	return d.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
