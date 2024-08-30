@@ -906,7 +906,7 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
 func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
 	if w.useMultiConnectionManagement {
-		// TODO: Enable multi connection management to change URL
+		// TODO: Add functionality for multi-connection management to change URL
 		return fmt.Errorf("%s: %w", w.exchangeName, errCannotChangeConnectionURL)
 	}
 	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
