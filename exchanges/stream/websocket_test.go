@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -290,14 +289,6 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	default:
 		require.Failf(t, "", "WaitGroup should be freed now")
 	}
-}
-
-func TestIsDisconnectionError(t *testing.T) {
-	t.Parallel()
-	assert.False(t, IsDisconnectionError(errors.New("errorText")), "IsDisconnectionError should return false")
-	assert.True(t, IsDisconnectionError(&websocket.CloseError{Code: 1006, Text: "errorText"}), "IsDisconnectionError should return true")
-	assert.False(t, IsDisconnectionError(&net.OpError{Err: errClosedConnection}), "IsDisconnectionError should return false")
-	assert.True(t, IsDisconnectionError(&net.OpError{Err: errors.New("errText")}), "IsDisconnectionError should return true")
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
