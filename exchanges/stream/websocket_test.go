@@ -1256,6 +1256,28 @@ func TestFlushChannels(t *testing.T) {
 	w.features.Unsubscribe = true
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
+
+	// Multi connection management
+	w.useMultiConnectionManagement = true
+	w.exchangeName = "multi"
+	amazingCandidate := &ConnectionSetup{
+		URL:                   "AMAZING",
+		Connector:             func(context.Context, Connection) error { return nil },
+		GenerateSubscriptions: newgen.generateSubs,
+		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+			return currySimpleSubConn(w)(ctx, c, s)
+		},
+		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+			return currySimpleUnsubConn(w)(ctx, c, s)
+		},
+		Handler: func(context.Context, []byte) error { return nil },
+	}
+	require.NoError(t, w.SetupNewConnection(amazingCandidate))
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+
+	w.features.Subscribe = false
+	w.features.FullPayloadSubscribe = true
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 }
 
 func TestDisable(t *testing.T) {

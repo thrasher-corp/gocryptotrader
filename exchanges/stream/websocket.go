@@ -740,8 +740,7 @@ func (w *Websocket) generateAndSubscribe(store *subscription.Store, conn Connect
 	if len(newsubs) == 0 {
 		return nil
 	}
-	// Purge subscription list as there will be conflicts
-	store.Clear()
+	store.Clear() // Purge subscription list as there will be conflicts
 	return w.SubscribeToChannels(conn, newsubs)
 }
 
