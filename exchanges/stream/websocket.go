@@ -722,7 +722,7 @@ func (w *Websocket) generateUnsubscribeAndSubscribe(conn Connection, generate fu
 	}
 	subs, unsubs := w.GetChannelDifference(conn, newsubs)
 	if len(unsubs) != 0 && w.features.Unsubscribe {
-		if err = w.UnsubscribeChannels(conn, unsubs); err != nil {
+		if err := w.UnsubscribeChannels(conn, unsubs); err != nil {
 			return err
 		}
 	}
