@@ -3310,9 +3310,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestChannelInterval(t *testing.T) {
 	t.Parallel()
 
-	for _, i := range []int{1, 3, 5, 10, 15, 30, 60, 120, 180, 360, 720} {
-		a := channelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.Interval(i * int(time.Minute))})
-		assert.Equal(t, strconv.Itoa(i), a)
+	for _, i := range []int64{1, 3, 5, 10, 15, 30, 60, 120, 180, 360, 720} {
+		a := channelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.Interval(i * int64(time.Minute))})
+		assert.Equal(t, strconv.Itoa(int(i)), a)
 	}
 
 	a := channelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay})
@@ -3754,18 +3754,15 @@ func TestFormatFuturesTradablePair(t *testing.T) {
 
 func TestOptionPairToString(t *testing.T) {
 	t.Parallel()
-	optionsList := map[currency.Pair]string{
+	for pair, exp := range map[currency.Pair]string{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("30MAY24-61000-C")}:      "BTC-30MAY24-61000-C",
 		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("1JUN24-3200-P")}:        "ETH-1JUN24-3200-P",
 		{Delimiter: currency.DashDelimiter, Base: currency.SOL, Quote: currency.NewCode("USDC-31MAY24-162-P")}:   "SOL_USDC-31MAY24-162-P",
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6APR24-0d98-P")}: "MATIC_USDC-6APR24-0d98-P",
-	}
-	for pair, instrumentID := range optionsList {
-		t.Run(instrumentID, func(t *testing.T) {
-			t.Parallel()
-			instrument := d.optionPairToString(pair)
-			require.Equal(t, instrumentID, instrument)
-		})
+		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-8JUN24-0D99-P")}: "MATIC_USDC-8JUN24-0d99-P",
+		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6DEC29-0D87-C")}: "MATIC_USDC-6DEC29-0d87-C",
+	} {
+		assert.Equal(t, exp, d.optionPairToString(pair), "optionPairToString should return correctly")
 	}
 }
 
