@@ -206,7 +206,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 
 	if c.ResponseCheckTimeout == 0 &&
 		c.ResponseMaxLimit == 0 &&
-		c.RateLimit == 0 &&
+		c.RateLimit == nil &&
 		c.URL == "" &&
 		c.ConnectionLevelReporter == nil &&
 		c.BespokeGenerateMessageID == nil {

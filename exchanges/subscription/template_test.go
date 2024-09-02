@@ -84,6 +84,14 @@ func TestExpandTemplates(t *testing.T) {
 	}
 	equalLists(t, exp, got)
 
+	// Users can specify pairs which aren't available, even across diverse assets
+	// Use-case: Coinbasepro user sub for futures BTC-USD would return all BTC pairs and all USD pairs, even though BTC-USD might not be enabled op available
+	p := currency.Pairs{currency.NewPairWithDelimiter("BEAR", "PEAR", "🐻")}
+	got, err = List{{Channel: "expand-pairs", Asset: asset.All, Pairs: p}}.ExpandTemplates(e)
+	require.NoError(t, err, "Must not error with fictional pairs")
+	exp = List{{Channel: "expand-pairs", QualifiedChannel: "spot-PEARBEAR-expand-pairs@0", Asset: asset.Spot, Pairs: p}}
+	equalLists(t, exp, got)
+
 	// Error cases
 	_, err = List{{Channel: "nil"}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errInvalidTemplate, "Should get correct error on nil template")

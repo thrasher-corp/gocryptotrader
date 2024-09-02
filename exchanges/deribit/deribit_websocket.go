@@ -113,7 +113,7 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	return d.Websocket.Conn.SendJSONMessage(context.TODO(), setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -187,7 +187,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		return d.Websocket.Conn.SendJSONMessage(pingMessage)
+		return d.Websocket.Conn.SendJSONMessage(context.TODO(), pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {

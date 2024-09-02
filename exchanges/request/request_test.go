@@ -31,8 +31,8 @@ var serverLimit *RateLimiterWithWeight
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
-	serverLimit = NewRateLimitWithWeight(serverLimitInterval, 1, 1)
-	serverLimitRetry := NewRateLimitWithWeight(serverLimitInterval, 1, 1)
+	serverLimit = NewWeightedRateLimitByDuration(serverLimitInterval)
+	serverLimitRetry := NewWeightedRateLimitByDuration(serverLimitInterval)
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -201,7 +201,7 @@ func TestCheckRequest(t *testing.T) {
 }
 
 var globalshell = RateLimitDefinitions{
-	Auth:   NewRateLimitWithWeight(time.Millisecond*600, 1, 1),
+	Auth:   NewWeightedRateLimitByDuration(time.Millisecond * 600),
 	UnAuth: NewRateLimitWithWeight(time.Second*1, 100, 1)}
 
 func TestDoRequest(t *testing.T) {
