@@ -599,7 +599,7 @@ func (b *Bitmex) Subscribe(subs subscription.List) error {
 			req.Arguments = append(req.Arguments, cName+":"+p.String())
 		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(req)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 	if err == nil {
 		err = b.Websocket.AddSuccessfulSubscriptions(subs...)
 	}
@@ -618,7 +618,7 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 			req.Arguments = append(req.Arguments, cName+":"+p.String())
 		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(req)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 	if err == nil {
 		err = b.Websocket.RemoveSubscriptions(subs...)
 	}
@@ -655,7 +655,7 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
 		signature)
-	err = b.Websocket.Conn.SendJSONMessage(sendAuth)
+	err = b.Websocket.Conn.SendJSONMessage(ctx, sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
