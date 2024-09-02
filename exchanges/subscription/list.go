@@ -55,6 +55,17 @@ func (l List) Clone() List {
 	return n
 }
 
+// Authenticated returns only Authenticated subscriptions
+func (l List) Authenticated() List {
+	a := List{}
+	for _, s := range l {
+		if s.Authenticated {
+			a = append(a, s)
+		}
+	}
+	return a
+}
+
 // QualifiedChannels returns a sorted list of all the qualified Channels in the list
 func (l List) QualifiedChannels() []string {
 	c := make([]string, len(l))

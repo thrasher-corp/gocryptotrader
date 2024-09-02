@@ -106,3 +106,9 @@ func TestListClone(t *testing.T) {
 	l[0].Interval = kline.OneHour
 	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
 }
+
+func TestListAuthenticated(t *testing.T) {
+	t.Parallel()
+	assert.NotEmpty(t, 1, List{{}, {Authenticated: true}}.Authenticated(), "Authenticated should return correct length")
+	assert.Empty(t, List{{}, {}}.Authenticated(), "Authenticated should return empty")
+}
