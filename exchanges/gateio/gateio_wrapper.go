@@ -208,7 +208,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Spot connection
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                      gateioWebsocketEndpoint,
-		RateLimit:                gateioWebsocketRateLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleSpotData,

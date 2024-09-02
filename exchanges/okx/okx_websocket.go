@@ -292,7 +292,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -481,7 +481,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
+				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequests)
 				if err != nil {
 					return err
 				}
@@ -505,7 +505,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(request)
+				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request)
 				if err != nil {
 					return err
 				}
@@ -525,13 +525,13 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 	}
 
 	if len(request.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(request); err != nil {
+		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(authRequests); err != nil {
+		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequests); err != nil {
 			return err
 		}
 	}
@@ -1369,7 +1369,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: okxOpOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1428,7 +1428,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		Arguments: args,
 		Operation: okxOpBatchOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1498,7 +1498,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		Arguments: []CancelOrderRequestParam{arg},
 		Operation: okxOpCancelOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1558,7 +1558,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		Arguments: args,
 		Operation: okxOpBatchCancelOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1634,7 +1634,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		Operation: okxOpAmendOrder,
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1696,7 +1696,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		Operation: okxOpBatchAmendOrders,
 		Arguments: args,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1849,7 +1849,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(input)
+	return ok.Websocket.Conn.SendJSONMessage(context.TODO(), input)
 }
 
 // Private Channel Websocket methods
@@ -1915,7 +1915,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.AuthConn.SendJSONMessage(input)
+	return ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by

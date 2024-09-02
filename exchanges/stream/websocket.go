@@ -67,6 +67,7 @@ var (
 	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
 	errConnectionCandidateDuplication       = errors.New("connection candidate duplication")
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
+	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 )
 
 var (
@@ -216,6 +217,15 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
+	}
+
+	if c == nil || c.ResponseCheckTimeout == 0 &&
+		c.ResponseMaxLimit == 0 &&
+		c.RateLimit == nil &&
+		c.URL == "" &&
+		c.ConnectionLevelReporter == nil &&
+		c.BespokeGenerateMessageID == nil {
+		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
 	if w.exchangeName == "" {
