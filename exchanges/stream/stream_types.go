@@ -9,13 +9,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
 	ReadMessage() Response
-	SendJSONMessage(any) error
+	SendJSONMessage(ctx context.Context, payload any) error
 	SetupPingHandler(PingHandler)
 	// GenerateMessageID generates a message ID for the individual connection.
 	// If a bespoke function is set (by using SetupNewConnection) it will use
@@ -24,7 +25,7 @@ type Connection interface {
 	GenerateMessageID(highPrecision bool) int64
 	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
 	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int) ([][]byte, error)
-	SendRawMessage(messageType int, message []byte) error
+	SendRawMessage(ctx context.Context, messageType int, message []byte) error
 	SetURL(string)
 	GetURL() string
 	Shutdown() error
@@ -40,7 +41,7 @@ type Response struct {
 type ConnectionSetup struct {
 	ResponseCheckTimeout    time.Duration
 	ResponseMaxLimit        time.Duration
-	RateLimit               int64
+	RateLimit               *request.RateLimiterWithWeight
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter

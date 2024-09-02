@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -28,7 +29,7 @@ type WebsocketConnection struct {
 	writeControl     sync.Mutex
 	connected        int32
 	connection       *websocket.Conn
-	rateLimit        int64
+	rateLimit        *request.RateLimiterWithWeight
 	_URL             string
 	parent           *Websocket
 	responseMaxLimit time.Duration
@@ -73,51 +74,46 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 }
 
 // SendJSONMessage sends a JSON encoded message over the connection
-func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
-	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket", w.parent.exchangeName)
-	}
-
-	w.writeControl.Lock()
-	defer w.writeControl.Unlock()
-
-	if w.parent.verbose {
-		if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-			log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.parent.exchangeName, msg)
+func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interface{}) error {
+	return w.writeToConn(ctx, func() error {
+		if w.parent.verbose {
+			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
+				log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.parent.exchangeName, msg)
+			}
 		}
-	}
-
-	if w.rateLimit > 0 {
-		time.Sleep(time.Duration(w.rateLimit) * time.Millisecond)
-		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.parent.exchangeName)
-		}
-	}
-	return w.connection.WriteJSON(data)
+		return w.connection.WriteJSON(data)
+	})
 }
 
 // SendRawMessage sends a message over the connection without JSON encoding it
-func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) error {
+func (w *WebsocketConnection) SendRawMessage(ctx context.Context, messageType int, message []byte) error {
+	return w.writeToConn(ctx, func() error {
+		if w.parent.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.parent.exchangeName, message)
+		}
+		return w.connection.WriteMessage(messageType, message)
+	})
+}
+
+func (w *WebsocketConnection) writeToConn(ctx context.Context, writeConn func() error) error {
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.parent.exchangeName)
 	}
-
-	w.writeControl.Lock()
-	defer w.writeControl.Unlock()
-
-	if w.parent.verbose {
-		log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.parent.exchangeName, message)
-	}
-	if w.rateLimit > 0 {
-		time.Sleep(time.Duration(w.rateLimit) * time.Millisecond)
-		if !w.IsConnected() {
-			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.parent.exchangeName)
+	if w.rateLimit != nil {
+		err := request.RateLimit(ctx, w.rateLimit)
+		if err != nil {
+			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.parent.exchangeName, err)
 		}
 	}
+	// This lock acts as a rolling gate to prevent WriteMessage panics. Acquire after rate limit check.
+	w.writeControl.Lock()
+	defer w.writeControl.Unlock()
+	// NOTE: Secondary check to ensure the connection is still active after
+	// semacquire and potential rate limit.
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket", w.parent.exchangeName)
 	}
-	return w.connection.WriteMessage(messageType, message)
+	return writeConn()
 }
 
 // SetupPingHandler will automatically send ping or pong messages based on
@@ -145,7 +141,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 			case <-w.parent.ShutdownC:
 				return
 			case <-ticker.C:
-				err := w.SendRawMessage(handler.MessageType, handler.Message)
+				err := w.SendRawMessage(context.TODO(), handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", w.parent.exchangeName, handler.Message, err)
 					return
@@ -311,7 +307,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 	}
 
 	start := time.Now()
-	err = w.SendRawMessage(websocket.TextMessage, outbound)
+	err = w.SendRawMessage(ctx, websocket.TextMessage, outbound)
 	if err != nil {
 		return nil, err
 	}

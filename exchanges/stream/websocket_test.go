@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -627,7 +628,7 @@ func TestDial(t *testing.T) {
 			WC: &WebsocketConnection{
 				parent:           &Websocket{exchangeName: "test1", verbose: true},
 				_URL:             websocketTestURL,
-				rateLimit:        10,
+				rateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
 				responseMaxLimit: 7000000000,
 			},
 		},
@@ -671,7 +672,7 @@ func TestSendMessage(t *testing.T) {
 			WC: &WebsocketConnection{
 				parent:           &Websocket{exchangeName: "test1", verbose: true},
 				_URL:             websocketTestURL,
-				rateLimit:        10,
+				rateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
 				responseMaxLimit: 7000000000,
 			},
 		},
@@ -703,11 +704,11 @@ func TestSendMessage(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			err = run.WC.SendJSONMessage(Ping)
+			err = run.WC.SendJSONMessage(context.Background(), Ping)
 			if err != nil {
 				t.Error(err)
 			}
-			err = run.WC.SendRawMessage(websocket.TextMessage, []byte(Ping))
+			err = run.WC.SendRawMessage(context.Background(), websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}

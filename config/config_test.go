@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -1850,25 +1851,12 @@ func TestCheckConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	var c Config
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("%s", err)
-	}
-
+	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig should not error")
 	newCfg := c
-	err = c.UpdateConfig(TestFile, &newCfg, true)
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
+	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig should not error")
 
-	err = c.UpdateConfig("//non-existantpath\\", &newCfg, false)
-	if err == nil {
-		t.Fatalf("Error should have been thrown for invalid path")
-	}
-
-	err = c.UpdateConfig(TestFile, &newCfg, true)
-	if err != nil {
-		t.Errorf("%s", err)
+	if isGCTDocker := os.Getenv("GCT_DOCKER_CI"); isGCTDocker != "true" {
+		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig should error on non-existent path")
 	}
 }
 
