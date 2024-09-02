@@ -411,7 +411,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err)
 
-	err = ws.connectionManager[0].Connection.SendRawMessage(websocket.TextMessage, []byte("test"))
+	err = ws.connectionManager[0].Connection.SendRawMessage(context.Background(), websocket.TextMessage, []byte("test"))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -1336,7 +1336,10 @@ func TestSetupNewConnection(t *testing.T) {
 	set.UseMultiConnectionManagement = true
 	require.NoError(t, multi.Setup(&set))
 
-	connSetup := &ConnectionSetup{}
+	err = multi.SetupNewConnection(nil)
+	require.ErrorIs(t, err, errExchangeConfigEmpty)
+
+	connSetup := &ConnectionSetup{ResponseCheckTimeout: time.Millisecond}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errDefaultURLIsEmpty)
 
