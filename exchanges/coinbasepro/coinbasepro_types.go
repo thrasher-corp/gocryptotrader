@@ -298,12 +298,13 @@ type EditOrderPreviewResp struct {
 	AverageFilledPrice float64 `json:"average_filled_price,string"`
 }
 
+// SingleOrder provides information on an order in a format that the exchange provides for the GetOrderByID function
 type SingleOrder struct {
 	Order GetOrderResponse `json:"order"`
 }
 
-// GetOrderResponse contains information on an order, returned by GetOrderByID
-// and IterativeGetAllOrders, and used in GetAllOrdersResp
+// GetOrderResponse contains information on an order, returned by GetOrderByID IterativeGetAllOrders, and used in
+// GetAllOrdersResp
 type GetOrderResponse struct {
 	OrderID               string             `json:"order_id"`
 	ProductID             string             `json:"product_id"`
