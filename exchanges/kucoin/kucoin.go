@@ -419,12 +419,11 @@ func (ku *Kucoin) GetRepaymentHistory(ctx context.Context, ccy currency.Code, is
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
-	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	params.Set("symbol", symbol)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
 	if isIsolated {
 		params.Set("isIsolated", "true")
 	}

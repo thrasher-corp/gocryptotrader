@@ -365,6 +365,8 @@ type BorrowRepayDetailItem struct {
 	Symbol      string               `json:"symbol"`
 	Currency    string               `json:"currency"`
 	Size        float64              `json:"size"`
+	Principal   types.Number         `json:"principal"`
+	Interest    types.Number         `json:"interest"`
 	ActualSize  float64              `json:"actualSize"`
 	Status      string               `json:"status"`
 	CreatedTime convert.ExchangeTime `json:"createdTime"`

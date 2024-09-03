@@ -326,6 +326,9 @@ func TestGetCrossIsolatedMarginInterestRecords(t *testing.T) {
 
 func TestGetRepaymentHistory(t *testing.T) {
 	t.Parallel()
+	_, err := ku.GetRepaymentHistory(context.Background(), currency.EMPTYCODE, true, spotTradablePair.String(), "", time.Time{}, time.Now().Add(-time.Hour*80), 0, 10)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	result, err := ku.GetRepaymentHistory(context.Background(), currency.BTC, true, spotTradablePair.String(), "", time.Time{}, time.Now().Add(-time.Hour*80), 0, 10)
 	assert.NoError(t, err)
@@ -3730,7 +3733,6 @@ func TestGetRedemptionOrders(t *testing.T) {
 
 func TestGetSubscriptionOrders(t *testing.T) {
 	t.Parallel()
-	ku.Verbose = true
 	_, err := ku.GetSubscriptionOrders(context.Background(), currency.EMPTYCODE, "2234", "DONE", 0, 20)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ku.GetSubscriptionOrders(context.Background(), currency.ETH, "", "", 0, 20)
