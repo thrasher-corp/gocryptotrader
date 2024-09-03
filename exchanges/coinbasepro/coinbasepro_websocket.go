@@ -50,7 +50,9 @@ var subscriptionNames = map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.HeartbeatChannel},
-	{Enabled: true, Channel: "status"},
+	// Subscriptions to status return an "authentication failure" error, despite the endpoint not being authenticated
+	// and other authenticated channels working fine.
+	{Enabled: false, Channel: "status"},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
@@ -108,6 +110,10 @@ func (c *CoinbasePro) wsReadData() {
 // wsHandleData handles all the websocket data coming from the websocket connection
 func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, error) {
 	var warnString string
+	ertype, _, _, err := jsonparser.Get(respRaw, "type")
+	if err == nil && string(ertype) == "error" {
+		return warnString, errors.New(string(respRaw))
+	}
 	seqData, _, _, err := jsonparser.Get(respRaw, "sequence_num")
 	if err != nil {
 		return warnString, err
@@ -140,8 +146,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			return warnString, err
 		}
 		c.Websocket.DataHandler <- wsStatus
-	case "error":
-		c.Websocket.DataHandler <- errors.New(string(respRaw))
 	case "ticker", "ticker_batch":
 		wsTicker := []WebsocketTickerHolder{}
 		err = json.Unmarshal(data, &wsTicker)

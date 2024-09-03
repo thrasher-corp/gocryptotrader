@@ -480,11 +480,11 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor s
 }
 
 // GetOrderByID returns a single order by order id.
-func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID, userNativeCurrency string) (*GetOrderResponse, error) {
+func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID, userNativeCurrency string) (*SingleOrder, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
-	var resp GetOrderResponse
+	var resp SingleOrder
 	vals := url.Values{}
 	if clientOID != "" {
 		vals.Set("client_order_id", clientOID)

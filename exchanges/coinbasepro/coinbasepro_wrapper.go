@@ -555,7 +555,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		if err != nil {
 			return nil, err
 		}
-		subResp.Fee = feeResp.TotalFees
+		subResp.Fee = feeResp.Order.TotalFees
 	}
 	return subResp, nil
 }
@@ -651,7 +651,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 	if err != nil {
 		return nil, err
 	}
-	response := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
+	response := c.getOrderRespToOrderDetail(&genOrderDetail.Order, pair, assetItem)
 	fillData, err := c.GetFills(ctx, orderID, "", "", time.Time{}, time.Now(), 2<<15-1)
 	if err != nil {
 		return nil, err
@@ -819,7 +819,11 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 	}
 	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
-		orderRec := c.getOrderRespToOrderDetail(&respOrders[i], req.Pairs[i], asset.Spot)
+		tempPair, err := currency.NewPairFromString(respOrders[i].ProductID)
+		if err != nil {
+			return nil, err
+		}
+		orderRec := c.getOrderRespToOrderDetail(&respOrders[i], tempPair, asset.Spot)
 		orders[i] = *orderRec
 	}
 	return req.Filter(c.Name, orders), nil
@@ -864,7 +868,11 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 	}
 	orders := make([]order.Detail, len(ord))
 	for i := range ord {
-		singleOrder := c.getOrderRespToOrderDetail(&ord[i], req.Pairs[0], req.AssetType)
+		tempPair, err := currency.NewPairFromString(ord[i].ProductID)
+		if err != nil {
+			return nil, err
+		}
+		singleOrder := c.getOrderRespToOrderDetail(&ord[i], tempPair, req.AssetType)
 		orders[i] = *singleOrder
 	}
 	return req.Filter(c.Name, orders), nil

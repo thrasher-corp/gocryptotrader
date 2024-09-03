@@ -274,7 +274,14 @@ func orderTestHelper(t *testing.T, orderSide string) *GetAllOrdersResp {
 	if ordIDs == nil || len(ordIDs.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	return ordIDs
+	for i := range ordIDs.Orders {
+		if ordIDs.Orders[i].Status == order.Open.String() {
+			ordIDs.Orders = ordIDs.Orders[i : i+1]
+			return ordIDs
+		}
+	}
+	t.Skip(skipInsufficientOrders)
+	return nil
 }
 
 func TestCancelOrders(t *testing.T) {
@@ -1580,9 +1587,12 @@ func TestWsHandleData(t *testing.T) {
 			continue
 		}
 	}()
-	_, err := c.wsHandleData(nil, 0)
+	mockJSON := []byte(`{"type": "error"}`)
+	_, err := c.wsHandleData(mockJSON, 0)
+	assert.Error(t, err)
+	_, err = c.wsHandleData(nil, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJSON := []byte(`{"sequence_num": "l"}`)
+	mockJSON = []byte(`{"sequence_num": "l"}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, strconv.ErrSyntax)
 	mockJSON = []byte(`{"sequence_num": 1, /\\/"""}`)
@@ -1599,9 +1609,6 @@ func TestWsHandleData(t *testing.T) {
 	var targetErr *json.SyntaxError
 	assert.ErrorAs(t, err, &targetErr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
-	_, err = c.wsHandleData(mockJSON, 0)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "error", "events": [{"type": "moo"}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
@@ -1717,7 +1724,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
-	c := &CoinbasePro{
+	c := &CoinbasePro{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 		Base: exchange.Base{
 			Config: &config.Exchange{
 				Features: &config.FeaturesConfig{

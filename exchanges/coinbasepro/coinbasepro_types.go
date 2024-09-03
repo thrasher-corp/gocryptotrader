@@ -298,6 +298,10 @@ type EditOrderPreviewResp struct {
 	AverageFilledPrice float64 `json:"average_filled_price,string"`
 }
 
+type SingleOrder struct {
+	Order GetOrderResponse `json:"order"`
+}
+
 // GetOrderResponse contains information on an order, returned by GetOrderByID
 // and IterativeGetAllOrders, and used in GetAllOrdersResp
 type GetOrderResponse struct {
@@ -313,7 +317,7 @@ type GetOrderResponse struct {
 	CompletionPercentage  float64            `json:"completion_percentage,string"`
 	FilledSize            float64            `json:"filled_size,string"`
 	AverageFilledPrice    float64            `json:"average_filled_price,string"`
-	Fee                   float64            `json:"fee,string"`
+	Fee                   types.Number       `json:"fee"`
 	NumberOfFills         int64              `json:"num_fills,string"`
 	FilledValue           float64            `json:"filled_value,string"`
 	PendingCancel         bool               `json:"pending_cancel"`
@@ -337,6 +341,9 @@ type GetOrderResponse struct {
 		Size                   float64   `json:"size,string"`
 		ReplaceAcceptTimestamp time.Time `json:"replace_accept_timestamp"`
 	} `json:"edit_history"`
+	Leverage          types.Number `json:"leverage"`
+	MarginType        string       `json:"margin_type"`
+	RetailPortfolioID string       `json:"retail_portfolio_id"`
 }
 
 // FillResponse contains fill information, returned by GetFills
