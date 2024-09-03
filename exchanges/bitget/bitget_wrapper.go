@@ -889,7 +889,7 @@ func (bi *Bitget) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	}
 	switch orderCancellation.AssetType {
 	case asset.Spot:
-		_, err = bi.CancelOrderBySymbol(ctx, orderCancellation.Pair.String())
+		_, err = bi.CancelOrdersBySymbol(ctx, orderCancellation.Pair.String())
 		if err != nil {
 			return resp, err
 		}
@@ -2054,9 +2054,27 @@ func (bi *Bitget) GetLeverage(ctx context.Context, a asset.Item, p currency.Pair
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (bi *Bitget) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
-	// What's the *open* interest rate?
-	return nil, common.ErrFunctionNotSupported
+func (bi *Bitget) GetOpenInterest(ctx context.Context, pairs ...key.PairAsset) ([]futures.OpenInterest, error) {
+	openInterest := make([]futures.OpenInterest, len(pairs))
+	for i := range pairs {
+		resp, err := bi.GetOpenPositions(ctx, pairs[i].Pair().String(), getProductType(pairs[i].Pair()))
+		if err != nil {
+			return nil, err
+		}
+		if len(resp.Data.OpenInterestList) == 0 {
+			return nil, errReturnEmpty
+		}
+		openInterest[i] = futures.OpenInterest{
+			OpenInterest: resp.Data.OpenInterestList[0].Size,
+			Key: key.ExchangePairAsset{
+				Exchange: bi.Name,
+				Base:     pairs[i].Base,
+				Quote:    pairs[i].Quote,
+				Asset:    pairs[i].Asset,
+			},
+		}
+	}
+	return openInterest, nil
 }
 
 // GetProductType is a helper function that returns the appropriate product type for a given currency pair

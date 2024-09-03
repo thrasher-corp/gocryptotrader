@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -640,7 +642,7 @@ func TestBatchCancelOrders(t *testing.T) {
 
 func TestCancelOrderBySymbol(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, bi.CancelOrderBySymbol, "", testPair.String(), errPairEmpty, true, true,
+	testGetOneArg(t, bi.CancelOrdersBySymbol, "", testPair.String(), errPairEmpty, true, true,
 		canManipulateRealOrders)
 }
 
@@ -1130,6 +1132,21 @@ func TestChangeLeverage(t *testing.T) {
 	assert.NotEmpty(t, resp.Data)
 }
 
+func TestAdjustIsolatedAutoMargin(t *testing.T) {
+	t.Parallel()
+	err := bi.AdjustIsolatedAutoMargin(context.Background(), "", "", "", false, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	err = bi.AdjustIsolatedAutoMargin(context.Background(), "meow", "", "", false, 0)
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	err = bi.AdjustIsolatedAutoMargin(context.Background(), testPair2.String(), testFiat2.String(), "long",
+		false, 0)
+	assert.NoError(t, err)
+	err = bi.AdjustIsolatedAutoMargin(context.Background(), testPair2.String(), testFiat2.String(), "long",
+		true, 0.01)
+	assert.NoError(t, err)
+}
+
 func TestAdjustMargin(t *testing.T) {
 	t.Parallel()
 	err := bi.AdjustMargin(context.Background(), "", "", "", "", 0)
@@ -1582,6 +1599,22 @@ func TestGetHistoricalTriggerFuturesOrders(t *testing.T) {
 func TestGetSupportedCurrencies(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, bi.GetSupportedCurrencies)
+	assets := []asset.Item{asset.Spot, asset.Futures, asset.Margin}
+	var curMax string
+	for i := range assets {
+		resp, err := bi.FetchTradablePairs(context.Background(), assets[i])
+		require.NoError(t, err)
+		for j := range resp {
+			if len(resp[j].String()) > len(curMax) {
+				curMax = resp[j].String()
+			}
+		}
+	}
+	fmt.Print(curMax)
+}
+
+func TestLen(t *testing.T) {
+	fmt.Print(int(1)/int(47), int(50)/47, int(94)/47)
 }
 
 func TestGetCrossBorrowHistory(t *testing.T) {
@@ -2914,7 +2947,14 @@ func TestGetLeverage(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// The following 3 tests aren't parallel due to collisions with each other, and some other plan order-related tests
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetOpenInterest(context.Background(), key.PairAsset{Base: testCrypto.Item, Quote: testFiat.Item,
+		Asset: asset.Futures})
+	assert.NoError(t, err)
+}
+
+// The following 18 tests aren't parallel due to collisions with each other, and some other tests
 func TestModifyPlanSpotOrder(t *testing.T) {
 	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
@@ -2989,8 +3029,6 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestCommitConversion(t *testing.T) {
-	// In a separate parallel batch due to collision with TestGetQuotedPrice
-	t.Parallel()
 	_, err := bi.CommitConversion(context.Background(), "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "", 0, 0, 0)
@@ -3008,8 +3046,6 @@ func TestCommitConversion(t *testing.T) {
 }
 
 func TestCancelTriggerFuturesOrders(t *testing.T) {
-	// In a separate parallel batch due to collisions with TestModifyTPSLFuturesOrder and TestModifyTriggerFuturesOrder
-	t.Parallel()
 	var ordList []OrderIDStruct
 	_, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, "", "", "", "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
@@ -3023,8 +3059,6 @@ func TestCancelTriggerFuturesOrders(t *testing.T) {
 }
 
 func TestRepayLoan(t *testing.T) {
-	// In a separate parallel batch due to a collision with ModifyPledgeRate
-	t.Parallel()
 	_, err := bi.RepayLoan(context.Background(), 0, 0, false, false)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	_, err = bi.RepayLoan(context.Background(), 1, 0, false, false)
@@ -3040,8 +3074,6 @@ func TestRepayLoan(t *testing.T) {
 	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, 0, true, true)
 	assert.NoError(t, err)
 }
-
-// The following 7 tests aren't parallel due to collisions with each other, and some other futures-related tests
 func TestModifyFuturesOrder(t *testing.T) {
 	_, err := bi.ModifyFuturesOrder(context.Background(), 0, "", "", "", "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
@@ -3166,8 +3198,6 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = bi.CancelAllOrders(context.Background(), ord)
 	assert.NoError(t, err)
 }
-
-// The following 3 tests aren't parallel due to collisions with each other, and some other cross-related tests
 func TestCancelCrossOrder(t *testing.T) {
 	_, err := bi.CancelCrossOrder(context.Background(), "", "", 0)
 	assert.ErrorIs(t, err, errPairEmpty)
@@ -3245,8 +3275,6 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = bi.CancelBatchOrders(context.Background(), orders)
 	assert.NoError(t, err)
 }
-
-// The following 2 tests aren't parallel due to collisions with each other, and some other isolated-related tests
 func TestCancelIsolatedOrder(t *testing.T) {
 	_, err := bi.CancelIsolatedOrder(context.Background(), "", "", 0)
 	assert.ErrorIs(t, err, errPairEmpty)

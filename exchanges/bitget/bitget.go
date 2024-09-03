@@ -143,6 +143,7 @@ const (
 	bitgetSubaccountAssets2        = "/sub-account-assets"
 	bitgetOpenCount                = "/open-count"
 	bitgetSetLeverage              = "/set-leverage"
+	bitgetSetAutoMargin            = "/set-auto-margin"
 	bitgetSetMargin                = "/set-margin"
 	bitgetSetMarginMode            = "/set-margin-mode"
 	bitgetSetPositionMode          = "/set-position-mode"
@@ -199,6 +200,12 @@ const (
 	bitgetReviseHistory            = "/revise-history"
 	bitgetDebts                    = "/debts"
 	bitgetReduces                  = "/reduces"
+
+	// Websocket endpoints
+	// Unauthenticated
+	bitgetTickerChannel = "ticker"
+
+	// Authenticated
 
 	errIntervalNotSupported = "interval not supported"
 )
@@ -1129,8 +1136,8 @@ func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, orderIDs [
 		&resp)
 }
 
-// CancelOrderBySymbol cancels orders for a given symbol. Doesn't return information on failures/successes
-func (bi *Bitget) CancelOrderBySymbol(ctx context.Context, pair string) (*SymbolResp, error) {
+// CancelOrdersBySymbol cancels orders for a given symbol. Doesn't return information on failures/successes
+func (bi *Bitget) CancelOrdersBySymbol(ctx context.Context, pair string) (*SymbolResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -2114,6 +2121,29 @@ func (bi *Bitget) ChangeLeverage(ctx context.Context, pair, productType, marginC
 	var resp *LeverageResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req,
 		&resp)
+}
+
+// AdjustIsolatedAutoMargin adjusts the auto margin for a specified isolated margin account
+func (bi *Bitget) AdjustIsolatedAutoMargin(ctx context.Context, pair, marginCoin, holdSide string, autoMargin bool, amount float64) error {
+	if pair == "" {
+		return errPairEmpty
+	}
+	if marginCoin == "" {
+		return errMarginCoinEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":     pair,
+		"marginCoin": marginCoin,
+		"holdSide":   holdSide,
+		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if autoMargin {
+		req["autoMargin"] = "on"
+	} else {
+		req["autoMargin"] = "off"
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetAutoMargin
+	return bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, nil)
 }
 
 // AdjustMargin adds or subtracts margin from a position

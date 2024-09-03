@@ -1112,7 +1112,7 @@ const (
 	CallModeMark
 )
 
-// OpenInterestResp contains information on open positions
+// OpenPositionResp contains information on open positions
 type OpenPositionsResp struct {
 	Data struct {
 		OpenInterestList []struct {
@@ -2429,4 +2429,43 @@ type LiquidRecs struct {
 		RunlockAmount   float64       `json:"runlockAmount,string"`
 		RepayLoanAmount float64       `json:"repayLoanAmount,string"`
 	} `json:"data"`
+}
+
+// WsResponse contains information on a websocket response
+type WsResponse struct {
+	Event   string `json:"event"`
+	Code    int    `json:"code,string"`
+	Message string `json:"msg"`
+	Arg     struct {
+		InstrumentType string `json:"instType"`
+		Channel        string `json:"channel"`
+		InstrumentID   string `json:"instId"`
+	} `json:"arg"`
+	Action    string          `json:"action"`
+	Data      json.RawMessage `json:"data"`
+	Timestamp UnixTimestamp   `json:"ts"`
+}
+
+// WsArgument contains information used in a websocket request
+type WsArgument struct {
+	InstrumentType string `json:"instType"`
+	Channel        string `json:"channel"`
+	InstrumentID   string `json:"instId"`
+}
+
+// WsRequest contains information on a websocket request
+type WsRequest struct {
+	Operation string       `json:"op"`
+	Arguments []WsArgument `json:"args"`
+}
+
+// WsLogin contains information on a websocket login request
+type WsLogin struct {
+	Operation string `json:"op"`
+	Arguments []struct {
+		APIKey     string `json:"apiKey"`
+		Passphrase string `json:"passphrase"`
+		Timestamp  string `json:"timestamp"`
+		Signature  string `json:"sign"`
+	} `json:"args"`
 }
