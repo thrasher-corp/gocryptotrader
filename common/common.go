@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -67,6 +68,7 @@ var (
 	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse             = errors.New("no response")
 	ErrTypeAssertFailure      = errors.New("type assert failure")
+	ErrUnknownError           = errors.New("unknown error")
 )
 
 var (
@@ -138,7 +140,7 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 // returns an individual string array
 func StringSliceDifference(slice1, slice2 []string) []string {
 	var diff []string
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		for _, s1 := range slice1 {
 			found := false
 			for _, s2 := range slice2 {
@@ -398,7 +400,7 @@ func AddPaddingOnUpperCase(s string) string {
 	}
 	var result []string
 	left := 0
-	for x := 0; x < len(s); x++ {
+	for x := range s {
 		if x == 0 {
 			continue
 		}
@@ -430,7 +432,7 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	switch reflect.TypeOf(array).Kind() {
 	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(array)
-		for i := 0; i < s.Len(); i++ {
+		for i := range s.Len() {
 			if reflect.DeepEqual(val, s.Index(i).Interface()) {
 				index = i
 				exists = true
@@ -670,4 +672,20 @@ func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
 		return strings.Compare(a.String(), b.String())
 	})
 	return n
+}
+
+// Counter is a thread-safe counter.
+type Counter struct {
+	n int64 // privatised so you can't use counter as a value type
+}
+
+// IncrementAndGet returns the next count after incrementing.
+func (c *Counter) IncrementAndGet() int64 {
+	newID := atomic.AddInt64(&c.n, 1)
+	// Handle overflow by resetting the counter to 1 if it becomes negative
+	if newID < 0 {
+		atomic.StoreInt64(&c.n, 1)
+		return 1
+	}
+	return newID
 }

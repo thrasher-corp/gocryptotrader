@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -196,7 +197,7 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(id, operation string, payload, 
 		}
 	}
 
-	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(id, outbound)
+	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, outbound)
 	if err != nil {
 		return err
 	}

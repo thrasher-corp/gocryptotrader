@@ -71,7 +71,7 @@ func (s *Service) Update(b *Base) error {
 		book.AssignOptions(b)
 		m1.m[mapKey] = book
 	}
-	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
+	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true)
 	s.mu.Unlock()
 	if err != nil {
 		return err

@@ -113,7 +113,7 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	return d.Websocket.Conn.SendJSONMessage(context.TODO(), setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -147,7 +147,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"signature":  crypto.HexEncodeToString(hmac),
 		},
 	}
-	resp, err := d.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -187,7 +187,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		return d.Websocket.Conn.SendJSONMessage(pingMessage)
+		return d.Websocket.Conn.SendJSONMessage(context.TODO(), pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
@@ -1165,7 +1165,7 @@ func (d *Deribit) handleSubscription(operation string, channels subscription.Lis
 		return err
 	}
 	for x := range payloads {
-		data, err := d.Websocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
+		data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), payloads[x].ID, payloads[x])
 		if err != nil {
 			return err
 		}

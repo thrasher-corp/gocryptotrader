@@ -154,7 +154,7 @@ func getOneMinute() []Candle {
 var oneMinuteCandles = func() []Candle {
 	var candles []Candle
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := 0; x < 1442; x++ { // two extra candles.
+	for x := range 1442 { // two extra candles.
 		candles = append(candles, Candle{
 			Time:   start,
 			Volume: 1,
@@ -179,7 +179,7 @@ func getOneHour() []Candle {
 var oneHourCandles = func() []Candle {
 	var candles []Candle
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := 0; x < 24; x++ {
+	for x := range 24 {
 		candles = append(candles, Candle{
 			Time:   start,
 			Volume: 1,

@@ -27,7 +27,6 @@ import (
 const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
-	rateLimit              = 20
 	errAuthFailed          = 1002
 )
 
@@ -524,7 +523,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
 			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(r)
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 		if err == nil {
 			err = h.Websocket.AddSuccessfulSubscriptions(s)
 		}
@@ -560,7 +559,7 @@ func (h *HitBTC) Unsubscribe(subs subscription.List) error {
 			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(r)
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 		if err == nil {
 			err = h.Websocket.RemoveSubscriptions(s)
 		}
@@ -600,7 +599,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	err = h.Websocket.Conn.SendJSONMessage(request)
+	err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -632,7 +631,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		},
 		ID: id,
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(id, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -659,7 +658,7 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -689,7 +688,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -714,7 +713,7 @@ func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -739,7 +738,7 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -763,7 +762,7 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -792,7 +791,7 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -824,7 +823,7 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}

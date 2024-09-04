@@ -63,18 +63,17 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Tranches, err err
 }
 
 func bidAskGenerator() []orderbook.Tranche {
-	var response []orderbook.Tranche
-	randIterator := 100
-	for i := 0; i < randIterator; i++ {
+	response := make([]orderbook.Tranche, 100)
+	for i := range 100 {
 		price := float64(rand.Intn(1000)) //nolint:gosec // no need to import crypo/rand for testing
 		if price == 0 {
 			price = 1
 		}
-		response = append(response, orderbook.Tranche{
+		response[i] = orderbook.Tranche{
 			Amount: float64(rand.Intn(10)), //nolint:gosec // no need to import crypo/rand for testing
 			Price:  price,
 			ID:     int64(i),
-		})
+		}
 	}
 	return response
 }
@@ -520,7 +519,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	t.Parallel()
 	var holder Orderbook
-	var snapShot1 orderbook.Base
 	asks := []orderbook.Tranche{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -528,10 +526,6 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 		{Price: 5999, Amount: 1, ID: 8},
 		{Price: 4000, Amount: 1, ID: 9},
 	}
-	snapShot1.Asks = asks
-	snapShot1.Bids = bids
-	snapShot1.Asset = asset.Spot
-	snapShot1.Pair = cp
 	holder.exchangeName = exchangeName
 	err := holder.Update(&orderbook.Update{
 		Bids:       bids,
@@ -549,15 +543,10 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	t.Parallel()
 	var obl Orderbook
-	var snapShot1 orderbook.Base
-	snapShot1.Asks = []orderbook.Tranche{}
-	snapShot1.Bids = []orderbook.Tranche{}
-	snapShot1.Asset = asset.Spot
-	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&orderbook.Update{
-		Bids:       snapShot1.Asks,
-		Asks:       snapShot1.Bids,
+		Bids:       []orderbook.Tranche{},
+		Asks:       []orderbook.Tranche{},
 		Pair:       cp,
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
@@ -912,9 +901,9 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 }
 
 func deploySliceOrdered(size int) orderbook.Tranches {
-	var items []orderbook.Tranche
-	for i := 0; i < size; i++ {
-		items = append(items, orderbook.Tranche{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) //nolint:gosec // Not needed for tests
+	items := make([]orderbook.Tranche, size)
+	for i := range size {
+		items[i] = orderbook.Tranche{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()} //nolint:gosec // Not needed for tests
 	}
 	return items
 }
@@ -933,7 +922,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true)
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -968,7 +957,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true)
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1079,7 +1068,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true) //nolint:gocritic
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true) //nolint:gocritic
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1098,7 +1087,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
 	}
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true) //nolint:gocritic
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true) //nolint:gocritic
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1134,7 +1123,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	err = book.LoadSnapshot(bids, bids, 0, time.Now(), true)
+	err = book.LoadSnapshot(bids, bids, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}

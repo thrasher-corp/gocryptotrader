@@ -3090,8 +3090,7 @@ func TestGetIntervalEnum(t *testing.T) {
 		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
 	}
 
-	for x := range tests {
-		tt := tests[x]
+	for _, tt := range tests {
 		t.Run(tt.Description, func(t *testing.T) {
 			t.Parallel()
 

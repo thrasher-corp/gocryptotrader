@@ -18,8 +18,6 @@ var (
 	apiKeyLevel = 0
 )
 
-var isSet bool
-
 func TestMain(m *testing.M) {
 	if apiKey == "" {
 		apiKey = os.Getenv("CURRENCYLAYER_APIKEY")

@@ -3119,7 +3119,6 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
-	var resp [][7]string
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
@@ -3131,6 +3130,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
+	var resp [][7]string
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
