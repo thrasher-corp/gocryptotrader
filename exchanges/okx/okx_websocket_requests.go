@@ -11,9 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// TODO: Rate limits are shared with their REST API, so when the websocket rate
-// limiting PR is merged, this will need to be updated to reflect that.
-
 var errInvalidWebsocketRequest = errors.New("invalid websocket request")
 
 // WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
@@ -175,6 +172,8 @@ func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 }
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
+// TODO: Websocket request endpoint rate limits are shared with their REST API counterparts. A future update should
+// access request level rate limits and update the rate limiter accordingly.
 func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, id, operation string, payload, response any) error {
 	if id == "" || operation == "" || payload == nil || response == nil {
 		return errInvalidWebsocketRequest
