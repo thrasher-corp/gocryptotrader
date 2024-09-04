@@ -213,20 +213,22 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	}
 
 	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPublicURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                      okxAPIWebsocketPublicURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         okxWebsocketResponseMaxLimit,
+		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
+		BespokeGenerateMessageID: func(bool) int64 { return ok.Counter.IncrementAndGet() },
 	}); err != nil {
 		return err
 	}
 
 	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPrivateURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                      okxAPIWebsocketPrivateURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         okxWebsocketResponseMaxLimit,
+		Authenticated:            true,
+		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
+		BespokeGenerateMessageID: func(bool) int64 { return ok.Counter.IncrementAndGet() },
 	})
 }
 

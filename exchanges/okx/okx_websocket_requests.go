@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -24,7 +23,7 @@ func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 		return nil, err
 	}
 
-	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
+	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var orderResp []OrderData
 	err = ok.SendAuthenticatedWebsocketRequest(ctx, id, "order", []PlaceOrderRequestParam{*arg}, &orderResp)
@@ -56,7 +55,7 @@ func (ok *Okx) WsPlaceMultipleOrder(ctx context.Context, args []PlaceOrderReques
 		}
 	}
 
-	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
+	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
@@ -73,7 +72,7 @@ func (ok *Okx) WsCancelOrder(ctx context.Context, arg CancelOrderRequestParam) (
 		return nil, errMissingClientOrderIDOrOrderID
 	}
 
-	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
+	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var orderResp []OrderData
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, id, "cancel-order", []CancelOrderRequestParam{arg}, &orderResp)
@@ -107,7 +106,7 @@ func (ok *Okx) WsCancelMultipleOrder(ctx context.Context, args []CancelOrderRequ
 		}
 	}
 
-	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
+	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
@@ -130,7 +129,7 @@ func (ok *Okx) WsAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 
-	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
+	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var orderResp []OrderData
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, id, "amend-order", []AmendOrderRequestParams{*arg}, &orderResp)
@@ -167,7 +166,7 @@ func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 		}
 	}
 
-	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
+	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.

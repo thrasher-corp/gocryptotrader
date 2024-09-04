@@ -29,6 +29,7 @@ import (
 // Okx is the overarching type across this package
 type Okx struct {
 	exchange.Base
+	Counter common.Counter
 }
 
 const (
