@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ import (
 func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WsPlaceOrder(nil)
+	_, err := ok.WsPlaceOrder(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -29,7 +30,7 @@ func TestWsPlaceOrder(t *testing.T) {
 		Currency:     "USDT",
 	}
 
-	got, err := ok.WsPlaceOrder(out)
+	got, err := ok.WsPlaceOrder(context.Background(), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -37,10 +38,10 @@ func TestWsPlaceOrder(t *testing.T) {
 func TestWsPlaceMultipleOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WsPlaceMultipleOrder(nil)
+	_, err := ok.WsPlaceMultipleOrder(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = ok.WsPlaceMultipleOrder([]PlaceOrderRequestParam{})
+	_, err = ok.WsPlaceMultipleOrder(context.Background(), []PlaceOrderRequestParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -56,7 +57,7 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 		Currency:     "USDT",
 	}
 
-	got, err := ok.WsPlaceMultipleOrder([]PlaceOrderRequestParam{out})
+	got, err := ok.WsPlaceMultipleOrder(context.Background(), []PlaceOrderRequestParam{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -64,17 +65,17 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 func TestWsCancelOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WsCancelOrder(CancelOrderRequestParam{})
+	_, err := ok.WsCancelOrder(context.Background(), CancelOrderRequestParam{})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WsCancelOrder(CancelOrderRequestParam{InstrumentID: "BTC-USDT"})
+	_, err = ok.WsCancelOrder(context.Background(), CancelOrderRequestParam{InstrumentID: "BTC-USDT"})
 	require.ErrorIs(t, err, errMissingClientOrderIDOrOrderID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	ok := getWebsocketInstance(t, ok) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	c := CancelOrderRequestParam{InstrumentID: "BTC-USDT", OrderID: "1680136326338387968"}
-	got, err := ok.WsCancelOrder(c)
+	got, err := ok.WsCancelOrder(context.Background(), c)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -82,20 +83,20 @@ func TestWsCancelOrder(t *testing.T) {
 func TestWsCancleMultipleOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WsCancelMultipleOrder(nil)
+	_, err := ok.WsCancelMultipleOrder(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = ok.WsCancelMultipleOrder([]CancelOrderRequestParam{{}})
+	_, err = ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WsCancelMultipleOrder([]CancelOrderRequestParam{{InstrumentID: "BTC-USDT"}})
+	_, err = ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{{InstrumentID: "BTC-USDT"}})
 	require.ErrorIs(t, err, errMissingClientOrderIDOrOrderID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	ok := getWebsocketInstance(t, ok) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	c := CancelOrderRequestParam{InstrumentID: "BTC-USDT", OrderID: "1680136326338387968"}
-	got, err := ok.WsCancelMultipleOrder([]CancelOrderRequestParam{c})
+	got, err := ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{c})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -103,26 +104,26 @@ func TestWsCancleMultipleOrder(t *testing.T) {
 func TestWsAmendOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WsAmendOrder(nil)
+	_, err := ok.WsAmendOrder(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	out := &AmendOrderRequestParams{}
-	_, err = ok.WsAmendOrder(out)
+	_, err = ok.WsAmendOrder(context.Background(), out)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	out.InstrumentID = "BTC-USDT"
-	_, err = ok.WsAmendOrder(out)
+	_, err = ok.WsAmendOrder(context.Background(), out)
 	require.ErrorIs(t, err, errMissingClientOrderIDOrOrderID)
 
 	out.OrderID = "1680136326338387968"
-	_, err = ok.WsAmendOrder(out)
+	_, err = ok.WsAmendOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	ok := getWebsocketInstance(t, ok) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	out.NewPrice = 20
-	got, err := ok.WsAmendOrder(out)
+	got, err := ok.WsAmendOrder(context.Background(), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -130,26 +131,26 @@ func TestWsAmendOrder(t *testing.T) {
 func TestWsAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WsAmendMultipleOrders(nil)
+	_, err := ok.WsAmendMultipleOrders(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	out := AmendOrderRequestParams{}
-	_, err = ok.WsAmendMultipleOrders([]AmendOrderRequestParams{out})
+	_, err = ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	out.InstrumentID = "BTC-USDT"
-	_, err = ok.WsAmendMultipleOrders([]AmendOrderRequestParams{out})
+	_, err = ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errMissingClientOrderIDOrOrderID)
 
 	out.OrderID = "1680136326338387968"
-	_, err = ok.WsAmendMultipleOrders([]AmendOrderRequestParams{out})
+	_, err = ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	ok := getWebsocketInstance(t, ok) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	out.NewPrice = 20
 
-	got, err := ok.WsAmendMultipleOrders([]AmendOrderRequestParams{out})
+	got, err := ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

@@ -18,7 +18,7 @@ import (
 var errInvalidWebsocketRequest = errors.New("invalid websocket request")
 
 // WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
+func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	err := arg.Validate()
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
 
 	var orderResp []OrderData
-	err = ok.SendAuthenticatedWebsocketRequest(id, "order", []PlaceOrderRequestParam{*arg}, &orderResp)
+	err = ok.SendAuthenticatedWebsocketRequest(ctx, id, "order", []PlaceOrderRequestParam{*arg}, &orderResp)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 }
 
 // WsPlaceMultipleOrder creates an order through the websocket stream.
-func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData, error) {
+func (ok *Okx) WsPlaceMultipleOrder(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, common.ErrNilPointer)
 	}
@@ -61,11 +61,11 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
 	var orderResp []OrderData
-	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-orders", args, &orderResp)
+	return orderResp, ok.SendAuthenticatedWebsocketRequest(ctx, id, "batch-orders", args, &orderResp)
 }
 
 // WsCancelOrder websocket function to cancel a trade order
-func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
+func (ok *Okx) WsCancelOrder(ctx context.Context, arg CancelOrderRequestParam) (*OrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -76,7 +76,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
 
 	var orderResp []OrderData
-	err := ok.SendAuthenticatedWebsocketRequest(id, "cancel-order", []CancelOrderRequestParam{arg}, &orderResp)
+	err := ok.SendAuthenticatedWebsocketRequest(ctx, id, "cancel-order", []CancelOrderRequestParam{arg}, &orderResp)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 }
 
 // WsCancelMultipleOrder cancel multiple order through the websocket channel.
-func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderData, error) {
+func (ok *Okx) WsCancelMultipleOrder(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, common.ErrNilPointer)
 	}
@@ -112,11 +112,11 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
 	var orderResp []OrderData
-	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-cancel-orders", args, &orderResp)
+	return orderResp, ok.SendAuthenticatedWebsocketRequest(ctx, id, "batch-cancel-orders", args, &orderResp)
 }
 
 // WsAmendOrder method to amend trade order using a request thought the websocket channel.
-func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
+func (ok *Okx) WsAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -133,7 +133,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	id := strconv.FormatInt(time.Now().UnixNano(), 10) // TODO: use atomic counter
 
 	var orderResp []OrderData
-	err := ok.SendAuthenticatedWebsocketRequest(id, "amend-order", []AmendOrderRequestParams{*arg}, &orderResp)
+	err := ok.SendAuthenticatedWebsocketRequest(ctx, id, "amend-order", []AmendOrderRequestParams{*arg}, &orderResp)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 }
 
 // WsAmendMultipleOrders a request through the websocket connection to amend multiple trade orders.
-func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderData, error) {
+func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, common.ErrNilPointer)
 	}
@@ -172,11 +172,11 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 	// Opted to not check scode here as some orders may be successful and some
 	// may not. So return everything to the caller to handle.
 	var orderResp []OrderData
-	return orderResp, ok.SendAuthenticatedWebsocketRequest(id, "batch-amend-orders", args, &orderResp)
+	return orderResp, ok.SendAuthenticatedWebsocketRequest(ctx, id, "batch-amend-orders", args, &orderResp)
 }
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
-func (ok *Okx) SendAuthenticatedWebsocketRequest(id, operation string, payload, response any) error {
+func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, id, operation string, payload, response any) error {
 	if id == "" || operation == "" || payload == nil || response == nil {
 		return errInvalidWebsocketRequest
 	}
@@ -197,7 +197,7 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(id, operation string, payload, 
 		}
 	}
 
-	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, outbound)
+	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(ctx, id, outbound)
 	if err != nil {
 		return err
 	}

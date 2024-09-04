@@ -283,7 +283,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		},
 	}
 	var nothing interface{}
-	err = ok.SendAuthenticatedWebsocketRequest("login-response", operationLogin, args, &nothing)
+	err = ok.SendAuthenticatedWebsocketRequest(ctx, "login-response", operationLogin, args, &nothing)
 	return err
 }
 
