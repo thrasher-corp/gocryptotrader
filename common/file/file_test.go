@@ -7,6 +7,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWrite(t *testing.T) {
@@ -260,16 +263,13 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterNoPermissionFails(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Skip file permissions")
+	if runtime.GOOS == "windows" || os.Getenv("GCT_DOCKER_CI") == "true" {
+		t.Skip("Skipping file permission test on Windows or in Docker CI")
 	}
-	temp := t.TempDir()
-	err := os.Chmod(temp, 0o555)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = Writer(filepath.Join(temp, "path", "to", "somefile"))
-	if err == nil {
-		t.Error("Expected to fail when no permissions, but writer succeeded")
-	}
+
+	tempDir := t.TempDir()
+	err := os.Chmod(tempDir, 0o555)
+	require.NoError(t, err, "Chmod should not fail to set read-only permissions")
+	_, err = Writer(filepath.Join(tempDir, "path", "to", "somefile"))
+	assert.Error(t, err, "Writer should fail with no write permissions")
 }

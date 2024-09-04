@@ -80,6 +80,12 @@ func NewRateLimitWithWeight(interval time.Duration, actions int, weight Weight) 
 	return GetRateLimiterWithWeight(NewRateLimit(interval, actions), weight)
 }
 
+// NewWeightedRateLimitByDuration creates a new RateLimit based of time
+// interval. This equates to 1 action per interval. The weight is set to 1.
+func NewWeightedRateLimitByDuration(interval time.Duration) *RateLimiterWithWeight {
+	return NewRateLimitWithWeight(interval, 1, 1)
+}
+
 // GetRateLimiterWithWeight couples a rate limiter with a weight count into an
 // accepted defined rate limiter with weight struct
 func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {
@@ -107,12 +113,24 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 
 	rateLimiter := r.limiter[e]
 
+	err := RateLimit(ctx, rateLimiter)
+	if err != nil {
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+	}
+
+	return nil
+}
+
+// RateLimit is a function that will rate limit a request based on the rate
+// limiter provided. It will return an error if the context is cancelled or
+// deadline exceeded.
+func RateLimit(ctx context.Context, rateLimiter *RateLimiterWithWeight) error {
 	if rateLimiter == nil {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errSpecificRateLimiterIsNil, e)
+		return errSpecificRateLimiterIsNil
 	}
 
 	if rateLimiter.Weight <= 0 {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errInvalidWeightCount, e)
+		return errInvalidWeightCount
 	}
 
 	var finalDelay time.Duration

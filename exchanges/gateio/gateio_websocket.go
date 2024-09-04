@@ -31,7 +31,7 @@ import (
 
 const (
 	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -102,7 +102,6 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	if requestID, err := jsonparser.GetString(respRaw, "request_id"); err == nil && requestID != "" {
-		fmt.Println("HANDLE: ", string(respRaw))
 		if !g.Websocket.Match.IncomingWithData(requestID, respRaw) {
 			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", requestID)
 		}

@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -71,7 +72,7 @@ func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubsc
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		err = by.Websocket.Conn.SendJSONMessage(context.TODO(), payloads[a])
 		if err != nil {
 			return err
 		}

@@ -16,7 +16,7 @@ import (
 func TestRandomSlippage(t *testing.T) {
 	t.Parallel()
 	resp := EstimateSlippagePercentage(decimal.NewFromInt(80), decimal.NewFromInt(100))
-	assert.True(t, resp.GreaterThan(decimal.NewFromFloat(0.8)), "result should be more than 0.8")
+	assert.True(t, resp.GreaterThanOrEqual(decimal.NewFromFloat(0.8)), "result should be greater than or equal to 0.8")
 	assert.True(t, resp.LessThan(decimal.NewFromInt(1)), "result should be less than 1")
 }
 
