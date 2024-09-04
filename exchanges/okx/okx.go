@@ -29,13 +29,6 @@ import (
 // Okx is the overarching type across this package
 type Okx struct {
 	exchange.Base
-
-	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
-	// it is made to hold up to 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
-	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.
-	// ok.WsRequestSemaphore <- 1
-	// defer func() { <-ok.WsRequestSemaphore }()
-	WsRequestSemaphore chan int // TODO: Remove when rate limiting PR is merged.
 }
 
 const (

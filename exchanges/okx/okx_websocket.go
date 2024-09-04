@@ -316,8 +316,6 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 func (ok *Okx) handleSubscription(operation string, subscriptions subscription.List) error {
 	request := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
 	var channels subscription.List
 	var authChannels subscription.List
 	for i := 0; i < len(subscriptions); i++ {
@@ -1359,8 +1357,6 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
 	return ok.Websocket.Conn.SendJSONMessage(context.TODO(), input)
 }
 
@@ -1425,8 +1421,6 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 			},
 		},
 	}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
 	return ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 }
 

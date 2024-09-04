@@ -46,7 +46,6 @@ func (ok *Okx) SetDefaults() {
 	ok.Enabled = true
 	ok.Verbose = true
 
-	ok.WsRequestSemaphore = make(chan int, 20)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
