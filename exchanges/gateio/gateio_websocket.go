@@ -31,7 +31,7 @@ import (
 
 const (
 	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -688,7 +688,7 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(ctx, event, channelsToSubscribe)
+	payloads, err := g.generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -720,7 +720,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	return errs
 }
 
-func (g *Gateio) generatePayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -813,7 +813,7 @@ func (g *Gateio) generatePayload(ctx context.Context, event string, channelsToSu
 		}
 
 		payload := WsInput{
-			ID:      g.Counter.IncrementAndGet(),
+			ID:      conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

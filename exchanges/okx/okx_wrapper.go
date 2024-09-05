@@ -227,7 +227,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	}); err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	})
 }
 

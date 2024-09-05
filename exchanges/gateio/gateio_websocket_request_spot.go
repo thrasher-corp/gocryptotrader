@@ -56,7 +56,7 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 	signature := hex.EncodeToString(mac.Sum(nil))
 
 	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(g.Counter.IncrementAndGet(), 10),
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
 		APIKey:    creds.Key,
 		Signature: signature,
 		Timestamp: strconv.FormatInt(tn.Unix(), 10),
@@ -260,7 +260,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		Payload: WebsocketPayload{
 			// This request ID associated with the payload is the match to the
 			// response.
-			RequestID:    strconv.FormatInt(g.Counter.IncrementAndGet(), 10),
+			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn.Unix(), 10),
 		},

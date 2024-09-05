@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -292,14 +292,6 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	}
 }
 
-func TestIsDisconnectionError(t *testing.T) {
-	t.Parallel()
-	assert.False(t, IsDisconnectionError(errors.New("errorText")), "IsDisconnectionError should return false")
-	assert.True(t, IsDisconnectionError(&websocket.CloseError{Code: 1006, Text: "errorText"}), "IsDisconnectionError should return true")
-	assert.False(t, IsDisconnectionError(&net.OpError{Err: errClosedConnection}), "IsDisconnectionError should return false")
-	assert.True(t, IsDisconnectionError(&net.OpError{Err: errors.New("errText")}), "IsDisconnectionError should return true")
-}
-
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
 	var wsWrong = &Websocket{}
@@ -423,7 +415,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err)
 
-	err = ws.connectionManager[0].Connection.SendRawMessage(websocket.TextMessage, []byte("test"))
+	err = ws.connectionManager[0].Connection.SendRawMessage(context.Background(), websocket.TextMessage, []byte("test"))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -779,7 +771,7 @@ func TestDial(t *testing.T) {
 				ExchangeName:     "test1",
 				Verbose:          true,
 				URL:              websocketTestURL,
-				RateLimit:        10,
+				RateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
 				ResponseMaxLimit: 7000000000,
 			},
 		},
@@ -827,7 +819,7 @@ func TestSendMessage(t *testing.T) {
 			ExchangeName:     "test1",
 			Verbose:          true,
 			URL:              websocketTestURL,
-			RateLimit:        10,
+			RateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
 			ResponseMaxLimit: 7000000000,
 		},
 		},
@@ -863,11 +855,11 @@ func TestSendMessage(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			err = testData.WC.SendJSONMessage(Ping)
+			err = testData.WC.SendJSONMessage(context.Background(), Ping)
 			if err != nil {
 				t.Error(err)
 			}
-			err = testData.WC.SendRawMessage(websocket.TextMessage, []byte(Ping))
+			err = testData.WC.SendRawMessage(context.Background(), websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}
@@ -1269,6 +1261,28 @@ func TestFlushChannels(t *testing.T) {
 	w.features.Unsubscribe = true
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
+
+	// Multi connection management
+	w.useMultiConnectionManagement = true
+	w.exchangeName = "multi"
+	amazingCandidate := &ConnectionSetup{
+		URL:                   "AMAZING",
+		Connector:             func(context.Context, Connection) error { return nil },
+		GenerateSubscriptions: newgen.generateSubs,
+		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+			return currySimpleSubConn(w)(ctx, c, s)
+		},
+		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+			return currySimpleUnsubConn(w)(ctx, c, s)
+		},
+		Handler: func(context.Context, []byte) error { return nil },
+	}
+	require.NoError(t, w.SetupNewConnection(amazingCandidate))
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+
+	w.features.Subscribe = false
+	w.features.FullPayloadSubscribe = true
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 }
 
 func TestDisable(t *testing.T) {
@@ -1326,7 +1340,10 @@ func TestSetupNewConnection(t *testing.T) {
 	set.UseMultiConnectionManagement = true
 	require.NoError(t, multi.Setup(&set))
 
-	connSetup := &ConnectionSetup{}
+	err = multi.SetupNewConnection(nil)
+	require.ErrorIs(t, err, errExchangeConfigEmpty)
+
+	connSetup := &ConnectionSetup{ResponseCheckTimeout: time.Millisecond}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errDefaultURLIsEmpty)
 
