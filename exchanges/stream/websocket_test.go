@@ -1241,3 +1241,10 @@ func TestCheckSubscriptions(t *testing.T) {
 	err = ws.checkSubscriptions(subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
 }
+
+func TestRemoveQuery(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "https://www.google.com", removeQuery("https://www.google.com?test=1"), "removeQuery should remove query string")
+	assert.Equal(t, "https://www.google.com", removeQuery("https://www.google.com"), "removeQuery should not change URL")
+	assert.Equal(t, "", removeQuery(""), "removeQuery should not error on empty string")
+}
