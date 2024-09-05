@@ -68,7 +68,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Counter.IncrementAndGet(),
+		ID:      conn.GenerateMessageID(false),
 		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: futuresPingChannel,
 	})
@@ -221,7 +221,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 
 // handleFuturesSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generateFuturesPayload(ctx, event, channelsToSubscribe)
+	payloads, err := g.generateFuturesPayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Conn
 	return nil
 }
 
-func (g *Gateio) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -343,7 +343,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, event string, chann
 			}
 		}
 		outbound = append(outbound, WsInput{
-			ID:      g.Counter.IncrementAndGet(),
+			ID:      conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
