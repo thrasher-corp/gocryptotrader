@@ -208,7 +208,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Spot connection
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                      gateioWebsocketEndpoint,
-		RateLimit:                gateioWebsocketRateLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleSpotData,
@@ -224,7 +224,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - USDT margined
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketUsdtURL,
-		RateLimit:            gateioWebsocketRateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn stream.Connection, incoming []byte) error {
@@ -243,7 +243,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - BTC margined
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
-		RateLimit:            gateioWebsocketRateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn stream.Connection, incoming []byte) error {
@@ -263,7 +263,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - Delivery - USDT margined
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  deliveryRealUSDTTradingURL,
-		RateLimit:            gateioWebsocketRateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn stream.Connection, incoming []byte) error {
@@ -282,7 +282,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - Options
 	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                      optionsWebsocketURL,
-		RateLimit:                gateioWebsocketRateLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleOptionsData,
