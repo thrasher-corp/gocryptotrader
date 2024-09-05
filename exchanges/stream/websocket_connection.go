@@ -332,7 +332,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 
 	if request.IsVerbose(ctx, w.Verbose) {
 		for i := range resps {
-			log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Received response [%d out of %d]: %v", w.ExchangeName, w.URL, i+1, len(resps), string(resps[i]))
+			log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Received response [%d/%d]: %v", w.ExchangeName, w.URL, i+1, len(resps), string(resps[i]))
 		}
 	}
 
