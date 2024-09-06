@@ -257,7 +257,7 @@ func (c *Config) PrintSetting() {
 			c.CurrencySettings[i].Asset,
 			c.CurrencySettings[i].Base,
 			c.CurrencySettings[i].Quote)
-		log.Infof(common.Config, currStr[:61])
+		log.Infoln(common.Config, currStr[:61])
 		log.Infof(common.Config, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
 		switch {
 		case c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders:

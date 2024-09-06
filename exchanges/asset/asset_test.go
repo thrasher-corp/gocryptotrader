@@ -100,8 +100,7 @@ func TestNew(t *testing.T) {
 		{Input: "option_combo", Expected: OptionCombo},
 	}
 
-	for x := range cases {
-		tt := cases[x]
+	for _, tt := range cases {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			returned, err := New(tt.Input)
@@ -121,7 +120,7 @@ func TestSupported(t *testing.T) {
 	if len(supportedList) != len(s) {
 		t.Fatal("TestSupported mismatched lengths")
 	}
-	for i := 0; i < len(supportedList); i++ {
+	for i := range supportedList {
 		if s[i] != supportedList[i] {
 			t.Fatal("TestSupported returned an unexpected result")
 		}

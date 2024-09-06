@@ -316,7 +316,7 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 		return err
 	}
 	base64Sign := crypto.Base64Encode(hmac)
-	err = ok.Websocket.AuthConn.SendJSONMessage(WebsocketEventRequest{
+	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, WebsocketEventRequest{
 		Operation: operationLogin,
 		Arguments: []WebsocketLoginData{
 			{
@@ -535,7 +535,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
+				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequests)
 				if err != nil {
 					return err
 				}
@@ -559,7 +559,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(request)
+				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request)
 				if err != nil {
 					return err
 				}
@@ -579,13 +579,13 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 	}
 
 	if len(request.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(request); err != nil {
+		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(authRequests); err != nil {
+		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequests); err != nil {
 			return err
 		}
 	}
@@ -1241,7 +1241,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tran
 // eg Bid:Ask:Bid:Ask:Ask:Ask
 func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
@@ -1263,7 +1263,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
 func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32, error) {
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0].String()
 			bidAmount := orderbookData.Bids[i][1].String()
@@ -1668,7 +1668,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: okxOpOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1718,7 +1718,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		Arguments: args,
 		Operation: okxOpBatchOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1791,7 +1791,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		Arguments: []CancelOrderRequestParam{arg},
 		Operation: okxOpCancelOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1842,7 +1842,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		Arguments: args,
 		Operation: okxOpBatchCancelOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1921,7 +1921,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		Operation: okxOpAmendOrder,
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -1974,7 +1974,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		Operation: okxOpBatchAmendOrders,
 		Arguments: args,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -2050,7 +2050,7 @@ func (ok *Okx) WsMassCancelOrders(args []CancelMassReqParam) (bool, error) {
 		Operation: okxOpMassCancelOrder,
 		Arguments: args,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.Background(), input)
 	if err != nil {
 		return false, err
 	}
@@ -2189,7 +2189,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(input)
+	return ok.Websocket.Conn.SendJSONMessage(context.TODO(), input)
 }
 
 // Private Channel Websocket methods
@@ -2255,7 +2255,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.AuthConn.SendJSONMessage(input)
+	return ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by
@@ -2499,7 +2499,7 @@ func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderResponse, 
 		Arguments: []SpreadOrderParam{*arg},
 		Operation: okxSpreadOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.Background(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -2550,7 +2550,7 @@ func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderRespo
 		Arguments: []AmendSpreadOrderParam{*arg},
 		Operation: okxSpreadAmendOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.Background(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -2602,7 +2602,7 @@ func (ok *Okx) WsCancelSpreadOrder(orderID, clientOrderID string) (*SpreadOrderR
 		Arguments: []map[string]string{arg},
 		Operation: okxSpreadCancelOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.Background(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -2648,7 +2648,7 @@ func (ok *Okx) WsCancelAllSpreadOrders(spreadID string) (bool, error) {
 		Arguments: []map[string]string{arg},
 		Operation: okxSpreadCancelAllOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.Background(), input)
 	if err != nil {
 		return false, err
 	}

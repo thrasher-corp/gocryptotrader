@@ -1424,7 +1424,7 @@ type AccountDetail struct {
 	AvailableBalance              types.Number         `json:"availBal"`
 	AvailableEquity               types.Number         `json:"availEq"`
 	CashBalance                   types.Number         `json:"cashBal"` // Cash Balance
-	Currency                      string               `json:"ccy"`
+	Currency                      currency.Code        `json:"ccy"`
 	CrossLiab                     types.Number         `json:"crossLiab"`
 	DiscountEquity                types.Number         `json:"disEq"`
 	EquityOfCurrency              types.Number         `json:"eq"`
@@ -1453,7 +1453,7 @@ type AccountPosition struct {
 	AvailablePosition            string               `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
 	AveragePrice                 types.Number         `json:"avgPx"`
 	CreationTime                 convert.ExchangeTime `json:"cTime"`
-	Currency                     string               `json:"ccy"`
+	Currency                     currency.Code        `json:"ccy"`
 	DeltaBS                      string               `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
 	DeltaPA                      string               `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
 	GammaBS                      string               `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION

@@ -15,9 +15,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -67,6 +69,7 @@ var (
 	ErrNoResponse             = errors.New("no response")
 	ErrTypeAssertFailure      = errors.New("type assert failure")
 	ErrNoResults              = errors.New("no results found")
+	ErrUnknownError           = errors.New("unknown error")
 )
 
 var (
@@ -138,7 +141,7 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 // returns an individual string array
 func StringSliceDifference(slice1, slice2 []string) []string {
 	var diff []string
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		for _, s1 := range slice1 {
 			found := false
 			for _, s2 := range slice2 {
@@ -389,20 +392,6 @@ func ChangePermission(directory string) error {
 	})
 }
 
-// SplitStringSliceByLimit splits a slice of strings into slices by input limit and returns a slice of slice of strings
-func SplitStringSliceByLimit(in []string, limit uint) [][]string {
-	var stringSlice []string
-	sliceSlice := make([][]string, 0, len(in)/int(limit)+1)
-	for len(in) >= int(limit) {
-		stringSlice, in = in[:limit], in[limit:]
-		sliceSlice = append(sliceSlice, stringSlice)
-	}
-	if len(in) > 0 {
-		sliceSlice = append(sliceSlice, in)
-	}
-	return sliceSlice
-}
-
 // AddPaddingOnUpperCase adds padding to a string when detecting an upper case letter. If
 // there are multiple upper case items like `ThisIsHTTPExample`, it will only
 // pad between like this `This Is HTTP Example`.
@@ -412,7 +401,7 @@ func AddPaddingOnUpperCase(s string) string {
 	}
 	var result []string
 	left := 0
-	for x := 0; x < len(s); x++ {
+	for x := range s {
 		if x == 0 {
 			continue
 		}
@@ -444,7 +433,7 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	switch reflect.TypeOf(array).Kind() {
 	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(array)
-		for i := 0; i < s.Len(); i++ {
+		for i := range s.Len() {
 			if reflect.DeepEqual(val, s.Index(i).Interface()) {
 				index = i
 				exists = true
@@ -653,4 +642,51 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 		description = " for: " + strings.Join(fieldDescription, ", ")
 	}
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
+}
+
+// Batch takes a slice type and converts it into a slice of containing slices of length batchSize, and any remainder in the final batch
+// batchSize <= 0 will return the entire input slice in one batch
+func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
+	if len(blobs) == 0 {
+		return []S{}
+	}
+	blobs = slices.Clone(blobs)
+	if batchSize <= 0 {
+		return []S{blobs}
+	}
+	i := 0
+	batches := make([]S, (len(blobs)+batchSize-1)/batchSize)
+	for batchSize < len(blobs) {
+		blobs, batches[i] = blobs[batchSize:], blobs[:batchSize:batchSize]
+		i++
+	}
+	if len(blobs) > 0 {
+		batches[i] = blobs
+	}
+	return batches
+}
+
+// SortStrings takes a slice of fmt.Stringer implementers and returns a new ascending sorted slice
+func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
+	n := slices.Clone(x)
+	slices.SortFunc(n, func(a, b E) int {
+		return strings.Compare(a.String(), b.String())
+	})
+	return n
+}
+
+// Counter is a thread-safe counter.
+type Counter struct {
+	n int64 // privatised so you can't use counter as a value type
+}
+
+// IncrementAndGet returns the next count after incrementing.
+func (c *Counter) IncrementAndGet() int64 {
+	newID := atomic.AddInt64(&c.n, 1)
+	// Handle overflow by resetting the counter to 1 if it becomes negative
+	if newID < 0 {
+		atomic.StoreInt64(&c.n, 1)
+		return 1
+	}
+	return newID
 }

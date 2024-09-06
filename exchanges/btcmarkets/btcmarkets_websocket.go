@@ -374,7 +374,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 		r.Channels = []string{s.Channel}
 		r.MarketIDs = s.Pairs.Strings()
 
-		err := b.Websocket.Conn.SendJSONMessage(r)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(s)
 		}
@@ -414,7 +414,7 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 			MarketIDs:   s.Pairs.Strings(),
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 		if err == nil {
 			err = b.Websocket.RemoveSubscriptions(s)
 		}
@@ -464,7 +464,7 @@ func concat(liquidity orderbook.Tranches) string {
 		length = len(liquidity)
 	}
 	var c string
-	for x := 0; x < length; x++ {
+	for x := range length {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
 	return c

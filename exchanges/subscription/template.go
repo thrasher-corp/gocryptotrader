@@ -4,25 +4,29 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
+	deviceControl   = "\x11"
 	groupSeparator  = "\x1D"
 	recordSeparator = "\x1E"
 )
 
 var (
-	errInvalidAssetExpandPairs = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
-	errAssetRecords            = errors.New("subscription template did not generate the expected number of asset records")
-	errPairRecords             = errors.New("subscription template did not generate the expected number of pair records")
-	errAssetTemplateWithoutAll = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
-	errNoTemplateContent       = errors.New("subscription template did not generate content")
-	errInvalidTemplate         = errors.New("GetSubscriptionTemplate did not return a template")
+	errInvalidAssetExpandPairs  = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
+	errAssetRecords             = errors.New("subscription template did not generate the expected number of asset records")
+	errPairRecords              = errors.New("subscription template did not generate the expected number of pair records")
+	errTooManyBatchSizePerAsset = errors.New("more than one BatchSize directive inside an AssetSeparator")
+	errAssetTemplateWithoutAll  = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
+	errNoTemplateContent        = errors.New("subscription template did not generate content")
+	errInvalidTemplate          = errors.New("GetSubscriptionTemplate did not return a template")
 )
 
 type tplCtx struct {
@@ -30,6 +34,7 @@ type tplCtx struct {
 	AssetPairs     assetPairs
 	PairSeparator  string
 	AssetSeparator string
+	BatchSize      string
 }
 
 // ExpandTemplates returns a list of Subscriptions with Template expanded
@@ -63,86 +68,132 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 		assets = append(assets, k)
 	}
 	slices.Sort(assets) // text/template ranges maps in sorted order
+
+	subs := List{}
+	for _, s := range l {
+		expanded, err2 := expandTemplate(e, s, maps.Clone(ap), assets)
+		if err2 != nil {
+			err = common.AppendError(err, fmt.Errorf("%s: %w", s, err2))
+		} else {
+			subs = append(subs, expanded...)
+		}
+	}
+
+	return subs, err
+}
+
+func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
+	if s.QualifiedChannel != "" {
+		return List{s}, nil
+	}
+
+	t, err := e.GetSubscriptionTemplate(s)
+	if err != nil {
+		return nil, err
+	}
+	if t == nil {
+		return nil, errInvalidTemplate
+	}
+
+	subCtx := &tplCtx{
+		S:              s,
+		PairSeparator:  recordSeparator,
+		AssetSeparator: groupSeparator,
+		BatchSize:      deviceControl + "BS",
+	}
+
 	subs := List{}
 
-	for _, s := range l {
-		if s.QualifiedChannel != "" {
-			subs = append(subs, s)
+	switch s.Asset {
+	case asset.All:
+		subCtx.AssetPairs = ap
+	default:
+		// This deliberately includes asset.Empty to harmonise handling
+		subCtx.AssetPairs = assetPairs{
+			s.Asset: ap[s.Asset],
+		}
+		assets = asset.Items{s.Asset}
+		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
+			return List{}, nil // Nothing is enabled for this sub asset
+		}
+	}
+
+	if len(s.Pairs) != 0 {
+		for a, pairs := range subCtx.AssetPairs {
+			if err := pairs.ContainsAll(s.Pairs, true); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
+				return nil, err
+			}
+			subCtx.AssetPairs[a] = s.Pairs
+		}
+	}
+
+	buf := &bytes.Buffer{}
+	if err := t.Execute(buf, subCtx); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
+		return nil, err
+	}
+
+	out := strings.TrimSpace(buf.String())
+
+	// Remove a single trailing AssetSeparator; don't use a cutset to avoid removing 2 or more
+	out = strings.TrimSpace(strings.TrimSuffix(out, subCtx.AssetSeparator))
+
+	assetRecords := strings.Split(out, subCtx.AssetSeparator)
+	if len(assetRecords) != len(assets) {
+		return nil, fmt.Errorf("%w: Got %d; Expected %d", errAssetRecords, len(assetRecords), len(assets))
+	}
+
+	for i, assetChannels := range assetRecords {
+		a := assets[i]
+		pairs := subCtx.AssetPairs[a]
+
+		xpandPairs := strings.Contains(assetChannels, subCtx.PairSeparator)
+
+		/* Batching:
+		- We start by assuming we'll get 1 batch sized to contain all pairs. Maybe a comma-separated list, or just the asset name
+		- If a BatchSize directive is found, we expect it to come right at the end, and be followed by the batch size as a number
+		- We'll then split into N batches of that size
+		- If no batchSize was declared, but we saw a PairSeparator, then we expect to see one line per pair, so batchSize is 1
+		*/
+		batchSize := len(pairs)
+		if b := strings.Split(assetChannels, subCtx.BatchSize); len(b) > 2 {
+			return nil, fmt.Errorf("%w for %s", errTooManyBatchSizePerAsset, a)
+		} else if len(b) == 2 {
+			assetChannels = b[0]
+			if batchSize, err = strconv.Atoi(strings.TrimSpace(b[1])); err != nil {
+				return nil, fmt.Errorf("%s: %w", s, common.GetTypeAssertError("int", b[1], "batchSize"))
+			}
+		} else if xpandPairs {
+			batchSize = 1
+		}
+
+		// Trim space, then only one pair separator, then any more space.
+		assetChannels = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(assetChannels), subCtx.PairSeparator))
+
+		if assetChannels == "" {
 			continue
 		}
 
-		subCtx := &tplCtx{
-			S:              s,
-			AssetPairs:     ap,
-			PairSeparator:  recordSeparator,
-			AssetSeparator: groupSeparator,
+		batches := common.Batch(pairs, batchSize)
+
+		pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
+
+		if s.Asset != asset.Empty && len(pairLines) != len(batches) {
+			// The number of lines we get generated must match the number of pair batches we expect
+			return nil, fmt.Errorf("%w for %s: Got %d; Expected %d", errPairRecords, a, len(pairLines), len(batches))
 		}
 
-		t, err := e.GetSubscriptionTemplate(s)
-		if err != nil {
-			return nil, err
-		}
-		if t == nil {
-			return nil, errInvalidTemplate
-		}
-
-		buf := &bytes.Buffer{}
-		if err := t.Execute(buf, subCtx); err != nil {
-			return nil, err
-		}
-
-		out := buf.String()
-
-		subAssets := assets
-		xpandPairs := strings.Contains(out, subCtx.PairSeparator)
-		if xpandAssets := strings.Contains(out, subCtx.AssetSeparator); xpandAssets {
-			if s.Asset != asset.All {
-				return nil, errAssetTemplateWithoutAll
+		for j, channel := range pairLines {
+			c := s.Clone()
+			c.Asset = a
+			channel = strings.TrimSpace(channel)
+			if channel == "" {
+				return nil, fmt.Errorf("%w for %s: %s", errNoTemplateContent, a, s)
 			}
-		} else {
-			if xpandPairs && (s.Asset == asset.All || s.Asset == asset.Empty) {
-				// We don't currently support expanding Pairs without expanding Assets for All or Empty assets, but we could; waiting for a use-case
-				return nil, errInvalidAssetExpandPairs
+			c.QualifiedChannel = channel
+			if s.Asset != asset.Empty {
+				c.Pairs = batches[j]
 			}
-			// No expansion so update expected Assets for consistent behaviour below
-			subAssets = []asset.Item{s.Asset}
-		}
-
-		out = strings.TrimRight(out, " \n\r\t"+subCtx.PairSeparator+subCtx.AssetSeparator)
-
-		assetRecords := strings.Split(out, subCtx.AssetSeparator)
-		if len(assetRecords) != len(subAssets) {
-			return nil, fmt.Errorf("%w: Got %d; Expected %d", errAssetRecords, len(assetRecords), len(subAssets))
-		}
-
-		for i, assetChannels := range assetRecords {
-			a := subAssets[i]
-			assetChannels = strings.TrimRight(assetChannels, " \n\r\t"+recordSeparator)
-			pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
-			pairs, ok := ap[a]
-			if xpandPairs {
-				if !ok {
-					return nil, fmt.Errorf("%w: %s", asset.ErrInvalidAsset, a)
-				}
-				if len(pairLines) != len(pairs) {
-					return nil, fmt.Errorf("%w: Got %d; Expected %d", errPairRecords, len(pairLines), len(pairs))
-				}
-			}
-			for j, channel := range pairLines {
-				c := s.Clone()
-				c.Asset = a
-				channel = strings.TrimSpace(channel)
-				if channel == "" {
-					return nil, fmt.Errorf("%w: %s", errNoTemplateContent, s)
-				}
-				c.QualifiedChannel = strings.TrimSpace(channel)
-				if xpandPairs {
-					c.Pairs = currency.Pairs{pairs[j]}
-				} else {
-					c.Pairs = pairs
-				}
-				subs = append(subs, c)
-			}
+			subs = append(subs, c)
 		}
 	}
 

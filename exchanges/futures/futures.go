@@ -781,9 +781,6 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 		// adding a new position to something that is already closed
 		return fmt.Errorf("%w cannot process new order %v", ErrPositionClosed, d.OrderID)
 	}
-	if d == nil {
-		return order.ErrSubmissionIsNil
-	}
 	if !p.contractPair.Equal(d.Pair) {
 		return fmt.Errorf("%w pair '%v' received: '%v'",
 			errOrderNotEqualToTracker, d.Pair, p.contractPair)

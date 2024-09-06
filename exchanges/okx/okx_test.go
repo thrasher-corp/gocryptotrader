@@ -277,12 +277,12 @@ func TestGetBlockTrade(t *testing.T) {
 	require.NoError(t, err, "GetBlockTrades should not error")
 	if assert.NotEmpty(t, trades, "Should get some block trades") {
 		trade := trades[0]
-		require.Equal(t, "BTC-USDT", trade.InstrumentID, "InstrumentID should have correct value")
-		require.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-		require.Positive(t, trade.Price, "Price should have a positive value")
-		require.Positive(t, trade.Size, "Size should have a positive value")
-		require.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-		require.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
+		assert.Equal(t, "BTC-USDT", trade.InstrumentID, "InstrumentID should have correct value")
+		assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
+		assert.Positive(t, trade.Price, "Price should have a positive value")
+		assert.Positive(t, trade.Size, "Size should have a positive value")
+		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
+		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
 
 	testexch.UpdatePairsOnce(t, ok)
@@ -1411,7 +1411,7 @@ func TestSetLeverageRate(t *testing.T) {
 		MarginMode:   "cross",
 		InstrumentID: "BTC-USDT",
 	})
-	assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "Okx SetLeverageRate() error", err)
+	assert.True(t, err == nil || errors.Is(err, common.ErrNoResponse))
 }
 
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
@@ -2922,8 +2922,7 @@ func TestGetIntervalEnum(t *testing.T) {
 		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
 	}
 
-	for x := range tests {
-		tt := tests[x]
+	for _, tt := range tests {
 		t.Run(tt.Description, func(t *testing.T) {
 			t.Parallel()
 			r := ok.GetIntervalEnum(tt.Interval, tt.AppendUTC)
@@ -4070,11 +4069,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, ok)
 	for _, a := range ok.GetAssetTypes(false) {
 		pairs, err := ok.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, pairs)
+
 		resp, err := ok.GetCurrencyTradeURL(context.Background(), a, pairs[0])
-		require.NoErrorf(t, err, "unexpected response %w for asset type: %s", a)
-		require.NotEmptyf(t, resp, "Expected not to be null for asset type: %s", a)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }
 

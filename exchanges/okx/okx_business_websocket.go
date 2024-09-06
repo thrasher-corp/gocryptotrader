@@ -109,7 +109,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 		}
 		if len(chunk) > maxConnByteLen {
 			i--
-			err = ok.Websocket.Conn.SendJSONMessage(request)
+			err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request)
 			if err != nil {
 				return err
 			}
@@ -270,7 +270,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 			continue
 		}
 	}
-	err = ok.Websocket.Conn.SendJSONMessage(request)
+	err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request)
 	if err != nil {
 		return err
 	}

@@ -5769,5 +5769,3 @@ func (ok *Okx) getTopTradersFuturesContractLongShortRatio(ctx context.Context, i
 	}
 	return extractLongShortRatio(resp), nil
 }
-
-// func (ok *Okx)
