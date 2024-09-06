@@ -152,8 +152,8 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 
 // GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business stream.
 func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscription, error) {
+	var subs []string
 	var subscriptions []subscription.Subscription
-	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultBusinessAuthChannels))
 	subs = append(subs, defaultBusinessSubscribedChannels...)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		subs = append(subs, defaultBusinessAuthChannels...)

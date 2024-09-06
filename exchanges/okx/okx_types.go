@@ -285,9 +285,9 @@ type UsdCnyExchangeRate struct {
 
 // IndexComponent represents index component data on the market
 type IndexComponent struct {
+	Index      string               `json:"index"`
 	Components []IndexComponentItem `json:"components"`
 	Last       types.Number         `json:"last"`
-	Index      string               `json:"index"`
 	Timestamp  convert.ExchangeTime `json:"ts"`
 }
 
@@ -1718,25 +1718,25 @@ type InterestAccruedData struct {
 
 // VIPInterestData holds interest accrued/deducted data
 type VIPInterestData struct {
+	OrderID      string               `json:"ordId"`
 	Currency     string               `json:"ccy"`
 	Interest     types.Number         `json:"interest"`
 	InterestRate types.Number         `json:"interestRate"`
 	Liability    types.Number         `json:"liab"`
-	OrderID      string               `json:"ordId"`
 	Timestamp    convert.ExchangeTime `json:"ts"`
 }
 
 // VIPLoanOrder holds VIP loan items
 type VIPLoanOrder struct {
-	BorrowAmount    types.Number         `json:"borrowAmt"`
+	OrderID         string               `json:"ordId"`
 	Currency        string               `json:"ccy"`
+	State           string               `json:"state"`
+	BorrowAmount    types.Number         `json:"borrowAmt"`
 	CurrentRate     types.Number         `json:"curRate"`
 	DueAmount       types.Number         `json:"dueAmt"`
 	NextRefreshTime convert.ExchangeTime `json:"nextRefreshTime"`
-	OrderID         string               `json:"ordId"`
 	OriginalRate    types.Number         `json:"origRate"`
 	RepayAmount     types.Number         `json:"repayAmt"`
-	State           string               `json:"state"`
 	Timestamp       convert.ExchangeTime `json:"ts"`
 }
 
