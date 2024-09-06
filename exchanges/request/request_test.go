@@ -733,4 +733,5 @@ func TestGetRateLimiterDefinitions(t *testing.T) {
 	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	require.NoError(t, err)
 	require.NotEmpty(t, r.GetRateLimiterDefinitions())
+	assert.Equal(t, globalshell, r.GetRateLimiterDefinitions())
 }
