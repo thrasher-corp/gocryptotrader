@@ -726,3 +726,11 @@ func TestContextVerbosity(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestGetRateLimiterDefinitions(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, RateLimitDefinitions(nil), (*Requester)(nil).GetRateLimiterDefinitions())
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
+	require.NoError(t, err)
+	require.NotEmpty(t, r.GetRateLimiterDefinitions())
+}
