@@ -60,6 +60,7 @@ type CoreSettings struct {
 	EnableDispatcher            bool
 	DispatchMaxWorkerAmount     int
 	DispatchJobsLimit           int
+	Exchanges                   string
 }
 
 // ExchangeSyncerSettings defines settings for the exchange pair synchronisation

@@ -99,8 +99,7 @@ func (w *WebsocketConnection) writeToConn(ctx context.Context, writeConn func() 
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}
 	}
-	// This lock is only acting as rolling gate and stops panic for
-	// WriteMessage, need access to rate limit above as priority if available.
+	// This lock acts as a rolling gate to prevent WriteMessage panics. Acquire after rate limit check.
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 	// NOTE: Secondary check to ensure the connection is still active after

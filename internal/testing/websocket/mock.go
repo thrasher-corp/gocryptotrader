@@ -36,7 +36,8 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 			return
 		}
 
-		if err != nil && strings.Contains(err.Error(), "wsarecv: An established connection was aborted by the software in your host machine.") {
+		if err != nil && (strings.Contains(err.Error(), "wsarecv: An established connection was aborted by the software in your host machine.") ||
+			strings.Contains(err.Error(), "wsarecv: An existing connection was forcibly closed by the remote host.")) {
 			return
 		}
 
