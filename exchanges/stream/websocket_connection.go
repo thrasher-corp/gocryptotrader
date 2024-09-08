@@ -321,7 +321,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 	}
 
-	if request.IsVerbose(ctx, w.Verbose) {
+if request.IsVerbose(ctx, w.Verbose) && expected > 1 {
 		for i := range resps {
 			log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Received response [%d/%d]: %v", w.ExchangeName, removeQuery(w.URL), i+1, len(resps), string(resps[i]))
 		}
