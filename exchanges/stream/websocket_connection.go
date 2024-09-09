@@ -60,7 +60,7 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interfac
 	return w.writeToConn(ctx, func() error {
 		if request.IsVerbose(ctx, w.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-				log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Sending message: %v", w.ExchangeName, removeQuery(w.URL), string(msg))
+				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeQuery(w.URL), string(msg))
 			}
 		}
 		return w.Connection.WriteJSON(data)
@@ -71,7 +71,7 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, data interfac
 func (w *WebsocketConnection) SendRawMessage(ctx context.Context, messageType int, message []byte) error {
 	return w.writeToConn(ctx, func() error {
 		if request.IsVerbose(ctx, w.Verbose) {
-			log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Sending message: %v", w.ExchangeName, removeQuery(w.URL), string(message))
+			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeQuery(w.URL), string(message))
 		}
 		return w.Connection.WriteMessage(messageType, message)
 	})
@@ -191,12 +191,12 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%v %v websocket connection: Parse binary response error: %v", w.ExchangeName, removeQuery(w.URL), err)
+			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", w.ExchangeName, removeQuery(w.URL), err)
 			return Response{}
 		}
 	}
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Message received: %v", w.ExchangeName, removeQuery(w.URL), string(standardMessage))
+		log.Debugf(log.WebsocketMgr, "%v %v: Message received: %v", w.ExchangeName, removeQuery(w.URL), string(standardMessage))
 	}
 	return Response{Raw: standardMessage, Type: mType}
 }
@@ -324,7 +324,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
 	if request.IsVerbose(ctx, false) {
 		for i := range resps {
-			log.Debugf(log.WebsocketMgr, "%v %v websocket connection: Received response [%d/%d]: %v", w.ExchangeName, removeQuery(w.URL), i+1, len(resps), string(resps[i]))
+			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", w.ExchangeName, removeQuery(w.URL), i+1, len(resps), string(resps[i]))
 		}
 	}
 
