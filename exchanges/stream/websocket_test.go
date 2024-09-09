@@ -426,10 +426,7 @@ func TestWebsocket(t *testing.T) {
 	err := ws.SetProxyAddress("garbagio")
 	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
-	ws.Conn = &dodgyConnection{}
-	ws.AuthConn = &WebsocketConnection{}
 	ws.setEnabled(true)
-
 	err = ws.Setup(defaultSetup) // Sets to enabled again
 	require.NoError(t, err, "Setup may not error")
 
@@ -450,6 +447,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.setState(connectedState)
 
+	ws.connector = func() error { return errDastardlyReason }
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
 	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Connect and error from there")
 
@@ -457,13 +455,9 @@ func TestWebsocket(t *testing.T) {
 	assert.ErrorIs(t, err, errSameProxyAddress, "SetProxyAddress should error correctly")
 
 	// removing proxy
-	err = ws.SetProxyAddress("")
-	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Shutdown and error from there")
-	assert.ErrorIs(t, err, errCannotShutdown, "SetProxyAddress should call Shutdown and error from there")
+	assert.NoError(t, ws.SetProxyAddress(""))
 
-	ws.Conn = &WebsocketConnection{}
 	ws.setEnabled(true)
-
 	// reinstate proxy
 	err = ws.SetProxyAddress("http://localhost:1337")
 	assert.NoError(t, err, "SetProxyAddress should not error")
@@ -471,15 +465,11 @@ func TestWebsocket(t *testing.T) {
 	assert.Equal(t, "wss://testRunningURL", ws.GetWebsocketURL(), "GetWebsocketURL should return correctly")
 	assert.Equal(t, time.Second*5, ws.trafficTimeout, "trafficTimeout should default correctly")
 
+	assert.ErrorIs(t, ws.Shutdown(), ErrNotConnected)
 	ws.setState(connectedState)
-	ws.AuthConn = &dodgyConnection{}
-	err = ws.Shutdown()
-	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy authConn")
-	assert.ErrorIs(t, err, errCannotShutdown, "Shutdown should error correctly with a dodgy authConn")
+	assert.NoError(t, ws.Shutdown())
 
-	ws.AuthConn = &WebsocketConnection{}
-	ws.setState(disconnectedState)
-
+	ws.connector = func() error { return nil }
 	err = ws.Connect()
 	assert.NoError(t, err, "Connect should not error")
 

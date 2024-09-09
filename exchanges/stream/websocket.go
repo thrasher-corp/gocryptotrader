@@ -634,11 +634,18 @@ func (w *Websocket) Shutdown() error {
 
 	defer w.Orderbook.FlushBuffer()
 
+	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
+	// been closed. In such cases, attempting to close the connection may result in a
+	// "failed to send closeNotify alert (but connection was closed anyway)" error. Treating these errors as non-fatal
+	// prevents the shutdown process from being interrupted, which could otherwise trigger a continuous traffic monitor
+	// cycle and potentially block the initiation of a new connection.
+	var nonFatalCloseConnectionErrors error
+
 	// Shutdown managed connections
 	for _, wrapper := range w.connectionManager {
 		if wrapper.Connection != nil {
 			if err := wrapper.Connection.Shutdown(); err != nil {
-				return err
+				nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 			}
 		}
 	}
@@ -651,12 +658,12 @@ func (w *Websocket) Shutdown() error {
 
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
-			return err
+			nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 		}
 	}
 	if w.AuthConn != nil {
 		if err := w.AuthConn.Shutdown(); err != nil {
-			return err
+			nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 		}
 	}
 	// flush any subscriptions from last connection if needed
@@ -675,6 +682,11 @@ func (w *Websocket) Shutdown() error {
 	// the cycle when `Connect` is called again and the connectionMonitor
 	// starts but there is an old error in the channel.
 	drain(w.ReadMessageErrors)
+
+	if nonFatalCloseConnectionErrors != nil {
+		log.Warnf(log.WebsocketMgr, "%v websocket: shutdown error: %v", w.exchangeName, nonFatalCloseConnectionErrors)
+	}
+
 	return nil
 }
 
