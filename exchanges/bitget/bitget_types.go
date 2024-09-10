@@ -16,6 +16,10 @@ type Params struct {
 // UnixTimestamp is a type used to unmarshal unix millisecond timestamps returned from the exchange
 type UnixTimestamp time.Time
 
+// UnixTimestampNumber is a type used to unmarshal unix millisecond timestamps returned from the exchange, when they
+// aren't provided as strings
+type UnixTimestampNumber time.Time
+
 // AnnResp holds information on announcements
 type AnnResp struct {
 	Data []struct {
@@ -2434,23 +2438,24 @@ type LiquidRecs struct {
 // WsResponse contains information on a websocket response
 type WsResponse struct {
 	Event   string `json:"event"`
-	Code    int    `json:"code,string"`
+	Code    int    `json:"code"`
 	Message string `json:"msg"`
 	Arg     struct {
 		InstrumentType string `json:"instType"`
 		Channel        string `json:"channel"`
 		InstrumentID   string `json:"instId"`
 	} `json:"arg"`
-	Action    string          `json:"action"`
-	Data      json.RawMessage `json:"data"`
-	Timestamp UnixTimestamp   `json:"ts"`
+	Action    string              `json:"action"`
+	Data      json.RawMessage     `json:"data"`
+	Timestamp UnixTimestampNumber `json:"ts"`
 }
 
 // WsArgument contains information used in a websocket request
 type WsArgument struct {
 	InstrumentType string `json:"instType"`
 	Channel        string `json:"channel"`
-	InstrumentID   string `json:"instId"`
+	InstrumentID   string `json:"instId,omitempty"`
+	Coin           string `json:"coin,omitempty"`
 }
 
 // WsRequest contains information on a websocket request
@@ -2459,13 +2464,45 @@ type WsRequest struct {
 	Arguments []WsArgument `json:"args"`
 }
 
+// WsLoginArgument contains information usied in a websocket login request
+type WsLoginArgument struct {
+	APIKey     string `json:"apiKey"`
+	Passphrase string `json:"passphrase"`
+	Timestamp  string `json:"timestamp"`
+	Signature  string `json:"sign"`
+}
+
 // WsLogin contains information on a websocket login request
 type WsLogin struct {
-	Operation string `json:"op"`
-	Arguments []struct {
-		APIKey     string `json:"apiKey"`
-		Passphrase string `json:"passphrase"`
-		Timestamp  string `json:"timestamp"`
-		Signature  string `json:"sign"`
-	} `json:"args"`
+	Operation string            `json:"op"`
+	Arguments []WsLoginArgument `json:"args"`
+}
+
+// WsTickerSnapshot contains information on a ticker snapshot
+type WsTickerSnapshot struct {
+	InstrumentID string        `json:"instId"`
+	LastPrice    float64       `json:"lastPr,string"`
+	Open24H      float64       `json:"open24h,string"`
+	High24H      float64       `json:"high24h,string"`
+	Low24H       float64       `json:"low24h,string"`
+	Change24H    float64       `json:"change24h,string"`
+	BidPrice     float64       `json:"bidPr,string"`
+	AskPrice     float64       `json:"askPr,string"`
+	BidSize      float64       `json:"bidSz,string"`
+	AskSize      float64       `json:"askSz,string"`
+	BaseVolume   float64       `json:"baseVolume,string"`
+	QuoteVolume  float64       `json:"quoteVolume,string"`
+	OpenUTC      float64       `json:"openUtc,string"`
+	ChangeUTC24H float64       `json:"changeUtc24h,string"`
+	Timestamp    UnixTimestamp `json:"ts"`
+}
+
+// WsAccountResponse contains information on an account response
+type WsAccountResponse struct {
+	Coin           string        `json:"coin"`
+	Available      float64       `json:"available,string"`
+	Frozen         float64       `json:"frozen,string"`
+	Locked         float64       `json:"locked,string"`
+	LimitAvailable float64       `json:"limitAvailable,string"`
+	UpdateTime     UnixTimestamp `json:"uTime"`
 }

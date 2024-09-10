@@ -127,8 +127,8 @@ func (bi *Bitget) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	bi.API.Endpoints = bi.NewEndpoints()
 	bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: bitgetAPIURL,
-		// exchange.WebsocketSpot: bitgetWSAPIURL,
+		exchange.RestSpot:      bitgetAPIURL,
+		exchange.WebsocketSpot: bitgetPublicWSURL,
 	})
 	bi.Websocket = stream.NewWebsocket()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -150,39 +150,47 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	/*
-		wsRunningEndpoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
-
-		// If websocket is supported, please fill out the following
-
-		err = bi.Websocket.Setup(
-			&stream.WebsocketSetup{
-				ExchangeConfig:  exch,
-				DefaultURL:      bitgetWSAPIURL,
-				RunningURL:      wsRunningEndpoint,
-				Connector:       bi.WsConnect,
-				Subscriber:      bi.Subscribe,
-				UnSubscriber:    bi.Unsubscribe,
-				Features:        &bi.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		bi.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         bi.Name,
-			URL:                  bi.Websocket.GetWebsocketURL(),
-			ProxyURL:             bi.Websocket.GetProxyAddress(),
-			Verbose:              bi.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-	*/
-	return nil
+	wsRunningEndpoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = bi.Websocket.Setup(
+		&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            bitgetPublicWSURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             bi.WsConnect,
+			Subscriber:            bi.Subscribe,
+			Unsubscriber:          bi.Unsubscribe,
+			GenerateSubscriptions: bi.generateDefaultSubscriptions,
+			Features:              &bi.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+	bi.Websocket.Conn = &stream.WebsocketConnection{
+		ExchangeName:     bi.Name,
+		URL:              bi.Websocket.GetWebsocketURL(),
+		ProxyURL:         bi.Websocket.GetProxyAddress(),
+		Verbose:          bi.Verbose,
+		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
+	}
+	err = bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  bitgetPublicWSURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            10,
+	})
+	if err != nil {
+		return err
+	}
+	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  bitgetPrivateWSURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
+		RateLimit:            10,
+	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -227,13 +235,22 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			return nil, err
 		}
 		pairs := make(currency.Pairs, len(resp.Data))
+		var cur int
 		for x := range resp.Data {
+			if a == asset.Margin && resp.Data[x].MaxIsolatedLeverage == 0 {
+				continue
+			}
+			if a == asset.CrossMargin && resp.Data[x].MaxCrossedLeverage == 0 {
+				continue
+			}
 			pair, err := currency.NewPairFromString(resp.Data[x].BaseCoin + "-" + resp.Data[x].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
-			pairs[x] = pair
+			pairs[cur] = pair
+			cur++
 		}
+		pairs = pairs[:cur]
 		return pairs, nil
 	}
 	return nil, asset.ErrNotSupported
@@ -247,6 +264,12 @@ func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		pairs, err := bi.FetchTradablePairs(ctx, assetTypes[x])
 		if err != nil {
 			return err
+		}
+		for i := range pairs {
+			pairs[i], err = bi.FormatExchangeCurrency(pairs[i], assetTypes[x])
+			if err != nil {
+				return err
+			}
 		}
 		err = bi.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
 		if err != nil {
@@ -1122,6 +1145,8 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	}
 	pairs := make([]string, len(getOrdersRequest.Pairs))
 	for x := range getOrdersRequest.Pairs {
+		form, _ := bi.GetPairFormat(asset.Spot, true)
+		getOrdersRequest.Pairs[x] = getOrdersRequest.Pairs[x].Format(form)
 		pairs[x] = getOrdersRequest.Pairs[x].String()
 	}
 	if len(pairs) == 0 {
@@ -2278,8 +2303,7 @@ func pairFromStringHelper(s string) (currency.Pair, error) {
 func (bi *Bitget) spotCurrentPlanOrdersHelper(ctx context.Context, pairStr string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
 	var pagination int64
 	for {
-		genOrds, err := bi.GetCurrentSpotPlanOrders(ctx, pairStr, time.Time{}, time.Time{}, 100,
-			pagination)
+		genOrds, err := bi.GetCurrentSpotPlanOrders(ctx, pairStr, time.Time{}, time.Time{}, 100, pagination)
 		if err != nil {
 			return nil, err
 		}

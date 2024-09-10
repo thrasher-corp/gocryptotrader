@@ -78,6 +78,22 @@ type KlineData struct {
 	Volume     float64
 }
 
+// IncompleteKline defines a kline feed that has incomplete or inconsistent data
+type IncompleteKline struct {
+	Timestamp  time.Time
+	Pair       currency.Pair
+	AssetType  asset.Item
+	Exchange   string
+	StartTime  time.Time
+	CloseTime  time.Time
+	Interval   string
+	OpenPrice  float64
+	ClosePrice float64
+	HighPrice  float64
+	LowPrice   float64
+	Volume     float64
+}
+
 // WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
 type WebsocketPositionUpdated struct {
 	Timestamp time.Time

@@ -203,11 +203,14 @@ const (
 
 	// Websocket endpoints
 	// Unauthenticated
-	bitgetTickerChannel = "ticker"
+	bitgetTickerChannel      = "ticker"
+	bitgetCandleDailyChannel = "candle1D" // There's one of these for each time period, but we'll ignore those for now
 
 	// Authenticated
+	bitgetAccountChannel = "account"
 
-	errIntervalNotSupported = "interval not supported"
+	errIntervalNotSupported           = "interval not supported"
+	errAuthenticatedWebsocketDisabled = "%v AuthenticatedWebsocketAPISupport not enabled"
 )
 
 var (
@@ -4629,6 +4632,27 @@ func (t *UnixTimestamp) String() string {
 
 // Time returns the time.Time representation of the UnixTimestamp
 func (t *UnixTimestamp) Time() time.Time {
+	return time.Time(*t)
+}
+
+// UnmarshalJSON unmarshals the JSON input into a UnixTimestampNumber type
+func (t *UnixTimestampNumber) UnmarshalJSON(b []byte) error {
+	var timestampNum uint64
+	err := json.Unmarshal(b, &timestampNum)
+	if err != nil {
+		return err
+	}
+	*t = UnixTimestampNumber(time.UnixMilli(int64(timestampNum)).UTC())
+	return nil
+}
+
+// String implements the stringer interface
+func (t *UnixTimestampNumber) String() string {
+	return t.Time().String()
+}
+
+// Time returns the time.Time representation of the UnixTimestampNumber
+func (t *UnixTimestampNumber) Time() time.Time {
 	return time.Time(*t)
 }
 
