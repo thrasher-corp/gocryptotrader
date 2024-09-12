@@ -138,16 +138,12 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 // SliceDifference returns the elements that are in slice1 or slice2 but not in both
 func SliceDifference[T comparable](slice1, slice2 []T) []T {
 	diff := make([]T, 0, len(slice1)+len(slice2))
-	target := 0
 	for x := range slice1 {
 		if !slices.Contains(slice2, slice1[x]) {
 			diff = append(diff, slice1[x])
 			continue
 		}
-		slice1[target] = slice1[x]
-		target++
 	}
-	slice1 = slice1[:target]
 	for x := range slice2 {
 		if !slices.Contains(slice1, slice2[x]) {
 			diff = append(diff, slice2[x])
