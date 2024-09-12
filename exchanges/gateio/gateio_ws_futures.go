@@ -93,34 +93,37 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			futuresBalancesChannel,
 		)
 	}
-	pairs, err := g.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return nil, err
-	}
 
-	switch {
-	case settlement.Equal(currency.USDT):
-		pairs, err = pairs.GetPairsByQuote(currency.USDT)
+	var subscriptions subscription.List
+	for i := range channelsToSubscribe {
+		pairs, err := g.GetEnabledPairs(asset.Futures)
 		if err != nil {
+			if errors.Is(err, asset.ErrNotEnabled) {
+				continue // skip if not enabled
+			}
 			return nil, err
 		}
-	case settlement.Equal(currency.BTC):
-		offset := 0
-		for x := range pairs {
-			if pairs[x].Quote.Equal(currency.USDT) {
-				continue // skip USDT pairs
-			}
-			pairs[offset] = pairs[x]
-			offset++
-		}
-		pairs = pairs[:offset]
-	default:
-		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
-	}
 
-	subscriptions := make(subscription.List, len(channelsToSubscribe)*len(pairs))
-	count := 0
-	for i := range channelsToSubscribe {
+		switch {
+		case settlement.Equal(currency.USDT):
+			pairs, err = pairs.GetPairsByQuote(currency.USDT)
+			if err != nil {
+				return nil, err
+			}
+		case settlement.Equal(currency.BTC):
+			offset := 0
+			for x := range pairs {
+				if pairs[x].Quote.Equal(currency.USDT) {
+					continue // skip USDT pairs
+				}
+				pairs[offset] = pairs[x]
+				offset++
+			}
+			pairs = pairs[:offset]
+		default:
+			return nil, fmt.Errorf("settlement currency %s not supported", settlement)
+		}
+
 		for j := range pairs {
 			params := make(map[string]interface{})
 			switch channelsToSubscribe[i] {
@@ -137,12 +140,11 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			if err != nil {
 				return nil, err
 			}
-			subscriptions[count] = &subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fpair.Upper()},
 				Params:  params,
-			}
-			count++
+			})
 		}
 	}
 	return subscriptions, nil

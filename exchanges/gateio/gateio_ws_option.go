@@ -120,11 +120,14 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 	}
 getEnabledPairs:
 	var subscriptions subscription.List
-	pairs, err := g.GetEnabledPairs(asset.Options)
-	if err != nil {
-		return nil, err
-	}
 	for i := range channelsToSubscribe {
+		pairs, err := g.GetEnabledPairs(asset.Options)
+		if err != nil {
+			if errors.Is(err, asset.ErrNotEnabled) {
+				continue // skip if not enabled
+			}
+			return nil, err
+		}
 		for j := range pairs {
 			params := make(map[string]interface{})
 			switch channelsToSubscribe[i] {

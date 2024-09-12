@@ -78,13 +78,17 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 			futuresBalancesChannel,
 		)
 	}
-	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
-	if err != nil {
-		return nil, err
-	}
 
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
+		pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
+		if err != nil {
+			if errors.Is(err, asset.ErrNotEnabled) {
+				continue // skip if not enabled
+			}
+			return nil, err
+		}
+
 		for j := range pairs {
 			params := make(map[string]interface{})
 			switch channelsToSubscribe[i] {

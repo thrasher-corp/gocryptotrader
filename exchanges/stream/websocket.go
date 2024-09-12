@@ -10,7 +10,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -385,12 +384,6 @@ func (w *Websocket) Connect() error {
 
 		subs, err := w.connectionManager[i].Setup.GenerateSubscriptions() // regenerate state on new connection
 		if err != nil {
-			if errors.Is(err, asset.ErrNotEnabled) {
-				if w.verbose {
-					log.Warnf(log.WebsocketMgr, "%s websocket: %v", w.exchangeName, err)
-				}
-				continue // Non-fatal error, we can continue to the next connection
-			}
 			multiConnectFatalError = fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 			break
 		}
@@ -706,7 +699,7 @@ func (w *Websocket) FlushChannels() error {
 		}
 		for x := range w.connectionManager {
 			err := w.generateUnsubscribeAndSubscribe(w.connectionManager[x].Connection, w.connectionManager[x].Setup.GenerateSubscriptions)
-			if err != nil && !errors.Is(err, asset.ErrNotEnabled) {
+			if err != nil {
 				return err
 			}
 		}
@@ -724,7 +717,7 @@ func (w *Websocket) FlushChannels() error {
 
 		for x := range w.connectionManager {
 			err := w.generateAndSubscribe(w.connectionManager[x].Subscriptions, w.connectionManager[x].Connection, w.connectionManager[x].Setup.GenerateSubscriptions)
-			if err != nil && errors.Is(err, asset.ErrNotEnabled) {
+			if err != nil {
 				return err
 			}
 		}
