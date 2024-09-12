@@ -24,6 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -2980,6 +2982,10 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
 		t.Error(err)
 	}
+
+	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
+		t.Error(err)
+	}
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -3610,4 +3616,27 @@ func TestGetUnifiedAccount(t *testing.T) {
 func TestGenerateWebsocketMessageID(t *testing.T) {
 	t.Parallel()
 	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
+}
+
+type DummyConnection struct{ stream.Connection }
+
+func (d *DummyConnection) GenerateMessageID(bool) int64 { return 1337 }
+func (d *DummyConnection) SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error) {
+	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
+}
+
+func TestHandleSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
+
+	err := g.handleSubscription(context.Background(), &DummyConnection{}, subscribeEvent, subs, func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+		return []WsInput{{}}, nil
+	})
+	require.NoError(t, err)
+
+	err = g.handleSubscription(context.Background(), &DummyConnection{}, unsubscribeEvent, subs, func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+		return []WsInput{{}}, nil
+	})
+	require.NoError(t, err)
 }

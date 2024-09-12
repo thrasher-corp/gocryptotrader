@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -151,12 +150,12 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) FuturesSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleFuturesSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
+	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleFuturesSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
+	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // WsHandleFuturesData handles futures websocket data
@@ -217,44 +216,6 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 		}
 		return errors.New(stream.UnhandledMessage)
 	}
-}
-
-// handleFuturesSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleFuturesSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generateFuturesPayload(ctx, conn, event, channelsToSubscribe)
-	if err != nil {
-		return err
-	}
-	var errs error
-	var respByte []byte
-	for i, val := range payloads {
-		respByte, err = conn.SendMessageReturnResponse(ctx, val.ID, val)
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(respByte, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val.Event, val.Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if val.Event == subscribeEvent {
-				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[i])
-			} else {
-				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[i])
-			}
-			if err != nil {
-				errs = common.AppendError(errs, err)
-			}
-		}
-	}
-	if errs != nil {
-		return errs
-	}
-	return nil
 }
 
 func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {

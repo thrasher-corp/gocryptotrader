@@ -678,9 +678,12 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	return subscriptions, nil
 }
 
+// GeneratePayload returns the payload for a websocket message
+type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(ctx, conn, event, channelsToSubscribe)
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -699,7 +702,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
-			if payloads[k].Event == subscribeEvent {
+			if event == subscribeEvent {
 				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
 			} else {
 				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
@@ -833,12 +836,12 @@ func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, ev
 
 // SpotSubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
+	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generatePayload)
 }
 
 // SpotUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
+	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generatePayload)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
