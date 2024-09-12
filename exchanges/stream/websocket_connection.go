@@ -331,7 +331,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, si
 	return resps, err
 }
 
-func removeQuery(url string) string {
+func removeURLQueryString(url string) string {
 	if index := strings.Index(url, "?"); index != -1 {
 		return url[:index]
 	}
