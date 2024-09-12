@@ -66,6 +66,25 @@ func TestListGroupPairs(t *testing.T) {
 	assert.ElementsMatch(t, exp, n.Strings(), "String must return correct sorted list")
 }
 
+// TestListGroupByPairs exercises List.GroupByPairs()
+func TestListGroupByPairs(t *testing.T) {
+	t.Parallel()
+	l := List{
+		{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}},
+		{Asset: asset.Spot, Channel: OrderbookChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}},
+		{Asset: asset.Spot, Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair, btcusdtPair}},
+	}
+	n := l.GroupByPairs()
+	assert.Len(t, l, 3, "Orig list should not be changed")
+	require.Len(t, n, 2, "New list should be grouped")
+	require.Len(t, n[0], 2, "New list should be grouped")
+	require.Len(t, n[1], 1, "New list should be grouped")
+	exp := []string{"ticker spot ETH/USDC,BTC/USDT", "orderbook spot ETH/USDC,BTC/USDT"}
+	assert.ElementsMatch(t, exp, n[0].Strings(), "String must return correct sorted list")
+	exp = []string{"candles spot LTC/USDC,BTC/USDT"}
+	assert.ElementsMatch(t, exp, n[1].Strings(), "String must return correct sorted list")
+}
+
 // TestListSetStates exercises List.SetState()
 func TestListSetStates(t *testing.T) {
 	t.Parallel()
@@ -105,4 +124,35 @@ func TestListClone(t *testing.T) {
 	assert.Equal(t, n[0], l[0], "Subscriptions should be equal")
 	l[0].Interval = kline.OneHour
 	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
+}
+
+var filterable = List{
+	{Channel: "a", Enabled: true, Authenticated: false},
+	{Channel: "b", Enabled: true, Authenticated: true},
+	{Channel: "c", Enabled: false, Authenticated: true},
+	{Channel: "d", Enabled: false, Authenticated: false},
+}
+
+func TestListEnabled(t *testing.T) {
+	t.Parallel()
+	l := filterable.Enabled()
+	require.Len(t, l, 2)
+	assert.Equal(t, filterable[:2], l)
+	assert.Len(t, filterable, 4)
+}
+
+func TestListPublic(t *testing.T) {
+	t.Parallel()
+	l := filterable.Public()
+	require.Len(t, l, 2)
+	assert.Equal(t, List{filterable[0], filterable[3]}, l)
+	assert.Len(t, filterable, 4)
+}
+
+func TestListPrivate(t *testing.T) {
+	t.Parallel()
+	l := filterable.Private()
+	require.Len(t, l, 2)
+	assert.Equal(t, filterable[1:3], l)
+	assert.Len(t, filterable, 4)
 }

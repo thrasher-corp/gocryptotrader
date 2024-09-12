@@ -46,6 +46,22 @@ func (l List) GroupPairs() (n List) {
 	return s.List()
 }
 
+// GroupByPairs groups subscriptions which have the same Pairs
+func (l List) GroupByPairs() []List {
+	n := []List{}
+outer:
+	for _, a := range l {
+		for i, b := range n {
+			if a.Pairs.Equal(b[0].Pairs) {
+				n[i] = append(n[i], a)
+				continue outer
+			}
+		}
+		n = append(n, List{a})
+	}
+	return n
+}
+
 // Clone returns a deep clone of the List
 func (l List) Clone() List {
 	n := make(List, len(l))
@@ -112,4 +128,37 @@ func (l List) assetPairs(e iExchange) (assetPairs, error) {
 		}
 	}
 	return ap, nil
+}
+
+// Enabled returns a new list of only enabled subscriptions
+func (l List) Enabled() List {
+	n := make(List, 0, len(l))
+	for _, s := range l {
+		if s.Enabled {
+			n = append(n, s)
+		}
+	}
+	return slices.Clip(n)
+}
+
+// Private returns only Authenticated subscriptions
+func (l List) Private() List {
+	n := List{}
+	for _, s := range l {
+		if s.Authenticated {
+			n = append(n, s)
+		}
+	}
+	return n
+}
+
+// Public returns only Public subscriptions
+func (l List) Public() List {
+	n := List{}
+	for _, s := range l {
+		if !s.Authenticated {
+			n = append(n, s)
+		}
+	}
+	return n
 }
