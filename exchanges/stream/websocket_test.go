@@ -501,6 +501,12 @@ func TestWebsocket(t *testing.T) {
 	err = ws.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 	ws.Wg.Wait()
+
+	ws.useMultiConnectionManagement = true
+
+	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
+	err = ws.SetProxyAddress("https://192.168.0.1:1337")
+	require.NoError(t, err)
 }
 
 func currySimpleSub(w *Websocket) func(subscription.List) error {
@@ -710,6 +716,17 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	assert.True(t, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
 	err = ws.connectionMonitor()
 	assert.ErrorIs(t, err, errAlreadyRunning, "connectionMonitor should error correctly")
+
+	ws.setState(connectedState)
+	ws.ReadMessageErrors <- errConnectionFault
+	select {
+	case data := <-ws.DataHandler:
+		err, ok := data.(error)
+		require.True(t, ok, "DataHandler should return an error")
+		require.ErrorIs(t, err, errConnectionFault, "DataHandler should return the correct error")
+	case <-time.After(2 * time.Second):
+		t.Fatal("DataHandler should return an error")
+	}
 }
 
 // TestGetSubscription logic test
@@ -1461,4 +1478,80 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	err = ws.checkSubscriptions(nil, subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
+}
+
+func TestGenerateUnsubscribeAndSubscribe(t *testing.T) {
+	t.Parallel()
+	ws := Websocket{subscriptions: subscription.NewStore(), features: &protocol.Features{}}
+	ws.subscriptions.Add(&subscription.Subscription{Channel: subscription.MyOrdersChannel})
+
+	generateError := errors.New("foo fighters the generator")
+	err := ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
+		return nil, generateError
+	})
+	require.ErrorIs(t, err, generateError)
+
+	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
+	})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	failedSubscriberError := errors.New("failed subscriber")
+	ws.Subscriber = func(subscription.List) error { return failedSubscriberError }
+	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
+	})
+	require.ErrorIs(t, err, failedSubscriberError)
+
+	failedUnSubscriberError := errors.New("failed unsubscriber")
+	ws.Subscriber = func(subscription.List) error { return nil }
+	ws.Unsubscriber = func(subscription.List) error { return failedUnSubscriberError }
+	ws.features.Unsubscribe = true
+	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
+	})
+	require.ErrorIs(t, err, failedUnSubscriberError)
+
+	ws.Unsubscriber = func(subscription.List) error { return nil }
+	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
+	})
+	require.NoError(t, err)
+
+	ws.Unsubscriber = func(subscription.List) error { return failedUnSubscriberError }
+	ws.Subscriber = func(subscription.List) error { return failedSubscriberError }
+	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.MyOrdersChannel}}, nil
+	})
+	require.NoError(t, err)
+}
+
+func TestGenerateAndSubscribe(t *testing.T) {
+	t.Parallel()
+
+	ws := Websocket{subscriptions: subscription.NewStore()}
+
+	generateError := errors.New("foo fighters the generator")
+	err := ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
+		return nil, generateError
+	})
+	require.ErrorIs(t, err, generateError)
+
+	ws.Subscriber = func(subscription.List) error { return nil }
+	err = ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
+	})
+	require.NoError(t, err)
+
+	failedSubscriberError := errors.New("failed subscriber")
+	ws.Subscriber = func(subscription.List) error { return failedSubscriberError }
+	err = ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
+	})
+	require.ErrorIs(t, err, failedSubscriberError)
+
+	err = ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
+		return nil, nil
+	})
+	require.NoError(t, err)
 }

@@ -738,11 +738,11 @@ func (w *Websocket) FlushChannels() error {
 }
 
 func (w *Websocket) generateUnsubscribeAndSubscribe(conn Connection, generate func() (subscription.List, error)) error {
-	newsubs, err := generate()
+	newSubs, err := generate()
 	if err != nil {
 		return err
 	}
-	subs, unsubs := w.GetChannelDifference(conn, newsubs)
+	subs, unsubs := w.GetChannelDifference(conn, newSubs)
 	if len(unsubs) != 0 && w.features.Unsubscribe {
 		if err := w.UnsubscribeChannels(conn, unsubs); err != nil {
 			return err
@@ -755,15 +755,15 @@ func (w *Websocket) generateUnsubscribeAndSubscribe(conn Connection, generate fu
 }
 
 func (w *Websocket) generateAndSubscribe(store *subscription.Store, conn Connection, generate func() (subscription.List, error)) error {
-	newsubs, err := generate()
+	newSubs, err := generate()
 	if err != nil {
 		return err
 	}
-	if len(newsubs) == 0 {
+	if len(newSubs) == 0 {
 		return nil
 	}
 	store.Clear() // Purge subscription list as there will be conflicts
-	return w.SubscribeToChannels(conn, newsubs)
+	return w.SubscribeToChannels(conn, newSubs)
 }
 
 // trafficMonitor waits trafficCheckInterval before checking for a trafficAlert
