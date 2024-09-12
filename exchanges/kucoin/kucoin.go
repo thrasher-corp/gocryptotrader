@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -98,8 +97,8 @@ func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, marketListEPL, "/v1/markets", &resp)
 }
 
-// ProcessOB constructs an orderbook.Tranche instances from slice of numbers.
-func ProcessOB(ob [][2]types.Number) []orderbook.Tranche {
+// processOB constructs an orderbook.Tranche instances from slice of numbers.
+func processOB(ob [][2]types.Number) []orderbook.Tranche {
 	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
 		o[x].Amount = ob[x][1].Float64()
@@ -108,12 +107,12 @@ func ProcessOB(ob [][2]types.Number) []orderbook.Tranche {
 	return o
 }
 
-// ConstructOrderbook parse checks and constructs an *Orderbook instance from *orderbookResponse.
-func ConstructOrderbook(o *orderbookResponse) (*Orderbook, error) {
+// constructOrderbook parse checks and constructs an *Orderbook instance from *orderbookResponse.
+func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 	var (
 		s = Orderbook{
-			Bids: ProcessOB(o.Bids),
-			Asks: ProcessOB(o.Asks),
+			Bids: processOB(o.Bids),
+			Asks: processOB(o.Asks),
 			Time: o.Time.Time(),
 		}
 	)
@@ -139,7 +138,7 @@ func (ku *Kucoin) GetPartOrderbook20(ctx context.Context, symbol string) (*Order
 	if err != nil {
 		return nil, err
 	}
-	return ConstructOrderbook(o)
+	return constructOrderbook(o)
 }
 
 // GetPartOrderbook100 gets orderbook for a specified pair with depth 100
@@ -154,7 +153,7 @@ func (ku *Kucoin) GetPartOrderbook100(ctx context.Context, symbol string) (*Orde
 	if err != nil {
 		return nil, err
 	}
-	return ConstructOrderbook(o)
+	return constructOrderbook(o)
 }
 
 // GetOrderbook gets full orderbook for a specified pair
@@ -169,7 +168,7 @@ func (ku *Kucoin) GetOrderbook(ctx context.Context, symbol string) (*Orderbook, 
 	if err != nil {
 		return nil, err
 	}
-	return ConstructOrderbook(o)
+	return constructOrderbook(o)
 }
 
 // GetTradeHistory gets trade history of the specified pair
@@ -316,7 +315,7 @@ func (ku *Kucoin) getCrossOrIsolatedMarginRiskLimitCurrencyConfig(ctx context.Co
 
 // PostMarginBorrowOrder used to post borrow order
 func (ku *Kucoin) PostMarginBorrowOrder(ctx context.Context, arg *MarginBorrowParam) (*BorrowAndRepaymentOrderResp, error) {
-	if arg == nil || *arg == (MarginBorrowParam{}) {
+	if *arg == (MarginBorrowParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
@@ -370,7 +369,7 @@ func (ku *Kucoin) GetMarginBorrowingHistory(ctx context.Context, ccy currency.Co
 
 // PostRepayment used to initiate an application for the repayment of cross or isolated margin borrowing.
 func (ku *Kucoin) PostRepayment(ctx context.Context, arg *RepayParam) (*BorrowAndRepaymentOrderResp, error) {
-	if arg == nil || *arg == (RepayParam{}) {
+	if *arg == (RepayParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
@@ -506,7 +505,7 @@ func (ku *Kucoin) SpotPlaceHFOrderTest(ctx context.Context, arg *PlaceHFParam) (
 
 // ValidatePlaceOrderParams validates an order placement parameters.
 func (a *PlaceHFParam) ValidatePlaceOrderParams() error {
-	if a == nil || *a == (PlaceHFParam{}) {
+	if *a == (PlaceHFParam{}) {
 		return common.ErrNilPointer
 	}
 	if a.Symbol.IsEmpty() {
@@ -554,7 +553,7 @@ func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*Syn
 // PlaceMultipleOrders endpoint supports sequential batch order placement from a single endpoint. A maximum of 5 orders can be placed simultaneously.
 func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) ([]PlaceOrderResp, error) {
 	if len(args) == 0 {
-		return nil, common.ErrNilPointer
+		return nil, common.ErrEmptyParams
 	}
 	for i := range args {
 		err := args[i].ValidatePlaceOrderParams()
@@ -569,7 +568,7 @@ func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) 
 // SyncPlaceMultipleHFOrders this interface will synchronously return the order information after the order matching is completed
 func (ku *Kucoin) SyncPlaceMultipleHFOrders(ctx context.Context, args []PlaceHFParam) ([]SyncPlaceHFOrderResp, error) {
 	if len(args) == 0 {
-		return nil, common.ErrNilPointer
+		return nil, common.ErrEmptyParams
 	}
 	for i := range args {
 		err := args[i].ValidatePlaceOrderParams()
@@ -583,7 +582,7 @@ func (ku *Kucoin) SyncPlaceMultipleHFOrders(ctx context.Context, args []PlaceHFP
 
 // ModifyHFOrder modifies a high frequency order.
 func (ku *Kucoin) ModifyHFOrder(ctx context.Context, arg *ModifyHFOrderParam) (string, error) {
-	if arg == nil || *arg == (ModifyHFOrderParam{}) {
+	if *arg == (ModifyHFOrderParam{}) {
 		return "", common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
@@ -769,7 +768,7 @@ func (ku *Kucoin) GetHFOrderDetailsByID(ctx context.Context, orderID, symbol, pa
 // the system will help the user to cancel the order of the corresponding trading pair. Otherwise it will not.
 func (ku *Kucoin) AutoCancelHFOrderSetting(ctx context.Context, timeout int64, symbols []string) (*AutoCancelHFOrderResponse, error) {
 	if timeout == 0 {
-		return nil, errors.New("timeout values required")
+		return nil, errTimeoutRequired
 	}
 	arg := &struct {
 		Timeout int64    `json:"timeout,string"`
@@ -927,6 +926,9 @@ func (ku *Kucoin) SendPostMarginOrder(ctx context.Context, arg *MarginOrderParam
 func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []OrderRequest) ([]PostBulkOrderResp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
+	}
+	if len(orderList) == 0 {
+		return nil, common.ErrEmptyParams
 	}
 	for i := range orderList {
 		if orderList[i].ClientOID == "" {
@@ -1261,7 +1263,7 @@ func (ku *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientO
 
 // PlaceOCOOrder creates a new One cancel other(OCO) order.
 func (ku *Kucoin) PlaceOCOOrder(ctx context.Context, arg *OCOOrderParams) (string, error) {
-	if arg == nil || *arg == (OCOOrderParams{}) {
+	if *arg == (OCOOrderParams{}) {
 		return "", common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
@@ -1398,7 +1400,7 @@ func (ku *Kucoin) PlaceMarginHFOrderTest(ctx context.Context, arg *PlaceMarginHF
 
 // SendPlaceMarginHFOrder applies a high-frequency margin order placement or tests the order placement process.
 func (ku *Kucoin) SendPlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginHFOrderParam, path string) (*MarginHFOrderResponse, error) {
-	if arg == nil || *arg == (PlaceMarginHFOrderParam{}) {
+	if *arg == (PlaceMarginHFOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.ClientOrderID == "" {
@@ -1769,8 +1771,8 @@ func (ku *Kucoin) GetAllFuturesSubAccountBalances(ctx context.Context, ccy curre
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, allFuturesSubAccountBalancesEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview-all", params), nil, &resp)
 }
 
-// PopulateParams populates account ledger request parameters.
-func PopulateParams(ccy currency.Code, direction, bizType string, lastID, limit int64, startTime, endTime time.Time) url.Values {
+// populateParams populates account ledger request parameters.
+func populateParams(ccy currency.Code, direction, bizType string, lastID, limit int64, startTime, endTime time.Time) url.Values {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1799,7 +1801,7 @@ func PopulateParams(ccy currency.Code, direction, bizType string, lastID, limit 
 // GetAccountLedgers retrieves the transaction records from all types of your accounts, supporting inquiry of various currencies.
 // bizType possible values: 'DEPOSIT' -deposit, 'WITHDRAW' -withdraw, 'TRANSFER' -transfer, 'SUB_TRANSFER' -subaccount transfer,'TRADE_EXCHANGE' -trade, 'MARGIN_EXCHANGE' -margin trade, 'KUCOIN_BONUS' -bonus
 func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy currency.Code, direction, bizType string, startAt, endAt time.Time) (*AccountLedgerResponse, error) {
-	params := PopulateParams(ccy, direction, bizType, 0, 0, time.Time{}, time.Time{})
+	params := populateParams(ccy, direction, bizType, 0, 0, time.Time{}, time.Time{})
 	if !startAt.IsZero() && !endAt.IsZero() {
 		err := common.StartEndTimeCheck(startAt, endAt)
 		if err != nil {
@@ -1815,14 +1817,14 @@ func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy currency.Code, dire
 // GetAccountLedgersHFTrade returns all transfer (in and out) records in high-frequency trading account and supports multi-coin queries.
 // The query results are sorted in descending order by createdAt and id.
 func (ku *Kucoin) GetAccountLedgersHFTrade(ctx context.Context, ccy currency.Code, direction, bizType string, lastID, limit int64, startTime, endTime time.Time) ([]LedgerInfo, error) {
-	params := PopulateParams(ccy, direction, bizType, lastID, limit, startTime, endTime)
+	params := populateParams(ccy, direction, bizType, lastID, limit, startTime, endTime)
 	var resp []LedgerInfo
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfAccountLedgersEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/accounts/ledgers", params), nil, &resp)
 }
 
 // GetAccountLedgerHFMargin returns all transfer (in and out) records in high-frequency margin trading account and supports multi-coin queries.
 func (ku *Kucoin) GetAccountLedgerHFMargin(ctx context.Context, ccy currency.Code, direction, bizType string, lastID, limit int64, startTime, endTime time.Time) ([]LedgerInfo, error) {
-	params := PopulateParams(ccy, direction, bizType, lastID, limit, startTime, endTime)
+	params := populateParams(ccy, direction, bizType, lastID, limit, startTime, endTime)
 	var resp []LedgerInfo
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, hfAccountLedgersMarginEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/account/ledgers", params), nil, &resp)
 }
@@ -1927,7 +1929,7 @@ func (ku *Kucoin) GetTransferableBalance(ctx context.Context, ccy currency.Code,
 
 // GetUniversalTransfer support transfer between master and sub accounts (only applicable to master account APIKey).
 func (ku *Kucoin) GetUniversalTransfer(ctx context.Context, arg *UniversalTransferParam) (string, error) {
-	if arg == nil || *arg == (UniversalTransferParam{}) {
+	if *arg == (UniversalTransferParam{}) {
 		return "", common.ErrNilPointer
 	}
 	if arg.ClientSuppliedOrderID == "" {
@@ -1964,7 +1966,7 @@ func (ku *Kucoin) TransferMainToSubAccount(ctx context.Context, ccy currency.Cod
 		return "", errTransferDirectionRequired
 	}
 	if subUserID == "" {
-		return "", fmt.Errorf("%w, sub-user ID is required", order.ErrOrderIDNotSet)
+		return "", fmt.Errorf("%w, sub-user ID is required", errSubUserIDRequired)
 	}
 	arg := &struct {
 		ClientOrderID  string        `json:"clientOid"`
@@ -2032,7 +2034,7 @@ func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, amount float64, ccy cur
 
 // TransferToMainOrTradeAccount transfers fund from KuCoin Futures account to Main or Trade accounts.
 func (ku *Kucoin) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTransferFuturesParam) (*InnerTransferToMainAndTradeResponse, error) {
-	if arg == nil || *arg == (FundTransferFuturesParam{}) {
+	if *arg == (FundTransferFuturesParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Amount <= 0 {
@@ -2050,7 +2052,7 @@ func (ku *Kucoin) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTra
 
 // TransferToFuturesAccount transfers fund from KuCoin Futures account to Main or Trade accounts.
 func (ku *Kucoin) TransferToFuturesAccount(ctx context.Context, arg *FundTransferToFuturesParam) (*FundTransferToFuturesResponse, error) {
-	if arg == nil || *arg == (FundTransferToFuturesParam{}) {
+	if *arg == (FundTransferToFuturesParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Amount <= 0 {

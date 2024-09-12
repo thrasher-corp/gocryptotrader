@@ -241,7 +241,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processTradeData(resp.Data, topicInfo[1], topicInfo[0])
 	case indexPriceIndicatorChannel, markPriceIndicatorChannel:
 		var response WsPriceIndicator
-		return ku.ProcessData(resp.Data, &response)
+		return ku.processData(resp.Data, &response)
 	case privateSpotTradeOrders:
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
 	case accountBalanceChannel:
@@ -249,14 +249,14 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case marginPositionChannel:
 		if resp.Subject == "debt.ratio" {
 			var response WsDebtRatioChange
-			return ku.ProcessData(resp.Data, &response)
+			return ku.processData(resp.Data, &response)
 		}
 		var response WsPositionStatus
-		return ku.ProcessData(resp.Data, &response)
+		return ku.processData(resp.Data, &response)
 	case marginLoanChannel:
 		if resp.Subject == "order.done" {
 			var response WsMarginTradeOrderDoneEvent
-			return ku.ProcessData(resp.Data, &response)
+			return ku.processData(resp.Data, &response)
 		} else {
 			return ku.processMarginLendingTradeOrderEvent(resp.Data)
 		}
@@ -266,7 +266,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processFuturesTickerV2(resp.Data)
 	case futuresExecutionDataChannel:
 		var response WsFuturesExecutionData
-		return ku.ProcessData(resp.Data, &response)
+		return ku.processData(resp.Data, &response)
 	case futuresOrderbookChannel:
 		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
 			return err
@@ -297,25 +297,25 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		switch resp.Subject {
 		case "orderMargin.change":
 			var response WsFuturesOrderMarginEvent
-			return ku.ProcessData(resp.Data, &response)
+			return ku.processData(resp.Data, &response)
 		case "availableBalance.change":
 			return ku.processFuturesAccountBalanceEvent(resp.Data)
 		case "withdrawHold.change":
 			var response WsFuturesWithdrawalAmountAndTransferOutAmountEvent
-			return ku.ProcessData(resp.Data, &response)
+			return ku.processData(resp.Data, &response)
 		}
 	case futuresPositionChangeEventChannel:
 		switch resp.Subject {
 		case "position.change":
 			if resp.ChannelType == "private" {
 				var response WsFuturesPosition
-				return ku.ProcessData(resp.Data, &response)
+				return ku.processData(resp.Data, &response)
 			}
 			var response WsFuturesMarkPricePositionChanges
-			return ku.ProcessData(resp.Data, &response)
+			return ku.processData(resp.Data, &response)
 		case "position.settlement":
 			var response WsFuturesPositionFundingSettlement
-			return ku.ProcessData(resp.Data, &response)
+			return ku.processData(resp.Data, &response)
 		}
 	case futuresLimitCandles:
 		instrumentInfos := strings.Split(topicInfo[1], "_")
@@ -332,8 +332,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	return nil
 }
 
-// ProcessData used to deserialize and forward the data to DataHandler.
-func (ku *Kucoin) ProcessData(respData []byte, resp interface{}) error {
+// processData used to deserialize and forward the data to DataHandler.
+func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -356,7 +356,7 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 	return nil
 }
 
-// ProcessFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
+// processFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
 func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 	resp := WsStopOrderLifecycleEvent{}
 	err := json.Unmarshal(respData, &resp)

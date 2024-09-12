@@ -367,7 +367,7 @@ func (ku *Kucoin) PostFuturesOrderTest(ctx context.Context, arg *FuturesOrderPar
 
 // FillFuturesPostOrderArgumentFilter verifies futures order request parameters
 func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) error {
-	if arg == nil || *arg == (FuturesOrderParam{}) {
+	if *arg == (FuturesOrderParam{}) {
 		return common.ErrNilPointer
 	}
 	if arg.Leverage <= 0 {
@@ -415,7 +415,7 @@ func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) err
 // The maximum limit orders for a single contract is 100 per account, and the maximum stop orders for a single contract is 50 per account
 func (ku *Kucoin) PlaceMultipleFuturesOrders(ctx context.Context, args []FuturesOrderParam) ([]FuturesOrderRespItem, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, not order to place", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w, not order to place", common.ErrEmptyParams)
 	}
 	var err error
 	for x := range args {
@@ -640,7 +640,7 @@ func (ku *Kucoin) GetMaxWithdrawMargin(ctx context.Context, symbol string) (floa
 
 // RemoveMarginManually removes a margin manually
 func (ku *Kucoin) RemoveMarginManually(ctx context.Context, arg *WithdrawMarginResponse) (*MarginRemovingResponse, error) {
-	if arg == nil || *arg == (WithdrawMarginResponse{}) {
+	if *arg == (WithdrawMarginResponse{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Symbol == "" {
@@ -757,13 +757,13 @@ func (ku *Kucoin) GetFuturesTransactionHistory(ctx context.Context, ccy currency
 // CreateFuturesSubAccountAPIKey is used to create Futures APIs for sub-accounts
 func (ku *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist, passphrase, permission, remark, subName string) (*APIKeyDetail, error) {
 	if remark == "" {
-		return nil, errors.New("remark cannot be empty")
+		return nil, errRemarkIsRequired
 	}
 	if subName == "" {
-		return nil, errors.New("subName cannot be empty")
+		return nil, errInvalidSubAccountName
 	}
 	if passphrase == "" {
-		return nil, errors.New("passphrase cannot be empty")
+		return nil, errInvalidPassPhraseInstance
 	}
 	params := make(map[string]interface{})
 	params["passphrase"] = passphrase
@@ -788,7 +788,7 @@ func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if recAccountType == "" {
-		return nil, errors.New("recAccountType cannot be empty")
+		return nil, fmt.Errorf("%w, invalid receive account type", errAccountTypeMissing)
 	}
 	params := make(map[string]interface{})
 	params["amount"] = amount
