@@ -1,4 +1,4 @@
-package gateio
+package types
 
 import (
 	"bytes"
@@ -30,8 +30,7 @@ func (a *Time) UnmarshalJSON(data []byte) error {
 		s = s[1 : len(s)-1]
 	}
 
-	target := strings.Index(s, ".")
-	if target != -1 {
+	if target := strings.Index(s, "."); target != -1 {
 		s = s[:target] + s[target+1:]
 	}
 
