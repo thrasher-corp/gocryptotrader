@@ -1216,7 +1216,7 @@ channels:
 		for _, p := range channelsToSubscribe[i].Pairs {
 			outbound.Pairs = append(outbound.Pairs, p.String())
 		}
-		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
+		if common.StringSliceContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
 		}
 
@@ -1228,7 +1228,7 @@ channels:
 	for _, subs := range subscriptions {
 		for i := range *subs {
 			var err error
-			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
+			if common.StringSliceContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
 				_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, (*subs)[i].RequestID, (*subs)[i])
 			} else {
 				_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, (*subs)[i].RequestID, (*subs)[i])
@@ -1262,7 +1262,7 @@ channels:
 		}
 
 		var id int64
-		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+		if common.StringSliceContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
 			id = k.Websocket.AuthConn.GenerateMessageID(false)
 		} else {
 			id = k.Websocket.Conn.GenerateMessageID(false)
@@ -1277,7 +1277,7 @@ channels:
 			},
 			RequestID: id,
 		}
-		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+		if common.StringSliceContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
 			unsub.Subscription.Token = authToken
 		}
 		unsub.Channels = append(unsub.Channels, channelsToUnsubscribe[x])
@@ -1287,7 +1287,7 @@ channels:
 	var errs error
 	for i := range unsubs {
 		var err error
-		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
+		if common.StringSliceContains(authenticatedChannels, unsubs[i].Subscription.Name) {
 			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, unsubs[i].RequestID, unsubs[i])
 		} else {
 			_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, unsubs[i].RequestID, unsubs[i])

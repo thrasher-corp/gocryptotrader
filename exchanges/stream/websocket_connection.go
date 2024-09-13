@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -63,9 +64,9 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
 	return w.writeToConn(ctx, epl, func() error {
-		if w.Verbose {
+		if request.IsVerbose(ctx, w.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-				log.Debugf(log.WebsocketMgr, "%s websocket connection: sending message: %s\n", w.ExchangeName, msg)
+				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(msg))
 			}
 		}
 		return w.Connection.WriteJSON(data)
@@ -75,8 +76,8 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, epl request.E
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
 	return w.writeToConn(ctx, epl, func() error {
-		if w.Verbose {
-			log.Debugf(log.WebsocketMgr, "%v websocket connection: sending message [%s]\n", w.ExchangeName, message)
+		if request.IsVerbose(ctx, w.Verbose) {
+			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(message))
 		}
 		return w.Connection.WriteMessage(messageType, message)
 	})
@@ -201,18 +202,12 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
-				"%v websocket connection: parseBinaryResponse error: %v",
-				w.ExchangeName,
-				err)
+			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", w.ExchangeName, removeURLQueryString(w.URL), err)
 			return Response{}
 		}
 	}
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection: message received: %v",
-			w.ExchangeName,
-			string(standardMessage))
+		log.Debugf(log.WebsocketMgr, "%v %v: Message received: %v", w.ExchangeName, removeURLQueryString(w.URL), string(standardMessage))
 	}
 	return Response{Raw: standardMessage, Type: mType}
 }
@@ -298,8 +293,8 @@ func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int) ([][]byte, error) {
-	outbound, err := json.Marshal(request)
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
+	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
 	}
@@ -337,5 +332,19 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 	}
 
+	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
+	if request.IsVerbose(ctx, false) {
+		for i := range resps {
+			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", w.ExchangeName, removeURLQueryString(w.URL), i+1, len(resps), string(resps[i]))
+		}
+	}
+
 	return resps, err
+}
+
+func removeURLQueryString(url string) string {
+	if index := strings.Index(url, "?"); index != -1 {
+		return url[:index]
+	}
+	return url
 }
