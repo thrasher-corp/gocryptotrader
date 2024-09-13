@@ -89,6 +89,9 @@ type Submit struct {
 
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
+
+	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
+	Iceberg bool
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -301,6 +304,8 @@ type MultiOrderRequest struct {
 	// FromOrderID for some APIs require order history searching
 	// from a specific orderID rather than via timestamps
 	FromOrderID string
+
+	MarginType margin.Type
 }
 
 // Status defines order status types
@@ -418,7 +423,7 @@ type RiskManagement struct {
 	TriggerPriceType PriceType
 	Price            float64
 
-	// LimitPrice limit order price when stop-los or take-profit risk management method is triggered
+	// LimitPrice limit order price when stop-loss or take-profit risk management method is triggered
 	LimitPrice float64
 	// OrderType order type when stop-loss or take-profit risk management method is triggered.
 	OrderType Type
@@ -430,6 +435,10 @@ type RiskManagementModes struct {
 	Mode       string
 	TakeProfit RiskManagement
 	StopLoss   RiskManagement
+
+	// StopEntry stop: 'entry': Triggers when the last trade price changes to a value at or above the stopPrice.
+	// see: https://www.kucoin.com/docs/rest/spot-trading/stop-order/introduction
+	StopEntry RiskManagement
 }
 
 // PriceType enforces a standard for price types used for take-profit and stop-loss trigger types
