@@ -645,12 +645,6 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 				return nil, err
 			}
 		}
-		if err != nil {
-			if errors.Is(err, asset.ErrNotEnabled) {
-				continue // Skip if asset is not enabled.
-			}
-			return nil, err
-		}
 
 		for j := range pairs {
 			params := make(map[string]interface{})
