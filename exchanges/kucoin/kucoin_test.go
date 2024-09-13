@@ -147,7 +147,7 @@ func TestGetPartOrderbook20(t *testing.T) {
 
 func TestGetPartOrderbook100(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetPartOrderbook100(context.Background(), spotTradablePair.String())
+	_, err := ku.GetPartOrderbook100(context.Background(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	result, err := ku.GetPartOrderbook100(context.Background(), spotTradablePair.String())

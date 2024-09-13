@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -88,7 +89,7 @@ func (b *Binance) WsConnect() error {
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -577,7 +578,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		Params: subs.QualifiedChannels(),
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), req.ID, req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr

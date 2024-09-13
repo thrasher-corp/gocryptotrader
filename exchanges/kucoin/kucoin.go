@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -189,7 +190,10 @@ func (ku *Kucoin) GetKlines(ctx context.Context, symbol, period string, start, e
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	if !common.StringDataContains(validPeriods, period) {
+	if period == "" {
+		return nil, fmt.Errorf("%w, period can not be empty", errInvalidPeriod)
+	}
+	if !slices.Contains(validPeriods, period) {
 		return nil, errInvalidPeriod
 	}
 	params.Set("type", period)

@@ -61,7 +61,7 @@ func (p *Provider) GetNewRate(base string, currencies []string) (map[string]floa
 func (p Provider) CheckCurrencies(currencies []string) []string {
 	var spillOver []string
 	for _, c := range currencies {
-		if !common.StringDataCompareInsensitive(p.SupportedCurrencies, c) {
+		if !common.StringSliceCompareInsensitive(p.SupportedCurrencies, c) {
 			spillOver = append(spillOver, c)
 		}
 	}
@@ -72,7 +72,7 @@ func (p Provider) CheckCurrencies(currencies []string) []string {
 func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (map[string]float64, error) {
 	var fullRange = currencies
 
-	if !common.StringDataCompareInsensitive(currencies, baseCurrency) {
+	if !common.StringSliceCompareInsensitive(currencies, baseCurrency) {
 		fullRange = append(fullRange, baseCurrency)
 	}
 

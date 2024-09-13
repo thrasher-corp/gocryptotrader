@@ -140,7 +140,7 @@ func (ku *Kucoin) WsConnect() error {
 	}
 	ku.Websocket.Wg.Add(1)
 	go ku.wsReadData()
-	ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	ku.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: websocket.TextMessage,
@@ -1018,7 +1018,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(context.TODO(), "msgID:"+msgID, req); err != nil {
+		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")

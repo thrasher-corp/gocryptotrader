@@ -307,7 +307,7 @@ func checkMissingExchanges() []string {
 	}
 	supportedExchs := exchange.Exchanges
 	for z := 0; z < len(supportedExchs); {
-		if common.StringDataContainsInsensitive(tempArray, supportedExchs[z]) {
+		if common.StringSliceContainsInsensitive(tempArray, supportedExchs[z]) {
 			supportedExchs = append(supportedExchs[:z], supportedExchs[z+1:]...)
 			continue
 		}
