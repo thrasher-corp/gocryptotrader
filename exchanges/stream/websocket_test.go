@@ -1490,7 +1490,7 @@ func TestRemoveURLQueryString(t *testing.T) {
 func TestGenerateUnsubscribeAndSubscribe(t *testing.T) {
 	t.Parallel()
 	ws := Websocket{subscriptions: subscription.NewStore(), features: &protocol.Features{}}
-	ws.subscriptions.Add(&subscription.Subscription{Channel: subscription.MyOrdersChannel})
+	require.NoError(t, ws.subscriptions.Add(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
 
 	generateError := errors.New("foo fighters the generator")
 	err := ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
