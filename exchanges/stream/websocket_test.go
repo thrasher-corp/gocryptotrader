@@ -704,11 +704,11 @@ func TestSendMessage(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			err = run.WC.SendJSONMessage(context.Background(), Ping)
+			err = run.WC.SendJSONMessage(context.Background(), request.Unset, Ping)
 			if err != nil {
 				t.Error(err)
 			}
-			err = run.WC.SendRawMessage(context.Background(), websocket.TextMessage, []byte(Ping))
+			err = run.WC.SendRawMessage(context.Background(), request.Unset, websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}
@@ -731,7 +731,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 
 	go readMessages(t, wc)
 
-	request := testRequest{
+	req := testRequest{
 		Event: "subscribe",
 		Pairs: []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
 		Subscription: testRequestData{
@@ -740,19 +740,19 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		RequestID: wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.RequestID, request)
+	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
 	if err != nil {
 		t.Error(err)
 	}
 
 	cancelledCtx, fn := context.WithDeadline(context.Background(), time.Now())
 	fn()
-	_, err = wc.SendMessageReturnResponse(cancelledCtx, "123", request)
+	_, err = wc.SendMessageReturnResponse(cancelledCtx, request.Unset, "123", req)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// with timeout
 	wc.responseMaxLimit = 1
-	_, err = wc.SendMessageReturnResponse(context.Background(), "123", request)
+	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
@@ -809,7 +809,7 @@ func TestSetupPingHandler(t *testing.T) {
 	err := wc.Dial(&dialer, http.Header{})
 	require.NoError(t, err)
 
-	wc.SetupPingHandler(PingHandler{UseGorillaHandler: true, MessageType: websocket.PingMessage, Delay: 100})
+	wc.SetupPingHandler(request.Unset, PingHandler{UseGorillaHandler: true, MessageType: websocket.PingMessage, Delay: 100})
 
 	err = wc.connection.Close()
 	require.NoError(t, err)
@@ -817,7 +817,7 @@ func TestSetupPingHandler(t *testing.T) {
 	err = wc.Dial(&dialer, http.Header{})
 	require.NoError(t, err)
 
-	wc.SetupPingHandler(PingHandler{MessageType: websocket.TextMessage, Message: []byte(Ping), Delay: 200})
+	wc.SetupPingHandler(request.Unset, PingHandler{MessageType: websocket.TextMessage, Message: []byte(Ping), Delay: 200})
 	time.Sleep(time.Millisecond * 201)
 	close(wc.parent.ShutdownC)
 	wc.parent.Wg.Wait()
@@ -1149,14 +1149,14 @@ func TestLatency(t *testing.T) {
 
 	go readMessages(t, wc)
 
-	request := testRequest{
+	req := testRequest{
 		Event:        "subscribe",
 		Pairs:        []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
 		Subscription: testRequestData{Name: "ticker"},
 		RequestID:    wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.RequestID, request)
+	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1207,4 +1207,30 @@ func TestRemoveURLQueryString(t *testing.T) {
 	assert.Equal(t, "https://www.google.com", removeURLQueryString("https://www.google.com?test=1"), "removeURLQueryString should remove query string")
 	assert.Equal(t, "https://www.google.com", removeURLQueryString("https://www.google.com"), "removeURLQueryString should not change URL")
 	assert.Equal(t, "", removeURLQueryString(""), "removeURLQueryString should be equal")
+}
+
+func TestWriteToConn(t *testing.T) {
+	t.Parallel()
+	wc := WebsocketConnection{parent: &Websocket{exchangeName: "test"}}
+	require.ErrorIs(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
+	wc.setConnectedStatus(true)
+	// No rate limits set
+	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	// connection rate limit set
+	wc.rateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
+	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	// context cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.Canceled)
+	// definitions set but with fallover
+	wc.parent.rateLimitDefinitions = request.RateLimitDefinitions{
+		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),
+	}
+	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	// match with global rate limit
+	require.NoError(t, wc.writeToConn(context.Background(), request.Auth, func() error { return nil }))
+	// definitions set but connection rate limiter not set
+	wc.rateLimit = nil
+	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
 }
