@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -51,14 +52,14 @@ func TestAllExchangeWrappers(t *testing.T) {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
 			t.Parallel()
-			if common.StringDataContains(unsupportedExchangeNames, name) {
+			if slices.Contains(unsupportedExchangeNames, name) {
 				t.Skipf("skipping unsupported exchange %v", name)
 			}
 			if singleExchangeOverride != "" && name != singleExchangeOverride {
 				t.Skip("skipping ", name, " due to override")
 			}
 			ctx := context.Background()
-			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc

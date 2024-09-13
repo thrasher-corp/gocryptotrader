@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -257,7 +257,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
+	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
@@ -369,14 +369,14 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	params.Set("pair", pair)
-	if !common.StringDataCompare(validContractType, contractType) {
+	if !slices.Contains(validContractType, contractType) {
 		return nil, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
+	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
@@ -491,7 +491,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
+	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
@@ -610,7 +610,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
+	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
@@ -833,11 +833,11 @@ func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, 
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	if !common.StringDataCompare(validContractType, contractType) {
+	if !slices.Contains(validContractType, contractType) {
 		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
-	if !common.StringDataCompare(validFuturesIntervals, period) {
+	if !slices.Contains(validFuturesIntervals, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -859,7 +859,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair, period
 	var resp []TopTraderAccountRatio
 	params := url.Values{}
 	params.Set("pair", pair)
-	if !common.StringDataCompare(validFuturesIntervals, period) {
+	if !slices.Contains(validFuturesIntervals, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -881,7 +881,7 @@ func (b *Binance) GetTraderFuturesPositionsRatio(ctx context.Context, pair, peri
 	var resp []TopTraderPositionRatio
 	params := url.Values{}
 	params.Set("pair", pair)
-	if !common.StringDataCompare(validFuturesIntervals, period) {
+	if !slices.Contains(validFuturesIntervals, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -903,7 +903,7 @@ func (b *Binance) GetMarketRatio(ctx context.Context, pair, period string, limit
 	var resp []TopTraderPositionRatio
 	params := url.Values{}
 	params.Set("pair", pair)
-	if !common.StringDataCompare(validFuturesIntervals, period) {
+	if !slices.Contains(validFuturesIntervals, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -925,14 +925,14 @@ func (b *Binance) GetFuturesTakerVolume(ctx context.Context, pair, contractType,
 	var resp []TakerBuySellVolume
 	params := url.Values{}
 	params.Set("pair", pair)
-	if !common.StringDataCompare(validContractType, contractType) {
+	if !slices.Contains(validContractType, contractType) {
 		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, period) {
+	if !slices.Contains(validFuturesIntervals, period) {
 		return resp, errors.New("invalid period parsed")
 	}
 	params.Set("period", period)
@@ -951,14 +951,14 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, p
 	var resp []FuturesBasisData
 	params := url.Values{}
 	params.Set("pair", pair)
-	if !common.StringDataCompare(validContractType, contractType) {
+	if !slices.Contains(validContractType, contractType) {
 		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, period) {
+	if !slices.Contains(validFuturesIntervals, period) {
 		return resp, errors.New("invalid period parsed")
 	}
 	params.Set("period", period)
@@ -986,7 +986,7 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 	params.Set("symbol", symbolValue)
 	params.Set("side", x.Side)
 	if x.PositionSide != "" {
-		if !common.StringDataCompare(validPositionSide, x.PositionSide) {
+		if !slices.Contains(validPositionSide, x.PositionSide) {
 			return resp, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", x.PositionSide)
@@ -1005,13 +1005,13 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 		params.Set("closePosition", x.ClosePosition)
 	}
 	if x.WorkingType != "" {
-		if !common.StringDataCompare(validWorkingType, x.WorkingType) {
+		if !slices.Contains(validWorkingType, x.WorkingType) {
 			return resp, errors.New("invalid workingType")
 		}
 		params.Set("workingType", x.WorkingType)
 	}
 	if x.NewOrderRespType != "" {
-		if !common.StringDataCompare(validNewOrderRespType, x.NewOrderRespType) {
+		if !slices.Contains(validNewOrderRespType, x.NewOrderRespType) {
 			return resp, errors.New("invalid newOrderRespType")
 		}
 		params.Set("newOrderRespType", x.NewOrderRespType)
@@ -1052,17 +1052,17 @@ func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderD
 		}
 		data[x].Symbol = formattedPair.String()
 		if data[x].PositionSide != "" {
-			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
+			if !slices.Contains(validPositionSide, data[x].PositionSide) {
 				return resp, errors.New("invalid positionSide")
 			}
 		}
 		if data[x].WorkingType != "" {
-			if !common.StringDataCompare(validWorkingType, data[x].WorkingType) {
+			if !slices.Contains(validWorkingType, data[x].WorkingType) {
 				return resp, errors.New("invalid workingType")
 			}
 		}
 		if data[x].NewOrderRespType != "" {
-			if !common.StringDataCompare(validNewOrderRespType, data[x].NewOrderRespType) {
+			if !slices.Contains(validNewOrderRespType, data[x].NewOrderRespType) {
 				return resp, errors.New("invalid newOrderRespType")
 			}
 		}
@@ -1274,7 +1274,7 @@ func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.P
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validMarginType, marginType) {
+	if !slices.Contains(validMarginType, marginType) {
 		return resp, errors.New("invalid marginType")
 	}
 	params.Set("marginType", marginType)
@@ -1291,7 +1291,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 	}
 	params.Set("symbol", symbolValue)
 	if positionSide != "" {
-		if !common.StringDataCompare(validPositionSide, positionSide) {
+		if !slices.Contains(validPositionSide, positionSide) {
 			return resp, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", positionSide)
@@ -1393,7 +1393,7 @@ func (b *Binance) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair
 		params.Set("symbol", symbolValue)
 	}
 	if incomeType != "" {
-		if !common.StringDataCompare(validIncomeType, incomeType) {
+		if !slices.Contains(validIncomeType, incomeType) {
 			return resp, fmt.Errorf("invalid incomeType: %v", incomeType)
 		}
 		params.Set("incomeType", incomeType)
@@ -1433,7 +1433,7 @@ func (b *Binance) FuturesForceOrders(ctx context.Context, symbol currency.Pair, 
 		params.Set("symbol", symbolValue)
 	}
 	if autoCloseType != "" {
-		if !common.StringDataCompare(validAutoCloseTypes, autoCloseType) {
+		if !slices.Contains(validAutoCloseTypes, autoCloseType) {
 			return resp, errors.New("invalid autoCloseType")
 		}
 		params.Set("autoCloseType", autoCloseType)

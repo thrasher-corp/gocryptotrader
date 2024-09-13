@@ -251,43 +251,6 @@ var Exchanges = []string{
 	"yobit",
 ```
 
-#### Increment the default number of supported exchanges in [config/config_test.go](../config/config_test.go):
-```go
-func TestGetEnabledExchanges(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if !errors.Is(err, errConfigDefineErrorExample) {
-		t.Errorf("received: '%v' but expected '%v'", err, errConfigDefineErrorExample)
-	}
-
-	exchanges := cfg.GetEnabledExchanges()
-	// modify the value of defaultEnabledExchanges at the top of the 
-	// config_test.go file to match the total count of exchanges
-	if len(exchanges) != defaultEnabledExchanges { 
-		t.Errorf("received: '%v' but expected '%v'", len(exchanges), defaultEnabledExchanges)
-	}
-
-	if !common.StringDataCompare(exchanges, "Bitfinex") {
-		t.Errorf("received: '%v' but expected '%v'", 
-			common.StringDataCompare(exchanges, "Bitfinex"), 
-			true)
-	}
-}
-```
-
-#### Increment the number of supported exchanges in [the gctscript exchange wrapper test file](../gctscript/wrappers/gct/exchange/exchange_test.go):
-```go
-func TestExchange_Exchanges(t *testing.T) {
-	t.Parallel()
-	x := exchangeTest.Exchanges(false)
-	y := len(x)
-	expected := 28 // modify this value to match the total count of exchanges
-	if y != expected {
-    	t.Fatalf("expected %v received %v", expected , y)
-	}
-}
-```
-
 #### Setup and run the [documentation tool](../cmd/documentation):
 
 - Create a new file named *exchangename*.tmpl

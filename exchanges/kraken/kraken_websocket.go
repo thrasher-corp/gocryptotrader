@@ -1215,7 +1215,7 @@ channels:
 		for _, p := range channelsToSubscribe[i].Pairs {
 			outbound.Pairs = append(outbound.Pairs, p.String())
 		}
-		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
+		if common.StringSliceContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
 		}
 
@@ -1228,7 +1228,7 @@ channels:
 		for i := range *subs {
 			var err error
 			var conn stream.Connection
-			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
+			if common.StringSliceContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
 				_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
 				conn = k.Websocket.AuthConn
 			} else {
@@ -1264,7 +1264,7 @@ channels:
 		}
 
 		var id int64
-		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+		if common.StringSliceContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
 			id = k.Websocket.AuthConn.GenerateMessageID(false)
 		} else {
 			id = k.Websocket.Conn.GenerateMessageID(false)
@@ -1279,7 +1279,7 @@ channels:
 			},
 			RequestID: id,
 		}
-		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+		if common.StringSliceContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
 			unsub.Subscription.Token = authToken
 		}
 		unsub.Channels = append(unsub.Channels, channelsToUnsubscribe[x])
@@ -1290,7 +1290,7 @@ channels:
 	for i := range unsubs {
 		var err error
 		var conn stream.Connection
-		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
+		if common.StringSliceContains(authenticatedChannels, unsubs[i].Subscription.Name) {
 			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
 			conn = k.Websocket.AuthConn
 		} else {
