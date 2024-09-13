@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -113,7 +114,7 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(context.TODO(), setHeartBeatMessage)
+	return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -135,7 +136,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		return err
 	}
 
-	request := wsInput{
+	req := wsInput{
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
@@ -147,7 +148,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"signature":  crypto.HexEncodeToString(hmac),
 		},
 	}
-	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
+	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -187,7 +188,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		return d.Websocket.Conn.SendJSONMessage(context.TODO(), pingMessage)
+		return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
@@ -1165,7 +1166,7 @@ func (d *Deribit) handleSubscription(operation string, channels subscription.Lis
 		return err
 	}
 	for x := range payloads {
-		data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), payloads[x].ID, payloads[x])
+		data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[x].ID, payloads[x])
 		if err != nil {
 			return err
 		}
