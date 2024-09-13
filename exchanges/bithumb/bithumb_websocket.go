@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -204,7 +205,7 @@ func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
 		if s.Channel == "ticker" {
 			req.TickTypes = wsDefaultTickTypes
 		}
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(s)
 		}
