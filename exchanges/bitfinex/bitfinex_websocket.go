@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -1710,7 +1711,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // ConfigureWS to send checksums and sequence numbers
 func (b *Bitfinex) ConfigureWS() error {
-	return b.Websocket.Conn.SendJSONMessage(context.TODO(), map[string]interface{}{
+	return b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, map[string]interface{}{
 		"event": "conf",
 		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
 	})
@@ -1756,7 +1757,7 @@ func (b *Bitfinex) subscribeToChan(chans subscription.List) error {
 		_ = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, c)
 	}()
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), "subscribe:"+subID, req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "subscribe:"+subID, req)
 	if err != nil {
 		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Pairs)
 	}
@@ -1849,7 +1850,7 @@ func (b *Bitfinex) unsubscribeFromChan(chans subscription.List) error {
 		"chanId": chanID,
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), "unsubscribe:"+strconv.Itoa(chanID), req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "unsubscribe:"+strconv.Itoa(chanID), req)
 	if err != nil {
 		return err
 	}
@@ -1906,15 +1907,14 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	request := WsAuthRequest{
+	err = b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, WsAuthRequest{
 		Event:         "auth",
 		APIKey:        creds.Key,
 		AuthPayload:   payload,
 		AuthSig:       crypto.HexEncodeToString(hmac),
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
-	}
-	err = b.Websocket.AuthConn.SendJSONMessage(ctx, request)
+	})
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -1925,8 +1925,8 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 // WsNewOrder authenticated new order request
 func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 	data.CustomID = b.Websocket.AuthConn.GenerateMessageID(false)
-	request := makeRequestInterface(wsOrderNew, data)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), data.CustomID, request)
+	req := makeRequestInterface(wsOrderNew, data)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, data.CustomID, req)
 	if err != nil {
 		return "", err
 	}
@@ -1982,8 +1982,8 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 
 // WsModifyOrder authenticated modify order request
 func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
-	request := makeRequestInterface(wsOrderUpdate, data)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), data.OrderID, request)
+	req := makeRequestInterface(wsOrderUpdate, data)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, data.OrderID, req)
 	if err != nil {
 		return err
 	}
@@ -2027,8 +2027,8 @@ func (b *Bitfinex) WsCancelMultiOrders(orderIDs []int64) error {
 	cancel := WsCancelGroupOrdersRequest{
 		OrderID: orderIDs,
 	}
-	request := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request)
+	req := makeRequestInterface(wsCancelMultipleOrders, cancel)
+	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
 // WsCancelOrder authenticated cancel order request
@@ -2036,8 +2036,8 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
-	request := makeRequestInterface(wsOrderCancel, cancel)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), orderID, request)
+	req := makeRequestInterface(wsOrderCancel, cancel)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, orderID, req)
 	if err != nil {
 		return err
 	}
@@ -2078,14 +2078,14 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 // WsCancelAllOrders authenticated cancel all orders request
 func (b *Bitfinex) WsCancelAllOrders() error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
-	request := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request)
+	req := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
+	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
 // WsNewOffer authenticated new offer request
 func (b *Bitfinex) WsNewOffer(data *WsNewOfferRequest) error {
-	request := makeRequestInterface(wsFundingOfferNew, data)
-	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request)
+	req := makeRequestInterface(wsFundingOfferNew, data)
+	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
 // WsCancelOffer authenticated cancel offer request
@@ -2093,8 +2093,8 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
-	request := makeRequestInterface(wsFundingOfferCancel, cancel)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), orderID, request)
+	req := makeRequestInterface(wsFundingOfferCancel, cancel)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, orderID, req)
 	if err != nil {
 		return err
 	}

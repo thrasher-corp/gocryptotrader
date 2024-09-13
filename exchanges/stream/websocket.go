@@ -209,6 +209,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
 	w.setState(disconnectedState)
 
+	w.rateLimitDefinitions = s.RateLimitDefinitions
 	return nil
 }
 
@@ -308,6 +309,7 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		RateLimit:                c.RateLimit,
 		Reporter:                 c.ConnectionLevelReporter,
 		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
+		RateLimitDefinitions:     w.rateLimitDefinitions,
 	}
 }
 

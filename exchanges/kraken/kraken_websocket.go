@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -334,7 +335,7 @@ func (k *Kraken) wsPingHandler() error {
 	if err != nil {
 		return err
 	}
-	k.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	k.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -348,7 +349,7 @@ func (k *Kraken) wsAuthPingHandler() error {
 	if err != nil {
 		return err
 	}
-	k.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	k.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -1229,10 +1230,10 @@ channels:
 			var err error
 			var conn stream.Connection
 			if common.StringSliceContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
-				_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
+				_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, (*subs)[i].RequestID, (*subs)[i])
 				conn = k.Websocket.AuthConn
 			} else {
-				_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), (*subs)[i].RequestID, (*subs)[i])
+				_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, (*subs)[i].RequestID, (*subs)[i])
 				conn = k.Websocket.Conn
 			}
 			if err == nil {
@@ -1291,10 +1292,10 @@ channels:
 		var err error
 		var conn stream.Connection
 		if common.StringSliceContains(authenticatedChannels, unsubs[i].Subscription.Name) {
-			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
+			_, err = k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, unsubs[i].RequestID, unsubs[i])
 			conn = k.Websocket.AuthConn
 		} else {
-			_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), unsubs[i].RequestID, unsubs[i])
+			_, err = k.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, unsubs[i].RequestID, unsubs[i])
 			conn = k.Websocket.Conn
 		}
 		if err == nil {
@@ -1308,12 +1309,12 @@ channels:
 }
 
 // wsAddOrder creates an order, returned order ID if success
-func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
+func (k *Kraken) wsAddOrder(req *WsAddOrderRequest) (string, error) {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
-	request.RequestID = id
-	request.Event = krakenWsAddOrder
-	request.Token = authToken
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
+	req.RequestID = id
+	req.Event = krakenWsAddOrder
+	req.Token = authToken
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
 	if err != nil {
 		return "", err
 	}
@@ -1345,14 +1346,14 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 // wsCancelOrder cancels an open order
 func (k *Kraken) wsCancelOrder(orderID string) error {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
-	request := WsCancelOrderRequest{
+	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
 		Token:          authToken,
 		TransactionIDs: []string{orderID},
 		RequestID:      id,
 	}
 
-	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
+	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
 	if err != nil {
 		return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
 	}
@@ -1376,13 +1377,13 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
-	request := WsCancelOrderRequest{
+	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
 		Token:     authToken,
 		RequestID: id,
 	}
 
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), id, request)
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
 	}
