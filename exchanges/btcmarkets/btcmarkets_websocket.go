@@ -358,7 +358,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 
 	var errs error
 	for _, s := range subs {
-		if baseReq.Key == "" && common.StringDataContains(authChannels, s.Channel) {
+		if baseReq.Key == "" && common.StringSliceContains(authChannels, s.Channel) {
 			if err := b.authWsSubscibeReq(baseReq); err != nil {
 				return err
 			}

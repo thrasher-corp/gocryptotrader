@@ -167,7 +167,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return err
 		}
 
-		verbose := isVerbose(ctx, p.Verbose)
+		verbose := IsVerbose(ctx, p.Verbose)
 
 		if verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
@@ -380,9 +380,9 @@ func WithVerbose(ctx context.Context) context.Context {
 	return context.WithValue(ctx, contextVerboseFlag, true)
 }
 
-// isVerbose checks main verbosity first then checks context verbose values
+// IsVerbose checks main verbosity first then checks context verbose values
 // for specific request verbosity.
-func isVerbose(ctx context.Context, verbose bool) bool {
+func IsVerbose(ctx context.Context, verbose bool) bool {
 	if verbose {
 		return true
 	}

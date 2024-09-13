@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
@@ -117,7 +118,7 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 		if err != nil {
 			return resp, err
 		}
-		if !common.StringDataCompare(validBatchOrderType, data[x].PlaceOrderType) {
+		if !slices.Contains(validBatchOrderType, data[x].PlaceOrderType) {
 			return resp, fmt.Errorf("%s %w",
 				data[x].PlaceOrderType,
 				errInvalidBatchOrderType)
@@ -175,12 +176,12 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validSide, side) {
+	if !slices.Contains(validSide, side) {
 		return resp, errors.New("invalid side")
 	}
 	params.Set("side", side)
 	if triggerSignal != "" {
-		if !common.StringDataCompare(validTriggerSignal, triggerSignal) {
+		if !slices.Contains(validTriggerSignal, triggerSignal) {
 			return resp, errors.New("invalid triggerSignal")
 		}
 		params.Set("triggerSignal", triggerSignal)
@@ -189,7 +190,7 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 		params.Set("cliOrdId", clientOrderID)
 	}
 	if reduceOnly != "" {
-		if !common.StringDataCompare(validReduceOnly, reduceOnly) {
+		if !slices.Contains(validReduceOnly, reduceOnly) {
 			return resp, errors.New("invalid reduceOnly")
 		}
 		params.Set("reduceOnly", reduceOnly)

@@ -375,7 +375,7 @@ func (m *OrderManager) validate(exch exchange.IBotExchange, newOrder *order.Subm
 		}
 
 		if len(m.cfg.AllowedExchanges) > 0 &&
-			!common.StringDataCompareInsensitive(m.cfg.AllowedExchanges, newOrder.Exchange) {
+			!common.StringSliceCompareInsensitive(m.cfg.AllowedExchanges, newOrder.Exchange) {
 			return errors.New("order exchange not found in allowed list")
 		}
 

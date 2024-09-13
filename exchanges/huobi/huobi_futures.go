@@ -91,7 +91,7 @@ func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType strin
 		params.Set("symbol", symbol)
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, errors.New("invalid contractType")
 		}
 		params.Set("contract_type", contractType)
@@ -130,7 +130,7 @@ func (h *HUOBI) FContractPriceLimitations(ctx context.Context, symbol, contractT
 		params.Set("symbol", symbol)
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, fmt.Errorf("invalid contractType: %s", contractType)
 		}
 		params.Set("contract_type", contractType)
@@ -164,7 +164,7 @@ func (h *HUOBI) ContractOpenInterestUSDT(ctx context.Context, contractCode, pair
 		params.Set("pair", p)
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return nil, errors.New("invalid contractType")
 		}
 		params.Set("contract_type", contractType)
@@ -187,7 +187,7 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 		params.Set("symbol", symbol)
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, errors.New("invalid contractType")
 		}
 		params.Set("contract_type", contractType)
@@ -263,7 +263,7 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params.Set("period", period)
@@ -375,11 +375,11 @@ func (h *HUOBI) FQueryHisOpenInterest(ctx context.Context, symbol, contractType,
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+	if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 		return resp, fmt.Errorf("%w %v", errInvalidContractType, contractType)
 	}
 	params.Set("contract_type", contractType)
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -417,7 +417,7 @@ func (h *HUOBI) FQueryTopAccountsRatio(ctx context.Context, symbol, period strin
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -432,7 +432,7 @@ func (h *HUOBI) FQueryTopPositionsRatio(ctx context.Context, symbol, period stri
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -476,7 +476,7 @@ func (h *HUOBI) FIndexKline(ctx context.Context, symbol currency.Pair, period st
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params.Set("period", period)
@@ -497,12 +497,12 @@ func (h *HUOBI) FGetBasisData(ctx context.Context, symbol currency.Pair, period,
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params.Set("period", period)
 	if basisPriceType != "" {
-		if common.StringDataCompareInsensitive(validBasisPriceTypes, basisPriceType) {
+		if common.StringSliceCompareInsensitive(validBasisPriceTypes, basisPriceType) {
 			params.Set("basis_price_type", basisPriceType)
 		}
 	}
@@ -632,7 +632,7 @@ func (h *HUOBI) FGetOrderLimits(ctx context.Context, symbol, orderPriceType stri
 		req["symbol"] = symbol
 	}
 	if orderPriceType != "" {
-		if !common.StringDataCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
+		if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 		req["order_price_type"] = orderPriceType
@@ -697,7 +697,7 @@ func (h *HUOBI) FTransfer(ctx context.Context, subUID, symbol, transferType stri
 	req["symbol"] = symbol
 	req["subUid"] = subUID
 	req["amount"] = amount
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -711,7 +711,7 @@ func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType st
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -750,7 +750,7 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 		req["symbol"] = symbol
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, errors.New("invalid contractType")
 		}
 		req["contract_type"] = contractType
@@ -773,10 +773,10 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 		req["client_order_id"] = id
 	}
 	req["direction"] = direction
-	if !common.StringDataCompareInsensitive(validOffsetTypes, offset) {
+	if !common.StringSliceCompareInsensitive(validOffsetTypes, offset) {
 		return resp, errors.New("invalid offset amounts")
 	}
-	if !common.StringDataCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
 		return resp, errors.New("invalid orderPriceType")
 	}
 	req["order_price_type"] = orderPriceType
@@ -807,14 +807,14 @@ func (h *HUOBI) FPlaceBatchOrder(ctx context.Context, data []fBatchOrderData) (F
 			data[x].ContractCode = formattedPair.String()
 		}
 		if data[x].ContractType != "" {
-			if !common.StringDataCompareInsensitive(validContractTypes, data[x].ContractType) {
+			if !common.StringSliceCompareInsensitive(validContractTypes, data[x].ContractType) {
 				return resp, errors.New("invalid contractType")
 			}
 		}
-		if !common.StringDataCompareInsensitive(validOffsetTypes, data[x].Offset) {
+		if !common.StringSliceCompareInsensitive(validOffsetTypes, data[x].Offset) {
 			return resp, errors.New("invalid offset amounts")
 		}
-		if !common.StringDataCompareInsensitive(validFuturesOrderPriceTypes, data[x].OrderPriceType) {
+		if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, data[x].OrderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 	}
@@ -847,7 +847,7 @@ func (h *HUOBI) FCancelAllOrders(ctx context.Context, contractCode currency.Pair
 		req["symbol"] = symbol
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, errors.New("invalid contractType")
 		}
 		req["contract_type"] = contractType
@@ -868,7 +868,7 @@ func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, errors.New("invalid contractType")
 		}
 		req["contract_type"] = contractType
@@ -886,7 +886,7 @@ func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair
 		req["client_order_id"] = clientOrderID
 	}
 	if orderPriceType != "" {
-		if !common.StringDataCompareInsensitive(validOPTypes, orderPriceType) {
+		if !common.StringSliceCompareInsensitive(validOPTypes, orderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 		req["orderPriceType"] = orderPriceType
@@ -1040,7 +1040,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 		req["symbol"] = symbol
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, fmt.Errorf("invalid contractType: %s", contractType)
 		}
 		req["contract_type"] = contractType
@@ -1058,7 +1058,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 	}
 	req["trigger_type"] = tType
 	req["direction"] = direction
-	if !common.StringDataCompareInsensitive(validOffsetTypes, offset) {
+	if !common.StringSliceCompareInsensitive(validOffsetTypes, offset) {
 		return resp, errors.New("invalid offset")
 	}
 	req["offset"] = offset
@@ -1066,7 +1066,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 	req["volume"] = volume
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
-	if !common.StringDataCompareInsensitive(validOrderPriceType, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validOrderPriceType, orderPriceType) {
 		return resp, errors.New("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
@@ -1095,7 +1095,7 @@ func (h *HUOBI) FCancelAllTriggerOrders(ctx context.Context, contractCode curren
 		req["contract_code"] = codeValue
 	}
 	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+		if !common.StringSliceCompareInsensitive(validContractTypes, contractType) {
 			return resp, nil
 		}
 		req["contract_type"] = contractType
@@ -1256,7 +1256,7 @@ func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 
 // formatFuturesPair handles pairs in the format as "BTC-NW" and "BTC210827"
 func (h *HUOBI) formatFuturesPair(p currency.Pair, convertQuoteToExpiry bool) (string, error) {
-	if common.StringDataCompareInsensitive(validContractShortTypes, p.Quote.String()) {
+	if common.StringSliceCompareInsensitive(validContractShortTypes, p.Quote.String()) {
 		if convertQuoteToExpiry {
 			cp, err := h.convertContractShortHandToExpiry(p, time.Now())
 			if err != nil {
