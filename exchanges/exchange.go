@@ -917,7 +917,7 @@ func (b *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (b *Base) FormatWithdrawPermissions() string {
 	var services []string
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		var check uint32 = 1 << uint32(i)
 		if b.GetWithdrawPermissions()&check != 0 {
 			switch check {
@@ -1299,7 +1299,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil //nolint:nilerr // non-fatal error as we won't update the running URL
+		return nil
 	}
 	e.defaults[key] = val
 	return nil

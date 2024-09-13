@@ -638,7 +638,7 @@ func getOrderbookStream(c *cli.Context) error {
 			fmt.Println("\t\tBids\t\t\t\tAsks")
 			fmt.Println()
 
-			for i := int64(0); i < maxLen; i++ {
+			for i := range maxLen {
 				var bidAmount, bidPrice float64
 				if i <= bidLen {
 					bidAmount = resp.Bids[i].Amount

@@ -1575,8 +1575,6 @@ func TestMatchFilter(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range tests {
-		num := num
-		tt := tt
 		t.Run(strconv.Itoa(num), func(t *testing.T) {
 			t.Parallel()
 			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
@@ -1750,8 +1748,6 @@ func TestIsOrderPlaced(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range statusTests {
-		num := num
-		tt := tt
 		t.Run(fmt.Sprintf("TEST CASE: %d", num), func(t *testing.T) {
 			t.Parallel()
 			if tt.o.WasOrderPlaced() != tt.expectedResult {

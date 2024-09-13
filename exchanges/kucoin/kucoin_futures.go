@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -332,7 +333,7 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 	if granularity == 0 {
 		return nil, errors.New("granularity can not be empty")
 	}
-	if !common.StringDataContains(validGranularity, strconv.FormatInt(granularity, 10)) {
+	if !slices.Contains(validGranularity, strconv.FormatInt(granularity, 10)) {
 		return nil, errors.New("invalid granularity")
 	}
 	params := url.Values{}

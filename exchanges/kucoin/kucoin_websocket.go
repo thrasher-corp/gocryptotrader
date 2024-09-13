@@ -956,7 +956,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse("msgID:"+msgID, req); err != nil {
+		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(context.TODO(), "msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
@@ -1060,7 +1060,7 @@ func (ku *Kucoin) setupOrderbookManager() {
 		}
 		ku.obm.Mutex.Unlock()
 	}
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		ku.SynchroniseWebsocketOrderbook()
 	}
@@ -1564,14 +1564,14 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 	default:
 		resp := make([]asset.Item, 0, 2)
 		spotEnabled, err := ku.IsPairEnabled(cp, asset.Spot)
-		if err != nil && !errors.Is(currency.ErrCurrencyNotFound, err) {
+		if err != nil && !errors.Is(err, currency.ErrCurrencyNotFound) {
 			return nil, err
 		}
 		if spotEnabled {
 			resp = append(resp, asset.Spot)
 		}
 		marginEnabled, err := ku.IsPairEnabled(cp, asset.Margin)
-		if err != nil && !errors.Is(currency.ErrCurrencyNotFound, err) {
+		if err != nil && !errors.Is(err, currency.ErrCurrencyNotFound) {
 			return nil, err
 		}
 		if marginEnabled {

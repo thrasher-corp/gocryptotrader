@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
@@ -117,7 +118,7 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 		if err != nil {
 			return resp, err
 		}
-		if !common.StringDataCompare(validBatchOrderType, data[x].PlaceOrderType) {
+		if !slices.Contains(validBatchOrderType, data[x].PlaceOrderType) {
 			return resp, fmt.Errorf("%s %w",
 				data[x].PlaceOrderType,
 				errInvalidBatchOrderType)
@@ -175,12 +176,12 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validSide, side) {
+	if !slices.Contains(validSide, side) {
 		return resp, errors.New("invalid side")
 	}
 	params.Set("side", side)
 	if triggerSignal != "" {
-		if !common.StringDataCompare(validTriggerSignal, triggerSignal) {
+		if !slices.Contains(validTriggerSignal, triggerSignal) {
 			return resp, errors.New("invalid triggerSignal")
 		}
 		params.Set("triggerSignal", triggerSignal)
@@ -189,7 +190,7 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 		params.Set("cliOrdId", clientOrderID)
 	}
 	if reduceOnly != "" {
-		if !common.StringDataCompare(validReduceOnly, reduceOnly) {
+		if !slices.Contains(validReduceOnly, reduceOnly) {
 			return resp, errors.New("invalid reduceOnly")
 		}
 		params.Set("reduceOnly", reduceOnly)
@@ -377,20 +378,46 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 		}, nil
 	}
 
-	if err := k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest); err != nil {
-		return err
+	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
+
+	if err == nil {
+		err = getFuturesErr(interim)
 	}
 
-	var resp genericFuturesResponse
-	if err := json.Unmarshal(interim, &resp); err != nil {
-		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
-	} else if resp.Error != "" && resp.Result != "success" {
-		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, resp.Error)
+	if err == nil {
+		err = json.Unmarshal(interim, result)
 	}
 
-	if err := json.Unmarshal(interim, result); err != nil {
+	if err != nil {
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 	}
 
 	return nil
+}
+
+func getFuturesErr(msg json.RawMessage) error {
+	var resp genericFuturesResponse
+	if err := json.Unmarshal(msg, &resp); err != nil {
+		return err
+	}
+
+	// Result may be omitted entirely, so we don't test for == "success"
+	if resp.Result != "error" {
+		return nil
+	}
+
+	var errs error
+	if resp.Error != "" {
+		errs = errors.New(resp.Error)
+	}
+
+	for _, err := range resp.Errors {
+		errs = common.AppendError(errs, errors.New(err))
+	}
+
+	if errs == nil {
+		return fmt.Errorf("%w from message: %s", common.ErrUnknownError, msg)
+	}
+
+	return errs
 }

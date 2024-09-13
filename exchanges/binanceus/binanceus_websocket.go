@@ -117,8 +117,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 			err := bi.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				bi.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					bi.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", bi.Name)
 			}
 		}
 	}
@@ -577,7 +576,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 			if err != nil {
 				return err
 			}
@@ -585,7 +584,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 		if err != nil {
 			return err
 		}
@@ -601,7 +600,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 			if err != nil {
 				return err
 			}
@@ -609,7 +608,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), payload)
 		if err != nil {
 			return err
 		}
@@ -635,7 +634,7 @@ func (bi *Binanceus) setupOrderbookManager() {
 			}
 		}
 	}
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		bi.SynchroniseWebsocketOrderbook()
 	}

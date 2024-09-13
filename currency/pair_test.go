@@ -603,7 +603,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	// currency pairs
 	pairs = append(pairs, NewPair(ETH, USD))
 	expectedResults := make(map[string]bool)
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		result, err = pairs.GetRandomPair()
 		if !errors.Is(err, nil) {
 			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -751,7 +751,6 @@ func TestPairFormat_Format(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			f := &PairFormat{
 				Uppercase: tt.fields.Uppercase,
@@ -828,7 +827,6 @@ func TestGetOrderParameters(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 			var resp *OrderParameters
@@ -895,7 +893,6 @@ func TestIsAssociated(t *testing.T) {
 	}
 
 	for x := range testCases {
-		x := x
 		t.Run(strconv.Itoa(x), func(t *testing.T) {
 			t.Parallel()
 			if testCases[x].Pair.IsAssociated(testCases[x].associate) != testCases[x].expectedResult {

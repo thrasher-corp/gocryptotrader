@@ -31,8 +31,8 @@ var serverLimit *RateLimiterWithWeight
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
-	serverLimit = NewRateLimitWithWeight(serverLimitInterval, 1, 1)
-	serverLimitRetry := NewRateLimitWithWeight(serverLimitInterval, 1, 1)
+	serverLimit = NewWeightedRateLimitByDuration(serverLimitInterval)
+	serverLimitRetry := NewWeightedRateLimitByDuration(serverLimitInterval)
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -201,7 +201,7 @@ func TestCheckRequest(t *testing.T) {
 }
 
 var globalshell = RateLimitDefinitions{
-	Auth:   NewRateLimitWithWeight(time.Millisecond*600, 1, 1),
+	Auth:   NewWeightedRateLimitByDuration(time.Millisecond * 600),
 	UnAuth: NewRateLimitWithWeight(time.Second*1, 100, 1)}
 
 func TestDoRequest(t *testing.T) {
@@ -345,7 +345,7 @@ func TestDoRequest(t *testing.T) {
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func(wg *sync.WaitGroup) {
 			var resp struct {
 				Response bool `json:"response"`
@@ -388,7 +388,7 @@ func TestDoRequest_Retries(t *testing.T) {
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(4)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			var resp struct {
@@ -700,29 +700,10 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 
 func TestContextVerbosity(t *testing.T) {
 	t.Parallel()
-	if isVerbose(context.Background(), false) {
-		t.Fatal("unexpected value")
-	}
-
-	if !isVerbose(context.Background(), true) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx := context.Background()
-	ctx = WithVerbose(ctx)
-	if !isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, false)
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, "bruh")
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
+	require.False(t, IsVerbose(context.Background(), false))
+	require.True(t, IsVerbose(context.Background(), true))
+	require.True(t, IsVerbose(WithVerbose(context.Background()), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, false), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, "bruh"), false))
+	require.True(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, true), false))
 }

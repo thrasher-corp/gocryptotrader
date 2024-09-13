@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -132,7 +133,7 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    int64
+	RateLimit    *request.RateLimiterWithWeight
 	ExchangeName string
 	URL          string
 	ProxyURL     string
@@ -144,6 +145,11 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+
+	// bespokeGenerateMessageID is a function that returns a unique message ID
+	// defined externally. This is used for exchanges that require a unique
+	// message ID for each message sent.
+	bespokeGenerateMessageID func(highPrecision bool) int64
 
 	Reporter Reporter
 }
