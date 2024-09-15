@@ -121,6 +121,15 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	return nil
 }
 
+// GetRateLimiterDefinitions returns the rate limiter definitions for the
+// requester
+func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
+	if r == nil {
+		return nil
+	}
+	return r.limiter
+}
+
 // RateLimit is a function that will rate limit a request based on the rate
 // limiter provided. It will return an error if the context is cancelled or
 // deadline exceeded.

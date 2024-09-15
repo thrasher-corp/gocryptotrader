@@ -208,6 +208,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
+		RateLimitDefinitions: ok.Requester.GetRateLimiterDefinitions(),
 	}); err != nil {
 		return err
 	}

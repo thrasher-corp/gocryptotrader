@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -225,7 +226,7 @@ func (ok *Okx) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	ok.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -254,7 +255,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	}
 	ok.Websocket.Wg.Add(1)
 	go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -314,7 +315,7 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions subscription.List) error {
-	request := WSSubscriptionInformationList{Operation: operation}
+	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
 	var authChannels subscription.List
@@ -433,7 +434,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequests)
+				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests)
 				if err != nil {
 					return err
 				}
@@ -450,14 +451,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 		} else {
 			channels = append(channels, s)
-			request.Arguments = append(request.Arguments, arg)
-			chunk, err := json.Marshal(request)
+			reqs.Arguments = append(reqs.Arguments, arg)
+			chunk, err := json.Marshal(reqs)
 			if err != nil {
 				return err
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request)
+				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs)
 				if err != nil {
 					return err
 				}
@@ -470,20 +471,20 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 					return err
 				}
 				channels = subscription.List{}
-				request.Arguments = []SubscriptionInfo{}
+				reqs.Arguments = []SubscriptionInfo{}
 				continue
 			}
 		}
 	}
 
-	if len(request.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request); err != nil {
+	if len(reqs.Arguments) > 0 {
+		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), authRequests); err != nil {
+		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests); err != nil {
 			return err
 		}
 	}
@@ -1357,7 +1358,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
-	return ok.Websocket.Conn.SendJSONMessage(context.TODO(), input)
+	return ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, input)
 }
 
 // Private Channel Websocket methods
@@ -1421,7 +1422,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 			},
 		},
 	}
-	return ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), input)
+	return ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, input)
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by

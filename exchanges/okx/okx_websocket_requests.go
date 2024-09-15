@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -195,7 +196,7 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, id, operat
 		}
 	}
 
-	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(ctx, id, outbound)
+	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, id, outbound)
 	if err != nil {
 		return err
 	}

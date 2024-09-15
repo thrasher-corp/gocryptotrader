@@ -16,16 +16,19 @@ import (
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
 	ReadMessage() Response
-	SendJSONMessage(ctx context.Context, payload any) error
-	SetupPingHandler(PingHandler)
-	// GenerateMessageID generates a message ID for the individual connection.
-	// If a bespoke function is set (by using SetupNewConnection) it will use
-	// that, otherwise it will use the defaultGenerateMessageID function defined
-	// in websocket_connection.go.
+	SetupPingHandler(request.EndpointLimit, PingHandler)
+	// GenerateMessageID generates a message ID for the individual connection. If a bespoke function is set
+	// (by using SetupNewConnection) it will use that, otherwise it will use the defaultGenerateMessageID function
+	// defined in websocket_connection.go.
 	GenerateMessageID(highPrecision bool) int64
-	SendMessageReturnResponse(ctx context.Context, signature any, request any) ([]byte, error)
-	SendMessageReturnResponses(ctx context.Context, signature any, request any, expected int) ([][]byte, error)
-	SendRawMessage(ctx context.Context, messageType int, message []byte) error
+	// SendMessageReturnResponse will send a WS message to the connection and wait for response
+	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
+	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	// SendRawMessage sends a message over the connection without JSON encoding it
+	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
+	// SendJSONMessage sends a JSON encoded message over the connection
+	SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error
 	SetURL(string)
 	SetProxy(string)
 	GetURL() string
