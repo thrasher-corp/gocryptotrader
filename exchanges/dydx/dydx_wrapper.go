@@ -115,7 +115,7 @@ func (dy *DYDX) SetDefaults() {
 		},
 	}
 	dy.Requester, err = request.New(dy.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetupRateLimiter()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -129,7 +129,7 @@ func (dy *DYDX) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	dy.Websocket = stream.New()
+	dy.Websocket = stream.NewWebsocket()
 	dy.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	dy.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	dy.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -562,7 +562,7 @@ func (dy *DYDX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 
 // SubmitOrder submits a new order
 func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(dy.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	formattedPair, err := dy.FormatExchangeCurrency(s.Pair, s.AssetType)
@@ -615,7 +615,7 @@ func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*
 	resp.Status = map[string]string{}
 	for x := range orders {
 		if orders[x] == zeroValue {
-			return nil, fmt.Errorf("%w, invalid cancel order", common.ErrZeroValue)
+			return nil, fmt.Errorf("%w, invalid cancel order", common.ErrNilPointer)
 		}
 		if !dy.SupportsAsset(orders[x].AssetType) {
 			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, orders[x].AssetType)

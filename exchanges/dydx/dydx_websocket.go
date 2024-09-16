@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -18,7 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -41,7 +42,7 @@ var defaultSubscriptions = []string{
 // WsConnect connect to dydx websocket server.
 func (dy *DYDX) WsConnect() error {
 	if !dy.Websocket.IsEnabled() || !dy.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := dy.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -285,40 +286,40 @@ func (dy *DYDX) processOrders(orders []Order) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions
-func (dy *DYDX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (dy *DYDX) GenerateDefaultSubscriptions() (subscription.List, error) {
 	channels := defaultSubscriptions
 	if dy.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, accountsChannel)
 	}
-	subscriptions := []stream.ChannelSubscription{}
+	subscriptions := subscription.List{}
 	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	for x := range channels {
 		if channels[x] == accountsChannel || channels[x] == marketsChannel {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[x],
 			})
 			continue
 		}
-		for a := range enabledPairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[x],
-				Currency: enabledPairs[a],
-			})
-		}
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: channels[x],
+			Pairs:   enabledPairs,
+		})
 	}
 	return subscriptions, nil
 }
 
-func (dy *DYDX) generateSubscriptionPayload(subscriptions []stream.ChannelSubscription, operation string) ([]WsInput, error) {
+func (dy *DYDX) generateSubscriptionPayload(subscriptions subscription.List, operation string) ([]WsInput, error) {
 	payloads := make([]WsInput, len(subscriptions))
 	for x := range subscriptions {
-		payloads[x] = WsInput{
-			Type:    operation,
-			Channel: subscriptions[x].Channel,
-			ID:      subscriptions[x].Currency.String(),
+		for a := range subscriptions[x].Pairs {
+			payloads[x] = WsInput{
+				Type:    operation,
+				Channel: subscriptions[x].Channel,
+				ID:      subscriptions[x].Pairs[a].String(),
+			}
 		}
 
 		if subscriptions[x].Channel == accountsChannel {
@@ -343,14 +344,14 @@ func (dy *DYDX) generateSubscriptionPayload(subscriptions []stream.ChannelSubscr
 	return payloads, nil
 }
 
-func (dy *DYDX) handleSubscriptions(subscriptions []stream.ChannelSubscription, operation string) error {
+func (dy *DYDX) handleSubscriptions(subscriptions subscription.List, operation string) error {
 	payloads, err := dy.generateSubscriptionPayload(subscriptions, operation)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for x := range payloads {
-		err = dy.Websocket.Conn.SendJSONMessage(payloads[x])
+		err = dy.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[x])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -361,11 +362,11 @@ func (dy *DYDX) handleSubscriptions(subscriptions []stream.ChannelSubscription, 
 }
 
 // Subscribe sends a subscriptions requests through the websocket connection.
-func (dy *DYDX) Subscribe(subscriptions []stream.ChannelSubscription) error {
+func (dy *DYDX) Subscribe(subscriptions subscription.List) error {
 	return dy.handleSubscriptions(subscriptions, "subscribe")
 }
 
 // Unsubscribe sends unsubscription to channels through the websocket connection.
-func (dy *DYDX) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
+func (dy *DYDX) Unsubscribe(subscriptions subscription.List) error {
 	return dy.handleSubscriptions(subscriptions, "unsubscribe")
 }

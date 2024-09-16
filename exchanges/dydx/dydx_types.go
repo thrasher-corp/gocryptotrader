@@ -139,8 +139,8 @@ type MarketOrderbookUpdate struct {
 	Offset string            `json:"offset"`
 }
 
-func (a wsOrderbookUpdate) generateOrderbookItem() ([]orderbook.Item, error) {
-	books := make([]orderbook.Item, len(a))
+func (a wsOrderbookUpdate) generateOrderbookItem() ([]orderbook.Tranche, error) {
+	books := make([]orderbook.Tranche, len(a))
 	for x := range a {
 		price, err := strconv.ParseFloat(a[x][0], 64)
 		if err != nil {
@@ -150,7 +150,7 @@ func (a wsOrderbookUpdate) generateOrderbookItem() ([]orderbook.Item, error) {
 		if err != nil {
 			return nil, err
 		}
-		books[x] = orderbook.Item{
+		books[x] = orderbook.Tranche{
 			Amount: size,
 			Price:  price,
 		}
@@ -167,10 +167,10 @@ type OrderbookData struct {
 
 type orderbookDatas []OrderbookData
 
-func (a orderbookDatas) generateOrderbookItem() []orderbook.Item {
-	books := make([]orderbook.Item, len(a))
+func (a orderbookDatas) generateOrderbookItem() []orderbook.Tranche {
+	books := make([]orderbook.Tranche, len(a))
 	for x := range a {
-		books[x] = orderbook.Item{
+		books[x] = orderbook.Tranche{
 			Price:  a[x].Price.Float64(),
 			Amount: a[x].Size.Float64(),
 		}

@@ -3,7 +3,6 @@ package dydx
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -17,8 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/yanue/starkex"
 )
 
 // DYDX is the overarching type across this package
@@ -416,28 +412,28 @@ func (dy *DYDX) GetUserActiveLinks(ctx context.Context, userType, primaryAddress
 }
 
 // SendUserLinkRequest end a new request to link users, respond to a pending request, or remove a link.
-func (dy *DYDX) SendUserLinkRequest(ctx context.Context, params UserLinkParams) (interface{}, error) {
-	if params.Action != "CREATE_SECONDARY_REQUEST" &&
-		params.Action != "DELETE_SECONDARY_REQUEST" &&
-		params.Action != "ACCEPT_PRIMARY_REQUEST" &&
-		params.Action != "REJECT_PRIMARY_REQUEST" &&
-		params.Action != "REMOVE" {
-		return nil, errInvalidSendRequestAction
-	}
-	creds, err := dy.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	_, address, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
-	if address == params.Address {
-		return nil, errors.New("address should not be your address")
-	}
-	var resp interface{}
-	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, userActiveLinks, params, &resp)
-}
+// func (dy *DYDX) SendUserLinkRequest(ctx context.Context, params UserLinkParams) (interface{}, error) {
+// 	if params.Action != "CREATE_SECONDARY_REQUEST" &&
+// 		params.Action != "DELETE_SECONDARY_REQUEST" &&
+// 		params.Action != "ACCEPT_PRIMARY_REQUEST" &&
+// 		params.Action != "REJECT_PRIMARY_REQUEST" &&
+// 		params.Action != "REMOVE" {
+// 		return nil, errInvalidSendRequestAction
+// 	}
+// 	creds, err := dy.GetCredentials(ctx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	_, address, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if address == params.Address {
+// 		return nil, errors.New("address should not be your address")
+// 	}
+// 	var resp interface{}
+// 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, userActiveLinks, params, &resp)
+// }
 
 // GetUserPendingLinkRequest retrieves pending user links.
 func (dy *DYDX) GetUserPendingLinkRequest(ctx context.Context, userType, outgoingRequests, incomingRequests string) (*UserPendingLink, error) {
@@ -563,16 +559,16 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, privateKey string, arg *Wi
 	if arg.ClientGeneratedID == "" {
 		arg.ClientGeneratedID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
 	}
-	signature, err := starkex.WithdrawSign(privateKey, starkex.WithdrawSignParam{
-		NetworkId:   1,
-		HumanAmount: strconv.FormatFloat(arg.Amount, 'f', -1, 64),
-		Expiration:  arg.Expiration.timeString(),
-		ClientId:    arg.ClientGeneratedID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	arg.Signature = signature
+	// signature, err := starkex.WithdrawSign(privateKey, starkex.WithdrawSignParam{
+	// 	NetworkId:   1,
+	// 	HumanAmount: strconv.FormatFloat(arg.Amount, 'f', -1, 64),
+	// 	Expiration:  arg.Expiration.timeString(),
+	// 	ClientId:    arg.ClientGeneratedID,
+	// })
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// arg.Signature = signature
 	var resp *TransferResponse
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, withdrawals, &arg, &resp)
 }
@@ -601,22 +597,22 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 		// Address to be credited
 		return nil, fmt.Errorf("address to be credited must not be empty")
 	}
-	creds, err := dy.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// creds, err := dy.GetCredentials(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// Here SubAccount represents the starkx private account
-	signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
-		NetworkId:   1,
-		ClientId:    param.ClientID,
-		PositionId:  param.LPPositionID,
-		HumanAmount: strconv.FormatFloat(param.CreditAmount, 'f', -1, 64),
-		Expiration:  param.Expiration.timeString(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	param.Signature = signature
+	// signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
+	// 	NetworkId:   1,
+	// 	ClientId:    param.ClientID,
+	// 	PositionId:  param.LPPositionID,
+	// 	HumanAmount: strconv.FormatFloat(param.CreditAmount, 'f', -1, 64),
+	// 	Expiration:  param.Expiration.timeString(),
+	// })
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// param.Signature = signature
 	var resp *WithdrawalResponse
 	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, fastWithdrawals, param, &resp)
 }
@@ -644,25 +640,25 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 	if arg.PostOnly && arg.TimeInForce == "FOK" {
 		return nil, errors.New("order cannot be postOnly and have timeInForce: FOK")
 	}
-	creds, err := dy.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	orderSignParam := starkex.OrderSignParam{
-		NetworkId:  1,
-		Market:     arg.Market,
-		Side:       arg.Side,
-		HumanSize:  strconv.FormatFloat(arg.Size, 'f', -1, 64),
-		HumanPrice: strconv.FormatFloat(arg.Price, 'f', -1, 64),
-		LimitFee:   strconv.FormatFloat(arg.LimitFee, 'f', -1, 64),
-		ClientId:   arg.ClientID,
-		Expiration: arg.Expiration.timeString(),
-	}
-	signature, err := starkex.OrderSign(creds.SubAccount, orderSignParam)
-	if err != nil {
-		return nil, err
-	}
-	arg.Signature = signature
+	// creds, err := dy.GetCredentials(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// orderSignParam := starkex.OrderSignParam{
+	// 	NetworkId:  1,
+	// 	Market:     arg.Market,
+	// 	Side:       arg.Side,
+	// 	HumanSize:  strconv.FormatFloat(arg.Size, 'f', -1, 64),
+	// 	HumanPrice: strconv.FormatFloat(arg.Price, 'f', -1, 64),
+	// 	LimitFee:   strconv.FormatFloat(arg.LimitFee, 'f', -1, 64),
+	// 	ClientId:   arg.ClientID,
+	// 	Expiration: arg.Expiration.timeString(),
+	// }
+	// signature, err := starkex.OrderSign(creds.SubAccount, orderSignParam)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// arg.Signature = signature
 	var resp *Order
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, orders, &arg, &resp)
 }
@@ -942,31 +938,4 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 		}, nil
 	}
 	return dy.SendPayload(ctx, epl, newRequest, request.AuthenticatedRequest)
-}
-
-// GeneratePublicKeyAndAddress generates a public key and address given private key information.
-func GeneratePublicKeyAndAddress(privateKey string) (publicKeyString, addressString string, err error) {
-	if privateKey == "" {
-		return "", "", errors.New("private key is missing")
-	}
-	var privKeyBytes []byte
-	var privKey *ecdsa.PrivateKey
-	if privateKey[0:2] != "0x" {
-		privateKey = "0x" + privateKey
-	}
-	privKeyBytes, err = hexutil.Decode(privateKey)
-	if err != nil {
-		return "", "", err
-	}
-	privKey, err = crypto.ToECDSA(privKeyBytes)
-	if err != nil {
-		return "", "", err
-	}
-	publicKey := privKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return "", "", errors.New("cannot assert type *ecdsa.PublicKey")
-	}
-	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
-	return hexutil.Encode(publicKeyBytes), crypto.PubkeyToAddress(*publicKeyECDSA).Hex(), nil
 }

@@ -1,58 +1,6 @@
 package dydx
 
-import (
-	"bytes"
-	"context"
-	"crypto/ecdsa"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/thrasher-corp/gocryptotrader/common"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-)
-
-// Onboarding onboard a user so they can begin using dYdX V3 API. This will generate a user, account and derive a key, passphrase and secret from the signature.
-func (dy *DYDX) Onboarding(ctx context.Context, arg *OnboardingParam) (*OnboardingResponse, error) {
-	if arg == nil {
-		return nil, fmt.Errorf("%w, nil argument", common.ErrNilPointer)
-	}
-	var resp OnboardingResponse
-	if arg.StarkXCoordinate == "" {
-		return nil, errors.New("missing Stark Key X-Coordinate")
-	}
-	if arg.StarkYCoordinate == "" {
-		return nil, errors.New("missing Stark Key Y-Coordinate")
-	}
-	if arg.EthereumAddress == "" {
-		return nil, errMissingEthereumAddress
-	}
-	if arg.Country == "" {
-		return nil, errors.New("country is required")
-	}
-	creds, err := dy.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	_, ethereumAddress, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
-	arg.EthereumAddress = ethereumAddress
-	return &resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, http.MethodPost, onboarding, true, &arg, &resp)
-}
-
+/*
 // RecoverStarkKeyQuoteBalanceAndOpenPosition if you can't recover your starkKey or apiKey and need an additional way to get your starkKey and balance on our exchange, both of which are needed to call the L1 solidity function needed to recover your funds.
 func (dy *DYDX) RecoverStarkKeyQuoteBalanceAndOpenPosition(ctx context.Context) (*RecoverAPIKeysResponse, error) {
 	var resp *RecoverAPIKeysResponse
@@ -298,3 +246,4 @@ func generateAPIKeyEIP712(privateKey *ecdsa.PrivateKey, method, requestPath, bod
 	}
 	return hexutil.Encode(signature), nil
 }
+*/

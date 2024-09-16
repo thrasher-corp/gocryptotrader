@@ -2,7 +2,6 @@ package dydx
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"log"
@@ -10,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -22,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -317,81 +313,64 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	if err := dy.Subscribe([]stream.ChannelSubscription{
+	if err := dy.Subscribe(subscription.List{
 		{
 			Channel: "v3_orderbook",
-			Currency: currency.Pair{
+			Pairs: []currency.Pair{{
 				Base:      currency.LTC,
 				Delimiter: currency.DashDelimiter,
 				Quote:     currency.USD,
-			},
+			}},
 		},
 	}); err != nil {
 		t.Error(err)
 	}
 }
-func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
 
-func TestGetRegistration(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.GetRegistration(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
+// 	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background())
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestRegisterAPIKey(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.RegisterAPIKey(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestGetRegistration(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
+// 	_, err := dy.GetRegistration(context.Background())
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestGetAPIKeys(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.GetAPIKeys(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestRegisterAPIKey(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
+// 	_, err := dy.RegisterAPIKey(context.Background())
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestDeleteAPIKeys(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey")
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestGetAPIKeys(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
+// 	_, err := dy.GetAPIKeys(context.Background())
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestOnboarding(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.Onboarding(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Error(err)
-	}
-	_, err = dy.Onboarding(context.Background(), &OnboardingParam{
-		StarkXCoordinate: "starkKeyXCoordinate",
-		StarkYCoordinate: "starkKeyYCoordinate",
-		Country:          "RU",
-		EthereumAddress:  "0xEe965271cD28892e28909863D680d7d91Bb66157",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestDeleteAPIKeys(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
+// 	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
@@ -431,14 +410,14 @@ func TestGetUserActiveLinks(t *testing.T) {
 	}
 }
 
-func TestSendUserLinkRequest(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.SendUserLinkRequest(context.Background(), UserLinkParams{Action: "CREATE_SECONDARY_REQUEST", Address: "0xb794f5ea0ba39494ce839613fffba74279579268"})
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestSendUserLinkRequest(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
+// 	_, err := dy.SendUserLinkRequest(context.Background(), UserLinkParams{Action: "CREATE_SECONDARY_REQUEST", Address: "0xb794f5ea0ba39494ce839613fffba74279579268"})
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestGetUserPendingLinkRequest(t *testing.T) {
 	t.Parallel()
@@ -874,23 +853,23 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func TestGenerateAddress(t *testing.T) {
-	t.Parallel()
-	var privateKey string
-	var privKey *ecdsa.PrivateKey
-	if privateKey == "" {
-		var err error
-		privKey, err = crypto.GenerateKey()
-		if err != nil {
-			log.Fatal(err)
-		}
-		privateKey = hexutil.Encode(crypto.FromECDSA(privKey))
-	}
-	_, _, err := GeneratePublicKeyAndAddress(privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+// func TestGenerateAddress(t *testing.T) {
+// 	t.Parallel()
+// 	var privateKey string
+// 	var privKey *ecdsa.PrivateKey
+// 	if privateKey == "" {
+// 		var err error
+// 		privKey, err = crypto.GenerateKey()
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+// 		privateKey = hexutil.Encode(crypto.FromECDSA(privKey))
+// 	}
+// 	_, _, err := GeneratePublicKeyAndAddress(privateKey)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
 var pushDataMap = map[string]string{
 	"Orderbook Snapshoot": `{ "type": "subscribed", "connection_id": "e8e52585-a771-4dbd-af27-02ec98091ace", "message_id": 1, "channel": "v3_orderbook", "id": "BTC-USD", "contents": { "asks": [ { "size": "2.6103", "price": "23206" }, { "size": "4.5688", "price": "23207" }, { "size": "9.3683", "price": "23208" }, { "size": "1.7395", "price": "23209" }, { "size": "13.104", "price": "23210" }, { "size": "1.603", "price": "23211" }, { "size": "0.8061", "price": "23212" }, { "size": "10.7343", "price": "23213" }, { "size": "2.3616", "price": "23214" }, { "size": "10.4789", "price": "23215" }, { "size": "0.3159", "price": "23216" }, { "size": "2.6208", "price": "23217" }, { "size": "3.3611", "price": "23218" }, { "size": "3.2764", "price": "23219" }, { "size": "0.548", "price": "23220" }, { "size": "12.5066", "price": "23221" }, { "size": "4.2413", "price": "23222" }, { "size": "0.5673", "price": "23223" }, { "size": "11.0673", "price": "23224" }, { "size": "6.5205", "price": "23225" }, { "size": "1.2896", "price": "23226" }, { "size": "10.6912", "price": "23227" }, { "size": "0.237", "price": "23228" } ], "bids": [ { "size": "2.3172", "price": "23205" }, { "size": "4.4282", "price": "23204" }, { "size": "6.0995", "price": "23203" }, { "size": "3.4384", "price": "23202" }, { "size": "2.5459", "price": "23201" }, { "size": "1.65", "price": "23200" }, { "size": "7.1203", "price": "23199" }, { "size": "9.5934", "price": "23198" }, { "size": "1.0401", "price": "23197" }, { "size": "4.6515", "price": "23196" }, { "size": "1.1346", "price": "23195" }, { "size": "12.8036", "price": "23194" }, { "size": "2.2153", "price": "23193" }, { "size": "0.8208", "price": "23192" }, { "size": "4.3075", "price": "23191" }, { "size": "2.7285", "price": "23190" }, { "size": "2.4483", "price": "23189" }, { "size": "1.0121", "price": "23188" }, { "size": "17.9464", "price": "23187" }, { "size": "0.3", "price": "23186" }, { "size": "1.8373", "price": "23185" }, { "size": "4.366", "price": "23184" }, { "size": "0.237", "price": "23183" }, { "size": "0.9216", "price": "23182" }, { "size": "1.0132", "price": "23181" }, { "size": "9.059", "price": "23180" }, { "size": "6.9619", "price": "23179" }, { "size": "10.5055", "price": "23178" }, { "size": "0.2", "price": "23176" }, { "size": "15.478", "price": "23175" }, { "size": "9.061", "price": "23174" }, { "size": "6.4383", "price": "23173" }, { "size": "12.6089", "price": "23172" }, { "size": "0.2161", "price": "23171" }, { "size": "0.001", "price": "23170" }, { "size": "14.1518", "price": "23169" }, { "size": "1.2936", "price": "23167" }, { "size": "0.248", "price": "23165" }, { "size": "4.0656", "price": "23164" }, { "size": "2.3816", "price": "23162" }, { "size": "7.8154", "price": "23161" }, { "size": "0.6548", "price": "23160" }, { "size": "1.733", "price": "23157" }, { "size": "0.3", "price": "23156" }, { "size": "0.862", "price": "23155" }, { "size": "4.674", "price": "23154" }, { "size": "0.02", "price": "23153" }, { "size": "8.2945", "price": "23151" }, { "size": "40.0016", "price": "23149" }, { "size": "0.3", "price": "23148" }, { "size": "0.4", "price": "23142" }, { "size": "0.0022", "price": "23140" }, { "size": "0.3", "price": "23138" }, { "size": "0.0194", "price": "23131" }, { "size": "0.001", "price": "23130" }, { "size": "35.5889", "price": "23129" }, { "size": "8.804", "price": "23128" }, { "size": "14.041", "price": "23122" }, { "size": "0.055", "price": "23120" }, { "size": "0.1598", "price": "23115" }, { "size": "0.01", "price": "23110" }, { "size": "0.001", "price": "23106" }, { "size": "0.8616", "price": "23104" }, { "size": "47.9684", "price": "23101" }, { "size": "13.135", "price": "23094" }, { "size": "0.47", "price": "23091" }, { "size": "0.001", "price": "23090" }, { "size": "0.1", "price": "23084" }, { "size": "0.0022", "price": "23082" }, { "size": "2.334", "price": "23080" }, { "size": "0.0021", "price": "23079" }, { "size": "0.009", "price": "23069" }, { "size": "0.0011", "price": "23060" }, { "size": "0.001", "price": "23059" }, { "size": "13.2516", "price": "23055" }, { "size": "0.051", "price": "23050" }, { "size": "28.23", "price": "23048" }, { "size": "0.001", "price": "23042" }, { "size": "0.005", "price": "23040" }, { "size": "0.1", "price": "23035" }, { "size": "0.01", "price": "23030" }, { "size": "0.001", "price": "23028" }, { "size": "9.7571", "price": "23025" }, { "size": "0.009", "price": "23023" }, { "size": "0.001", "price": "23010" }, { "size": "31.031", "price": "23005" }, { "size": "1.2926", "price": "23004" }, { "size": "0.8", "price": "23000" }, { "size": "0.0638", "price": "22996" }, { "size": "0.3", "price": "22986" }, { "size": "0.025", "price": "22981" }, { "size": "0.01", "price": "22980" }, { "size": "0.009", "price": "22978" }, { "size": "39.565", "price": "22971" }, { "size": "0.001", "price": "22970" }, { "size": "0.446", "price": "22964" }, { "size": "0.8714", "price": "22949" }, { "size": "0.009", "price": "22933" }, { "size": "0.001", "price": "22930" }, { "size": "0.0418", "price": "22925" }, { "size": "0.025", "price": "22924" }, { "size": "0.01", "price": "22920" }, { "size": "0.001", "price": "22908" }, { "size": "0.106", "price": "22900" }, { "size": "0.001", "price": "22890" }, { "size": "0.009", "price": "22888" }, { "size": "0.1", "price": "22885" }, { "size": "4.2985", "price": "22884" }, { "size": "0.0558", "price": "22880" }, { "size": "0.001", "price": "22855" }, { "size": "1", "price": "22852" }, { "size": "0.001", "price": "22850" }, { "size": "0.009", "price": "22842" }, { "size": "2.2244", "price": "22834" }, { "size": "2.6292", "price": "22820" }, { "size": "0.025", "price": "22813" }, { "size": "0.001", "price": "22811" }, { "size": "0.3", "price": "22800" } ] } }`,
