@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -95,26 +94,10 @@ var defaultSetup = &WebsocketSetup{
 	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
 }
 
-type dodgyConnection struct {
-	WebsocketConnection
-}
-
-// override websocket connection method to produce a wicked terrible error
-func (d *dodgyConnection) Shutdown() error {
-	return fmt.Errorf("%w: %w", errCannotShutdown, errDastardlyReason)
-}
-
-// override websocket connection method to produce a wicked terrible error
-func (d *dodgyConnection) Connect() error {
-	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
-}
-
 func TestMain(m *testing.M) {
 	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
 	trafficCheckInterval = 50 * time.Millisecond
-	r := m.Run()
-
-	os.Exit(r)
+	os.Exit(m.Run())
 }
 
 func TestSetup(t *testing.T) {
@@ -967,7 +950,7 @@ func TestSetupPingHandler(t *testing.T) {
 	if wc.ProxyURL != "" && !useProxyTests {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
-	wc.ShutdownC = make(chan struct{})
+	wc.shutdown = make(chan struct{})
 	err := wc.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
@@ -994,7 +977,7 @@ func TestSetupPingHandler(t *testing.T) {
 		Delay:       200,
 	})
 	time.Sleep(time.Millisecond * 201)
-	close(wc.ShutdownC)
+	close(wc.shutdown)
 	wc.Wg.Wait()
 }
 
@@ -1061,7 +1044,7 @@ func TestGenerateMessageID(t *testing.T) {
 	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID must use bespokeGenerateMessageID")
 }
 
-// BenchmarkGenerateMessageID-8   	 2850018	       408 ns/op	      56 B/op	       4 allocs/op
+// 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_High(b *testing.B) {
 	wc := WebsocketConnection{}
 	for i := 0; i < b.N; i++ {
@@ -1069,7 +1052,7 @@ func BenchmarkGenerateMessageID_High(b *testing.B) {
 	}
 }
 
-// BenchmarkGenerateMessageID_Low-8   	 2591596	       447 ns/op	      56 B/op	       4 allocs/op
+// 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_Low(b *testing.B) {
 	wc := WebsocketConnection{}
 	for i := 0; i < b.N; i++ {
@@ -1184,10 +1167,6 @@ func connect() error { return nil }
 func TestFlushChannels(t *testing.T) {
 	t.Parallel()
 	// Enabled pairs/setup system
-	newgen := GenSubs{EnabledPairs: []currency.Pair{
-		currency.NewPair(currency.BTC, currency.AUD),
-		currency.NewPair(currency.BTC, currency.USDT),
-	}}
 
 	dodgyWs := Websocket{}
 	err := dodgyWs.FlushChannels()
@@ -1196,6 +1175,11 @@ func TestFlushChannels(t *testing.T) {
 	dodgyWs.setEnabled(true)
 	err = dodgyWs.FlushChannels()
 	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
+
+	newgen := GenSubs{EnabledPairs: []currency.Pair{
+		currency.NewPair(currency.BTC, currency.AUD),
+		currency.NewPair(currency.BTC, currency.USDT),
+	}}
 
 	w := NewWebsocket()
 	w.connector = connect
@@ -1207,14 +1191,6 @@ func TestFlushChannels(t *testing.T) {
 	w.setEnabled(true)
 	w.setState(connectedState)
 
-	problemFunc := func() (subscription.List, error) {
-		return nil, errDastardlyReason
-	}
-
-	noSub := func() (subscription.List, error) {
-		return nil, nil
-	}
-
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
@@ -1224,13 +1200,13 @@ func TestFlushChannels(t *testing.T) {
 	err = w.FlushChannels()
 	require.NoError(t, err, "Flush Channels must not error")
 
-	w.features.FullPayloadSubscribe = true
-	w.GenerateSubs = problemFunc
-	err = w.FlushChannels() // error on full subscribeToChannels
+	// w.features.FullPayloadSubscribe = true
+	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
+	err = w.FlushChannels()                                                               // error on full subscribeToChannels
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
 
-	w.GenerateSubs = noSub
-	err = w.FlushChannels() // No subs to sub
+	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
+	err = w.FlushChannels()                                                // No subs to sub
 	assert.NoError(t, err, "Flush Channels should not error")
 
 	w.GenerateSubs = newgen.generateSubs
@@ -1239,7 +1215,6 @@ func TestFlushChannels(t *testing.T) {
 	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
-	w.features.FullPayloadSubscribe = false
 	w.features.Subscribe = true
 
 	w.GenerateSubs = newgen.generateSubs
@@ -1268,9 +1243,15 @@ func TestFlushChannels(t *testing.T) {
 	// Multi connection management
 	w.useMultiConnectionManagement = true
 	w.exchangeName = "multi"
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
 	amazingCandidate := &ConnectionSetup{
-		URL:                   "AMAZING",
-		Connector:             func(context.Context, Connection) error { return nil },
+		URL: "ws" + mock.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			return conn.DialContext(ctx, websocket.DefaultDialer, nil)
+		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleSubConn(w)(ctx, c, s)
@@ -1283,8 +1264,14 @@ func TestFlushChannels(t *testing.T) {
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 
+	// Forces full connection cycle
 	w.features.Subscribe = false
-	w.features.FullPayloadSubscribe = true
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+
+	// Unsubscribe whats already subscribed. No subscriptions left over, which then forces the shutdown and removal
+	// of the connection from management.
+	w.features.Subscribe = true
+	w.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 }
 
@@ -1380,12 +1367,12 @@ func TestSetupNewConnection(t *testing.T) {
 	require.Nil(t, multi.Conn)
 
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errConnectionCandidateDuplication)
+	require.ErrorIs(t, err, errConnectionWrapperDuplication)
 }
 
 func TestWebsocketConnectionShutdown(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{}
+	wc := WebsocketConnection{shutdown: make(chan struct{})}
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 
@@ -1511,80 +1498,4 @@ func TestWriteToConn(t *testing.T) {
 	// definitions set but connection rate limiter not set
 	wc.RateLimit = nil
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
-}
-
-func TestGenerateUnsubscribeAndSubscribe(t *testing.T) {
-	t.Parallel()
-	ws := Websocket{subscriptions: subscription.NewStore(), features: &protocol.Features{}}
-	require.NoError(t, ws.subscriptions.Add(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
-
-	generateError := errors.New("foo fighters the generator")
-	err := ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
-		return nil, generateError
-	})
-	require.ErrorIs(t, err, generateError)
-
-	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
-	})
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	failedSubscriberError := errors.New("failed subscriber")
-	ws.Subscriber = func(subscription.List) error { return failedSubscriberError }
-	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
-	})
-	require.ErrorIs(t, err, failedSubscriberError)
-
-	failedUnSubscriberError := errors.New("failed unsubscriber")
-	ws.Subscriber = func(subscription.List) error { return nil }
-	ws.Unsubscriber = func(subscription.List) error { return failedUnSubscriberError }
-	ws.features.Unsubscribe = true
-	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
-	})
-	require.ErrorIs(t, err, failedUnSubscriberError)
-
-	ws.Unsubscriber = func(subscription.List) error { return nil }
-	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
-	})
-	require.NoError(t, err)
-
-	ws.Unsubscriber = func(subscription.List) error { return failedUnSubscriberError }
-	ws.Subscriber = func(subscription.List) error { return failedSubscriberError }
-	err = ws.generateUnsubscribeAndSubscribe(&WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.MyOrdersChannel}}, nil
-	})
-	require.NoError(t, err)
-}
-
-func TestGenerateAndSubscribe(t *testing.T) {
-	t.Parallel()
-
-	ws := Websocket{subscriptions: subscription.NewStore()}
-
-	generateError := errors.New("foo fighters the generator")
-	err := ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
-		return nil, generateError
-	})
-	require.ErrorIs(t, err, generateError)
-
-	ws.Subscriber = func(subscription.List) error { return nil }
-	err = ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
-	})
-	require.NoError(t, err)
-
-	failedSubscriberError := errors.New("failed subscriber")
-	ws.Subscriber = func(subscription.List) error { return failedSubscriberError }
-	err = ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
-		return subscription.List{{Channel: subscription.CandlesChannel}, {Channel: subscription.OrderbookChannel}}, nil
-	})
-	require.ErrorIs(t, err, failedSubscriberError)
-
-	err = ws.generateAndSubscribe(ws.subscriptions, &WebsocketConnection{}, func() (subscription.List, error) {
-		return nil, nil
-	})
-	require.NoError(t, err)
 }

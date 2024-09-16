@@ -171,7 +171,9 @@ type WebsocketConnection struct {
 	ProxyURL     string
 	Wg           *sync.WaitGroup
 	Connection   *websocket.Conn
-	ShutdownC    chan struct{}
+
+	// shutdown synchronises shutdown event across routines associated with this connection only e.g. ping handler
+	shutdown chan struct{}
 
 	Match             *Match
 	ResponseMaxLimit  time.Duration

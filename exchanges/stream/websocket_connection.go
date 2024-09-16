@@ -143,13 +143,13 @@ func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handle
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
-			case <-w.ShutdownC:
+			case <-w.shutdown:
 				ticker.Stop()
 				return
 			case <-ticker.C:
 				err := w.SendRawMessage(context.TODO(), epl, handler.MessageType, handler.Message)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]", w.ExchangeName, handler.Message)
+					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", w.ExchangeName, handler.Message, err)
 					return
 				}
 			}
@@ -272,6 +272,7 @@ func (w *WebsocketConnection) Shutdown() error {
 		return nil
 	}
 	w.setConnectedStatus(false)
+	close(w.shutdown)
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 	return w.Connection.NetConn().Close()
