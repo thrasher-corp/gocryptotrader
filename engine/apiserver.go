@@ -591,7 +591,7 @@ func (c *websocketClient) write() {
 
 		// Add queued chat messages to the current websocket message
 		n := len(c.Send)
-		for i := 0; i < n; i++ {
+		for range n {
 			_, err = w.Write(<-c.Send)
 			if err != nil {
 				log.Errorln(log.APIServerMgr, err)
@@ -656,7 +656,7 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 	// Allow insecure origin if the Origin request header is present and not
 	// equal to the Host request header. Default to false
 	if m.remoteConfig.WebsocketRPC.AllowInsecureOrigin {
-		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+		upgrader.CheckOrigin = func(*http.Request) bool { return true }
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)

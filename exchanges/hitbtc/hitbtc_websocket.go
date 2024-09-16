@@ -17,7 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -26,14 +28,13 @@ import (
 const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
-	rateLimit              = 20
 	errAuthFailed          = 1002
 )
 
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -299,17 +300,17 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 	}
 
 	newOrderBook := orderbook.Base{
-		Bids: make(orderbook.Items, len(ob.Params.Bid)),
-		Asks: make(orderbook.Items, len(ob.Params.Ask)),
+		Bids: make(orderbook.Tranches, len(ob.Params.Bid)),
+		Asks: make(orderbook.Tranches, len(ob.Params.Ask)),
 	}
 	for i := range ob.Params.Bid {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: ob.Params.Bid[i].Size,
 			Price:  ob.Params.Bid[i].Price,
 		}
 	}
 	for i := range ob.Params.Ask {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: ob.Params.Ask[i].Size,
 			Price:  ob.Params.Ask[i].Price,
 		}
@@ -421,17 +422,17 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 		return nil
 	}
 
-	bids := make(orderbook.Items, len(update.Params.Bid))
+	bids := make(orderbook.Tranches, len(update.Params.Bid))
 	for i := range update.Params.Bid {
-		bids[i] = orderbook.Item{
+		bids[i] = orderbook.Tranche{
 			Price:  update.Params.Bid[i].Price,
 			Amount: update.Params.Bid[i].Size,
 		}
 	}
 
-	asks := make(orderbook.Items, len(update.Params.Ask))
+	asks := make(orderbook.Tranches, len(update.Params.Ask))
 	for i := range update.Params.Ask {
-		asks[i] = orderbook.Item{
+		asks[i] = orderbook.Tranche{
 			Price:  update.Params.Ask[i].Price,
 			Amount: update.Params.Ask[i].Size,
 		}
@@ -465,34 +466,34 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"subscribeTicker",
-		"subscribeOrderbook",
-		"subscribeTrades",
-		"subscribeCandles"}
-
-	var subscriptions []stream.ChannelSubscription
-	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
-			Channel: "subscribeReports",
-		})
+func (h *HitBTC) GenerateDefaultSubscriptions() (subscription.List, error) {
+	var channels = []string{
+		"Ticker",
+		"Orderbook",
+		"Trades",
+		"Candles",
 	}
-	enabledCurrencies, err := h.GetEnabledPairs(asset.Spot)
+
+	var subscriptions subscription.List
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		subscriptions = append(subscriptions, &subscription.Subscription{Channel: "Reports"})
+	}
+	pairs, err := h.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+	pairFmt, err := h.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	pairFmt.Delimiter = ""
+	pairs = pairs.Format(pairFmt)
 	for i := range channels {
-		for j := range enabledCurrencies {
-			fPair, err := h.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
-			if err != nil {
-				return nil, err
-			}
-
-			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i],
-				Currency: fPair,
-				Asset:    asset.Spot,
+		for j := range pairs {
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[i],
+				Pairs:   currency.Pairs{pairs[j]},
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -500,70 +501,74 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
 	var errs error
-	for i := range channelsToSubscribe {
-		subscribe := WsRequest{
-			Method: channelsToSubscribe[i].Channel,
+	for _, s := range channelsToSubscribe {
+		if len(s.Pairs) != 1 {
+			return subscription.ErrNotSinglePair
+		}
+		pair := s.Pairs[0]
+
+		r := WsRequest{
+			Method: "subscribe" + s.Channel,
 			ID:     h.Websocket.Conn.GenerateMessageID(false),
+			Params: WsParams{
+				Symbol: pair.String(),
+			},
+		}
+		switch s.Channel {
+		case "Trades":
+			r.Params.Limit = 100
+		case "Candles":
+			r.Params.Period = "M30"
+			r.Params.Limit = 100
 		}
 
-		if channelsToSubscribe[i].Currency.String() != "" {
-			subscribe.Params.Symbol = channelsToSubscribe[i].Currency.String()
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+		if err == nil {
+			err = h.Websocket.AddSuccessfulSubscriptions(s)
 		}
-		if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeTrades") {
-			subscribe.Params.Limit = 100
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeCandles") {
-			subscribe.Params.Period = "M30"
-			subscribe.Params.Limit = 100
-		}
-
-		err := h.Websocket.Conn.SendJSONMessage(subscribe)
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(subs subscription.List) error {
 	var errs error
-	for i := range channelsToUnsubscribe {
-		unsubscribeChannel := strings.Replace(channelsToUnsubscribe[i].Channel,
-			"subscribe",
-			"unsubscribe",
-			1)
+	for _, s := range subs {
+		if len(s.Pairs) != 1 {
+			return subscription.ErrNotSinglePair
+		}
+		pair := s.Pairs[0]
 
-		unsubscribe := WsNotification{
+		r := WsNotification{
 			JSONRPCVersion: rpcVersion,
-			Method:         unsubscribeChannel,
+			Method:         "unsubscribe" + s.Channel,
+			Params: WsParams{
+				Symbol: pair.String(),
+			},
 		}
 
-		unsubscribe.Params.Symbol = channelsToUnsubscribe[i].Currency.String()
-		if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
-			unsubscribe.Params.Limit = 100
-		} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
-			unsubscribe.Params.Period = "M30"
-			unsubscribe.Params.Limit = 100
+		switch s.Channel {
+		case "Trades":
+			r.Params.Limit = 100
+		case "Candles":
+			r.Params.Period = "M30"
+			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(unsubscribe)
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+		if err == nil {
+			err = h.Websocket.RemoveSubscriptions(s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		h.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -584,7 +589,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 		return err
 	}
 
-	request := WsLoginRequest{
+	req := WsLoginRequest{
 		Method: "login",
 		Params: WsLoginData{
 			Algo:      "HS256",
@@ -595,7 +600,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	err = h.Websocket.Conn.SendJSONMessage(request)
+	err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -616,7 +621,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		return nil, err
 	}
 
-	request := WsSubmitOrderRequest{
+	req := WsSubmitOrderRequest{
 		Method: "newOrder",
 		Params: WsSubmitOrderRequestData{
 			ClientOrderID: id,
@@ -627,7 +632,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		},
 		ID: id,
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(id, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -647,14 +652,14 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	request := WsCancelOrderRequest{
+	req := WsCancelOrderRequest{
 		Method: "cancelOrder",
 		Params: WsCancelOrderRequestData{
 			ClientOrderID: clientOrderID,
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -674,7 +679,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	request := WsReplaceOrderRequest{
+	req := WsReplaceOrderRequest{
 		Method: "cancelReplaceOrder",
 		Params: WsReplaceOrderRequestData{
 			ClientOrderID:   clientOrderID,
@@ -684,7 +689,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -704,12 +709,12 @@ func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot get active orders", h.Name)
 	}
-	request := WsReplaceOrderRequest{
+	req := WsReplaceOrderRequest{
 		Method: "getOrders",
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -729,12 +734,12 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	request := WsReplaceOrderRequest{
+	req := WsReplaceOrderRequest{
 		Method: "getTradingBalance",
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -751,14 +756,14 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 
 // wsGetCurrencies sends a websocket message to get trading balance
 func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesResponse, error) {
-	request := WsGetCurrenciesRequest{
+	req := WsGetCurrenciesRequest{
 		Method: "getCurrency",
 		Params: WsGetCurrenciesRequestParameters{
 			Currency: currencyItem,
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -780,14 +785,14 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 		return nil, err
 	}
 
-	request := WsGetSymbolsRequest{
+	req := WsGetSymbolsRequest{
 		Method: "getSymbol",
 		Params: WsGetSymbolsRequestParameters{
 			Symbol: fPair.String(),
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -809,7 +814,7 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 		return nil, err
 	}
 
-	request := WsGetTradesRequest{
+	req := WsGetTradesRequest{
 		Method: "getTrades",
 		Params: WsGetTradesRequestParameters{
 			Symbol: fPair.String(),
@@ -819,7 +824,7 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}

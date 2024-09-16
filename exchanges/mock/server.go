@@ -85,7 +85,7 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 			RegisterHandler(pattern, mockResponses, newMux)
 		}
 	} else {
-		newMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		newMux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			err := json.NewEncoder(w).Encode("There is no mock data available in file please record a new HTTP response. Please follow README.md in the mock package.")
 			if err != nil {

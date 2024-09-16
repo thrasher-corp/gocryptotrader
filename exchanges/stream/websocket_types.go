@@ -2,40 +2,44 @@ package stream
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Websocket functionality list and state consts
 const (
-	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled                = "exchange_websocket_not_enabled"
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]*ChannelSubscription
+const (
+	uninitialisedState uint32 = iota
+	disconnectedState
+	connectingState
+	connectedState
+)
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
-	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	Init                         bool
-	connected                    bool
-	connecting                   bool
+	canUseAuthenticatedEndpoints atomic.Bool
+	enabled                      atomic.Bool
+	state                        atomic.Uint32
 	verbose                      bool
-	connectionMonitorRunning     bool
-	trafficMonitorRunning        bool
-	dataMonitorRunning           bool
+	connectionMonitorRunning     atomic.Bool
+	trafficMonitorRunning        atomic.Bool
+	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -45,23 +49,16 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
-	subscriptionMutex sync.RWMutex
-	subscriptions     subscriptionMap
-	Subscribe         chan []ChannelSubscription
-	Unsubscribe       chan []ChannelSubscription
+	subscriptions *subscription.Store
 
-	// Subscriber function for package defined websocket subscriber
-	// functionality
-	Subscriber func([]ChannelSubscription) error
-	// Unsubscriber function for packaged defined websocket unsubscriber
-	// functionality
-	Unsubscriber func([]ChannelSubscription) error
-	// GenerateSubs function for package defined websocket generate
-	// subscriptions functionality
-	GenerateSubs func() ([]ChannelSubscription, error)
+	// Subscriber function for exchange specific subscribe implementation
+	Subscriber func(subscription.List) error
+	// Subscriber function for exchange specific unsubscribe implementation
+	Unsubscriber func(subscription.List) error
+	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
+	GenerateSubs func() (subscription.List, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -70,7 +67,7 @@ type Websocket struct {
 
 	// shutdown synchronises shutdown event across routines
 	ShutdownC chan struct{}
-	Wg        *sync.WaitGroup
+	Wg        sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
@@ -99,6 +96,10 @@ type Websocket struct {
 	// MaxSubScriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxSubscriptionsPerConnection int
+
+	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential
+	// endpoints.
+	rateLimitDefinitions request.RateLimitDefinitions
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -108,9 +109,9 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
-	Subscriber            func([]ChannelSubscription) error
-	Unsubscriber          func([]ChannelSubscription) error
-	GenerateSubscriptions func() ([]ChannelSubscription, error)
+	Subscriber            func(subscription.List) error
+	Unsubscriber          func(subscription.List) error
+	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values
@@ -124,6 +125,13 @@ type WebsocketSetup struct {
 	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxWebsocketSubscriptionsPerConnection int
+
+	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
+	// These rate limits take precedence over any rate limits specified in individual connection configurations.
+	// If no connection-specific rate limit is provided and the endpoint does not match any of these definitions,
+	// an error will be returned. However, if a connection configuration includes its own rate limit,
+	// it will fall back to that configuration’s rate limit without raising an error.
+	RateLimitDefinitions request.RateLimitDefinitions
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
@@ -136,7 +144,12 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    int64
+	// RateLimit is a rate limiter for the connection itself
+	RateLimit *request.RateLimiterWithWeight
+	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all
+	// potential endpoints.
+	RateLimitDefinitions request.RateLimitDefinitions
+
 	ExchangeName string
 	URL          string
 	ProxyURL     string
@@ -148,6 +161,11 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+
+	// bespokeGenerateMessageID is a function that returns a unique message ID
+	// defined externally. This is used for exchanges that require a unique
+	// message ID for each message sent.
+	bespokeGenerateMessageID func(highPrecision bool) int64
 
 	Reporter Reporter
 }

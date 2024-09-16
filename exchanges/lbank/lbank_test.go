@@ -2,15 +2,14 @@ package lbank
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -19,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -62,20 +62,6 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := l.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = l.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetTicker(t *testing.T) {
@@ -587,7 +573,6 @@ func TestGetStatus(t *testing.T) {
 		{status: 4, resp: order.Cancelling},
 		{status: 5, resp: order.UnknownStatus},
 	} {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			resp := l.GetStatus(tt.status)
@@ -627,5 +612,18 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	_, err := l.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, l)
+	for _, a := range l.GetAssetTypes(false) {
+		pairs, err := l.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := l.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

@@ -204,7 +204,10 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
+| Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
+| Deribit | Yes | Yes | NA |
+| DYDX | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No | // <-------- new exchange
 | CoinbasePro | Yes | Yes | No|
@@ -212,15 +215,12 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
-| ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
 | Lbank | Yes | No | NA |
-| Okcoin | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
-| ZB.COM | Yes | Yes | NA |
 ```
 
 #### Add exchange to the list of [supported exchanges](../exchanges/support.go):
@@ -234,61 +234,23 @@ var Exchanges = []string{
 	"bitstamp",
 	"btc markets",
 	"btse",
+	"bybit",
 	"coinbasepro",
 	"coinut",
 	"dydx",
+	"deribit",
 	"exmo",
 	"ftx", // <-------- new exchange
 	"gateio",
 	"gemini",
 	"hitbtc",
 	"huobi",
-	"itbit",
 	"kraken",
 	"kucoin",
 	"lbank",
-	"okcoin",
 	"okx",
 	"poloniex",
 	"yobit",
-    "zb",
-```
-
-#### Increment the default number of supported exchanges in [config/config_test.go](../config/config_test.go):
-```go
-func TestGetEnabledExchanges(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if !errors.Is(err, errConfigDefineErrorExample) {
-		t.Errorf("received: '%v' but expected '%v'", err, errConfigDefineErrorExample)
-	}
-
-	exchanges := cfg.GetEnabledExchanges()
-	// modify the value of defaultEnabledExchanges at the top of the 
-	// config_test.go file to match the total count of exchanges
-	if len(exchanges) != defaultEnabledExchanges { 
-		t.Errorf("received: '%v' but expected '%v'", len(exchanges), defaultEnabledExchanges)
-	}
-
-	if !common.StringDataCompare(exchanges, "Bitfinex") {
-		t.Errorf("received: '%v' but expected '%v'", 
-			common.StringDataCompare(exchanges, "Bitfinex"), 
-			true)
-	}
-}
-```
-
-#### Increment the number of supported exchanges in [the gctscript exchange wrapper test file](../gctscript/wrappers/gct/exchange/exchange_test.go):
-```go
-func TestExchange_Exchanges(t *testing.T) {
-	t.Parallel()
-	x := exchangeTest.Exchanges(false)
-	y := len(x)
-	expected := 28 // modify this value to match the total count of exchanges
-	if y != expected {
-    	t.Fatalf("expected %v received %v", expected , y)
-	}
-}
 ```
 
 #### Setup and run the [documentation tool](../cmd/documentation):
@@ -722,7 +684,7 @@ func (f *FTX) WsConnect() error {
 		}
 	}
 	// Generates the default subscription set, based off enabled pairs.
-	subs, err := f.GenerateDefaultSubscriptions()
+	subs, err := f.generateSubscriptions()
 	if err != nil {
 		return err
 	}
@@ -734,10 +696,10 @@ func (f *FTX) WsConnect() error {
 - Create function to generate default subscriptions:
 
 ```go
-// GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
+// generateSubscriptions generates default subscription
+func (f *FTX) generateSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
+	subscriptions = append(subscriptions, &subscription.Subscription{
 		Channel: wsMarkets,
 	})
 	// Ranges over available channels, pairs and asset types to produce a full
@@ -755,9 +717,9 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 				"-")
 			for x := range channels {
 				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
+					&subscription.Subscription{
 						Channel:  channels[x],
-						Currency: newPair,
+						Pair:     currency.Pairs{newPair},
 						Asset:    assets[a],
 					})
 			}
@@ -767,9 +729,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 	if f.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: authchan[x],
-			})
+			subscriptions = append(subscriptions, &subscription.Subscription{Channel: authchan[x]})
 		}
 	}
 	return subscriptions, nil
@@ -810,7 +770,7 @@ type WsSub struct {
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (f *FTX) Subscribe(channelsToSubscribe subscription.List) error {
 	// For subscriptions we try to batch as much as possible to limit the amount
 	// of connection usage but sometimes this is not supported on the exchange 
 	// API.
@@ -826,13 +786,8 @@ channels:
 		case wsFills, wsOrders, wsMarkets:
 		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for the full set of tradable markets do not need a currency pair association. 
 		default:
-			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
 			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different from what our request format needs to be.
-			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Pair, channelsToSubscribe[i].Asset)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -847,10 +802,7 @@ channels:
 		// When we have a successful subscription, we can alert our internal management system of the success.
 		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+    return errs
 }
 ```
 
@@ -1064,7 +1016,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 
 ```go
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (f *FTX) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
 	var errs common.Errors
 channels:
@@ -1075,13 +1027,7 @@ channels:
 		switch channelsToUnsubscribe[i].Channel {
 		case wsFills, wsOrders, wsMarkets:
 		default:
-			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-
-			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, channelsToUnsubscribe[i].Asset)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -1136,8 +1082,8 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		Subscriber:             f.Subscribe, 
 		// Unsubscriber function outlined above.
 		UnSubscriber:           f.Unsubscribe,
-		// GenerateDefaultSubscriptions function outlined above. 
-		GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
+		// GenerateSubscriptions function outlined above. 
+		GenerateSubscriptions:  f.generateSubscriptions, 
 		// Defines the capabilities of the websocket outlined in supported 
 		// features struct. This allows the websocket connection to be flushed 
 		// appropriately if we have a pair/asset enable/disable change. This is 

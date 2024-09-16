@@ -2,9 +2,10 @@ package exchange
 
 import (
 	"context"
-	"sync"
+	"text/template"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -18,7 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -28,13 +31,17 @@ import (
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch *config.Exchange) error
-	Start(ctx context.Context, wg *sync.WaitGroup) error
+	Bootstrap(context.Context) (continueBootstrap bool, err error)
 	SetDefaults()
 	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
+
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
+	// GetTradingRequirements returns trading requirements for the exchange
+	GetTradingRequirements() protocol.TradingRequirements
+
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -62,7 +69,6 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
-	GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
@@ -70,15 +76,21 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	GetWebsocket() (*stream.Websocket, error)
-	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	GetSubscriptions() ([]stream.ChannelSubscription, error)
+	SubscribeToWebsocketChannels(channels subscription.List) error
+	UnsubscribeToWebsocketChannels(channels subscription.List) error
+	GetSubscriptions() (subscription.List, error)
+	GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
+	CanUseAuthenticatedWebsocketEndpoints() bool
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)
+	EnsureOnePairEnabled() error
+	PrintEnabledPairs()
+	IsVerbose() bool
+	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.
@@ -158,6 +170,7 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
+	GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error)
 	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*collateral.ByCurrency, error)
 	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)

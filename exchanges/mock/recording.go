@@ -47,9 +47,21 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 	}
 	service = strings.ToLower(service)
 
-	fileout := filepath.Join(DefaultDirectory, service, service+".json")
+	outputFilePath := filepath.Join(DefaultDirectory, service, service+".json")
+	_, err := os.Stat(outputFilePath)
+	if err != nil {
+		if os.IsExist(err) {
+			return err
+		}
+		// check alternative path to add compatibility with /internal/testing/exchange/exchange.go MockHTTPInstance
+		outputFilePath = filepath.Join("..", service, "testdata", "http.json")
+		_, err = os.Stat(outputFilePath)
+		if err != nil {
+			return err
+		}
+	}
 
-	contents, err := os.ReadFile(fileout)
+	contents, err := os.ReadFile(outputFilePath)
 	if err != nil {
 		return err
 	}
@@ -227,7 +239,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		return err
 	}
 
-	return file.Write(fileout, payload)
+	return file.Write(outputFilePath, payload)
 }
 
 // GetFilteredHeader filters excluded http headers for insertion into a mock
@@ -402,17 +414,23 @@ var m sync.Mutex
 var set bool
 var exclusionFile = DefaultDirectory + "exclusion.json"
 
-var defaultExcludedHeaders = []string{"Key",
+var defaultExcludedHeaders = []string{
+	"Key",
 	"X-Mbx-Apikey",
 	"Rest-Key",
-	"Apiauth-Key"}
-var defaultExcludedVariables = []string{"bsb",
+	"Apiauth-Key",
+	"X-Bapi-Api-Key",
+}
+var defaultExcludedVariables = []string{
+	"bsb",
 	"user",
 	"name",
 	"real_name",
 	"receiver_name",
 	"account_number",
-	"username"}
+	"username",
+	"apiKey",
+}
 
 // Exclusion defines a list of items to be excluded from the main mock output
 // this attempts a catch all approach and needs to be updated per exchange basis

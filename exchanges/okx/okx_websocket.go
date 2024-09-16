@@ -19,7 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -215,7 +217,7 @@ const (
 // WsConnect initiates a websocket connection
 func (ok *Okx) WsConnect() error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
@@ -231,7 +233,7 @@ func (ok *Okx) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	ok.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -260,7 +262,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	}
 	ok.Websocket.Wg.Add(1)
 	go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -280,7 +282,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	base64Sign := crypto.Base64Encode(hmac)
-	request := WebsocketEventRequest{
+	req := WebsocketEventRequest{
 		Operation: operationLogin,
 		Arguments: []WebsocketLoginData{
 			{
@@ -291,7 +293,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
 	if err != nil {
 		return err
 	}
@@ -327,7 +329,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			timer.Stop()
 			return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
-				request.Operation)
+				req.Operation)
 		}
 	}
 }
@@ -347,29 +349,31 @@ func (ok *Okx) wsReadData(ws stream.Connection) {
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Subscribe(channelsToSubscribe subscription.List) error {
 	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
-	request := WSSubscriptionInformationList{Operation: operation}
+func (ok *Okx) handleSubscription(operation string, subscriptions subscription.List) error {
+	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	var channels []stream.ChannelSubscription
-	var authChannels []stream.ChannelSubscription
-	var err error
-	var format currency.PairFormat
+	var channels subscription.List
+	var authChannels subscription.List
 	for i := 0; i < len(subscriptions); i++ {
+		s := subscriptions[i]
+		if len(s.Pairs) > 1 {
+			return subscription.ErrNotSinglePair
+		}
 		arg := SubscriptionInfo{
-			Channel: subscriptions[i].Channel,
+			Channel: s.Channel,
 		}
 		var instrumentID string
 		var underlying string
@@ -399,12 +403,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		}
 
 		if arg.Channel == okxChannelGridPositions {
-			algoID, _ = subscriptions[i].Params["algoId"].(string)
+			algoID, _ = s.Params["algoId"].(string)
 		}
 
 		if arg.Channel == okcChannelGridSubOrders ||
 			arg.Channel == okxChannelGridPositions {
-			uid, _ = subscriptions[i].Params["uid"].(string)
+			uid, _ = s.Params["uid"].(string)
 		}
 
 		if strings.HasPrefix(arg.Channel, "candle") ||
@@ -415,26 +419,30 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelOrderBooksTBT ||
 			arg.Channel == okxChannelFundingRate ||
 			arg.Channel == okxChannelTrades {
-			if subscriptions[i].Params["instId"] != "" {
-				instrumentID, okay = subscriptions[i].Params["instId"].(string)
+			if s.Params["instId"] != "" {
+				instrumentID, okay = s.Params["instId"].(string)
 				if !okay {
 					instrumentID = ""
 				}
-			} else if subscriptions[i].Params["instrumentID"] != "" {
-				instrumentID, okay = subscriptions[i].Params["instrumentID"].(string)
+			} else if s.Params["instrumentID"] != "" {
+				instrumentID, okay = s.Params["instrumentID"].(string)
 				if !okay {
 					instrumentID = ""
 				}
 			}
 			if instrumentID == "" {
-				format, err = ok.GetPairFormat(subscriptions[i].Asset, false)
+				if len(s.Pairs) != 1 {
+					return subscription.ErrNotSinglePair
+				}
+				format, err := ok.GetPairFormat(s.Asset, false)
 				if err != nil {
 					return err
 				}
-				if subscriptions[i].Currency.Base.String() == "" || subscriptions[i].Currency.Quote.String() == "" {
+				p := s.Pairs[0]
+				if p.Base.String() == "" || p.Quote.String() == "" {
 					return errIncompleteCurrencyPair
 				}
-				instrumentID = format.Format(subscriptions[i].Currency)
+				instrumentID = format.Format(p)
 			}
 		}
 		if arg.Channel == okxChannelInstruments ||
@@ -446,7 +454,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelSpotGridOrder ||
 			arg.Channel == okxChannelGridOrdersContract ||
 			arg.Channel == okxChannelEstimatedPrice {
-			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
+			instrumentType = ok.GetInstrumentTypeFromAssetItem(s.Asset)
 		}
 
 		if arg.Channel == okxChannelPositions ||
@@ -454,7 +462,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelAlgoOrders ||
 			arg.Channel == okxChannelEstimatedPrice ||
 			arg.Channel == okxChannelOptSummary {
-			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
+			if len(s.Pairs) == 1 {
+				underlying, _ = ok.GetUnderlying(s.Pairs[0], s.Asset)
+			}
 		}
 		arg.InstrumentID = instrumentID
 		arg.Underlying = underlying
@@ -463,78 +473,76 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		arg.AlgoID = algoID
 
 		if authSubscription {
-			var authChunk []byte
-			authChannels = append(authChannels, subscriptions[i])
+			authChannels = append(authChannels, s)
 			authRequests.Arguments = append(authRequests.Arguments, arg)
-			authChunk, err = json.Marshal(authRequests)
+			authChunk, err := json.Marshal(authRequests)
 			if err != nil {
 				return err
 			}
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
+				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
-				authChannels = []stream.ChannelSubscription{}
+				if err != nil {
+					return err
+				}
+				authChannels = subscription.List{}
 				authRequests.Arguments = []SubscriptionInfo{}
 			}
 		} else {
-			var chunk []byte
-			channels = append(channels, subscriptions[i])
-			request.Arguments = append(request.Arguments, arg)
-			chunk, err = json.Marshal(request)
+			channels = append(channels, s)
+			reqs.Arguments = append(reqs.Arguments, arg)
+			chunk, err := json.Marshal(reqs)
 			if err != nil {
 				return err
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(request)
+				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
-				channels = []stream.ChannelSubscription{}
-				request.Arguments = []SubscriptionInfo{}
+				if err != nil {
+					return err
+				}
+				channels = subscription.List{}
+				reqs.Arguments = []SubscriptionInfo{}
 				continue
 			}
 		}
 	}
-	if len(request.Arguments) > 0 {
-		err = ok.Websocket.Conn.SendJSONMessage(request)
-		if err != nil {
+
+	if len(reqs.Arguments) > 0 {
+		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
-		if err != nil {
+		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests); err != nil {
 			return err
 		}
 	}
-	if err != nil {
-		return err
+
+	channels = append(channels, authChannels...)
+	if operation == operationUnsubscribe {
+		return ok.Websocket.RemoveSubscriptions(channels...)
 	}
 
-	if operation == operationUnsubscribe {
-		channels = append(channels, authChannels...)
-		ok.Websocket.RemoveSubscriptions(channels...)
-	} else {
-		channels = append(channels, authChannels...)
-		ok.Websocket.AddSuccessfulSubscriptions(channels...)
-	}
-	return nil
+	return ok.Websocket.AddSuccessfulSubscriptions(channels...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
@@ -687,7 +695,8 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return errNoCandlestickDataFound
 	}
-	pair, err := ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
+
+	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -749,12 +758,12 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		return err
 	}
 
-	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
+	pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
 
-	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+	asks := make([]orderbook.Tranche, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
 		asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
 		if err != nil {
@@ -767,7 +776,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		}
 	}
 
-	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+	bids := make([]orderbook.Tranche, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
 		bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
 		if err != nil {
@@ -808,13 +817,11 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		response.Action != wsOrderbookSnapshot {
 		return errors.New("invalid order book action")
 	}
-	var pair currency.Pair
-	var assets []asset.Item
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
+	assets, err := ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
-	pair, err = ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
+	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -833,11 +840,11 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
-				err = ok.Subscribe([]stream.ChannelSubscription{
+				err = ok.Subscribe(subscription.List{
 					{
-						Channel:  response.Argument.Channel,
-						Asset:    assets[0],
-						Currency: pair,
+						Channel: response.Argument.Channel,
+						Asset:   assets[0],
+						Pairs:   currency.Pairs{pair},
 					},
 				})
 				if err != nil {
@@ -928,8 +935,8 @@ func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, error) {
-	items := make([]orderbook.Item, len(entries))
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Tranche, error) {
+	items := make([]orderbook.Tranche, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1], 64)
 		if err != nil {
@@ -939,7 +946,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, er
 		if err != nil {
 			return nil, err
 		}
-		items[j] = orderbook.Item{Amount: amount, Price: price}
+		items[j] = orderbook.Tranche{Amount: amount, Price: price}
 	}
 	return items, nil
 }
@@ -951,7 +958,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, er
 // eg Bid:Ask:Bid:Ask:Ask:Ask
 func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
@@ -973,7 +980,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
 func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32, error) {
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0]
 			bidAmount := orderbookData.Bids[i][1]
@@ -1061,8 +1068,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	}
 	trades := make([]trade.Data, 0, len(response.Data)*len(assets))
 	for i := range response.Data {
-		var pair currency.Pair
-		pair, err = ok.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		pair, err := currency.NewPairFromString(response.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1085,7 +1091,6 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 // wsProcessOrders handles websocket order push data responses.
 func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 	var response WsOrderResponse
-	var pair currency.Pair
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
@@ -1108,7 +1113,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		pair, err = ok.GetPairFromInstrumentID(response.Data[x].InstrumentID)
+		pair, err := currency.NewPairFromString(response.Data[x].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1188,7 +1193,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return errNoCandlestickDataFound
 	}
-	pair, err := ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
+	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -1259,8 +1264,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		if err != nil {
 			return err
 		}
-		var c currency.Pair
-		c, err = ok.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		c, err := currency.NewPairFromString(response.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1297,8 +1301,8 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 }
 
 // GenerateDefaultSubscriptions returns a list of default subscription message.
-func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (ok *Okx) GenerateDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	assets := ok.GetAssetTypes(true)
 	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultAuthChannels))
 	subs = append(subs, defaultSubscribedChannels...)
@@ -1309,7 +1313,7 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 		switch subs[c] {
 		case okxChannelOrders:
 			for x := range assets {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: subs[c],
 					Asset:   assets[x],
 				})
@@ -1321,15 +1325,15 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 					return nil, err
 				}
 				for p := range pairs {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  subs[c],
-						Asset:    assets[x],
-						Currency: pairs[p],
+					subscriptions = append(subscriptions, &subscription.Subscription{
+						Channel: subs[c],
+						Asset:   assets[x],
+						Pairs:   currency.Pairs{pairs[p]},
 					})
 				}
 			}
 		default:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: subs[c],
 			})
 		}
@@ -1366,7 +1370,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: okxOpOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), placeOrderEPL, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1425,7 +1429,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		Arguments: args,
 		Operation: okxOpBatchOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), placeMultipleOrdersEPL, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1484,7 +1488,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, fmt.Errorf("either order id or client supplier id is required")
+		return nil, errors.New("either order id or client supplier id is required")
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -1495,7 +1499,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		Arguments: []CancelOrderRequestParam{arg},
 		Operation: okxOpCancelOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), cancelOrderEPL, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1543,7 +1547,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, fmt.Errorf("either order id or client supplier id is required")
+			return nil, errors.New("either order id or client supplier id is required")
 		}
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
@@ -1555,7 +1559,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		Arguments: args,
 		Operation: okxOpBatchCancelOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), cancelMultipleOrdersEPL, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1631,7 +1635,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		Operation: okxOpAmendOrder,
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), amendOrderEPL, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1693,7 +1697,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		Operation: okxOpBatchAmendOrders,
 		Arguments: args,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), amendMultipleOrdersEPL, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1832,9 +1836,6 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 			return errIncompleteCurrencyPair
 		}
 		instrumentID = format.Format(pair)
-		if err != nil {
-			instrumentID = ""
-		}
 	}
 	input := &SubscriptionOperationInput{
 		Operation: operation,
@@ -1849,7 +1850,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(input)
+	return ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, input)
 }
 
 // Private Channel Websocket methods
@@ -1863,8 +1864,6 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	var instrumentID string
 	var instrumentType string
 	var ccy string
-	var err error
-	var format currency.PairFormat
 	if params.InstrumentType {
 		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
 		if instrumentType != okxInstTypeMargin &&
@@ -1880,17 +1879,14 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 		}
 	}
 	if params.InstrumentID {
-		format, err = ok.GetPairFormat(assetType, false)
-		if err != nil {
-			return err
-		}
 		if !pair.IsPopulated() {
 			return errIncompleteCurrencyPair
 		}
-		instrumentID = format.Format(pair)
+		format, err := ok.GetPairFormat(assetType, false)
 		if err != nil {
-			instrumentID = ""
+			return err
 		}
+		instrumentID = format.Format(pair)
 	}
 	if params.Currency {
 		if !pair.IsEmpty() {
@@ -1920,7 +1916,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.AuthConn.SendJSONMessage(input)
+	return ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, input)
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by

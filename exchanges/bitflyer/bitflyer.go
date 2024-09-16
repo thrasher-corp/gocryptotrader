@@ -16,6 +16,7 @@ const (
 	// Bitflyer chain analysis endpoints
 	// APIURL
 	chainAnalysis = "https://chainflyer.bitflyer.jp/v1/"
+	tradeBaseURL  = "https://lightning.bitflyer.com/trade/"
 
 	// Public endpoints for chain analysis
 	latestBlock        = "block/latest"
@@ -270,8 +271,8 @@ func (b *Bitflyer) GetExecutions() {
 	// Needs to be updated
 }
 
-// GetOpenInterest returns a summary of open interest
-func (b *Bitflyer) GetOpenInterest() {
+// GetOpenInterestData returns a summary of open interest
+func (b *Bitflyer) GetOpenInterestData() {
 	// Needs to be updated
 }
 
@@ -299,7 +300,7 @@ func (b *Bitflyer) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return b.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

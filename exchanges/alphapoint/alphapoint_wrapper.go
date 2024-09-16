@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -26,16 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config for Alphapoint
-func (a *Alphapoint) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// Start starts the Aplhapoint go routine
-func (a *Alphapoint) Start(_ context.Context, _ *sync.WaitGroup) error {
-	return common.ErrNotYetImplemented
-}
 
 // SetDefaults sets current default settings
 func (a *Alphapoint) SetDefaults() {
@@ -223,17 +212,17 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return orderBook, err
 	}
 
-	orderBook.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	orderBook.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		orderBook.Bids[x] = orderbook.Item{
+		orderBook.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 
-	orderBook.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	orderBook.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		orderBook.Asks[x] = orderbook.Item{
+		orderBook.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -285,7 +274,7 @@ func (a *Alphapoint) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(a.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

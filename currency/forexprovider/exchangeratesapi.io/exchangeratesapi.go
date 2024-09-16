@@ -32,7 +32,7 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	var err error
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate, 1)))
 	return err
 }
 
@@ -91,13 +91,13 @@ func (e *ExchangeRates) GetSymbols() (map[string]string, error) {
 // all supported currencies
 func (e *ExchangeRates) GetLatestRates(baseCurrency, symbols string) (*Rates, error) {
 	vals := url.Values{}
-	if len(baseCurrency) > 0 && e.APIKeyLvl <= apiKeyFree && !strings.EqualFold("EUR", baseCurrency) {
+	if baseCurrency != "" && e.APIKeyLvl <= apiKeyFree && !strings.EqualFold("EUR", baseCurrency) {
 		return nil, errCannotSetBaseCurrencyOnFreePlan
-	} else if len(baseCurrency) > 0 {
+	} else if baseCurrency != "" {
 		vals.Set("base", baseCurrency)
 	}
 
-	if len(symbols) > 0 {
+	if symbols != "" {
 		symbols = e.cleanCurrencies(baseCurrency, symbols)
 		vals.Set("symbols", symbols)
 	}
@@ -120,9 +120,9 @@ func (e *ExchangeRates) GetHistoricalRates(date time.Time, baseCurrency string, 
 	var resp HistoricalRates
 	v := url.Values{}
 
-	if len(baseCurrency) > 0 && e.APIKeyLvl <= apiKeyFree && !strings.EqualFold("EUR", baseCurrency) {
+	if baseCurrency != "" && e.APIKeyLvl <= apiKeyFree && !strings.EqualFold("EUR", baseCurrency) {
 		return nil, errCannotSetBaseCurrencyOnFreePlan
-	} else if len(baseCurrency) > 0 {
+	} else if baseCurrency != "" {
 		v.Set("base", baseCurrency)
 	}
 

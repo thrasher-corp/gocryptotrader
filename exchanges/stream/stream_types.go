@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,17 +9,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
 	ReadMessage() Response
-	SendJSONMessage(interface{}) error
-	SetupPingHandler(PingHandler)
+	SetupPingHandler(request.EndpointLimit, PingHandler)
+	// GenerateMessageID generates a message ID for the individual connection. If a bespoke function is set
+	// (by using SetupNewConnection) it will use that, otherwise it will use the defaultGenerateMessageID function
+	// defined in websocket_connection.go.
 	GenerateMessageID(highPrecision bool) int64
-	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
-	SendRawMessage(messageType int, message []byte) error
+	// SendMessageReturnResponse will send a WS message to the connection and wait for response
+	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
+	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	// SendRawMessage sends a message over the connection without JSON encoding it
+	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
+	// SendJSONMessage sends a JSON encoded message over the connection
+	SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error
 	SetURL(string)
 	SetProxy(string)
 	GetURL() string
@@ -31,41 +41,18 @@ type Response struct {
 	Raw  []byte
 }
 
-// DefaultChannelKey is the fallback key for AddSuccessfulSubscriptions
-type DefaultChannelKey struct {
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-}
-
-// ChannelState tracks the status of a subscription channel
-type ChannelState uint8
-
-const (
-	ChannelStateUnknown  ChannelState = iota // ChannelStateUnknown means subscription state is not registered, but doesn't imply Inactive
-	ChannelSubscribing                       // ChannelSubscribing means channel is in the process of subscribing
-	ChannelSubscribed                        // ChannelSubscribed means the channel has finished a successful and acknowledged subscription
-	ChannelUnsubscribing                     // ChannelUnsubscribing means the channel has started to unsubscribe, but not yet confirmed
-)
-
-// ChannelSubscription container for streaming subscription channels
-type ChannelSubscription struct {
-	Key      any
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-	Params   map[string]interface{}
-	State    ChannelState
-}
-
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
 	ResponseCheckTimeout    time.Duration
 	ResponseMaxLimit        time.Duration
-	RateLimit               int64
+	RateLimit               *request.RateLimiterWithWeight
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+	// BespokeGenerateMessageID is a function that returns a unique message ID.
+	// This is useful for when an exchange connection requires a unique or
+	// structured message ID for each message sent.
+	BespokeGenerateMessageID func(highPrecision bool) int64
 }
 
 // PingHandler container for ping handler settings

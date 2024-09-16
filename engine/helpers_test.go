@@ -13,12 +13,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
@@ -40,8 +40,8 @@ import (
 
 var testExchange = "Bitstamp"
 
-func CreateTestBot(t *testing.T) *Engine {
-	t.Helper()
+func CreateTestBot(tb testing.TB) *Engine {
+	tb.Helper()
 	cFormat := &currency.PairFormat{Uppercase: true}
 	cp1 := currency.NewPair(currency.BTC, currency.USD)
 	cp2 := currency.NewPair(currency.BTC, currency.USDT)
@@ -92,9 +92,9 @@ func CreateTestBot(t *testing.T) *Engine {
 				},
 			},
 		}}}
-	if err := bot.LoadExchange(testExchange, nil); err != nil {
-		t.Fatalf("SetupTest: Failed to load exchange: %s", err)
-	}
+	err := bot.LoadExchange(testExchange)
+	assert.NoError(tb, err, "LoadExchange should not error")
+
 	return bot
 }
 
@@ -216,7 +216,6 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run(tt.Subsystem, func(t *testing.T) {
 			t.Parallel()
 			err := tt.Engine.SetSubsystem(tt.Subsystem, true)
@@ -734,14 +733,14 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 	result := e.GetExchangeNamesByCurrency(btsusd,
 		true,
 		assetType)
-	if !common.StringDataCompare(result, testExchange) {
+	if !slices.Contains(result, testExchange) {
 		t.Fatal("Unexpected result")
 	}
 
 	result = e.GetExchangeNamesByCurrency(btcjpy,
 		true,
 		assetType)
-	if !common.StringDataCompare(result, bf) {
+	if !slices.Contains(result, bf) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -759,7 +758,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 
 	base := orderbook.Base{
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Bids:     []orderbook.Item{{Price: 1000, Amount: 1}},
+		Bids:     []orderbook.Tranche{{Price: 1000, Amount: 1}},
 		Exchange: "Bitstamp",
 		Asset:    asset.Spot,
 	}
@@ -1177,7 +1176,7 @@ func TestGetExchangeNames(t *testing.T) {
 	if err := bot.UnloadExchange(testExchange); err != nil {
 		t.Fatal(err)
 	}
-	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
+	if e := bot.GetExchangeNames(true); slices.Contains(e, testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
 	if e := bot.GetExchangeNames(false); len(e) != 0 {
@@ -1379,10 +1378,10 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		name := exchange.Exchanges[x]
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				t.Skipf("skipping %s due to CI test restrictions", name)
 			}
-			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)

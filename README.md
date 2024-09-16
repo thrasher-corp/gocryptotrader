@@ -31,20 +31,19 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bybit | Yes | Yes | NA |
 | CoinbasePro | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
+| Deribit | Yes | Yes | No |
+| DYDX | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
-| ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| Okcoin | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
-| ZB.COM | Yes | Yes | NA |
 
 We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/). 
 However, we welcome pull requests for any exchange which does not match this criterion. If you need help with this, please join us on [Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk).
@@ -143,34 +142,38 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 684 |
-| [shazbert](https://github.com/shazbert) | 315 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 233 |
-| [gloriousCode](https://github.com/gloriousCode) | 224 |
+| [thrasher-](https://github.com/thrasher-) | 692 |
+| [shazbert](https://github.com/shazbert) | 333 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 293 |
+| [gloriousCode](https://github.com/gloriousCode) | 234 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
+| [gbjk](https://github.com/gbjk) | 80 |
 | [xtda](https://github.com/xtda) | 47 |
-| [gbjk](https://github.com/gbjk) | 45 |
 | [lrascao](https://github.com/lrascao) | 27 |
+| [Beadko](https://github.com/Beadko) | 17 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [Beadko](https://github.com/Beadko) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [140am](https://github.com/140am) | 8 |
-| [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [samuael](https://github.com/samuael) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
-| [samuael](https://github.com/samuael) | 7 |
+| [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [140am](https://github.com/140am) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
+| [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
-| [azhang](https://github.com/azhang) | 2 |
+| [mshogin](https://github.com/mshogin) | 2 |
+| [herenow](https://github.com/herenow) | 2 |
+| [tk42](https://github.com/tk42) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
+| [azhang](https://github.com/azhang) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |

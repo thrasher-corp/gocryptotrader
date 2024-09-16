@@ -1,4 +1,4 @@
-//go:build !mock_test_off
+//go:build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -10,53 +10,60 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-var mockTests = true
+var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Bybit load config error", err)
-	}
-	bybitConfig, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal("Bybit Setup() init error", err)
+	b = new(Bybit)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatal(err)
 	}
 
-	bybitConfig.API.AuthenticatedSupport = true
-	bybitConfig.API.Credentials.Key = apiKey
-	bybitConfig.API.Credentials.Secret = apiSecret
-	b.SetDefaults()
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bybitConfig)
-	if err != nil {
-		log.Fatal("Bybit setup error", err)
-	}
-	request.MaxRequestJobs = 100
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	err = b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		log.Fatal("Bybit setup error", err)
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.API.AuthenticatedWebsocketSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
+	if b.API.AuthenticatedSupport {
+		if err := b.RetrieveAndSetAccountType(context.Background()); err != nil {
+			log.Printf("%s unable to RetrieveAndSetAccountType: %v", b.Name, err)
 		}
 	}
+
+	instantiateTradablePairs()
+
 	os.Exit(m.Run())
+}
+
+func instantiateTradablePairs() {
+	handleError := func(msg string, err error) {
+		if err != nil {
+			log.Fatalf("Bybit %s: %v", msg, err)
+		}
+	}
+
+	err := b.UpdateTradablePairs(context.Background(), true)
+	handleError("unable to UpdateTradablePairs", err)
+
+	setTradablePair := func(assetType asset.Item, p *currency.Pair) {
+		tradables, err := b.GetEnabledPairs(assetType)
+		handleError("unable to GetEnabledPairs", err)
+
+		format, err := b.GetPairFormat(assetType, true)
+		handleError("unable to GetPairFormat", err)
+
+		*p = tradables[0].Format(format)
+	}
+
+	setTradablePair(asset.Spot, &spotTradablePair)
+	setTradablePair(asset.USDTMarginedFutures, &usdtMarginedTradablePair)
+	setTradablePair(asset.USDCMarginedFutures, &usdcMarginedTradablePair)
+	setTradablePair(asset.CoinMarginedFutures, &inverseTradablePair)
+	setTradablePair(asset.Options, &optionsTradablePair)
 }

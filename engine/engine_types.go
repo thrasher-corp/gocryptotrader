@@ -60,6 +60,7 @@ type CoreSettings struct {
 	EnableDispatcher            bool
 	DispatchMaxWorkerAmount     int
 	DispatchJobsLimit           int
+	Exchanges                   string
 }
 
 // ExchangeSyncerSettings defines settings for the exchange pair synchronisation
@@ -92,7 +93,6 @@ type ExchangeTuningSettings struct {
 	DisableExchangeAutoPairUpdates      bool
 	EnableExchangeRESTSupport           bool
 	EnableExchangeWebsocketSupport      bool
-	MaxHTTPRequestJobsLimit             int
 	TradeBufferProcessingInterval       time.Duration
 	RequestMaxRetryAttempts             int
 	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go

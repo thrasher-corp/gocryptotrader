@@ -12,7 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -61,15 +63,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binanceus TestMain()", err)
 	}
 	bi.setupOrderbookManager()
-	err = bi.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		log.Fatalf("%s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = bi.Start(context.Background(), &testWg)
-	if err != nil {
-		log.Fatal("Binanceus Starting error ", err)
-	}
 	os.Exit(m.Run())
 }
 
@@ -1815,5 +1808,18 @@ func TestGetUsersSpotAssetSnapshot(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	if _, er := bi.GetUsersSpotAssetSnapshot(context.Background(), time.Time{}, time.Time{}, 10, 6); er != nil {
 		t.Error("Binanceus GetUsersSpotAssetSnapshot() error", er)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, bi)
+	for _, a := range bi.GetAssetTypes(false) {
+		pairs, err := bi.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := bi.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

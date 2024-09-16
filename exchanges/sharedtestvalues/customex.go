@@ -2,7 +2,6 @@ package sharedtestvalues
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -30,11 +30,6 @@ type CustomEx struct {
 
 // Setup is a mock method for CustomEx
 func (c *CustomEx) Setup(_ *config.Exchange) error {
-	return nil
-}
-
-// Start is a mock method for CustomEx
-func (c *CustomEx) Start(_ context.Context, _ *sync.WaitGroup) error {
 	return nil
 }
 
@@ -267,12 +262,7 @@ func (c *CustomEx) SupportsREST() bool {
 }
 
 // GetSubscriptions is a mock method for CustomEx
-func (c *CustomEx) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, nil
-}
-
-// GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
+func (c *CustomEx) GetSubscriptions() (subscription.List, error) {
 	return nil, nil
 }
 
@@ -322,12 +312,12 @@ func (c *CustomEx) SupportsWebsocket() bool {
 }
 
 // SubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) SubscribeToWebsocketChannels(_ []stream.ChannelSubscription) error {
+func (c *CustomEx) SubscribeToWebsocketChannels(_ subscription.List) error {
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) UnsubscribeToWebsocketChannels(_ []stream.ChannelSubscription) error {
+func (c *CustomEx) UnsubscribeToWebsocketChannels(_ subscription.List) error {
 	return nil
 }
 

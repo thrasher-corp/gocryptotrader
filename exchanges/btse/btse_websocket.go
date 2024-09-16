@@ -16,7 +16,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -29,14 +31,14 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
@@ -77,7 +79,7 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, sign},
 	}
-	return b.Websocket.Conn.SendJSONMessage(req)
+	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -276,8 +278,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		newOB := orderbook.Base{
-			Bids: make(orderbook.Items, 0, len(t.Data.BuyQuote)),
-			Asks: make(orderbook.Items, 0, len(t.Data.SellQuote)),
+			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
@@ -294,7 +296,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Item{
+			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			})
@@ -313,7 +315,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Bids = append(newOB.Bids, orderbook.Item{
+			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			})
@@ -360,24 +362,24 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *BTSE) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions subscription.List
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: "notificationApi",
 		})
 	}
 	for i := range channels {
 		for j := range pairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  fmt.Sprintf(channels[i], pairs[j]),
-				Currency: pairs[j],
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: fmt.Sprintf(channels[i], pairs[j]),
+				Pairs:   currency.Pairs{pairs[j]},
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -385,32 +387,30 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 	var sub wsSub
 	sub.Operation = "subscribe"
 	for i := range channelsToSubscribe {
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(sub)
-	if err != nil {
-		return err
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, sub)
+	if err == nil {
+		err = b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	for i := range channelsToUnsubscribe {
 		unSub.Arguments = append(unSub.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(unSub)
-	if err != nil {
-		return err
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, unSub)
+	if err == nil {
+		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}
-	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return err
 }

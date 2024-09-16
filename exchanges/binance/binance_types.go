@@ -10,8 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-const wsRateLimitMilliseconds = 250
-
 // withdrawals status codes description
 const (
 	EmailSent = iota
@@ -44,13 +42,13 @@ type ExchangeInfo struct {
 	Msg        string    `json:"msg"`
 	Timezone   string    `json:"timezone"`
 	ServerTime time.Time `json:"serverTime"`
-	RateLimits []struct {
+	RateLimits []*struct {
 		RateLimitType string `json:"rateLimitType"`
 		Interval      string `json:"interval"`
 		Limit         int    `json:"limit"`
 	} `json:"rateLimits"`
 	ExchangeFilters interface{} `json:"exchangeFilters"`
-	Symbols         []struct {
+	Symbols         []*struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
 		BaseAsset                  string        `json:"baseAsset"`
@@ -65,6 +63,7 @@ type ExchangeInfo struct {
 		IsMarginTradingAllowed     bool          `json:"isMarginTradingAllowed"`
 		Filters                    []*filterData `json:"filters"`
 		Permissions                []string      `json:"permissions"`
+		PermissionSets             [][]string    `json:"permissionSets"`
 	} `json:"symbols"`
 }
 
@@ -163,13 +162,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string           `json:"e"`
-	Timestamp     time.Time        `json:"E"`
-	Pair          string           `json:"s"`
-	FirstUpdateID int64            `json:"U"`
-	LastUpdateID  int64            `json:"u"`
-	UpdateBids    [][2]interface{} `json:"b"`
-	UpdateAsks    [][2]interface{} `json:"a"`
+	Event         string            `json:"e"`
+	Timestamp     time.Time         `json:"E"`
+	Pair          string            `json:"s"`
+	FirstUpdateID int64             `json:"U"`
+	LastUpdateID  int64             `json:"u"`
+	UpdateBids    [][2]types.Number `json:"b"`
+	UpdateAsks    [][2]types.Number `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -190,17 +189,17 @@ type RecentTrade struct {
 
 // TradeStream holds the trade stream data
 type TradeStream struct {
-	EventType      string    `json:"e"`
-	EventTime      time.Time `json:"E"`
-	Symbol         string    `json:"s"`
-	TradeID        int64     `json:"t"`
-	Price          string    `json:"p"`
-	Quantity       string    `json:"q"`
-	BuyerOrderID   int64     `json:"b"`
-	SellerOrderID  int64     `json:"a"`
-	TimeStamp      time.Time `json:"T"`
-	Maker          bool      `json:"m"`
-	BestMatchPrice bool      `json:"M"`
+	EventType      string       `json:"e"`
+	EventTime      time.Time    `json:"E"`
+	Symbol         string       `json:"s"`
+	TradeID        int64        `json:"t"`
+	Price          types.Number `json:"p"`
+	Quantity       types.Number `json:"q"`
+	BuyerOrderID   int64        `json:"b"`
+	SellerOrderID  int64        `json:"a"`
+	TimeStamp      time.Time    `json:"T"`
+	Maker          bool         `json:"m"`
+	BestMatchPrice bool         `json:"M"`
 }
 
 // KlineStream holds the kline stream data
@@ -213,49 +212,49 @@ type KlineStream struct {
 
 // KlineStreamData defines kline streaming data
 type KlineStreamData struct {
-	StartTime                time.Time `json:"t"`
-	CloseTime                time.Time `json:"T"`
-	Symbol                   string    `json:"s"`
-	Interval                 string    `json:"i"`
-	FirstTradeID             int64     `json:"f"`
-	LastTradeID              int64     `json:"L"`
-	OpenPrice                float64   `json:"o,string"`
-	ClosePrice               float64   `json:"c,string"`
-	HighPrice                float64   `json:"h,string"`
-	LowPrice                 float64   `json:"l,string"`
-	Volume                   float64   `json:"v,string"`
-	NumberOfTrades           int64     `json:"n"`
-	KlineClosed              bool      `json:"x"`
-	Quote                    float64   `json:"q,string"`
-	TakerBuyBaseAssetVolume  float64   `json:"V,string"`
-	TakerBuyQuoteAssetVolume float64   `json:"Q,string"`
+	StartTime                time.Time    `json:"t"`
+	CloseTime                time.Time    `json:"T"`
+	Symbol                   string       `json:"s"`
+	Interval                 string       `json:"i"`
+	FirstTradeID             int64        `json:"f"`
+	LastTradeID              int64        `json:"L"`
+	OpenPrice                types.Number `json:"o"`
+	ClosePrice               types.Number `json:"c"`
+	HighPrice                types.Number `json:"h"`
+	LowPrice                 types.Number `json:"l"`
+	Volume                   types.Number `json:"v"`
+	NumberOfTrades           int64        `json:"n"`
+	KlineClosed              bool         `json:"x"`
+	Quote                    types.Number `json:"q"`
+	TakerBuyBaseAssetVolume  types.Number `json:"V"`
+	TakerBuyQuoteAssetVolume types.Number `json:"Q"`
 }
 
 // TickerStream holds the ticker stream data
 type TickerStream struct {
-	EventType              string    `json:"e"`
-	EventTime              time.Time `json:"E"`
-	Symbol                 string    `json:"s"`
-	PriceChange            float64   `json:"p,string"`
-	PriceChangePercent     float64   `json:"P,string"`
-	WeightedAvgPrice       float64   `json:"w,string"`
-	ClosePrice             float64   `json:"x,string"`
-	LastPrice              float64   `json:"c,string"`
-	LastPriceQuantity      float64   `json:"Q,string"`
-	BestBidPrice           float64   `json:"b,string"`
-	BestBidQuantity        float64   `json:"B,string"`
-	BestAskPrice           float64   `json:"a,string"`
-	BestAskQuantity        float64   `json:"A,string"`
-	OpenPrice              float64   `json:"o,string"`
-	HighPrice              float64   `json:"h,string"`
-	LowPrice               float64   `json:"l,string"`
-	TotalTradedVolume      float64   `json:"v,string"`
-	TotalTradedQuoteVolume float64   `json:"q,string"`
-	OpenTime               time.Time `json:"O"`
-	CloseTime              time.Time `json:"C"`
-	FirstTradeID           int64     `json:"F"`
-	LastTradeID            int64     `json:"L"`
-	NumberOfTrades         int64     `json:"n"`
+	EventType              string       `json:"e"`
+	EventTime              time.Time    `json:"E"`
+	Symbol                 string       `json:"s"`
+	PriceChange            types.Number `json:"p"`
+	PriceChangePercent     types.Number `json:"P"`
+	WeightedAvgPrice       types.Number `json:"w"`
+	ClosePrice             types.Number `json:"x"`
+	LastPrice              types.Number `json:"c"`
+	LastPriceQuantity      types.Number `json:"Q"`
+	BestBidPrice           types.Number `json:"b"`
+	BestBidQuantity        types.Number `json:"B"`
+	BestAskPrice           types.Number `json:"a"`
+	BestAskQuantity        types.Number `json:"A"`
+	OpenPrice              types.Number `json:"o"`
+	HighPrice              types.Number `json:"h"`
+	LowPrice               types.Number `json:"l"`
+	TotalTradedVolume      types.Number `json:"v"`
+	TotalTradedQuoteVolume types.Number `json:"q"`
+	OpenTime               time.Time    `json:"O"`
+	CloseTime              time.Time    `json:"C"`
+	FirstTradeID           int64        `json:"F"`
+	LastTradeID            int64        `json:"L"`
+	NumberOfTrades         int64        `json:"n"`
 }
 
 // HistoricalTrade holds recent trade data
@@ -562,7 +561,7 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.LLT:     67.8,
 	currency.YOYO:    1,
 	currency.TRX:     1,
-	currency.STRAT:   0.1,
+	currency.STRAT:   0.1, //nolint:misspell // Not a misspelling
 	currency.SNGLS:   54,
 	currency.BQX:     3.9,
 	currency.KNC:     3.5,
@@ -750,11 +749,6 @@ type DepositAddress struct {
 // websocket connection
 type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
-}
-
-type wsAccountInfo struct {
-	Stream string            `json:"stream"`
-	Data   WsAccountInfoData `json:"data"`
 }
 
 // WsAccountInfoData defines websocket account info data

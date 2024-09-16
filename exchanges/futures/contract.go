@@ -71,6 +71,7 @@ const (
 	LongDated
 	Weekly
 	Fortnightly
+	ThreeWeekly
 	Monthly
 	Quarterly
 	SemiAnnually
@@ -78,11 +79,14 @@ const (
 	NineMonthly
 	Yearly
 	Unknown
+	Daily
 )
 
 // String returns the string representation of the contract type
 func (c ContractType) String() string {
 	switch c {
+	case Daily:
+		return "day"
 	case Perpetual:
 		return "perpetual"
 	case LongDated:
@@ -91,6 +95,8 @@ func (c ContractType) String() string {
 		return "weekly"
 	case Fortnightly:
 		return "fortnightly"
+	case ThreeWeekly:
+		return "three-weekly"
 	case Monthly:
 		return "monthly"
 	case Quarterly:

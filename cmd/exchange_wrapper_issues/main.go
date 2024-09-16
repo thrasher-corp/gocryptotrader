@@ -68,17 +68,19 @@ func main() {
 	log.Println("Loading exchanges..")
 
 	var wg sync.WaitGroup
-	for x := range exchange.Exchanges {
-		name := exchange.Exchanges[x]
+	for i := range exchange.Exchanges {
+		name := exchange.Exchanges[i]
 		if _, ok := wrapperConfig.Exchanges[name]; !ok {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
-			err = bot.LoadExchange(name, &wg)
-			if err != nil {
-				log.Printf("Failed to load exchange %s. Err: %s", name, err)
-				continue
-			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err = bot.LoadExchange(name); err != nil {
+					log.Printf("Failed to load exchange %s. Err: %s", name, err)
+				}
+			}()
 		}
 	}
 	wg.Wait()

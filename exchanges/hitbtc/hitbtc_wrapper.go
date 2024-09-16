@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,29 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (h *HitBTC) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	h.SetDefaults()
-	exchCfg, err := h.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = h.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets default settings for hitbtc
 func (h *HitBTC) SetDefaults() {
@@ -136,7 +112,7 @@ func (h *HitBTC) SetDefaults() {
 
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -148,7 +124,7 @@ func (h *HitBTC) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.New()
+	h.Websocket = stream.NewWebsocket()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -193,94 +169,10 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the HitBTC go routine
-func (h *HitBTC) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		h.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the HitBTC wrapper
-func (h *HitBTC) Run(ctx context.Context) {
-	if h.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
-		h.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !h.BypassConfigFormatUpgrades {
-		format, err := h.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-		enabled, err := h.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-
-		avail, err := h.GetAvailablePairs(asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
-			log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
-			forceUpdate = true
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings(enabledPairs)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update tradable pairs. Err: %s",
-					h.Name,
-					err)
-				return
-			}
-			err = h.UpdatePairs(p, asset.Spot, true, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update enabled currencies.\n",
-					h.Name)
-			}
-		}
-	}
-
-	if !h.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := h.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -408,16 +300,16 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -568,7 +460,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate()
+	err := o.Validate(h.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -1003,4 +895,21 @@ func (h *HitBTC) GetLatestFundingRates(context.Context, *fundingrate.LatestRateR
 // UpdateOrderExecutionLimits updates order execution limits
 func (h *HitBTC) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (h *HitBTC) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := h.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = "-to-"
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + cp.Lower().String(), nil
+	case asset.Futures:
+		return tradeBaseURL + tradeFutures + cp.Lower().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

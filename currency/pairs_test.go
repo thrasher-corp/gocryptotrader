@@ -3,7 +3,11 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPairsUpper(t *testing.T) {
@@ -91,40 +95,9 @@ func TestPairsJoin(t *testing.T) {
 func TestPairsFormat(t *testing.T) {
 	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := "BTC-USD,BTC-AUD,BTC-LTC"
-	formatting := PairFormat{Delimiter: "-", Index: "", Uppercase: true}
-	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
-
-	expected = "btc:usd,btc:aud,btc:ltc"
-	formatting = PairFormat{Delimiter: ":", Index: "", Uppercase: false}
-	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
-
-	formatting = PairFormat{Delimiter: ":", Index: "KRW", Uppercase: false}
-	if pairs.Format(formatting).Join() != "" {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
-
-	pairs, err = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected = "dash-krw,btc-krw"
-	formatting = PairFormat{Delimiter: "-", Index: "KRW", Uppercase: false}
-	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
+	require.NoError(t, err, "NewPairsFromStrings must not error")
+	assert.Equal(t, "BTC-USD,BTC-AUD,BTC-LTC", pairs.Format(PairFormat{Delimiter: "-", Uppercase: true}).Join(), "Format should return the correct value")
+	assert.Equal(t, "btc:usd,btc:aud,btc:ltc", pairs.Format(PairFormat{Delimiter: ":", Uppercase: false}).Join(), "Format should return the correct value")
 }
 
 func TestPairsUnmarshalJSON(t *testing.T) {
@@ -230,84 +203,40 @@ func TestRemove(t *testing.T) {
 		NewPair(LTC, USDT),
 	}
 
-	compare := make(Pairs, len(oldPairs))
-	copy(compare, oldPairs)
+	compare := slices.Clone(oldPairs)
 
-	p := NewPair(BTC, USD)
-	newPairs, err := oldPairs.Remove(p)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	newPairs := oldPairs.Remove(oldPairs[:2]...)
 
-	err = compare.ContainsAll(oldPairs, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := compare.ContainsAll(oldPairs, true)
+	assert.NoError(t, err, "Remove should not affect the original pairs")
 
-	if newPairs.Contains(p, true) || len(newPairs) != 2 {
-		t.Error("TestRemove unexpected result")
-	}
+	require.Len(t, newPairs, 1, "Remove should remove a pair")
+	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
 
-	_, err = newPairs.Remove(p)
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
-
-	newPairs, err = oldPairs.Remove(p)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	newPairs, err = newPairs.Remove(NewPair(LTC, USD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	err = compare.ContainsAll(oldPairs, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = newPairs.Remove(NewPair(LTC, USD))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
-
-	newPairs, err = newPairs.Remove(NewPair(LTC, USDT))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	if len(newPairs) != 0 {
-		t.Error("unexpected value")
-	}
-
-	_, err = newPairs.Remove(NewPair(LTC, USDT))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
+	newPairs = newPairs.Remove(oldPairs[0])
+	assert.Len(t, newPairs, 1, newPairs, "Remove have no effect on non-included pairs")
 }
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
-		NewPair(BTC, USD),
-		NewPair(LTC, USD),
-		NewPair(LTC, USDT),
-	}
+	orig := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
+	p := slices.Clone(orig)
+	p2 := Pairs{NewPair(BTC, USDT), NewPair(ETH, USD), NewPair(BTC, ETH)}
 
-	// Test adding a new pair to the list of pairs
-	p := NewPair(BTC, USDT)
-	pairs = pairs.Add(p)
-	if !pairs.Contains(p, true) || len(pairs) != 4 {
-		t.Error("TestAdd unexpected result")
-	}
+	pT := p.Add(p...)
+	assert.Equal(t, pT.Join(), orig.Join(), "Adding only existing pairs should return same Pairs")
+	assert.Equal(t, p.Join(), orig.Join(), "Should not effect original")
 
-	// Now test adding a pair which already exists
-	pairs = pairs.Add(p)
-	if len(pairs) != 4 {
-		t.Error("TestAdd unexpected result")
-	}
+	pT = p.Add(p2...)
+	assert.Equal(t, pT.Join(), append(orig, p2...).Join(), "Adding new pairs should return correct Pairs")
+	assert.Equal(t, p.Join(), orig.Join(), "Should not effect original")
+
+	p = slices.Grow(slices.Clone(orig), len(p2)) // Grow so that append doesn't alloc
+	pT1 := p.Add(p2[0])
+	pT2 := p.Add(p2[1])
+	pT1[3] = p2[2] // If Add doesn't allocate an new underlying array, this would affect PT2 as well
+	assert.Equal(t, p.Join(), orig.Join(), "Pairs underlying array should not be shared with original")
+	assert.Equal(t, pT2.Join(), append(orig, p2[1]).Join(), "Pairs underlying array should not be shared with siblings")
 }
 
 func TestContains(t *testing.T) {
@@ -613,7 +542,7 @@ func BenchmarkPairsFormat(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
-	formatting := PairFormat{Delimiter: "/", Index: "", Uppercase: false}
+	formatting := PairFormat{Delimiter: "/", Uppercase: false}
 
 	for x := 0; x < b.N; x++ {
 		_ = pairs.Format(formatting)
@@ -815,4 +744,95 @@ func TestPairs_GetFormatting(t *testing.T) {
 	if !errors.Is(err, errPairFormattingInconsistent) {
 		t.Error(err)
 	}
+}
+
+func TestGetPairsByQuote(t *testing.T) {
+	t.Parallel()
+
+	var available Pairs
+	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
+	}
+
+	available = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
+	}
+
+	got, err := available.GetPairsByQuote(USD)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 2)
+	}
+
+	got, err = available.GetPairsByQuote(BTC)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 0)
+	}
+}
+
+func TestGetPairsByBase(t *testing.T) {
+	t.Parallel()
+
+	var available Pairs
+	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
+	}
+
+	available = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
+	}
+
+	got, err := available.GetPairsByBase(USD)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 1)
+	}
+
+	got, err = available.GetPairsByBase(LTC)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)
+	}
+}
+
+// TestPairsEqual exercises Pairs.Equal
+func TestPairsEqual(t *testing.T) {
+	t.Parallel()
+	orig := Pairs{NewPairWithDelimiter("USDT", "BTC", "-"), NewPair(DAI, XRP), NewPair(DAI, BTC)}
+	assert.True(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)}), "Equal Pairs should return true")
+	assert.Equal(t, "USDT-BTC", orig[0].String(), "Equal Pairs should not effect original order or format")
+	assert.False(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USD, LTC)}), "UnEqual Pairs should return false")
 }

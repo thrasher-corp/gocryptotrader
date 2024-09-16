@@ -170,20 +170,6 @@
    "Disabled": false
   },
   {
-   "Name": "ItBit",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "a",
-     "Key": "href",
-     "RegExp": "^https://api.itbit.com/v\\d{1}/$",
-     "CheckString": "https://api.itbit.com/v1/",
-     "Path": "https://api.itbit.com/docs"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Bitmex",
    "CheckType": "HTML String Check",
    "Data": {
@@ -312,22 +298,6 @@
      "Key": "id",
      "CheckString": "v3",
      "Path": "https://www.yobit.net/en/api/"
-    }
-   },
-   "Disabled": false
-  },
-  {
-   "Name": "Okcoin",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "a",
-     "Key": "href",
-     "Val": "./#change-change",
-     "TokenDataEnd": "./#change-",
-     "RegExp": "./#change-\\d{8}",
-     "CheckString": "20200229",
-     "Path": "https://www.okcoin.com/docs/en/#change-change"
     }
    },
    "Disabled": false

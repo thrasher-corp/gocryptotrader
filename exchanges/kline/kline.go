@@ -1,9 +1,11 @@
 package kline
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,6 +145,31 @@ func (i Interval) Short() string {
 	return s
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface for Intervals
+// It does not validate the duration is aligned, only that it is a parsable duration
+func (i *Interval) UnmarshalJSON(text []byte) error {
+	text = bytes.Trim(text, `"`)
+	if len(bytes.TrimLeft(text, `0123456789`)) > 0 { // contains non-numerics, ParseDuration can handle errors
+		d, err := time.ParseDuration(string(text))
+		if err != nil {
+			return err
+		}
+		*i = Interval(d)
+	} else {
+		n, err := strconv.ParseInt(string(text), 10, 64)
+		if err != nil {
+			return err
+		}
+		*i = Interval(n)
+	}
+	return nil
+}
+
+// MarshalText implements the TextMarshaler interface for Intervals
+func (i Interval) MarshalText() ([]byte, error) {
+	return []byte(i.Short()), nil
+}
+
 // addPadding inserts padding time aligned when exchanges do not supply all data
 // when there is no activity in a certain time interval.
 // Start defines the request start and due to potential no activity from this
@@ -171,8 +198,9 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 			padded[x].Time = start
 		case !k.Candles[target].Time.Equal(start):
 			if k.Candles[target].Time.Before(start) {
-				return fmt.Errorf("%w when it should be %s truncated at a %s interval",
+				return fmt.Errorf("%w '%s' should be '%s' at '%s' interval",
 					errCandleOpenTimeIsNotUTCAligned,
+					k.Candles[target].Time,
 					start.Add(k.Interval.Duration()),
 					k.Interval)
 			}
@@ -251,6 +279,8 @@ func (k *Item) FormatDates() {
 // durationToWord returns english version of interval
 func durationToWord(in Interval) string {
 	switch in {
+	case Raw:
+		return "raw"
 	case HundredMilliseconds:
 		return "hundredmillisec"
 	case ThousandMilliseconds:

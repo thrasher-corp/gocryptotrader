@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -30,7 +30,7 @@ const (
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -200,7 +200,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Pair:            p,
 			}
 		}
-	case "match":
+	case "match", "last_match":
 		var wsOrder wsOrderReceived
 		err := json.Unmarshal(respRaw, &wsOrder)
 		if err != nil {
@@ -285,8 +285,8 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 	base := orderbook.Base{
 		Pair: pair,
-		Bids: make(orderbook.Items, len(snapshot.Bids)),
-		Asks: make(orderbook.Items, len(snapshot.Asks)),
+		Bids: make(orderbook.Tranches, len(snapshot.Bids)),
+		Asks: make(orderbook.Tranches, len(snapshot.Asks)),
 	}
 
 	for i := range snapshot.Bids {
@@ -300,7 +300,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		if err != nil {
 			return err
 		}
-		base.Bids[i] = orderbook.Item{Price: price, Amount: amount}
+		base.Bids[i] = orderbook.Tranche{Price: price, Amount: amount}
 	}
 
 	for i := range snapshot.Asks {
@@ -314,7 +314,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		if err != nil {
 			return err
 		}
-		base.Asks[i] = orderbook.Item{Price: price, Amount: amount}
+		base.Asks[i] = orderbook.Tranche{Price: price, Amount: amount}
 	}
 
 	base.Asset = asset.Spot
@@ -336,8 +336,8 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		return err
 	}
 
-	asks := make(orderbook.Items, 0, len(update.Changes))
-	bids := make(orderbook.Items, 0, len(update.Changes))
+	asks := make(orderbook.Tranches, 0, len(update.Changes))
+	bids := make(orderbook.Tranches, 0, len(update.Changes))
 
 	for i := range update.Changes {
 		price, err := strconv.ParseFloat(update.Changes[i][1], 64)
@@ -349,9 +349,9 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 			return err
 		}
 		if update.Changes[i][0] == order.Buy.Lower() {
-			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
+			bids = append(bids, orderbook.Tranche{Price: price, Amount: volume})
 		} else {
-			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Tranche{Price: price, Amount: volume})
 		}
 	}
 
@@ -364,123 +364,105 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 	})
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"heartbeat",
-		"level2_batch", /*Other orderbook feeds require authentication. This is batched in 50ms lots.*/
-		"ticker",
-		"user",
-		"matches"}
-	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
+	pairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
-	for i := range channels {
-		if (channels[i] == "user" || channels[i] == "full") &&
-			!c.IsWebsocketAuthenticationSupported() {
+	pairFmt, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	pairs = pairs.Format(pairFmt)
+	authed := c.IsWebsocketAuthenticationSupported()
+	subs := make(subscription.List, 0, len(c.Features.Subscriptions))
+	for _, baseSub := range c.Features.Subscriptions {
+		if !authed && baseSub.Authenticated {
 			continue
 		}
-		for j := range enabledCurrencies {
-			fPair, err := c.FormatExchangeCurrency(enabledCurrencies[j],
-				asset.Spot)
-			if err != nil {
-				return nil, err
-			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i],
-				Currency: fPair,
-				Asset:    asset.Spot,
-			})
-		}
+
+		s := baseSub.Clone()
+		s.Asset = asset.Spot
+		s.Pairs = pairs
+		subs = append(subs, s)
 	}
-	return subscriptions, nil
+	return subs, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var creds *account.Credentials
-	var err error
-	if c.IsWebsocketAuthenticationSupported() {
-		creds, err = c.GetCredentials(context.TODO())
-		if err != nil {
-			return err
+func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+	r := &WebsocketSubscribe{
+		Type:     "subscribe",
+		Channels: make([]any, 0, len(subs)),
+	}
+	// See if we have a consistent Pair list for all the subs that we can use globally
+	// If all the subs have the same pairs then we can use the top level ProductIDs field
+	// Otherwise each and every sub needs to have it's own list
+	for i, s := range subs {
+		if i == 0 {
+			r.ProductIDs = s.Pairs.Strings()
+		} else if !subs[0].Pairs.Equal(s.Pairs) {
+			r.ProductIDs = nil
+			break
 		}
 	}
-
-	subscribe := WebsocketSubscribe{
-		Type: "subscribe",
-	}
-
-subscriptions:
-	for i := range channelsToSubscribe {
-		p := channelsToSubscribe[i].Currency.String()
-		if !common.StringDataCompare(subscribe.ProductIDs, p) && p != "" {
-			subscribe.ProductIDs = append(subscribe.ProductIDs, p)
-		}
-
-		for j := range subscribe.Channels {
-			if subscribe.Channels[j].Name == channelsToSubscribe[i].Channel {
-				continue subscriptions
-			}
-		}
-
-		subscribe.Channels = append(subscribe.Channels, WsChannels{
-			Name: channelsToSubscribe[i].Channel,
-		})
-
-		if (channelsToSubscribe[i].Channel == "user" ||
-			channelsToSubscribe[i].Channel == "full") && creds != nil {
-			n := strconv.FormatInt(time.Now().Unix(), 10)
-			message := n + http.MethodGet + "/users/self/verify"
-			var hmac []byte
-			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-				[]byte(message),
-				[]byte(creds.Secret))
-			if err != nil {
+	for _, s := range subs {
+		if s.Authenticated && r.Key == "" && c.IsWebsocketAuthenticationSupported() {
+			if err := c.authWsSubscibeReq(r); err != nil {
 				return err
 			}
-			subscribe.Signature = crypto.Base64Encode(hmac)
-			subscribe.Key = creds.Key
-			subscribe.Passphrase = creds.ClientID
-			subscribe.Timestamp = n
+		}
+		if len(r.ProductIDs) == 0 {
+			r.Channels = append(r.Channels, WsChannel{
+				Name:       s.Channel,
+				ProductIDs: s.Pairs.Strings(),
+			})
+		} else {
+			// Coinbase does not support using [WsChannel{Name:"x"}] unless each ProductIDs field is populated
+			// Therefore we have to use Channels as an array of strings
+			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err = c.Websocket.Conn.SendJSONMessage(subscribe)
+	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	if err == nil {
+		err = c.Websocket.AddSuccessfulSubscriptions(subs...)
+	}
+	return err
+}
+
+func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
+	creds, err := c.GetCredentials(context.TODO())
 	if err != nil {
 		return err
 	}
-	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	r.Timestamp = strconv.FormatInt(time.Now().Unix(), 10)
+	message := r.Timestamp + http.MethodGet + "/users/self/verify"
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))
+	if err != nil {
+		return err
+	}
+	r.Signature = crypto.Base64Encode(hmac)
+	r.Key = creds.Key
+	r.Passphrase = creds.ClientID
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	unsubscribe := WebsocketSubscribe{
-		Type: "unsubscribe",
+func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+	r := &WebsocketSubscribe{
+		Type:     "unsubscribe",
+		Channels: make([]any, 0, len(subs)),
 	}
-
-unsubscriptions:
-	for i := range channelsToUnsubscribe {
-		p := channelsToUnsubscribe[i].Currency.String()
-		if !common.StringDataCompare(unsubscribe.ProductIDs, p) && p != "" {
-			unsubscribe.ProductIDs = append(unsubscribe.ProductIDs, p)
-		}
-
-		for j := range unsubscribe.Channels {
-			if unsubscribe.Channels[j].Name == channelsToUnsubscribe[i].Channel {
-				continue unsubscriptions
-			}
-		}
-
-		unsubscribe.Channels = append(unsubscribe.Channels, WsChannels{
-			Name: channelsToUnsubscribe[i].Channel,
+	for _, s := range subs {
+		r.Channels = append(r.Channels, WsChannel{
+			Name:       s.Channel,
+			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(unsubscribe)
-	if err != nil {
-		return err
+	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	if err == nil {
+		err = c.Websocket.RemoveSubscriptions(subs...)
 	}
-	c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return err
 }

@@ -1,19 +1,19 @@
 package sharedtestvalues
 
 import (
-	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -21,10 +21,10 @@ import (
 const (
 	// WebsocketResponseDefaultTimeout used in websocket testing
 	// Defines wait time for receiving websocket response before cancelling
-	WebsocketResponseDefaultTimeout = (3 * time.Second)
+	WebsocketResponseDefaultTimeout = 3 * time.Second
 	// WebsocketResponseExtendedTimeout used in websocket testing
 	// Defines wait time for receiving websocket response before cancelling
-	WebsocketResponseExtendedTimeout = (15 * time.Second)
+	WebsocketResponseExtendedTimeout = 15 * time.Second
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
 	WebsocketChannelOverrideCapacity = 500
@@ -52,16 +52,10 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
-	return &stream.Websocket{
-		Init:              true,
-		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
-		ToRoutine:         make(chan interface{}, 1000),
-		TrafficAlert:      make(chan struct{}),
-		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []stream.ChannelSubscription, 10),
-		Unsubscribe:       make(chan []stream.ChannelSubscription, 10),
-		Match:             stream.NewMatch(),
-	}
+	w := stream.NewWebsocket()
+	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan interface{}, 1000)
+	return w
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the
@@ -151,34 +145,41 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 	return nil
 }
 
-// TestFixtureToDataHandler takes a new empty exchange and configures a new websocket handler for it, and squirts the json path contents to it
-// It accepts a reader function, which is probably e.wsHandleData but could be anything
-func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
+// SetupCurrencyPairsForExchangeAsset enables an asset for an exchange
+// and adds the currency pair(s) to the available and enabled list of existing pairs
+// if it is already enabled or part of the pairs, no error is raised
+func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange, a asset.Item, cp ...currency.Pair) {
 	t.Helper()
-	b := e.GetBase()
-	seedBase := seed.GetBase()
-
-	err := b.CurrencyPairs.Load(&seedBase.CurrencyPairs)
-	assert.NoError(t, err, "Loading currency pairs should not error")
-
-	b.Name = "fixture"
-	b.Websocket = &stream.Websocket{
-		Wg:          new(sync.WaitGroup),
-		DataHandler: make(chan interface{}, 128),
+	if len(cp) == 0 {
+		return
 	}
-	b.API.Endpoints = b.NewEndpoints()
-
-	fixture, err := os.Open(fixturePath)
-	assert.NoError(t, err, "Opening fixture '%s' should not error", fixturePath)
-	defer func() {
-		assert.NoError(t, fixture.Close(), "Closing the fixture file should not error")
-	}()
-
-	s := bufio.NewScanner(fixture)
-	for s.Scan() {
-		msg := s.Bytes()
-		err := reader(msg)
-		assert.NoErrorf(t, err, "Fixture message should not error:\n%s", msg)
+	b := exch.GetBase()
+	err := b.CurrencyPairs.SetAssetEnabled(a, true)
+	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+		t.Fatal(err)
 	}
-	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
+	availPairs, err := b.CurrencyPairs.GetPairs(a, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apLen := len(availPairs)
+	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	epLen := len(enabledPairs)
+	availPairs = availPairs.Add(cp...)
+	enabledPairs = enabledPairs.Add(cp...)
+	if len(availPairs) != apLen {
+		err = b.CurrencyPairs.StorePairs(a, availPairs, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(enabledPairs) != epLen {
+		err = b.CurrencyPairs.StorePairs(a, enabledPairs, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }

@@ -2,22 +2,30 @@ package bybit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"strconv"
-	"strings"
-	"sync"
+	"slices"
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -25,56 +33,31 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+
+	skipAuthenticatedFunctionsForMockTesting = "skipping authenticated function for mock testing"
+	skippingWebsocketFunctionsForMockTesting = "skipping websocket function for mock testing"
 )
 
-var b = &Bybit{}
+var (
+	b = &Bybit{}
 
-func TestStart(t *testing.T) {
+	spotTradablePair, usdcMarginedTradablePair, usdtMarginedTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
+)
+
+func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
-}
-
-// test cases for SPOT
-
-func TestGetAllSpotPairs(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetAllSpotPairs(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetOrderBook(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetOrderBook(context.Background(), "BTCUSDT", 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetMergedOrderBook(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetMergedOrderBook(context.Background(), "BTCUSDT", 2, 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetTrades(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetTrades(context.Background(), "BTCUSDT", 100)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 0)
+	require.NoError(t, err)
+	_, err = b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 0)
+	require.NoError(t, err)
+	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 0)
+	require.NoError(t, err)
+	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "", "", 0)
+	require.NoError(t, err)
+	payload, err := b.GetInstrumentInfo(context.Background(), "linear", "10000000AIDOGEUSDT", "", "", "", 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, payload.List)
+	require.NotZero(t, payload.List[0].LotSizeFilter.MinNotionalValue)
 }
 
 func TestGetKlines(t *testing.T) {
@@ -85,1991 +68,144 @@ func TestGetKlines(t *testing.T) {
 		s = time.Unix(1691897100, 0).Round(kline.FiveMin.Duration())
 		e = time.Unix(1691907100, 0).Round(kline.FiveMin.Duration())
 	}
-	_, err := b.GetKlines(context.Background(), "BTCUSDT", "5m", 2000, s, e)
+	_, err := b.GetKlines(context.Background(), "spot", spotTradablePair.String(), kline.FiveMin, s, e, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestGet24HrsChange(t *testing.T) {
-	t.Parallel()
-	_, err := b.Get24HrsChange(context.Background(), "BTCUSDT")
+	_, err = b.GetKlines(context.Background(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.Get24HrsChange(context.Background(), "")
+	_, err = b.GetKlines(context.Background(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestGetLastTradedPrice(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetLastTradedPrice(context.Background(), "BTCUSDT")
+	_, err = b.GetKlines(context.Background(), "inverse", inverseTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetLastTradedPrice(context.Background(), "")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetBestBidAskPrice(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetBestBidAskPrice(context.Background(), "BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetBestBidAskPrice(context.Background(), "")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestCreatePostOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.CreatePostOrder(context.Background(), &PlaceOrderRequest{
-		Symbol:      "BTCUSDT",
-		Quantity:    1,
-		Side:        "Buy",
-		TradeType:   "LIMIT",
-		TimeInForce: "GTC",
-		Price:       100,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestQueryOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders) // Note: here !canManipulateRealOrders added as we don't have orderID
-
-	_, err := b.QueryOrder(context.Background(), "0", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestCancelExistingOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.CancelExistingOrder(context.Background(), "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestBatchCancelOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.BatchCancelOrder(context.Background(), "", "Buy", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestFastCancelExistingOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.FastCancelExistingOrder(context.Background(), "BTCUSDT", "889208273689997824", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.FastCancelExistingOrder(context.Background(), "BTCUSDT", "", "162081160171552")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestBatchFastCancelOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.BatchFastCancelOrder(context.Background(), "BTCUSDT", "Buy", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.BatchFastCancelOrder(context.Background(), "BTCUSDT", "", "Limit")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestBatchCancelOrderByIDs(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.BatchCancelOrderByIDs(context.Background(), []string{"889208273689997824", "889208273689997825"})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestListOpenOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.ListOpenOrders(context.Background(), "BTCUSDT", "", 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetPastOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetPastOrders(context.Background(), "BTCUSDT", "", 0, time.Now().Add(-time.Hour), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetTradeHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetTradeHistory(context.Background(), 0, "", "", "", "", time.Now().Add(-time.Hour), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetWalletBalance(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetWalletBalance(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetSpotServerTime(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetSpotServerTime(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetDepositAddressForCurrency(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetDepositAddressForCurrency(context.Background(), currency.BTC.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWithdrawFund(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.WithdrawFund(context.Background(), currency.ETH.String(), currency.ETH.String(), "0xEA13A385BcB74e631AAF1B424d7a01c61bF27Fe0", "", "10")
-	if err != nil && err.Error() != "Withdraw address chain or destination tag are not equal" {
-		t.Fatal(err)
-	}
-}
-
-// test cases for WS SPOT
-
-func TestWsSubscription(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-		"symbol": "BTCUSDT",
-		"event": "sub",
-		"topic": "trade",
-		"params": {
-			"binary": false
-		}
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWsUnsubscribe(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-		"symbol":"BTCUSDT",
-		"event": "cancel",
-		"topic":"trade",
-		"params": {
-			"binary": false
-		}
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWsTrade(t *testing.T) {
-	t.Parallel()
-	b.SetSaveTradeDataStatus(true)
-
-	pressXToJSON := []byte(`{
-		"topic": "trade",
-		"params": {
-			"symbol": "BTCUSDT",
-			"binary": "false",
-			"symbolName": "BTCUSDT"
-		},
-		"data": {
-			"v": "564265886622695424",
-			"t": 1582001735462,
-			"p": "9787.5",
-			"q": "0.195009",
-			"m": true
-		}
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWsOrderbook(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-		"topic": "depth",
-		"params": {
-		  "symbol": "BTCUSDT",
-		  "binary": "false",
-		  "symbolName": "BTCUSDT"
-		},
-		"data": {
-			"s": "BTCUSDT",
-			"t": 1582001376853,
-			"v": "13850022_2",
-			"b": [
-				[
-					"9780.79",
-					"0.01"
-				],
-				[
-					"9780.5",
-					"0.1"
-				],
-				[
-					"9780.4",
-					"0.517813"
-				]
-			],
-			"a": [
-				[
-					"9781.21",
-					"0.042842"
-				],
-				[
-					"9782",
-					"0.3"
-				],
-				[
-					"9782.1",
-					"0.226"
-				]
-			]
-		}
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWsTicker(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-		"topic": "bookTicker",
-		"params": {
-			"symbol": "BTCUSDT",
-			"binary": "false",
-			"symbolName": "BTCUSDT"
-		},
-		"data": {
-			"symbol": "BTCUSDT",
-			"bidPrice": "9797.79",
-			"bidQty": "0.177976",
-			"askPrice": "9799",
-			"askQty": "0.65",
-			"time": 1582001830346
-		}
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWsKline(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-		"topic": "kline",
-		"params": {
-		 	"symbol": "BTCUSDT",
-		  	"binary": "false",
-		  	"klineType": "1m",
-		  	"symbolName": "BTCUSDT"
-		},
-		"data": {
-		  	"t": 1582001880000,
-		  	"s": "BTCUSDT",
-		  	"sn": "BTCUSDT",
-		  	"c": "9799.4",
-		  	"h": "9801.4",
-		  	"l": "9798.91",
-		  	"o": "9799.4",
-		  	"v": "15.917433"
-		}
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWSAccountInfo(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`[{
-		"e":"outboundAccountInfo",
-		"E":"1629969654753",
-		"T":true,
-		"W":true,
-		"D":true,
-		"B":[{
-			"a":"BTC",
-			"f":"10000000097.1982823144",
-			"l":"0"
-		}]
-	}]`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWSOrderExecution(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`[{
-		"e": "executionReport",
-		"E": "1499405658658",
-		"s": "BTCUSDT",
-		"c": "1000087761",
-		"S": "BUY",
-		"o": "LIMIT",
-		"f": "GTC",
-		"q": "1.00000000",
-		"p": "0.10264410",
-		"X": "NEW",
-		"i": "4293153",
-		"M": "0",
-		"l": "0.00000000",
-		"z": "0.00000000",
-		"L": "0.00000000",
-		"n": "0",
-		"N": "BTC",
-		"u": true,
-		"w": true,
-		"m": false,
-		"O": "1499405658657",
-		"Z": "473.199",
-		"A": "0",
-		"C": false,
-		"v": "0"
-	}]`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWSTickerInfo(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`[{
-		"e":"ticketInfo",
-		"E":"1621912542359",
-		"s":"BTCUSDT",
-		"q":"0.001639",
-		"t":"1621912542314",
-		"p":"61000.0",
-		"T":"899062000267837441",
-		"o":"899048013515737344",
-		"c":"1621910874883",
-		"O":"899062000118679808",
-		"a":"10043",
-		"A":"10024",
-		"m":true,
-		"S":"BUY"
-	}]`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// test cases for CoinMarginedFutures
-
-func TestGetFuturesOrderbook(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetFuturesOrderbook(context.Background(), pair)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetFuturesKlineData(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetFuturesKlineData(context.Background(), pair, "M", 5, time.Time{})
-	if !errors.Is(err, errInvalidStartTime) {
-		t.Errorf("received: %s, expected: %s", err, errInvalidStartTime)
-	}
-
-	_, err = b.GetFuturesKlineData(context.Background(), pair, "60", 5, time.Unix(1577836800, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetFuturesSymbolPriceTicker(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetFuturesSymbolPriceTicker(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetPublicTrades(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetPublicTrades(context.Background(), pair, 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetPublicTrades(context.Background(), pair, 10000)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetSymbolsInfo(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetSymbolsInfo(context.Background())
-	if err != nil {
-		t.Error(err)
+	_, err = b.GetKlines(context.Background(), "option", optionsTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err == nil {
+		t.Fatalf("expected 'params error: Category is invalid', but found nil")
 	}
 }
 
 func TestGetMarkPriceKline(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	s := time.Now().Add(-time.Hour * 1)
+	e := time.Now()
+	if mockTests {
+		s = time.UnixMilli(1693077167971)
+		e = time.UnixMilli(1693080767971)
+	}
+	_, err := b.GetMarkPriceKline(context.Background(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetMarkPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = b.GetMarkPriceKline(context.Background(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	_, err = b.GetMarkPriceKline(context.Background(), "inverse", inverseTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetMarkPriceKline(context.Background(), "option", optionsTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err == nil {
+		t.Fatalf("expected 'params error: Category is invalid', but found nil")
 	}
 }
 
 func TestGetIndexPriceKline(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	s := time.Now().Add(-time.Hour * 1)
+	e := time.Now()
+	if mockTests {
+		s = time.UnixMilli(1693077165571)
+		e = time.UnixMilli(1693080765571)
+	}
+	_, err := b.GetIndexPriceKline(context.Background(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = b.GetIndexPriceKline(context.Background(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	_, err = b.GetIndexPriceKline(context.Background(), "inverse", inverseTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestGetPremiumIndexPriceKline(t *testing.T) {
+func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	_, err := b.GetOrderBook(context.Background(), "spot", spotTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetPremiumIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetOpenInterest(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	_, err = b.GetOrderBook(context.Background(), "linear", usdtMarginedTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetOpenInterest(context.Background(), pair, "5min", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetLatestBigDeal(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	_, err = b.GetOrderBook(context.Background(), "linear", usdcMarginedTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetLatestBigDeal(context.Background(), pair, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetAccountRatio(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	_, err = b.GetOrderBook(context.Background(), "inverse", inverseTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetAccountRatio(context.Background(), pair, "1d", 0)
+	_, err = b.GetOrderBook(context.Background(), "option", optionsTradablePair.String(), 0)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 }
 
 func TestGetRiskLimit(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
+	_, err := b.GetRiskLimit(context.Background(), "linear", usdtMarginedTradablePair.String())
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetRiskLimit(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetLastFundingRate(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetLastFundingRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetFutureServerTime(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetFuturesServerTime(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetAnnouncement(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetAnnouncement(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateCoinFuturesOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CreateCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 20000, 0, 0, false, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveCoinFuturesOrders(context.Background(), pair, "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetActiveCoinFuturesOrders(context.Background(), pair, "Filled", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelActiveCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelActiveCoinFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllActiveCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllActiveCoinFuturesOrders(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestReplaceActiveCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ReplaceActiveCoinFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveRealtimeCoinOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveRealtimeCoinOrders(context.Background(), pair, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateConditionalCoinFuturesOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CreateConditionalCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 20000, 0, 0, 1, 1, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetConditionalCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetConditionalCoinFuturesOrders(context.Background(), pair, "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelConditionalCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelConditionalCoinFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllConditionalCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllConditionalCoinFuturesOrders(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestReplaceConditionalCoinFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ReplaceConditionalCoinFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetConditionalRealtimeCoinOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetConditionalRealtimeCoinOrders(context.Background(), pair, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetCoinPositions(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetCoinPositions(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetCoinMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetCoinMargin(context.Background(), pair, "10")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetCoinTradingAndStop(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetCoinTradingAndStop(context.Background(), pair, 0, 0, 0, 0, 0, 0, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetCoinLeverage(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetCoinLeverage(context.Background(), pair, 10, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetCoinTradeRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetCoinTradeRecords(context.Background(), pair, "", "", 0, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetClosedCoinTrades(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetClosedCoinTrades(context.Background(), pair, "", time.Time{}, time.Time{}, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestChangeCoinMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ChangeCoinMode(context.Background(), pair, "Partial")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestChangeCoinMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.ChangeCoinMargin(context.Background(), pair, 1, 1, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetTradingFeeRate(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feeRate, err := b.GetTradingFeeRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if feeRate.MakerFeeRate == 0 && feeRate.TakerFeeRate == 0 {
-		t.Error("expected fee rate")
-	}
-
-	if feeRate.UserID == 0 {
-		t.Error("expected user id")
-	}
-}
-
-func TestSetCoinRiskLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetCoinRiskLimit(context.Background(), pair, 2)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetCoinLastFundingFee(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetCoinLastFundingFee(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetCoinPredictedFundingRate(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, _, err = b.GetCoinPredictedFundingRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetAPIKeyInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetAPIKeyInfo(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetLCPInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetLiquidityContributionPointsInfo(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetFutureWalletBalance(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetFutureWalletBalance(context.Background(), "BTC")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetWalletFundRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetWalletFundRecords(context.Background(), "2021-09-11", "2021-10-09", "ETH", "", "", 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetWalletWithdrawalRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetWalletWithdrawalRecords(context.Background(), "2021-09-11", "2021-10-09", "", currency.ETH, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetAssetExchangeRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetAssetExchangeRecords(context.Background(), "", 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// test cases for USDTMarginedFutures
-
-func TestGetUSDTFuturesKlineData(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetUSDTFuturesKlineData(context.Background(), pair, "M", 5, time.Time{})
-	if !errors.Is(err, errInvalidStartTime) {
-		t.Errorf("received: %s, expected: %s", err, errInvalidStartTime)
-	}
-
-	_, err = b.GetUSDTFuturesKlineData(context.Background(), pair, "60", 5, time.Unix(1577836800, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTPublicTrades(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTPublicTrades(context.Background(), pair, 1000)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTMarkPriceKline(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTMarkPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTIndexPriceKline(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTPremiumIndexPriceKline(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTPremiumIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTLastFundingRate(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTLastFundingRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTRiskLimit(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTRiskLimit(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateUSDTFuturesOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CreateUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 10000, 0, 0, false, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveUSDTFuturesOrders(context.Background(), pair, "", "", "", "", 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetActiveUSDTFuturesOrders(context.Background(), pair, "Filled", "", "", "", 0, 50)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelActiveUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelActiveUSDTFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllActiveUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllActiveUSDTFuturesOrders(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestReplaceActiveUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ReplaceActiveUSDTFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveUSDTRealtimeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveUSDTRealtimeOrders(context.Background(), pair, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateConditionalUSDTFuturesOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CreateConditionalUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetConditionalUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetConditionalUSDTFuturesOrders(context.Background(), pair, "", "", "", "", 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelConditionalUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelConditionalUSDTFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllConditionalUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllConditionalUSDTFuturesOrders(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestReplaceConditionalUSDTFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ReplaceConditionalUSDTFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetConditionalUSDTRealtimeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetConditionalUSDTRealtimeOrders(context.Background(), pair, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-
-	expectedErr := "Order not exists"
-	_, err = b.GetConditionalUSDTRealtimeOrders(context.Background(), pair, "1234", "")
-	if err != nil && err.Error() != expectedErr {
-		t.Error(err)
-	}
-
-	_, err = b.GetConditionalUSDTRealtimeOrders(context.Background(), pair, "", "1234")
-	if err != nil && err.Error() != expectedErr {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTPositions(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTPositions(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetUSDTPositions(context.Background(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetAutoAddMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.SetAutoAddMargin(context.Background(), pair, true, "Sell")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestChangeUSDTMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.ChangeUSDTMargin(context.Background(), pair, 1, 1, true)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSwitchPositionMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.SwitchPositionMode(context.Background(), pair, "BothSide")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestChangeUSDTMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ChangeUSDTMode(context.Background(), pair, "Partial")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetUSDTMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetUSDTMargin(context.Background(), pair, "Buy", "10")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetUSDTLeverage(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.SetUSDTLeverage(context.Background(), pair, 10, 10)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetUSDTTradingAndStop(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.SetUSDTTradingAndStop(context.Background(), pair, 0, 0, 0, 0, 0, "Buy", "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDTTradeRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDTTradeRecords(context.Background(), pair, "", 0, 0, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetClosedUSDTTrades(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetClosedUSDTTrades(context.Background(), pair, "", time.Time{}, time.Time{}, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetUSDTRiskLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetUSDTRiskLimit(context.Background(), pair, "Buy", 2)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetPredictedUSDTFundingRate(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, _, err = b.GetPredictedUSDTFundingRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetLastUSDTFundingFee(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetLastUSDTFundingFee(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// test cases for Futures
-
-func TestCreateFuturesOrderr(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CreateFuturesOrder(context.Background(), 1, pair, "Buy", "Market", "GoodTillCancel", "", "", "", 10, 1, 0, 0, false, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveFuturesOrders(context.Background(), pair, "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetActiveFuturesOrders(context.Background(), pair, "Filled", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelActiveFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelActiveFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllActiveFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllActiveFuturesOrders(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestReplaceActiveFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ReplaceActiveFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveRealtimeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveRealtimeOrders(context.Background(), pair, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateConditionalFuturesOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CreateConditionalFuturesOrder(context.Background(), 0, pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetConditionalFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetConditionalFuturesOrders(context.Background(), pair, "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelConditionalFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelConditionalFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllConditionalFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllConditionalFuturesOrders(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestReplaceConditionalFuturesOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ReplaceConditionalFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetConditionalRealtimeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetConditionalRealtimeOrders(context.Background(), pair, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetPositions(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetPositions(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetMargin(context.Background(), 0, pair, "10")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetTradingAndStop(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetTradingAndStop(context.Background(), 0, pair, 0, 0, 0, 0, 0, 0, "", "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetLeverage(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetLeverageLevel(context.Background(), pair, 10, 10)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestChangePositionMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.ChangePositionMode(context.Background(), pair, 3)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestChangeMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ChangeMode(context.Background(), pair, "Partial")
-	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestChangeMargin(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	err = b.ChangeMargin(context.Background(), pair, 1, 1, false)
+	_, err = b.GetRiskLimit(context.Background(), "linear", usdcMarginedTradablePair.String())
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestGetTradeRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	_, err = b.GetTradeRecords(context.Background(), pair, "", "", 0, 0, 0)
+	_, err = b.GetRiskLimit(context.Background(), "inverse", inverseTradablePair.String())
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestGetClosedTrades(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	_, err = b.GetClosedTrades(context.Background(), pair, "", time.Time{}, time.Time{}, 0, 0)
-	if err != nil {
+	_, err = b.GetRiskLimit(context.Background(), "option", optionsTradablePair.String())
+	if !errors.Is(err, errInvalidCategory) {
 		t.Error(err)
-	}
-}
-
-func TestSetRiskLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	_, err = b.SetRiskLimit(context.Background(), pair, 2, 0)
-	if err != nil {
+	_, err = b.GetRiskLimit(context.Background(), "spot", spotTradablePair.String())
+	if !errors.Is(err, errInvalidCategory) {
 		t.Error(err)
-	}
-}
-
-// Miscellaneous
-
-func TestTimeSecUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	tInSec := time.Now().Unix()
-
-	var ts bybitTimeSec
-	err := ts.UnmarshalJSON([]byte(strconv.FormatInt(tInSec, 10)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !time.Unix(tInSec, 0).Equal(ts.Time()) {
-		t.Errorf("TestTimeSecUnmarshalJSON failed")
-	}
-}
-
-func TestTimeMilliSecUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	tInMilliSec := time.Now().UnixMilli()
-
-	var tms bybitTimeMilliSec
-	err := tms.UnmarshalJSON([]byte(strconv.FormatInt(tInMilliSec, 10)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !time.UnixMilli(tInMilliSec).Equal(tms.Time()) {
-		t.Errorf("TestTimeMilliSecUnmarshalJSON failed")
-	}
-}
-
-func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	tInNanoSec := time.Now().UnixNano()
-
-	var tns bybitTimeNanoSec
-	err := tns.UnmarshalJSON([]byte(strconv.FormatInt(tInNanoSec, 10)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !time.Unix(0, tInNanoSec).Equal(tns.Time()) {
-		t.Errorf("TestTimeNanoSecUnmarshalJSON failed")
 	}
 }
 
 // test cases for Wrapper
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
+	_, err := b.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(context.Background(), pair, asset.USDTMarginedFutures)
+	_, err = b.UpdateTicker(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), pair1, asset.CoinMarginedFutures)
+	_, err = b.UpdateTicker(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-
-	var pairs currency.Pairs
-	if mockTests {
-		var pair2 currency.Pair
-		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
-		if err != nil {
-			t.Fatal(err)
-		}
-		pairs = pairs.Add(pair2)
-	} else {
-		// Futures update dynamically, so fetch the available tradable futures for this test
-		pairs, err = b.FetchTradablePairs(context.Background(), asset.Futures)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// Needs to be set before calling extractCurrencyPair
-		if err = b.SetPairs(pairs, asset.Futures, true); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	_, err = b.UpdateTicker(context.Background(), pairs[0], asset.Futures)
+	_, err = b.UpdateTicker(context.Background(), inverseTradablePair, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), pair3, asset.USDCMarginedFutures)
+	_, err = b.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2077,116 +213,88 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
+	var err error
+	_, err = b.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	_, err = b.UpdateOrderbook(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateOrderbook(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.CoinMarginedFutures)
+	_, err = b.UpdateOrderbook(context.Background(), inverseTradablePair, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair1, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair1, asset.USDCMarginedFutures)
+	_, err = b.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestFetchTradablePairs(t *testing.T) {
+func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	var orderSubmission = &order.Submit{
+		Exchange:      b.GetName(),
+		Pair:          spotTradablePair,
+		Side:          order.Buy,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        1,
+		ClientOrderID: "1234",
+		AssetType:     asset.Spot,
+	}
+	_, err := b.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
+	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:      b.GetName(),
+		AssetType:     asset.Options,
+		Pair:          optionsTradablePair,
+		Side:          order.Sell,
+		Type:          order.Market,
+		Price:         1,
+		Amount:        1,
+		Leverage:      1234,
+		ClientOrderID: "1234",
+	})
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestUpdateTradablePairs(t *testing.T) {
+func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		t.Error(err)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
-}
-
-func TestGetRecentTrades(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetRecentTrades(context.Background(), pair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetRecentTrades(context.Background(), pair, asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetRecentTrades(context.Background(), pair1, asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetRecentTrades(context.Background(), pair1, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair2, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetRecentTrades(context.Background(), pair2, asset.USDCMarginedFutures)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ModifyOrder(context.Background(), &order.Modify{
+		OrderID:      "1234",
+		Type:         order.Limit,
+		Side:         order.Buy,
+		AssetType:    asset.Options,
+		Pair:         spotTradablePair,
+		PostOnly:     true,
+		Price:        1234,
+		Amount:       0.15,
+		TriggerPrice: 1145,
+		RiskManagementModes: order.RiskManagementModes{
+			StopLoss: order.RiskManagement{
+				Price: 0,
+			},
+		},
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -2194,565 +302,194 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	e := time.Now()
-	s := e.AddDate(0, 0, -3)
+	end := time.Now()
+	start := end.AddDate(0, 0, -3)
 	if mockTests {
-		s = time.Unix(1691897100, 0).Truncate(kline.OneDay.Duration())
-		e = time.Unix(1692007100, 0).Truncate(kline.OneDay.Duration())
+		start = time.UnixMilli(1692748800000)
+		end = time.UnixMilli(1693094400000)
 	}
-
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, s, e)
+	_, err := b.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.USDTMarginedFutures, kline.OneDay, s, e)
+	_, err = b.GetHistoricCandles(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair1, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetHistoricCandles(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, s, e)
+	_, err = b.GetHistoricCandles(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-
-	enabled, err := b.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pair2 currency.Pair
-	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
-		if err != nil {
-			t.Fatal(err)
-		}
-	} else {
-		pair2 = enabled[0]
-	}
-
-	_, err = b.GetHistoricCandles(context.Background(), pair2, asset.Futures, kline.OneHour, s, e)
+	_, err = b.GetHistoricCandles(context.Background(), inverseTradablePair, asset.CoinMarginedFutures, kline.OneHour, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(context.Background(), pair3, asset.USDCMarginedFutures, kline.OneDay, s, e)
-	if err != nil {
-		t.Error(err)
+	_, err = b.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneHour, start, end)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	e := time.Now()
-	s := e.AddDate(0, 0, -3)
+	startTime := time.Now().Add(-time.Hour * 24 * 3)
+	end := time.Now().Add(-time.Hour * 1)
 	if mockTests {
-		s = time.Unix(1691897100, 0).Truncate(kline.OneDay.Duration())
-		e = time.Unix(1692007100, 0).Truncate(kline.OneDay.Duration())
+		startTime = time.UnixMilli(1692889428738)
+		end = time.UnixMilli(1693145028738)
 	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, s, e)
+	_, err := b.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneMin, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.USDTMarginedFutures, kline.OneDay, s, e)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), inverseTradablePair, asset.CoinMarginedFutures, kline.OneHour, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, s, e)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, kline.OneDay, time.UnixMilli(1692889428738), time.UnixMilli(1693145028738))
 	if err != nil {
 		t.Error(err)
 	}
-
-	enabled, err := b.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pair2 currency.Pair
-	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
-		if err != nil {
-			t.Fatal(err)
-		}
-	} else {
-		pair2 = enabled[0]
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair2, asset.Futures, kline.OneHour, s, e)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair3, asset.USDCMarginedFutures, kline.OneDay, s, e)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchAccountInfo(context.Background(), asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchAccountInfo(context.Background(), asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchAccountInfo(context.Background(), asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchAccountInfo(context.Background(), asset.USDCMarginedFutures)
-	if err != nil && err.Error() != "System error. Please try again later." {
-		t.Error(err)
-	}
-}
-
-func TestSubmitOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	var oSpot = &order.Submit{
-		Exchange: "Bybit",
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.LTC,
-			Quote:     currency.BTC,
-		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     0.0001,
-		Amount:    10,
-		ClientID:  "newOrder",
-		AssetType: asset.Spot,
-	}
-	_, err := b.SubmitOrder(context.Background(), oSpot)
-	if err != nil {
-		if strings.TrimSpace(err.Error()) != "Balance insufficient" {
-			t.Error(err)
-		}
-	}
-
-	var oCMF = &order.Submit{
-		Exchange: "Bybit",
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     10000,
-		Amount:    1,
-		ClientID:  "newOrder",
-		AssetType: asset.CoinMarginedFutures,
-	}
-	_, err = b.SubmitOrder(context.Background(), oCMF)
-	if err == nil {
-		t.Error("SubmitOrder() Expected error")
-	}
-
-	var oUMF = &order.Submit{
-		Exchange: "Bybit",
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USDT,
-		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     10000,
-		Amount:    1,
-		ClientID:  "newOrder",
-		AssetType: asset.USDTMarginedFutures,
-	}
-	_, err = b.SubmitOrder(context.Background(), oUMF)
-	if err == nil {
-		t.Error("SubmitOrder() Expected error")
-	}
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var oFutures = &order.Submit{
-		Exchange:  "Bybit",
-		Pair:      pair,
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     10000,
-		Amount:    1,
-		ClientID:  "newOrder",
-		AssetType: asset.Futures,
-	}
-	_, err = b.SubmitOrder(context.Background(), oFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair1, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var oUSDC = &order.Submit{
-		Exchange:  "Bybit",
-		Pair:      pair1,
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     10000,
-		Amount:    1,
-		ClientID:  "newOrder",
-		AssetType: asset.USDCMarginedFutures,
-	}
-	_, err = b.SubmitOrder(context.Background(), oUSDC)
-	if err != nil && err.Error() != "margin account not exist" {
-		t.Error(err)
-	}
-}
-
-func TestModifyOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.ModifyOrder(context.Background(), &order.Modify{
-		Exchange: "Bybit",
-		OrderID:  "1337",
-		Price:    10000,
-		Amount:   10,
-		Side:     order.Sell,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		AssetType: asset.CoinMarginedFutures,
-	})
-	if err == nil {
-		t.Error("ModifyOrder() Expected error")
+	_, err = b.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FiveMin, startTime, end)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("found '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
 	err := b.CancelOrder(context.Background(), &order.Cancel{
-		Exchange:  "Bybit",
+		Exchange:  b.Name,
 		AssetType: asset.Spot,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		OrderID: "1234",
-	})
-	if err == nil {
-		t.Error("CancelOrder() Spot Expected error")
+		Pair:      spotTradablePair,
+		OrderID:   "1234"})
+	if err != nil {
+		t.Error(err)
 	}
-
 	err = b.CancelOrder(context.Background(), &order.Cancel{
-		Exchange:  "Bybit",
-		AssetType: asset.CoinMarginedFutures,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		OrderID: "1234",
-	})
-	if err == nil {
-		t.Error("CancelOrder() CMF Expected error")
-	}
-
-	err = b.CancelOrder(context.Background(), &order.Cancel{
-		Exchange:  "Bybit",
+		Exchange:  b.Name,
 		AssetType: asset.USDTMarginedFutures,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USDT,
-		},
-		OrderID: "1234",
-	})
-	if err == nil {
-		t.Error("CancelOrder() USDT Expected error")
-	}
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
+		Pair:      usdtMarginedTradablePair,
+		OrderID:   "1234"})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	err = b.CancelOrder(context.Background(), &order.Cancel{
-		Exchange:  "Bybit",
-		AssetType: asset.Futures,
-		Pair:      pair,
-		OrderID:   "1234",
-	})
-	if err == nil {
-		t.Error("CancelOrder() Futures Expected error")
-	}
-
-	pair1, err := currency.NewPairFromString("BTCPERP")
+		Exchange:  b.Name,
+		AssetType: asset.CoinMarginedFutures,
+		Pair:      inverseTradablePair,
+		OrderID:   "1234"})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
 	err = b.CancelOrder(context.Background(), &order.Cancel{
-		Exchange:  "Bybit",
-		AssetType: asset.Futures,
-		Pair:      pair1,
-		OrderID:   "1234",
-	})
-	if err == nil {
-		t.Error("CancelOrder() USDC Expected error")
+		Exchange:  b.Name,
+		AssetType: asset.Options,
+		Pair:      optionsTradablePair,
+		OrderID:   "1234"})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	_, err := b.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.Spot})
+	_, err := b.CancelAllOrders(context.Background(), &order.Cancel{AssetType: asset.Spot, Pair: spotTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{
-			Exchange:  "Bybit",
-			AssetType: asset.CoinMarginedFutures,
-			Pair: currency.Pair{
-				Delimiter: "-",
-				Base:      currency.BTC,
-				Quote:     currency.USD,
-			},
-		})
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.USDTMarginedFutures, Pair: usdtMarginedTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{
-			Exchange:  "Bybit",
-			AssetType: asset.USDTMarginedFutures,
-			Pair: currency.Pair{
-				Delimiter: "-",
-				Base:      currency.BTC,
-				Quote:     currency.USDT,
-			},
-		})
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.CoinMarginedFutures, Pair: inverseTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{
-			Exchange:  "Bybit",
-			AssetType: asset.Futures,
-			Pair:      pair,
-		})
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.Options, Pair: optionsTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair1, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{
-			Exchange:  "Bybit",
-			AssetType: asset.USDCMarginedFutures,
-			Pair:      pair1,
-		})
-	if err != nil {
-		t.Error(err)
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.Futures, Pair: spotTradablePair})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
+	_, err := b.GetOrderInfo(context.Background(),
+		"12234", spotTradablePair, asset.Spot)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
 	_, err = b.GetOrderInfo(context.Background(),
-		"12234", pair, asset.Spot)
-	if err == nil {
-		t.Error("GetOrderInfo() Spot Expected error")
-	}
-
-	_, err = b.GetOrderInfo(context.Background(),
-		"12234", pair, asset.USDTMarginedFutures)
-	if err == nil {
-		t.Error("GetOrderInfo() USDT Expected error")
-	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
+		"12234", usdtMarginedTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
 	_, err = b.GetOrderInfo(context.Background(),
-		"12234", pair1, asset.CoinMarginedFutures)
-	if err == nil {
-		t.Error("GetOrderInfo() CMF Expected error")
-	}
-
-	pair2, err := currency.NewPairFromString("BTCUSDZ22")
+		"12234", inverseTradablePair, asset.CoinMarginedFutures)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
 	_, err = b.GetOrderInfo(context.Background(),
-		"12234", pair2, asset.Futures)
-	if err == nil {
-		t.Error("GetOrderInfo() Futures Expected error")
-	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
+		"12234", optionsTradablePair, asset.Options)
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetOrderInfo(context.Background(),
-		"12234", pair3, asset.USDCMarginedFutures)
-	if err == nil {
-		t.Error("GetOrderInfo() USDC Expected error")
+		t.Error(err)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
-
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	var getOrdersRequestSpot = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair},
+		Pairs:     currency.Pairs{spotTradablePair},
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 		Type:      order.AnyType,
 	}
-
-	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
+	_, err := b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
 	if err != nil {
 		t.Error(err)
 	}
-
-	var getOrdersRequestUMF = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair},
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-	}
-
-	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUMF)
+	var getOrdersRequestLinear = order.MultiOrderRequest{Pairs: currency.Pairs{usdtMarginedTradablePair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType}
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestLinear)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var getOrdersRequestCMF = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair1},
-		AssetType: asset.CoinMarginedFutures,
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-	}
-
-	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestCMF)
+	var getOrdersRequestInverse = order.MultiOrderRequest{Pairs: currency.Pairs{inverseTradablePair}, AssetType: asset.CoinMarginedFutures, Side: order.AnySide, Type: order.AnyType}
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestInverse)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair2, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var getOrdersRequestFutures = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair2},
-		AssetType: asset.Futures,
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-	}
-
+	var getOrdersRequestFutures = order.MultiOrderRequest{Pairs: currency.Pairs{optionsTradablePair}, AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType}
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
+	pairs, err := currency.NewPairsFromStrings([]string{"BTC_USDT", "BTC_ETH", "BTC_USDC"})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	var getOrdersRequestUSDC = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair3},
-		AssetType: asset.USDCMarginedFutures,
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-	}
-
-	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUSDC)
+	getOrdersRequestSpot = order.MultiOrderRequest{Pairs: pairs, AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2760,113 +497,53 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
-
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	var getOrdersRequestSpot = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair},
+		Pairs:     currency.Pairs{spotTradablePair},
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
-
-	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestSpot)
+	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequestSpot)
 	if err != nil {
 		t.Error(err)
 	}
-
 	var getOrdersRequestUMF = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair},
+		Pairs:     currency.Pairs{usdtMarginedTradablePair},
 		AssetType: asset.USDTMarginedFutures,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
-
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
+	getOrdersRequestUMF.Pairs = currency.Pairs{usdcMarginedTradablePair}
+	getOrdersRequestUMF.AssetType = asset.USDCMarginedFutures
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
 	var getOrdersRequestCMF = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair1},
+		Pairs:     currency.Pairs{inverseTradablePair},
 		AssetType: asset.CoinMarginedFutures,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
-
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestCMF)
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair2, err := currency.NewPairFromString("BTCUSDZ22")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	var getOrdersRequestFutures = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair2},
-		AssetType: asset.Futures,
+		Pairs:     currency.Pairs{optionsTradablePair},
+		AssetType: asset.Options,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
-
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var getOrdersRequestUSDC = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{pair3},
-		AssetType: asset.USDCMarginedFutures,
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-	}
-
-	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUSDC)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetWithdrawalsHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
-	if err == nil {
-		t.Error("GetWithdrawalsHistory() Spot Expected error")
-	}
-}
-
-func TestGetServerTime(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetServerTime(context.Background(), asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetServerTime(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2874,8 +551,10 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
 	_, err := b.GetDepositAddress(context.Background(), currency.USDT, "", currency.ETH.String())
 	if err != nil {
 		t.Error(err)
@@ -2884,8 +563,10 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
 	_, err := b.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
@@ -2894,8 +575,10 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange: "Bybit",
 		Amount:   10,
@@ -2910,499 +593,160 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	}
 }
 
-// test cases for USDCMarginedFutures
-
-func TestGetUSDCFuturesOrderbook(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCFuturesOrderbook(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCContracts(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCContracts(context.Background(), pair, "next", "", 1500)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetUSDCContracts(context.Background(), currency.EMPTYPAIR, "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCSymbols(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCSymbols(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCKlines(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := time.Now().Add(-time.Hour)
-	if mockTests {
-		s = time.Unix(1691897100, 0)
-	}
-	_, err = b.GetUSDCKlines(context.Background(), pair, "5", s, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCMarkPriceKlines(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := time.Now().Add(-time.Hour)
-	if mockTests {
-		s = time.Unix(1691897100, 0)
-	}
-	_, err = b.GetUSDCMarkPriceKlines(context.Background(), pair, "5", s, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCIndexPriceKlines(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := time.Now().Add(-time.Hour)
-	if mockTests {
-		s = time.Unix(1691897100, 0)
-	}
-	_, err = b.GetUSDCIndexPriceKlines(context.Background(), pair, "5", s, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCPremiumIndexKlines(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := time.Now().Add(-time.Hour)
-	if mockTests {
-		s = time.Unix(1692077100, 0)
-	}
-
-	_, err = b.GetUSDCPremiumIndexKlines(context.Background(), pair, "5", s, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCOpenInterest(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCOpenInterest(context.Background(), pair, "1d", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCLargeOrders(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCLargeOrders(context.Background(), pair, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCAccountRatio(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCAccountRatio(context.Background(), pair, "1d", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCLatestTrades(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCLatestTrades(context.Background(), pair, "PERPETUAL", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestPlaceUSDCOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.PlaceUSDCOrder(context.Background(), pair, "Limit", "Order", "Buy", "", "", 10000, 1, 0, 0, 0, 0, 0, 0, false, false, false)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.PlaceUSDCOrder(context.Background(), pair, "Market", "StopOrder", "Buy", "ImmediateOrCancel", "", 0, 64300, 0, 0, 0, 0, 1000, 0, false, false, false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestModifyUSDCOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.ModifyUSDCOrder(context.Background(), pair, "Order", "", "orderLinkID", 0, 0, 0, 0, 0, 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelUSDCOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.CancelUSDCOrder(context.Background(), pair, "Order", "", "orderLinkID")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelAllActiveUSDCOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.CancelAllActiveUSDCOrder(context.Background(), pair, "Order")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetActiveUSDCOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetActiveUSDCOrder(context.Background(), pair, "PERPETUAL", "", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCOrderHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCOrderHistory(context.Background(), pair, "PERPETUAL", "", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCTradeHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCTradeHistory(context.Background(), pair, "PERPETUAL", "", "orderLinkID", "", "", 50, time.Now().Add(-time.Hour))
-	if err == nil { // order with link ID "orderLinkID" not present
-		t.Error("GetUSDCTradeHistory() Expected error")
-	}
-}
-
-func TestGetUSDCTransactionLog(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetUSDCTransactionLog(context.Background(), time.Time{}, time.Time{}, "TRADE", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCWalletBalance(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetUSDCWalletBalance(context.Background())
-	if err != nil && err.Error() != "System error. Please try again later." {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCAssetInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetUSDCAssetInfo(context.Background(), "")
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetUSDCAssetInfo(context.Background(), "BTC")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCMarginInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetUSDCMarginInfo(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCPositions(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCPosition(context.Background(), pair, "PERPETUAL", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetUSDCLeverage(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetUSDCLeverage(context.Background(), pair, 2)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCSettlementHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCSettlementHistory(context.Background(), pair, "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCRiskLimit(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCRiskLimit(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSetUSDCRiskLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.SetUSDCRiskLimit(context.Background(), pair, 2)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCLastFundingRate(t *testing.T) {
-	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetUSDCLastFundingRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetUSDCPredictedFundingRate(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	pair, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, _, err = b.GetUSDCPredictedFundingRate(context.Background(), pair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelBatchOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
-		{
-			OrderID:   "1234",
-			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
-		},
-	})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("test it not relevant in a mock setting")
-	}
-	supportedAssets := b.GetAssetTypes(false)
 	ctx := context.Background()
-	for x := range supportedAssets {
-		err := b.UpdateTickers(ctx, supportedAssets[x])
-		if err != nil {
-			t.Fatalf("%v %v\n", supportedAssets[x], err)
-		}
-
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			t.Fatalf("%v %v\n", supportedAssets[x], err)
-		}
-
-		for y := range avail {
-			_, err = ticker.GetTicker(b.GetName(), avail[y], supportedAssets[x])
-			if err != nil {
-				t.Fatalf("%v %v %v\n", avail[y], supportedAssets[x], err)
-			}
-		}
+	err := b.UpdateTickers(ctx, asset.Spot)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.Spot, err)
+	}
+	err = b.UpdateTickers(ctx, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.USDTMarginedFutures, err)
+	}
+	err = b.UpdateTickers(ctx, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.CoinMarginedFutures, err)
+	}
+	err = b.UpdateTickers(ctx, asset.Options)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.Options, err)
 	}
 }
 
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
+	require.ErrorIs(t, err, errInvalidCategory)
+	_, err = b.GetTickers(context.Background(), "option", "BTC-29DEC23-80000-C", "", time.Time{})
+	require.NoError(t, err)
+	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
+	require.NoError(t, err)
+	_, err = b.GetTickers(context.Background(), "option", "", "BTC", time.Time{})
+	require.NoError(t, err)
+	_, err = b.GetTickers(context.Background(), "inverse", "", "", time.Time{})
+	require.NoError(t, err)
+	_, err = b.GetTickers(context.Background(), "linear", "", "", time.Time{})
+	require.NoError(t, err)
+}
 
-	var err error
-	if !mockTests {
-		_, err = b.GetTickersV5(context.Background(), "bruh", "", "")
-		if err != nil && err.Error() != "Illegal category" {
-			t.Error(err)
-		}
+func TestGetFundingRateHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingRateHistory(context.Background(), "bruh", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-
-	_, err = b.GetTickersV5(context.Background(), "option", "", "")
-	if !errors.Is(err, errBaseNotSet) {
-		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
+	_, err = b.GetFundingRateHistory(context.Background(), "spot", spotTradablePair.String(), time.Time{}, time.Time{}, 100)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-
-	_, err = b.GetTickersV5(context.Background(), "spot", "", "")
+	_, err = b.GetFundingRateHistory(context.Background(), "linear", usdtMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.GetTickersV5(context.Background(), "option", "", "BTC")
+	_, err = b.GetFundingRateHistory(context.Background(), "linear", usdcMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = b.GetTickersV5(context.Background(), "inverse", "", "")
+	_, err = b.GetFundingRateHistory(context.Background(), "inverse", inverseTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = b.GetFundingRateHistory(context.Background(), "option", optionsTradablePair.String(), time.Time{}, time.Time{}, 100)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+}
 
-	_, err = b.GetTickersV5(context.Background(), "linear", "", "")
+func TestGetPublicTradingHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetPublicTradingHistory(context.Background(), "spot", spotTradablePair.String(), "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdtMarginedTradablePair.String(), "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdcMarginedTradablePair.String(), "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "inverse", inverseTradablePair.String(), "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "option", optionsTradablePair.String(), "BTC", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOpenInterestData(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterestData(context.Background(), "spot", spotTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetOpenInterestData(context.Background(), "linear", usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOpenInterestData(context.Background(), "linear", usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOpenInterestData(context.Background(), "inverse", inverseTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOpenInterestData(context.Background(), "option", optionsTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+}
+
+func TestGetHistoricalVolatility(t *testing.T) {
+	t.Parallel()
+	start := time.Now().Add(-time.Hour * 30 * 24)
+	end := time.Now()
+	if mockTests {
+		end = time.UnixMilli(1693080759395)
+		start = time.UnixMilli(1690488759395)
+	}
+	_, err := b.GetHistoricalVolatility(context.Background(), "option", "", 123, start, end)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricalVolatility(context.Background(), "spot", "", 123, start, end)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
+	}
+}
+
+func TestGetInsurance(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetInsurance(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDeliveryPrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetDeliveryPrice(context.Background(), "spot", spotTradablePair.String(), "", "", 200)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "linear", "", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "inverse", "", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "option", "", "BTC", "", 200)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3410,97 +754,2667 @@ func TestGetTickersV5(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
-	err := b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
 	}
-
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
-		t.Error("Okx UpdateOrderExecutionLimits() error", err)
+		t.Error("Bybit UpdateOrderExecutionLimits() error", err)
 	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
+	enabled, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		t.Fatal("Okx GetAvailablePairs() error", err)
+		t.Fatal("Bybit GetAvailablePairs() error", err)
 	}
-
-	for x := range avail {
-		limits, err := b.GetOrderExecutionLimits(asset.Spot, avail[x])
+	for x := range enabled {
+		var limits order.MinMaxLevel
+		limits, err = b.GetOrderExecutionLimits(asset.Spot, enabled[x])
 		if err != nil {
-			t.Fatal("Okx GetOrderExecutionLimits() error", err)
+			t.Fatal("Bybit GetOrderExecutionLimits() error", err)
 		}
 		if limits == (order.MinMaxLevel{}) {
-			t.Fatal("Okx GetOrderExecutionLimits() error cannot be nil")
+			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
 		}
+	}
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	ctx := context.Background()
+	_, err := b.PlaceOrder(ctx, nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "my-category",
+	})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "spot",
+	})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "spot",
+		Symbol:   currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "spot",
+		Symbol:   spotTradablePair,
+		Side:     "buy",
+	})
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrTypeIsInvalid, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category:  "spot",
+		Symbol:    spotTradablePair,
+		Side:      "buy",
+		OrderType: "limit",
+	})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category:         "spot",
+		Symbol:           spotTradablePair,
+		Side:             "buy",
+		OrderType:        "limit",
+		OrderQuantity:    1,
+		TriggerDirection: 3,
+	})
+	if !errors.Is(err, errInvalidTriggerDirection) {
+		t.Fatalf("expected %v, got %v", errInvalidTriggerDirection, err)
+	}
+	_, err = b.PlaceOrder(context.Background(), &PlaceOrderParams{
+		Category:         "spot",
+		Symbol:           spotTradablePair,
+		Side:             "buy",
+		OrderType:        "limit",
+		OrderQuantity:    1,
+		Price:            31431.48,
+		TriggerDirection: 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	// Spot post only normal order
+	arg := &PlaceOrderParams{Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 0.1, Price: 15600, TimeInForce: "PostOnly", OrderLinkID: "spot-test-01", IsLeverage: 0, OrderFilter: "Order"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+	// Spot TP/SL order
+	arg = &PlaceOrderParams{Category: "spot",
+		Symbol: spotTradablePair,
+		Side:   "Buy", OrderType: "Limit",
+		OrderQuantity: 0.1, Price: 15600, TriggerPrice: 15000,
+		TimeInForce: "GTC", OrderLinkID: "spot-test-02", IsLeverage: 0, OrderFilter: "tpslOrder"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+	// Spot margin normal order (UTA)
+	arg = &PlaceOrderParams{Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit",
+		OrderQuantity: 0.1, Price: 15600, TimeInForce: "IOC", OrderLinkID: "spot-test-limit", IsLeverage: 1, OrderFilter: "Order"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+	arg = &PlaceOrderParams{Category: "spot",
+		Symbol: spotTradablePair,
+		Side:   "Buy", OrderType: "Market", OrderQuantity: 200,
+		TimeInForce: "IOC", OrderLinkID: "spot-test-04",
+		IsLeverage: 0, OrderFilter: "Order"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+	// USDT Perp open long position (one-way mode)
+	arg = &PlaceOrderParams{Category: "linear",
+		Symbol: usdcMarginedTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+	// USDT Perp close long position (one-way mode)
+	arg = &PlaceOrderParams{Category: "linear", Symbol: usdtMarginedTradablePair, Side: "Sell",
+		OrderType: "Limit", OrderQuantity: 1, Price: 3000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-02", ReduceOnly: true}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendOrder(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.AmendOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{})
+	if !errors.Is(err, errEitherOrderIDOROrderLinkIDRequired) {
+		t.Fatalf("expected %v, got %v", errEitherOrderIDOROrderLinkIDRequired, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+	})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "mycat"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "option"})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID:         "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category:        cSpot,
+		Symbol:          spotTradablePair,
+		TriggerPrice:    1145,
+		OrderQuantity:   0.15,
+		Price:           1050,
+		TakeProfitPrice: 0,
+		StopLossPrice:   0})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelTradeOrder(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelTradeOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{})
+	if !errors.Is(err, errEitherOrderIDOROrderLinkIDRequired) {
+		t.Fatalf("expected %v, got %v", errEitherOrderIDOROrderLinkIDRequired, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+	})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "mycat"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "option"})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "option",
+		Symbol:   optionsTradablePair,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetOpenOrders(context.Background(), "", "", "", "", "", "", "", "", 0, 100)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetOpenOrders(context.Background(), "spot", "", "", "", "", "", "", "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllTradeOrders(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelAllTradeOrders(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CancelAllTradeOrders(context.Background(), &CancelAllOrdersParam{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.CancelAllTradeOrders(context.Background(), &CancelAllOrdersParam{Category: "option"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTradeOrderHistory(t *testing.T) {
+	t.Parallel()
+	start := time.Now().Add(-time.Hour * 24 * 6)
+	end := time.Now()
+	if mockTests {
+		end = time.UnixMilli(1700058627109)
+		start = time.UnixMilli(1699540227109)
+	} else {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetTradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", "", start, end, 100)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetTradeOrderHistory(context.Background(), "spot", spotTradablePair.String(), "", "", "BTC", "", "StopOrder", "", "", start, end, 100)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceBatchOrder(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.PlaceBatchOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
+		Category: "linear",
+	})
+	if !errors.Is(err, errNoOrderPassed) {
+		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
+		Category: "option",
+		Request: []BatchOrderItemParam{
+			{
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Buy",
+				OrderQuantity:         1,
+				OrderIv:               6,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "option-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
+			},
+			{
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Sell",
+				OrderQuantity:         2,
+				Price:                 700,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "option-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
+		Category: "linear",
+		Request: []BatchOrderItemParam{
+			{
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Buy",
+				OrderQuantity:         1,
+				OrderIv:               6,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "linear-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
+			},
+			{
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Sell",
+				OrderQuantity:         2,
+				Price:                 700,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "linear-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBatchAmendOrder(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.BatchAmendOrder(context.Background(), "linear", nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.BatchAmendOrder(context.Background(), "", []BatchAmendOrderParamItem{
+		{
+			Symbol:                 optionsTradablePair,
+			OrderImpliedVolatility: "6.8",
+			OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+		}})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.BatchAmendOrder(context.Background(), "option", []BatchAmendOrderParamItem{
+		{
+			Symbol:                 optionsTradablePair,
+			OrderImpliedVolatility: "6.8",
+			OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+		},
+		{
+			Symbol:  optionsTradablePair,
+			Price:   650,
+			OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCancelBatchOrder(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{Category: cOption})
+	if !errors.Is(err, errNoOrderPassed) {
+		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
+	}
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{
+		Category: "option",
+		Request: []CancelOrderParams{
+			{
+				Symbol:  optionsTradablePair,
+				OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+			},
+			{
+				Symbol:  optionsTradablePair,
+				OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetBorrowQuota(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetBorrowQuota(context.Background(), "", "BTCUSDT", "Buy")
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetBorrowQuota(context.Background(), "spot", "", "Buy")
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	_, err = b.GetBorrowQuota(context.Background(), "spot", spotTradablePair.String(), "")
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Error(err)
+	}
+	_, err = b.GetBorrowQuota(context.Background(), "spot", spotTradablePair.String(), "Buy")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetDisconnectCancelAll(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetDisconnectCancelAll(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SetDisconnectCancelAll(context.Background(), &SetDCPParams{TimeWindow: 300})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetPositionInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetPositionInfo(context.Background(), "", "", "", "", "", 20)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetPositionInfo(context.Background(), "spot", "", "", "", "", 20)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetPositionInfo(context.Background(), "linear", "BTCUSDT", "", "", "", 20)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPositionInfo(context.Background(), "option", "BTC-29DEC23-80000-C", "BTC", "", "", 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestSetLeverageLevel(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetLeverageLevel(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT"})
+	if !errors.Is(err, errInvalidLeverage) {
+		t.Fatalf("expected %v, got %v", errInvalidLeverage, err)
+	}
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSwitchTradeMode(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SwitchTradeMode(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: usdtMarginedTradablePair.String()})
+	if !errors.Is(err, errInvalidLeverage) {
+		t.Fatalf("expected %v, got %v", errInvalidLeverage, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: usdcMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 2})
+	if !errors.Is(err, errInvalidTradeModeValue) {
+		t.Fatalf("expected %v, got %v", errInvalidTradeModeValue, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: usdtMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 1})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetTakeProfitStopLossMode(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetTakeProfitStopLossMode(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{
+		Category: "spot",
+	})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "linear", Symbol: "BTCUSDT"})
+	if !errors.Is(err, errTakeProfitOrStopLossModeMissing) {
+		t.Fatalf("expected %v, got %v", errTakeProfitOrStopLossModeMissing, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "linear", Symbol: "BTCUSDT", TpslMode: "Partial"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSwitchPositionMode(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SwitchPositionMode(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{Category: "linear"})
+	if !errors.Is(err, errEitherSymbolOrCoinRequired) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{Category: "linear", Symbol: usdtMarginedTradablePair, PositionMode: 3})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetRiskLimit(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetRiskLimit(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Errorf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{Category: "linear", PositionMode: -2})
+	if !errors.Is(err, errInvalidPositionMode) {
+		t.Errorf("expected %v, got %v", errInvalidPositionMode, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Errorf("expected %v, got %v", errSymbolMissing, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{
+		Category:     "linear",
+		RiskID:       1234,
+		Symbol:       usdtMarginedTradablePair,
+		PositionMode: 0,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetTradingStop(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetTradingStop(context.Background(), &TradingStopParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Errorf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SetTradingStop(context.Background(), &TradingStopParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SetTradingStop(context.Background(), &TradingStopParams{
+		Category:                 "linear",
+		Symbol:                   usdtMarginedTradablePair,
+		TakeProfit:               "0.5",
+		StopLoss:                 "0.2",
+		TakeProfitTriggerType:    "MarkPrice",
+		StopLossTriggerType:      "IndexPrice",
+		TakeProfitOrStopLossMode: "Partial",
+		TakeProfitOrderType:      "Limit",
+		StopLossOrderType:        "Limit",
+		TakeProfitSize:           50,
+		StopLossSize:             50,
+		TakeProfitLimitPrice:     0.49,
+		StopLossLimitPrice:       0.21,
+		PositionIndex:            0,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.SetTradingStop(context.Background(), &TradingStopParams{
+		Category:                 "linear",
+		Symbol:                   usdcMarginedTradablePair,
+		TakeProfit:               "0.5",
+		StopLoss:                 "0.2",
+		TakeProfitTriggerType:    "MarkPrice",
+		StopLossTriggerType:      "IndexPrice",
+		TakeProfitOrStopLossMode: "Partial",
+		TakeProfitOrderType:      "Limit",
+		StopLossOrderType:        "Limit",
+		TakeProfitSize:           50,
+		StopLossSize:             50,
+		TakeProfitLimitPrice:     0.49,
+		StopLossLimitPrice:       0.21,
+		PositionIndex:            0,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetAutoAddMargin(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetAutoAddMargin(context.Background(), &AutoAddMarginParam{
+		Category:      "inverse",
+		Symbol:        inverseTradablePair,
+		AutoAddmargin: 0,
+		PositionIndex: 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestAddOrReduceMargin(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.AddOrReduceMargin(context.Background(), &AddOrReduceMarginParam{
+		Category:      "inverse",
+		Symbol:        inverseTradablePair,
+		Margin:        -10,
+		PositionIndex: 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExecution(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetExecution(context.Background(), "spot", "", "", "", "", "Trade", "tpslOrder", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetClosedPnL(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetClosedPnL(context.Background(), "spot", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", err, errInvalidCategory)
+	}
+	_, err = b.GetClosedPnL(context.Background(), "linear", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestConfirmNewRiskLimit(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.ConfirmNewRiskLimit(context.Background(), "linear", "BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeOrderHistory(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 100)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetPreUpgradeOrderHistory(context.Background(), "option", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errBaseNotSet) {
+		t.Fatalf("expected %v, got %v", errBaseNotSet, err)
+	}
+	_, err = b.GetPreUpgradeOrderHistory(context.Background(), "linear", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeTradeHistory(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeTradeHistory(context.Background(), "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("found %v, expected %v", err, errCategoryNotSet)
+	}
+	_, err = b.GetPreUpgradeTradeHistory(context.Background(), "option", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("found %v, expected %v", err, errInvalidCategory)
+	}
+	_, err = b.GetPreUpgradeTradeHistory(context.Background(), "linear", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeClosedPnL(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeClosedPnL(context.Background(), "option", "BTCUSDT", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetPreUpgradeClosedPnL(context.Background(), "linear", "BTCUSDT", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeTransactionLog(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeTransactionLog(context.Background(), "option", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("found %v, expected %v", err, errInvalidCategory)
+	}
+	_, err = b.GetPreUpgradeTransactionLog(context.Background(), "linear", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeOptionDeliveryRecord(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeOptionDeliveryRecord(context.Background(), "linear", "", "", time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Error(err)
+	}
+	_, err = b.GetPreUpgradeOptionDeliveryRecord(context.Background(), "option", "", "", time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeUSDCSessionSettlement(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeUSDCSessionSettlement(context.Background(), "option", "", "", 10)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetPreUpgradeUSDCSessionSettlement(context.Background(), "linear", "", "", 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWalletBalance(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+
+	r, err := b.GetWalletBalance(context.Background(), "UNIFIED", "")
+	require.NoError(t, err, "GetWalletBalance should not error")
+	require.NotNil(t, r, "GetWalletBalance should return a result")
+
+	if mockTests {
+		require.Len(t, r.List, 1, "GetWalletBalance should return a single list result")
+		assert.Equal(t, types.Number(0.1997), r.List[0].AccountIMRate, "AccountIMRate should match")
+		assert.Equal(t, types.Number(0.4996), r.List[0].AccountLTV, "AccountLTV should match")
+		assert.Equal(t, types.Number(0.0399), r.List[0].AccountMMRate, "AccountMMRate should match")
+		assert.Equal(t, "UNIFIED", r.List[0].AccountType, "AccountType should match")
+		assert.Equal(t, types.Number(24616.49915805), r.List[0].TotalAvailableBalance, "TotalAvailableBalance should match")
+		assert.Equal(t, types.Number(41445.9203332), r.List[0].TotalEquity, "TotalEquity should match")
+		assert.Equal(t, types.Number(6144.46796478), r.List[0].TotalInitialMargin, "TotalInitialMargin should match")
+		assert.Equal(t, types.Number(1228.89359295), r.List[0].TotalMaintenanceMargin, "TotalMaintenanceMargin should match")
+		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalMarginBalance, "TotalMarginBalance should match")
+		assert.Equal(t, types.Number(0.0), r.List[0].TotalPerpUPL, "TotalPerpUPL should match")
+		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalWalletBalance, "TotalWalletBalance should match")
+		require.Len(t, r.List[0].Coin, 3, "GetWalletBalance should return 3 coins")
+
+		for x := range r.List[0].Coin {
+			switch x {
+			case 0:
+				assert.Equal(t, types.Number(0.21976631), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should match")
+				assert.Equal(t, types.Number(30723.630216383711792744), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should match")
+				assert.Equal(t, currency.USDC, r.List[0].Coin[x].Coin, "Coin should match")
+				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should match")
+				assert.Equal(t, types.Number(-30723.63021638), r.List[0].Coin[x].Equity, "Equity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should match")
+				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should match")
+				assert.Equal(t, types.Number(-30722.33982391), r.List[0].Coin[x].USDValue, "USDValue should match")
+				assert.Equal(t, types.Number(-30723.63021638), r.List[0].Coin[x].WalletBalance, "WalletBalance should match")
+			case 1:
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should match")
+				assert.Equal(t, types.Number(1005.79191187), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should match")
+				assert.Equal(t, currency.AVAX, r.List[0].Coin[x].Coin, "Coin should match")
+				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should match")
+				assert.Equal(t, types.Number(2473.9), r.List[0].Coin[x].Equity, "Equity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should match")
+				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should match")
+				assert.Equal(t, types.Number(71233.0214024), r.List[0].Coin[x].USDValue, "USDValue should match")
+				assert.Equal(t, types.Number(2473.9), r.List[0].Coin[x].WalletBalance, "WalletBalance should match")
+			case 2:
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should match")
+				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should match")
+				assert.Equal(t, currency.USDT, r.List[0].Coin[x].Coin, "Coin should match")
+				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should match")
+				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].Equity, "Equity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should match")
+				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should match")
+				assert.Equal(t, types.Number(935.23875471), r.List[0].Coin[x].USDValue, "USDValue should match")
+				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].WalletBalance, "WalletBalance should match")
+			}
+		}
+	}
+}
+
+func TestUpgradeToUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.UpgradeToUnifiedAccount(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowHistory(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetBorrowHistory(context.Background(), "BTC", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetCollateralCoin(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetCollateralCoin(context.Background(), currency.BTC, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateralInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetCollateralInfo(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCoinGreeks(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetCoinGreeks(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetFeeRate(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetFeeRate(context.Background(), "", "", "")
-	if !errors.Is(err, errCategoryNotSet) {
-		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-
-	_, err = b.GetFeeRate(context.Background(), "bruh", "", "")
+	_, err := b.GetFeeRate(context.Background(), "something", "", "BTC")
 	if !errors.Is(err, errInvalidCategory) {
-		t.Fatalf("received %v but expected %v", err, errInvalidCategory)
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
+	_, err = b.GetFeeRate(context.Background(), "linear", "", "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
 
+func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTransactionLog(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetTransactionLog(context.Background(), "option", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetTransactionLog(context.Background(), "linear", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetMarginMode(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetMarginMode(context.Background(), "PORTFOLIO_MARGIN")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetSpotHedging(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetSpotHedging(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountALLAPIKeys(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err = b.GetFeeRate(context.Background(), "spot", "", "")
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v but expected %v", err, nil)
+	_, err := b.GetSubAccountAllAPIKeys(context.Background(), "", "", 10)
+	if !errors.Is(err, errMemberIDRequired) {
+		t.Errorf("expected %v, got %v", errMemberIDRequired, err)
 	}
-
-	_, err = b.GetFeeRate(context.Background(), "linear", "", "")
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v but expected %v", err, nil)
-	}
-
-	_, err = b.GetFeeRate(context.Background(), "inverse", "", "")
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v but expected %v", err, nil)
-	}
-
-	_, err = b.GetFeeRate(context.Background(), "option", "", "ETH")
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v but expected %v", err, nil)
+	_, err = b.GetSubAccountAllAPIKeys(context.Background(), "1234", "", 10)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
-func TestForceFileStandard(t *testing.T) {
+func TestSetMMP(t *testing.T) {
 	t.Parallel()
-	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetMMP(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("found %v, expected %v", err, errNilArgument)
+	}
+	err = b.SetMMP(context.Background(), &MMPRequestParam{
+		BaseCoin:           "ETH",
+		TimeWindowMS:       5000,
+		FrozenPeriod:       100000,
+		TradeQuantityLimit: 50,
+		DeltaLimit:         20,
+	})
 	if err != nil {
 		t.Error(err)
-	}
-	if t.Failed() {
-		t.Fatal("Please use types.Number type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }
 
-func TestGetInstrumentInfo(t *testing.T) {
+func TestResetMMP(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 1000)
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.ResetMMP(context.Background(), "USDT")
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("found %v, expected %v", err, errNilArgument)
+	}
+	err = b.ResetMMP(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 1000)
+}
+
+func TestGetMMPState(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetMMPState(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 1000)
+}
+
+func TestGetCoinExchangeRecords(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetCoinExchangeRecords(context.Background(), "", "", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDeliveryRecord(t *testing.T) {
+	t.Parallel()
+	expiryTime := time.Now().Add(time.Hour * 40)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	} else {
+		expiryTime = time.UnixMilli(1700216290093)
+	}
+	_, err := b.GetDeliveryRecord(context.Background(), "spot", "", "", expiryTime, 20)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatal(err)
+	}
+	_, err = b.GetDeliveryRecord(context.Background(), "linear", "", "", expiryTime, 20)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "BTC", "", 1000)
+}
+func TestGetUSDCSessionSettlement(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetUSDCSessionSettlement(context.Background(), "option", "", "", 10)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetUSDCSessionSettlement(context.Background(), "linear", "", "", 10)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetAssetInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetAssetInfo(context.Background(), "", "BTC")
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatal(err)
+	}
+	_, err = b.GetAssetInfo(context.Background(), "SPOT", "BTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAllCoinBalance(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetAllCoinBalance(context.Background(), "", "", "", 0)
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.GetAllCoinBalance(context.Background(), "FUND", "", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetSingleCoinBalance(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetSingleCoinBalance(context.Background(), "", "", "", 0, 0)
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.GetSingleCoinBalance(context.Background(), "SPOT", currency.BTC.String(), "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetTransferableCoin(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetTransferableCoin(context.Background(), "SPOT", "OPTION")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateInternalTransfer(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CreateInternalTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{})
+	if !errors.Is(err, errMissingTransferID) {
+		t.Fatalf("expected %v, got %v", errMissingTransferID, err)
+	}
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountIsInvalid, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+		Amount:     123.456,
+	})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED"})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456,
+		ToAccountType:   "CONTRACT",
+		FromAccountType: "UNIFIED"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInternalTransferRecords(t *testing.T) {
+	t.Parallel()
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transferIDString := transferID.String()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	} else {
+		transferIDString = "018bd458-dba0-728b-b5b6-ecd5bd296528"
+	}
+	_, err = b.GetInternalTransferRecords(context.Background(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubUID(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetSubUID(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestEnableUniversalTransferForSubUID(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.EnableUniversalTransferForSubUID(context.Background())
+	if !errors.Is(err, errMembersIDsNotSet) {
+		t.Fatalf("expected %v, got %v", errMembersIDsNotSet, err)
+	}
+	transferID1, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transferID2, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.EnableUniversalTransferForSubUID(context.Background(), transferID1.String(), transferID2.String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateUniversalTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateUniversalTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{})
+	if !errors.Is(err, errMissingTransferID) {
+		t.Fatalf("expected %v, got %v", errMissingTransferID, err)
+	}
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountIsInvalid, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+		Amount:     123.456,
+	})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED"})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456,
+		ToAccountType:   "CONTRACT",
+		FromAccountType: "UNIFIED"})
+	if !errors.Is(err, errMemberIDRequired) {
+		t.Fatalf("expected %v, got %v", errMemberIDRequired, err)
+	}
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456,
+		ToAccountType:   "CONTRACT",
+		FromAccountType: "UNIFIED",
+		FromMemberID:    123,
+		ToMemberID:      456,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUniversalTransferRecords(t *testing.T) {
+	t.Parallel()
+	var transferIDString string
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+		transferID, err := uuid.NewV7()
+		if err != nil {
+			t.Fatal(err)
+		}
+		transferIDString = transferID.String()
+	} else {
+		transferIDString = "018bd461-cb9c-75ce-94d4-0d3f4d84c339"
+	}
+	_, err := b.GetUniversalTransferRecords(context.Background(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllowedDepositCoinInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetAllowedDepositCoinInfo(context.Background(), "BTC", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetDepositAccount(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetDepositAccount(context.Background(), "FUND")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositRecords(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetDepositRecords(context.Background(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubDepositRecords(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubDepositRecords(context.Background(), "12345", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInternalDepositRecords(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetInternalDepositRecordsOffChain(context.Background(), currency.ETH.String(), "", time.Time{}, time.Time{}, 8)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMasterDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetMasterDepositAddress(context.Background(), currency.LTC, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubDepositAddress(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubDepositAddress(context.Background(), currency.LTC, "LTC", "12345")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCoinInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalRecords(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetWithdrawalRecords(context.Background(), currency.LTC, "", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawableAmount(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	_, err := b.GetWithdrawableAmount(context.Background(), currency.LTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCurrency(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WithdrawCurrency(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.BTC})
+	if !errors.Is(err, errMissingChainInformation) {
+		t.Fatalf("expected %v, got %v", errMissingChainInformation, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC"})
+	if !errors.Is(err, errMissingAddressInfo) {
+		t.Fatalf("expected %v, got %v", errMissingAddressInfo, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234"})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 123})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelWithdrawal(context.Background(), "")
+	if !errors.Is(err, errMissingWithdrawalID) {
+		t.Fatalf("expected %v, got %v", errMissingWithdrawalID, err)
+	}
+	_, err = b.CancelWithdrawal(context.Background(), "12314")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateNewSubUserID(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateNewSubUserID(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{MemberType: 1, Switch: 1, Note: "test"})
+	if !errors.Is(err, errMissingUsername) {
+		t.Fatalf("expected %v, got %v", errMissingUsername, err)
+	}
+	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{Username: "Sami", Switch: 1, Note: "test"})
+	if !errors.Is(err, errInvalidMemberType) {
+		t.Fatalf("expected %v, got %v", errInvalidMemberType, err)
+	}
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{Username: "sami", MemberType: 1, Switch: 1, Note: "test"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateSubUIDAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateSubUIDAPIKey(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateSubUIDAPIKey(context.Background(), &SubUIDAPIKeyParam{})
+	if !errors.Is(err, errMissingUserID) {
+		t.Fatalf("expected %v, got %v", errMissingUserID, err)
+	}
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.CreateSubUIDAPIKey(context.Background(), &SubUIDAPIKeyParam{
+		Subuid:      53888000,
+		Note:        "testxxx",
+		ReadOnly:    0,
+		Permissions: map[string][]string{"Wallet": {"AccountTransfer"}},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubUIDList(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubUIDList(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFreezeSubUID(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.FreezeSubUID(context.Background(), "1234", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAPIKeyInformation(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAPIKeyInformation(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUIDWalletType(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUIDWalletType(context.Background(), "234234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifyMasterAPIKey(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ModifyMasterAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.ModifyMasterAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
+		ReadOnly: 0,
+		IPs:      "*",
+		Permissions: PermissionsList{
+			ContractTrade: []string{"Order", "Position"},
+			Spot:          []string{"SpotTrade"},
+			Wallet:        []string{"AccountTransfer", "SubMemberTransfer"},
+			Options:       []string{"OptionsTrade"},
+			CopyTrading:   []string{"CopyTrading"},
+			Exchange:      []string{"ExchangeHistory"},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifySubAPIKey(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ModifySubAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.ModifySubAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
+		APIKey:   "lnqQ8ACaoMLi4168He",
+		ReadOnly: 0,
+		IPs:      "*",
+		Permissions: PermissionsList{
+			ContractTrade: []string{"Order", "Position"},
+			Spot:          []string{"SpotTrade"},
+			Wallet:        []string{"AccountTransfer", "SubMemberTransfer"},
+			Options:       []string{"OptionsTrade"},
+			CopyTrading:   []string{"CopyTrading"},
+			Exchange:      []string{"ExchangeHistory"},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteSubUID(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.DeleteSubUID(context.Background(), "")
+	if !errors.Is(err, errMemberIDRequired) {
+		t.Errorf("expected %v, got %v", errMemberIDRequired, err)
+	}
+	err = b.DeleteSubUID(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteMasterAPIKey(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.DeleteMasterAPIKey(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteSubAPIKey(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.DeleteSubAccountAPIKey(context.Background(), "12434")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAffiliateUserInfo(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAffiliateUserInfo(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeverageTokenInfo(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLeverageTokenInfo(context.Background(), currency.NewCode("BTC3L"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeveragedTokenMarket(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLeveragedTokenMarket(context.Background(), currency.EMPTYCODE)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.GetLeveragedTokenMarket(context.Background(), currency.NewCode("BTC3L"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPurchaseLeverageToken(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.PurchaseLeverageToken(context.Background(), currency.BTC3L, 100, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRedeemLeverageToken(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.RedeemLeverageToken(context.Background(), currency.BTC3L, 100, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPurchaseAndRedemptionRecords(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPurchaseAndRedemptionRecords(context.Background(), currency.EMPTYCODE, "", "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestToggleMarginTrade(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ToggleMarginTrade(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetSpotMarginTradeLeverage(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.SetSpotMarginTradeLeverage(context.Background(), 3)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginCoinInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetMarginCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetVIPMarginData(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetVIPMarginData(context.Background(), "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowableCoinInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetBorrowableCoinInfo(context.Background(), currency.EMPTYCODE)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInterestAndQuota(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInterestAndQuota(context.Background(), currency.EMPTYCODE)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.GetInterestAndQuota(context.Background(), currency.BTC)
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestGetLoanAccountInfo(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLoanAccountInfo(context.Background())
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestBorrow(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.Borrow(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.Borrow(context.Background(), &LendArgument{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.Borrow(context.Background(), &LendArgument{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.Borrow(context.Background(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestRepay(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.Repay(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.Repay(context.Background(), &LendArgument{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.Repay(context.Background(), &LendArgument{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.Repay(context.Background(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowOrderDetail(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBorrowOrderDetail(context.Background(), time.Time{}, time.Time{}, currency.BTC, 0, 0)
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestGetRepaymentOrderDetail(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetRepaymentOrderDetail(context.Background(), time.Time{}, time.Time{}, currency.BTC, 0)
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestToggleMarginTradeNormal(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.ToggleMarginTradeNormal(context.Background(), true)
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestGetProductInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetProductInfo(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInstitutionalLengingMarginCoinInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetInstitutionalLengingMarginCoinInfo(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInstitutionalLoanOrders(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInstitutionalLoanOrders(context.Background(), "", time.Time{}, time.Time{}, 0)
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestGetInstitutionalRepayOrders(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInstitutionalRepayOrders(context.Background(), time.Time{}, time.Time{}, 0)
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestGetLTV(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLTV(context.Background())
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
+		t.Error(err)
+	}
+}
+
+func TestBindOrUnbindUID(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.BindOrUnbindUID(context.Background(), "12234", "0")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetC2CLendingCoinInfo(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetC2CLendingCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestC2CDepositFunds(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.C2CDepositFunds(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Error(err)
+	}
+	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestC2CRedeemFunds(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.C2CRedeemFunds(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Error(err)
+	}
+	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetC2CLendingOrderRecords(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetC2CLendingOrderRecords(context.Background(), currency.EMPTYCODE, "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetC2CLendingAccountInfo(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetC2CLendingAccountInfo(context.Background(), currency.LTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBrokerEarning(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBrokerEarning(context.Background(), "DERIVATIVES", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+
+	r, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountInfo should not error")
+	require.NotEmpty(t, r, "UpdateAccountInfo should return account info")
+
+	if mockTests {
+		require.Len(t, r.Accounts, 1, "Accounts should have 1 item")
+		require.Len(t, r.Accounts[0].Currencies, 3, "Accounts currencies should have 3 currency items")
+
+		for x := range r.Accounts[0].Currencies {
+			switch x {
+			case 0:
+				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
+				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should match")
+				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+			case 1:
+				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
+				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should match")
+				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
+				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+			case 2:
+				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
+				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+			}
+		}
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	_, err = b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error("GetWithdrawalsHistory()", err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		a asset.Item
+		p currency.Pair
+	}{
+		{asset.Spot, spotTradablePair},
+		{asset.Options, optionsTradablePair},
+		{asset.CoinMarginedFutures, inverseTradablePair},
+		{asset.USDTMarginedFutures, usdtMarginedTradablePair},
+		{asset.USDCMarginedFutures, usdcMarginedTradablePair},
+	} {
+		_, err := b.GetRecentTrades(context.Background(), tt.p, tt.a)
+		assert.NoErrorf(t, err, "GetRecentTrades should not error for %s asset", tt.a)
+	}
+
+	_, err := b.GetRecentTrades(context.Background(), spotTradablePair, asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetBybitServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetBybitServerTime(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetServerTime(context.Background(), asset.Empty)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetHistoricTrades(context.Background(), spotTradablePair, asset.Spot, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricTrades(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricTrades(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricTrades(context.Background(), inverseTradablePair, asset.CoinMarginedFutures, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricTrades(context.Background(), optionsTradablePair, asset.Options, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	var orderCancellationParams = []order.Cancel{{
+		OrderID:   "1",
+		Pair:      spotTradablePair,
+		AssetType: asset.Spot}, {
+		OrderID:   "1",
+		Pair:      usdtMarginedTradablePair,
+		AssetType: asset.USDTMarginedFutures}}
+	_, err := b.CancelBatchOrders(context.Background(), orderCancellationParams)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	orderCancellationParams = []order.Cancel{{
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      optionsTradablePair,
+		AssetType: asset.Options}, {
+		OrderID:   "2",
+		Pair:      optionsTradablePair,
+		AssetType: asset.Options}}
+	_, err = b.CancelBatchOrders(context.Background(), orderCancellationParams)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skippingWebsocketFunctionsForMockTesting)
+	}
+	err := b.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestWsLinearConnect(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skippingWebsocketFunctionsForMockTesting)
+	}
+	err := b.WsLinearConnect()
+	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
+		t.Error(err)
+	}
+}
+func TestWsInverseConnect(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skippingWebsocketFunctionsForMockTesting)
+	}
+	err := b.WsInverseConnect()
+	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
+		t.Error(err)
+	}
+}
+func TestWsOptionsConnect(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip(skippingWebsocketFunctionsForMockTesting)
+	}
+	err := b.WsOptionsConnect()
+	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
+		t.Error(err)
+	}
+}
+
+var pushDataMap = map[string]string{
+	"Orderbook Snapshot":   `{"topic":"orderbook.50.BTCUSDT","ts":1690719970602,"type":"snapshot","data":{"s":"BTCUSDT","b":[["29328.25","3.911681"],["29328.21","0.117584"],["29328.19","0.511493"],["29328.16","0.013639"],["29328","0.1646"],["29327.99","1"],["29327.98","0.681309"],["29327.53","0.001"],["29327.46","0.000048"],["29327","0.046517"],["29326.99","0.077528"],["29326.55","0.026808"],["29326.48","0.03"],["29326","0.1646"],["29325.99","0.00075"],["29325.93","0.409862"],["29325.92","0.745"],["29325.87","0.511533"],["29325.85","0.00018"],["29325.42","0.001023"],["29325.41","0.68199"],["29325.36","0.006309"],["29325.35","0.0153"],["29324.97","0.903728"],["29324.96","1.506212"],["29324.49","0.016966"],["29324.38","0.0341"],["29324.17","1.4535"],["29324","0.1646"],["29323.99","0.00075"],["29323.92","0.050492"],["29323.77","1.023141"],["29323.72","0.12"],["29323.48","0.0153"],["29323.26","0.001362"],["29322.78","0.464948"],["29322.77","0.745"],["29322.76","0.0153"],["29322.73","0.013633"],["29322.67","0.53"],["29322.62","0.01"],["29322.04","0.97036"],["29322","0.1656"],["29321.99","0.00075"],["29321.56","0.0341"],["29321.52","0.613945"],["29321.51","0.13"],["29321.4","0.002"],["29321.18","0.196788"],["29321.13","0.34104"]],"a":[["29328.26","1.256884"],["29328.36","0.013639"],["29328.97","0.51148"],["29329","0.002046"],["29329.2","0.035597"],["29329.27","0.001"],["29329.44","0.03523"],["29329.99","0.791676"],["29330","0.546264"],["29330.28","0.001"],["29330.35","0.767184"],["29330.5","0.002725"],["29330.51","0.0341"],["29330.79","0.03"],["29330.81","0.158412"],["29330.93","0.68199"],["29330.95","0.282036"],["29331","0.041"],["29331.13","0.0003"],["29331.19","0.01"],["29331.53","0.050164"],["29331.54","0.008573"],["29331.99","0.26305"],["29332.11","0.008124"],["29332.21","0.8721"],["29332.22","1.4535"],["29332.41","0.157"],["29332.58","0.001023"],["29332.59","0.0153"],["29332.84","0.679527"],["29332.85","1.022812"],["29332.98","0.200071"],["29333.01","1.13254"],["29333.24","0.0153"],["29333.25","0.001362"],["29333.35","0.625"],["29333.37","0.01"],["29333.56","0.0341"],["29333.68","0.21795"],["29333.85","0.182562"],["29333.98","0.0003"],["29333.99","0.00105"],["29334.16","0.009132"],["29334.29","0.0003"],["29334.48","0.029675"],["29334.7","0.00086"],["29334.99","0.006838"],["29335","0.002177"],["29335.18","0.013622"],["29335.32","0.034099"]],"u":51668654,"seq":10194901787}}`,
+	"Orderbook Update":     `{"topic":"orderbook.50.ACAUSDT","ts":1690719548494,"type":"snapshot","data":{"s":"ACAUSDT","b":[["0.0657","5363.66"],["0.0646","7910.21"],["0.0645","1435.73"],["0.0644","1552.8"],["0.0642","6904.01"],["0.064","3232.64"],["0.0639","106"],["0.0637","100"],["0.0636","25.62"],["0.0635","209.43"],["0.0631","237.47"],["0.063","258.13"],["0.0627","318.97"],["0.0625","10066.99"],["0.0624","16.1"],["0.0623","41.72"],["0.0622","1624.59"],["0.0621","402.57"],["0.0616","10.65"],["0.0613","652"],["0.061","1081.97"],["0.0604","413.91"],["0.06","1471.82"],["0.0597","15000"],["0.0595","15000"],["0.0593","608.77"],["0.0591","430.79"],["0.059","444"],["0.0586","4536.97"],["0.0584","1533.58"],["0.0583","3764.43"],["0.0581","3072.34"],["0.058","2654.9"],["0.0579","1022.23"],["0.0576","1931.71"],["0.0574","2545.88"],["0.0573","821.27"],["0.0571","2957"],["0.0568","1483.57"],["0.0561","392.24"],["0.0555","900.9"],["0.055","322.15"],["0.0549","182"],["0.0545","30"],["0.0536","24.24"],["0.0535","1869.15"],["0.053","40"],["0.0529","189"],["0.0525","701.66"],["0.0521","1122.64"]],"a":[["0.0661","3320.27"],["0.0662","8667.02"],["0.0663","6087.91"],["0.0664","6060.61"],["0.0684","591.31"],["0.0689","155.77"],["0.069","1148.02"],["0.0694","2421.86"],["0.0699","155.77"],["0.07","445.87"],["0.0701","142.65"],["0.071","2131.4"],["0.0718","1447.83"],["0.072","420.62"],["0.0743","1399.15"],["0.0745","1481.62"],["0.0747","32.97"],["0.0748","900.38"],["0.0749","209.44"],["0.075","124.49"],["0.0757","41.9"],["0.0762","657.43"],["0.077","48.77"],["0.0779","96.26"],["0.078","12305.94"],["0.079","29.77"],["0.0797","512.26"],["0.0799","743.29"],["0.08","5050.7"],["0.0814","11.71"],["0.0815","75.93"],["0.0817","403"],["0.082","817.43"],["0.0825","768.47"],["0.0828","388.77"],["0.083","150.53"],["0.0835","18"],["0.084","10776.95"],["0.0841","1465.17"],["0.0848","15000"],["0.085","16976.73"],["0.0853","798.45"],["0.0856","5239.19"],["0.0857","5134.18"],["0.0858","3885.13"],["0.0859","3691.71"],["0.086","16847.35"],["0.0862","898.68"],["0.0863","994.24"],["0.0865","1251.56"]],"u":4694899,"seq":12206894097}}`,
+	"Public Trade":         `{"topic":"publicTrade.ATOM2SUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"ATOM2SUSDT","BT":false}]}`,
+	"Public Kline":         `{ "topic": "kline.5.BTCUSDT", "data": [ { "start": 1672324800000, "end": 1672325099999, "interval": "5", "open": "16649.5", "close": "16677", "high": "16677", "low": "16608", "volume": "2.081", "turnover": "34666.4005", "confirm": false, "timestamp": 1672324988882 } ], "ts": 1672324988882,"type": "snapshot"}`,
+	"Public Liquidiation":  `{ "data": { "price": "0.03803", "side": "Buy", "size": "1637", "symbol": "GALAUSDT", "updatedTime": 1673251091822 }, "topic": "liquidation.GALAUSDT", "ts": 1673251091822, "type": "snapshot" }`,
+	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.EOS3LUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393 } ], "ts": 1672325322393 }`,
+	"Public LT Ticker":     `{ "topic": "tickers_lt.EOS3LUSDT", "ts": 1672325446847, "type": "snapshot", "data": { "symbol": "EOS3LUSDT", "lastPrice": "0.41477848043290448", "highPrice24h": "0.435285472510871305", "lowPrice24h": "0.394601507960931382", "prevPrice24h": "0.431502290172376349", "price24hPcnt": "-0.0388" } }`,
+	"Public LT Navigation": `{ "topic": "lt.EOS3LUSDT", "ts": 1672325564669, "type": "snapshot", "data": { "symbol": "EOS3LUSDT", "time": 1672325564554, "nav": "0.413517419653406162", "basketPosition": "1.261060779498318641", "leverage": "2.656197506416192150", "basketLoan": "-0.684866519289629374", "circulation": "72767.309468460367138199", "basket": "91764.000000292013277472" } }`,
+	"Private Position":     `{"id": "59232430b58efe-5fc5-4470-9337-4ce293b68edd", "topic": "position", "creationTime": 1672364174455, "data": [ { "positionIdx": 0, "tradeMode": 0, "riskId": 41, "riskLimitValue": "200000", "symbol": "XRPUSDT", "side": "Buy", "size": "75", "entryPrice": "0.3615", "leverage": "10", "positionValue": "27.1125", "positionBalance": "0", "markPrice": "0.3374", "positionIM": "2.72589075", "positionMM": "0.28576575", "takeProfit": "0", "stopLoss": "0", "trailingStop": "0", "unrealisedPnl": "-1.8075", "cumRealisedPnl": "0.64782276", "createdTime": "1672121182216", "updatedTime": "1672364174449", "tpslMode": "Full", "liqPrice": "", "bustPrice": "", "category": "linear","positionStatus":"Normal","adlRankIndicator":2}]}`,
+	"Private Order":        `{ "id": "5923240c6880ab-c59f-420b-9adb-3639adc9dd90", "topic": "order", "creationTime": 1672364262474, "data": [ { "symbol": "ETH-30DEC22-1400-C", "orderId": "5cf98598-39a7-459e-97bf-76ca765ee020", "side": "Sell", "orderType": "Market", "cancelType": "UNKNOWN", "price": "72.5", "qty": "1", "orderIv": "", "timeInForce": "IOC", "orderStatus": "Filled", "orderLinkId": "", "lastPriceOnCreated": "", "reduceOnly": false, "leavesQty": "", "leavesValue": "", "cumExecQty": "1", "cumExecValue": "75", "avgPrice": "75", "blockTradeId": "", "positionIdx": 0, "cumExecFee": "0.358635", "createdTime": "1672364262444", "updatedTime": "1672364262457", "rejectReason": "EC_NoError", "stopOrderType": "", "tpslMode": "", "triggerPrice": "", "takeProfit": "", "stopLoss": "", "tpTriggerBy": "", "slTriggerBy": "", "tpLimitPrice": "", "slLimitPrice": "", "triggerDirection": 0, "triggerBy": "", "closeOnTrigger": false, "category": "option", "placeType": "price", "smpType": "None", "smpGroup": 0, "smpOrderId": "" } ] }`,
+	"Private Wallet":       `{ "id": "5923242c464be9-25ca-483d-a743-c60101fc656f", "topic": "wallet", "creationTime": 1672364262482, "data": [ { "accountIMRate": "0.016", "accountMMRate": "0.003", "totalEquity": "12837.78330098", "totalWalletBalance": "12840.4045924", "totalMarginBalance": "12837.78330188", "totalAvailableBalance": "12632.05767702", "totalPerpUPL": "-2.62129051", "totalInitialMargin": "205.72562486", "totalMaintenanceMargin": "39.42876721", "coin": [ { "coin": "USDC", "equity": "200.62572554", "usdValue": "200.62572554", "walletBalance": "201.34882644", "availableToWithdraw": "0", "availableToBorrow": "1500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "202.99874213", "totalPositionMM": "39.14289747", "unrealisedPnl": "74.2768991", "cumRealisedPnl": "-209.1544627", "bonus": "0" }, { "coin": "BTC", "equity": "0.06488393", "usdValue": "1023.08402268", "walletBalance": "0.06488393", "availableToWithdraw": "0.06488393", "availableToBorrow": "2.5", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "ETH", "equity": "0", "usdValue": "0", "walletBalance": "0", "availableToWithdraw": "0", "availableToBorrow": "26", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "USDT", "equity": "11726.64664904", "usdValue": "11613.58597018", "walletBalance": "11728.54414904", "availableToWithdraw": "11723.92075829", "availableToBorrow": "2500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "2.72589075", "totalPositionMM": "0.28576575", "unrealisedPnl": "-1.8975", "cumRealisedPnl": "0.64782276", "bonus": "0" }, { "coin": "EOS3L", "equity": "215.0570412", "usdValue": "0", "walletBalance": "215.0570412", "availableToWithdraw": "215.0570412", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "BIT", "equity": "1.82", "usdValue": "0.48758257", "walletBalance": "1.82", "availableToWithdraw": "1.82", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" } ], "accountType": "UNIFIED", "accountLTV": "0.017" } ] }`,
+	"Private Greek":        `{ "id": "592324fa945a30-2603-49a5-b865-21668c29f2a6", "topic": "greeks", "creationTime": 1672364262482, "data": [ { "baseCoin": "ETH", "totalDelta": "0.06999986", "totalGamma": "-0.00000001", "totalVega": "-0.00000024", "totalTheta": "0.00001314" } ] }`,
+	"Execution":            `{"id": "592324803b2785-26fa-4214-9963-bdd4727f07be", "topic": "execution", "creationTime": 1672364174455, "data": [ { "category": "linear", "symbol": "XRPUSDT", "execFee": "0.005061", "execId": "7e2ae69c-4edf-5800-a352-893d52b446aa", "execPrice": "0.3374", "execQty": "25", "execType": "Trade", "execValue": "8.435", "isMaker": false, "feeRate": "0.0006", "tradeIv": "", "markIv": "", "blockTradeId": "", "markPrice": "0.3391", "indexPrice": "", "underlyingPrice": "", "leavesQty": "0", "orderId": "f6e324ff-99c2-4e89-9739-3086e47f9381", "orderLinkId": "", "orderPrice": "0.3207", "orderQty":"25","orderType":"Market","stopOrderType":"UNKNOWN","side":"Sell","execTime":"1672364174443","isLeverage": "0","closedSize": "","seq":4688002127}]}`,
+}
+
+func TestPushData(t *testing.T) {
+	t.Parallel()
+	for x := range pushDataMap {
+		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[x]))
+		if err != nil {
+			t.Errorf("%s: %v", x, err)
+		}
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	assetRouting := []asset.Item{
+		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
+		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
+	}
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(r []byte) error {
+		defer slices.Delete(assetRouting, 0, 1)
+		return b.wsHandleData(assetRouting[0], r)
+	})
+	close(b.Websocket.DataHandler)
+	expected := 8
+	require.Len(t, b.Websocket.DataHandler, expected, "Should see correct number of tickers")
+	for resp := range b.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *ticker.Price:
+			assert.Equal(t, b.Name, v.ExchangeName, "ExchangeName should be correct")
+			switch expected - len(b.Websocket.DataHandler) {
+			case 1: // Spot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 21109.77, v.Last, "Last should be correct")
+				assert.Equal(t, 21426.99, v.High, "High should be correct")
+				assert.Equal(t, 20575.00, v.Low, "Low should be correct")
+				assert.Equal(t, 6780.866843, v.Volume, "Volume should be correct")
+				assert.Equal(t, "BTC_USDT", v.Pair.String(), "Pair should be correct")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(233366401000), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 2: // Option
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, 3565.00, v.Last, "Last should be correct")
+				assert.Equal(t, 3715.00, v.High, "High should be correct")
+				assert.Equal(t, 3555.00, v.Low, "Low should be correct")
+				assert.Equal(t, 1.62, v.Volume, "Volume should be correct")
+				assert.Equal(t, 3475.00, v.Bid, "Bid should be correct")
+				assert.Equal(t, 10.14, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 3520.00, v.Ask, "Ask should be correct")
+				assert.Equal(t, 2.5, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 3502.0715721, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61912.8, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 29.35, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
+				assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 3: // USDTMargined snapshot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
+				assert.Equal(t, 62752.90, v.High, "High should be correct")
+				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
+				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61873.9, v.Bid, "Bid should be correct")
+				assert.Equal(t, 3.783, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
+				assert.Equal(t, 16.278, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61875.25, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61903.73, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 58117.022, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDTMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715748762463), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 4: // USDTMargined partial
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
+				assert.Equal(t, 62752.90, v.High, "High should be correct")
+				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
+				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61873.90, v.Bid, "Bid should be correct")
+				assert.Equal(t, 3.543, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
+				assert.Equal(t, 16.278, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61875.06, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61903.59, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 58117.022, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDTMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715748763063), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 5: // USDCMargined snapshot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.PERP, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
+				assert.Equal(t, 62242.2, v.High, "High should be correct")
+				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
+				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61909.2, v.Bid, "Bid should be correct")
+				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
+				assert.Equal(t, 0.082, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61943.58, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61942.85, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 526.806, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDCMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715756612118), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 6: // USDCMargined partial
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.PERP, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
+				assert.Equal(t, 62242.2, v.High, "High should be correct")
+				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
+				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61909.5, v.Bid, "Bid should be correct")
+				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
+				assert.Equal(t, 0.082, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61943.58, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61942.85, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 526.806, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDCMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(171575661221), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 7: // CoinMargined snapshot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USD, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
+				assert.Equal(t, 62265.5, v.High, "High should be correct")
+				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
+				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
+				assert.Equal(t, 12667.0, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")
+				assert.Equal(t, 60953.0, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61894.0, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61923.36, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 931760496.0, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715757637952), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 8: // CoinMargined partial
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USD, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
+				assert.Equal(t, 62265.5, v.High, "High should be correct")
+				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
+				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
+				assert.Equal(t, 27634.0, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")
+				assert.Equal(t, 60953.0, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61894.0, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61923.36, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 931760496.0, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+		}
+	}
+}
+
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	t.Parallel()
+	var feeBuilder = &exchange.FeeBuilder{
+		Amount:              1,
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		Pair:                spotTradablePair,
+		PurchasePrice:       1,
+		FiatCurrency:        currency.USD,
+		BankTransactionType: exchange.WireTransfer,
+	}
+	_, err := b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.Pair = optionsTradablePair
+	_, err = b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.Pair = usdtMarginedTradablePair
+	_, err = b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.Pair = inverseTradablePair
+	_, err = b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	ctx := context.Background()
+	err := b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Multi, 5, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.SetLeverage(ctx, asset.USDCMarginedFutures, usdcMarginedTradablePair, margin.Multi, 5, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.SetLeverage(ctx, asset.CoinMarginedFutures, inverseTradablePair, margin.Isolated, 5, order.UnknownSide)
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrSideIsInvalid)
+	}
+
+	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Isolated, 5, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.SetLeverage(ctx, asset.CoinMarginedFutures, inverseTradablePair, margin.Isolated, 5, order.Sell)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Isolated, 5, order.CouldNotBuy)
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrSideIsInvalid)
+	}
+
+	err = b.SetLeverage(ctx, asset.Spot, inverseTradablePair, margin.Multi, 5, order.UnknownSide)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
 
@@ -3510,16 +3424,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, futures.ErrNotFuturesAsset) {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
-
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -3527,79 +3432,254 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 }
 
-func TestGetContractLength(t *testing.T) {
+func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := getContractLength(-1)
-	if !errors.Is(err, errInvalidContractLength) {
-		t.Error(err)
+	_, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
 	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+}
 
-	cl, err := getContractLength(time.Hour)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+func TestDeltaUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	data := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493}}`
+	err := b.wsHandleData(asset.Spot, []byte(data))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if cl != futures.Weekly {
-		t.Error("expected weekly")
+	update := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493}}`
+	var wsResponse WebsocketResponse
+	err = json.Unmarshal([]byte(update), &wsResponse)
+	if err != nil {
+		t.Fatal(err)
 	}
+	err = b.wsProcessOrderbook(asset.Spot, &wsResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-	cl, err = getContractLength(time.Hour * 24 * 14)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+func TestGetLongShortRatio(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLongShortRatio(context.Background(), "linear", "BTCUSDT", kline.FiveMin, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if cl != futures.Fortnightly {
-		t.Error("expected fortnightly")
+	_, err = b.GetLongShortRatio(context.Background(), "inverse", "BTCUSDT", kline.FiveMin, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
+	_, err = b.GetLongShortRatio(context.Background(), "spot", "BTCUSDT", kline.FiveMin, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+}
 
-	cl, err = getContractLength(time.Hour * 24 * 30 * 3)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+func TestStringToOrderStatus(t *testing.T) {
+	t.Parallel()
+	input := []struct {
+		OrderStatus string
+		Expectation order.Status
+	}{
+		{
+			OrderStatus: "",
+			Expectation: order.UnknownStatus,
+		},
+		{
+			OrderStatus: "UNKNOWN",
+			Expectation: order.UnknownStatus,
+		},
+		{
+			OrderStatus: "Cancelled",
+			Expectation: order.Cancelled,
+		},
+		{
+			OrderStatus: "ACTIVE",
+			Expectation: order.Active,
+		},
+		{
+			OrderStatus: "NEW",
+			Expectation: order.New,
+		},
+		{
+			OrderStatus: "FILLED",
+			Expectation: order.Filled,
+		},
+		{
+			OrderStatus: "UNTRIGGERED",
+			Expectation: order.Pending,
+		},
 	}
-	if cl != futures.Quarterly {
-		t.Error("expected quarterly")
+	var oStatus order.Status
+	for x := range input {
+		oStatus = StringToOrderStatus(input[x].OrderStatus)
+		if oStatus != input[x].Expectation {
+			t.Fatalf("expected %v, got %v", input[x].Expectation, oStatus)
+		}
 	}
+}
 
-	cl, err = getContractLength(time.Hour * 24 * 30 * 6)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+func TestRetrieveAndSetAccountType(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.RetrieveAndSetAccountType(context.Background())
+	if err != nil {
+		t.Fatal(err)
 	}
-	if cl != futures.HalfYearly {
-		t.Error("expected half yearly")
-	}
+}
 
-	cl, err = getContractLength(time.Hour * 24 * 30 * 9)
-	if !errors.Is(err, nil) {
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  usdtMarginedTradablePair,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
-	if cl != futures.NineMonthly {
-		t.Error("expected nine monthly")
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Spot,
+		Pair:  spotTradablePair,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Options,
+		Pair:  optionsTradablePair,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.USDTMarginedFutures,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.USDCMarginedFutures,
+		Pair:  usdcMarginedTradablePair,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-	cl, err = getContractLength(time.Hour * 24 * 30 * 12)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+func TestConstructOrderDetails(t *testing.T) {
+	t.Parallel()
+	const data = `[	{"orderId": "fd4300ae-7847-404e-b947-b46980a4d140","orderLinkId": "test-000005","blockTradeId": "","symbol": "ETHUSDT","price": "1600.00","qty": "0.10","side": "Buy","isLeverage": "","positionIdx": 1,"orderStatus": "New","cancelType": "UNKNOWN","rejectReason": "EC_NoError","avgPrice": "0","leavesQty": "0.10","leavesValue": "160","cumExecQty": "0.00","cumExecValue": "0","cumExecFee": "0","timeInForce": "GTC","orderType": "Limit","stopOrderType": "UNKNOWN","orderIv": "","triggerPrice": "0.00","takeProfit": "2500.00","stopLoss": "1500.00","tpTriggerBy": "LastPrice","slTriggerBy": "LastPrice","triggerDirection": 0,"triggerBy": "UNKNOWN","lastPriceOnCreated": "","reduceOnly": false,"closeOnTrigger": false,"smpType": "None",		"smpGroup": 0,"smpOrderId": "","tpslMode": "Full","tpLimitPrice": "","slLimitPrice": "","placeType": "","createdTime": "1684738540559","updatedTime": "1684738540561"}]`
+	var response []TradeOrder
+	err := json.Unmarshal([]byte(data), &response)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if cl != futures.SemiAnnually {
-		t.Error("expected semi annually")
+	orders, err := b.ConstructOrderDetails(response, asset.Spot, currency.Pair{Base: currency.BTC, Quote: currency.USDT}, currency.Pairs{})
+	if err != nil {
+		t.Fatal(err)
+	} else if len(orders) > 0 {
+		t.Errorf("expected order with length 0, got %d", len(orders))
 	}
+	orders, err = b.ConstructOrderDetails(response, asset.Spot, currency.EMPTYPAIR, currency.Pairs{})
+	if err != nil {
+		t.Fatal(err)
+	} else if len(orders) != 1 {
+		t.Errorf("expected order with length 1, got %d", len(orders))
+	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  usdcMarginedTradablePair.Base.Item,
+		Quote: usdcMarginedTradablePair.Quote.Item,
+		Asset: asset.USDCMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  usdtMarginedTradablePair.Base.Item,
+		Quote: usdtMarginedTradablePair.Quote.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  inverseTradablePair.Base.Item,
+		Quote: inverseTradablePair.Quote.Item,
+		Asset: asset.CoinMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	enabled, err := b.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for x := range enabled {
-		isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, enabled[x])
-		if err != nil {
-			t.Fatal(err)
-		}
-		if enabled[x].Quote.Equal(currency.PFC) && !isPerp {
-			t.Error("expected true")
-		} else if !enabled[x].Quote.Equal(currency.PFC) && isPerp {
-			t.Error("expected false")
-		}
+
+	is, err := b.IsPerpetualFutureCurrency(asset.Spot, spotTradablePair)
+	assert.NoError(t, err)
+	assert.False(t, is)
+
+	is, err = b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, inverseTradablePair)
+	assert.NoError(t, err)
+	assert.Truef(t, is, "%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair)
+
+	is, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, usdtMarginedTradablePair)
+	assert.NoError(t, err)
+	assert.Truef(t, is, "%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair)
+
+	is, err = b.IsPerpetualFutureCurrency(asset.USDCMarginedFutures, usdcMarginedTradablePair)
+	assert.NoError(t, err)
+	assert.Truef(t, is, "%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

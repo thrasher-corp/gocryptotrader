@@ -64,7 +64,7 @@ func New() (*Engine, error) {
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 	var b Engine
-	b.Config = &config.Cfg
+	b.Config = config.GetConfig()
 
 	err := b.Config.LoadConfig("", false)
 	if err != nil {
@@ -214,12 +214,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 		b.Settings.EventManagerDelay = EventSleepDelay
 	}
 
-	// Checks if the flag values are different from the defaults
-	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
-		b.Settings.MaxHTTPRequestJobsLimit > 0 {
-		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
-	}
-
 	if b.Settings.TradeBufferProcessingInterval != trade.DefaultProcessorIntervalTime {
 		if b.Settings.TradeBufferProcessingInterval >= time.Second {
 			trade.BufferProcessorIntervalTime = b.Settings.TradeBufferProcessingInterval
@@ -278,7 +272,7 @@ func (s *Settings) PrintLoadedSettings() {
 	gctlog.Debugln(gctlog.Global)
 	gctlog.Debugf(gctlog.Global, "ENGINE SETTINGS")
 	settings := reflect.ValueOf(*s)
-	for x := 0; x < settings.NumField(); x++ {
+	for x := range settings.NumField() {
 		field := settings.Field(x)
 		if field.Kind() != reflect.Struct {
 			continue
@@ -286,7 +280,7 @@ func (s *Settings) PrintLoadedSettings() {
 
 		fieldName := field.Type().Name()
 		gctlog.Debugln(gctlog.Global, "- "+common.AddPaddingOnUpperCase(fieldName)+":")
-		for y := 0; y < field.NumField(); y++ {
+		for y := range field.NumField() {
 			indvSetting := field.Field(y)
 			indvName := field.Type().Field(y).Name
 			if indvSetting.Kind() == reflect.String && indvSetting.IsZero() {
@@ -728,7 +722,7 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 
 // LoadExchange loads an exchange by name. Optional wait group can be added for
 // external synchronization.
-func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
+func (bot *Engine) LoadExchange(name string) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -852,11 +846,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	if wg == nil {
-		wg = &sync.WaitGroup{}
-		defer wg.Wait()
-	}
-	return exch.Start(context.TODO(), wg)
+	return exchange.Bootstrap(context.TODO(), exch)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {
@@ -864,18 +854,18 @@ func (bot *Engine) dryRunParamInteraction(param string) {
 		return
 	}
 
+	gctlog.Warnf(gctlog.Global,
+		"Command line argument '-%s' induces dry run mode."+
+			" Set -dryrun=false if you wish to override this.",
+		param)
+
 	if !bot.Settings.EnableDryRun {
-		gctlog.Warnf(gctlog.Global,
-			"Command line argument '-%s' induces dry run mode."+
-				" Set -dryrun=false if you wish to override this.",
-			param)
 		bot.Settings.EnableDryRun = true
 	}
 }
 
 // SetupExchanges sets up the exchanges used by the Bot
 func (bot *Engine) SetupExchanges() error {
-	var wg sync.WaitGroup
 	configs := bot.Config.GetAllExchangeConfigs()
 	if bot.Settings.EnableAllPairs {
 		bot.dryRunParamInteraction("enableallpairs")
@@ -908,25 +898,53 @@ func (bot *Engine) SetupExchanges() error {
 		bot.dryRunParamInteraction("exchangehttpdebugging")
 	}
 
+	var exchangesOverride []string
+	if bot.Settings.Exchanges != "" {
+		bot.dryRunParamInteraction("exchanges")
+		exchangesOverride = strings.Split(bot.Settings.Exchanges, ",")
+		for x := range exchangesOverride {
+			if !common.StringSliceCompareInsensitive(exchange.Exchanges, exchangesOverride[x]) {
+				return fmt.Errorf("exchange %s not found", exchangesOverride[x])
+			}
+		}
+	}
+
+	if bot.Settings.EnableAllExchanges && len(exchangesOverride) > 0 {
+		return errors.New("cannot enable all exchanges and specific exchanges concurrently")
+	}
+
+	var wg sync.WaitGroup
 	for x := range configs {
-		if !configs[x].Enabled && !bot.Settings.EnableAllExchanges {
+		shouldLoad := false
+		if len(exchangesOverride) > 0 {
+			for y := range exchangesOverride {
+				if strings.EqualFold(configs[x].Name, exchangesOverride[y]) {
+					shouldLoad = true
+					break
+				}
+			}
+		} else {
+			shouldLoad = configs[x].Enabled || bot.Settings.EnableAllExchanges
+		}
+
+		if !shouldLoad {
 			gctlog.Debugf(gctlog.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
 			continue
 		}
+
 		wg.Add(1)
 		go func(c config.Exchange) {
 			defer wg.Done()
-			err := bot.LoadExchange(c.Name, &wg)
-			if err != nil {
+			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
-				return
+			} else {
+				gctlog.Debugf(gctlog.ExchangeSys,
+					"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
+					c.Name,
+					common.IsEnabled(c.API.AuthenticatedSupport),
+					common.IsEnabled(c.Verbose),
+				)
 			}
-			gctlog.Debugf(gctlog.ExchangeSys,
-				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				c.Name,
-				common.IsEnabled(c.API.AuthenticatedSupport),
-				common.IsEnabled(c.Verbose),
-			)
 		}(configs[x])
 	}
 	wg.Wait()

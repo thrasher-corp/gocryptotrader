@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: CI
 env:
-  GO_VERSION: 1.21.x
+  GO_VERSION: 1.23.x
 jobs:
   backend-psql:
     name: GoCryptoTrader back-end
@@ -23,7 +23,7 @@ jobs:
             skip_wrapper_tests: true
           - os: macos-13 # beta
             goarch: amd64
-            psql: false 
+            psql: true
             skip_wrapper_tests: true
           - os: windows-latest
             goarch: amd64
@@ -34,13 +34,13 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.12.0
+      uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
 
     - name: Setup Postgres
       if: matrix.psql == true
-      uses: ikalnytskyi/action-setup-postgres@v4
+      uses: ikalnytskyi/action-setup-postgres@v6
       with:
         database: gct_dev_ci
       id: postgres
@@ -74,13 +74,18 @@ jobs:
     - name: Additional steps for 386 architecture
       if: matrix.goarch == '386'
       run: |
-        echo "CGO_ENABLED=1" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install gcc-multilib g++-multilib
+        sudo apt-get install -y gcc-multilib
+      shell: bash
+
+    - name: Set CGO_ENABLED for 386 and macos-latest
+      if: matrix.goarch == '386' || matrix.os == 'macos-latest'
+      run: |
+        echo "CGO_ENABLED=1" >> $GITHUB_ENV
       shell: bash
 
     - name: Test
-      run: |
+      run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
         unset PGSERVICEFILE
         if [ "${{ matrix.goarch }}" = "386" ]; then
           go test -coverprofile coverage.txt -covermode atomic ./...
@@ -92,7 +97,9 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   backend-arm64:
     name: GoCryptoTrader back-end (ubuntu-latest, arm64, false, true)
@@ -100,7 +107,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.12.0
+      uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
 
@@ -116,7 +123,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Cache Docker layers
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: /tmp/.docker-buildx-cache
         key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/arm64.Dockerfile') }}-${{ github.sha }}
@@ -137,14 +144,14 @@ jobs:
     
     - name: Run Docker image
       run: |
-        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --rm gct-backend-arm64
+        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --env GCT_DOCKER_CI=true --rm gct-backend-arm64
 
   frontend:
     name: GoCryptoTrader front-end
     runs-on: ubuntu-latest
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.12.0
+      uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
 

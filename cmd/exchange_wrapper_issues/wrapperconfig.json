@@ -101,7 +101,12 @@
    "clientID": "ClientID",
    "otpSecret": "-"
   },
-  "dydx": {
+  "deribit": {
+    "key": "Key",
+    "secret": "Secret",
+    "otpSecret": "-"
+   },
+   "dydx": {
     "key": "Key",
     "secret": "Secret",
     "otpSecret": "-",

@@ -3,8 +3,12 @@ package archive
 import (
 	"archive/zip"
 	"errors"
+	"io/fs"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUnZip(t *testing.T) {
@@ -33,60 +37,39 @@ func TestUnZip(t *testing.T) {
 
 func TestZip(t *testing.T) {
 	tempDir := t.TempDir()
-	singleFile := filepath.Join("..", "..", "..", "testdata", "configtest.json")
 	outFile := filepath.Join(tempDir, "out.zip")
-	err := Zip(singleFile, outFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := Zip(filepath.Join("..", "..", "..", "testdata", "configtest.json"), outFile)
+	require.NoError(t, err, "Zip should not error")
 	o, err := UnZip(outFile, tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(o) != 1 {
-		t.Fatalf("expected 1 files to be extracted received: %v ", len(o))
-	}
+	require.NoError(t, err, "UnZip should not error")
+	assert.Len(t, o, 1, "Should extract 1 file")
 
-	folder := filepath.Join("..", "..", "..", "testdata", "http_mock")
+	folder := filepath.Join("..", "..", "..", "testdata", "gctscript")
 	outFolderZip := filepath.Join(tempDir, "out_folder.zip")
 	err = Zip(folder, outFolderZip)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Zip should not error")
 	o, err = UnZip(outFolderZip, tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "UnZip should not error")
 	var found bool
 	for i := range o {
-		if filepath.Base(o[i]) == "binance.json" {
+		if filepath.Base(o[i]) == "timer.gct" {
 			found = true
 		}
 	}
-	if !found {
-		t.Fatal("could not find file in zip")
-	}
-
-	if expected := 6; len(o) < expected {
-		t.Fatalf("expected at least %v files to be extracted, received: %v ", expected, len(o))
-	}
+	assert.True(t, found, "Should find a gctscript in the zip")
+	assert.GreaterOrEqual(t, len(o), 6, "Should extract at least 6 files")
 
 	folder = filepath.Join("..", "..", "..", "testdata", "invalid_file.json")
-	outFolderZip = filepath.Join(tempDir, "invalid.zip")
-	err = Zip(folder, outFolderZip)
-	if err == nil {
-		t.Fatal("expected IsNotExistError on invalid file")
-	}
+	err = Zip(folder, filepath.Join(tempDir, "invalid.zip"))
+	assert.ErrorIs(t, err, fs.ErrNotExist, "Zip should error correctly")
 
 	addFilesToZip = addFilesToZipTestWrapper
 	folder = filepath.Join("..", "..", "..", "testdata", "http_mock")
 	outFolderZip = filepath.Join(tempDir, "error_zip.zip")
 	err = Zip(folder, outFolderZip)
-	if err == nil {
-		t.Fatal("expected Zip() to fail due to invalid addFilesToZipTestWrapper()")
-	}
+	assert.ErrorContains(t, err, "specific error", "Zip should error correctly")
 }
 
 func addFilesToZipTestWrapper(_ *zip.Writer, _ string, _ bool) error {
-	return errors.New("error")
+	return errors.New("specific error")
 }

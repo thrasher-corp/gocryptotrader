@@ -608,6 +608,15 @@ type WsTradeHistoryTradeData struct {
 	TransactionID int64                        `json:"trans_id"`
 }
 
+// WsLoginReq Login request message
+type WsLoginReq struct {
+	Request   string `json:"request"`
+	Username  string `json:"username"`
+	Nonce     int64  `json:"nonce"`
+	Hmac      string `json:"hmac_sha256"`
+	Timestamp int64  `json:"timestamp"`
+}
+
 // WsLoginResponse ws response data
 type WsLoginResponse struct {
 	APIKey          string   `json:"api_key"`

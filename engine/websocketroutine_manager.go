@@ -137,12 +137,12 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err = ws.Connect()
+			err = m.websocketDataReceiver(ws)
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 
-			err = m.websocketDataReceiver(ws)
+			err = ws.Connect()
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}

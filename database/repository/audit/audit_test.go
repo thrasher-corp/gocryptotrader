@@ -76,8 +76,7 @@ func TestAudit(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
@@ -99,12 +98,11 @@ func TestAudit(t *testing.T) {
 	}
 }
 
-//nolint:gocritic // Only used as a testing helper function in this package
 func writeAudit(t *testing.T) {
 	t.Helper()
 	var wg sync.WaitGroup
 
-	for x := 0; x < 20; x++ {
+	for x := range 20 {
 		wg.Add(1)
 
 		go func(x int) {
@@ -117,7 +115,6 @@ func writeAudit(t *testing.T) {
 	wg.Wait()
 }
 
-//nolint:gocritic // Only used as a testing helper function in this package
 func readHelper(t *testing.T) {
 	t.Helper()
 

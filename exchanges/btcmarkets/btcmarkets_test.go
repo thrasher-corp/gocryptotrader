@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var b = &BTCMarkets{}
@@ -60,20 +62,6 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = false
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -851,11 +839,11 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestChecksum(t *testing.T) {
 	b := &orderbook.Base{
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{Price: 0.3965, Amount: 44149.815},
 			{Price: 0.3967, Amount: 16000.0},
 		},
-		Bids: []orderbook.Item{
+		Bids: []orderbook.Tranche{
 			{Price: 0.396, Amount: 51.0},
 			{Price: 0.396, Amount: 25.0},
 			{Price: 0.3958, Amount: 18570.0},
@@ -890,8 +878,7 @@ func TestTrim(t *testing.T) {
 		{Value: 1.01, Expected: "101"},
 	}
 
-	for x := range testCases {
-		tt := testCases[x]
+	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
 			received := trim(tt.Value)
 			if received != tt.Expected {
@@ -1132,5 +1119,18 @@ func TestCancelBatchOrders(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

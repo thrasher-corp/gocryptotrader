@@ -1,0 +1,36 @@
+{{- if eq $.S.Channel "single-channel" -}}
+	single-channel
+    {{- if $.S.Authenticated -}}
+        -authed
+    {{- end -}}
+{{- else if eq $.S.Channel "expand-assets" -}}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{ assetName $asset }}-expand-assets@ {{- $.S.Interval.Short }}
+		{{- $.AssetSeparator }}
+	{{- end }}
+{{- else if eq $.S.Channel "expand-pairs" }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- range $pair := $pairs -}}
+			{{ assetName $asset }}-{{ $pair.Swap.String -}} -expand-pairs@ {{- $.S.Levels }}
+			{{- $.PairSeparator -}}
+		{{- end -}}
+		{{- $.AssetSeparator -}}
+	{{- end -}}
+{{- else if eq $.S.Channel "update-asset-pairs" }}
+	{{- updateAssetPairs $.AssetPairs -}}
+	spot-btcusdt-update-asset-pairs
+	{{- $.PairSeparator -}}
+	{{- $.AssetSeparator -}}
+	{{/* futures doesn't output anything, but we need an asset separator, so this previous one must not be stripped */}}
+	{{- $.AssetSeparator -}}
+{{- else if eq $.S.Channel "batching" }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+        {{- if eq $asset.String "spot" }}
+            {{- range $batch := batch $pairs 3 -}}
+                {{ assetName $asset }}-{{ $batch.Join -}} -batching
+                {{- $.PairSeparator -}}
+            {{- end -}}
+            {{- $.BatchSize -}} 3
+        {{- end }}
+	{{- end -}}
+{{- end -}}

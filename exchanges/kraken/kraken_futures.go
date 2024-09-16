@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
@@ -79,9 +80,15 @@ func (k *Kraken) GetInstruments(ctx context.Context) (FuturesInstrumentData, err
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
-func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickerData, error) {
-	var resp FuturesTickerData
+func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickersData, error) {
+	var resp FuturesTickersData
 	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers, &resp)
+}
+
+// GetFuturesTickerBySymbol returns futures ticker data by symbol
+func (k *Kraken) GetFuturesTickerBySymbol(ctx context.Context, symbol string) (FuturesTickerData, error) {
+	var resp FuturesTickerData
+	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers+"/"+symbol, &resp)
 }
 
 // GetFuturesTradeHistory gets public trade history data for futures
@@ -111,7 +118,7 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 		if err != nil {
 			return resp, err
 		}
-		if !common.StringDataCompare(validBatchOrderType, data[x].PlaceOrderType) {
+		if !slices.Contains(validBatchOrderType, data[x].PlaceOrderType) {
 			return resp, fmt.Errorf("%s %w",
 				data[x].PlaceOrderType,
 				errInvalidBatchOrderType)
@@ -169,12 +176,12 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validSide, side) {
+	if !slices.Contains(validSide, side) {
 		return resp, errors.New("invalid side")
 	}
 	params.Set("side", side)
 	if triggerSignal != "" {
-		if !common.StringDataCompare(validTriggerSignal, triggerSignal) {
+		if !slices.Contains(validTriggerSignal, triggerSignal) {
 			return resp, errors.New("invalid triggerSignal")
 		}
 		params.Set("triggerSignal", triggerSignal)
@@ -183,7 +190,7 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 		params.Set("cliOrdId", clientOrderID)
 	}
 	if reduceOnly != "" {
-		if !common.StringDataCompare(validReduceOnly, reduceOnly) {
+		if !slices.Contains(validReduceOnly, reduceOnly) {
 			return resp, errors.New("invalid reduceOnly")
 		}
 		params.Set("reduceOnly", reduceOnly)
@@ -372,19 +379,45 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 	}
 
 	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
+
+	if err == nil {
+		err = getFuturesErr(interim)
+	}
+
+	if err == nil {
+		err = json.Unmarshal(interim, result)
+	}
+
 	if err != nil {
+		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+	}
+
+	return nil
+}
+
+func getFuturesErr(msg json.RawMessage) error {
+	var resp genericFuturesResponse
+	if err := json.Unmarshal(msg, &resp); err != nil {
 		return err
 	}
 
-	var errCap AuthErrorData
-	if err = json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.Result != "success" && errCap.Error != "" {
-			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
-		}
+	// Result may be omitted entirely, so we don't test for == "success"
+	if resp.Result != "error" {
+		return nil
 	}
-	err = json.Unmarshal(interim, result)
-	if err != nil {
-		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+
+	var errs error
+	if resp.Error != "" {
+		errs = errors.New(resp.Error)
 	}
-	return nil
+
+	for _, err := range resp.Errors {
+		errs = common.AppendError(errs, errors.New(err))
+	}
+
+	if errs == nil {
+		return fmt.Errorf("%w from message: %s", common.ErrUnknownError, msg)
+	}
+
+	return errs
 }

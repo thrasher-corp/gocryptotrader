@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -34,6 +36,7 @@ const (
 	spotAPIURL     = "https://sapi.binance.com"
 	cfuturesAPIURL = "https://dapi.binance.com"
 	ufuturesAPIURL = "https://fapi.binance.com"
+	tradeBaseURL   = "https://www.binance.com/en/"
 
 	testnetSpotURL = "https://testnet.binance.vision/api"
 	testnetFutures = "https://testnet.binancefuture.com"
@@ -62,15 +65,6 @@ const (
 	allOrders         = "/api/v3/allOrders"
 	accountInfo       = "/api/v3/account"
 	marginAccountInfo = "/sapi/v1/margin/account"
-
-	// Withdraw API endpoints
-	accountStatus                          = "/wapi/v3/accountStatus.html"
-	systemStatus                           = "/wapi/v3/systemStatus.html"
-	dustLog                                = "/wapi/v3/userAssetDribbletLog.html"
-	tradeFee                               = "/wapi/v3/tradeFee.html"
-	assetDetail                            = "/wapi/v3/assetDetail.html"
-	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
-	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
 
 	// Wallet endpoints
 	allCoinsInfo     = "/sapi/v1/capital/config/getall"
@@ -105,8 +99,6 @@ const (
 	flexibleLoanCollateralAssetsData = "/sapi/v1/loan/flexible/collateral/data"
 
 	defaultRecvWindow = 5 * time.Second
-
-	errUnexpectedPairFormat = "unexpected pair format"
 )
 
 var (
@@ -117,27 +109,6 @@ var (
 	errAmountMustBeSet                        = errors.New("amount must not be <= 0")
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
 )
-
-// GetUndocumentedInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetUndocumentedInterestHistory(ctx context.Context) (MarginInfoData, error) {
-	var resp MarginInfoData
-	if err := b.SendHTTPRequest(ctx, exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// GetCrossMarginInterestHistory gets cross-margin interest history for currency/currencies provided
-func (b *Binance) GetCrossMarginInterestHistory(ctx context.Context) (CrossMarginInterestData, error) {
-	var resp CrossMarginInterestData
-	if err := b.SendHTTPRequest(ctx,
-		exchange.EdgeCase1,
-		undocumentedCrossMarginInterestHistory,
-		spotDefaultRate, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
@@ -163,7 +134,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
+	params.Set("limit", strconv.Itoa(obd.Limit))
 
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
@@ -224,7 +195,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
+	params.Set("limit", strconv.Itoa(rtr.Limit))
 
 	path := recentTrades + "?" + params.Encode()
 
@@ -243,10 +214,10 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	params := url.Values{}
 
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("limit", strconv.Itoa(limit))
 	// else return most recent trades
 	if fromID > 0 {
-		params.Set("fromId", fmt.Sprintf("%d", fromID))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 
 	path := historicalTrades + "?" + params.Encode()
@@ -296,16 +267,12 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol.String())
-	// if the user request is directly not supported by the exchange, we might be able to fulfill it
+	// If the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
-	needBatch := false
-	if arg.Limit > 0 {
-		if arg.Limit > 1000 {
-			// remote call doesn't support higher limits
-			needBatch = true
-		} else {
-			params.Set("limit", strconv.Itoa(arg.Limit))
-		}
+	needBatch := true // Need to batch unless user has specified a limit
+	if arg.Limit > 0 && arg.Limit <= 1000 {
+		needBatch = false
+		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
 	if arg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
@@ -321,7 +288,7 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 	needBatch = needBatch || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour)
 	// Fall back to batch requests, if possible and necessary
 	if needBatch {
-		// fromId xor start time must be set
+		// fromId or start time must be set
 		canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
 		if canBatch {
 			// Split the request into multiple
@@ -1237,41 +1204,36 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 	}, request.AuthenticatedRequest)
 }
 
-// FetchSpotExchangeLimits fetches spot order execution limits
-func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
-	var limits []order.MinMaxLevel
-	spot, err := b.GetExchangeInfo(ctx)
+// FetchExchangeLimits fetches order execution limits filtered by asset
+func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]order.MinMaxLevel, error) {
+	if a != asset.Spot && a != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	resp, err := b.GetExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for x := range spot.Symbols {
+	aUpper := strings.ToUpper(a.String())
+
+	limits := make([]order.MinMaxLevel, 0, len(resp.Symbols))
+	for _, s := range resp.Symbols {
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(spot.Symbols[x].BaseAsset,
-			spot.Symbols[x].QuoteAsset)
+		cp, err = currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
 		if err != nil {
 			return nil, err
 		}
-		var assets []asset.Item
-		for y := range spot.Symbols[x].Permissions {
-			switch spot.Symbols[x].Permissions[y] {
-			case "SPOT":
-				assets = append(assets, asset.Spot)
-			case "MARGIN":
-				assets = append(assets, asset.Margin)
-			default:
-				// "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005" etc are unused permissions
-				// for spot exchange limits
-			}
-		}
 
-		for z := range assets {
+		for i := range s.PermissionSets {
+			if !slices.Contains(s.PermissionSets[i], aUpper) {
+				continue
+			}
 			l := order.MinMaxLevel{
 				Pair:  cp,
-				Asset: assets[z],
+				Asset: a,
 			}
-
-			for _, f := range spot.Symbols[x].Filters {
+			for _, f := range s.Filters {
 				// TODO: Unhandled filters:
 				// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
 				switch f.FilterType {
@@ -1300,8 +1262,8 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 					l.MaxAlgoOrders = f.MaxNumAlgoOrders
 				}
 			}
-
 			limits = append(limits, l)
+			break
 		}
 	}
 	return limits, nil

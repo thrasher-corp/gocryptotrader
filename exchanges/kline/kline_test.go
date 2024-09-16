@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -95,16 +96,16 @@ func TestCreateKline(t *testing.T) {
 	}
 
 	tradeTotal := 24000
-	var trades []order.TradeHistory
+	trades := make([]order.TradeHistory, tradeTotal)
 	execution := time.Now()
-	for i := 0; i < tradeTotal; i++ {
+	for x := range tradeTotal {
 		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
-		trades = append(trades, order.TradeHistory{
+		trades[x] = order.TradeHistory{
 			Timestamp: execution,
 			Amount:    1, // Keep as one for counting
 			Price:     price,
-		})
+		}
 	}
 
 	_, err = CreateKline(trades, 0, pair, asset.Spot, "Binance")
@@ -153,6 +154,10 @@ func TestDurationToWord(t *testing.T) {
 		name     string
 		interval Interval
 	}{
+		{
+			"raw",
+			Raw,
+		},
 		{
 			"hundredmillisec",
 			HundredMilliseconds,
@@ -478,7 +483,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 		Interval: OneDay,
 	}
 
-	for x := 0; x < 100; x++ {
+	for x := range 100 {
 		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypo/rand
 		tempKline.Candles = append(tempKline.Candles,
 			Candle{
@@ -704,7 +709,7 @@ func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	out.Asset = "spot"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := 0; x < 365; x++ {
+	for x := range 365 {
 		out.Candles = append(out.Candles, candle.Candle{
 			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:      1000,
@@ -720,7 +725,7 @@ func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	outItem.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	outItem.Exchange = testExchanges[0].Name
 
-	for x := 0; x < 365; x++ {
+	for x := range 365 {
 		outItem.Candles = append(outItem.Candles, Candle{
 			Time:   start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:   1000,
@@ -1395,4 +1400,19 @@ func TestGetIntervalResultLimit(t *testing.T) {
 	if limit != 1337 {
 		t.Errorf("received '%v' expected '%v'", limit, 1337)
 	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	i := new(Interval)
+	err := i.UnmarshalJSON([]byte(`"3m"`))
+	assert.NoError(t, err, "UnmarshalJSON should not error")
+	assert.Equal(t, time.Minute*3, i.Duration(), "Interval should have correct value")
+	err = i.UnmarshalJSON([]byte(`"15s"`))
+	assert.NoError(t, err, "UnmarshalJSON should not error")
+	assert.Equal(t, time.Second*15, i.Duration(), "Interval should have correct value")
+	err = i.UnmarshalJSON([]byte(`720000000000`))
+	assert.NoError(t, err, "UnmarshalJSON should not error")
+	assert.Equal(t, time.Minute*12, i.Duration(), "Interval should have correct value")
+	err = i.UnmarshalJSON([]byte(`"6hedgehogs"`))
+	assert.ErrorContains(t, err, "unknown unit", "UnmarshalJSON should error")
 }

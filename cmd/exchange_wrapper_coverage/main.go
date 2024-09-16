@@ -32,18 +32,15 @@ func main() {
 
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
-	for x := range exchange.Exchanges {
-		if exchange.Exchanges[x] == "ftx" {
-			log.Println("Skipping exchange FTX...")
-			continue
-		}
-		err = engine.Bot.LoadExchange(exchange.Exchanges[x], &wg)
-		if err != nil {
-			log.Printf("Failed to load exchange %s. Err: %s",
-				exchange.Exchanges[x],
-				err)
-			continue
-		}
+	for i := range exchange.Exchanges {
+		name := exchange.Exchanges[i]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := engine.Bot.LoadExchange(name); err != nil {
+				log.Printf("Failed to load exchange %s. Err: %s", name, err)
+			}
+		}()
 	}
 	wg.Wait()
 	log.Println("Done.")
@@ -101,12 +98,12 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
 
 	var funcs []string
-	for x := 0; x < iExchange.NumMethod(); x++ {
+	for x := range iExchange.NumMethod() {
 		name := iExchange.Method(x).Name
 		method := actualExchange.MethodByName(name)
 		inputs := make([]reflect.Value, method.Type().NumIn())
 
-		for y := 0; y < method.Type().NumIn(); y++ {
+		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
 
 			if input.Implements(contextParam) {

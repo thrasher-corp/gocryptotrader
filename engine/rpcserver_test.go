@@ -2,12 +2,20 @@ package engine
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -15,8 +23,11 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -101,6 +112,23 @@ func (f fExchange) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pai
 
 func (f fExchange) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
 	return nil
+}
+
+func (f fExchange) GetOpenInterest(_ context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(k) > 0 {
+		return []futures.OpenInterest{
+			{
+				Key: key.ExchangePairAsset{
+					Exchange: f.GetName(),
+					Base:     k[0].Base,
+					Quote:    k[0].Quote,
+					Asset:    k[0].Asset,
+				},
+				OpenInterest: 1337,
+			},
+		}, nil
+	}
+	return nil, nil
 }
 
 func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
@@ -213,7 +241,7 @@ func (f fExchange) GetHistoricCandles(_ context.Context, p currency.Pair, a asse
 
 func generateCandles(amount int, timeStart time.Time, interval kline.Interval) []kline.Candle {
 	candy := make([]kline.Candle, amount)
-	for x := 0; x < amount; x++ {
+	for x := range amount {
 		candy[x] = kline.Candle{
 			Time:   timeStart,
 			Open:   1337,
@@ -238,6 +266,10 @@ func (f fExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair
 		Interval: interval,
 		Candles:  generateCandles(33, timeStart, interval),
 	}, nil
+}
+
+func (f fExchange) GetCurrencyTradeURL(_ context.Context, _ asset.Item, _ currency.Pair) (string, error) {
+	return "https://google.com", nil
 }
 
 func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
@@ -1598,8 +1630,8 @@ func TestCheckVars(t *testing.T) {
 func TestParseEvents(t *testing.T) {
 	t.Parallel()
 	var exchangeName = "Binance"
-	var testData []*withdraw.Response
-	for x := 0; x < 5; x++ {
+	testData := make([]*withdraw.Response, 5)
+	for x := range 5 {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
 			ID: withdraw.DryRunID,
@@ -1636,13 +1668,13 @@ func TestParseEvents(t *testing.T) {
 			resp.RequestDetails.Crypto.FeeAmount = 0
 			resp.RequestDetails.Crypto.AddressTag = test
 		}
-		testData = append(testData, resp)
+		testData[x] = resp
 	}
 	v := parseMultipleEvents(testData)
 	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
 		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
 	}
-	if testData == nil || len(testData) < 2 {
+	if len(testData) < 2 {
 		t.Fatal("expected at least 2")
 	}
 
@@ -3442,19 +3474,19 @@ func TestGetOrderbookMovement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3555,19 +3587,19 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3661,19 +3693,19 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4078,4 +4110,237 @@ func TestGetCollateralMode(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	assert.NoError(t, err)
+
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	assert.NoError(t, err)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.GetOpenInterest(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &gctrpc.GetOpenInterestRequest{}
+	_, err = s.GetOpenInterest(context.Background(), req)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+
+	req.Exchange = fakeExchangeName
+	_, err = s.GetOpenInterest(context.Background(), req)
+	assert.NoError(t, err)
+
+	req.Data = append(req.Data, &gctrpc.OpenInterestDataRequest{
+		Asset: asset.USDTMarginedFutures.String(),
+		Pair:  &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USDT.String()},
+	})
+	_, err = s.GetOpenInterest(context.Background(), req)
+	assert.NoError(t, err)
+}
+
+func TestStartRPCRESTProxy(t *testing.T) {
+	t.Parallel()
+
+	tempDir := filepath.Join(os.TempDir(), "gct-grpc-proxy-test")
+	tempDirTLS := filepath.Join(tempDir, "tls")
+
+	t.Cleanup(func() {
+		assert.NoErrorf(t, os.RemoveAll(tempDir), "RemoveAll should not error, manual directory deletion required for TempDir: %s", tempDir)
+	})
+
+	if !assert.NoError(t, genCert(tempDirTLS), "genCert should not error") {
+		t.FailNow()
+	}
+
+	gRPCPort := rand.Intn(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
+	gRPCProxyPort := gRPCPort + 1
+
+	e := &Engine{
+		Config: &config.Config{
+			RemoteControl: config.RemoteControlConfig{
+				Username: "bobmarley",
+				Password: "Sup3rdup3rS3cr3t",
+				GRPC: config.GRPCConfig{
+					Enabled:                true,
+					ListenAddress:          "localhost:" + strconv.Itoa(gRPCPort),
+					GRPCProxyListenAddress: "localhost:" + strconv.Itoa(gRPCProxyPort),
+				},
+			},
+		},
+		Settings: Settings{
+			DataDir:      tempDir,
+			CoreSettings: CoreSettings{EnableGRPCProxy: true},
+		},
+	}
+
+	fakeTime := time.Now().Add(-time.Hour)
+	e.uptime = fakeTime
+
+	StartRPCServer(e)
+
+	// Give the proxy time to start
+	time.Sleep(time.Millisecond * 500)
+
+	certFile := filepath.Join(tempDirTLS, "cert.pem")
+	caCert, err := os.ReadFile(certFile)
+	require.NoError(t, err, "ReadFile should not error")
+	caCertPool := x509.NewCertPool()
+	ok := caCertPool.AppendCertsFromPEM(caCert)
+	require.True(t, ok, "AppendCertsFromPEM should return true")
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}}
+
+	for _, creds := range []struct {
+		testDescription string
+		username        string
+		password        string
+	}{
+		{"Valid credentials", "bobmarley", "Sup3rdup3rS3cr3t"},
+		{"Valid username but invalid password", "bobmarley", "wrongpass"},
+		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
+		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
+	} {
+		t.Run(creds.testDescription, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
+			require.NoError(t, err, "NewRequestWithContext should not error")
+			req.SetBasicAuth(creds.username, creds.password)
+			resp, err := client.Do(req)
+			require.NoError(t, err, "Do should not error")
+			defer resp.Body.Close()
+
+			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
+				var info gctrpc.GetInfoResponse
+				err = json.NewDecoder(resp.Body).Decode(&info)
+				require.NoError(t, err, "Decode should not error")
+
+				uptimeDuration, err := time.ParseDuration(info.Uptime)
+				require.NoError(t, err, "ParseDuration should not error")
+				assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
+			} else {
+				respBody, err := io.ReadAll(resp.Body)
+				require.NoError(t, err, "ReadAll should not error")
+				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "HTTP status code should be 401")
+				assert.Equal(t, "Access denied\n", string(respBody), "Response body should be 'Access denied\n'")
+			}
+		})
+	}
+}
+
+func TestRPCProxyAuthClient(t *testing.T) {
+	t.Parallel()
+
+	s := new(RPCServer)
+	s.Engine = &Engine{
+		Config: &config.Config{
+			RemoteControl: config.RemoteControlConfig{
+				Username: "bobmarley",
+				Password: "Sup3rdup3rS3cr3t",
+			},
+		},
+	}
+
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("MEOW"))
+		assert.NoError(t, err, "Write should not error")
+	})
+
+	handler := s.authClient(dummyHandler)
+
+	for _, creds := range []struct {
+		testDescription string
+		username        string
+		password        string
+	}{
+		{"Valid credentials", "bobmarley", "Sup3rdup3rS3cr3t"},
+		{"Valid username but invalid password", "bobmarley", "wrongpass"},
+		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
+		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
+	} {
+		t.Run(creds.testDescription, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
+			require.NoError(t, err, "NewRequestWithContext should not error")
+			req.SetBasicAuth(creds.username, creds.password)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
+				assert.Equal(t, http.StatusOK, rr.Code, "HTTP status code should be 200")
+				assert.Equal(t, "MEOW", rr.Body.String(), "Response body should be 'MEOW'")
+			} else {
+				assert.Equal(t, http.StatusUnauthorized, rr.Code, "HTTP status code should be 401")
+				assert.Equal(t, "Access denied\n", rr.Body.String(), "Response body should be 'Access denied\n'")
+			}
+		})
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err)
+
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
+	require.NoError(t, err)
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	require.NoError(t, err)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.GetCurrencyTradeURL(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &gctrpc.GetCurrencyTradeURLRequest{}
+	_, err = s.GetCurrencyTradeURL(context.Background(), req)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+
+	req.Exchange = fakeExchangeName
+	_, err = s.GetCurrencyTradeURL(context.Background(), req)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	req.Asset = "spot"
+	_, err = s.GetCurrencyTradeURL(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      "btc",
+		Quote:     "usdt",
+	}
+	resp, err := s.GetCurrencyTradeURL(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Url)
 }

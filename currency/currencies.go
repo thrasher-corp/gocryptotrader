@@ -20,6 +20,14 @@ func NewCurrenciesFromStringArray(currencies []string) Currencies {
 // Currencies define a range of supported currency codes
 type Currencies []Code
 
+// Add adds a currency to the list if it doesn't exist
+func (c Currencies) Add(a Code) Currencies {
+	if !c.Contains(a) {
+		c = append(c, a)
+	}
+	return c
+}
+
 // Strings returns an array of currency strings
 func (c Currencies) Strings() []string {
 	list := make([]string, len(c))
@@ -44,7 +52,7 @@ func (c Currencies) Join() string {
 	return strings.Join(c.Strings(), ",")
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the umarshaler interface
 func (c *Currencies) UnmarshalJSON(d []byte) error {
 	var configCurrencies string
 	err := json.Unmarshal(d, &configCurrencies)

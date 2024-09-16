@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	errSetCannotBeEmpty = errors.New("set cannot be empty")
-	errTypeAssert       = errors.New("type assertion failed")
-	errNoSeqNo          = errors.New("no sequence number")
-	errUnknownError     = errors.New("unknown error")
-	errParamNotAllowed  = errors.New("param not allowed")
-	errParsingWSField   = errors.New("error parsing WS field")
+	errSetCannotBeEmpty        = errors.New("set cannot be empty")
+	errNoSeqNo                 = errors.New("no sequence number")
+	errParamNotAllowed         = errors.New("param not allowed")
+	errParsingWSField          = errors.New("error parsing WS field")
+	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")
+	errTickerInvalidResp       = errors.New("invalid ticker response format")
+	errTickerInvalidFieldCount = errors.New("invalid ticker response field count")
 )
 
 // AccountV2Data stores account v2 data
@@ -73,7 +74,7 @@ func (a *acceptableMethodStore) lookup(curr currency.Code) []string {
 	defer a.m.RUnlock()
 	var methods []string
 	for k, v := range a.a {
-		if common.StringDataCompareInsensitive(v, curr.Upper().String()) {
+		if common.StringSliceCompareInsensitive(v, curr.Upper().String()) {
 			methods = append(methods, k)
 		}
 	}

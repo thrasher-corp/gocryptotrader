@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -40,28 +40,6 @@ const (
 	okxWebsocketResponseMaxLimit = time.Second * 3
 )
 
-// GetDefaultConfig returns a default exchange config
-func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	ok.SetDefaults()
-	exchCfg, err := ok.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = ok.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = ok.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Okx
 func (ok *Okx) SetDefaults() {
 	ok.Name = "Okx"
@@ -85,6 +63,11 @@ func (ok *Okx) SetDefaults() {
 
 	// Fill out the capabilities/features that the exchange supports
 	ok.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
+			currency.NewCode("USDT-SWAP"): currency.USDT,
+			currency.NewCode("USD-SWAP"):  currency.USD,
+			currency.NewCode("USDC-SWAP"): currency.USDC,
+		}),
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
 			Websocket:           true,
@@ -132,9 +115,13 @@ func (ok *Okx) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:                 true,
-				Leverage:                  true,
-				CollateralMode:            true,
+				Positions:      true,
+				Leverage:       true,
+				CollateralMode: true,
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:         true,
+					SupportsRestBatch: true,
+				},
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
@@ -172,7 +159,7 @@ func (ok *Okx) SetDefaults() {
 	}
 	ok.Requester, err = request.New(ok.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -186,7 +173,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.New()
+	ok.Websocket = stream.NewWebsocket()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -230,6 +217,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
+		RateLimitDefinitions: ok.Requester.GetRateLimiterDefinitions(),
 	}); err != nil {
 		return err
 	}
@@ -240,7 +228,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	}); err != nil {
 		return err
 	}
@@ -250,51 +238,8 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	})
-}
-
-// Start starts the Okx go routine
-func (ok *Okx) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ok.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Okx wrapper
-func (ok *Okx) Run(ctx context.Context) {
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ok.Name,
-			common.IsEnabled(ok.Websocket.IsEnabled()))
-		ok.PrintEnabledPairs()
-	}
-
-	assetTypes := ok.GetAssetTypes(false)
-	for i := range assetTypes {
-		if err := ok.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				ok.Name,
-				err)
-		}
-	}
-
-	if ok.GetEnabledFeatures().AutoPairUpdates {
-		if err := ok.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				ok.Name,
-				err)
-		}
-	}
 }
 
 // Shutdown calls Base.Shutdown and then shuts down the response multiplexer
@@ -320,9 +265,13 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	if err != nil {
 		return nil, err
 	}
+	pf, err := ok.CurrencyPairs.GetFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	pairs := make([]currency.Pair, len(insts))
 	for x := range insts {
-		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
+		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, pf.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -439,7 +388,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	}
 
 	for y := range ticks {
-		pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+		pair, err := currency.NewPairFromString(ticks[y].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -534,16 +483,16 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderBookD.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderBookD.Bids))
 	for x := range orderBookD.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderBookD.Bids[x].BaseCurrencies,
 			Price:  orderBookD.Bids[x].DepthPrice,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderBookD.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderBookD.Asks))
 	for x := range orderBookD.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderBookD.Asks[x].NumberOfContracts,
 			Price:  orderBookD.Asks[x].DepthPrice,
 		}
@@ -575,7 +524,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	for i := range accountBalances {
 		for j := range accountBalances[i].Details {
 			currencyBalances = append(currencyBalances, account.Balance{
-				Currency: currency.NewCode(accountBalances[i].Details[j].Currency),
+				Currency: accountBalances[i].Details[j].Currency,
 				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
 				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
 				Free:     accountBalances[i].Details[j].AvailableBalance.Float64(),
@@ -737,7 +686,7 @@ allTrades:
 		if len(trades) == 0 {
 			break
 		}
-		for i := 0; i < len(trades); i++ {
+		for i := range trades {
 			if timestampStart.Equal(trades[i].Timestamp.Time()) ||
 				trades[i].Timestamp.Time().Before(timestampStart) ||
 				tradeIDEnd == trades[len(trades)-1].TradeID {
@@ -769,14 +718,14 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(ok.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if !ok.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+		return nil, errors.New("amount, or size (sz) of quantity to buy or sell hast to be greater than zero")
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -877,12 +826,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if action.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	instrumentID := pairFormat.Format(action.Pair)
-	if err != nil {
-		return nil, err
-	}
 	amendRequest := AmendOrderRequestParams{
-		InstrumentID:  instrumentID,
+		InstrumentID:  pairFormat.Format(action.Pair),
 		NewQuantity:   action.Amount,
 		OrderID:       action.OrderID,
 		ClientOrderID: action.ClientOrderID,
@@ -945,8 +890,6 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-
-		var instrumentID string
 		var pairFormat currency.PairFormat
 		pairFormat, err = ok.GetPairFormat(ord.AssetType, true)
 		if err != nil {
@@ -955,12 +898,8 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ord.Pair.IsPopulated() {
 			return nil, errIncompleteCurrencyPair
 		}
-		instrumentID = pairFormat.Format(ord.Pair)
-		if err != nil {
-			return nil, err
-		}
 		cancelOrderParams[x] = CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
+			InstrumentID:  pairFormat.Format(ord.Pair),
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}
@@ -1052,7 +991,7 @@ ordersLoop:
 	}
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
-	for b := 0; b < loop; b++ {
+	for range loop {
 		var response []OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1253,8 +1192,7 @@ allOrders:
 				break allOrders
 			}
 			orderSide := orderList[i].Side
-			var pair currency.Pair
-			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
@@ -1347,8 +1285,7 @@ allOrders:
 				// reached end of orders to crawl
 				break allOrders
 			}
-			var pair currency.Pair
-			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
@@ -1823,7 +1760,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	if req.MarginSide == "" {
 		req.MarginSide = "net"
 	}
-	r := IncreaseDecreaseMarginInput{
+	r := &IncreaseDecreaseMarginInput{
 		InstrumentID: fPair.String(),
 		PositionSide: req.MarginSide,
 		Type:         marginType,
@@ -1917,7 +1854,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 	)
 
 	for i := range acc[0].Details {
-		if acc[0].Details[i].Currency != positionSummary.Currency {
+		if !acc[0].Details[i].Currency.Equal(positionSummary.Currency) {
 			continue
 		}
 		freeCollateral = acc[0].Details[i].AvailableBalance.Decimal()
@@ -1946,7 +1883,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		Asset:           req.Asset,
 		MarginType:      marginMode,
 		CollateralMode:  collateralMode,
-		Currency:        currency.NewCode(positionSummary.Currency),
+		Currency:        positionSummary.Currency,
 		AvailableEquity: availableEquity,
 		CashBalance:     cashBalance,
 		DiscountEquity:  discountEquity,
@@ -2245,4 +2182,141 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 	}
 	return resp, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures && k[i].Asset != asset.PerpetualSwap {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	if len(k) != 1 {
+		var resp []futures.OpenInterest
+		// TODO: Options support
+		instTypes := map[string]asset.Item{
+			"SWAP":    asset.PerpetualSwap,
+			"FUTURES": asset.Futures,
+		}
+		for instType, v := range instTypes {
+			oid, err := ok.GetOpenInterestData(ctx, instType, "", "")
+			if err != nil {
+				return nil, err
+			}
+			for j := range oid {
+				p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				var appendData bool
+				for j := range k {
+					if k[j].Pair().Equal(p) {
+						appendData = true
+						break
+					}
+				}
+				if len(k) > 0 && !appendData {
+					continue
+				}
+				resp = append(resp, futures.OpenInterest{
+					Key: key.ExchangePairAsset{
+						Exchange: ok.Name,
+						Base:     p.Base.Item,
+						Quote:    p.Quote.Item,
+						Asset:    v,
+					},
+					OpenInterest: oid[j].OpenInterest.Float64(),
+				})
+			}
+		}
+		return resp, nil
+	}
+	resp := make([]futures.OpenInterest, 1)
+	instTypes := map[asset.Item]string{
+		asset.PerpetualSwap: "SWAP",
+		asset.Futures:       "FUTURES",
+	}
+	pFmt, err := ok.FormatSymbol(k[0].Pair(), k[0].Asset)
+	if err != nil {
+		return nil, err
+	}
+	oid, err := ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
+	if err != nil {
+		return nil, err
+	}
+	for i := range oid {
+		p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[i].InstrumentID, k[0].Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		resp[0] = futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: ok.Name,
+				Base:     p.Base.Item,
+				Quote:    p.Quote.Item,
+				Asset:    k[0].Asset,
+			},
+			OpenInterest: oid[i].OpenInterest.Float64(),
+		}
+	}
+	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := ok.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	switch a {
+	case asset.Spot:
+		return baseURL + tradeSpot + cp.Lower().String(), nil
+	case asset.Margin:
+		return baseURL + tradeMargin + cp.Lower().String(), nil
+	case asset.PerpetualSwap:
+		return baseURL + tradePerps + cp.Lower().String(), nil
+	case asset.Options:
+		return baseURL + tradeOptions + cp.Base.Lower().String() + "-usd", nil
+	case asset.Futures:
+		cp, err = ok.FormatExchangeCurrency(cp, a)
+		if err != nil {
+			return "", err
+		}
+		insts, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: okxInstTypeFutures,
+			InstrumentID:   cp.String(),
+		})
+		if err != nil {
+			return "", err
+		}
+		if len(insts) != 1 {
+			return "", fmt.Errorf("%w response len: %v currency expected: %v", errOnlyOneResponseExpected, len(insts), cp)
+		}
+		var ct string
+		switch insts[0].Alias {
+		case "this_week":
+			ct = "-weekly"
+		case "next_week":
+			ct = "-biweekly"
+		case "this_month":
+			ct = "-monthly"
+		case "next_month":
+			ct = "-bimonthly"
+		case "quarter":
+			ct = "-quarterly"
+		case "next_quarter":
+			ct = "-biquarterly"
+		}
+		return baseURL + tradeFutures + strings.ToLower(insts[0].Underlying) + ct, nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

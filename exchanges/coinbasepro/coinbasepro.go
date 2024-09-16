@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 const (
 	coinbaseproAPIURL                  = "https://api.pro.coinbase.com/"
 	coinbaseproSandboxAPIURL           = "https://api-public.sandbox.pro.coinbase.com/"
+	tradeBaseURL                       = "https://www.coinbase.com/advanced-trade/spot/"
 	coinbaseproAPIVersion              = "0"
 	coinbaseproProducts                = "products"
 	coinbaseproOrderbook               = "book"
@@ -211,21 +213,20 @@ func (c *CoinbasePro) GetTrades(ctx context.Context, currencyPair string) ([]Tra
 func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start, end string, granularity int64) ([]History, error) {
 	values := url.Values{}
 
-	if len(start) > 0 {
+	if start != "" {
 		values.Set("start", start)
 	} else {
 		values.Set("start", "")
 	}
 
-	if len(end) > 0 {
+	if end != "" {
 		values.Set("end", end)
 	} else {
 		values.Set("end", "")
 	}
 
-	allowedGranularities := [6]int64{60, 300, 900, 3600, 21600, 86400}
-	validGran, _ := common.InArray(granularity, allowedGranularities)
-	if !validGran {
+	allowedGranularities := []int64{60, 300, 900, 3600, 21600, 86400}
+	if !slices.Contains(allowedGranularities, granularity) {
 		return nil, errors.New("Invalid granularity value: " + strconv.FormatInt(granularity, 10) + ". Allowed values are {60, 300, 900, 3600, 21600, 86400}")
 	}
 	if granularity > 0 {
@@ -469,7 +470,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(ctx context.Context, currencyPair 
 	var resp []string
 	req := make(map[string]interface{})
 
-	if len(currencyPair) > 0 {
+	if currencyPair != "" {
 		req["product_id"] = currencyPair
 	}
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, coinbaseproOrders, req, &resp)
@@ -766,7 +767,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 		HTTPRecording: c.HTTPRecording,
 	}
 
-	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return c.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

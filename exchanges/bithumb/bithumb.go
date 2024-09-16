@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	apiURL = "https://api.bithumb.com"
+	apiURL       = "https://api.bithumb.com"
+	tradeBaseURL = "https://www.bithumb.com/react/trade/order/"
 
 	noError = "0000"
 
@@ -342,11 +343,11 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType string
 
 	params.Set("order_currency", orderCurrency.Upper().String())
 
-	if len(orderID) > 0 {
+	if orderID != "" {
 		params.Set("order_id", orderID)
 	}
 
-	if len(transactionType) > 0 {
+	if transactionType != "" {
 		params.Set("type", transactionType)
 	}
 
@@ -454,7 +455,7 @@ func (b *Bithumb) WithdrawCrypto(ctx context.Context, address, destination, curr
 
 	params := url.Values{}
 	params.Set("address", address)
-	if len(destination) > 0 {
+	if destination != "" {
 		params.Set("destination", destination)
 	}
 	params.Set("currency", strings.ToUpper(currency))
@@ -707,14 +708,8 @@ func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel,
 
 	limits := make([]order.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
-		c := currency.NewCode(code)
-		cp := currency.NewPair(c, currency.KRW)
-		if err != nil {
-			return nil, err
-		}
-
 		limits = append(limits, order.MinMaxLevel{
-			Pair:              cp,
+			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
 			Asset:             asset.Spot,
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})

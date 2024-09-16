@@ -1531,6 +1531,60 @@
         ]
       }
     },
+    "/v1/getcurrencytradeurl": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetCurrencyTradeURL",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCurrencyTradeURLResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getdatahistoryjobdetails": {
       "get": {
         "operationId": "GoCryptoTraderService_GetDataHistoryJobDetails",
@@ -2862,6 +2916,36 @@
             "schema": {
               "$ref": "#/definitions/gctrpcSetMarginTypeRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getopeninterest": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOpenInterest",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOpenInterestResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -5946,6 +6030,14 @@
         }
       }
     },
+    "gctrpcGetCurrencyTradeURLResponse": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGetEventsResponse": {
       "type": "object",
       "properties": {
@@ -6288,6 +6380,18 @@
         },
         "takerFeeRate": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcGetOpenInterestResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcOpenInterestDataResponse"
+          }
         }
       }
     },
@@ -6727,6 +6831,35 @@
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcOnlineCoinSummary"
           }
+        }
+      }
+    },
+    "gctrpcOpenInterestDataRequest": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
+    "gctrpcOpenInterestDataResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "openInterest": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -7509,7 +7642,7 @@
         "channel": {
           "type": "string"
         },
-        "currency": {
+        "pairs": {
           "type": "string"
         },
         "asset": {

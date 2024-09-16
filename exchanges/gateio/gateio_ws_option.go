@@ -19,7 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -69,7 +71,7 @@ var fetchedOptionsCurrencyPairSnapshotOrderbook = make(map[string]bool)
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (g *Gateio) WsOptionsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Options)
 	if err != nil {
@@ -94,7 +96,7 @@ func (g *Gateio) WsOptionsConnect() error {
 	}
 	g.Websocket.Wg.Add(1)
 	go g.wsReadOptionsConnData()
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
@@ -104,7 +106,7 @@ func (g *Gateio) WsOptionsConnect() error {
 }
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
-func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
@@ -129,7 +131,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 		}
 	}
 getEnabledPairs:
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions subscription.List
 	pairs, err := g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return nil, err
@@ -162,17 +164,17 @@ getEnabledPairs:
 			if err != nil {
 				return nil, err
 			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channelsToSubscribe[i],
-				Currency: fpair.Upper(),
-				Params:   params,
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channelsToSubscribe[i],
+				Pairs:   currency.Pairs{fpair.Upper()},
+				Params:  params,
 			})
 		}
 	}
 	return subscriptions, nil
 }
 
-func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
+func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -180,6 +182,9 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 	var intervalString string
 	payloads := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
+		if len(channelsToSubscribe[i].Pairs) != 1 {
+			return nil, subscription.ErrNotSinglePair
+		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
 		var params []string
@@ -189,7 +194,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 			optionsUnderlyingPriceChannel,
 			optionsUnderlyingCandlesticksChannel:
 			var uly currency.Pair
-			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
+			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pairs[0])
 			if err != nil {
 				return nil, err
 			}
@@ -197,8 +202,8 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 		case optionsBalancesChannel:
 			// options.balance channel does not require underlying or contract
 		default:
-			channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
-			params = append(params, channelsToSubscribe[i].Currency.String())
+			channelsToSubscribe[i].Pairs[0].Delimiter = currency.UnderscoreDelimiter
+			params = append(params, channelsToSubscribe[i].Pairs[0].String())
 		}
 		switch channelsToSubscribe[i].Channel {
 		case optionsOrderbookChannel:
@@ -298,24 +303,24 @@ func (g *Gateio) wsReadOptionsConnData() {
 }
 
 // OptionsSubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe subscription.List) error {
 	return g.handleOptionsSubscription("subscribe", channelsToUnsubscribe)
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) OptionsUnsubscribe(channelsToUnsubscribe subscription.List) error {
 	return g.handleOptionsSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
 // handleOptionsSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe subscription.List) error {
 	payloads, err := g.generateOptionsPayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := g.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -329,9 +334,12 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+			}
+			if err != nil {
+				errs = common.AppendError(errs, err)
 			}
 		}
 	}
@@ -372,7 +380,7 @@ func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
 		optionsUnderlyingCandlesticksChannel:
 		return g.processOptionsCandlestickPushData(respRaw)
 	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
+		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time.Time())
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
@@ -524,7 +532,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Pair:       currencyPair,
 			AssetType:  asset.Options,
 			Exchange:   g.Name,
-			StartTime:  time.Unix(resp.Result[x].Timestamp, 0),
+			StartTime:  resp.Result[x].Timestamp.Time(),
 			Interval:   icp[0],
 			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
 			ClosePrice: resp.Result[x].ClosePrice.Float64(),
@@ -547,7 +555,7 @@ func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, pushTime int64) error {
+func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, updatePushedAt time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -559,14 +567,15 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
+			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Asks = make([]orderbook.Item, len(data.Asks))
+		base.Asks = make([]orderbook.Tranche, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Item, len(data.Bids))
+		base.Bids = make([]orderbook.Tranche, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
@@ -578,18 +587,18 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 	if err != nil {
 		return err
 	}
-	dataMap := map[string][2][]orderbook.Item{}
+	dataMap := map[string][2][]orderbook.Tranche{}
 	for x := range data {
 		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
-			ab = [2][]orderbook.Item{}
+			ab = [2][]orderbook.Tranche{}
 		}
 		if data[x].Amount > 0 {
-			ab[1] = append(ab[1], orderbook.Item{
+			ab[1] = append(ab[1], orderbook.Tranche{
 				Price: data[x].Price.Float64(), Amount: data[x].Amount,
 			})
 		} else {
-			ab[0] = append(ab[0], orderbook.Item{
+			ab[0] = append(ab[0], orderbook.Tranche{
 				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
 			})
 		}
@@ -611,7 +620,8 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     time.Unix(pushTime, 0),
+			LastUpdated:     updatePushedAt,
+			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
