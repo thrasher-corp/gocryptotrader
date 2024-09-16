@@ -1268,7 +1268,7 @@ func TestFlushChannels(t *testing.T) {
 	w.features.Subscribe = false
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 
-	// Unsubscribe whats already subscribed. No subscriptions left over, which then forces the shutdown and removal
+	// Unsubscribe what's already subscribed. No subscriptions left over, which then forces the shutdown and removal
 	// of the connection from management.
 	w.features.Subscribe = true
 	w.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
