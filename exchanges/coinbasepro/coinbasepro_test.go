@@ -67,6 +67,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetProducts(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetProducts(context.Background())
 	if err != nil {
 		t.Errorf("Coinbase, GetProducts() Error: %s", err)
