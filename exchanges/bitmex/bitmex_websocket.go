@@ -125,12 +125,8 @@ func (b *Bitmex) wsOpenStream(ctx context.Context, c stream.Connection, name str
 	if err != nil {
 		return err
 	}
-	msg, _, _, err := jsonparser.Get(resp, "[3]")
-	if err != nil {
-		return err
-	}
 	var welcomeResp WebsocketWelcome
-	if err := json.Unmarshal(msg, &welcomeResp); err != nil {
+	if err := json.Unmarshal(resp, &welcomeResp); err != nil {
 		return err
 	}
 	if b.Verbose {
@@ -170,13 +166,14 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		op = "open"
 		fallthrough
 	case errMsg != "", success:
-		streamID, err := jsonparser.GetString(respRaw, "[1]")
-		if err != nil {
-			return err
+		streamID, e2 := jsonparser.GetString(respRaw, "[1]")
+		if e2 != nil {
+			return fmt.Errorf("%w parsing stream", e2)
 		}
 		if !b.Websocket.Match.IncomingWithData(op+":"+streamID, msg) {
 			return fmt.Errorf("%w: %s:%s", stream.ErrNoMessageListener, op, streamID)
 		}
+		return nil
 	}
 
 	tableName, err := jsonparser.GetString(msg, "table")

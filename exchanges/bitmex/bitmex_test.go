@@ -871,26 +871,6 @@ func TestWsInsertExectuionUpdate(t *testing.T) {
 	}
 }
 
-func TestWSConnectionHandling(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`[0, "public", "public", {"info":"Welcome to the BitMEX Realtime API.","version":"1.1.0",
-     "timestamp":"2015-01-18T10:14:06.802Z","docs":"https://www.bitmex.com/app/wsAPI","heartbeatEnabled":false}]`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWSSubscriptionHandling(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`[0, "public", "public", {"success":true,"subscribe":"trade:ETHUSD",
-     "request":{"op":"subscribe","args":["trade:ETHUSD","instrument:ETHUSD"]}}]`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestWSPositionUpdateHandling(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`[0, "public", "public", {"table":"position",
