@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -1744,14 +1743,8 @@ func TestCheckSubscriptions(t *testing.T) {
 func TestGetJWT(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	creds, err := c.GetCredentials(context.Background())
+	_, err := c.GetJWT(context.Background(), "")
 	assert.NoError(t, err)
-	_, err = c.GetJWT(context.Background(), "")
-	if strings.HasPrefix(creds.Secret, "-----BEGIN EC PRIVATE KEY-----\n") {
-		assert.NoError(t, err)
-	} else {
-		assert.ErrorIs(t, err, errCantDecodePrivKey)
-	}
 }
 
 func exchangeBaseHelper(c *CoinbasePro) error {

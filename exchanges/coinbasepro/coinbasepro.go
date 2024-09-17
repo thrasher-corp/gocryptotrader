@@ -62,8 +62,6 @@ const (
 	coinbaseV2                 = "/v2/"
 	coinbaseNotifications      = "notifications"
 	coinbaseUser               = "user"
-	coinbaseUsers              = "users"
-	coinbaseAuth               = "auth"
 	coinbaseAddresses          = "addresses"
 	coinbaseTransactions       = "transactions"
 	coinbaseDeposits           = "deposits"
@@ -82,10 +80,6 @@ const (
 	coinbaseConversionRate     = "conversion-rate"
 	coinbaseMarket             = "market"
 
-	pageNone        = ""
-	pageBefore      = "before"
-	pageAfter       = "after"
-	unknownContract = "UNKNOWN_CONTRACT_EXPIRY_TYPE"
 	granUnknown     = "UNKNOWN_GRANULARITY"
 	granOneMin      = "ONE_MINUTE"
 	granFiveMin     = "FIVE_MINUTE"
@@ -120,48 +114,46 @@ const (
 	BestCaseMakerFee            = 0
 	StablePairMakerFee          = 0
 	WorstCaseStablePairTakerFee = 0.000045
-	BestCaseStablePairTakerFee  = 0.00001
 )
 
 var (
-	errAccountIDEmpty            = errors.New("account id cannot be empty")
-	errClientOrderIDEmpty        = errors.New("client order id cannot be empty")
-	errProductIDEmpty            = errors.New("product id cannot be empty")
-	errOrderIDEmpty              = errors.New("order ids cannot be empty")
-	errOpenPairWithOtherTypes    = errors.New("cannot pair open orders with other order types")
-	errSizeAndPriceZero          = errors.New("size and price cannot both be 0")
-	errCurrencyEmpty             = errors.New("currency cannot be empty")
-	errCurrWalletConflict        = errors.New("exactly one of walletID and currency must be specified")
-	errWalletIDEmpty             = errors.New("wallet id cannot be empty")
-	errAddressIDEmpty            = errors.New("address id cannot be empty")
-	errTransactionTypeEmpty      = errors.New("transaction type cannot be empty")
-	errToEmpty                   = errors.New("to cannot be empty")
-	errAmountEmpty               = errors.New("amount cannot be empty")
-	errTransactionIDEmpty        = errors.New("transaction id cannot be empty")
-	errPaymentMethodEmpty        = errors.New("payment method cannot be empty")
-	errDepositIDEmpty            = errors.New("deposit id cannot be empty")
-	errInvalidPriceType          = errors.New("price type must be spot, buy, or sell")
-	errInvalidOrderType          = errors.New("order type must be market, limit, or stop")
-	errNoMatchingWallets         = errors.New("no matching wallets returned")
-	errOrderModFailNoRet         = errors.New("order modification failed but no error returned")
-	errNameEmpty                 = errors.New("name cannot be empty")
-	errPortfolioIDEmpty          = errors.New("portfolio id cannot be empty")
-	errFeeTypeNotSupported       = errors.New("fee type not supported")
-	errCantDecodePrivKey         = errors.New("cannot decode private key")
-	errNoWalletForCurrency       = errors.New("no wallet found for currency, address creation impossible")
-	errChannelNameUnknown        = errors.New("unknown channel name")
-	errNoWalletsReturned         = errors.New("no wallets returned")
-	errPayMethodNotFound         = errors.New("payment method not found")
-	errUnknownL2DataType         = errors.New("unknown l2update data type")
-	errUnknownSide               = errors.New("unknown side")
-	errInvalidGranularity        = errors.New("invalid granularity")
-	errOrderFailedToCancel       = errors.New("failed to cancel order")
-	errUnrecognisedStatusType    = errors.New("unrecognised status type")
-	errPairEmpty                 = errors.New("pair cannot be empty")
-	errStringConvert             = errors.New("unable to convert into string value")
-	errFloatConvert              = errors.New("unable to convert into float64 value")
-	errWrappedAssetEmpty         = errors.New("wrapped asset cannot be empty")
-	errExpectedOneTickerReturned = errors.New("expected one ticker to be returned")
+	errAccountIDEmpty         = errors.New("account id cannot be empty")
+	errClientOrderIDEmpty     = errors.New("client order id cannot be empty")
+	errProductIDEmpty         = errors.New("product id cannot be empty")
+	errOrderIDEmpty           = errors.New("order ids cannot be empty")
+	errOpenPairWithOtherTypes = errors.New("cannot pair open orders with other order types")
+	errSizeAndPriceZero       = errors.New("size and price cannot both be 0")
+	errCurrencyEmpty          = errors.New("currency cannot be empty")
+	errCurrWalletConflict     = errors.New("exactly one of walletID and currency must be specified")
+	errWalletIDEmpty          = errors.New("wallet id cannot be empty")
+	errAddressIDEmpty         = errors.New("address id cannot be empty")
+	errTransactionTypeEmpty   = errors.New("transaction type cannot be empty")
+	errToEmpty                = errors.New("to cannot be empty")
+	errAmountEmpty            = errors.New("amount cannot be empty")
+	errTransactionIDEmpty     = errors.New("transaction id cannot be empty")
+	errPaymentMethodEmpty     = errors.New("payment method cannot be empty")
+	errDepositIDEmpty         = errors.New("deposit id cannot be empty")
+	errInvalidPriceType       = errors.New("price type must be spot, buy, or sell")
+	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
+	errNoMatchingWallets      = errors.New("no matching wallets returned")
+	errOrderModFailNoRet      = errors.New("order modification failed but no error returned")
+	errNameEmpty              = errors.New("name cannot be empty")
+	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
+	errFeeTypeNotSupported    = errors.New("fee type not supported")
+	errCantDecodePrivKey      = errors.New("cannot decode private key")
+	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
+	errChannelNameUnknown     = errors.New("unknown channel name")
+	errNoWalletsReturned      = errors.New("no wallets returned")
+	errPayMethodNotFound      = errors.New("payment method not found")
+	errUnknownL2DataType      = errors.New("unknown l2update data type")
+	errUnknownSide            = errors.New("unknown side")
+	errInvalidGranularity     = errors.New("invalid granularity")
+	errOrderFailedToCancel    = errors.New("failed to cancel order")
+	errUnrecognisedStatusType = errors.New("unrecognised status type")
+	errPairEmpty              = errors.New("pair cannot be empty")
+	errStringConvert          = errors.New("unable to convert into string value")
+	errFloatConvert           = errors.New("unable to convert into float64 value")
+	errWrappedAssetEmpty      = errors.New("wrapped asset cannot be empty")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
