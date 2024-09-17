@@ -273,9 +273,9 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
-	allowedGranularities := [8]string{granOneMin, granFiveMin, granFifteenMin,
+	allowedGranularities := []string{granOneMin, granFiveMin, granFifteenMin,
 		granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
-	validGran, _ := common.InArray(granularity, allowedGranularities)
+	validGran := common.StringSliceContains(allowedGranularities, granularity)
 	if !validGran {
 		return nil, fmt.Errorf("%w %v, allowed granularities are: %+v", errInvalidGranularity,
 			granularity, allowedGranularities)

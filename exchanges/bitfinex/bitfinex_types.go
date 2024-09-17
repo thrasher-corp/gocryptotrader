@@ -74,7 +74,7 @@ func (a *acceptableMethodStore) lookup(curr currency.Code) []string {
 	defer a.m.RUnlock()
 	var methods []string
 	for k, v := range a.a {
-		if common.StringDataCompareInsensitive(v, curr.Upper().String()) {
+		if common.StringSliceCompareInsensitive(v, curr.Upper().String()) {
 			methods = append(methods, k)
 		}
 	}

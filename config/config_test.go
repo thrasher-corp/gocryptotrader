@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1111,7 +1112,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 	}}
 
 	exchanges := cfg.GetEnabledExchanges()
-	if !common.StringDataCompare(exchanges, bfx) {
+	if !slices.Contains(exchanges, bfx) {
 		t.Error(
 			"TestGetEnabledExchanges. Expected exchange Bitfinex not found",
 		)
@@ -1722,18 +1723,11 @@ func TestCheckConnectionMonitorConfig(t *testing.T) {
 	t.Parallel()
 
 	var c Config
-	c.ConnectionMonitor.CheckInterval = 0
-	c.ConnectionMonitor.DNSList = nil
-	c.ConnectionMonitor.PublicDomainList = nil
 	c.CheckConnectionMonitorConfig()
 
-	if c.ConnectionMonitor.CheckInterval != connchecker.DefaultCheckInterval ||
-		len(common.StringSliceDifference(
-			c.ConnectionMonitor.DNSList, connchecker.DefaultDNSList)) != 0 ||
-		len(common.StringSliceDifference(
-			c.ConnectionMonitor.PublicDomainList, connchecker.DefaultDomainList)) != 0 {
-		t.Error("unexpected values")
-	}
+	assert.Equal(t, connchecker.DefaultCheckInterval, c.ConnectionMonitor.CheckInterval)
+	assert.Equal(t, connchecker.DefaultDNSList, c.ConnectionMonitor.DNSList)
+	assert.Equal(t, connchecker.DefaultDomainList, c.ConnectionMonitor.PublicDomainList)
 }
 
 func TestDefaultFilePath(t *testing.T) {

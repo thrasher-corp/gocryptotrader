@@ -202,12 +202,12 @@ const (
 )
 
 const (
-	placeOrderEPL request.EndpointLimit = iota
-	placeMultipleOrdersEPL
-	cancelOrderEPL
-	cancelMultipleOrdersEPL
-	amendOrderEPL
-	amendMultipleOrdersEPL
+	placeOrderEPL           request.EndpointLimit = iota + 1 // This endpoint limit is shared with `Place order` Websocket API endpoints
+	placeMultipleOrdersEPL                                   // This endpoint limit is shared with `Place multiple orders` Websocket API endpoints
+	cancelOrderEPL                                           // This endpoint limit is shared with `Cancel order` Websocket API endpoints
+	cancelMultipleOrdersEPL                                  // This endpoint limit is shared with `Cancel multiple orders` Websocket API endpoints
+	amendOrderEPL                                            // This endpoint limit is shared with `Amend order` Websocket API endpoints
+	amendMultipleOrdersEPL                                   // This endpoint limit is shared with `Amend multiple orders` Websocket API endpoints
 	closePositionEPL
 	getOrderDetEPL
 	getOrderListEPL

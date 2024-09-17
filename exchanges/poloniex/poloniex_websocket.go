@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -604,7 +605,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 				}
 				req.Channel = s.Pairs[0].String()
 			}
-			err = p.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+			err = p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		}
 		if err == nil {
 			if op == wsSubscribeOp {
@@ -628,14 +629,14 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	if err != nil {
 		return err
 	}
-	request := wsAuthorisationRequest{
+	req := wsAuthorisationRequest{
 		Command: op,
 		Channel: 1000,
 		Sign:    crypto.HexEncodeToString(hmac),
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request)
+	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []interface{}) error {

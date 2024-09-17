@@ -365,18 +365,17 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 		if s.Authenticated {
 			limitType = WSAuthRate
 			err = c.signWsRequest(r)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
 		}
-		if err == nil {
-			err = c.InitiateRateLimit(context.Background(), limitType)
-		}
-		if err == nil {
-			if err = c.Websocket.Conn.SendJSONMessage(context.TODO(), r); err == nil {
-				switch op {
-				case "subscribe":
-					err = c.Websocket.AddSuccessfulSubscriptions(s)
-				case "unsubscribe":
-					err = c.Websocket.RemoveSubscriptions(s)
-				}
+		if err = c.Websocket.Conn.SendJSONMessage(context.TODO(), limitType, r); err == nil {
+			switch op {
+			case "subscribe":
+				err = c.Websocket.AddSuccessfulSubscriptions(s)
+			case "unsubscribe":
+				err = c.Websocket.RemoveSubscriptions(s)
 			}
 		}
 		errs = common.AppendError(errs, err)
