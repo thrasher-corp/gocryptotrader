@@ -2506,3 +2506,20 @@ type WsAccountResponse struct {
 	LimitAvailable float64       `json:"limitAvailable,string"`
 	UpdateTime     UnixTimestamp `json:"uTime"`
 }
+
+// WsTradeResponse contains information on a trade response
+type WsTradeResponse struct {
+	Timestamp UnixTimestamp `json:"ts"`
+	Price     float64       `json:"price,string"`
+	Size      float64       `json:"size,string"`
+	Side      string        `json:"side"`
+	TradeID   int64         `json:"tradeId,string"`
+}
+
+// WsOrderBookResponse contains information on an order book response
+type WsOrderBookResponse struct {
+	Asks      [][2]string   `json:"asks"`
+	Bids      [][2]string   `json:"bids"`
+	Timestamp UnixTimestamp `json:"ts"`
+	Checksum  int32         `json:"checksum"`
+}

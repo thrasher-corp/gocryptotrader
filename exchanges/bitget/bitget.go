@@ -203,11 +203,11 @@ const (
 
 	// Websocket endpoints
 	// Unauthenticated
-	bitgetTickerChannel      = "ticker"
 	bitgetCandleDailyChannel = "candle1D" // There's one of these for each time period, but we'll ignore those for now
+	bitgetBookFullChannel    = "books"    // There's more of these for varying orderbook depths, ignored for now
 
 	// Authenticated
-	bitgetAccountChannel = "account"
+	bitgetFillChannel = "fill"
 
 	errIntervalNotSupported           = "interval not supported"
 	errAuthenticatedWebsocketDisabled = "%v AuthenticatedWebsocketAPISupport not enabled"
@@ -283,6 +283,7 @@ var (
 	errStrategyMutex                 = errors.New("only one of immediate or cancel, fill or kill, and post only can be set to true")
 	errOrderNotFound                 = errors.New("order not found")
 	errReturnEmpty                   = errors.New("returned data unexpectedly empty")
+	errInvalidChecksum               = errors.New("invalid checksum")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}

@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -164,6 +165,9 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 			Unsubscriber:          bi.Unsubscribe,
 			GenerateSubscriptions: bi.generateDefaultSubscriptions,
 			Features:              &bi.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				Checksum: bi.CalculateUpdateOrderbookChecksum,
+			},
 		})
 	if err != nil {
 		return err
