@@ -88,21 +88,17 @@ const (
 )
 
 var (
-	errMissingMarketInstrument  = errors.New("missing market instrument")
-	errInvalidPeriod            = errors.New("invalid period specified")
-	errSortByIsRequired         = errors.New("parameter 'sortBy' is required")
-	errMissingPublicID          = errors.New("missing user public id")
-	errInvalidSendRequestAction = errors.New("invalid send request action")
-	errInvalidStarkCredentials  = errors.New("invalid stark key credentials")
-	errInvalidTransferType      = errors.New("invalid transfer type")
-	errInvalidAmount            = errors.New("amount must be greater than zero")
-	errInvalidMarket            = errors.New("missing market name")
-	errInvalidSide              = errors.New("invalid order side")
-	errInvalidPrice             = errors.New("invalid order price")
-	errInvalidExpirationTime    = errors.New("expiration must be a valid ISO string that is not less than 7 days in the future")
-	errMissingEthereumAddress   = errors.New("ethereum address is required")
-	errMissingPublicKey         = errors.New("missing public key")
-	errEmptyUsername            = errors.New("empty username is not allowed")
+	errInvalidPeriod           = errors.New("invalid period specified")
+	errSortByIsRequired        = errors.New("parameter 'sortBy' is required")
+	errMissingPublicID         = errors.New("missing user public id")
+	errInvalidStarkCredentials = errors.New("invalid stark key credentials")
+	errInvalidTransferType     = errors.New("invalid transfer type")
+	errInvalidAmount           = errors.New("amount must be greater than zero")
+	errInvalidMarket           = errors.New("missing market name")
+	errInvalidSide             = errors.New("invalid order side")
+	errInvalidPrice            = errors.New("invalid order price")
+	errInvalidExpirationTime   = errors.New("expiration must be a valid ISO string that is not less than 7 days in the future")
+	errEmptyUsername           = errors.New("empty username is not allowed")
 )
 
 // GetMarkets retrieves one or all markets as well as metadata about each retrieved market.
@@ -118,7 +114,7 @@ func (dy *DYDX) GetMarkets(ctx context.Context, instrument string) (*InstrumentD
 // GetOrderbooks retrieves  the active orderbook for a market. All bids and asks that are fillable are returned.
 func (dy *DYDX) GetOrderbooks(ctx context.Context, instrument string) (*MarketOrderbook, error) {
 	if instrument == "" {
-		return nil, errMissingMarketInstrument
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *MarketOrderbook
 	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, marketOrderbook+instrument, &resp)
@@ -127,7 +123,7 @@ func (dy *DYDX) GetOrderbooks(ctx context.Context, instrument string) (*MarketOr
 // GetTrades retrieves Trades by specified parameters. Passing in all query parameters to the HTTP endpoint would look like.
 func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBeforeOrAT time.Time, limit int64) ([]MarketTrade, error) {
 	if instrument == "" {
-		return nil, errMissingMarketInstrument
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	if !startingBeforeOrAT.IsZero() {
@@ -177,7 +173,7 @@ func (dy *DYDX) GetMarketStats(ctx context.Context, instrument string, days int6
 // GetHistoricalFunding retrieves the historical funding rates for a market.
 func (dy *DYDX) GetHistoricalFunding(ctx context.Context, instrument string, effectiveBeforeOrAt time.Time) ([]HistoricalFunding, error) {
 	if instrument == "" {
-		return nil, errMissingMarketInstrument
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	if !effectiveBeforeOrAt.IsZero() {
@@ -187,32 +183,29 @@ func (dy *DYDX) GetHistoricalFunding(ctx context.Context, instrument string, eff
 	return resp.HistoricalFundings, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(marketHistoricalFunds+instrument, params), &resp)
 }
 
+var klineMap = map[kline.Interval]string{
+	kline.OneMin:     "1MIN",
+	kline.FiveMin:    "5MINS",
+	kline.FifteenMin: "15MINS",
+	kline.ThirtyMin:  "30MINS",
+	kline.OneHour:    "1HOUR",
+	kline.FourHour:   "4HOURS",
+	kline.OneDay:     "1DAY",
+}
+
 // GetResolutionFromInterval returns the resolution(string representation of interval) from interval instance if supported by the exchange.
 func (dy *DYDX) GetResolutionFromInterval(interval kline.Interval) (string, error) {
-	switch interval {
-	case kline.OneMin:
-		return "1MIN", nil
-	case kline.FiveMin:
-		return "5MINS", nil
-	case kline.FifteenMin:
-		return "15MINS", nil
-	case kline.ThirtyMin:
-		return "30MINS", nil
-	case kline.OneHour:
-		return "1HOUR", nil
-	case kline.FourHour:
-		return "4HOURS", nil
-	case kline.OneDay:
-		return "1DAY", nil
-	default:
+	intervalString, ok := klineMap[interval]
+	if !ok {
 		return "", kline.ErrUnsupportedInterval
 	}
+	return intervalString, nil
 }
 
 // GetCandlesForMarket retrieves the candle statistics for a market.
 func (dy *DYDX) GetCandlesForMarket(ctx context.Context, instrument string, interval kline.Interval, fromISO, toISO string, limit int64) ([]MarketCandle, error) {
 	if instrument == "" {
-		return nil, errMissingMarketInstrument
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	resolution, err := dy.GetResolutionFromInterval(interval)
 	if err != nil {
@@ -922,7 +915,7 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 		h.Write([]byte(message))
 		headers := make(map[string]string)
 		headers["DYDX-SIGNATURE"] = base64.URLEncoding.EncodeToString(h.Sum(nil))
-		headers["DYDX-PASSPHRASE"] = creds.PEMKey
+		headers["DYDX-PASSPHRASE"] = creds.ClientID
 		headers["DYDX-API-KEY"] = creds.Key
 		headers["DYDX-TIMESTAMP"] = timestamp
 		headers["Content-Type"] = "application/json"

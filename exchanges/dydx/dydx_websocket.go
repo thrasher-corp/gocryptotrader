@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -235,14 +234,6 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 	return nil
-}
-
-func (dy *DYDX) processAccount(acct *Account) {
-	dy.Websocket.DataHandler <- account.Change{
-		Exchange: dy.Name,
-		Asset:    asset.Spot,
-		Amount:   acct.QuoteBalance.Float64(),
-	}
 }
 
 // processOrders processes incoming orders with push data.

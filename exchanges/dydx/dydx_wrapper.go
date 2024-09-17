@@ -215,7 +215,7 @@ func (dy *DYDX) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (dy *DYDX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !dy.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, dy.Name)
+		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
 	instruments, err := dy.GetMarkets(ctx, "")
 	if err != nil {
@@ -449,7 +449,7 @@ func (dy *DYDX) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 // GetWithdrawalsHistory returns previous withdrawals data
 func (dy *DYDX) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	if !dy.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset %v not supported", a)
+		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
 	transfers, err := dy.GetTransfers(ctx, "", 0, time.Time{})
 	if err != nil {
@@ -475,7 +475,7 @@ func (dy *DYDX) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a as
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (dy *DYDX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if !dy.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
 	format, err := dy.GetPairFormat(assetType, false)
 	if err != nil {
@@ -519,7 +519,7 @@ func (dy *DYDX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (dy *DYDX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
 	if !dy.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
 	format, err := dy.GetPairFormat(assetType, false)
 	if err != nil {
@@ -621,10 +621,10 @@ func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*
 			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, orders[x].AssetType)
 		}
 		if orders[x].Pair.IsEmpty() && orders[x].OrderID == "" {
-			return nil, errors.New("either market or order ID must to be specified")
+			return nil, order.ErrOrderIDNotSet
 		}
 		if orders[x].OrderID != "" && (orders[x].Side == order.UnknownSide || orders[x].Side == order.AnySide) {
-			return nil, errors.New("if id is present in the request then side is required")
+			return nil, order.ErrSideIsInvalid
 		}
 		var formattedPair string
 		if !orders[x].Pair.IsEmpty() {
@@ -659,7 +659,7 @@ func (dy *DYDX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	if orderID == "" {
-		return nil, errors.New("order ID is required")
+		return nil, order.ErrOrderIDNotSet
 	}
 	orderDetail, err := dy.GetOrderByID(ctx, orderID)
 	if err != nil {
