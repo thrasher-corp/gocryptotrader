@@ -1200,7 +1200,6 @@ func TestFlushChannels(t *testing.T) {
 	err = w.FlushChannels()
 	require.NoError(t, err, "Flush Channels must not error")
 
-	// w.features.FullPayloadSubscribe = true
 	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
 	err = w.FlushChannels()                                                               // error on full subscribeToChannels
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
