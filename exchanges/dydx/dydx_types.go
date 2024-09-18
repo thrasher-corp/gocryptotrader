@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -880,9 +881,9 @@ type FastWithdrawalParam struct {
 
 // FastWithdrawalRequestParam represents a parameter for fast withdrawal
 type FastWithdrawalRequestParam struct {
-	CreditAsset  string  `json:"creditAsset,string"`
-	CreditAmount float64 `json:"creditAmount,string"`
-	DebitAmount  float64 `json:"debitAmount,string"`
+	CreditAsset  currency.Code `json:"creditAsset"`
+	CreditAmount float64       `json:"creditAmount,omitempty,string"`
+	DebitAmount  float64       `json:"debitAmount,omitempty,string"`
 }
 
 // TransferParam represents a parameter for transfer

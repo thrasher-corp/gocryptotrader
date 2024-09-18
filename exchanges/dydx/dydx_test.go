@@ -76,8 +76,12 @@ func TestGetOrderbooks(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := dy.GetTrades(context.Background(), "CRV-USD", time.Time{}, 5)
+	_, err := dy.GetTrades(context.Background(), "", time.Now(), 0)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := dy.GetTrades(context.Background(), "CRV-USD", time.Time{}, 5)
 	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetFastWithdrawalLiquidity(t *testing.T) {
