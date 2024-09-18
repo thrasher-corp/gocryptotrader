@@ -52,7 +52,7 @@ func (l List) GroupByPairs() []List {
 outer:
 	for _, a := range l {
 		for i, b := range n {
-			if a.Pairs.Equal(b[0].Pairs) {
+			if a.Pairs.Equal(b[0].Pairs) { // Note: b is guaranteed to have 1 element by the append(n) below
 				n[i] = append(n[i], a)
 				continue outer
 			}
