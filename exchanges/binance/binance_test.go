@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -44,8 +43,6 @@ const (
 
 var (
 	b = &Binance{}
-	// this lock guards against orderbook tests race
-	binanceOrderBookLock = &sync.Mutex{}
 	// this pair is used to ensure that endpoints match it correctly
 	testPairMapping = currency.NewPair(currency.DOGE, currency.USDT)
 )
@@ -2082,8 +2079,9 @@ func TestWsTradeUpdate(t *testing.T) {
 }
 
 func TestWsDepthUpdate(t *testing.T) {
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
+	t.Parallel()
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	b.setupOrderbookManager()
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
@@ -2470,8 +2468,9 @@ var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["1945
 
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	b.setupOrderbookManager()
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
