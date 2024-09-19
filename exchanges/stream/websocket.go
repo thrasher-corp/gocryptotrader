@@ -1013,7 +1013,7 @@ func (w *Websocket) GetName() string {
 // and the new subscription list when pairs are disabled or enabled.
 func (w *Websocket) GetChannelDifference(conn Connection, newSubs subscription.List) (sub, unsub subscription.List) {
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = &wrapper.Subscriptions
 	} else {
 		subscriptionStore = &w.subscriptions
@@ -1029,7 +1029,7 @@ func (w *Websocket) UnsubscribeChannels(conn Connection, channels subscription.L
 	if len(channels) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		return w.unsubscribe(wrapper.Subscriptions, channels, func(channels subscription.List) error {
 			return wrapper.Setup.Unsubscriber(context.TODO(), conn, channels)
 		})
@@ -1075,7 +1075,7 @@ func (w *Websocket) SubscribeToChannels(conn Connection, subs subscription.List)
 		return err
 	}
 
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		return wrapper.Setup.Subscriber(context.TODO(), conn, subs)
 	}
 
@@ -1096,7 +1096,7 @@ func (w *Websocket) AddSubscriptions(conn Connection, subs ...*subscription.Subs
 		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = &wrapper.Subscriptions
 	} else {
 		subscriptionStore = &w.subscriptions
@@ -1126,7 +1126,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(conn Connection, subs ...*subscri
 	}
 
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = &wrapper.Subscriptions
 	} else {
 		subscriptionStore = &w.subscriptions
@@ -1155,7 +1155,7 @@ func (w *Websocket) RemoveSubscriptions(conn Connection, subs ...*subscription.S
 	}
 
 	var subscriptionStore *subscription.Store
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = wrapper.Subscriptions
 	} else {
 		subscriptionStore = w.subscriptions
@@ -1242,7 +1242,7 @@ func checkWebsocketURL(s string) error {
 // The subscription state is not considered when counting existing subscriptions
 func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
-	if wrapper, ok := w.connections[conn]; ok {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = wrapper.Subscriptions
 	} else {
 		subscriptionStore = w.subscriptions

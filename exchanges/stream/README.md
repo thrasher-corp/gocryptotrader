@@ -4,15 +4,23 @@ This package is part of the GoCryptoTrader project and is responsible for handli
 
 ## Overview
 
-The `stream` package provides functionalities to connect to various cryptocurrency exchanges and handle real-time data streams.
+The `stream` package uses Gorilla Websocket and provides functionalities to connect to various cryptocurrency exchanges and handle real-time data streams.
 
 ## Features
 
 - Handle real-time market data streams
 - Unified interface for managing data streams
+- Multi-connection management - a system that can be used to manage multiple connections to the same exchange
+- Connection monitoring - a system that can be used to monitor the health of the websocket connections. This can be used to check if the connection is still alive and if it is not, it will attempt to reconnect
+- Traffic monitoring - will reconnect if no message is sent for a period of time defined in your config
+- Subscription management - a system that can be used to manage subscriptions to various data streams
+- Rate limiting - a system that can be used to rate limit the number of requests sent to the exchange
+- Message ID generation - a system that can be used to generate message IDs for websocket requests
+- Websocket message response matching - can be used to match websocket responses to the requests that were sent
 
 ## Usage
 
+### Default single websocket connection
 Here is a basic example of how to setup the `stream` package for websocket:
 
 ```go
@@ -73,9 +81,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	})
 }
+```
 
-// The example below provides the now optional multi connection management system which allows for more connections
-// to be maintained and established based off URL, connections types, asset types etc.
+### Multiple websocket connections
+ The example below provides the now optional multi connection management system which allows for more connections
+ to be maintained and established based off URL, connections types, asset types etc.
+```go
 func (e *Exchange) Setup(exch *config.Exchange) error {
     // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
     if err := e.Websocket.Setup(&stream.WebsocketSetup{

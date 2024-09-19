@@ -1241,8 +1241,6 @@ func TestFlushChannels(t *testing.T) {
 
 	// Multi connection management
 	w.useMultiConnectionManagement = true
-	w.exchangeName = "multi"
-
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
