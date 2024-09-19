@@ -1182,6 +1182,7 @@ func TestFlushChannels(t *testing.T) {
 	}}
 
 	w := NewWebsocket()
+	w.exchangeName = "test"
 	w.connector = connect
 	w.Subscriber = newgen.SUBME
 	w.Unsubscriber = newgen.UNSUBME
