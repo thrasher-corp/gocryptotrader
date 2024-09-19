@@ -119,18 +119,21 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 			log.Errorf(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
 		}
 	}
+
 getEnabledPairs:
+
+	pairs, err := g.GetEnabledPairs(asset.Options)
+	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil // no enabled pairs, subscriptions require an associated pair.
+		}
+		return nil, err
+	}
+
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
-		pairs, err := g.GetEnabledPairs(asset.Options)
-		if err != nil {
-			if errors.Is(err, asset.ErrNotEnabled) {
-				continue // skip if not enabled
-			}
-			return nil, err
-		}
 		for j := range pairs {
-			params := make(map[string]interface{})
+			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case optionsOrderbookChannel:
 				params["accuracy"] = "0"
@@ -152,13 +155,13 @@ getEnabledPairs:
 				}
 				params["user_id"] = userID
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {
 				return nil, err
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fpair.Upper()},
+				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
 			})
 		}

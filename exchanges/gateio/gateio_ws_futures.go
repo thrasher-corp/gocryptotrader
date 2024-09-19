@@ -95,16 +95,16 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 		)
 	}
 
+	pairs, err := g.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil // no enabled pairs, subscriptions require an associated pair.
+		}
+		return nil, err
+	}
+
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
-		pairs, err := g.GetEnabledPairs(asset.Futures)
-		if err != nil {
-			if errors.Is(err, asset.ErrNotEnabled) {
-				continue // skip if not enabled
-			}
-			return nil, err
-		}
-
 		switch {
 		case settlement.Equal(currency.USDT):
 			pairs, err = pairs.GetPairsByQuote(currency.USDT)
@@ -126,7 +126,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 		}
 
 		for j := range pairs {
-			params := make(map[string]interface{})
+			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
 				params["limit"] = 100
@@ -137,13 +137,13 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
 			if err != nil {
 				return nil, err
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fpair.Upper()},
+				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
 			})
 		}

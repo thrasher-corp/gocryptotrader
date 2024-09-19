@@ -631,20 +631,17 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 		switch channelsToSubscribe[i] {
 		case marginBalancesChannel:
 			assetType = asset.Margin
-			if pairs, err = g.GetEnabledPairs(asset.Margin); err != nil && !errors.Is(err, asset.ErrNotEnabled) {
-				return nil, err
-			}
+			pairs, err = g.GetEnabledPairs(asset.Margin)
 		case crossMarginBalanceChannel:
 			assetType = asset.CrossMargin
-			if pairs, err = g.GetEnabledPairs(asset.CrossMargin); err != nil && !errors.Is(err, asset.ErrNotEnabled) {
-				return nil, err
-			}
+			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
 		default:
 			// TODO: Check and add balance support as spot balances can be subscribed without a currency pair supplied.
 			assetType = asset.Spot
-			if pairs, err = g.GetEnabledPairs(asset.Spot); err != nil && !errors.Is(err, asset.ErrNotEnabled) {
-				return nil, err
-			}
+			pairs, err = g.GetEnabledPairs(asset.Spot)
+		}
+		if err != nil && !errors.Is(err, asset.ErrNotEnabled) {
+			return nil, err
 		}
 
 		for j := range pairs {
