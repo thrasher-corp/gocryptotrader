@@ -2,15 +2,16 @@ package subscription
 
 import "sync"
 
-// Result stores the result of a subscription request, this is helpful when
-// you need concurrent subscription requests and need to know which ones failed.
+// Result stores the result of a subscription request, this is helpful when you need concurrent subscription requests
+// and need to know which ones failed.
 type Result struct {
 	store map[*Subscription]error
+	wg    sync.WaitGroup
 	m     sync.Mutex
 }
 
 // Add adds a subscription to the result store
-func (r *Result) Add(sub *Subscription, err error) {
+func (r *Result) add(sub *Subscription, err error) {
 	if r == nil || sub == nil {
 		return
 	}
@@ -54,4 +55,22 @@ func (r *Result) GetUnsuccessful() map[*Subscription]error {
 		out[sub] = err
 	}
 	return out
+}
+
+// Action is a function that returns an error for specific subscription actions
+type Action func() error
+
+// RunRoutine runs the subscription routine
+func (r *Result) RunRoutine(s *Subscription, subscribeOrUnsubscribe Action) {
+	r.wg.Add(1)
+	go func() {
+		r.add(s, subscribeOrUnsubscribe())
+		r.wg.Done()
+	}()
+}
+
+// ReturnWhenFinished waits for all routines to finish and returns the result
+func (r *Result) ReturnWhenFinished() *Result {
+	r.wg.Wait()
+	return r
 }

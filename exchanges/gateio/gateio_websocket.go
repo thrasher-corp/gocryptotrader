@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -689,33 +688,25 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	if err != nil {
 		return nil, err
 	}
-
 	var result subscription.Result
-	var wg sync.WaitGroup
-	wg.Add(len(payloads))
 	for i := range payloads {
-		go func(sub *subscription.Subscription, out *WsInput) {
-			defer wg.Done()
-			response, err := conn.SendMessageReturnResponse(ctx, request.Unset, out.ID, out)
+		result.RunRoutine(channelsToSubscribe[i], func() error {
+			response, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[i].ID, payloads[i])
 			if err != nil {
-				result.Add(sub, err)
-				return
+				return err
 			}
 			var resp WsEventResponse
 			err = json.Unmarshal(response, &resp)
 			if err != nil {
-				result.Add(sub, err)
-				return
+				return err
 			}
 			if resp.Error != nil && resp.Error.Code != 0 {
-				result.Add(sub, fmt.Errorf("error while %s to channel %s error code: %d message: %s", out.Event, out.Channel, resp.Error.Code, resp.Error.Message))
-				return
+				return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[i].Event, payloads[i].Channel, resp.Error.Code, resp.Error.Message)
 			}
-			result.Add(sub, nil)
-		}(channelsToSubscribe[i], &payloads[i])
+			return nil
+		})
 	}
-	wg.Wait()
-	return &result, nil
+	return result.ReturnWhenFinished(), nil
 }
 
 func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
