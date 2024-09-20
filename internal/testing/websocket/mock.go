@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -32,17 +31,10 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 	defer c.Close()
 	for {
 		_, p, err := c.ReadMessage()
-		if websocket.IsUnexpectedCloseError(err) {
+		if err != nil {
+			// Any error here is likely due to the connection closing
 			return
 		}
-
-		if err != nil && (strings.Contains(err.Error(), "wsarecv: An established connection was aborted by the software in your host machine.") ||
-			strings.Contains(err.Error(), "wsarecv: An existing connection was forcibly closed by the remote host.")) {
-			return
-		}
-
-		require.NoError(tb, err, "ReadMessage should not error")
-
 		err = wsHandler(p, c)
 		assert.NoError(tb, err, "WS Mock Function should not error")
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -84,7 +85,7 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn stream.Connection) e
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
@@ -118,15 +119,21 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 			log.Errorf(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
 		}
 	}
+
 getEnabledPairs:
-	var subscriptions subscription.List
+
 	pairs, err := g.GetEnabledPairs(asset.Options)
 	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil // no enabled pairs, subscriptions require an associated pair.
+		}
 		return nil, err
 	}
+
+	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
 		for j := range pairs {
-			params := make(map[string]interface{})
+			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case optionsOrderbookChannel:
 				params["accuracy"] = "0"
@@ -148,13 +155,13 @@ getEnabledPairs:
 				}
 				params["user_id"] = userID
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {
 				return nil, err
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fpair.Upper()},
+				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
 			})
 		}

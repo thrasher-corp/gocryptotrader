@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -54,7 +55,7 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn stream.Conne
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
@@ -71,22 +72,21 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 	}
 	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(
-			channelsToSubscribe,
-			futuresOrdersChannel,
-			futuresUserTradesChannel,
-			futuresBalancesChannel,
-		)
+		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
+
 	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil // no enabled pairs, subscriptions require an associated pair.
+		}
 		return nil, err
 	}
 
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
 		for j := range pairs {
-			params := make(map[string]interface{})
+			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
 				params["limit"] = 20
@@ -94,13 +94,13 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
 			if err != nil {
 				return nil, err
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fpair.Upper()},
+				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
 			})
 		}

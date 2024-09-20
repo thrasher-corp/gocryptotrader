@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -73,7 +74,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		MessageType: websocket.PingMessage,
 		Delay:       time.Second * 15,
@@ -92,36 +93,39 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			futuresBalancesChannel,
 		)
 	}
+
 	pairs, err := g.GetEnabledPairs(asset.Futures)
 	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil // no enabled pairs, subscriptions require an associated pair.
+		}
 		return nil, err
 	}
 
-	switch {
-	case settlement.Equal(currency.USDT):
-		pairs, err = pairs.GetPairsByQuote(currency.USDT)
-		if err != nil {
-			return nil, err
-		}
-	case settlement.Equal(currency.BTC):
-		offset := 0
-		for x := range pairs {
-			if pairs[x].Quote.Equal(currency.USDT) {
-				continue // skip USDT pairs
-			}
-			pairs[offset] = pairs[x]
-			offset++
-		}
-		pairs = pairs[:offset]
-	default:
-		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
-	}
-
-	subscriptions := make(subscription.List, len(channelsToSubscribe)*len(pairs))
-	count := 0
+	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
+		switch {
+		case settlement.Equal(currency.USDT):
+			pairs, err = pairs.GetPairsByQuote(currency.USDT)
+			if err != nil {
+				return nil, err
+			}
+		case settlement.Equal(currency.BTC):
+			offset := 0
+			for x := range pairs {
+				if pairs[x].Quote.Equal(currency.USDT) {
+					continue // skip USDT pairs
+				}
+				pairs[offset] = pairs[x]
+				offset++
+			}
+			pairs = pairs[:offset]
+		default:
+			return nil, fmt.Errorf("settlement currency %s not supported", settlement)
+		}
+
 		for j := range pairs {
-			params := make(map[string]interface{})
+			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
 				// Level is set to 10 as it's the most stable, anything larger with a lot of subscripted books will start producing errors
@@ -134,16 +138,15 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
 			if err != nil {
 				return nil, err
 			}
-			subscriptions[count] = &subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fpair.Upper()},
+				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
-			}
-			count++
+			})
 		}
 	}
 	return subscriptions, nil

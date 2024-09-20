@@ -23,7 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -2980,6 +2983,10 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
 		t.Error(err)
 	}
+
+	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
+		t.Error(err)
+	}
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -3610,4 +3617,81 @@ func TestGetUnifiedAccount(t *testing.T) {
 func TestGenerateWebsocketMessageID(t *testing.T) {
 	t.Parallel()
 	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
+}
+
+func TestTime(t *testing.T) {
+	t.Parallel()
+	var testTime Time
+
+	require.NoError(t, json.Unmarshal([]byte(`0`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`""`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"0"`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	// seconds
+	require.NoError(t, json.Unmarshal([]byte(`"1628736847"`), &testTime))
+	assert.Equal(t, time.Unix(1628736847, 0), testTime.Time())
+
+	// milliseconds
+	require.NoError(t, json.Unmarshal([]byte(`"1726104395.5"`), &testTime))
+	assert.Equal(t, time.UnixMilli(1726104395500), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1726104395.56"`), &testTime))
+	assert.Equal(t, time.UnixMilli(1726104395560), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1628736847325"`), &testTime))
+	assert.Equal(t, time.UnixMilli(1628736847325), testTime.Time())
+
+	// microseconds
+	require.NoError(t, json.Unmarshal([]byte(`"1628736847325123"`), &testTime))
+	assert.Equal(t, time.UnixMicro(1628736847325123), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1726106210903.0"`), &testTime))
+	assert.Equal(t, time.UnixMicro(1726106210903000), testTime.Time())
+
+	// nanoseconds
+	require.NoError(t, json.Unmarshal([]byte(`"1606292218213.4578"`), &testTime))
+	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1606292218213457800"`), &testTime))
+	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
+}
+
+// 5046307	       216.0 ns/op	     168 B/op	       2 allocs/op (current)
+// 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
+func BenchmarkTime(b *testing.B) {
+	var testTime Time
+	for i := 0; i < b.N; i++ {
+		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+type DummyConnection struct{ stream.Connection }
+
+func (d *DummyConnection) GenerateMessageID(bool) int64 { return 1337 }
+func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
+}
+
+func TestHandleSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
+
+	_, err := g.handleSubscription(context.Background(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, stream.Connection, string, subscription.List) ([]WsInput, error) {
+		return []WsInput{{}}, nil
+	})
+	require.NoError(t, err)
+
+	_, err = g.handleSubscription(context.Background(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, stream.Connection, string, subscription.List) ([]WsInput, error) {
+		return []WsInput{{}}, nil
+	})
+	require.NoError(t, err)
 }
