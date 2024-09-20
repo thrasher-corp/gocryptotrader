@@ -18,10 +18,7 @@ func TestIsEmpty(t *testing.T) {
 	if !c.IsEmpty() {
 		t.Fatalf("expected: %v but received: %v", true, c.IsEmpty())
 	}
-	c.PrivateKey = "sample_private_key"
-	if c.IsEmpty() {
-		t.Fatalf("expected: %v but reveived: %v", false, c.IsEmpty())
-	}
+
 	c.SubAccount = "woow"
 	if c.IsEmpty() {
 		t.Fatalf("expected: %v but received: %v", false, c.IsEmpty())

@@ -964,6 +964,9 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.L2Key,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.L2Secret,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.L2KeyYCoordinate,
 		)
 		_, err := base.GetCredentials(context.TODO())
 		if err != nil {

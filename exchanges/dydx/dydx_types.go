@@ -96,33 +96,36 @@ var (
 
 // InstrumentDatas metadata about each retrieved market.
 type InstrumentDatas struct {
-	Markets map[string]*struct {
-		Market                           string       `json:"market"`
-		Status                           string       `json:"status"`
-		BaseAsset                        string       `json:"baseAsset"`
-		QuoteAsset                       string       `json:"quoteAsset"`
-		StepSize                         types.Number `json:"stepSize"`
-		TickSize                         types.Number `json:"tickSize"`
-		IndexPrice                       types.Number `json:"indexPrice"`
-		OraclePrice                      types.Number `json:"oraclePrice"`
-		PriceChange24H                   types.Number `json:"priceChange24H"`
-		NextFundingRate                  types.Number `json:"nextFundingRate"`
-		NextFundingAt                    time.Time    `json:"nextFundingAt"`
-		MinOrderSize                     types.Number `json:"minOrderSize"`
-		Type                             string       `json:"type"`
-		InitialMarginFraction            types.Number `json:"initialMarginFraction"`
-		MaintenanceMarginFraction        types.Number `json:"maintenanceMarginFraction"`
-		BaselinePositionSize             types.Number `json:"baselinePositionSize"`
-		IncrementalPositionSize          types.Number `json:"incrementalPositionSize"`
-		IncrementalInitialMarginFraction types.Number `json:"incrementalInitialMarginFraction"`
-		Volume24H                        types.Number `json:"volume24H"`
-		Trades24H                        types.Number `json:"trades24H"`
-		OpenInterest                     string       `json:"openInterest"`
-		MaxPositionSize                  types.Number `json:"maxPositionSize"`
-		AssetResolution                  string       `json:"assetResolution"`
-		SyntheticAssetID                 string       `json:"syntheticAssetId"`
-		TransferMarginFraction           string       `json:"transferMarginFraction"`
-	} `json:"markets"`
+	Markets map[string]MarketDataDetail `json:"markets"`
+}
+
+// MarketDataDetail represents a market data detail
+type MarketDataDetail *struct {
+	Market                           string       `json:"market"`
+	Status                           string       `json:"status"`
+	BaseAsset                        string       `json:"baseAsset"`
+	QuoteAsset                       string       `json:"quoteAsset"`
+	StepSize                         types.Number `json:"stepSize"`
+	TickSize                         types.Number `json:"tickSize"`
+	IndexPrice                       types.Number `json:"indexPrice"`
+	OraclePrice                      types.Number `json:"oraclePrice"`
+	PriceChange24H                   types.Number `json:"priceChange24H"`
+	NextFundingRate                  types.Number `json:"nextFundingRate"`
+	NextFundingAt                    time.Time    `json:"nextFundingAt"`
+	MinOrderSize                     types.Number `json:"minOrderSize"`
+	Type                             string       `json:"type"`
+	InitialMarginFraction            types.Number `json:"initialMarginFraction"`
+	MaintenanceMarginFraction        types.Number `json:"maintenanceMarginFraction"`
+	BaselinePositionSize             types.Number `json:"baselinePositionSize"`
+	IncrementalPositionSize          types.Number `json:"incrementalPositionSize"`
+	IncrementalInitialMarginFraction types.Number `json:"incrementalInitialMarginFraction"`
+	Volume24H                        types.Number `json:"volume24H"`
+	Trades24H                        types.Number `json:"trades24H"`
+	OpenInterest                     string       `json:"openInterest"`
+	MaxPositionSize                  types.Number `json:"maxPositionSize"`
+	AssetResolution                  string       `json:"assetResolution"`
+	SyntheticAssetID                 string       `json:"syntheticAssetId"`
+	TransferMarginFraction           string       `json:"transferMarginFraction"`
 }
 
 // MarketOrderbook represents  bids and asks that are fillable are returned.
@@ -577,7 +580,7 @@ type AccountsResponse struct {
 
 // AccountResponse represents the list of accounts instance.
 type AccountResponse struct {
-	Account []Account `json:"accounts"`
+	Account *Account `json:"accounts"`
 }
 
 // Account represents a user account instance.

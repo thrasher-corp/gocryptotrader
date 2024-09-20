@@ -1462,7 +1462,11 @@
      "authenticatedWebsocketApiSupport": true,
      "credentials": {
       "key": "Key",
-      "secret": "Secret"
+      "secret": "Secret",
+      "clientID": "ClientID",
+      "l2Key":     "L2Key",
+      "l2Secret": "L2Secret",
+      "l2KeyYCoordinate": "L2KeyYCoordinate"
      },
      "urlEndpoints": null
     },

@@ -29,9 +29,11 @@ const (
 	apiSecret  = ""
 	passphrase = ""
 
-	privateKey = ""
+	starkKey            = ""
+	starkSecret         = ""
+	starkKeyYCoordinate = ""
 
-	demoEthereumAddress = ""
+	ethereumAddress = ""
 
 	canManipulateRealOrders = false
 )
@@ -343,7 +345,7 @@ func TestGetUsers(t *testing.T) {
 func TestUpdateusers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.Updateusers(context.Background(), &UpdateUserParams{
+	_, err := dy.UpdateUsers(context.Background(), &UpdateUserParams{
 		IsSharingUsername: true,
 		IsSharingAddress:  true,
 	})
@@ -390,7 +392,7 @@ func TestGetAccount(t *testing.T) {
 func TestGetAccountLeaderboardPNLs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.GetAccountLeaderboardPNLs(context.Background(), "WEEKLY", time.Time{})
+	_, err := dy.GetAccountLeaderboardPNL(context.Background(), "WEEKLY", time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -498,7 +500,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderByID(t *testing.T) {
 	t.Parallel()
-	_, err := dy.GetOrderByID(context.Background(), "1234")
+	_, err := dy.GetOrderByID(context.Background(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)

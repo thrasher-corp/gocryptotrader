@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 		ku.API.AuthenticatedSupport = true
 		ku.API.AuthenticatedWebsocketSupport = true
 		ku.API.CredentialsValidator.RequiresBase64DecodeSecret = false
-		ku.SetCredentials(apiKey, apiSecret, passPhrase, "", "", "")
+		ku.SetCredentials(apiKey, apiSecret, passPhrase, "", "", "", "", "", "")
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 

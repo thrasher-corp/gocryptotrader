@@ -172,9 +172,6 @@ func (c *Config) PurgeExchangeAPICredentials() {
 			c.Exchanges[x].API.Credentials.ClientID = DefaultAPIClientID
 		}
 
-		if c.Exchanges[x].API.CredentialsValidator.RequiresPrivateKey {
-			c.Exchanges[x].API.Credentials.PrivateKey = DefaultAPIPrivateKey
-		}
 		c.Exchanges[x].API.Credentials.PEMKey = ""
 		c.Exchanges[x].API.Credentials.OTPSecret = ""
 	}
@@ -1009,6 +1006,21 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID &&
 					(c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
+					failed = true
+				}
+
+				if c.Exchanges[i].API.CredentialsValidator.RequiresL2Key &&
+					(c.Exchanges[i].API.Credentials.L2Key == DefaultAPIL2Key || c.Exchanges[i].API.Credentials.L2Key == "") {
+					failed = true
+				}
+
+				if c.Exchanges[i].API.CredentialsValidator.RequiresL2Secret &&
+					(c.Exchanges[i].API.Credentials.L2Secret == DefaultAPIL2Secret || c.Exchanges[i].API.Credentials.L2Secret == "") {
+					failed = true
+				}
+
+				if c.Exchanges[i].API.CredentialsValidator.RequiresL2KeyYCoordinate &&
+					(c.Exchanges[i].API.Credentials.L2KeyYCoordinate == DefaultAPIL2KeyYCoordinate || c.Exchanges[i].API.Credentials.L2KeyYCoordinate == "") {
 					failed = true
 				}
 

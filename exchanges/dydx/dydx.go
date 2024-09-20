@@ -23,11 +23,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/internal/utils/starkex"
 )
 
 // DYDX is the overarching type across this package
 type DYDX struct {
 	exchange.Base
+
+	// SymbolsConfig represents all symbols configuration.
+	SymbolsConfig *InstrumentDatas
+
+	StarkConfig       *starkex.StarkConfig
+	UserAccountDetail *Account
 }
 
 const (
@@ -35,15 +42,6 @@ const (
 	dydxAPIURL                  = "https://api.dydx.exchange/" + dydxAPIVersion
 	dydxAPIVersion              = "v3/"
 	dydxWSAPIURL                = "wss://api.dydx.exchange/" + dydxAPIVersion + "ws"
-
-	// Public endpoints
-	fastWithdrawals      = "fast-withdrawals"
-	marketCandles        = "candles/" // candles/:market
-	globalConfigurations = "config"
-	usersExists          = "users/exists"
-	usernameExists       = "usernames"
-	apiServerTime        = "time"
-	leaderboardPNL       = "leaderboard-pnl"
 
 	// Authenticated endpoints
 	onboarding   = "onboarding"
@@ -55,12 +53,11 @@ const (
 var (
 	errInvalidPeriod           = errors.New("invalid period specified")
 	errSortByIsRequired        = errors.New("parameter 'sortBy' is required")
+	errTokenRequired           = errors.New("token must not be empty")
 	errMissingPublicID         = errors.New("missing user public id")
 	errInvalidStarkCredentials = errors.New("invalid stark key credentials")
 	errInvalidTransferType     = errors.New("invalid transfer type")
-	errInvalidAmount           = errors.New("amount must be greater than zero")
 	errInvalidMarket           = errors.New("missing market name")
-	errInvalidSide             = errors.New("invalid order side")
 	errInvalidPrice            = errors.New("invalid order price")
 	errInvalidExpirationTime   = errors.New("expiration must be a valid ISO string that is not less than 7 days in the future")
 	errEmptyUsername           = errors.New("empty username is not allowed")
@@ -120,7 +117,7 @@ func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, param FastWithdr
 		params.Set("debitAmount", strconv.FormatFloat(param.DebitAmount, 'f', -1, 64))
 	}
 	var resp *WithdrawalLiquidityResponse
-	return resp.LiquidityProviders, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(fastWithdrawals, params), &resp)
+	return resp.LiquidityProviders, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues("fast-withdrawals", params), &resp)
 }
 
 // GetMarketStats retrieves an individual market's statistics over a set period of time or all available periods of time.
@@ -186,13 +183,13 @@ func (dy *DYDX) GetCandlesForMarket(ctx context.Context, instrument string, inte
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *MarketCandlesResponse
-	return resp.Candles, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(marketCandles+instrument, params), &resp)
+	return resp.Candles, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues("candles/"+instrument, params), &resp)
 }
 
 // GetGlobalConfigurationVariables retrieves any global configuration variables for the exchange as a whole.
 func (dy *DYDX) GetGlobalConfigurationVariables(ctx context.Context) (*ConfigurationVariableResponse, error) {
 	var resp *ConfigurationVariableResponse
-	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, globalConfigurations, &resp)
+	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, "config", &resp)
 }
 
 // CheckIfUserExists checks if a user exists for a given Ethereum address.
@@ -200,7 +197,7 @@ func (dy *DYDX) CheckIfUserExists(ctx context.Context, ethereumAddress string) (
 	resp := &struct {
 		Exists bool `json:"exists"`
 	}{}
-	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, usersExists+"?ethereumAddress="+ethereumAddress, resp)
+	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, "users/exists?ethereumAddress="+ethereumAddress, resp)
 }
 
 // CheckIfUsernameExists check if a username has been taken by a user.
@@ -211,13 +208,13 @@ func (dy *DYDX) CheckIfUsernameExists(ctx context.Context, username string) (boo
 	resp := &struct {
 		Exists bool `json:"exists"`
 	}{}
-	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, usernameExists+"?username="+username, resp)
+	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, "usernames?username="+username, resp)
 }
 
 // GetAPIServerTime get the current time of the API server.
 func (dy *DYDX) GetAPIServerTime(ctx context.Context) (*APIServerTime, error) {
 	var resp *APIServerTime
-	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, apiServerTime, &resp)
+	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, "time", &resp)
 }
 
 // GetPublicLeaderboardPNLs retrieves the top PNLs for a specified period and how they rank against each other.
@@ -238,7 +235,7 @@ func (dy *DYDX) GetPublicLeaderboardPNLs(ctx context.Context, period, sortBy str
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *LeaderboardPNLs
-	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(leaderboardPNL, params), &resp)
+	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues("leaderboard-pnl", params), &resp)
 }
 
 // GetPublicRetroactiveMiningReqards retrieves the retroactive mining rewards for an ethereum address.
@@ -250,7 +247,7 @@ func (dy *DYDX) GetPublicRetroactiveMiningReqards(ctx context.Context, ethereumA
 // VerifyEmailAddress verify an email address by providing the verification token sent to the email address.
 func (dy *DYDX) VerifyEmailAddress(ctx context.Context, token string) (interface{}, error) {
 	if token == "" {
-		return nil, errors.New("token must not be empty")
+		return nil, errTokenRequired
 	}
 	var response interface{}
 	return response, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, "emails/verify-email?token="+token, response)
@@ -344,8 +341,8 @@ func (dy *DYDX) GetUsers(ctx context.Context) (*UsersResponse, error) {
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, "users", nil, &resp)
 }
 
-// Updateusers update user information and return the updated user.
-func (dy *DYDX) Updateusers(ctx context.Context, params *UpdateUserParams) (*UsersResponse, error) {
+// UpdateUsers update user information and return the updated user.
+func (dy *DYDX) UpdateUsers(ctx context.Context, params *UpdateUserParams) (*UsersResponse, error) {
 	var resp *UsersResponse
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPut, "users", &params, &resp)
 }
@@ -380,10 +377,10 @@ func (dy *DYDX) GetUserActiveLinks(ctx context.Context, userType, primaryAddress
 // 	if err != nil {
 // 		return nil, err
 // 	}
-// 	_, address, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+// _, address, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
+// if err != nil {
+// 	return nil, err
+// }
 // 	if address == params.Address {
 // 		return nil, errors.New("address should not be your address")
 // 	}
@@ -431,8 +428,8 @@ func (dy *DYDX) GetAccount(ctx context.Context, ethereumAddress string) (*Accoun
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues("accounts/"+ethereumAddress, params), nil, &resp)
 }
 
-// GetAccountLeaderboardPNLs represents an account's personal leaderboard pnls.
-func (dy *DYDX) GetAccountLeaderboardPNLs(ctx context.Context, period string, startingBeforeOrAt time.Time) (*AccountLeaderboardPNL, error) {
+// GetAccountLeaderboardPNL represents an account's personal leaderboard pnls.
+func (dy *DYDX) GetAccountLeaderboardPNL(ctx context.Context, period string, startingBeforeOrAt time.Time) (*AccountLeaderboardPNL, error) {
 	if period == "" {
 		return nil, errInvalidPeriod
 	}
@@ -505,7 +502,7 @@ func (dy *DYDX) GetTransfers(ctx context.Context, transferType string, limit int
 // For the L1 transaction, the Ethereum address that the starkKey is registered to must call either the withdraw or withdrawTo smart-contract functions. The contract ABI is not tied to a particular client but can be accessed via a client. All withdrawable funds are withdrawn at once.
 func (dy *DYDX) CreateWithdrawal(ctx context.Context, privateKey string, arg *WithdrawalParam) (*TransferResponse, error) {
 	if arg.Amount <= 0 {
-		return nil, errInvalidAmount
+		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Asset == "" {
 		return nil, fmt.Errorf("%w parameter: asset", currency.ErrCurrencyCodeEmpty)
@@ -539,10 +536,10 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 		return nil, fmt.Errorf("%w parameter: creditAsset", currency.ErrCurrencyCodeEmpty)
 	}
 	if param.CreditAmount <= 0 {
-		return nil, fmt.Errorf("%w parameter: creditAmount", errInvalidAmount)
+		return nil, fmt.Errorf("%w parameter: creditAmount", order.ErrAmountBelowMin)
 	}
 	if param.DebitAmount <= 0 {
-		return nil, fmt.Errorf("%w parameter: debitAmount", errInvalidAmount)
+		return nil, fmt.Errorf("%w parameter: debitAmount", order.ErrAmountBelowMin)
 	}
 	if param.SlippageTolerance < 0 || param.SlippageTolerance > 1 {
 		return nil, fmt.Errorf("slippageTolerance has to be less than 1 and grater than 0 but passed %f", param.SlippageTolerance)
@@ -571,7 +568,7 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 	// }
 	// param.Signature = signature
 	var resp *WithdrawalResponse
-	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, fastWithdrawals, param, &resp)
+	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, "fast-withdrawals", param, &resp)
 }
 
 // CreateNewOrder creates a new order.
@@ -580,13 +577,13 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 		return nil, errInvalidMarket
 	}
 	if arg.Side == "" {
-		return nil, errInvalidSide
+		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Type == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
-		return nil, fmt.Errorf("%w order size have to be greater than zero", errInvalidAmount)
+		return nil, fmt.Errorf("%w order size have to be greater than zero", order.ErrAmountBelowMin)
 	}
 	if arg.Price <= 0 {
 		return nil, fmt.Errorf("%w order price have to be greater than zero", errInvalidPrice)
@@ -896,3 +893,31 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 	}
 	return dy.SendPayload(ctx, epl, newRequest, request.AuthenticatedRequest)
 }
+
+// GeneratePublicKeyAndAddress generates a public key and address given private key information.
+// func GeneratePublicKeyAndAddress(privateKey string) (publicKeyString, addressString string, err error) {
+// 	if privateKey == "" {
+// 		return "", "", errors.New("private key is missing")
+// 	}
+// 	var privKeyBytes []byte
+// 	var privKey *ecdsa.PrivateKey
+// 	if privateKey[0:2] != "0x" {
+// 		privateKey = "0x" + privateKey
+// 	}
+// 	privateKeyBigInt, ok := big.NewInt(0).SetString(privateKey, 0)
+// 	if !ok {
+// 		return "", "", err
+// 	}
+// 	privKeyBytes = privateKeyBigInt.Bytes()
+// 	privKey, err = crypto.ToECDSA(privKeyBytes)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	publicKey := privKey.Public()
+// 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+// 	if !ok {
+// 		return "", "", errors.New("cannot assert type *ecdsa.PublicKey")
+// 	}
+// 	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+// 	return hexutil.Encode(publicKeyBytes), crypto.PubkeyToAddress(*publicKeyECDSA).Hex(), nil
+// }

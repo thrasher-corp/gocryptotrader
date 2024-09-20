@@ -1,6 +1,17 @@
 package starkex
 
-import "math/big"
+import (
+	"errors"
+	"math/big"
+)
+
+var (
+	ErrExpirationTimeRequired         = errors.New("expiration time is required")
+	ErrContractNotFound               = errors.New("contract not found")
+	ErrSettlementCurrencyInfoNotFound = errors.New("settlement currency information not found")
+	ErrInvalidAssetID                 = errors.New("invalid asset ID provided")
+	ErrInvalidPositionIDMissing       = errors.New("invalid position or account ID")
+)
 
 // TransferParams represents a starkex asset transfer parameters. Type value: 4
 type TransferParams struct {

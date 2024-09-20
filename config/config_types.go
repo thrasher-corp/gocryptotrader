@@ -35,7 +35,9 @@ const (
 	DefaultAPIKey                        = "Key"
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
-	DefaultAPIPrivateKey                 = "PrivateKey"
+	DefaultAPIL2Key                      = "L2Key"
+	DefaultAPIL2Secret                   = "L2Secret"
+	DefaultAPIL2KeyYCoordinate           = "L2KeyYCoordinate"
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
 	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
@@ -340,7 +342,11 @@ type APICredentialsConfig struct {
 	OTPSecret     string `json:"otpSecret,omitempty"`
 	TradePassword string `json:"tradePassword,omitempty"`
 	PIN           string `json:"pin,omitempty"`
-	PrivateKey    string `json:"privateKey,omitempty"`
+
+	// Used by DEX L2 authentication. See ApexPro: https://api-docs.pro.apex.exchange/?lang=en-US#general-2-starkkey-signature
+	L2Key            string `json:"l2Key,omitempty"`
+	L2Secret         string `json:"l2Secret,omitempty"`
+	L2KeyYCoordinate string `json:"l2KeyYCoordinate,omitempty"`
 }
 
 // APICredentialsValidatorConfig stores the API credentials validator settings
@@ -352,7 +358,10 @@ type APICredentialsValidatorConfig struct {
 	RequiresSecret             bool `json:"requiresSecret,omitempty"`
 	RequiresClientID           bool `json:"requiresClientID,omitempty"`
 	RequiresBase64DecodeSecret bool `json:"requiresBase64DecodeSecret,omitempty"`
-	RequiresPrivateKey         bool `json:"requiresPrivateKey,omitempty"`
+
+	RequiresL2Key            bool `json:"requiresL2Key,omitempty"`
+	RequiresL2Secret         bool `json:"requiresL2Secret,omitempty"`
+	RequiresL2KeyYCoordinate bool `json:"requiresL2KeyYCoordinate,omitempty"`
 }
 
 // APIConfig stores the exchange API config

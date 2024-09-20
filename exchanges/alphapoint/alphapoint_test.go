@@ -28,7 +28,7 @@ var a = &Alphapoint{}
 
 func TestMain(m *testing.M) {
 	a.SetDefaults()
-	a.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	a.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 	a.API.AuthenticatedSupport = true
 	os.Exit(m.Run())
 }

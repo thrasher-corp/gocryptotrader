@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/utils/starkex"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -68,7 +69,10 @@ func (dy *DYDX) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
+	dy.StarkConfig, err = starkex.NewStarkExConfig()
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	dy.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,

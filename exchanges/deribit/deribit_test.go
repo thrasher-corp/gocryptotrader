@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	if apiKey != "" && apiSecret != "" {
 		d.API.AuthenticatedSupport = true
 		d.API.AuthenticatedWebsocketSupport = true
-		d.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		d.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 		d.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	if useTestNet {

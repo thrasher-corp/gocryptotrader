@@ -3,18 +3,19 @@ package starkex
 import (
 	"encoding/hex"
 	"math/big"
-	"strings"
-
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// FactToCondition Generate the condition, signed as part of a conditional transfer.
-func FactToCondition(factRegistryAddress string, fact string) *big.Int {
-	data := strings.TrimPrefix(factRegistryAddress, "0x") + fact
-	hexBytes, _ := hex.DecodeString(data)
-	// int(Web3.keccak(data).hex(), 16) & BIT_MASK_250
-	hash := crypto.Keccak256Hash(hexBytes)
-	fst := hash.Big()
-	fst.And(fst, BIT_MASK_250)
-	return fst
+// AppendSignatures combines the r and s components of an ECDSA signature into a single signature string.
+func AppendSignatures(r, s *big.Int) string {
+	rBytes := r.Bytes()
+	sBytes := s.Bytes()
+
+	for i := len(rBytes); i < 32; i++ {
+		rBytes = append([]byte{byte(0)}, rBytes...)
+	}
+	for i := len(sBytes); i < 32; i++ {
+		sBytes = append([]byte{byte(0)}, sBytes...)
+	}
+	bytes := append(rBytes, sBytes...)
+	return hex.EncodeToString(bytes)
 }
