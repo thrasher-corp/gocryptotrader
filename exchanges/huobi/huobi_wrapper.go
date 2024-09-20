@@ -321,6 +321,7 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
+	var errs error
 	switch a {
 	case asset.Spot:
 		ticks, err := h.GetTickers(ctx)
@@ -331,10 +332,10 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, _, err = h.MatchSymbolCheckEnabled(ticks.Data[i].Symbol, a, false)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					errs = common.AppendError(errs, err)
 				}
-				return err
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks.Data[i].High,
@@ -353,7 +354,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				LastUpdated:  time.Now(),
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -365,10 +366,10 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, _, err = h.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					errs = common.AppendError(errs, err)
 				}
-				return err
+				continue
 			}
 			tt := time.UnixMilli(ticks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -388,73 +389,73 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				LastUpdated:  tt,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.Futures:
-		linearTicks, err := h.GetBatchLinearSwapContracts(ctx)
-		if err != nil {
-			return err
+		ticks := []FuturesBatchTicker{}
+		// TODO: Linear swap contracts are coin-m assets
+		if coinMTicks, err := h.GetBatchLinearSwapContracts(ctx); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			ticks = append(ticks, coinMTicks...)
 		}
-		ticks, err := h.GetBatchFuturesContracts(ctx)
-		if err != nil {
-			return err
+		if futureTicks, err := h.GetBatchFuturesContracts(ctx); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			ticks = append(ticks, futureTicks...)
 		}
-		allTicks := make([]FuturesBatchTicker, 0, len(linearTicks)+len(ticks))
-		allTicks = append(allTicks, linearTicks...)
-		allTicks = append(allTicks, ticks...)
-		for i := range allTicks {
+		for _, t := range ticks {
 			var cp currency.Pair
-			if allTicks[i].Symbol != "" {
-				cp, err = currency.NewPairFromString(allTicks[i].Symbol)
-				if err != nil {
-					return err
+			var err error
+			if t.Symbol != "" {
+				cp, err = currency.NewPairFromString(t.Symbol)
+				if err == nil {
+					cp, err = h.convertContractShortHandToExpiry(cp, time.Now())
 				}
-				cp, err = h.convertContractShortHandToExpiry(cp, time.Now())
-				if err != nil {
-					return err
+				if err == nil {
+					cp, _, err = h.MatchSymbolCheckEnabled(cp.String(), a, true)
 				}
-				cp, _, err = h.MatchSymbolCheckEnabled(cp.String(), a, true)
 				if err != nil {
-					if errors.Is(err, currency.ErrPairNotFound) {
-						continue
+					if !errors.Is(err, currency.ErrPairNotFound) {
+						errs = common.AppendError(errs, err)
 					}
-					return err
+					continue
 				}
 			} else {
-				cp, _, err = h.MatchSymbolCheckEnabled(allTicks[i].ContractCode, a, true)
+				cp, _, err = h.MatchSymbolCheckEnabled(t.ContractCode, a, true)
 				if err != nil {
-					if errors.Is(err, currency.ErrPairNotFound) {
-						continue
+					if !errors.Is(err, currency.ErrPairNotFound) {
+						errs = common.AppendError(errs, err)
 					}
-					return err
+					continue
 				}
 			}
-			tt := time.UnixMilli(allTicks[i].Timestamp)
+			tt := time.UnixMilli(t.Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
-				High:         allTicks[i].High.Float64(),
-				Low:          allTicks[i].Low.Float64(),
-				Volume:       allTicks[i].Volume.Float64(),
-				QuoteVolume:  allTicks[i].Amount.Float64(),
-				Open:         allTicks[i].Open.Float64(),
-				Close:        allTicks[i].Close.Float64(),
-				Bid:          allTicks[i].Bid[0],
-				BidSize:      allTicks[i].Bid[1],
-				Ask:          allTicks[i].Ask[0],
-				AskSize:      allTicks[i].Ask[1],
+				High:         t.High.Float64(),
+				Low:          t.Low.Float64(),
+				Volume:       t.Volume.Float64(),
+				QuoteVolume:  t.Amount.Float64(),
+				Open:         t.Open.Float64(),
+				Close:        t.Close.Float64(),
+				Bid:          t.Bid[0],
+				BidSize:      t.Bid[1],
+				Ask:          t.Ask[0],
+				AskSize:      t.Ask[1],
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
 				LastUpdated:  tt,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
