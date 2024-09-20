@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"strconv"
@@ -9,23 +8,19 @@ import (
 	"time"
 )
 
-var (
-	zero     = []byte(`0`)
-	emptyStr = []byte(`""`)
-	zeroStr  = []byte(`"0"`)
-)
-
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
 type Time time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
 func (a *Time) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(data, zero) || bytes.Equal(data, emptyStr) || bytes.Equal(data, zeroStr) {
+	s := string(data)
+
+	switch s {
+	case "null", "0", `""`, `"0"`:
 		*a = Time(time.Time{})
 		return nil
 	}
 
-	s := string(data)
 	if s[0] == '"' {
 		s = s[1 : len(s)-1]
 	}

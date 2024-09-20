@@ -13,6 +13,9 @@ func TestTime(t *testing.T) {
 	t.Parallel()
 	var testTime Time
 
+	require.NoError(t, json.Unmarshal([]byte(`null`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
 	require.NoError(t, json.Unmarshal([]byte(`0`), &testTime))
 	assert.Equal(t, time.Time{}, testTime.Time())
 
