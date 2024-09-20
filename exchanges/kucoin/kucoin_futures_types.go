@@ -141,6 +141,13 @@ type FuturesFundingRate struct {
 	PredictedValue float64 `json:"predictedValue"`
 }
 
+// FundingHistoryItem represents funding history item
+type FundingHistoryItem struct {
+	Symbol      string               `json:"symbol"`
+	FundingRate float64              `json:"fundingRate"`
+	Timepoint   convert.ExchangeTime `json:"timepoint"`
+}
+
 // FuturesKline stores kline data
 type FuturesKline struct {
 	StartTime time.Time
@@ -151,7 +158,7 @@ type FuturesKline struct {
 	Volume    float64
 }
 
-// FutureOrdersResponse represents a future order response list detail.
+// FutureOrdersResponse represents a future order response list detail
 type FutureOrdersResponse struct {
 	CurrentPage int64          `json:"currentPage"`
 	PageSize    int64          `json:"pageSize"`
@@ -200,7 +207,7 @@ type FuturesOrder struct {
 	ReduceOnly     bool                 `json:"reduceOnly"`
 }
 
-// FutureFillsResponse represents a future fills list response detail.
+// FutureFillsResponse represents a future fills list response detail
 type FutureFillsResponse struct {
 	CurrentPage int64         `json:"currentPage"`
 	PageSize    int64         `json:"pageSize"`
@@ -209,7 +216,7 @@ type FutureFillsResponse struct {
 	Items       []FuturesFill `json:"items"`
 }
 
-// FuturesFill represents list of recent fills for futures orders.
+// FuturesFill represents list of recent fills for futures orders
 type FuturesFill struct {
 	Symbol         string               `json:"symbol"`
 	TradeID        string               `json:"tradeId"`
@@ -232,7 +239,7 @@ type FuturesFill struct {
 	TradeTime      convert.ExchangeTime `json:"tradeTime"`
 }
 
-// FuturesOpenOrderStats represents futures open order summary stats information.
+// FuturesOpenOrderStats represents futures open order summary stats information
 type FuturesOpenOrderStats struct {
 	OpenOrderBuySize  int64   `json:"openOrderBuySize"`
 	OpenOrderSellSize int64   `json:"openOrderSellSize"`
@@ -241,7 +248,7 @@ type FuturesOpenOrderStats struct {
 	SettleCurrency    string  `json:"settleCurrency"`
 }
 
-// FuturesPosition represents futures position detailed information.
+// FuturesPosition represents futures position detailed information
 type FuturesPosition struct {
 	ID                   string               `json:"id"`
 	Symbol               string               `json:"symbol"`
@@ -283,7 +290,19 @@ type FuturesPosition struct {
 	RiskLimitLevel       int64                `json:"riskLimitLevel"`
 }
 
-// FuturesRiskLimitLevel represents futures risk limit level information.
+// WithdrawMarginResponse represents a response data after withdrawing a margin
+type WithdrawMarginResponse struct {
+	Symbol         string  `json:"symbol"`
+	WithdrawAmount float64 `json:"withdrawAmount"`
+}
+
+// MarginRemovingResponse represents a response data for margin response
+type MarginRemovingResponse struct {
+	Symbol         string  `json:"symbol"`
+	WithdrawAmount float64 `json:"withdrawAmount"`
+}
+
+// FuturesRiskLimitLevel represents futures risk limit level information
 type FuturesRiskLimitLevel struct {
 	Symbol         string  `json:"symbol"`
 	Level          int64   `json:"level"`
@@ -294,7 +313,7 @@ type FuturesRiskLimitLevel struct {
 	MaintainMargin float64 `json:"maintainMargin"`
 }
 
-// FuturesFundingHistory represents futures funding information.
+// FuturesFundingHistory represents futures funding information
 type FuturesFundingHistory struct {
 	ID             string               `json:"id"`
 	Symbol         string               `json:"symbol"`
@@ -307,7 +326,7 @@ type FuturesFundingHistory struct {
 	SettleCurrency string               `json:"settleCurrency"`
 }
 
-// FuturesAccount holds futures account detail information.
+// FuturesAccount holds futures account detail information
 type FuturesAccount struct {
 	AccountEquity    float64 `json:"accountEquity"` // marginBalance + Unrealised PNL
 	UnrealisedPNL    float64 `json:"unrealisedPNL"` // unrealised profit and loss
@@ -344,7 +363,7 @@ type APIKeyDetail struct {
 	CreateAt    convert.ExchangeTime `json:"createdAt"`
 }
 
-// FuturesDepositDetailsResponse represents a futures deposits list detail response.
+// FuturesDepositDetailsResponse represents a futures deposits list detail response
 type FuturesDepositDetailsResponse struct {
 	CurrentPage int64                  `json:"currentPage"`
 	PageSize    int64                  `json:"pageSize"`
@@ -353,7 +372,7 @@ type FuturesDepositDetailsResponse struct {
 	Items       []FuturesDepositDetail `json:"items"`
 }
 
-// FuturesDepositDetail represents futures deposit detail information.
+// FuturesDepositDetail represents futures deposit detail information
 type FuturesDepositDetail struct {
 	Currency   string               `json:"currency"`
 	Status     string               `json:"status"`
@@ -365,7 +384,7 @@ type FuturesDepositDetail struct {
 	CreatedAt  convert.ExchangeTime `json:"createdAt"`
 }
 
-// FuturesWithdrawalLimit represents withdrawal limit information.
+// FuturesWithdrawalLimit represents withdrawal limit information
 type FuturesWithdrawalLimit struct {
 	Currency            string  `json:"currency"`
 	ChainID             string  `json:"chainId"`
@@ -380,7 +399,7 @@ type FuturesWithdrawalLimit struct {
 	Precision           float64 `json:"precision"`
 }
 
-// FuturesWithdrawalsListResponse represents a list of futures Withdrawal history instance.
+// FuturesWithdrawalsListResponse represents a list of futures Withdrawal history instance
 type FuturesWithdrawalsListResponse struct {
 	CurrentPage int64                      `json:"currentPage"`
 	PageSize    int64                      `json:"pageSize"`
@@ -389,7 +408,7 @@ type FuturesWithdrawalsListResponse struct {
 	Items       []FuturesWithdrawalHistory `json:"items"`
 }
 
-// FuturesWithdrawalHistory represents a list of Futures withdrawal history.
+// FuturesWithdrawalHistory represents a list of Futures withdrawal history
 type FuturesWithdrawalHistory struct {
 	WithdrawalID string               `json:"withdrawalId"`
 	Currency     string               `json:"currency"`
@@ -405,7 +424,7 @@ type FuturesWithdrawalHistory struct {
 	Reason       string               `json:"reason"`
 }
 
-// TransferBase represents transfer base information.
+// TransferBase represents transfer base information
 type TransferBase struct {
 	ApplyID   string               `json:"applyId"`
 	Currency  string               `json:"currency"`
@@ -431,7 +450,7 @@ type TransferRes struct {
 	UpdatedAt      convert.ExchangeTime `json:"updatedAt"`
 }
 
-// TransferListsResponse represents a transfer lists detail.
+// TransferListsResponse represents a transfer lists detail
 type TransferListsResponse struct {
 	CurrentPage int64      `json:"currentPage"`
 	PageSize    int64      `json:"pageSize"`
@@ -440,13 +459,13 @@ type TransferListsResponse struct {
 	Items       []Transfer `json:"items"`
 }
 
-// Transfer represents a transfer detail.
+// Transfer represents a transfer detail
 type Transfer struct {
 	TransferBase
 	Offset int64 `json:"offset"`
 }
 
-// FuturesServiceStatus represents service status.
+// FuturesServiceStatus represents service status
 type FuturesServiceStatus struct {
 	Status  string `json:"status"`
 	Message string `json:"msg"`

@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
@@ -357,7 +357,8 @@ func TestSettingsPrint(t *testing.T) {
 }
 
 var unsupportedDefaultConfigExchanges = []string{
-	"poloniex", // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
+	"poloniex",    // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
+	"coinbasepro", // deprecated API. TODO: Remove this when the Coinbase update is merged
 }
 
 func TestGetDefaultConfigurations(t *testing.T) {
@@ -372,11 +373,11 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				t.Skipf("skipping %s due to CI test restrictions", name)
 			}
 
-			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 

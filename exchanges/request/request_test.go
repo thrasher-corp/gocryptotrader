@@ -700,29 +700,19 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 
 func TestContextVerbosity(t *testing.T) {
 	t.Parallel()
-	if isVerbose(context.Background(), false) {
-		t.Fatal("unexpected value")
-	}
+	require.False(t, IsVerbose(context.Background(), false))
+	require.True(t, IsVerbose(context.Background(), true))
+	require.True(t, IsVerbose(WithVerbose(context.Background()), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, false), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, "bruh"), false))
+	require.True(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, true), false))
+}
 
-	if !isVerbose(context.Background(), true) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx := context.Background()
-	ctx = WithVerbose(ctx)
-	if !isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, false)
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, "bruh")
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
+func TestGetRateLimiterDefinitions(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, RateLimitDefinitions(nil), (*Requester)(nil).GetRateLimiterDefinitions())
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
+	require.NoError(t, err)
+	require.NotEmpty(t, r.GetRateLimiterDefinitions())
+	assert.Equal(t, globalshell, r.GetRateLimiterDefinitions())
 }

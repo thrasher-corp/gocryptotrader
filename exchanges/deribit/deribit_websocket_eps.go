@@ -2406,7 +2406,7 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 			log.Debugf(log.RequestSys, "%s attempt %d", d.Name, attempt)
 		}
 		var payload []byte
-		payload, err = d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), input.ID, input)
+		payload, err = d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, input.ID, input)
 		if err != nil {
 			return err
 		}
