@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1496,4 +1497,32 @@ func TestWriteToConn(t *testing.T) {
 	// definitions set but connection rate limiter not set
 	wc.RateLimit = nil
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
+}
+
+// cpu: AMD Ryzen 5 5600G with Radeon Graphics
+// 273386	      3961 ns/op	      16 B/op	       1 allocs/op
+// NumCPU: 12
+func BenchmarkPool(b *testing.B) {
+	wg := sync.WaitGroup{}
+	for range b.N {
+		wg.Add(1)
+		// This demonstrates the use of a worker pool to handle the load (stream handler func)
+		jobsChanToWorkerPool <- func() { /*Dummy Load*/ fmt.Print("."); wg.Done() }
+	}
+	wg.Wait()
+}
+
+// cpu: AMD Ryzen 5 5600G with Radeon Graphics
+// 222172	      5281 ns/op	     449 B/op	       3 allocs/op
+// NumCPU: 12
+// This is a comparison between the two, this is more recommended for low intensity loads.
+// NOTE: If there is a blockage in the DataHandler. This design could goroutine leak.
+func BenchmarkGoSched(b *testing.B) {
+	wg := &sync.WaitGroup{}
+	for range b.N {
+		wg.Add(1)
+		// This demonstrates the use of a goroutine to handle the load (stream handler func)
+		go func() { /*Dummy Load*/ fmt.Print("."); wg.Done() }()
+	}
+	wg.Wait()
 }
