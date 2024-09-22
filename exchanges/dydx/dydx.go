@@ -551,10 +551,7 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 		// Address to be credited
 		return nil, fmt.Errorf("address to be credited must not be empty")
 	}
-	// creds, err := dy.GetCredentials(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
+
 	// Here SubAccount represents the starkx private account
 	// signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
 	// 	NetworkId:   1,
@@ -594,25 +591,11 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 	if arg.PostOnly && arg.TimeInForce == "FOK" {
 		return nil, errors.New("order cannot be postOnly and have timeInForce: FOK")
 	}
-	// creds, err := dy.GetCredentials(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// orderSignParam := starkex.OrderSignParam{
-	// 	NetworkId:  1,
-	// 	Market:     arg.Market,
-	// 	Side:       arg.Side,
-	// 	HumanSize:  strconv.FormatFloat(arg.Size, 'f', -1, 64),
-	// 	HumanPrice: strconv.FormatFloat(arg.Price, 'f', -1, 64),
-	// 	LimitFee:   strconv.FormatFloat(arg.LimitFee, 'f', -1, 64),
-	// 	ClientId:   arg.ClientID,
-	// 	Expiration: arg.Expiration.timeString(),
-	// }
-	// signature, err := starkex.OrderSign(creds.SubAccount, orderSignParam)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// arg.Signature = signature
+	signature, err := dy.ProcessOrderSignature(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.Signature = signature
 	var resp *Order
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, "orders", &arg, &resp)
 }

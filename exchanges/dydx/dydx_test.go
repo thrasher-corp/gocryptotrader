@@ -45,11 +45,11 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(dy); err != nil {
 		log.Fatal(err)
 	}
-	if apiKey != "" && apiSecret != "" && passphrase != "" && privateKey != "" {
+	if apiKey != "" && apiSecret != "" && passphrase != "" {
 		dy.API.AuthenticatedSupport = true
 		dy.API.AuthenticatedWebsocketSupport = true
 		dy.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		dy.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		dy.SetCredentials(apiKey, apiSecret, passphrase, "", "", "", starkKey, starkSecret, starkKeyYCoordinate)
 	}
 	setupWS()
 	os.Exit(m.Run())
@@ -385,7 +385,7 @@ func TestCreateAccount(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
-	_, err := dy.GetAccount(context.Background(), demoEthereumAddress)
+	_, err := dy.GetAccount(context.Background(), "")
 	assert.NoError(t, err)
 }
 
@@ -434,7 +434,7 @@ func TestCreateFastWithdrawal(t *testing.T) {
 		LPPositionID: 1,
 		Expiration:   dYdXTimeUTC(time.Now().Add(time.Hour * 8 * 24)),
 		ClientID:     "123456",
-		ToAddress:    demoEthereumAddress,
+		ToAddress:    "",
 	})
 	assert.NoError(t, err)
 }
@@ -450,7 +450,6 @@ func TestCreateNewOrder(t *testing.T) {
 		Size:         1,
 		Price:        123,
 		LimitFee:     0,
-		Expiration:   dYdXTimeUTC(time.Now().Add(time.Hour * 24 * 8)),
 		TimeInForce:  "GTT",
 		Cancelled:    true,
 		TriggerPrice: 0,
@@ -604,7 +603,7 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := dy.SubmitOrder(context.Background(), &order.Submit{
 		Exchange: dy.Name,
 		Pair: currency.Pair{
-			Delimiter: privateKey,
+			Delimiter: currency.DashDelimiter,
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
@@ -665,7 +664,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestCreateWithdrawal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy, canManipulateRealOrders)
-	_, err := dy.CreateWithdrawal(context.Background(), privateKey, &WithdrawalParam{
+	_, err := dy.CreateWithdrawal(context.Background(), starkSecret, &WithdrawalParam{
 		Asset:      currency.USDC.String(),
 		Expiration: dYdXTimeUTC(time.Now().Add(time.Hour * 24 * 10)),
 		Amount:     10,

@@ -629,21 +629,21 @@ type TransferResponse struct {
 
 // CreateOrderRequestParams represents parameters for creating a new order.
 type CreateOrderRequestParams struct {
-	Market          string      `json:"market"`
-	Side            string      `json:"side"`
-	Type            string      `json:"type"`
-	PostOnly        bool        `json:"postOnly"`
-	Size            float64     `json:"size,string"`
-	Price           float64     `json:"price,string"`
-	LimitFee        float64     `json:"limitFee"`
-	Expiration      dYdXTimeUTC `json:"expiration,omitempty"`
-	TimeInForce     string      `json:"timeInForce,omitempty"`
-	Cancelled       bool        `json:"cancelId,string"`
-	TriggerPrice    float64     `json:"triggerPrice,omitempty,string"`
-	TrailingPercent float64     `json:"trailingPercent,omitempty,string"`
-	ReduceOnly      bool        `json:"reduceOnly,omitempty"`
-	ClientID        string      `json:"clientId"`
-	Signature       string      `json:"signature"`
+	Market          string  `json:"market"`
+	Side            string  `json:"side"`
+	Type            string  `json:"type"`
+	PostOnly        bool    `json:"postOnly"`
+	Size            float64 `json:"size,string"`
+	Price           float64 `json:"price,string"`
+	LimitFee        float64 `json:"limitFee"`
+	Expiration      int64   `json:"expiration,omitempty"`
+	TimeInForce     string  `json:"timeInForce,omitempty"`
+	Cancelled       bool    `json:"cancelId,string"`
+	TriggerPrice    float64 `json:"triggerPrice,omitempty,string"`
+	TrailingPercent float64 `json:"trailingPercent,omitempty,string"`
+	ReduceOnly      bool    `json:"reduceOnly,omitempty"`
+	ClientID        string  `json:"clientId"`
+	Signature       string  `json:"signature"`
 }
 
 // OrderResponse represents an order response data.
