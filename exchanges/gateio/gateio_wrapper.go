@@ -2669,7 +2669,8 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, errNoResponseReceived
 		}
 
-		resp, err := s.DeriveSubmitResponse(getClientOrderIDFromText(got[0].ID))
+		var resp *order.SubmitResponse
+		resp, err = s.DeriveSubmitResponse(getClientOrderIDFromText(got[0].ID))
 		if err != nil {
 			return nil, err
 		}
@@ -2735,7 +2736,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		resp.ClientOrderID = getClientOrderIDFromText(got[0].Text)
 		resp.ReduceOnly = s.ReduceOnly
 		resp.Amount = math.Abs(float64(got[0].Size))
-		resp.Price = got[0].Price.Float64()
+		resp.Price = got[0].FillPrice.Float64()
 		resp.AverageExecutedPrice = got[0].FillPrice.Float64()
 		return resp, nil
 	default:
@@ -2762,9 +2763,8 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequestData, 
 		Side:    s.Side.Lower(),
 		Type:    s.Type.Lower(),
 		Account: g.assetTypeToString(s.AssetType),
-		// When doing spot market orders when purchasing base currency, the
-		// quote currency amount is used. When selling the base currency the
-		// base currency amount is used.
+		// When doing spot market orders when purchasing base currency, the quote currency amount is used. When selling
+		// the base currency the base currency amount is used.
 		Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
 		Price:        types.Number(s.Price),
 		CurrencyPair: s.Pair,
