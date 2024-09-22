@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -65,6 +64,7 @@ var (
 	ErrStartEqualsEnd         = errors.New("start date equals end date")
 	ErrStartAfterTimeNow      = errors.New("start date is after current time")
 	ErrNilPointer             = errors.New("nil pointer")
+	ErrEmptyParams            = errors.New("empty parameters")
 	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse             = errors.New("no response")
 	ErrTypeAssertFailure      = errors.New("type assert failure")
@@ -136,66 +136,43 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	return h
 }
 
-// StringSliceDifference concatenates slices together based on its index and
-// returns an individual string array
-func StringSliceDifference(slice1, slice2 []string) []string {
-	var diff []string
-	for i := range 2 {
-		for _, s1 := range slice1 {
-			found := false
-			for _, s2 := range slice2 {
-				if s1 == s2 {
-					found = true
-					break
-				}
-			}
-			if !found {
-				diff = append(diff, s1)
-			}
-		}
-		if i == 0 {
-			slice1, slice2 = slice2, slice1
+// SliceDifference returns the elements that are in slice1 or slice2 but not in both
+func SliceDifference[T comparable](slice1, slice2 []T) []T {
+	diff := make([]T, 0, len(slice1)+len(slice2))
+	for x := range slice1 {
+		if !slices.Contains(slice2, slice1[x]) {
+			diff = append(diff, slice1[x])
+			continue
 		}
 	}
-	return diff
-}
-
-// StringDataContains checks the substring array with an input and returns a bool
-func StringDataContains(haystack []string, needle string) bool {
-	data := strings.Join(haystack, ",")
-	return strings.Contains(data, needle)
-}
-
-// StringDataCompare data checks the substring array with an input and returns a bool
-func StringDataCompare(haystack []string, needle string) bool {
-	for x := range haystack {
-		if haystack[x] == needle {
-			return true
+	for x := range slice2 {
+		if !slices.Contains(slice1, slice2[x]) {
+			diff = append(diff, slice2[x])
 		}
 	}
-	return false
+	return slices.Clip(diff)
 }
 
-// StringDataCompareInsensitive data checks the substring array with an input and returns
-// a bool irrespective of lower or upper case strings
-func StringDataCompareInsensitive(haystack []string, needle string) bool {
-	for x := range haystack {
-		if strings.EqualFold(haystack[x], needle) {
-			return true
-		}
-	}
-	return false
+// StringSliceContains returns whether case sensitive needle is contained within haystack
+func StringSliceContains(haystack []string, needle string) bool {
+	return slices.ContainsFunc(haystack, func(s string) bool {
+		return strings.Contains(s, needle)
+	})
 }
 
-// StringDataContainsInsensitive checks the substring array with an input and returns
-// a bool irrespective of lower or upper case strings
-func StringDataContainsInsensitive(haystack []string, needle string) bool {
-	for _, data := range haystack {
-		if strings.Contains(strings.ToUpper(data), strings.ToUpper(needle)) {
-			return true
-		}
-	}
-	return false
+// StringSliceCompareInsensitive returns whether case insensitive needle exists within haystack
+func StringSliceCompareInsensitive(haystack []string, needle string) bool {
+	return slices.ContainsFunc(haystack, func(s string) bool {
+		return strings.EqualFold(s, needle)
+	})
+}
+
+// StringSliceContainsInsensitive returns whether case insensitive needle is contained within haystack
+func StringSliceContainsInsensitive(haystack []string, needle string) bool {
+	needleUpper := strings.ToUpper(needle)
+	return slices.ContainsFunc(haystack, func(s string) bool {
+		return strings.Contains(strings.ToUpper(s), needleUpper)
+	})
 }
 
 // IsEnabled takes in a boolean param  and returns a string if it is enabled
@@ -420,27 +397,6 @@ func AddPaddingOnUpperCase(s string) string {
 	}
 	result = append(result, s[left:])
 	return strings.Join(result, " ")
-}
-
-// InArray checks if _val_ belongs to _array_
-func InArray(val, array interface{}) (exists bool, index int) {
-	exists = false
-	index = -1
-	if array == nil {
-		return
-	}
-	switch reflect.TypeOf(array).Kind() {
-	case reflect.Array, reflect.Slice:
-		s := reflect.ValueOf(array)
-		for i := range s.Len() {
-			if reflect.DeepEqual(val, s.Index(i).Interface()) {
-				index = i
-				exists = true
-				return
-			}
-		}
-	}
-	return
 }
 
 // fmtError holds a formatted msg and the errors which formatted it

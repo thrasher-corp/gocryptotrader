@@ -136,7 +136,7 @@ func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -248,7 +248,7 @@ func (h *HUOBI) GetOpenInterestInfo(ctx context.Context, code currency.Pair, per
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
@@ -287,7 +287,7 @@ func (h *HUOBI) GetTraderSentimentIndexAccount(ctx context.Context, code currenc
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -305,7 +305,7 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(ctx context.Context, code curren
 		return resp, err
 	}
 
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -372,7 +372,7 @@ func (h *HUOBI) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
@@ -393,7 +393,7 @@ func (h *HUOBI) GetEstimatedFundingRates(ctx context.Context, code currency.Pair
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
@@ -414,13 +414,13 @@ func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, ba
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
 		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
 	}
-	if !common.StringDataCompareInsensitive(validBasisPriceTypes, basisPriceType) {
+	if !common.StringSliceCompareInsensitive(validBasisPriceTypes, basisPriceType) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -581,7 +581,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if !common.StringDataCompareInsensitive(validOrderTypes, orderType) {
+	if !common.StringSliceCompareInsensitive(validOrderTypes, orderType) {
 		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderType
@@ -635,7 +635,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 	req["contract_code"] = codeValue
 	req["subUid"] = subUID
 	req["amount"] = amount
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -651,7 +651,7 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -682,7 +682,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 	}
 	req["direction"] = direction
 	req["offset"] = offset
-	if !common.StringDataCompareInsensitive(validOrderTypes, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validOrderTypes, orderPriceType) {
 		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderPriceType
@@ -750,7 +750,7 @@ func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode curre
 		req["client_order_id"] = clientOrderID
 	}
 	if orderPriceType != "" {
-		if !common.StringDataCompareInsensitive(validLightningOrderPriceType, orderPriceType) {
+		if !common.StringSliceCompareInsensitive(validLightningOrderPriceType, orderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 		req["order_price_type"] = orderPriceType
@@ -913,7 +913,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency
 	req["volume"] = volume
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
-	if !common.StringDataCompareInsensitive(validOrderPriceType, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validOrderPriceType, orderPriceType) {
 		return resp, errors.New("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -599,7 +600,7 @@ func (b *Bitmex) Subscribe(subs subscription.List) error {
 			req.Arguments = append(req.Arguments, cName+":"+p.String())
 		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 	if err == nil {
 		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subs...)
 	}
@@ -618,7 +619,7 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 			req.Arguments = append(req.Arguments, cName+":"+p.String())
 		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 	if err == nil {
 		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
 	}
@@ -655,7 +656,7 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
 		signature)
-	err = b.Websocket.Conn.SendJSONMessage(ctx, sendAuth)
+	err = b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
