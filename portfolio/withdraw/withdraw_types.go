@@ -103,6 +103,9 @@ type Request struct {
 
 	Crypto CryptoRequest `json:",omitempty"`
 	Fiat   FiatRequest   `json:",omitempty"`
+
+	// ExpirationTime some exchanges require expire time for the withdrawal request
+	ExpirationTime time.Time
 }
 
 // Response holds complete details for Response

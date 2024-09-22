@@ -1429,6 +1429,69 @@
    ]
   },
   {
+    "name": "DYDX",
+    "enabled": true,
+    "verbose": false,
+    "httpTimeout": 0,
+    "websocketResponseCheckTimeout": 0,
+    "websocketResponseMaxLimit": 0,
+    "websocketTrafficTimeout": 0,
+    "baseCurrencies": "BTC,LTC,ETH,SOL",
+    "currencyPairs": {
+        "requestFormat": {
+            "uppercase": true,
+            "delimiter": "-"
+        },
+        "configFormat": {
+            "uppercase": true,
+            "delimiter": "-"
+        },
+        "useGlobalFormat": true,
+        "assetTypes": [
+            "spot"
+        ],
+        "pairs": {
+            "spot": {
+                "enabled": "BTC-USD,ETC-USD,SOL-USD,ETH-USD,LTC-USD",
+                "available": "ETC-USD,ZEC-USD,SOL-USD,1INCH-USD,EOS-USD,COMP-USD,ZRX-USD,SUSHI-USD,ALGO-USD,SNX-USD,BCH-USD,NEAR-USD,UNI-USD,CELO-USD,LINK-USD,ATOM-USD,XTZ-USD,XLM-USD,TRX-USD,ICP-USD,DOGE-USD,ADA-USD,YFI-USD,RUNE-USD,AAVE-USD,AVAX-USD,DOT-USD,UMA-USD,FIL-USD,ENJ-USD,CRV-USD,ETH-USD,LTC-USD,LUNA-USD,BTC-USD"
+            }
+        }
+    },
+    "api": {
+     "authenticatedSupport": true,
+     "authenticatedWebsocketApiSupport": true,
+     "credentials": {
+      "key": "Key",
+      "secret": "Secret",
+      "clientID": "ClientID",
+      "l2Key":     "L2Key",
+      "l2Secret": "L2Secret",
+      "l2KeyYCoordinate": "L2KeyYCoordinate"
+     },
+     "urlEndpoints": null
+    },
+    "features": {
+        "supports": {
+            "restAPI": true,
+            "restCapabilities": {
+            "autoPairUpdates": true
+            },
+            "websocketAPI": true,
+            "websocketCapabilities": {}
+        },
+        "enabled": {
+            "autoPairUpdates": true,
+            "websocketAPI": true
+      }
+    },
+    "orderbook": {
+     "verificationBypass": false,
+     "websocketBufferLimit": 0,
+     "websocketBufferEnabled": false,
+     "publishPeriod": null
+    }
+  },
+  {
    "name": "EXMO",
    "enabled": true,
    "verbose": false,

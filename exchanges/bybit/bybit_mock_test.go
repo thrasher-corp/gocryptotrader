@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
+	b.SetCredentials("mock", "tester", "", "", "", "", "", "", "") // Hack for UpdateAccountInfo test
 
 	if err := testexch.MockHTTPInstance(b); err != nil {
 		log.Fatal(err)

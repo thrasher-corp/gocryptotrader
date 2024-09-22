@@ -1009,6 +1009,21 @@ func (c *Config) CheckExchangeConfigValues() error {
 					failed = true
 				}
 
+				if c.Exchanges[i].API.CredentialsValidator.RequiresL2Key &&
+					(c.Exchanges[i].API.Credentials.L2Key == DefaultAPIL2Key || c.Exchanges[i].API.Credentials.L2Key == "") {
+					failed = true
+				}
+
+				if c.Exchanges[i].API.CredentialsValidator.RequiresL2Secret &&
+					(c.Exchanges[i].API.Credentials.L2Secret == DefaultAPIL2Secret || c.Exchanges[i].API.Credentials.L2Secret == "") {
+					failed = true
+				}
+
+				if c.Exchanges[i].API.CredentialsValidator.RequiresL2KeyYCoordinate &&
+					(c.Exchanges[i].API.Credentials.L2KeyYCoordinate == DefaultAPIL2KeyYCoordinate || c.Exchanges[i].API.Credentials.L2KeyYCoordinate == "") {
+					failed = true
+				}
+
 				if failed {
 					c.Exchanges[i].API.AuthenticatedSupport = false
 					c.Exchanges[i].API.AuthenticatedWebsocketSupport = false

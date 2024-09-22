@@ -228,11 +228,20 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 	if base.API.CredentialsValidator.RequiresClientID && creds.ClientID == "" {
 		creds.ClientID = config.DefaultAPIClientID
 	}
+	if base.API.CredentialsValidator.RequiresL2Key && creds.L2Key == "" {
+		creds.ClientID = config.DefaultAPIL2Key
+	}
+	if base.API.CredentialsValidator.RequiresL2Secret && creds.L2Secret == "" {
+		creds.ClientID = config.DefaultAPIL2Secret
+	}
+	if base.API.CredentialsValidator.RequiresL2KeyYCoordinate && creds.L2KeyYCoordinate == "" {
+		creds.ClientID = config.DefaultAPIL2KeyYCoordinate
+	}
 	if creds.OTPSecret == "" {
 		creds.OTPSecret = "-" // Ensure OTP is available for use
 	}
 
-	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret)
+	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret, creds.L2Key, creds.L2Secret, creds.L2KeyYCoordinate)
 
 	base.Config.API.Credentials.Key = creds.Key
 	base.Config.API.Credentials.Secret = creds.Secret

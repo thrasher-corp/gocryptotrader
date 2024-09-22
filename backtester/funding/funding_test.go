@@ -926,7 +926,7 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 		// this test requires auth to get coverage
 		return
 	}
-	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "", "", "", "")
 
 	err = f.UpdateFundingFromLiveData(true)
 	if !errors.Is(err, nil) {
@@ -1003,7 +1003,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 		// this test requires auth to get coverage
 		return
 	}
-	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "", "", "", "")
 	err = f.UpdateAllCollateral(true, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
