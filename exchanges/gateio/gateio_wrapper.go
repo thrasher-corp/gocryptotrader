@@ -157,11 +157,12 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	// TODO: Add websocket margin and cross margin support.
+	// TODO: Majority of margin REST endpoints are labelled as deprecated on the API docs. These will need to be removed.
 	err = g.DisableAssetWebsocketSupport(asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	// TODO: Add websocket cross margin support.
 	err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

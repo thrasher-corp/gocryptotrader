@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -75,7 +76,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -623,10 +624,7 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe, []string{
-			crossMarginBalanceChannel,
-			marginBalancesChannel,
-			spotBalancesChannel}...)
+		channelsToSubscribe = append(channelsToSubscribe, []string{crossMarginBalanceChannel, marginBalancesChannel, spotBalancesChannel}...)
 	}
 
 	if g.IsSaveTradeDataEnabled() || g.IsTradeFeedEnabled() {
@@ -636,7 +634,7 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	var subscriptions subscription.List
 	var err error
 	for i := range channelsToSubscribe {
-		var pairs []currency.Pair
+		var pairs currency.Pairs
 		var assetType asset.Item
 		switch channelsToSubscribe[i] {
 		case marginBalancesChannel:
@@ -646,15 +644,11 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 			assetType = asset.CrossMargin
 			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
 		default:
-			// TODO: Check and add balance support as spot balances can be
-			// subscribed without a currency pair supplied.
+			// TODO: Check and add balance support as spot balances can be subscribed without a currency pair supplied.
 			assetType = asset.Spot
 			pairs, err = g.GetEnabledPairs(asset.Spot)
 		}
-		if err != nil {
-			if errors.Is(err, asset.ErrNotEnabled) {
-				continue // Skip if asset is not enabled.
-			}
+		if err != nil && !errors.Is(err, asset.ErrNotEnabled) {
 			return nil, err
 		}
 
@@ -686,15 +680,18 @@ func (g *Gateio) GenerateDefaultSubscriptionsSpot() (subscription.List, error) {
 	return subscriptions, nil
 }
 
+// GeneratePayload returns the payload for a websocket message
+type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) error {
-	payloads, err := g.generatePayload(ctx, conn, event, channelsToSubscribe)
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -707,7 +704,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
-			if payloads[k].Event == subscribeEvent {
+			if event == subscribeEvent {
 				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
 			} else {
 				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
@@ -841,12 +838,12 @@ func (g *Gateio) generatePayload(ctx context.Context, conn stream.Connection, ev
 
 // SpotSubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe)
+	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generatePayload)
 }
 
 // SpotUnsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe)
+	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generatePayload)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {

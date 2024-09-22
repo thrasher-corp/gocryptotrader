@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -62,9 +63,9 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 		Timestamp: strconv.FormatInt(tn.Unix(), 10),
 	}
 
-	request := WebsocketRequest{Time: tn.Unix(), Channel: channel, Event: "api", Payload: payload}
+	req := WebsocketRequest{Time: tn.Unix(), Channel: channel, Event: "api", Payload: payload}
 
-	resp, err := conn.SendMessageReturnResponse(ctx, request.Payload.RequestID, request)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Payload.RequestID, req)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +254,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 	}
 
 	tn := time.Now()
-	request := &WebsocketRequest{
+	req := &WebsocketRequest{
 		Time:    tn.Unix(),
 		Channel: channel,
 		Event:   "api",
@@ -266,7 +267,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		},
 	}
 
-	responses, err := conn.SendMessageReturnResponses(ctx, request.Payload.RequestID, request, expectedResponses, InspectPayloadForAck)
+	responses, err := conn.SendMessageReturnResponses(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, InspectPayloadForAck)
 	if err != nil {
 		return err
 	}

@@ -705,4 +705,14 @@ func TestIsVerbose(t *testing.T) {
 	require.True(t, IsVerbose(WithVerbose(context.Background()), false))
 	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, false), false))
 	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, "bruh"), false))
+	require.True(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, true), false))
+}
+
+func TestGetRateLimiterDefinitions(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, RateLimitDefinitions(nil), (*Requester)(nil).GetRateLimiterDefinitions())
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
+	require.NoError(t, err)
+	require.NotEmpty(t, r.GetRateLimiterDefinitions())
+	assert.Equal(t, globalshell, r.GetRateLimiterDefinitions())
 }

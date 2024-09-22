@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -224,9 +225,8 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 		values.Set("end", "")
 	}
 
-	allowedGranularities := [6]int64{60, 300, 900, 3600, 21600, 86400}
-	validGran, _ := common.InArray(granularity, allowedGranularities)
-	if !validGran {
+	allowedGranularities := []int64{60, 300, 900, 3600, 21600, 86400}
+	if !slices.Contains(allowedGranularities, granularity) {
 		return nil, errors.New("Invalid granularity value: " + strconv.FormatInt(granularity, 10) + ". Allowed values are {60, 300, 900, 3600, 21600, 86400}")
 	}
 	if granularity > 0 {
