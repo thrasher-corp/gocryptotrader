@@ -559,16 +559,16 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		Subscriber: func(_ context.Context, _ Connection, s subscription.List) (*subscription.Result, error) {
 			result := subscription.Result{}
 			for x := range s {
-				result.Add(s[x], nil)
+				result.RunRoutine(s[x], func() error { return nil })
 			}
-			return &result, nil
+			return result.ReturnWhenFinished(), nil
 		},
 		Unsubscriber: func(_ context.Context, _ Connection, s subscription.List) (*subscription.Result, error) {
 			result := subscription.Result{}
 			for x := range s {
-				result.Add(s[x], nil)
+				result.RunRoutine(s[x], func() error { return nil })
 			}
-			return &result, nil
+			return result.ReturnWhenFinished(), nil
 		},
 		Handler: func(context.Context, []byte) error { return nil },
 	}
@@ -1241,9 +1241,9 @@ func TestFlushChannels(t *testing.T) {
 	everythingIsAwesome := func(_ context.Context, _ Connection, subs subscription.List) (*subscription.Result, error) {
 		result := subscription.Result{}
 		for x := range subs {
-			result.Add(subs[x], nil)
+			result.RunRoutine(subs[x], func() error { return nil })
 		}
-		return &result, nil
+		return result.ReturnWhenFinished(), nil
 	}
 
 	// Multi connection management
