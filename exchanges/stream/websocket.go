@@ -823,7 +823,7 @@ func (w *Websocket) trafficMonitor() {
 // signalReceived checks if a signal has been received, this also clears the signal.
 func signalReceived(ch chan struct{}) bool {
 	select {
-	case _ = <-ch:
+	case <-ch:
 		return true
 	default:
 		return false
