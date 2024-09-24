@@ -798,6 +798,7 @@ func (w *Websocket) trafficMonitor() {
 				return
 			case <-time.After(trafficCheckInterval):
 				if signalReceived(w.TrafficAlert) {
+					t.Stop()
 					t.Reset(w.trafficTimeout)
 				}
 			case <-t.C:
