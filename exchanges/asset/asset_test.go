@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestString(t *testing.T) {
@@ -24,14 +25,9 @@ func TestString(t *testing.T) {
 func TestUpper(t *testing.T) {
 	t.Parallel()
 	a := Spot
-	if a.Upper() != "SPOT" {
-		t.Fatal("TestUpper returned an unexpected result")
-	}
-
+	require.Equal(t, "SPOT", a.Upper())
 	a = 0
-	if a.Upper() != "" {
-		t.Fatal("TestUpper returned an unexpected result")
-	}
+	require.Empty(t, a.Upper())
 }
 
 func TestStrings(t *testing.T) {

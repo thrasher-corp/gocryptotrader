@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -356,7 +357,7 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 	for _, s := range subs {
 		r := &WebsocketRequest{
 			Type:       op,
-			ProductIDs: s.Pairs.Strings(),
+			ProductIDs: s.Pairs,
 			Channel:    s.QualifiedChannel,
 			Timestamp:  strconv.FormatInt(time.Now().Unix(), 10),
 		}
@@ -384,16 +385,21 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 }
 
 func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
+	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
+	// an exchange-wide reform to enable multiple sets of authentication credentials
+	// jwt, err := c.GetJWT(context.Background(), "")
+	// if err != nil {
+	// 	return err
+	// }
+	// c.jwt, r.JWT = jwt, jwt
 	creds, err := c.GetCredentials(context.Background())
 	if err != nil {
 		return err
 	}
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(r.Timestamp+r.Channel+strings.Join(r.ProductIDs, ",")), []byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(r.Timestamp+r.Channel+currency.Pairs(r.ProductIDs).Join()), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
-	// an exchange-wide reform to enable multiple sets of authentication credentials
 	r.Key = creds.Key
 	r.Signature = hex.EncodeToString(hmac)
 	return nil
@@ -401,9 +407,9 @@ func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
 
 // GetJWT checks if the current JWT is valid, returns it if it is, generates a new one if it isn't
 // Also suitable for use in REST requests, by checking for the presence of a URI, and always generating
-// a new JWT if one is not provided
+// a new JWT if one is provided
 func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
-	if c.jwtLastRegen.Add(time.Minute*2).After(time.Now()) && uri != "" {
+	if c.jwtLastRegen.Add(time.Minute*2).After(time.Now()) && uri == "" {
 		return c.jwt, nil
 	}
 	creds, err := c.GetCredentials(ctx)
@@ -418,21 +424,21 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	nonce, err := common.GenerateRandomString(64, "1234567890ABCDEF")
+	nonce, err := common.GenerateRandomString(16, "1234567890ABCDEF")
 	if err != nil {
 		return "", err
 	}
-	head := map[string]interface{}{"kid": creds.ClientID, "typ": "JWT", "alg": "ES256", "nonce": nonce}
+	head := map[string]any{"kid": creds.ClientID, "typ": "JWT", "alg": "ES256", "nonce": nonce}
 	headJSON, err := json.Marshal(head)
 	if err != nil {
 		return "", err
 	}
 	headEncode := base64URLEncode(headJSON)
-	c.jwtLastRegen = time.Now()
-	body := map[string]interface{}{"iss": "coinbase-cloud", "nbf": time.Now().Unix(),
-		"exp": time.Now().Add(time.Minute * 2).Unix(), "sub": creds.ClientID, "aud": "retail_rest_api_proxy"}
+	body := map[string]any{"iss": "cdp", "nbf": time.Now().Unix(), "exp": time.Now().Add(time.Minute * 2).Unix(), "sub": creds.ClientID, "aud": "retail_rest_api_proxy"}
 	if uri != "" {
 		body["uri"] = uri
+	} else {
+		c.jwtLastRegen = time.Now()
 	}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
@@ -475,7 +481,7 @@ func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks orderboo
 		case "offer":
 			asks = append(asks, change)
 		default:
-			return nil, nil, fmt.Errorf("%w %v", errUnknownSide, data.Changes[i].Side)
+			return nil, nil, fmt.Errorf("%w %v", order.ErrSideIsInvalid, data.Changes[i].Side)
 		}
 	}
 	bids.SortBids()

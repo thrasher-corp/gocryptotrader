@@ -312,9 +312,6 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
-	if w.ob == nil {
-		w.ob = make(map[key.PairAsset]*orderbookHolder)
-	}
 	holder, ok := w.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
 	if !ok {
 		// Associate orderbook pointer with local exchange depth map

@@ -82,8 +82,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("%w %w",
-			ErrSettingProxyAddress, err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
