@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -423,7 +424,7 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), r)
+	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
 	if err == nil {
 		err = c.Websocket.AddSuccessfulSubscriptions(subs...)
 	}
@@ -459,7 +460,7 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), r)
+	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
 	if err == nil {
 		err = c.Websocket.RemoveSubscriptions(subs...)
 	}

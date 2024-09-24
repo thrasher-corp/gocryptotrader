@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -63,7 +64,7 @@ func (ok *Okx) WsConnectBusiness() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	ok.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
@@ -98,7 +99,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 		return err
 	}
 	base64Sign := crypto.Base64Encode(hmac)
-	request := WebsocketEventRequest{
+	wsReq := WebsocketEventRequest{
 		Operation: operationLogin,
 		Arguments: []WebsocketLoginData{
 			{
@@ -109,7 +110,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request)
+	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.UnAuth, wsReq)
 	if err != nil {
 		return err
 	}
@@ -145,7 +146,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 			timer.Stop()
 			return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
-				request.Operation)
+				wsReq.Operation)
 		}
 	}
 }
@@ -212,7 +213,7 @@ func (ok *Okx) BusinessUnsubscribe(channelsToUnsubscribe subscription.List) erro
 // handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscription.List) error {
-	request := WSSubscriptionInformationList{Operation: operation}
+	wsSubscriptionReq := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels subscription.List
@@ -246,14 +247,14 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 
 		var chunk []byte
 		channels = append(channels, subscriptions[i])
-		request.Arguments = append(request.Arguments, arg)
-		chunk, err = json.Marshal(request)
+		wsSubscriptionReq.Arguments = append(wsSubscriptionReq.Arguments, arg)
+		chunk, err = json.Marshal(wsSubscriptionReq)
 		if err != nil {
 			return err
 		}
 		if len(chunk) > maxConnByteLen {
 			i--
-			err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request)
+			err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, wsSubscriptionReq)
 			if err != nil {
 				return err
 			}
@@ -266,11 +267,11 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 				return err
 			}
 			channels = subscription.List{}
-			request.Arguments = []SubscriptionInfo{}
+			wsSubscriptionReq.Arguments = []SubscriptionInfo{}
 			continue
 		}
 	}
-	err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request)
+	err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, wsSubscriptionReq)
 	if err != nil {
 		return err
 	}

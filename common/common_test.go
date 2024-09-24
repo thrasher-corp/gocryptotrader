@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -236,85 +235,41 @@ func TestIsValidCryptoAddress(t *testing.T) {
 	}
 }
 
-func TestStringSliceDifference(t *testing.T) {
+func TestSliceDifference(t *testing.T) {
 	t.Parallel()
-	originalInputOne := []string{"hello"}
-	originalInputTwo := []string{"hello", "moto"}
-	expectedOutput := []string{"hello moto"}
-	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
-	if reflect.DeepEqual(expectedOutput, actualResult) {
-		t.Errorf("Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
+
+	assert.ElementsMatch(t, []string{"world", "go"}, SliceDifference([]string{"hello", "world"}, []string{"hello", "go"}))
+	assert.ElementsMatch(t, []int64{1, 2, 5, 6}, SliceDifference([]int64{1, 2, 3, 4}, []int64{3, 4, 5, 6}))
+	assert.ElementsMatch(t, []float64{1.1, 4.4}, SliceDifference([]float64{1.1, 2.2, 3.3}, []float64{2.2, 3.3, 4.4}))
+	type mixedType struct {
+		A string
+		B int
 	}
+	assert.ElementsMatch(t, []mixedType{{"A", 1}, {"D", 4}}, SliceDifference([]mixedType{{"A", 1}, {"B", 2}, {"C", 3}}, []mixedType{{"B", 2}, {"C", 3}, {"D", 4}}))
+	assert.ElementsMatch(t, []int{1, 2, 3}, SliceDifference([]int{}, []int{1, 2, 3}))
+	assert.ElementsMatch(t, []int{1, 2, 3}, SliceDifference([]int{1, 2, 3}, []int{}))
+	assert.Empty(t, SliceDifference([]int{}, []int{}))
 }
 
-func TestStringDataContains(t *testing.T) {
+func TestStringSliceContains(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"hello", "world", "USDT", "Contains", "string"}
-	originalNeedle := "USD"
-	anotherNeedle := "thing"
-	actualResult := StringDataContains(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-	actualResult = StringDataContains(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
+	assert.True(t, StringSliceContains(originalHaystack, "USD"), "Should contain 'USD'")
+	assert.False(t, StringSliceContains(originalHaystack, "thing"), "Should not contain 'thing'")
 }
 
-func TestStringDataCompare(t *testing.T) {
+func TestStringSliceCompareInsensitive(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
-	originalNeedle := "WoRld"
-	anotherNeedle := "USD"
-	actualResult := StringDataCompare(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-	actualResult = StringDataCompare(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
+	assert.False(t, StringSliceCompareInsensitive(originalHaystack, "USD"), "Should not contain 'USD'")
+	assert.True(t, StringSliceCompareInsensitive(originalHaystack, "WORLD"), "Should find 'WoRld'")
 }
 
-func TestStringDataCompareUpper(t *testing.T) {
-	t.Parallel()
-	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
-	originalNeedle := "WoRld"
-	anotherNeedle := "WoRldD"
-	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-
-	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-}
-
-func TestStringDataContainsUpper(t *testing.T) {
+func TestStringSliceContainsInsensitive(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"bLa", "BrO", "sUp"}
-	originalNeedle := "Bla"
-	anotherNeedle := "ning"
-	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
+	assert.True(t, StringSliceContainsInsensitive(originalHaystack, "Bla"), "Should contain 'Bla'")
+	assert.False(t, StringSliceContainsInsensitive(originalHaystack, "ning"), "Should not contain 'ning'")
 }
 
 func TestYesOrNo(t *testing.T) {
@@ -586,45 +541,6 @@ func TestAddPaddingOnUpperCase(t *testing.T) {
 		if received := AddPaddingOnUpperCase(testCases[x].Supplied); received != testCases[x].Expected {
 			t.Fatalf("received '%v' but expected '%v'", received, testCases[x].Expected)
 		}
-	}
-}
-
-func TestInArray(t *testing.T) {
-	t.Parallel()
-	InArray(nil, nil)
-
-	array := [6]int{2, 3, 5, 7, 11, 13}
-	isIn, pos := InArray(5, array)
-	if !isIn {
-		t.Errorf("failed to find the value within the array")
-	}
-	if pos != 2 {
-		t.Errorf("failed return the correct position of the value in the array")
-	}
-	isIn, _ = InArray(1, array)
-	if isIn {
-		t.Errorf("found a non existent value in the array")
-	}
-
-	slice := make([]int, 0)
-	slice = append(append(slice, 5), 3)
-	isIn, pos = InArray(5, slice)
-	if !isIn {
-		t.Errorf("failed to find the value within the slice")
-	}
-	if pos != 0 {
-		t.Errorf("failed return the correct position of the value in the slice")
-	}
-	isIn, pos = InArray(3, slice)
-	if !isIn {
-		t.Errorf("failed to find the value within the slice")
-	}
-	if pos != 1 {
-		t.Errorf("failed return the correct position of the value in the slice")
-	}
-	isIn, _ = InArray(1, slice)
-	if isIn {
-		t.Errorf("found a non existent value in the slice")
 	}
 }
 

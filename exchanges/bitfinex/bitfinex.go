@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -436,7 +437,7 @@ func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 		}
 		filtered := make([]string, 0, len(list))
 		for x := range list {
-			if common.StringDataCompare(filter, list[x]) {
+			if slices.Contains(filter, list[x]) {
 				continue
 			}
 			filtered = append(filtered, list[x])
@@ -1262,7 +1263,7 @@ func (b *Bitfinex) GetAccountSummary(ctx context.Context) (AccountSummary, error
 func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew uint8) (*Deposit, error) {
 	if walletName == "" {
 		walletName = "funding"
-	} else if !common.StringDataCompare(AcceptedWalletNames, walletName) {
+	} else if !slices.Contains(AcceptedWalletNames, walletName) {
 		return nil,
 			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
 				walletName,
@@ -1463,7 +1464,7 @@ func (b *Bitfinex) WithdrawFIAT(ctx context.Context, withdrawalType, walletType 
 // NewOrder submits a new order and returns a order information
 // Major Upgrade needed on this function to include all query params
 func (b *Bitfinex) NewOrder(ctx context.Context, currencyPair, orderType string, amount, price float64, buy, hidden bool) (Order, error) {
-	if !common.StringDataCompare(AcceptedOrderType, orderType) {
+	if !slices.Contains(AcceptedOrderType, orderType) {
 		return Order{}, fmt.Errorf("order type %s not accepted", orderType)
 	}
 

@@ -903,7 +903,7 @@ func (bot *Engine) SetupExchanges() error {
 		bot.dryRunParamInteraction("exchanges")
 		exchangesOverride = strings.Split(bot.Settings.Exchanges, ",")
 		for x := range exchangesOverride {
-			if !common.StringDataCompareInsensitive(exchange.Exchanges, exchangesOverride[x]) {
+			if !common.StringSliceCompareInsensitive(exchange.Exchanges, exchangesOverride[x]) {
 				return fmt.Errorf("exchange %s not found", exchangesOverride[x])
 			}
 		}

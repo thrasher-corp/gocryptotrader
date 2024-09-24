@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -358,7 +359,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 
 	var errs error
 	for _, s := range subs {
-		if baseReq.Key == "" && common.StringDataContains(authChannels, s.Channel) {
+		if baseReq.Key == "" && common.StringSliceContains(authChannels, s.Channel) {
 			if err := b.authWsSubscibeReq(baseReq); err != nil {
 				return err
 			}
@@ -374,7 +375,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 		r.Channels = []string{s.Channel}
 		r.MarketIDs = s.Pairs.Strings()
 
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), r)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(s)
 		}
@@ -414,7 +415,7 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 			MarketIDs:   s.Pairs.Strings(),
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
 			err = b.Websocket.RemoveSubscriptions(s)
 		}
