@@ -173,8 +173,6 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	err := ws.Setup(defaultSetup)
 	require.NoError(t, err, "Setup must not error")
 
-	signal := struct{}{}
-	patience := 10 * time.Millisecond
 	ws.trafficTimeout = 200 * time.Millisecond
 	ws.state.Store(connectedState)
 
@@ -186,27 +184,27 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 
 	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
 		select {
-		case ws.TrafficAlert <- signal:
+		case ws.TrafficAlert <- struct{}{}:
 			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval)
 		default:
 			require.Failf(t, "", "TrafficAlert should not block; Check #%d", i)
 		}
 
 		select {
-		case ws.TrafficAlert <- signal:
+		case ws.TrafficAlert <- struct{}{}:
 			require.Failf(t, "", "TrafficAlert should block after first slot used; Check #%d", i)
 		default:
 			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval)
 		}
 
-		require.Eventuallyf(t, func() bool { return len(ws.TrafficAlert) == 0 }, 2*trafficCheckInterval, patience, "trafficAlert should be drained; Check #%d", i)
+		require.Eventuallyf(t, func() bool { return len(ws.TrafficAlert) == 0 }, 2*trafficCheckInterval, time.Millisecond, "trafficAlert should be drained; Check #%d", i)
 		assert.Truef(t, ws.IsConnected(), "state should still be connected; Check #%d", i)
 	}
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, disconnectedState, ws.state.Load(), "websocket must be disconnected")
 		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 2*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown once we stop feeding trafficAlerts")
+	}, 2*ws.trafficTimeout, time.Millisecond, "trafficTimeout should trigger a shutdown once we stop feeding trafficAlerts")
 }
 
 // TestTrafficMonitorConnecting ensures connecting status doesn't trigger shutdown

@@ -797,7 +797,6 @@ func (w *Websocket) trafficMonitor() {
 				return
 			case <-time.After(trafficCheckInterval):
 				if signalReceived(w.TrafficAlert) {
-					t.Stop()
 					t.Reset(w.trafficTimeout)
 				}
 			case <-t.C:
@@ -824,7 +823,7 @@ func (w *Websocket) trafficMonitor() {
 // signalReceived checks if a signal has been received, this also clears the signal.
 func signalReceived(ch chan struct{}) bool {
 	select {
-	case <-ch:
+	case _ = <-ch:
 		return true
 	default:
 		return false
