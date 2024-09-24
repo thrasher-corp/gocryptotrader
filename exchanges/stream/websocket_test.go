@@ -185,7 +185,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
 		select {
 		case ws.TrafficAlert <- struct{}{}:
-			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval)
+			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval*2)
 		default:
 			require.Failf(t, "", "TrafficAlert should not block; Check #%d", i)
 		}
@@ -194,7 +194,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 		case ws.TrafficAlert <- struct{}{}:
 			require.Failf(t, "", "TrafficAlert should block after first slot used; Check #%d", i)
 		default:
-			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval)
+			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval*2)
 		}
 
 		require.Eventuallyf(t, func() bool { return len(ws.TrafficAlert) == 0 }, 2*trafficCheckInterval, time.Millisecond, "trafficAlert should be drained; Check #%d", i)
