@@ -60,7 +60,7 @@ func (p *Poloniex) WsFuturesConnect() error {
 	case p.Websocket.CanUseAuthenticatedEndpoints():
 		instanceServers, err = p.GetPrivateFuturesWebsocketServerInstances(context.Background())
 		if err != nil {
-			log.Warnf(log.ExchangeSys, err.Error())
+			log.Warnf(log.ExchangeSys, "Unexpected authenticated futures websocket servers instance fetch error %v", err)
 			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			break
 		}

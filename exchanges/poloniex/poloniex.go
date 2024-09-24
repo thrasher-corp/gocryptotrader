@@ -286,7 +286,7 @@ func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTi
 
 // AccountsTransfer transfer amount of currency from an account to another account for a user.
 func (p *Poloniex) AccountsTransfer(ctx context.Context, arg *AccountTransferParams) (*AccountTransferResponse, error) {
-	if arg == nil || *arg == (AccountTransferParams{}) {
+	if *arg == (AccountTransferParams{}) {
 		return nil, errNilArgument
 	}
 	if arg.Ccy.IsEmpty() {
@@ -390,7 +390,7 @@ func (p *Poloniex) GetSubAccountBalance(ctx context.Context, id string) ([]SubAc
 // Primary account can transfer to and from any subaccounts as well as transfer between 2 subaccounts across account types.
 // Subaccount can only transfer to the primary account across account types.
 func (p *Poloniex) SubAccountTransfer(ctx context.Context, arg *SubAccountTransferParam) (*AccountTransferResponse, error) {
-	if arg == nil || *arg == (SubAccountTransferParam{}) {
+	if *arg == (SubAccountTransferParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Currency.IsEmpty() {
@@ -565,7 +565,7 @@ func stringToInterval(interval string) (kline.Interval, error) {
 //
 // like fees or if they"re disabled, by adding the "includeMultiChainCurrencies" optional parameter to the /currencies endpoint.
 func (p *Poloniex) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyParam) (*Withdraw, error) {
-	if arg == nil || *arg == (WithdrawCurrencyParam{}) {
+	if *arg == (WithdrawCurrencyParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Currency.IsEmpty() {
@@ -585,7 +585,7 @@ func (p *Poloniex) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyPa
 // Immediately places a withdrawal for a given currency, with no email confirmation.
 // In order to use this method, withdrawal privilege must be enabled for your API key.
 func (p *Poloniex) WithdrawCurrencyV2(ctx context.Context, arg *WithdrawCurrencyV2Param) (*Withdraw, error) {
-	if arg == nil || *arg == (WithdrawCurrencyV2Param{}) {
+	if *arg == (WithdrawCurrencyV2Param{}) {
 		return nil, errNilArgument
 	}
 	if arg.Coin.IsEmpty() {
@@ -637,7 +637,7 @@ func (p *Poloniex) MaximumBuySellAmount(ctx context.Context, symbol currency.Pai
 
 // PlaceOrder places an order for an account.
 func (p *Poloniex) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
-	if arg == nil || *arg == (PlaceOrderParams{}) {
+	if *arg == (PlaceOrderParams{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
@@ -675,7 +675,7 @@ func (p *Poloniex) PlaceBatchOrders(ctx context.Context, args []PlaceOrderParams
 // Please note that since the new order placement does not wait for funds to clear from the existing order cancellation,
 // it is possible that the new order will fail due to low available balance.
 func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrderParam) (*CancelReplaceOrderResponse, error) {
-	if arg == nil || *arg == (CancelReplaceOrderParam{}) {
+	if *arg == (CancelReplaceOrderParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.orderID == "" {
@@ -778,7 +778,7 @@ func (p *Poloniex) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, 
 
 // CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation.
 func (p *Poloniex) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestParam) (*PlaceOrderResponse, error) {
-	if arg == nil || *arg == (SmartOrderRequestParam{}) {
+	if *arg == (SmartOrderRequestParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
@@ -807,7 +807,7 @@ func orderTypeString(oType order.Type) string {
 // if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
 // The proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderParam) (*CancelReplaceSmartOrderResponse, error) {
-	if arg == nil || *arg == (CancelReplaceSmartOrderParam{}) {
+	if *arg == (CancelReplaceSmartOrderParam{}) {
 		return nil, errNilArgument
 	}
 	var path string

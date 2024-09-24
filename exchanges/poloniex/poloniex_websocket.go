@@ -174,7 +174,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 	if result.Event != "" {
-		log.Debugf(log.ExchangeSys, string(respRaw))
+		log.Debugf(log.ExchangeSys, "Unexpected event type %s", string(respRaw))
 		return nil
 	}
 	switch result.Channel {

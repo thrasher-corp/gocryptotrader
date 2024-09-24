@@ -342,7 +342,7 @@ func (p *Poloniex) ChangeMarginMode(ctx context.Context, symbol string, marginTy
 }
 
 func futuresOrderParamsFilter(arg *FuturesOrderParams) error {
-	if arg == nil || *arg == (FuturesOrderParams{}) {
+	if *arg == (FuturesOrderParams{}) {
 		return common.ErrNilPointer
 	}
 	if arg.Symbol == "" {
@@ -675,7 +675,7 @@ func (p *Poloniex) GetFuturesPositionList(ctx context.Context) ([]FuturesPositio
 }
 
 func filterManualMarginParams(arg *AlterMarginManuallyParams) error {
-	if arg == nil || *arg == (AlterMarginManuallyParams{}) {
+	if *arg == (AlterMarginManuallyParams{}) {
 		return common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
