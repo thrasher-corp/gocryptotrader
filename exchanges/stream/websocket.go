@@ -69,10 +69,9 @@ var (
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 )
 
-var (
-	globalReporter       Reporter
-	trafficCheckInterval = 100 * time.Millisecond
-)
+var globalReporter Reporter
+
+const trafficCheckInterval = 100 * time.Millisecond
 
 // SetupGlobalReporter sets a reporter interface to be used
 // for all exchange requests

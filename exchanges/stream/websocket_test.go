@@ -9,7 +9,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -92,12 +91,6 @@ var defaultSetup = &WebsocketSetup{
 		}, nil
 	},
 	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
-}
-
-func TestMain(m *testing.M) {
-	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
-	trafficCheckInterval = 50 * time.Millisecond
-	os.Exit(m.Run())
 }
 
 func TestSetup(t *testing.T) {
