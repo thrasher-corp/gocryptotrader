@@ -45,6 +45,7 @@ const (
 	gateioSpotCandlesticks                               = "spot/candlesticks"
 	gateioSpotFeeRate                                    = "spot/fee"
 	gateioSpotAccounts                                   = "spot/accounts"
+	gateioUnifiedAccounts                                = "unified/accounts"
 	gateioSpotBatchOrders                                = "spot/batch_orders"
 	gateioSpotOpenOrders                                 = "spot/open_orders"
 	gateioSpotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
@@ -172,6 +173,7 @@ var (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
+	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
 }
 
@@ -552,6 +554,16 @@ func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Spot
 		exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioSpotAccounts, params, nil, &response)
 }
 
+// GetUnifiedAccount retrieves unified account.
+func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var response UnifiedUserAccount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioUnifiedAccounts, params, nil, &response)
+}
+
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
 func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderRequestData) ([]SpotOrder, error) {
@@ -701,7 +713,7 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 	} else if len(args) > 20 {
 		return nil, fmt.Errorf("%w maximum order size to cancel is 20", errInvalidOrderSize)
 	}
-	for x := 0; x < len(args); x++ {
+	for x := range args {
 		if args[x].CurrencyPair.IsEmpty() || args[x].ID == "" {
 			return nil, errors.New("currency pair and order ID are required")
 		}

@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -30,7 +31,7 @@ import (
 
 const (
 	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -74,7 +75,7 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -131,11 +132,11 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case spotCandlesticksChannel:
 		return g.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(push.Result)
+		return g.processOrderbookTicker(push.Result, push.TimeMs.Time())
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result)
+		return g.processOrderbookUpdate(push.Result, push.TimeMs.Time())
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(push.Result)
+		return g.processOrderbookSnapshot(push.Result, push.TimeMs.Time())
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -278,7 +279,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(incoming []byte) error {
+func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookTickerData
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -286,16 +287,17 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 	}
 
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:    g.Name,
-		Pair:        data.CurrencyPair,
-		Asset:       asset.Spot,
-		LastUpdated: data.UpdateTimeMS.Time(),
-		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Exchange:       g.Name,
+		Pair:           data.CurrencyPair,
+		Asset:          asset.Spot,
+		LastUpdated:    data.UpdateTimeMS.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
+func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -323,8 +325,9 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] = true
 	}
 	updates := orderbook.Update{
-		UpdateTime: data.UpdateTimeMs.Time(),
-		Pair:       data.CurrencyPair,
+		UpdateTime:     data.UpdateTimeMs.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Pair:           data.CurrencyPair,
 	}
 	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
@@ -377,7 +380,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
+func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookSnapshot
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -389,6 +392,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 		Pair:            data.CurrencyPair,
 		Asset:           asset.Spot,
 		LastUpdated:     data.UpdateTimeMs.Time(),
+		UpdatePushedAt:  updatePushedAt,
 		LastUpdateID:    data.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
@@ -697,7 +701,7 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscripti
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := g.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -864,4 +868,10 @@ func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.
 		assetPairEnabled[assetTypes[i]] = pairs.Contains(cp, true)
 	}
 	return assetPairEnabled
+}
+
+// GenerateWebsocketMessageID generates a message ID for the individual
+// connection.
+func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
+	return g.Counter.IncrementAndGet()
 }

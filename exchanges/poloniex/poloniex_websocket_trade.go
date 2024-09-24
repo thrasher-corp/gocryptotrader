@@ -1,12 +1,14 @@
 package poloniex
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -73,7 +75,7 @@ func (p *Poloniex) SendWebsocketRequest(event string, arg, response interface{})
 		Event:  event,
 		Params: arg,
 	}
-	result, err := p.Websocket.AuthConn.SendMessageReturnResponse(input.ID, input)
+	result, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
 	if err != nil {
 		return err
 	}

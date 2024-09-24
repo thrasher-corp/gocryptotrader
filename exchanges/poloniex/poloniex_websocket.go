@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -74,7 +75,7 @@ func (p *Poloniex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	p.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.TextMessage,
 		Message:           pingPayload,
@@ -113,7 +114,7 @@ func (p *Poloniex) wsAuthConn() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	p.Websocket.AuthConn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.TextMessage,
 		Message:           pingPayload,
@@ -142,7 +143,7 @@ func (p *Poloniex) wsAuthConn() error {
 			Signature:       crypto.Base64Encode(hmac),
 		},
 	}
-	return p.Websocket.AuthConn.SendJSONMessage(auth)
+	return p.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, auth)
 }
 
 // wsReadData handles data from the websocket connection
@@ -594,13 +595,13 @@ func (p *Poloniex) Subscribe(subs subscription.List) error {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if p.Websocket.CanUseAuthenticatedEndpoints() {
-				err = p.Websocket.AuthConn.SendJSONMessage(payloads[i])
+				err = p.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 				if err != nil {
 					return err
 				}
 			}
 		default:
-			err = p.Websocket.Conn.SendJSONMessage(payloads[i])
+			err = p.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 			if err != nil {
 				return err
 			}
@@ -619,13 +620,13 @@ func (p *Poloniex) Unsubscribe(unsub subscription.List) error {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
-				err = p.Websocket.AuthConn.SendJSONMessage(payloads[i])
+				err = p.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 				if err != nil {
 					return err
 				}
 			}
 		default:
-			err = p.Websocket.Conn.SendJSONMessage(payloads[i])
+			err = p.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 			if err != nil {
 				return err
 			}

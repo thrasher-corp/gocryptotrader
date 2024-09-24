@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -53,7 +54,6 @@ const (
 	authOp           = "auth"
 
 	loginDelay = 50 * time.Millisecond
-	rateLimit  = 20
 )
 
 // Instantiates a communications channel between websocket connections
@@ -225,7 +225,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			OP: "pong",
 			TS: init.TS,
 		}
-		err := h.Websocket.AuthConn.SendJSONMessage(authPing)
+		err := h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authPing)
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
@@ -445,7 +445,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 }
 
 func (h *HUOBI) sendPingResponse(pong int64) {
-	err := h.Websocket.Conn.SendJSONMessage(WsPong{Pong: pong})
+	err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsPong{Pong: pong})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -565,7 +565,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe subscription.List) error {
 				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
 				channelsToSubscribe[i].Channel)
 		} else {
-			err = h.Websocket.Conn.SendJSONMessage(WsRequest{
+			err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsRequest{
 				Subscribe: channelsToSubscribe[i].Channel,
 			})
 		}
@@ -599,7 +599,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,
 				channelsToUnsubscribe[i].Channel)
 		} else {
-			err = h.Websocket.Conn.SendJSONMessage(WsRequest{
+			err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsRequest{
 				Unsubscribe: channelsToUnsubscribe[i].Channel,
 			})
 		}
@@ -636,7 +636,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	request := WsAuthenticationRequest{
+	req := WsAuthenticationRequest{
 		Op:               authOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
@@ -647,8 +647,8 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	request.Signature = crypto.Base64Encode(hmac)
-	err = h.Websocket.AuthConn.SendJSONMessage(request)
+	req.Signature = crypto.Base64Encode(hmac)
+	err = h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -660,7 +660,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 
 func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, endpoint, topic string) error {
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	request := WsAuthenticatedSubscriptionRequest{
+	req := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
@@ -672,8 +672,8 @@ func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, 
 	if err != nil {
 		return err
 	}
-	request.Signature = crypto.Base64Encode(hmac)
-	return h.Websocket.AuthConn.SendJSONMessage(request)
+	req.Signature = crypto.Base64Encode(hmac)
+	return h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
 func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
@@ -686,7 +686,7 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 	}
 
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	request := WsAuthenticatedAccountsListRequest{
+	req := WsAuthenticatedAccountsListRequest{
 		Op:               requestOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
@@ -698,9 +698,9 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 	if err != nil {
 		return nil, err
 	}
-	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	req.Signature = crypto.Base64Encode(hmac)
+	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
 	if err != nil {
 		return nil, err
 	}
@@ -733,7 +733,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 	}
 
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	request := WsAuthenticatedOrdersListRequest{
+	req := WsAuthenticatedOrdersListRequest{
 		Op:               requestOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
@@ -749,10 +749,10 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 	if err != nil {
 		return nil, err
 	}
-	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	req.Signature = crypto.Base64Encode(hmac)
+	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
 	if err != nil {
 		return nil, err
 	}
@@ -779,7 +779,7 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		return nil, err
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	request := WsAuthenticatedOrderDetailsRequest{
+	req := WsAuthenticatedOrderDetailsRequest{
 		Op:               requestOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
@@ -792,9 +792,9 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 	if err != nil {
 		return nil, err
 	}
-	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	req.Signature = crypto.Base64Encode(hmac)
+	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
 	if err != nil {
 		return nil, err
 	}

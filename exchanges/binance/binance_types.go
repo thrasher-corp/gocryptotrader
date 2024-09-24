@@ -10,8 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-const wsRateLimitMilliseconds = 250
-
 // withdrawals status codes description
 const (
 	EmailSent = iota
@@ -563,7 +561,7 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.LLT:     67.8,
 	currency.YOYO:    1,
 	currency.TRX:     1,
-	currency.STRAT:   0.1,
+	currency.STRAT:   0.1, //nolint:misspell // Not a misspelling
 	currency.SNGLS:   54,
 	currency.BQX:     3.9,
 	currency.KNC:     3.5,

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -49,7 +50,7 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency st
 		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
 			for y := range c.Exchanges[x].BankAccounts {
 				if strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
-					if common.StringDataCompareInsensitive(
+					if common.StringSliceCompareInsensitive(
 						strings.Split(c.Exchanges[x].BankAccounts[y].SupportedCurrencies, ","),
 						depositingCurrency) {
 						return &c.Exchanges[x].BankAccounts[y], nil
@@ -846,8 +847,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
 			c.Exchanges[i].Name = "CoinbasePro"
-		} else if strings.EqualFold(c.Exchanges[i].Name, "OKCOIN International") {
-			c.Exchanges[i].Name = "Okcoin"
 		}
 
 		// Check to see if the old API storage format is used
@@ -1162,7 +1161,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	}
 
 	for i := range c.Currency.ForexProviders {
-		if !common.StringDataContainsInsensitive(supported, c.Currency.ForexProviders[i].Name) {
+		if !common.StringSliceContainsInsensitive(supported, c.Currency.ForexProviders[i].Name) {
 			log.Warnf(log.ConfigMgr,
 				"%s forex provider not supported, please remove from config.\n",
 				c.Currency.ForexProviders[i].Name)
@@ -1307,7 +1306,7 @@ func (c *Config) checkDatabaseConfig() error {
 		return nil
 	}
 
-	if !common.StringDataCompare(database.SupportedDrivers, c.Database.Driver) {
+	if !slices.Contains(database.SupportedDrivers, c.Database.Driver) {
 		c.Database.Enabled = false
 		return fmt.Errorf("unsupported database driver %v, database disabled", c.Database.Driver)
 	}
@@ -1613,7 +1612,7 @@ func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	for errCounter := 0; errCounter < maxAuthFailures; errCounter++ {
+	for range maxAuthFailures {
 		key, err := keyProvider()
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)

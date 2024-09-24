@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -186,7 +187,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  poloniexWebsocketAddress,
-		RateLimit:            500,
+		RateLimit:            request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
 	})
 	if err != nil {
 		return err
@@ -195,7 +196,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  poloniexPrivateWebsocketAddress,
-		RateLimit:            500,
+		RateLimit:            request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
 		Authenticated:        true,
 	})
 }
@@ -1271,7 +1272,7 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 
 	address, ok = (*depositAddrs)[cryptocurrency.Upper().String()]
 	if !ok {
-		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, chain) {
+		if len(coinParams.ChildChains) > 1 && chain != "" && !slices.Contains(coinParams.ChildChains, chain) {
 			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
 				cryptocurrency,
 				coinParams.ChildChains)

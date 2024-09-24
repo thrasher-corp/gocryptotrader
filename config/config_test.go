@@ -5,11 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -1110,7 +1112,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 	}}
 
 	exchanges := cfg.GetEnabledExchanges()
-	if !common.StringDataCompare(exchanges, bfx) {
+	if !slices.Contains(exchanges, bfx) {
 		t.Error(
 			"TestGetEnabledExchanges. Expected exchange Bitfinex not found",
 		)
@@ -1315,15 +1317,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 	if cfg.Exchanges[0].Name != "CoinbasePro" {
 		t.Error("exchange name should have been updated from GDAX to CoinbasePRo")
-	}
-
-	cfg.Exchanges[0].Name = "OKCOIN International"
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-	if cfg.Exchanges[0].Name != "Okcoin" {
-		t.Error("exchange name should have been updated from 'OKCOIN International' to 'Okcoin'")
 	}
 
 	// Test API settings migration
@@ -1730,18 +1723,11 @@ func TestCheckConnectionMonitorConfig(t *testing.T) {
 	t.Parallel()
 
 	var c Config
-	c.ConnectionMonitor.CheckInterval = 0
-	c.ConnectionMonitor.DNSList = nil
-	c.ConnectionMonitor.PublicDomainList = nil
 	c.CheckConnectionMonitorConfig()
 
-	if c.ConnectionMonitor.CheckInterval != connchecker.DefaultCheckInterval ||
-		len(common.StringSliceDifference(
-			c.ConnectionMonitor.DNSList, connchecker.DefaultDNSList)) != 0 ||
-		len(common.StringSliceDifference(
-			c.ConnectionMonitor.PublicDomainList, connchecker.DefaultDomainList)) != 0 {
-		t.Error("unexpected values")
-	}
+	assert.Equal(t, connchecker.DefaultCheckInterval, c.ConnectionMonitor.CheckInterval)
+	assert.Equal(t, connchecker.DefaultDNSList, c.ConnectionMonitor.DNSList)
+	assert.Equal(t, connchecker.DefaultDomainList, c.ConnectionMonitor.PublicDomainList)
 }
 
 func TestDefaultFilePath(t *testing.T) {
@@ -1859,25 +1845,12 @@ func TestCheckConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	var c Config
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("%s", err)
-	}
-
+	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig should not error")
 	newCfg := c
-	err = c.UpdateConfig(TestFile, &newCfg, true)
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
+	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig should not error")
 
-	err = c.UpdateConfig("//non-existantpath\\", &newCfg, false)
-	if err == nil {
-		t.Fatalf("Error should have been thrown for invalid path")
-	}
-
-	err = c.UpdateConfig(TestFile, &newCfg, true)
-	if err != nil {
-		t.Errorf("%s", err)
+	if isGCTDocker := os.Getenv("GCT_DOCKER_CI"); isGCTDocker != "true" {
+		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig should error on non-existent path")
 	}
 }
 
@@ -2141,7 +2114,6 @@ func TestGetDataPath(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			t.Helper()
@@ -2239,7 +2211,6 @@ func TestMigrateConfig(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(t)

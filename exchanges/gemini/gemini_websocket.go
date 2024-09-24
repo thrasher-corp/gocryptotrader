@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -112,7 +113,7 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 		})
 	}
 
-	if err := g.Websocket.Conn.SendJSONMessage(req); err != nil {
+	if err := g.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req); err != nil {
 		return err
 	}
 

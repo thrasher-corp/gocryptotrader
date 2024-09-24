@@ -129,6 +129,23 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	return nil
 }
 
+// GetTradeAmount returns the trade amount based on the exchange's trading
+// requirements. Some exchanges depending on direction and order type use
+// quotation (funds in balance) or base amounts. If the exchange does not have
+// any specific requirements it will return the base amount.
+func (s *Submit) GetTradeAmount(tr protocol.TradingRequirements) float64 {
+	if s == nil {
+		return 0
+	}
+	switch {
+	case tr.SpotMarketOrderAmountPurchaseQuotationOnly && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsLong():
+		return s.QuoteAmount
+	case tr.SpotMarketOrderAmountSellBaseOnly && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsShort():
+		return s.Amount
+	}
+	return s.Amount
+}
+
 // UpdateOrderFromDetail Will update an order detail (used in order management)
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromDetail(m *Detail) error {

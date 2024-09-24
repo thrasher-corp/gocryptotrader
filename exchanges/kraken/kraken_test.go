@@ -2079,20 +2079,15 @@ func TestChecksumCalculation(t *testing.T) {
 func TestGetCharts(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cp.Delimiter = "_"
 	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Candles)
 
 	end := time.UnixMilli(resp.Candles[0].Time)
 	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetFuturesTrades(t *testing.T) {
@@ -2251,6 +2246,9 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
+
 	_, err := k.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
@@ -2258,8 +2256,8 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	cp1 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
-	cp2 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp1 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp2 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, k, asset.Futures, cp1, cp2)
 
 	resp, err := k.GetOpenInterest(context.Background(), key.PairAsset{
@@ -2295,7 +2293,7 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
 			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
-			require.NoError(tb, err, "Write should not error")
+			assert.NoError(tb, err, "Write should not error")
 			return
 		}
 		testexch.WsMockUpgrader(tb, w, r, h)
@@ -2319,4 +2317,97 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestErrorResponse(t *testing.T) {
+	var g genericRESTResponse
+
+	tests := []struct {
+		name          string
+		jsonStr       string
+		expectError   bool
+		errorMsg      string
+		warningMsg    string
+		requiresReset bool
+	}{
+		{
+			name:    "No errors or warnings",
+			jsonStr: `{"error":[],"result":{"unixtime":1721884425,"rfc1123":"Thu, 25 Jul 24 05:13:45 +0000"}}`,
+		},
+		{
+			name:        "Invalid error type int",
+			jsonStr:     `{"error":[69420],"result":{}}`,
+			expectError: true,
+			errorMsg:    "unable to convert 69420 to string",
+		},
+		{
+			name:        "Unhandled error type float64",
+			jsonStr:     `{"error":124,"result":{}}`,
+			expectError: true,
+			errorMsg:    "unhandled error response type float64",
+		},
+		{
+			name:     "Known error string",
+			jsonStr:  `{"error":["EQuery:Unknown asset pair"],"result":{}}`,
+			errorMsg: "EQuery:Unknown asset pair",
+		},
+		{
+			name:     "Known error string (single)",
+			jsonStr:  `{"error":"EService:Unavailable","result":{}}`,
+			errorMsg: "EService:Unavailable",
+		},
+		{
+			name:          "Warning string in array",
+			jsonStr:       `{"error":["WGeneral:Danger"],"result":{}}`,
+			warningMsg:    "WGeneral:Danger",
+			requiresReset: true,
+		},
+		{
+			name:          "Warning string",
+			jsonStr:       `{"error":"WGeneral:Unknown warning","result":{}}`,
+			warningMsg:    "WGeneral:Unknown warning",
+			requiresReset: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.requiresReset {
+				g = genericRESTResponse{}
+			}
+			err := json.Unmarshal([]byte(tt.jsonStr), &g)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.errorMsg, "Unmarshal should error")
+			} else {
+				require.NoError(t, err)
+				if tt.errorMsg != "" {
+					assert.ErrorContains(t, g.Error.Errors(), tt.errorMsg, "Errors should contain %s", tt.errorMsg)
+				} else {
+					assert.NoError(t, g.Error.Errors(), "Errors should not error")
+				}
+				if tt.warningMsg != "" {
+					assert.Contains(t, g.Error.Warnings(), tt.warningMsg, "Warnings should contain %s", tt.warningMsg)
+				} else {
+					assert.Empty(t, g.Error.Warnings(), "Warnings should be empty")
+				}
+			}
+		})
+	}
+}
+
+func TestGetFuturesErr(t *testing.T) {
+	t.Parallel()
+
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid character", "Bad JSON should error correctly")
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
+	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"Result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
+	err := getFuturesErr(json.RawMessage(`{"Result":"error", "errors": ["2 goats", "3 goats"]}`))
+	assert.ErrorContains(t, err, "2 goat", "JSON with errors should error correctly")
+	assert.ErrorContains(t, err, "3 goat", "JSON with errors should error correctly")
+	err = getFuturesErr(json.RawMessage(`{"Result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
+	assert.ErrorContains(t, err, "2 goat", "JSON with both error and errors should error correctly")
+	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
+	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")
 }

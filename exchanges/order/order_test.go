@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1578,8 +1579,6 @@ func TestMatchFilter(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range tests {
-		num := num
-		tt := tt
 		t.Run(strconv.Itoa(num), func(t *testing.T) {
 			t.Parallel()
 			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
@@ -1753,8 +1752,6 @@ func TestIsOrderPlaced(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range statusTests {
-		num := num
-		tt := tt
 		t.Run(fmt.Sprintf("TEST CASE: %d", num), func(t *testing.T) {
 			t.Parallel()
 			if tt.o.WasOrderPlaced() != tt.expectedResult {
@@ -2128,4 +2125,23 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+}
+
+func TestGetTradeAmount(t *testing.T) {
+	t.Parallel()
+	var s *Submit
+	require.Zero(t, s.GetTradeAmount(protocol.TradingRequirements{}))
+	baseAmount := 420.0
+	quoteAmount := 69.0
+	s = &Submit{Amount: baseAmount, QuoteAmount: quoteAmount}
+	// below will default to base amount with nothing set
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountPurchaseQuotationOnly: true}))
+	s.AssetType = asset.Spot
+	s.Type = Market
+	s.Side = Buy
+	require.Equal(t, quoteAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountPurchaseQuotationOnly: true}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
+	s.Side = Sell
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
 }

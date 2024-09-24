@@ -29,7 +29,7 @@ func StructValsToURLVals(v interface{}) (url.Values, error) {
 	structVal := reflect.ValueOf(v).Elem()
 	structType := structVal.Type()
 
-	for i := 0; i < structVal.NumField(); i++ {
+	for i := range structVal.NumField() {
 		structField := structVal.Field(i)
 
 		var outgoingTag string
