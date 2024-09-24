@@ -318,7 +318,10 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 func (w *Websocket) Connect() error {
 	w.m.Lock()
 	defer w.m.Unlock()
+	return w.connect()
+}
 
+func (w *Websocket) connect() error {
 	if !w.IsEnabled() {
 		return ErrWebsocketNotEnabled
 	}
@@ -613,7 +616,10 @@ func (w *Websocket) connectionMonitor() error {
 func (w *Websocket) Shutdown() error {
 	w.m.Lock()
 	defer w.m.Unlock()
+	return w.shutdown()
+}
 
+func (w *Websocket) shutdown() error {
 	if !w.IsConnected() {
 		return fmt.Errorf("%v %w: %w", w.exchangeName, errCannotShutdown, ErrNotConnected)
 	}
@@ -697,10 +703,12 @@ func (w *Websocket) FlushChannels() error {
 	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to
 	// maintain consistency.
 	if !w.features.Subscribe || !w.features.Unsubscribe {
-		if err := w.Shutdown(); err != nil {
+		w.m.Lock()
+		defer w.m.Unlock()
+		if err := w.shutdown(); err != nil {
 			return err
 		}
-		return w.Connect()
+		return w.connect()
 	}
 
 	if !w.useMultiConnectionManagement {
