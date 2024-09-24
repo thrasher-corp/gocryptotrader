@@ -1502,7 +1502,7 @@ func TestDrain(t *testing.T) {
 	drain(ch)
 	require.Empty(t, ch, "Drain should empty the channel")
 	ch = make(chan error, 10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		ch <- errors.New("test")
 	}
 	drain(ch)
