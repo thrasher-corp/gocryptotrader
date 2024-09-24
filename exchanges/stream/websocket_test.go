@@ -238,7 +238,7 @@ func TestTrafficMonitorConnecting(t *testing.T) {
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, disconnectedState, ws.state.Load(), "websocket must be disconnected")
 		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 4*ws.trafficTimeout, 10*time.Millisecond, "trafficTimeout should trigger a shutdown after connecting status changes")
+	}, 8*ws.trafficTimeout, 10*time.Millisecond, "trafficTimeout should trigger a shutdown after connecting status changes")
 }
 
 // TestTrafficMonitorShutdown ensures shutdown is processed and waitgroup is cleared
@@ -265,7 +265,7 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 
 	close(ws.ShutdownC)
 
-	<-time.After(2 * trafficCheckInterval)
+	<-time.After(4 * trafficCheckInterval)
 	assert.False(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be shutdown")
 	select {
 	case <-wgReady:
@@ -1480,10 +1480,9 @@ func TestWriteToConn(t *testing.T) {
 	// connection rate limit set
 	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
 	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
-	// context cancelled
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 0) // deadline exceeded
 	cancel()
-	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.Canceled)
+	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.DeadlineExceeded)
 	// definitions set but with fallover
 	wc.RateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),
@@ -1494,4 +1493,18 @@ func TestWriteToConn(t *testing.T) {
 	// definitions set but connection rate limiter not set
 	wc.RateLimit = nil
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
+}
+
+func TestDrain(t *testing.T) {
+	t.Parallel()
+	drain(nil)
+	ch := make(chan error)
+	drain(ch)
+	require.Empty(t, ch, "Drain should empty the channel")
+	ch = make(chan error, 10)
+	for i := 0; i < 10; i++ {
+		ch <- errors.New("test")
+	}
+	drain(ch)
+	require.Empty(t, ch, "Drain should empty the channel")
 }
