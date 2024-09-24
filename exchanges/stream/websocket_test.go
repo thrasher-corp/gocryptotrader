@@ -250,17 +250,16 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 
 	ws.state.Store(connectedState)
 	ws.trafficTimeout = time.Minute
+	ws.verbose = true
+	close(ws.TrafficAlert) // Mocks channel traffic signal.
 	ws.trafficMonitor()
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 
 	wgReady := make(chan bool)
-	go func() {
-		ws.Wg.Wait()
-		close(wgReady)
-	}()
+	go func() { ws.Wg.Wait(); close(wgReady) }()
 	select {
 	case <-wgReady:
-		require.Failf(t, "", "WaitGroup should be blocking still")
+		require.Fail(t, "WaitGroup should be blocking still")
 	case <-time.After(trafficCheckInterval):
 	}
 
@@ -271,7 +270,7 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	select {
 	case <-wgReady:
 	default:
-		require.Failf(t, "", "WaitGroup should be freed now")
+		require.Fail(t, "WaitGroup should be freed now")
 	}
 }
 
@@ -1192,12 +1191,13 @@ func TestFlushChannels(t *testing.T) {
 	w.setEnabled(true)
 	w.setState(connectedState)
 
+	// Allow subscribe and unsubscribe feature set, without these the tests will call shutdown and connect.
+	w.features.Subscribe = true
+	w.features.Unsubscribe = true
+
 	// Disable pair and flush system
-	newgen.EnabledPairs = []currency.Pair{
-		currency.NewPair(currency.BTC, currency.AUD)}
-	w.GenerateSubs = func() (subscription.List, error) {
-		return subscription.List{{Channel: "test"}}, nil
-	}
+	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
+	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
 	err = w.FlushChannels()
 	require.NoError(t, err, "Flush Channels must not error")
 
@@ -1215,7 +1215,6 @@ func TestFlushChannels(t *testing.T) {
 	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
-	w.features.Subscribe = true
 
 	w.GenerateSubs = newgen.generateSubs
 	w.subscriptions = subscription.NewStore()
@@ -1236,7 +1235,6 @@ func TestFlushChannels(t *testing.T) {
 	assert.NoError(t, err, "FlushChannels should not error")
 
 	w.setState(connectedState)
-	w.features.Unsubscribe = true
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 
@@ -1262,7 +1260,7 @@ func TestFlushChannels(t *testing.T) {
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 
-	// Forces full connection cycle
+	// Forces full connection cycle (shutdown, connect, subscribe). This will also start monitoring routines.
 	w.features.Subscribe = false
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 

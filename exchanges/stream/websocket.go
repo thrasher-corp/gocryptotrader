@@ -789,22 +789,11 @@ func (w *Websocket) trafficMonitor() {
 				w.Wg.Done()
 				return
 			case <-time.After(trafficCheckInterval):
-				select {
-				case <-w.TrafficAlert:
-					if !t.Stop() {
-						<-t.C
-					}
+				if signalReceived(w.TrafficAlert) {
 					t.Reset(w.trafficTimeout)
-				default:
 				}
 			case <-t.C:
-				checkAgain := w.IsConnecting()
-				select {
-				case <-w.TrafficAlert:
-					checkAgain = true
-				default:
-				}
-				if checkAgain {
+				if w.IsConnecting() || signalReceived(w.TrafficAlert) {
 					t.Reset(w.trafficTimeout)
 					break
 				}
@@ -814,8 +803,7 @@ func (w *Websocket) trafficMonitor() {
 				w.setTrafficMonitorRunning(false) // Cannot defer lest Connect is called after Shutdown but before deferred call
 				w.Wg.Done()                       // Without this the w.Shutdown() call below will deadlock
 				if w.IsConnected() {
-					err := w.Shutdown()
-					if err != nil {
+					if err := w.Shutdown(); err != nil {
 						log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
 					}
 				}
@@ -823,6 +811,16 @@ func (w *Websocket) trafficMonitor() {
 			}
 		}
 	}()
+}
+
+// signalReceived checks if a signal has been received, this also clears the signal.
+func signalReceived(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
 }
 
 func (w *Websocket) setState(s uint32) {
