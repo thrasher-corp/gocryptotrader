@@ -194,7 +194,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
 		select {
 		case ws.TrafficAlert <- signal:
-			require.WithinDuration(t, thenish.Add(time.Duration(i)*trafficCheckInterval), time.Now(), trafficCheckInterval)
+			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval)
 		default:
 			require.Failf(t, "", "TrafficAlert should not block; Check #%d", i)
 		}
