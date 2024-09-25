@@ -720,9 +720,13 @@ func TestSendMessage(t *testing.T) {
 
 func TestSendMessageReturnResponse(t *testing.T) {
 	t.Parallel()
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
 	wc := &WebsocketConnection{
 		Verbose:          true,
-		URL:              "wss://ws.kraken.com",
+		URL:              "ws" + mock.URL[len("http"):] + "/ws",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 	}
