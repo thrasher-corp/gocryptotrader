@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -71,20 +70,18 @@ var (
 	errInvalidAccountType                     = errors.New("invalid account type specified")
 	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
 	errProductIDIsRequired                    = errors.New("product ID is required")
+	errProjectIDRequired                      = errors.New("project ID is required")
 	errPlanIDRequired                         = errors.New("plan ID  is required")
 	errIndexIDIsRequired                      = errors.New("index ID is required")
 	errTokenRequired                          = errors.New("token is required")
 	errTransferAlgorithmRequired              = errors.New("transfer algorithm is required")
 	errUsernameRequired                       = errors.New("user name is required")
 	errTransferTypeRequired                   = errors.New("transfer type is required")
+	errTokenNameRequired                      = errors.New("token name is required")
+	errTradeTypeRequired                      = errors.New("trade type is required")
+	errPositionIDRequired                     = errors.New("position ID is required")
+	errOptionTypeRequired                     = errors.New("optionType is required")
 )
-
-var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    "ticker",
-	subscription.OrderbookChannel: "depth",
-	subscription.CandlesChannel:   "kline",
-	subscription.AllTradesChannel: "trade",
-}
 
 // GetExchangeServerTime retrieves the server time.
 func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) {
@@ -941,7 +938,7 @@ func (b *Binance) GetPreventedMatches(ctx context.Context, symbol string, preven
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if preventedMatchID == 0 && orderID == 0 {
-		return nil, errors.New("either preventedMatchID or orderID")
+		return nil, fmt.Errorf("%w, either preventedMatchID or orderID", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -2364,7 +2361,7 @@ func (b *Binance) GetUserAssets(ctx context.Context, ccy currency.Code, needBTCV
 // accountType: possible values are MAIN and CARD
 func (b *Binance) ConvertBUSD(ctx context.Context, clientTransactionID, accountType string, assetCcy, targetAsset currency.Code, amount float64) (*AssetConverResponse, error) {
 	if clientTransactionID == "" {
-		return nil, errors.New("client transaction ID is required")
+		return nil, fmt.Errorf("%w, client transaction ID is required", order.ErrClientOrderIDMustBeSet)
 	}
 	if assetCcy.IsEmpty() {
 		return nil, fmt.Errorf("%w assetCcy is empty", currency.ErrCurrencyCodeEmpty)
@@ -3058,7 +3055,7 @@ func (b *Binance) GetManagedSubAccountSnapshot(ctx context.Context, email, asset
 		return nil, fmt.Errorf("%w email=%s", errValidEmailRequired, email)
 	}
 	if assetType == "" {
-		return nil, errors.New("invalid assets type")
+		return nil, asset.ErrInvalidAsset
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -3106,7 +3103,7 @@ func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, tr
 		return nil, errors.New("page is required")
 	}
 	if limit <= 0 {
-		return nil, errors.New("limit is required")
+		return nil, errLimitNumberRequired
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -4100,7 +4097,7 @@ func (b *Binance) RedeemFlexibleProduct(ctx context.Context, productID, destinat
 // RedeemLockedProduct posts a redeem locked product
 func (b *Binance) RedeemLockedProduct(ctx context.Context, positionID int64) (*RedeemResponse, error) {
 	if positionID != 0 {
-		return nil, errors.New("position ID is required")
+		return nil, errPositionIDRequired
 	}
 	params := url.Values{}
 	params.Set("positionId", strconv.FormatInt(positionID, 10))
@@ -4270,7 +4267,7 @@ func (b *Binance) SetFlexibleAutoSusbcribe(ctx context.Context, productID string
 // SetLockedAutoSubscribe sets auto subscribe to locked products
 func (b *Binance) SetLockedAutoSubscribe(ctx context.Context, positionID string, autoSubscribe bool) (bool, error) {
 	if positionID == "" {
-		return false, errors.New("position ID is required")
+		return false, errPositionIDRequired
 	}
 	params := url.Values{}
 	params.Set("positionId", positionID)
@@ -4323,7 +4320,7 @@ func (b *Binance) GetFlexibleSubscriptionPreview(ctx context.Context, productID 
 // GetLockedSubscriptionPreview retrieves locked subscription preview.
 func (b *Binance) GetLockedSubscriptionPreview(ctx context.Context, projectID string, amount float64, autoSubscribe bool) ([]LockedSubscriptionPreview, error) {
 	if projectID != "" {
-		return nil, errors.New("project ID is required")
+		return nil, errProjectIDRequired
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -4393,9 +4390,8 @@ func (b *Binance) GetSimpleEarnCollateralRecord(ctx context.Context, productID s
 // GetDualInvestmentProductList retrieves a dual investment product list
 // possible optionType values: 'CALL' and 'PUT'
 func (b *Binance) GetDualInvestmentProductList(ctx context.Context, optionType string, exerciseCoin, investCoin currency.Code, pageSize, pageIndex int64) (*DualInvestmentProduct, error) {
-	params := url.Values{}
 	if optionType == "" {
-		return nil, errors.New("optionType is required")
+		return nil, errOptionTypeRequired
 	}
 	if exerciseCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, exerciseCoin is required", currency.ErrCurrencyCodeEmpty)
@@ -4403,6 +4399,7 @@ func (b *Binance) GetDualInvestmentProductList(ctx context.Context, optionType s
 	if investCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, investCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
+	params := url.Values{}
 	params.Set("optionType", optionType)
 	params.Set("exerciseCoin", exerciseCoin.String())
 	params.Set("investCoin", investCoin.String())
@@ -4424,7 +4421,7 @@ func (b *Binance) GetDualInvestmentProductList(ctx context.Context, optionType s
 // Failed. This means System or network errors.
 func (b *Binance) SubscribeDualInvestmentProducts(ctx context.Context, id, orderID, autoCompoundPlan string, depositAmount float64) (*DualInvestmentProductSubscription, error) {
 	if id == "" {
-		return nil, errors.New("product id is not set")
+		return nil, errProductIDIsRequired
 	}
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -4473,7 +4470,7 @@ func (b *Binance) CheckDualInvestmentAccounts(ctx context.Context) (*DualInvestm
 // get positionId from /sapi/v1/dci/product/positions
 func (b *Binance) ChangeAutoCompoundStatus(ctx context.Context, positionID, autoCompoundPlan string) (*AutoCompoundStatus, error) {
 	if positionID == "" {
-		return nil, errors.New("position ID is required")
+		return nil, errPositionIDRequired
 	}
 	params := url.Values{}
 	params.Set("positionId", positionID)
@@ -4552,7 +4549,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {
-		return nil, errors.New("source type ")
+		return nil, errors.New("source type")
 	}
 	if arg.PlanType == "" {
 		return nil, errors.New("plan type is required")
@@ -5140,7 +5137,7 @@ func (b *Binance) GetHashrateRescaleDetail(ctx context.Context, configID, userNa
 		return nil, errors.New("config ID is required")
 	}
 	if userName == "" {
-		return nil, errors.New("user name is required")
+		return nil, errUsernameRequired
 	}
 	params := url.Values{}
 	params.Set("configId", configID)
@@ -5158,10 +5155,10 @@ func (b *Binance) GetHashrateRescaleDetail(ctx context.Context, configID, userNa
 // HashrateRescaleRequest retrieves a hashrate rescale request
 func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorithm, toPoolUser string, startTime, endTime time.Time, hashRate int64) (*HashrateRescalResponse, error) {
 	if userName == "" {
-		return nil, errors.New("userName is required")
+		return nil, errUsernameRequired
 	}
 	if algorithm == "" {
-		return nil, errors.New("transfer algorithm is required")
+		return nil, errTransferAlgorithmRequired
 	}
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -5194,7 +5191,7 @@ func (b *Binance) CancelHashrateRescaleConfiguration(ctx context.Context, config
 		return nil, errors.New("config ID is required")
 	}
 	if userName == "" {
-		return nil, errors.New("user name is required")
+		return nil, errUsernameRequired
 	}
 	params := url.Values{}
 	params.Set("configId", configID)
@@ -5206,10 +5203,10 @@ func (b *Binance) CancelHashrateRescaleConfiguration(ctx context.Context, config
 // StatisticsList represents a statistics list
 func (b *Binance) StatisticsList(ctx context.Context, algorithm, userName string) (*UserStatistics, error) {
 	if algorithm == "" {
-		return nil, errors.New("transfer algorithm is required")
+		return nil, errTransferAlgorithmRequired
 	}
 	if userName == "" {
-		return nil, errors.New("user name is required")
+		return nil, errUsernameRequired
 	}
 	params := url.Values{}
 	params.Set("algo", algorithm)
@@ -5221,10 +5218,10 @@ func (b *Binance) StatisticsList(ctx context.Context, algorithm, userName string
 // GetAccountList retrieves account list
 func (b *Binance) GetAccountList(ctx context.Context, algorithm, userName string) (*MiningAccounts, error) {
 	if algorithm == "" {
-		return nil, errors.New("transfer algorithm is required")
+		return nil, errTransferAlgorithmRequired
 	}
 	if userName == "" {
-		return nil, errors.New("user name is required")
+		return nil, errUsernameRequired
 	}
 	params := url.Values{}
 	params.Set("algo", algorithm)
@@ -5236,7 +5233,7 @@ func (b *Binance) GetAccountList(ctx context.Context, algorithm, userName string
 // GetMiningAccountEarningRate represents a mining account earning rate
 func (b *Binance) GetMiningAccountEarningRate(ctx context.Context, algorithm string, startTime, endTime time.Time, pageIndex, pageSize int64) (*MiningAccountEarnings, error) {
 	if algorithm == "" {
-		return nil, errors.New("transfer algorithm is required")
+		return nil, errTransferAlgorithmRequired
 	}
 	params := url.Values{}
 	params.Set("algo", algorithm)
@@ -5389,7 +5386,7 @@ func (b *Binance) CancelFuturesAlgoOrder(ctx context.Context, algoID int64) (*Al
 
 func (b *Binance) cancelAlgoOrder(ctx context.Context, algoID int64, path string) (*AlgoOrderResponse, error) {
 	if algoID == 0 {
-		return nil, errors.New("algoID is required")
+		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", strconv.FormatInt(algoID, 10))
@@ -5447,7 +5444,7 @@ func (b *Binance) GetFuturesSubOrders(ctx context.Context, algoID, page, pageSiz
 
 func (b *Binance) getSubOrders(ctx context.Context, algoID, page, pageSize int64, path string) (*AlgoSubOrders, error) {
 	if algoID == 0 {
-		return nil, errors.New("algo ID is required")
+		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", strconv.FormatInt(algoID, 10))
@@ -5642,7 +5639,7 @@ func (b *Binance) GetBLVTInfo(ctx context.Context, tokenName string) ([]BLVTToke
 func (b *Binance) SubscribeBLVT(ctx context.Context, tokenName string, cost float64) (*BLVTSubscriptionResponse, error) {
 	params := url.Values{}
 	if tokenName == "" {
-		return nil, errors.New("BLVT token name is required")
+		return nil, errTokenNameRequired
 	}
 	if cost <= 0 {
 		return nil, errors.New("cost must be greater than 0")
@@ -5680,7 +5677,7 @@ func (b *Binance) GetSusbcriptionRecords(ctx context.Context, tokenName string, 
 // You need to openEnable Spot&Margin Trading permission for the API Key which requests this endpoint.
 func (b *Binance) RedeemBLVT(ctx context.Context, tokenName string, amount float64) (*BLVTRedemption, error) {
 	if tokenName == "" {
-		return nil, errors.New("token name is required")
+		return nil, errTokenNameRequired
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -5791,7 +5788,7 @@ func (b *Binance) GetFiatPaymentHistory(ctx context.Context, beginTime, endTime 
 // possible trade type values: SELL or BUY
 func (b *Binance) GetC2CTradeHistory(ctx context.Context, tradeType string, startTime, endTime time.Time, page, rows int64) (*C2CTransaction, error) {
 	if tradeType == "" {
-		return nil, errors.New("trandeType is required")
+		return nil, errTradeTypeRequired
 	}
 	params := url.Values{}
 	params.Set("tradeType", tradeType)
@@ -6107,7 +6104,7 @@ func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrd
 		return nil, fmt.Errorf("%w, quoteAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.LimitPrice <= 0 {
-		return nil, errors.New("limit price is required")
+		return nil, fmt.Errorf("%w, limitPrice is required", order.ErrPriceBelowMin)
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
@@ -6280,7 +6277,7 @@ func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceTo
 		return nil, fmt.Errorf("%w, baseTokenAmount is %f", order.ErrAmountBelowMin, baseTokenAmount)
 	}
 	if discount <= 0 {
-		return nil, errors.New("discount must be greater than zero")
+		return nil, fmt.Errorf("%w, discount must be greater than zero", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("baseToken", baseToken)

@@ -2148,7 +2148,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock batch with timerange",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
+				Symbol:    currencyPair.String(),
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
@@ -2158,7 +2158,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		{
 			name: "batch with timerange",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
+				Symbol:    currencyPair.String(),
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
@@ -2169,7 +2169,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock custom limit with start time set, no end time",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
 				StartTime: start,
 				Limit:     1001,
 			},
@@ -2179,7 +2179,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		{
 			name: "custom limit with start time set, no end time",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+				Symbol:    "BTCUSDT",
 				StartTime: time.Date(2020, 11, 18, 23, 0, 28, 921, time.UTC),
 				Limit:     1001,
 			},
@@ -2190,7 +2190,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock recent trades",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT),
+				Symbol: "BTCUSDT",
 				Limit:  3,
 			},
 			numExpected:  3,
@@ -2211,8 +2211,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
 			}
 			lastTradeTime := result[len(result)-1].TimeStamp
-			if !lastTradeTime.Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.UTC())
+			if !lastTradeTime.Time().Equal(tt.lastExpected) {
+				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
 			}
 		})
 	}
@@ -2954,44 +2954,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := b.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions should not error")
 	testsubs.EqualLists(t, exp, subs)
-}
-
-func TestChannelName(t *testing.T) {
-	_, err := channelName(&subscription.Subscription{Channel: "Wobbegongs"})
-	require.ErrorIs(t, err, stream.ErrSubscriptionNotSupported, "Invalid channel name should return ErrSubNotSupported")
-	require.ErrorContains(t, err, "Wobbegong", "Invalid channel name error should contain at least one shark")
-
-	n, err := channelName(&subscription.Subscription{Channel: subscription.TickerChannel})
-	require.NoError(t, err)
-	require.Equal(t, "ticker", n, "Ticker channel name should be correct")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.AllTradesChannel})
-	require.NoError(t, err)
-	require.Equal(t, "trade", n, "Trades channel name should be correct")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel})
-	require.NoError(t, err)
-	require.Equal(t, "depth@0s", n, "Orderbook with no update rate should return 0s") // It's not channelName's job to supply defaults
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Second)})
-	require.NoError(t, err)
-	require.Equal(t, "depth@1000ms", n, "Orderbook with 1s update rate should 1000ms")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
-	require.NoError(t, err)
-	require.Equal(t, "depth@100ms", n, "Orderbook with update rate should return it in the depth channel name")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds, Levels: 5})
-	require.NoError(t, err)
-	require.Equal(t, "depth@5@100ms", n, "Orderbook with Level should return it in the depth channel name")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin})
-	require.NoError(t, err)
-	require.Equal(t, "kline_15m", n, "Candles with interval should return it in the depth channel name")
-
-	n, err = channelName(&subscription.Subscription{Channel: subscription.CandlesChannel})
-	require.NoError(t, err)
-	assert.Equal(t, "kline_0s", n, "Candles with no interval should return 0s") // It's not channelName's job to supply defaults
 }
 
 // TestFormatChannelInterval exercises formatChannelInterval
@@ -7254,7 +7216,7 @@ func (b *Binance) populateTradablePairs() error {
 		return err
 	}
 	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", errNoTradablePairFound, asset.Spot)
+		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Spot)
 	}
 	spotTradablePair = tradablePairs[0]
 	tradablePairs, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
@@ -7283,7 +7245,7 @@ func (b *Binance) populateTradablePairs() error {
 		return err
 	}
 	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", errNoTradablePairFound, asset.Options)
+		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
 	}
 	optionsTradablePair = tradablePairs[0]
 	return nil

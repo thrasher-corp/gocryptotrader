@@ -90,7 +90,7 @@ func (b *Binance) WsOptionsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsEOptionsFuturesReadData()
 
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -166,7 +166,7 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscript
 		}
 	}
 
-	response, err := b.Websocket.Conn.SendMessageReturnResponse(params.ID, params)
+	response, err := b.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, params.ID, params)
 	if err != nil {
 		return err
 	}

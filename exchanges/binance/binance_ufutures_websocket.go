@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -83,7 +84,7 @@ func (b *Binance) WsUFuturesConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -656,7 +657,7 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels sub
 	for i := range subscriptionChannels {
 		payload.Params = append(payload.Params, subscriptionChannels[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := b.Websocket.Conn.SendJSONMessage(payload)
+			err := b.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
 			if err != nil {
 				return err
 			}
@@ -665,7 +666,7 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels sub
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := b.Websocket.Conn.SendJSONMessage(payload)
+		err := b.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
 		if err != nil {
 			return err
 		}
@@ -742,7 +743,7 @@ func (b *Binance) ListSubscriptions() ([]string, error) {
 		Method: "LIST_SUBSCRIPTIONS",
 	}
 	var resp WebsocketActionResponse
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.ID, &req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, &req)
 	if err != nil {
 		return nil, err
 	}
@@ -765,7 +766,7 @@ func (b *Binance) SetProperty(property string, value interface{}) error {
 		},
 	}
 	var resp WebsocketActionResponse
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.ID, &req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, &req)
 	if err != nil {
 		return err
 	}

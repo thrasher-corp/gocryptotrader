@@ -281,7 +281,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMilliseconds,
+		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 		URL:                  binanceWebsocketAPIURL,
 		Authenticated:        true,
 	})
@@ -1150,7 +1150,8 @@ func (b *Binance) orderTypeToString(orderType order.Type) (string, error) {
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(b.GetTradingRequirements()); err != nil {
+	var err error
+	if err = s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	var orderID string

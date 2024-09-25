@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -504,10 +505,10 @@ func (b *Binance) CFuturesQuarterlyContractSettlementPrice(ctx context.Context, 
 // GetOpenInterestStats gets open interest stats for a symbol
 func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]OpenInterestStats, error) {
 	if !slices.Contains(validContractType, contractType) {
-		return resp, errors.New("invalid contractType")
+		return nil, errors.New("invalid contractType")
 	}
 	if !slices.Contains(validFuturesIntervals, period) {
-		return resp, errors.New("invalid period")
+		return nil, errors.New("invalid period")
 	}
 	params := url.Values{}
 	params.Set("contractType", contractType)
@@ -535,7 +536,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair currenc
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if !slices.Contains(validFuturesIntervals, period) {
-		return resp, errors.New("invalid period")
+		return nil, errors.New("invalid period")
 	}
 	params := url.Values{}
 	params.Set("pair", pair.String())
@@ -669,11 +670,11 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 	if err != nil {
 		return nil, err
 	}
-	if x.PositionSide != "" && !common.StringDataCompare(validPositionSide, x.PositionSide) {
+	if x.PositionSide != "" && !slices.Contains(validPositionSide, x.PositionSide) {
 		return nil, errors.New("invalid positionSide")
 	}
 	if x.WorkingType != "" {
-		if !common.StringDataCompare(validWorkingType, x.WorkingType) {
+		if !slices.Contains(validWorkingType, x.WorkingType) {
 			return nil, errors.New("invalid workingType")
 		}
 	}
@@ -698,17 +699,17 @@ func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderD
 		data[x].Symbol = formattedPair.String()
 		if data[x].PositionSide != "" {
 			if !slices.Contains(validPositionSide, data[x].PositionSide) {
-				return resp, errors.New("invalid positionSide")
+				return nil, errors.New("invalid positionSide")
 			}
 		}
 		if data[x].WorkingType != "" {
 			if !slices.Contains(validWorkingType, data[x].WorkingType) {
-				return resp, errors.New("invalid workingType")
+				return nil, errors.New("invalid workingType")
 			}
 		}
 		if data[x].NewOrderRespType != "" {
 			if !slices.Contains(validNewOrderRespType, data[x].NewOrderRespType) {
-				return resp, errors.New("invalid newOrderRespType")
+				return nil, errors.New("invalid newOrderRespType")
 			}
 		}
 	}
@@ -942,7 +943,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 	params.Set("symbol", symbolValue)
 	if positionSide != "" {
 		if !slices.Contains(validPositionSide, positionSide) {
-			return resp, errors.New("invalid positionSide")
+			return nil, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", positionSide)
 	}
@@ -1038,7 +1039,7 @@ func (b *Binance) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair
 	}
 	if incomeType != "" {
 		if !slices.Contains(validIncomeType, incomeType) {
-			return resp, fmt.Errorf("invalid incomeType: %v", incomeType)
+			return nil, fmt.Errorf("invalid incomeType: %v", incomeType)
 		}
 		params.Set("incomeType", incomeType)
 	}
@@ -1078,7 +1079,7 @@ func (b *Binance) FuturesForceOrders(ctx context.Context, symbol currency.Pair, 
 	}
 	if autoCloseType != "" {
 		if !slices.Contains(validAutoCloseTypes, autoCloseType) {
-			return resp, errors.New("invalid autoCloseType")
+			return nil, errors.New("invalid autoCloseType")
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}

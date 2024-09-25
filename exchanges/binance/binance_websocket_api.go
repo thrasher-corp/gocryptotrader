@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -49,7 +50,7 @@ func (b *Binance) WsConnectAPI() error {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
 
-	b.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.AuthConn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -121,7 +122,7 @@ func (b *Binance) SendWsRequest(method string, param, result interface{}) error 
 		Method: method,
 		Params: param,
 	}
-	respRaw, err := b.Websocket.AuthConn.SendMessageReturnResponse(input.ID, input)
+	respRaw, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
 	if err != nil {
 		return err
 	}
