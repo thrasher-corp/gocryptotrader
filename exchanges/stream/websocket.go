@@ -341,11 +341,6 @@ func (w *Websocket) connect() error {
 	go w.monitorFrame(&w.Wg, w.monitorData)
 	go w.monitorFrame(&w.Wg, w.monitorTraffic)
 
-	if w.connectionMonitorRunning.CompareAndSwap(false, true) {
-		// This oversees all connections and does not need to be part of wait group management.
-		go w.monitorFrame(nil, w.monitorConnection)
-	}
-
 	if !w.useMultiConnectionManagement {
 		if w.connector == nil {
 			return fmt.Errorf("%v %w", w.exchangeName, errNoConnectFunc)
@@ -356,6 +351,11 @@ func (w *Websocket) connect() error {
 			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 		}
 		w.setState(connectedState)
+
+		if w.connectionMonitorRunning.CompareAndSwap(false, true) {
+			// This oversees all connections and does not need to be part of wait group management.
+			go w.monitorFrame(nil, w.monitorConnection)
+		}
 
 		subs, err := w.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -474,6 +474,12 @@ func (w *Websocket) connect() error {
 	// All subscriptions have been sent and stored. All data received is being
 	// handled by the appropriate data handler.
 	w.setState(connectedState)
+
+	if w.connectionMonitorRunning.CompareAndSwap(false, true) {
+		// This oversees all connections and does not need to be part of wait group management.
+		go w.monitorFrame(nil, w.monitorConnection)
+	}
+
 	return nil
 }
 

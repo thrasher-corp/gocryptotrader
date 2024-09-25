@@ -3,6 +3,7 @@ package websocket
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,7 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 
 // EchoHandler is a simple echo function after a read, this doesn't need to worry if writing to the connection fails
 func EchoHandler(p []byte, c *websocket.Conn) error {
+	time.Sleep(time.Nanosecond) // Shift clock to simulate time passing
 	_ = c.WriteMessage(websocket.TextMessage, p)
 	return nil
 }
