@@ -40,11 +40,8 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 	}
 }
 
-// EchoHandler is a simple echo function after a read
+// EchoHandler is a simple echo function after a read, this doesn't need to worry if writing to the connection fails
 func EchoHandler(p []byte, c *websocket.Conn) error {
-	err := c.WriteMessage(websocket.TextMessage, p)
-	if err != nil {
-		return err
-	}
+	_ = c.WriteMessage(websocket.TextMessage, p)
 	return nil
 }
