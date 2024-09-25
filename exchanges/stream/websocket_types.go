@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -22,13 +23,11 @@ const (
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]*subscription.Subscription
-
 const (
-	uninitialised uint32 = iota
-	disconnected
-	connecting
-	connected
+	uninitialisedState uint32 = iota
+	disconnectedState
+	connectingState
+	connectedState
 )
 
 // Websocket defines a return type for websocket connections via the interface
@@ -52,20 +51,14 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
-	subscriptionMutex sync.RWMutex
-	subscriptions     subscriptionMap
-	Subscribe         chan []subscription.Subscription
-	Unsubscribe       chan []subscription.Subscription
+	subscriptions *subscription.Store
 
-	// Subscriber function for package defined websocket subscriber
-	// functionality
-	Subscriber func([]subscription.Subscription) error
-	// Unsubscriber function for packaged defined websocket unsubscriber
-	// functionality
-	Unsubscriber func([]subscription.Subscription) error
-	// GenerateSubs function for package defined websocket generate
-	// subscriptions functionality
-	GenerateSubs func() ([]subscription.Subscription, error)
+	// Subscriber function for exchange specific subscribe implementation
+	Subscriber func(subscription.List) error
+	// Subscriber function for exchange specific unsubscribe implementation
+	Unsubscriber func(subscription.List) error
+	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
+	GenerateSubs func() (subscription.List, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -74,7 +67,7 @@ type Websocket struct {
 
 	// shutdown synchronises shutdown event across routines
 	ShutdownC chan struct{}
-	Wg        *sync.WaitGroup
+	Wg        sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
@@ -103,6 +96,10 @@ type Websocket struct {
 	// MaxSubScriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxSubscriptionsPerConnection int
+
+	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential
+	// endpoints.
+	rateLimitDefinitions request.RateLimitDefinitions
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -112,9 +109,9 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
-	Subscriber            func([]subscription.Subscription) error
-	Unsubscriber          func([]subscription.Subscription) error
-	GenerateSubscriptions func() ([]subscription.Subscription, error)
+	Subscriber            func(subscription.List) error
+	Unsubscriber          func(subscription.List) error
+	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values
@@ -128,6 +125,13 @@ type WebsocketSetup struct {
 	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxWebsocketSubscriptionsPerConnection int
+
+	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
+	// These rate limits take precedence over any rate limits specified in individual connection configurations.
+	// If no connection-specific rate limit is provided and the endpoint does not match any of these definitions,
+	// an error will be returned. However, if a connection configuration includes its own rate limit,
+	// it will fall back to that configuration’s rate limit without raising an error.
+	RateLimitDefinitions request.RateLimitDefinitions
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
@@ -140,7 +144,12 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    int64
+	// RateLimit is a rate limiter for the connection itself
+	RateLimit *request.RateLimiterWithWeight
+	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all
+	// potential endpoints.
+	RateLimitDefinitions request.RateLimitDefinitions
+
 	ExchangeName string
 	URL          string
 	ProxyURL     string
@@ -152,6 +161,11 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+
+	// bespokeGenerateMessageID is a function that returns a unique message ID
+	// defined externally. This is used for exchanges that require a unique
+	// message ID for each message sent.
+	bespokeGenerateMessageID func(highPrecision bool) int64
 
 	Reporter Reporter
 }

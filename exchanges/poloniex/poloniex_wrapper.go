@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,29 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	p.SetDefaults()
-	exchCfg, err := p.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = p.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets default settings for poloniex
 func (p *Poloniex) SetDefaults() {
@@ -146,7 +124,7 @@ func (p *Poloniex) SetDefaults() {
 
 	p.Requester, err = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -356,17 +334,17 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			VerifyOrderbook: p.CanVerifyOrderbook,
 		}
 
-		book.Bids = make(orderbook.Items, len(data.Bids))
+		book.Bids = make(orderbook.Tranches, len(data.Bids))
 		for y := range data.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Amount: data.Bids[y].Amount,
 				Price:  data.Bids[y].Price,
 			}
 		}
 
-		book.Asks = make(orderbook.Items, len(data.Asks))
+		book.Asks = make(orderbook.Tranches, len(data.Asks))
 		for y := range data.Asks {
-			book.Asks[y] = orderbook.Item{
+			book.Asks[y] = orderbook.Tranche{
 				Amount: data.Asks[y].Amount,
 				Price:  data.Asks[y].Price,
 			}
@@ -564,7 +542,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(p.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -799,7 +777,7 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 
 	address, ok = depositAddrs.Addresses[strings.ToUpper(targetCurrency)]
 	if !ok {
-		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
+		if len(coinParams.ChildChains) > 1 && chain != "" && !slices.Contains(coinParams.ChildChains, targetCurrency) {
 			// rather than assume, return an error
 			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
 				cryptocurrency,
@@ -1091,4 +1069,22 @@ func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 // UpdateOrderExecutionLimits updates order execution limits
 func (p *Poloniex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (p *Poloniex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := p.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return poloniexAPIURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Futures:
+		cp.Delimiter = ""
+		return poloniexAPIURL + tradeFutures + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

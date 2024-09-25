@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	apiURL = "https://api.bithumb.com"
+	apiURL       = "https://api.bithumb.com"
+	tradeBaseURL = "https://www.bithumb.com/react/trade/order/"
 
 	noError = "0000"
 
@@ -707,14 +708,8 @@ func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel,
 
 	limits := make([]order.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
-		c := currency.NewCode(code)
-		cp := currency.NewPair(c, currency.KRW)
-		if err != nil {
-			return nil, err
-		}
-
 		limits = append(limits, order.MinMaxLevel{
-			Pair:              cp,
+			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
 			Asset:             asset.Spot,
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})

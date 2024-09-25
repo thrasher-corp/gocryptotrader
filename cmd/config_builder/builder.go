@@ -36,7 +36,7 @@ func main() {
 	cfgs := make([]config.Exchange, 0, len(exchanges))
 	for x := range exchanges {
 		var cfg *config.Exchange
-		cfg, err = exchanges[x].GetDefaultConfig(context.Background())
+		cfg, err = exchange.GetDefaultConfig(context.Background(), exchanges[x])
 		if err != nil {
 			log.Printf("Failed to get exchanges default config. Err: %s", err)
 			continue

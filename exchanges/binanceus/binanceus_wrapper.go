@@ -30,28 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (bi *Binanceus) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	bi.SetDefaults()
-	exchCfg, err := bi.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = bi.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := bi.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Binanceus
 func (bi *Binanceus) SetDefaults() {
 	bi.Name = "Binanceus"
@@ -146,7 +124,7 @@ func (bi *Binanceus) SetDefaults() {
 	}
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -210,7 +188,7 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMilliseconds,
+		RateLimit:            request.NewWeightedRateLimitByDuration(300 * time.Millisecond),
 	})
 }
 
@@ -379,16 +357,16 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 	if err != nil {
 		return book, err
 	}
-	book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
+	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
+	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -552,7 +530,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	var submitOrderResponse order.SubmitResponse
 	var timeInForce RequestParamsTimeForceType
 	var sideType string
-	err := s.Validate()
+	err := s.Validate(bi.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -965,4 +943,17 @@ func (bi *Binanceus) GetLatestFundingRates(context.Context, *fundingrate.LatestR
 // UpdateOrderExecutionLimits updates order execution limits
 func (bi *Binanceus) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (bi *Binanceus) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := bi.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := bi.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	return tradeBaseURL + symbol, nil
 }

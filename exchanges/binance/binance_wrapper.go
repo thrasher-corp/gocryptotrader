@@ -36,29 +36,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Binance) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Binance
 func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
@@ -211,17 +188,17 @@ func (b *Binance) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
-			{Enabled: true, Channel: subscription.TickerChannel},
-			{Enabled: true, Channel: subscription.AllTradesChannel},
-			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+		Subscriptions: subscription.List{
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 		},
 	}
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimits()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -245,16 +222,14 @@ func (b *Binance) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Binance) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
+	if err := b.SetupDefaults(exch); err != nil {
 		return err
 	}
 	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
@@ -268,7 +243,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
@@ -283,7 +258,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMilliseconds,
+		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 	})
 }
 
@@ -615,16 +590,16 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -905,7 +880,7 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	var orderID string
@@ -3068,4 +3043,68 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		}
 	}
 	return result, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := b.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.USDTMarginedFutures:
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.UExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "futures/" + symbol + ct, nil
+	case asset.CoinMarginedFutures:
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.FuturesExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "delivery/" + symbol + ct, nil
+	case asset.Spot:
+		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
+	case asset.Margin:
+		return tradeBaseURL + "trade/" + symbol + "?type=cross", nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

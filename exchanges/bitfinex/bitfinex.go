@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -26,6 +28,7 @@ import (
 
 const (
 	bitfinexAPIURLBase = "https://api.bitfinex.com"
+	tradeBaseURL       = "https://trading.bitfinex.com"
 	// Version 1 API endpoints
 	bitfinexAPIVersion         = "/v1/"
 	bitfinexStats              = "stats/"
@@ -434,7 +437,7 @@ func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 		}
 		filtered := make([]string, 0, len(list))
 		for x := range list {
-			if common.StringDataCompare(filter, list[x]) {
+			if slices.Contains(filter, list[x]) {
 				continue
 			}
 			filtered = append(filtered, list[x])
@@ -1260,7 +1263,7 @@ func (b *Bitfinex) GetAccountSummary(ctx context.Context) (AccountSummary, error
 func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew uint8) (*Deposit, error) {
 	if walletName == "" {
 		walletName = "funding"
-	} else if !common.StringDataCompare(AcceptedWalletNames, walletName) {
+	} else if !slices.Contains(AcceptedWalletNames, walletName) {
 		return nil,
 			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
 				walletName,
@@ -1461,7 +1464,7 @@ func (b *Bitfinex) WithdrawFIAT(ctx context.Context, withdrawalType, walletType 
 // NewOrder submits a new order and returns a order information
 // Major Upgrade needed on this function to include all query params
 func (b *Bitfinex) NewOrder(ctx context.Context, currencyPair, orderType string, amount, price float64, buy, hidden bool) (Order, error) {
-	if !common.StringDataCompare(AcceptedOrderType, orderType) {
+	if !slices.Contains(AcceptedOrderType, orderType) {
 		return Order{}, fmt.Errorf("order type %s not accepted", orderType)
 	}
 
@@ -1688,7 +1691,7 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 					cancelledOrder.AuxLimitPrice = f
 				}
 			}
-			cancelledOrders[y] = cancelledOrder
+			cancelledOrders = append(cancelledOrders, cancelledOrder)
 		}
 	}
 	return cancelledOrders, nil
@@ -2092,10 +2095,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	fullPath := ePoint + bitfinexAPIVersion + path
 	return b.SendPayload(ctx, endpoint, func() (*request.Item, error) {
-		n := b.Requester.GetNonce(true)
 		req := make(map[string]interface{})
 		req["request"] = bitfinexAPIVersion + path
-		req["nonce"] = n.String()
+		req["nonce"] = b.Requester.GetNonce(nonce.UnixNano).String()
 
 		for key, value := range params {
 			req[key] = value

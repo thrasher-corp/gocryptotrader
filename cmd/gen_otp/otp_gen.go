@@ -39,7 +39,10 @@ func main() {
 		var input string
 		for {
 			log.Println("Please enter in your OTP secret:")
-			fmt.Scanln(&input)
+			if _, err = fmt.Scanln(&input); err != nil {
+				log.Printf("Failed to read input. Err: %s\n", err)
+				continue
+			}
 			if input != "" {
 				break
 			}

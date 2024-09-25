@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -55,10 +56,6 @@ var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
-	errGlobalRequestFormatIsNil          = errors.New("global request format is nil")
-	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
-	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
-	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 	errBatchSizeZero                     = errors.New("batch size cannot be 0")
@@ -172,10 +169,10 @@ func (b *Base) SetSubscriptionsFromConfig() {
 	b.settingsMutex.Lock()
 	defer b.settingsMutex.Unlock()
 	if len(b.Config.Features.Subscriptions) == 0 {
+		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
-		return
 	}
-	b.Features.Subscriptions = []*subscription.Subscription{}
+	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
 		if s.Enabled {
 			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
@@ -397,39 +394,9 @@ func (b *Base) GetSupportedFeatures() FeaturesSupported {
 	return b.Features.Supports
 }
 
-// GetPairFormat returns the pair format based on the exchange and
-// asset type
-func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency.PairFormat, error) {
-	if b.CurrencyPairs.UseGlobalFormat {
-		if requestFormat {
-			if b.CurrencyPairs.RequestFormat == nil {
-				return currency.EMPTYFORMAT, errGlobalRequestFormatIsNil
-			}
-			return *b.CurrencyPairs.RequestFormat, nil
-		}
-
-		if b.CurrencyPairs.ConfigFormat == nil {
-			return currency.EMPTYFORMAT, errGlobalConfigFormatIsNil
-		}
-		return *b.CurrencyPairs.ConfigFormat, nil
-	}
-
-	ps, err := b.CurrencyPairs.Get(assetType)
-	if err != nil {
-		return currency.EMPTYFORMAT, err
-	}
-
-	if requestFormat {
-		if ps.RequestFormat == nil {
-			return currency.EMPTYFORMAT, errAssetRequestFormatIsNil
-		}
-		return *ps.RequestFormat, nil
-	}
-
-	if ps.ConfigFormat == nil {
-		return currency.EMPTYFORMAT, errAssetConfigFormatIsNil
-	}
-	return *ps.ConfigFormat, nil
+// GetPairFormat returns the pair format based on the exchange and asset type
+func (b *Base) GetPairFormat(a asset.Item, r bool) (currency.PairFormat, error) {
+	return b.CurrencyPairs.GetFormat(a, r)
 }
 
 // GetEnabledPairs is a method that returns the enabled currency pairs of
@@ -809,10 +776,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			if err != nil {
 				continue
 			}
-			diff.Remove, err = diff.Remove.Remove(enabledPairs[x])
-			if err != nil {
-				return err
-			}
+			diff.Remove = diff.Remove.Remove(enabledPairs[x])
 			enabledPairs[target] = match.Format(pFmt)
 		}
 		target++
@@ -953,7 +917,7 @@ func (b *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (b *Base) FormatWithdrawPermissions() string {
 	var services []string
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		var check uint32 = 1 << uint32(i)
 		if b.GetWithdrawPermissions()&check != 0 {
 			switch check {
@@ -1007,11 +971,9 @@ func (b *Base) FormatWithdrawPermissions() string {
 	return NoAPIWithdrawalMethodsText
 }
 
-// SupportsAsset whether or not the supplied asset is supported
-// by the exchange
+// SupportsAsset whether or not the supplied asset is supported by the exchange
 func (b *Base) SupportsAsset(a asset.Item) bool {
-	_, ok := b.CurrencyPairs.Pairs[a]
-	return ok
+	return b.CurrencyPairs.IsAssetSupported(a)
 }
 
 // PrintEnabledPairs prints the exchanges enabled asset pairs
@@ -1082,12 +1044,10 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	return nil
 }
 
-// SetGlobalPairsManager sets defined asset and pairs management system with
-// global formatting
+// SetGlobalPairsManager sets defined asset and pairs management system with global formatting
 func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
-		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",
-			b.Name)
+		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided", b.Name)
 	}
 
 	if config == nil {
@@ -1119,10 +1079,10 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	for i := range assets {
 		if assets[i].String() == "" {
 			b.CurrencyPairs.Pairs = nil
-			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
-				b.Name)
+			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
@@ -1164,7 +1124,7 @@ func (b *Base) FlushWebsocketChannels() error {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription) error {
+func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1173,7 +1133,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1181,16 +1141,27 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscripti
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Base) GetSubscriptions() ([]subscription.Subscription, error) {
+func (b *Base) GetSubscriptions() (subscription.List, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
 	return b.Websocket.GetSubscriptions(), nil
 }
 
+// GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
+func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
+}
+
+// CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
+// Used to avoid import cycles on stream.websocket
+func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
+	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
@@ -1328,7 +1299,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil //nolint:nilerr // non-fatal error as we won't update the running URL
+		return nil
 	}
 	e.defaults[key] = val
 	return nil
@@ -1842,26 +1813,21 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 }
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]subscription.Subscription) error, batchSize int) error {
+func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
 	if batchSize == 0 {
 		return errBatchSizeZero
 	}
 
-	var j int
-	for i := 0; i < len(channels); i += batchSize {
-		j += batchSize
-		if j >= len(channels) {
-			j = len(channels)
-		}
+	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)
-		go func(c []subscription.Subscription) {
+		go func(c subscription.List) {
 			defer wg.Done()
 			if err := m(c); err != nil {
 				errC <- err
 			}
-		}(channels[i:j])
+		}(b)
 	}
 
 	wg.Wait()
@@ -1942,4 +1908,49 @@ func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) 
 // IsVerbose returns if the exchange is set to verbose
 func (b *Base) IsVerbose() bool {
 	return b.Verbose
+}
+
+// GetDefaultConfig returns a default exchange config
+func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange, error) {
+	if exch == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if exch.GetName() == "" {
+		exch.SetDefaults()
+	}
+
+	b := exch.GetBase()
+
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = exch.UpdateTradablePairs(ctx, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
+
+// GetTradingRequirements returns the exchange's trading requirements.
+func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
+	if b == nil {
+		return protocol.TradingRequirements{}
+	}
+	return b.Features.TradingRequirements
 }

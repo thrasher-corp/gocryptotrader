@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -281,8 +282,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exch.SetDefaults()
-	conf, err := exch.GetDefaultConfig(context.Background())
+	conf, err := exchange.GetDefaultConfig(context.Background(), exch)
 	if err != nil {
 		t.Error(err)
 	}

@@ -33,29 +33,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Bitfinex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for bitfinex
 func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
@@ -186,7 +163,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -426,18 +403,18 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
-		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Item{
+			o.Asks[x] = orderbook.Tranche{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
 			}
 		}
-		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Item{
+			o.Bids[x] = orderbook.Tranche{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -445,17 +422,17 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			}
 		}
 	} else {
-		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Item{
+			o.Asks[x] = orderbook.Tranche{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
 			}
 		}
-		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Item{
+			o.Bids[x] = orderbook.Tranche{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -631,7 +608,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -643,8 +620,8 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
-		if err != nil {
+		var symbolStr string
+		if symbolStr, err = b.fixCasing(fPair, o.AssetType); err != nil {
 			return nil, err
 		}
 		orderType := strings.ToUpper(o.Type.String())
@@ -937,7 +914,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	method := methods[0]
 	if len(methods) > 1 && withdrawRequest.Crypto.Chain != "" {
-		if !common.StringDataCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
+		if !common.StringSliceCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
 			return nil, fmt.Errorf("invalid chain %s supplied, %v available", withdrawRequest.Crypto.Chain, methods)
 		}
 		method = withdrawRequest.Crypto.Chain
@@ -1272,4 +1249,24 @@ func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 func (b *Bitfinex) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	// TODO: Add futures support for Bitfinex
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitfinex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := b.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Margin, asset.MarginFunding:
+		return tradeBaseURL + "/f/" + symbol, nil
+	case asset.Spot:
+		return tradeBaseURL + "/t/" + symbol, nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

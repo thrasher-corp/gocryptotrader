@@ -36,6 +36,7 @@ const (
 	lbankAPIVersion1 = "1"
 	lbankAPIVersion2 = "2"
 	lbankFeeNotFound = 0.0
+	tradeBaseURL     = "https://www.lbank.com/trade/"
 
 	// Public endpoints
 	lbankTicker         = "ticker.do"

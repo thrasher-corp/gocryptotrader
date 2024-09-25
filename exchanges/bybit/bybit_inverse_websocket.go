@@ -1,10 +1,13 @@
 package bybit
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -20,7 +23,7 @@ func (by *Bybit) WsInverseConnect() error {
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
@@ -32,8 +35,8 @@ func (by *Bybit) WsInverseConnect() error {
 }
 
 // GenerateInverseDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
+	var subscriptions subscription.List
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
@@ -42,9 +45,9 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]subscription.Subscript
 	for z := range pairs {
 		for x := range channels {
 			subscriptions = append(subscriptions,
-				subscription.Subscription{
+				&subscription.Subscription{
 					Channel: channels[x],
-					Pair:    pairs[z],
+					Pairs:   currency.Pairs{pairs[z]},
 					Asset:   asset.CoinMarginedFutures,
 				})
 		}
@@ -53,16 +56,16 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]subscription.Subscript
 }
 
 // InverseSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) InverseSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) InverseSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleInversePayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) InverseUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) InverseUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleInversePayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.CoinMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err
@@ -70,7 +73,7 @@ func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubsc
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		err = by.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payloads[a])
 		if err != nil {
 			return err
 		}

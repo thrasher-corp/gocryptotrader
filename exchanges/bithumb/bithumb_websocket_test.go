@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"errors"
-	"sync"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -46,7 +45,6 @@ func TestWsHandleData(t *testing.T) {
 				},
 			},
 			Websocket: &stream.Websocket{
-				Wg:          new(sync.WaitGroup),
 				DataHandler: make(chan interface{}, 1),
 			},
 		},
@@ -91,7 +89,7 @@ func TestWsHandleData(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	sub, err := b.GenerateSubscriptions()
+	sub, err := b.generateSubscriptions()
 	if err != nil {
 		t.Fatal(err)
 	}

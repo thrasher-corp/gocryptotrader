@@ -26,7 +26,7 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	var err error
 	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		request.WithLimiter(request.NewBasicRateLimit(rateInterval, requestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(rateInterval, requestRate, 1)))
 	return err
 }
 

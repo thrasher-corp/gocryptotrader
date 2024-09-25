@@ -28,11 +28,12 @@ var (
 
 const (
 	btcMarketsAPIURL     = "https://api.btcmarkets.net"
+	tradeBaseURL         = "https://app.btcmarkets.net/buy-sell?market="
 	btcMarketsAPIVersion = "/v3"
 
 	// UnAuthenticated EPs
-	btcMarketsAllMarkets         = "/markets/"
-	btcMarketsGetTicker          = "/ticker/"
+	btcMarketsAllMarkets         = "/markets"
+	btcMarketsGetTicker          = "/ticker"
 	btcMarketsGetTrades          = "/trades?"
 	btcMarketOrderBook           = "/orderbook?"
 	btcMarketsCandles            = "/candles?"
@@ -81,13 +82,13 @@ const (
 	immediateOrCancel = "IOC"
 	fillOrKill        = "FOK"
 
-	subscribe     = "subscribe"
-	fundChange    = "fundChange"
-	orderChange   = "orderChange"
-	heartbeat     = "heartbeat"
-	tick          = "tick"
-	wsOB          = "orderbookUpdate"
-	tradeEndPoint = "trade"
+	subscribe         = "subscribe"
+	fundChange        = "fundChange"
+	orderChange       = "orderChange"
+	heartbeat         = "heartbeat"
+	tick              = "tick"
+	wsOrderbookUpdate = "orderbookUpdate"
+	tradeEndPoint     = "trade"
 
 	// Subscription management when connection and subscription established
 	addSubscription    = "addSubscription"
@@ -110,7 +111,7 @@ func (b *BTCMarkets) GetMarkets(ctx context.Context) ([]Market, error) {
 // symbol - example "btc" or "ltc"
 func (b *BTCMarkets) GetTicker(ctx context.Context, marketID string) (Ticker, error) {
 	var tick Ticker
-	return tick, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketsGetTicker, &tick)
+	return tick, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketsGetTicker, &tick)
 }
 
 // GetTrades returns executed trades on the exchange
@@ -129,7 +130,7 @@ func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, aft
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return trades, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketsGetTrades+params.Encode(),
+	return trades, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketsGetTrades+params.Encode(),
 		&trades)
 }
 
@@ -144,7 +145,7 @@ func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level in
 		params.Set("level", strconv.FormatInt(level, 10))
 	}
 	var temp tempOrderbook
-	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketOrderBook+params.Encode(),
+	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketOrderBook+params.Encode(),
 		&temp)
 	if err != nil {
 		return nil, err
@@ -214,7 +215,7 @@ func (b *BTCMarkets) GetMarketCandles(ctx context.Context, marketID, timeWindow 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return out, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketsCandles+params.Encode(), &out)
+	return out, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketsCandles+params.Encode(), &out)
 }
 
 // GetTickers gets multiple tickers
@@ -224,7 +225,7 @@ func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) (
 	for x := range marketIDs {
 		params.Add("marketId", marketIDs[x].String())
 	}
-	return tickers, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+btcMarketsTickers+params.Encode(),
+	return tickers, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsTickers+params.Encode(),
 		&tickers)
 }
 
@@ -235,7 +236,7 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 	for x := range marketIDs {
 		params.Add("marketId", marketIDs[x])
 	}
-	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+btcMarketsMultipleOrderbooks+params.Encode(),
+	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsMultipleOrderbooks+params.Encode(),
 		&temp)
 	if err != nil {
 		return nil, err
@@ -812,7 +813,7 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result in
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return b.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

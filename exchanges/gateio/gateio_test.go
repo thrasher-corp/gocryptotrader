@@ -3147,7 +3147,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	float64JSON := `{"number": 1684981731.098}`
 
 	time := time.UnixMilli(timeWhenTesting)
-	var in gateioTime
+	var in Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3156,7 +3156,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), time)
 	}
 	inInteger := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3167,7 +3167,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3178,7 +3178,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	}
 }
 
-func TestParseGateioTimeUnmarshal(t *testing.T) {
+func TestParseTimeUnmarshal(t *testing.T) {
 	t.Parallel()
 	var timeWhenTesting int64 = 1684981731
 	timeWhenTestingString := `"1684981731"`
@@ -3187,7 +3187,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
 
 	whenTime := time.Unix(timeWhenTesting, 0)
-	var in gateioTime
+	var in Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3196,7 +3196,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
 	}
 	inInteger := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3207,7 +3207,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number gateioTime `json:"number"`
+		Number Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3218,7 +3218,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
 	}
 
-	var microSeconds gateioTime
+	var microSeconds Time
 	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
 	if err != nil {
 		t.Fatal(err)
@@ -3443,7 +3443,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
 
-var pairs = map[asset.Item]currency.Pair{
+var pairMap = map[asset.Item]currency.Pair{
 	asset.Spot: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
 }
 
@@ -3452,14 +3452,14 @@ var pairsGuard sync.RWMutex
 func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	tb.Helper()
 	pairsGuard.RLock()
-	p, ok := pairs[a]
+	p, ok := pairMap[a]
 	pairsGuard.RUnlock()
 	if ok {
 		return p
 	}
 	pairsGuard.Lock()
 	defer pairsGuard.Unlock()
-	p, ok = pairs[a] // Protect Race if we blocked on Lock and another RW populated
+	p, ok = pairMap[a] // Protect Race if we blocked on Lock and another RW populated
 	if ok {
 		return p
 	}
@@ -3471,9 +3471,9 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 		tb.Fatalf("No pair available for asset %s", a)
 		return currency.EMPTYPAIR
 	}
-	pairs[a] = enabledPairs[0]
+	pairMap[a] = enabledPairs[0]
 
-	return pairs[a]
+	return pairMap[a]
 }
 
 func TestGetClientOrderIDFromText(t *testing.T) {
@@ -3549,4 +3549,119 @@ func TestGetTimeInForce(t *testing.T) {
 	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FOK})
 	require.NoError(t, err)
 	assert.Equal(t, "fok", ret)
+}
+
+func TestProcessFuturesOrdersPushData(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		incoming string
+		status   order.Status
+	}{
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Filled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Liquidated},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"ioc","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"auto_deleveraged","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.AutoDeleverage},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_only","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Closed},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"stp","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.STP},
+	}
+
+	for _, tc := range testCases {
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			processed, err := g.processFuturesOrdersPushData([]byte(tc.incoming), asset.Futures)
+			require.NoError(t, err)
+			require.NotNil(t, processed)
+			for i := range processed {
+				assert.Equal(t, tc.status.String(), processed[i].Status.String())
+			}
+		})
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, g)
+	for _, a := range g.GetAssetTypes(false) {
+		pairs, err := g.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a == asset.Options {
+			require.ErrorIs(t, err, asset.ErrNotSupported)
+		} else {
+			require.NoError(t, err)
+			assert.NotEmpty(t, resp)
+		}
+	}
+}
+
+func TestGetUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+	// Requires unified account to be enabled for this to function.
+	payload, err := g.GetUnifiedAccount(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	require.NotEmpty(t, payload)
+}
+
+func TestGenerateWebsocketMessageID(t *testing.T) {
+	t.Parallel()
+	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
+}
+
+func TestTime(t *testing.T) {
+	t.Parallel()
+	var testTime Time
+
+	require.NoError(t, json.Unmarshal([]byte(`0`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`""`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"0"`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	// seconds
+	require.NoError(t, json.Unmarshal([]byte(`"1628736847"`), &testTime))
+	assert.Equal(t, time.Unix(1628736847, 0), testTime.Time())
+
+	// milliseconds
+	require.NoError(t, json.Unmarshal([]byte(`"1726104395.5"`), &testTime))
+	assert.Equal(t, time.UnixMilli(1726104395500), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1726104395.56"`), &testTime))
+	assert.Equal(t, time.UnixMilli(1726104395560), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1628736847325"`), &testTime))
+	assert.Equal(t, time.UnixMilli(1628736847325), testTime.Time())
+
+	// microseconds
+	require.NoError(t, json.Unmarshal([]byte(`"1628736847325123"`), &testTime))
+	assert.Equal(t, time.UnixMicro(1628736847325123), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1726106210903.0"`), &testTime))
+	assert.Equal(t, time.UnixMicro(1726106210903000), testTime.Time())
+
+	// nanoseconds
+	require.NoError(t, json.Unmarshal([]byte(`"1606292218213.4578"`), &testTime))
+	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1606292218213457800"`), &testTime))
+	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
+}
+
+// 5046307	       216.0 ns/op	     168 B/op	       2 allocs/op (current)
+// 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
+func BenchmarkTime(b *testing.B) {
+	var testTime Time
+	for i := 0; i < b.N; i++ {
+		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

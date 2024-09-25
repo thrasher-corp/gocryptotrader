@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -475,12 +476,12 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 // WsGetInstruments fetches instrument list and propagates a local cache
 func (c *COINUT) WsGetInstruments() (Instruments, error) {
 	var list Instruments
-	request := wsRequest{
+	req := wsRequest{
 		Request:      "inst_list",
 		SecurityType: strings.ToUpper(asset.Spot.String()),
 		Nonce:        getNonce(),
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(request.Nonce, request)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.Nonce, req)
 	if err != nil {
 		return list, err
 	}
@@ -499,17 +500,17 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
-	bids := make([]orderbook.Item, len(ob.Buy))
+	bids := make([]orderbook.Tranche, len(ob.Buy))
 	for i := range ob.Buy {
-		bids[i] = orderbook.Item{
+		bids[i] = orderbook.Tranche{
 			Amount: ob.Buy[i].Volume,
 			Price:  ob.Buy[i].Price,
 		}
 	}
 
-	asks := make([]orderbook.Item, len(ob.Sell))
+	asks := make([]orderbook.Tranche, len(ob.Sell))
 	for i := range ob.Sell {
-		asks[i] = orderbook.Item{
+		asks[i] = orderbook.Tranche{
 			Amount: ob.Sell[i].Volume,
 			Price:  ob.Sell[i].Price,
 		}
@@ -572,26 +573,26 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		UpdateTime: time.Now(), // No time sent
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
-		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Bids = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}
 	} else {
-		bufferUpdate.Asks = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Asks = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}
 	}
 	return c.Websocket.Orderbook.Update(bufferUpdate)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	for i := range channels {
 		for j := range enabledPairs {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
-				Pair:    enabledPairs[j],
+				Pairs:   currency.Pairs{enabledPairs[j]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -600,73 +601,75 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (c *COINUT) Subscribe(subs subscription.List) error {
 	var errs error
-	for i := range channelsToSubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
+	for _, s := range subs {
+		if len(s.Pairs) != 1 {
+			return subscription.ErrNotSinglePair
+		}
+		fPair, err := c.FormatExchangeCurrency(s.Pairs[0], asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
 
 		subscribe := wsRequest{
-			Request:      channelsToSubscribe[i].Channel,
+			Request:      s.Channel,
 			InstrumentID: c.instrumentMap.LookupID(fPair.String()),
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
-		err = c.Websocket.Conn.SendJSONMessage(subscribe)
+		err = c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, subscribe)
+		if err == nil {
+			err = c.Websocket.AddSuccessfulSubscriptions(s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) error {
+func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 	var errs error
-	for i := range channelToUnsubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pair, asset.Spot)
+	for _, s := range channelToUnsubscribe {
+		if len(s.Pairs) != 1 {
+			return subscription.ErrNotSinglePair
+		}
+		fPair, err := c.FormatExchangeCurrency(s.Pairs[0], asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
 
 		subscribe := wsRequest{
-			Request:      channelToUnsubscribe[i].Channel,
+			Request:      s.Channel,
 			InstrumentID: c.instrumentMap.LookupID(fPair.String()),
 			Subscribe:    false,
 			Nonce:        getNonce(),
 		}
-		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
+		resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, subscribe.Nonce, subscribe)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
 		var response map[string]interface{}
 		err = json.Unmarshal(resp, &response)
+		if err == nil {
+			val, ok := response["status"].([]any)
+			switch {
+			case !ok:
+				err = common.GetTypeAssertError("[]any", response["status"])
+			case len(val) == 0, val[0] != "OK":
+				err = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, s.Channel))
+			default:
+				err = c.Websocket.RemoveSubscriptions(s)
+			}
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-
-		val, ok := response["status"].([]interface{})
-		if !ok {
-			errs = common.AppendError(errs, errors.New("unable to type assert response status"))
-		}
-		if val[0] != "OK" {
-			errs = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
-				c.Name,
-				channelToUnsubscribe[i].Channel))
-			continue
-		}
-		c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
 	}
 	return errs
 }
@@ -689,7 +692,7 @@ func (c *COINUT) wsAuthenticate(ctx context.Context) error {
 	}
 	r.Hmac = crypto.HexEncodeToString(hmac)
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(r.Nonce, r)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.Nonce, r)
 	if err != nil {
 		return err
 	}
@@ -712,7 +715,7 @@ func (c *COINUT) wsGetAccountBalance() (*UserBalance, error) {
 		Request: "user_balance",
 		Nonce:   getNonce(),
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(accBalance.Nonce, accBalance)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, accBalance.Nonce, accBalance)
 	if err != nil {
 		return nil, err
 	}
@@ -748,7 +751,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(orderSubmissionRequest.Nonce, orderSubmissionRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, orderSubmissionRequest.Nonce, orderSubmissionRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -791,7 +794,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 
 	orderRequest.Nonce = getNonce()
 	orderRequest.Request = "new_orders"
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(orderRequest.Nonce, orderRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, orderRequest.Nonce, orderRequest)
 	if err != nil {
 		errs = append(errs, err)
 		return nil, errs
@@ -827,7 +830,7 @@ func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error)
 	openOrdersRequest.Nonce = getNonce()
 	openOrdersRequest.InstrumentID = c.instrumentMap.LookupID(curr)
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, openOrdersRequest.Nonce, openOrdersRequest)
 	if err != nil {
 		return response, err
 	}
@@ -860,7 +863,7 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = getNonce()
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(cancellationRequest.Nonce, cancellationRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, cancellationRequest.Nonce, cancellationRequest)
 	if err != nil {
 		return response, err
 	}
@@ -901,7 +904,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 
 	cancelOrderRequest.Request = "cancel_orders"
 	cancelOrderRequest.Nonce = getNonce()
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(cancelOrderRequest.Nonce, cancelOrderRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, cancelOrderRequest.Nonce, cancelOrderRequest)
 	if err != nil {
 		return response, err
 	}
@@ -924,14 +927,14 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTrad
 		return nil, err
 	}
 
-	var request WsTradeHistoryRequest
-	request.Request = "trade_history"
-	request.InstID = c.instrumentMap.LookupID(curr.String())
-	request.Nonce = getNonce()
-	request.Start = start
-	request.Limit = limit
+	var req WsTradeHistoryRequest
+	req.Request = "trade_history"
+	req.InstID = c.instrumentMap.LookupID(curr.String())
+	req.Nonce = getNonce()
+	req.Start = start
+	req.Limit = limit
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(request.Nonce, request)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.Nonce, req)
 	if err != nil {
 		return response, err
 	}
@@ -940,9 +943,7 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTrad
 		return response, err
 	}
 	if response.Status[0] != "OK" {
-		return response, fmt.Errorf("%v get trade history failed for %v",
-			c.Name,
-			request)
+		return response, fmt.Errorf("%v get trade history failed for %v", c.Name, req)
 	}
 	return response, nil
 }

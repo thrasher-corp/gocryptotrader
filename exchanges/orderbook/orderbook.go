@@ -71,7 +71,7 @@ func (s *Service) Update(b *Base) error {
 		book.AssignOptions(b)
 		m1.m[mapKey] = book
 	}
-	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
+	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true)
 	s.mu.Unlock()
 	if err != nil {
 		return err
@@ -122,8 +122,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	return book, nil
 }
 
-// GetDepth returns the actual depth struct for potential subsystems and
-// strategies to interact with
+// GetDepth returns the actual depth struct for potential subsystems and strategies to interact with
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -139,15 +138,13 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			errCannotFindOrderbook,
-			p.Quote)
+		return nil, fmt.Errorf("%w associated with base currency %s", errCannotFindOrderbook, p.Quote)
 	}
 	return book, nil
 }
 
-// Retrieve gets orderbook depth data from the associated linked list and
-// returns the base equivalent copy
+// Retrieve gets orderbook depth data from the stored tranches and returns the
+// base equivalent copy
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -160,9 +157,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s exchange",
-			errCannotFindOrderbook,
-			exchange)
+		return nil, fmt.Errorf("%w for %s exchange", errCannotFindOrderbook, exchange)
 	}
 	book, ok := m1.m[key.PairAsset{
 		Base:  p.Base.Item,
@@ -170,9 +165,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			errCannotFindOrderbook,
-			p.Quote)
+		return nil, fmt.Errorf("%w associated with base currency %s", errCannotFindOrderbook, p.Quote)
 	}
 	return book.Retrieve()
 }
@@ -216,7 +209,7 @@ func (b *Base) Verify() error {
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
-	if len(b.Asks) == 0 || len(b.Bids) == 0 {
+	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
 		log.Warnf(log.OrderBook,
 			bookLengthIssue,
 			b.Exchange,
@@ -238,10 +231,10 @@ func (b *Base) Verify() error {
 
 // checker defines specific functionality to determine ascending/descending
 // validation
-type checker func(current Item, previous Item) error
+type checker func(current Tranche, previous Tranche) error
 
 // asc specifically defines ascending price check
-var asc = func(current Item, previous Item) error {
+var asc = func(current Tranche, previous Tranche) error {
 	if current.Price < previous.Price {
 		return errPriceOutOfOrder
 	}
@@ -249,7 +242,7 @@ var asc = func(current Item, previous Item) error {
 }
 
 // dsc specifically defines descending price check
-var dsc = func(current Item, previous Item) error {
+var dsc = func(current Tranche, previous Tranche) error {
 	if current.Price > previous.Price {
 		return errPriceOutOfOrder
 	}
@@ -257,7 +250,7 @@ var dsc = func(current Item, previous Item) error {
 }
 
 // checkAlignment validates full orderbook
-func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
+func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
 			switch {
@@ -327,25 +320,25 @@ func (b *Base) Process() error {
 // using a sort algorithm as the algorithm could be impeded by a worst case time
 // complexity when elements are shifted as opposed to just swapping element
 // values.
-func (elem *Items) Reverse() {
-	eLen := len(*elem)
+func (ts *Tranches) Reverse() {
+	eLen := len(*ts)
 	var target int
 	for i := eLen/2 - 1; i >= 0; i-- {
 		target = eLen - 1 - i
-		(*elem)[i], (*elem)[target] = (*elem)[target], (*elem)[i]
+		(*ts)[i], (*ts)[target] = (*ts)[target], (*ts)[i]
 	}
 }
 
 // SortAsks sorts ask items to the correct ascending order if pricing values are
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
-func (elem *Items) SortAsks() {
-	sort.Sort(byOBPrice(*elem))
+func (ts Tranches) SortAsks() {
+	sort.Slice(ts, func(i, j int) bool { return ts[i].Price < ts[j].Price })
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
-func (elem *Items) SortBids() {
-	sort.Sort(sort.Reverse(byOBPrice(*elem)))
+func (ts Tranches) SortBids() {
+	sort.Slice(ts, func(i, j int) bool { return ts[i].Price > ts[j].Price })
 }
