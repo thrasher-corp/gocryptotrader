@@ -1223,11 +1223,11 @@ func (w *Websocket) observeTraffic(t *time.Timer) bool {
 			log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
 		}
 		if w.IsConnected() {
-			w.Wg.Done() // Without this the w.Shutdown() call below will deadlock
-			if err := w.Shutdown(); err != nil {
-				log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
-			}
-			w.Wg.Add(1)
+			go func() { // Without this the w.Shutdown() call below will deadlock
+				if err := w.Shutdown(); err != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
+				}
+			}()
 		}
 	}
 	t.Stop()

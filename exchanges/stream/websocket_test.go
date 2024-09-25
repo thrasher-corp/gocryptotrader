@@ -1468,9 +1468,11 @@ func TestMonitorTraffic(t *testing.T) {
 	// Handle timer expired and system is connected but no traffic within time window, causes shutdown to occur.
 	timer = time.NewTimer(0)
 	require.True(t, ws.observeTraffic(timer))
-	require.Equal(t, disconnectedState, ws.state.Load())
+	// Shutdown is done in a routine, so we need to wait for it to finish
+	require.Eventually(t, func() bool { return disconnectedState == ws.state.Load() }, time.Second, time.Millisecond)
 	// Handle outer closure shell
 	innerShell := ws.monitorTraffic()
+	ws.ShutdownC = make(chan struct{})
 	ws.setState(connectedState)
 	ws.TrafficAlert <- struct{}{}
 	require.False(t, innerShell())
