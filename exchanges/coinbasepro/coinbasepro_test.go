@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -22,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -64,6 +67,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetProducts(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetProducts(context.Background())
 	if err != nil {
 		t.Errorf("Coinbase, GetProducts() Error: %s", err)
@@ -71,6 +76,8 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetOrderbook(context.Background(), testPair.String(), 2)
 	if err != nil {
 		t.Error(err)
@@ -82,6 +89,8 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetTicker(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetTicker() error", err)
@@ -96,6 +105,8 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
 	_, err := c.GetHistoricCandles(context.Background(),
@@ -106,6 +117,8 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 }
 
 func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
@@ -685,20 +698,11 @@ func TestWsAuth(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Dial must not error")
 	go c.wsReadData()
 
-	err = c.Subscribe([]subscription.Subscription{
-		{
-			Channel: "user",
-			Pair:    testPair,
-		},
-	})
-	if err != nil {
-		t.Error(err)
-	}
+	err = c.Subscribe(subscription.List{{Channel: "user", Pairs: currency.Pairs{testPair}}})
+	require.NoError(t, err, "Subscribe must not error")
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case badResponse := <-c.Websocket.DataHandler:
@@ -1054,5 +1058,18 @@ func TestGetTransfers(t *testing.T) {
 	_, err := c.GetTransfers(context.Background(), "", "", 100, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, c)
+	for _, a := range c.GetAssetTypes(false) {
+		pairs, err := c.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := c.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

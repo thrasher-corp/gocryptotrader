@@ -32,29 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (h *HUOBI) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	h.SetDefaults()
-	exchCfg, err := h.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = h.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default values for the exchange
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
@@ -188,7 +165,7 @@ func (h *HUOBI) SetDefaults() {
 
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -243,7 +220,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -252,7 +229,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  wsAccountsOrdersURL,
@@ -605,16 +582,16 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			return book, err
 		}
 
-		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x][1],
 				Price:  orderbookNew.Bids[x][0],
 			}
 		}
-		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[x][1],
 				Price:  orderbookNew.Asks[x][0],
 			}
@@ -627,16 +604,16 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			return book, err
 		}
 
-		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[x].Quantity,
 				Price:  orderbookNew.Asks[x].Price,
 			}
 		}
-		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for y := range orderbookNew.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[y].Quantity,
 				Price:  orderbookNew.Bids[y].Price,
 			}
@@ -649,17 +626,17 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			return book, err
 		}
 
-		book.Asks = make(orderbook.Items, len(orderbookNew.Tick.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Tick.Asks))
 		for x := range orderbookNew.Tick.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Tick.Asks[x][1],
 				Price:  orderbookNew.Tick.Asks[x][0],
 			}
 		}
 
-		book.Bids = make(orderbook.Items, len(orderbookNew.Tick.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Tick.Bids))
 		for y := range orderbookNew.Tick.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Amount: orderbookNew.Tick.Bids[y][1],
 				Price:  orderbookNew.Tick.Bids[y][0],
 			}
@@ -1016,7 +993,7 @@ func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(h.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -2495,4 +2472,32 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 		}
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the UR˜L to the exchange's trade page for the given asset and currency pair
+func (h *HUOBI) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := h.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + tradeSpot + cp.Lower().String(), nil
+	case asset.Futures:
+		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
+			// todo: support long dated currencies
+			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		}
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	case asset.CoinMarginedFutures:
+		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
+			// todo: support long dated currencies
+			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		}
+		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

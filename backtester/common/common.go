@@ -65,9 +65,9 @@ func FitStringToLimit(str, spacer string, limit int, upper bool) string {
 		return str[0:limit]
 	}
 	spacerLen := len(spacer)
-	for i := 0; i < limResp; i++ {
+	for i := range limResp {
 		str += spacer
-		for j := 0; j < spacerLen; j++ {
+		for j := range spacerLen {
 			if j > 0 {
 				// prevent clever people from going beyond
 				// the limit by having a spacer longer than 1
@@ -206,10 +206,10 @@ func Logo() string {
 	sb := strings.Builder{}
 	sb.WriteString("                                                                                \n")
 	sb.WriteString("                               " + CMDColours.White + "@@@@@@@@@@@@@@@@@                                \n")
-	sb.WriteString("                            " + CMDColours.White + "@@@@@@@@@@@@@@@@@@@@@@@    " + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n") //nolint:goconst // not needed for this glorious logo
+	sb.WriteString("                            " + CMDColours.White + "@@@@@@@@@@@@@@@@@@@@@@@    " + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
 	sb.WriteString("                           " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,    " + CMDColours.White + "@@@@@@@@@" + CMDColours.Grey + ",,,,,,,," + CMDColours.White + "                   \n")
 	sb.WriteString("                         " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,,,       " + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,,," + CMDColours.White + "                   \n")
-	sb.WriteString("                         " + CMDColours.White + "@@@@@@" + CMDColours.Grey + "(,,,,,,,,      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n") //nolint:goconst // not needed for this glorious logo
+	sb.WriteString("                         " + CMDColours.White + "@@@@@@" + CMDColours.Grey + "(,,,,,,,,      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
 	sb.WriteString("                      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + CMDColours.White + "                   \n")
 	sb.WriteString("                   " + CMDColours.Grey + ",,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + CMDColours.Green + "%%%%%%%" + CMDColours.White + "                \n")
 	sb.WriteString("                " + CMDColours.Grey + ",,,,,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,,,,," + CMDColours.Green + "%%%%%" + CMDColours.Grey + " ,,,,,," + CMDColours.Grey + "%" + CMDColours.Green + "%%%%%%" + CMDColours.White + "                 \n")

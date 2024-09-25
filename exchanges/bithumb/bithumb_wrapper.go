@@ -32,32 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const wsRateLimitMillisecond = 1000
-
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
-
-// GetDefaultConfig returns a default exchange config
-func (b *Bithumb) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Bithumb
 func (b *Bithumb) SetDefaults() {
@@ -137,7 +112,7 @@ func (b *Bithumb) SetDefaults() {
 	}
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -185,7 +160,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
@@ -195,7 +170,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMillisecond,
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Second),
 	})
 }
 
@@ -314,17 +289,17 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Data.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Data.Bids))
 	for i := range orderbookNew.Data.Bids {
-		book.Bids[i] = orderbook.Item{
+		book.Bids[i] = orderbook.Tranche{
 			Amount: orderbookNew.Data.Bids[i].Quantity,
 			Price:  orderbookNew.Data.Bids[i].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Data.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Data.Asks))
 	for i := range orderbookNew.Data.Asks {
-		book.Asks[i] = orderbook.Item{
+		book.Asks[i] = orderbook.Tranche{
 			Amount: orderbookNew.Data.Asks[i].Quantity,
 			Price:  orderbookNew.Data.Asks[i].Price,
 		}
@@ -473,7 +448,7 @@ func (b *Bithumb) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
 func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -886,4 +861,14 @@ func (b *Bithumb) GetFuturesContractDetails(context.Context, asset.Item) ([]futu
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bithumb) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bithumb) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

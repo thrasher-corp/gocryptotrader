@@ -76,7 +76,8 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | BTSE           | Y           |      
 | Bybit          | Y           | 
 | Coinbase Pro   | Y           |
-| Coinut         |             |         
+| Coinut         |             |
+| Deribit        | Y            |         
 | Exmo           |             |
 | GateIO         | Y           |
 | Gemini         |             |
@@ -85,7 +86,6 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Kraken         | Y           |
 | Kucoin         | Y           |                 
 | lBank          | Y           |                
-| Okcoin         | Y           |  
 | Okx            | Y           |         
 | Poloniex       | Y           |          
 | Yobit          |             |           

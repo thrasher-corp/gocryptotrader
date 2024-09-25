@@ -10,95 +10,60 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	gctlog "github.com/thrasher-corp/gocryptotrader/log"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	b = new(Bybit)
+	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.API.AuthenticatedWebsocketSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
+
+	if b.API.AuthenticatedSupport {
+		if err := b.RetrieveAndSetAccountType(context.Background()); err != nil {
+			log.Printf("%s unable to RetrieveAndSetAccountType: %v", b.Name, err)
+		}
 	}
-	err = instantiateTradablePairs()
-	if err != nil {
-		log.Fatalf("%s %v", b.Name, err)
-	}
-	err = b.RetrieveAndSetAccountType(context.Background())
-	if err != nil {
-		gctlog.Errorf(gctlog.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
-	}
+
+	instantiateTradablePairs()
+
 	os.Exit(m.Run())
 }
 
-func instantiateTradablePairs() error {
+func instantiateTradablePairs() {
+	handleError := func(msg string, err error) {
+		if err != nil {
+			log.Fatalf("Bybit %s: %v", msg, err)
+		}
+	}
+
 	err := b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		return err
+	handleError("unable to UpdateTradablePairs", err)
+
+	setTradablePair := func(assetType asset.Item, p *currency.Pair) {
+		tradables, err := b.GetEnabledPairs(assetType)
+		handleError("unable to GetEnabledPairs", err)
+
+		format, err := b.GetPairFormat(assetType, true)
+		handleError("unable to GetPairFormat", err)
+
+		*p = tradables[0].Format(format)
 	}
-	tradables, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-	format, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-	spotTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.USDTMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	usdtMarginedTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.USDCMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.USDCMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	usdcMarginedTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.CoinMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	inverseTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.Options)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.Options, true)
-	if err != nil {
-		return err
-	}
-	optionsTradablePair = tradables[0].Format(format)
-	return nil
+
+	setTradablePair(asset.Spot, &spotTradablePair)
+	setTradablePair(asset.USDTMarginedFutures, &usdtMarginedTradablePair)
+	setTradablePair(asset.USDCMarginedFutures, &usdcMarginedTradablePair)
+	setTradablePair(asset.CoinMarginedFutures, &inverseTradablePair)
+	setTradablePair(asset.Options, &optionsTradablePair)
 }

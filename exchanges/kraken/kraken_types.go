@@ -1,8 +1,13 @@
 package kraken
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -84,16 +89,11 @@ type GenericResponse struct {
 	Result    string `json:"result"`
 }
 
-// AuthErrorData stores authenticated error messages
-type AuthErrorData struct {
-	Result     string `json:"result"`
-	ServerTime string `json:"serverTime"`
-	Error      string `json:"error"`
-}
-
-// SpotAuthError stores authenticated error messages
-type SpotAuthError struct {
-	Error interface{} `json:"error"` // can be a []string or string
+type genericFuturesResponse struct {
+	Result     string    `json:"result"`
+	ServerTime time.Time `json:"serverTime"`
+	Error      string    `json:"error"`
+	Errors     []string  `json:"errors"`
 }
 
 // Asset holds asset information
@@ -161,7 +161,7 @@ type TickerResponse struct {
 
 // OpenHighLowClose contains ticker event information
 type OpenHighLowClose struct {
-	Time                       float64
+	Time                       time.Time
 	Open                       float64
 	High                       float64
 	Low                        float64
@@ -169,13 +169,6 @@ type OpenHighLowClose struct {
 	VolumeWeightedAveragePrice float64
 	Volume                     float64
 	Count                      float64
-}
-
-// RecentTradesResponse defines the response for recent trades
-type RecentTradesResponse struct {
-	Error  []interface{}          `json:"error"`
-	Result map[string]interface{} `json:"result"`
-	Last   string                 `json:"last"`
 }
 
 // RecentTrades holds recent trade data
@@ -191,8 +184,9 @@ type RecentTrades struct {
 
 // OrderbookBase stores the orderbook price and amount data
 type OrderbookBase struct {
-	Price  float64
-	Amount float64
+	Price     types.Number
+	Amount    types.Number
+	Timestamp time.Time
 }
 
 // Orderbook stores the bids and asks orderbook data
@@ -500,11 +494,11 @@ type WithdrawStatusResponse struct {
 
 // WebsocketSubscriptionEventRequest handles WS subscription events
 type WebsocketSubscriptionEventRequest struct {
-	Event        string                      `json:"event"`           // subscribe
-	RequestID    int64                       `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs        []string                    `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
-	Subscription WebsocketSubscriptionData   `json:"subscription,omitempty"`
-	Channels     []subscription.Subscription `json:"-"` // Keeps track of associated subscriptions in batched outgoings
+	Event        string                    `json:"event"`           // subscribe
+	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Pairs        []string                  `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
+	Channels     subscription.List         `json:"-"` // Keeps track of associated subscriptions in batched outgoings
 }
 
 // WebsocketBaseEventRequest Just has an "event" property
@@ -570,11 +564,8 @@ type WebsocketChannelData struct {
 
 // WsTokenResponse holds the WS auth token
 type WsTokenResponse struct {
-	Error  []string `json:"error"`
-	Result struct {
-		Expires int64  `json:"expires"`
-		Token   string `json:"token"`
-	} `json:"result"`
+	Expires int64  `json:"expires"`
+	Token   string `json:"token"`
 }
 
 type wsSystemStatus struct {
@@ -743,3 +734,54 @@ var (
 	// RequestParamsTimeIOC IOC
 	RequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
+
+type genericRESTResponse struct {
+	Error  errorResponse `json:"error"`
+	Result any           `json:"result"`
+}
+
+type errorResponse struct {
+	warnings []string
+	errors   error
+}
+
+func (e *errorResponse) UnmarshalJSON(data []byte) error {
+	var errInterface any
+	if err := json.Unmarshal(data, &errInterface); err != nil {
+		return err
+	}
+
+	switch d := errInterface.(type) {
+	case string:
+		if d[0] == 'E' {
+			e.errors = common.AppendError(e.errors, errors.New(d))
+		} else {
+			e.warnings = append(e.warnings, d)
+		}
+	case []interface{}:
+		for x := range d {
+			errStr, ok := d[x].(string)
+			if !ok {
+				return fmt.Errorf("unable to convert %v to string", d[x])
+			}
+			if errStr[0] == 'E' {
+				e.errors = common.AppendError(e.errors, errors.New(errStr))
+			} else {
+				e.warnings = append(e.warnings, errStr)
+			}
+		}
+	default:
+		return fmt.Errorf("unhandled error response type %T", errInterface)
+	}
+	return nil
+}
+
+// Errors returns one or many errors as an error
+func (e errorResponse) Errors() error {
+	return e.errors
+}
+
+// Warnings returns a string of warnings
+func (e errorResponse) Warnings() string {
+	return strings.Join(e.warnings, ", ")
+}

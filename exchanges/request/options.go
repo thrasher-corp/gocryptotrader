@@ -8,9 +8,9 @@ func WithBackoff(b Backoff) RequesterOption {
 }
 
 // WithLimiter configures the rate limiter for a Requester.
-func WithLimiter(l Limiter) RequesterOption {
+func WithLimiter(def RateLimitDefinitions) RequesterOption {
 	return func(r *Requester) {
-		r.limiter = l
+		r.limiter = def
 	}
 }
 

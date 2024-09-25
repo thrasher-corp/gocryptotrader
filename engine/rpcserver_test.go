@@ -241,7 +241,7 @@ func (f fExchange) GetHistoricCandles(_ context.Context, p currency.Pair, a asse
 
 func generateCandles(amount int, timeStart time.Time, interval kline.Interval) []kline.Candle {
 	candy := make([]kline.Candle, amount)
-	for x := 0; x < amount; x++ {
+	for x := range amount {
 		candy[x] = kline.Candle{
 			Time:   timeStart,
 			Open:   1337,
@@ -266,6 +266,10 @@ func (f fExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair
 		Interval: interval,
 		Candles:  generateCandles(33, timeStart, interval),
 	}, nil
+}
+
+func (f fExchange) GetCurrencyTradeURL(_ context.Context, _ asset.Item, _ currency.Pair) (string, error) {
+	return "https://google.com", nil
 }
 
 func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
@@ -1626,8 +1630,8 @@ func TestCheckVars(t *testing.T) {
 func TestParseEvents(t *testing.T) {
 	t.Parallel()
 	var exchangeName = "Binance"
-	var testData []*withdraw.Response
-	for x := 0; x < 5; x++ {
+	testData := make([]*withdraw.Response, 5)
+	for x := range 5 {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
 			ID: withdraw.DryRunID,
@@ -1664,13 +1668,13 @@ func TestParseEvents(t *testing.T) {
 			resp.RequestDetails.Crypto.FeeAmount = 0
 			resp.RequestDetails.Crypto.AddressTag = test
 		}
-		testData = append(testData, resp)
+		testData[x] = resp
 	}
 	v := parseMultipleEvents(testData)
 	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
 		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
 	}
-	if testData == nil || len(testData) < 2 {
+	if len(testData) < 2 {
 		t.Fatal("expected at least 2")
 	}
 
@@ -3470,19 +3474,19 @@ func TestGetOrderbookMovement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3583,19 +3587,19 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3689,19 +3693,19 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4210,7 +4214,6 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
 		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
 	} {
-		creds := creds
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 
@@ -4255,7 +4258,7 @@ func TestRPCProxyAuthClient(t *testing.T) {
 	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("MEOW"))
-		require.NoError(t, err, "Write should not error")
+		assert.NoError(t, err, "Write should not error")
 	})
 
 	handler := s.authClient(dummyHandler)
@@ -4270,7 +4273,6 @@ func TestRPCProxyAuthClient(t *testing.T) {
 		{"Invalid username but valid password", "bonk", "Sup3rdup3rS3cr3t"},
 		{"Invalid username and password despite glorious credentials", "bonk", "wif"},
 	} {
-		creds := creds
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 
@@ -4289,4 +4291,56 @@ func TestRPCProxyAuthClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err)
+
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
+	require.NoError(t, err)
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	require.NoError(t, err)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.GetCurrencyTradeURL(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &gctrpc.GetCurrencyTradeURLRequest{}
+	_, err = s.GetCurrencyTradeURL(context.Background(), req)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+
+	req.Exchange = fakeExchangeName
+	_, err = s.GetCurrencyTradeURL(context.Background(), req)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	req.Asset = "spot"
+	_, err = s.GetCurrencyTradeURL(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      "btc",
+		Quote:     "usdt",
+	}
+	resp, err := s.GetCurrencyTradeURL(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Url)
 }

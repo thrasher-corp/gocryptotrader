@@ -22,6 +22,7 @@ import (
 
 const (
 	coinutAPIURL          = "https://api.coinut.com"
+	tradeBaseURL          = "https://coinut.com/spot/"
 	coinutAPIVersion      = "1"
 	coinutInstruments     = "inst_list"
 	coinutTicker          = "inst_tick"
@@ -42,7 +43,6 @@ const (
 	coinutStatusOK = "OK"
 	coinutMaxNonce = 16777215 // See https://github.com/coinut/api/wiki/Websocket-API#nonce
 
-	wsRateLimitInMilliseconds = 33
 )
 
 var errLookupInstrumentID = errors.New("unable to lookup instrument ID")

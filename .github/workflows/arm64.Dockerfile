@@ -1,4 +1,4 @@
-FROM arm64v8/golang:1.22
+FROM arm64v8/golang:1.23
 
 WORKDIR /app
 

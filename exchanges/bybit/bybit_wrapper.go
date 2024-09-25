@@ -33,26 +33,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	by.SetDefaults()
-	exchCfg, err := by.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-	err = by.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := by.UpdateTradablePairs(ctx, false)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
+type assetPairFmt struct {
+	asset  asset.Item
+	cfgFmt *currency.PairFormat
+	reqFmt *currency.PairFormat
 }
+
+var (
+	underscoreFmt = &currency.PairFormat{Uppercase: true, Delimiter: "_"}
+	dashFmt       = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	plainFmt      = &currency.PairFormat{Uppercase: true}
+	assetPairFmts = []assetPairFmt{
+		{asset.Spot, underscoreFmt, plainFmt},
+		{asset.USDTMarginedFutures, underscoreFmt, plainFmt},
+		{asset.CoinMarginedFutures, underscoreFmt, plainFmt},
+		{asset.USDCMarginedFutures, dashFmt, plainFmt},
+		{asset.Options, dashFmt, dashFmt},
+	}
+)
 
 // SetDefaults sets the basic defaults for Bybit
 func (by *Bybit) SetDefaults() {
@@ -62,56 +60,46 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresKey = true
 	by.API.CredentialsValidator.RequiresSecret = true
 
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "_"}
-	requestFormat := &currency.PairFormat{Uppercase: true}
-	spotPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err := by.StoreAssetPairFormat(asset.Spot, spotPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
-	}
-	usdtMarginedFuturesPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtMarginedFuturesPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.USDTMarginedFutures, err)
-	}
-	usdcMarginedFutures := currency.PairStore{RequestFormat: requestFormat,
-		ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}}
-	err = by.StoreAssetPairFormat(asset.USDCMarginedFutures, usdcMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.USDCMarginedFutures, err)
-	}
-	coinMarginedFutures := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, coinMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.CoinMarginedFutures, err)
-	}
-	optionPairStore := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	}
-	err = by.StoreAssetPairFormat(asset.Options, optionPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Options, err)
+	for _, n := range assetPairFmts {
+		ps := currency.PairStore{RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
+		if err := by.StoreAssetPairFormat(n.asset, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%v %v", n.asset, err)
+		}
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.DisableAssetWebsocketSupport(asset.USDCMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
+		if err := by.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	by.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(
+			map[currency.Code]currency.Code{
+				currency.NewCode("10000000AIDOGE"):  currency.AIDOGE,
+				currency.NewCode("1000000BABYDOGE"): currency.BABYDOGE,
+				currency.NewCode("1000000MOG"):      currency.NewCode("MOG"),
+				currency.NewCode("10000COQ"):        currency.NewCode("COQ"),
+				currency.NewCode("10000LADYS"):      currency.NewCode("LADYS"),
+				currency.NewCode("10000NFT"):        currency.NFT,
+				currency.NewCode("10000SATS"):       currency.NewCode("SATS"),
+				currency.NewCode("10000STARL"):      currency.STARL,
+				currency.NewCode("10000WEN"):        currency.NewCode("WEN"),
+				currency.NewCode("1000APU"):         currency.NewCode("APU"),
+				currency.NewCode("1000BEER"):        currency.NewCode("BEER"),
+				currency.NewCode("1000BONK"):        currency.BONK,
+				currency.NewCode("1000BTT"):         currency.BTT,
+				currency.NewCode("1000FLOKI"):       currency.FLOKI,
+				currency.NewCode("1000IQ50"):        currency.NewCode("IQ50"),
+				currency.NewCode("1000LUNC"):        currency.LUNC,
+				currency.NewCode("1000PEPE"):        currency.PEPE,
+				currency.NewCode("1000RATS"):        currency.NewCode("RATS"),
+				currency.NewCode("1000TURBO"):       currency.NewCode("TURBO"),
+				currency.NewCode("1000XEC"):         currency.XEC,
+				currency.NewCode("LUNA2"):           currency.LUNA,
+				currency.NewCode("SHIB1000"):        currency.SHIB,
+			},
+		),
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -197,14 +185,8 @@ func (by *Bybit) SetDefaults() {
 		},
 	}
 
-	by.Requester, err = request.New(by.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	by.API.Endpoints = by.NewEndpoints()
-	err = by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err := by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         bybitAPIURL,
 		exchange.RestCoinMargined: bybitAPIURL,
 		exchange.RestUSDTMargined: bybitAPIURL,
@@ -213,6 +195,13 @@ func (by *Bybit) SetDefaults() {
 		exchange.WebsocketSpot:    spotPublic,
 	})
 	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	if by.Requester, err = request.New(by.Name,
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(GetRateLimit()),
+	); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -287,6 +276,9 @@ func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !by.SupportsAsset(a) {
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
 	var pair currency.Pair
 	var category string
 	format, err := by.GetPairFormat(a, false)
@@ -308,13 +300,19 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		allPairs = response.List
 	case asset.Options:
 		category = getCategoryName(a)
-		baseCoins := []string{"BTC", "ETH"}
-		for x := range baseCoins {
-			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", baseCoins[x], "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
-			if err != nil {
-				return nil, err
+		for x := range supportedOptionsTypes {
+			var bookmark = ""
+			for {
+				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], bookmark, int64(by.Features.Enabled.Kline.GlobalResultLimit))
+				if err != nil {
+					return nil, err
+				}
+				allPairs = append(allPairs, response.List...)
+				if response.NextPageCursor == "" || (bookmark != "" && bookmark == response.NextPageCursor) || len(response.List) == 0 {
+					break
+				}
+				bookmark = response.NextPageCursor
 			}
-			allPairs = append(allPairs, response.List...)
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
@@ -453,9 +451,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.Options:
-		baseCoins := []string{"BTC", "ETH"}
-		for x := range baseCoins {
-			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", baseCoins[x], time.Time{})
+		for x := range supportedOptionsTypes {
+			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", supportedOptionsTypes[x], time.Time{})
 			if err != nil {
 				return err
 			}
@@ -558,17 +555,17 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Item, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Item, len(orderbookNew.Asks)),
+		Bids:            make([]orderbook.Tranche, len(orderbookNew.Bids)),
+		Asks:            make([]orderbook.Tranche, len(orderbookNew.Asks)),
 	}
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -617,8 +614,8 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
 			balance := account.Balance{
-				Currency: currency.NewCode(balances.List[i].Coin[c].Coin),
-				Total:    balances.List[i].TotalWalletBalance.Float64(),
+				Currency: balances.List[i].Coin[c].Coin,
+				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
 				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
 				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
 				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
@@ -807,7 +804,7 @@ func orderTypeToString(oType order.Type) string {
 
 // SubmitOrder submits a new order
 func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(by.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -2044,4 +2041,59 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 		}
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := by.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.ForwardSlashDelimiter
+		return tradeBaseURL + "en/trade/spot/" + cp.Upper().String(), nil
+	case asset.CoinMarginedFutures:
+		if cp.Quote.Equal(currency.USD) {
+			cp.Delimiter = ""
+			return tradeBaseURL + "trade/inverse/" + cp.Upper().String(), nil
+		}
+		var symbol string
+		symbol, err = by.FormatSymbol(cp, a)
+		if err != nil {
+			return "", err
+		}
+		// convert long-dated to static contracts
+		var io *InstrumentsInfo
+		io, err = by.GetInstrumentInfo(ctx, getCategoryName(a), symbol, "", "", "", 1000)
+		if err != nil {
+			return "", err
+		}
+		if len(io.List) != 1 {
+			return "", fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, cp)
+		}
+		var length futures.ContractType
+		length, err = getContractLength(io.List[0].DeliveryTime.Time().Sub(io.List[0].LaunchTime.Time()))
+		if err != nil {
+			return "", err
+		}
+		// bybit inverse long-dated contracts are currently only quarterly or bi-quarterly
+		if length == futures.Quarterly {
+			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("Q"))
+		} else {
+			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("BIQ"))
+		}
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + "trade/inverse/futures/" + cp.Upper().String(), nil
+	case asset.USDTMarginedFutures:
+		cp.Delimiter = ""
+		return tradeBaseURL + "trade/usdt/" + cp.Upper().String(), nil
+	case asset.USDCMarginedFutures:
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + "trade/futures/usdc/" + cp.Upper().String(), nil
+	case asset.Options:
+		return tradeBaseURL + "trade/option/usdc/" + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

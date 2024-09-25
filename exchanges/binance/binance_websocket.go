@@ -8,14 +8,17 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -44,7 +47,6 @@ var (
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
-	errUnknownError       = errors.New("unknown error")
 )
 
 // WsConnect initiates a websocket connection
@@ -87,7 +89,7 @@ func (b *Binance) WsConnect() error {
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -119,7 +121,7 @@ func (b *Binance) setupOrderbookManager() {
 		}
 	}
 
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		b.SynchroniseWebsocketOrderbook()
 	}
@@ -140,8 +142,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 			err := b.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					b.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", b.Name)
 			}
 		}
 	}
@@ -460,18 +461,18 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 		Exchange:        b.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Items, len(orderbookNew.Asks)),
+		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
 		LastUpdated:     time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[i].Quantity,
 			Price:  orderbookNew.Bids[i].Price,
 		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[i].Quantity,
 			Price:  orderbookNew.Asks[i].Price,
 		}
@@ -502,155 +503,122 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	return false, err
 }
 
-// GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
-	var channels = make([]string, 0, len(b.Features.Subscriptions))
-	for i := range b.Features.Subscriptions {
-		name, err := channelName(b.Features.Subscriptions[i])
-		if err != nil {
-			return nil, err
-		}
-		channels = append(channels, name)
-	}
-	var subscriptions []subscription.Subscription
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	for y := range pairs {
-		for z := range channels {
-			lp := pairs[y].Lower()
-			lp.Delimiter = ""
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: lp.String() + "@" + channels[z],
-				Pair:    pairs[y],
-				Asset:   asset.Spot,
-			})
+func (b *Binance) generateSubscriptions() (subscription.List, error) {
+	for _, s := range b.Features.Subscriptions {
+		if s.Asset == asset.Empty {
+			// Handle backwards compatibility with config without assets, all binance subs are spot
+			s.Asset = asset.Spot
 		}
 	}
-	return subscriptions, nil
+	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
-// channelName converts a Subscription Config into binance format channel suffix
-func channelName(s *subscription.Subscription) (string, error) {
-	name, ok := subscriptionNames[s.Channel]
-	if !ok {
-		return name, fmt.Errorf("%w: %s", stream.ErrSubscriptionNotSupported, s.Channel)
-	}
+var subTemplate *template.Template
 
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	var err error
+	if subTemplate == nil {
+		subTemplate, err = template.New("subscriptions.tmpl").
+			Funcs(template.FuncMap{
+				"interval": formatChannelInterval,
+				"levels":   formatChannelLevels,
+				"fmt":      currency.EMPTYFORMAT.Format,
+			}).
+			Parse(subTplText)
+	}
+	return subTemplate, err
+}
+
+func formatChannelLevels(s *subscription.Subscription) string {
+	if s.Levels != 0 {
+		return strconv.Itoa(s.Levels)
+	}
+	return ""
+}
+
+func formatChannelInterval(s *subscription.Subscription) string {
 	switch s.Channel {
 	case subscription.OrderbookChannel:
-		if s.Levels != 0 {
-			name += "@" + strconv.Itoa(s.Levels)
-		}
 		if s.Interval.Duration() == time.Second {
-			name += "@1000ms"
-		} else {
-			name += "@" + s.Interval.Short()
+			return "@1000ms"
 		}
+		return "@" + s.Interval.Short()
 	case subscription.CandlesChannel:
-		name += "_" + s.Interval.Short()
+		return "_" + s.Interval.Short()
 	}
-	return name, nil
+	return ""
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channels []subscription.Subscription) error {
-	return b.ParallelChanOp(channels, b.subscribeToChan, 50)
+func (b *Binance) Subscribe(channels subscription.List) error {
+	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsSubscribeMethod, l) }, 50)
 }
 
-// subscribeToChan handles a single subscription and parses the result
-// on success it adds the subscription to the websocket
-func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
-	id := b.Websocket.Conn.GenerateMessageID(false)
+// Unsubscribe unsubscribes from a set of channels
+func (b *Binance) Unsubscribe(channels subscription.List) error {
+	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsUnsubscribeMethod, l) }, 50)
+}
 
-	cNames := make([]string, len(chans))
-	for i := range chans {
-		c := chans[i]
-		cNames[i] = c.Channel
-		c.State = subscription.SubscribingState
-		if err := b.Websocket.AddSubscription(&c); err != nil {
-			return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
+// manageSubs subscribes or unsubscribes from a list of subscriptions
+func (b *Binance) manageSubs(op string, subs subscription.List) error {
+	if op == wsSubscribeMethod {
+		if err := b.Websocket.AddSubscriptions(subs...); err != nil { // Note: AddSubscription will set state to subscribing
+			return err
+		}
+	} else {
+		if err := subs.SetStates(subscription.UnsubscribingState); err != nil {
+			return err
 		}
 	}
 
 	req := WsPayload{
-		Method: wsSubscribeMethod,
-		Params: cNames,
-		ID:     id,
+		ID:     b.Websocket.Conn.GenerateMessageID(false),
+		Method: op,
+		Params: subs.QualifiedChannels(),
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
 		} else if d != jsonparser.Null { // null is the only expected and acceptable response
-			err = fmt.Errorf("%w: %s", errUnknownError, v)
+			err = fmt.Errorf("%w: %s", common.ErrUnknownError, v)
 		}
 	}
 
 	if err != nil {
-		b.Websocket.RemoveSubscriptions(chans...)
-		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
+		err = fmt.Errorf("%w; Channels: %s", err, strings.Join(subs.QualifiedChannels(), ", "))
 		b.Websocket.DataHandler <- err
+
+		if op == wsSubscribeMethod {
+			if err2 := b.Websocket.RemoveSubscriptions(subs...); err2 != nil {
+				err = common.AppendError(err, err2)
+			}
+		}
 	} else {
-		b.Websocket.AddSuccessfulSubscriptions(chans...)
+		if op == wsSubscribeMethod {
+			err = common.AppendError(err, subs.SetStates(subscription.SubscribedState))
+		} else {
+			err = b.Websocket.RemoveSubscriptions(subs...)
+		}
 	}
 
 	return err
 }
 
-// Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channels []subscription.Subscription) error {
-	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 50)
-}
-
-// unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (b *Binance) unsubscribeFromChan(chans []subscription.Subscription) error {
-	id := b.Websocket.Conn.GenerateMessageID(false)
-
-	cNames := make([]string, len(chans))
-	for i := range chans {
-		cNames[i] = chans[i].Channel
-	}
-
-	req := WsPayload{
-		Method: wsUnsubscribeMethod,
-		Params: cNames,
-		ID:     id,
-	}
-
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
-	if err == nil {
-		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
-			err = rErr
-		} else if d != jsonparser.Null { // null is the only expected and acceptable response
-			err = fmt.Errorf("%w: %s", errUnknownError, v)
-		}
-	}
-
-	if err != nil {
-		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
-		b.Websocket.DataHandler <- err
-	} else {
-		b.Websocket.RemoveSubscriptions(chans...)
-	}
-
-	return nil
-}
-
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
+	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Item{
+		updateBid[i] = orderbook.Tranche{
 			Price:  ws.UpdateBids[i][0].Float64(),
 			Amount: ws.UpdateBids[i][1].Float64(),
 		}
 	}
-	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
+	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Item{
+		updateAsk[i] = orderbook.Tranche{
 			Price:  ws.UpdateAsks[i][0].Float64(),
 			Amount: ws.UpdateAsks[i][1].Float64(),
 		}
@@ -1045,3 +1013,16 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	state.needsFetchingBook = false
 	return nil
 }
+
+const subTplText = `
+{{ range $pair := index $.AssetPairs $.S.Asset }}
+  {{ fmt $pair -}} @
+  {{- with $c := $.S.Channel -}}
+  {{ if eq $c "ticker"         -}} ticker
+  {{ else if eq $c "allTrades" -}} trade
+  {{ else if eq $c "candles"   -}} kline  {{- interval $.S }}
+  {{ else if eq $c "orderbook" -}} depth  {{- levels $.S }}{{ interval $.S }}
+  {{- end }}{{ end }}
+  {{ $.PairSeparator }}
+{{end}}
+`

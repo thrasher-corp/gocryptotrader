@@ -55,8 +55,8 @@ type Exchange struct {
 	ID uuid.UUID
 }
 
-// Item stores the amount and price values
-type Item struct {
+// Tranche defines a segmented portions of an order or options book
+type Tranche struct {
 	Amount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
 	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
@@ -77,19 +77,33 @@ type Item struct {
 	OrderCount        int64
 }
 
-// Items defines a slice of orderbook items
-type Items []Item
-
 // Base holds the fields for the orderbook base
 type Base struct {
-	Bids Items
-	Asks Items
+	Bids Tranches
+	Asks Tranches
 
 	Exchange string
 	Pair     currency.Pair
 	Asset    asset.Item
 
-	LastUpdated  time.Time
+	// LastUpdated is the time when a change occurred on the exchange books.
+	// Note: This does not necessarily indicate the change is out of sync with
+	// the exchange. It represents the last known update time from the exchange,
+	// which could be stale if there have been no recent changes.
+	LastUpdated time.Time
+
+	// UpdatePushedAt is the time the exchange pushed this update. This helps
+	// determine factors like distance from exchange (latency) and routing
+	// time, which can affect the time it takes for an update to reach the user
+	// from the exchange.
+	UpdatePushedAt time.Time
+
+	// InsertedAt is the time the update was inserted into the orderbook
+	// management system. This field is used to calculate round-trip times and
+	// processing delays, e.g., InsertedAt.Sub(UpdatePushedAt) represents the
+	// total processing time including network latency.
+	InsertedAt time.Time
+
 	LastUpdateID int64
 	// PriceDuplication defines whether an orderbook can contain duplicate
 	// prices in a payload
@@ -98,7 +112,7 @@ type Base struct {
 	// VerifyOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
-	VerifyOrderbook bool `json:"-"`
+	VerifyOrderbook bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -115,17 +129,13 @@ type Base struct {
 	ChecksumStringRequired bool
 }
 
-type byOBPrice []Item
-
-func (a byOBPrice) Len() int           { return len(a) }
-func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
-
 type options struct {
 	exchange               string
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
+	updatePushedAt         time.Time
+	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool
@@ -154,12 +164,13 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID   int64 // Used when no time is provided
-	UpdateTime time.Time
-	Asset      asset.Item
+	UpdateID       int64 // Used when no time is provided
+	UpdateTime     time.Time
+	UpdatePushedAt time.Time
+	Asset          asset.Item
 	Action
-	Bids []Item
-	Asks []Item
+	Bids []Tranche
+	Asks []Tranche
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32

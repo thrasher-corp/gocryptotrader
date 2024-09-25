@@ -20,7 +20,7 @@ var mockTests = false
 func TestMain(m *testing.M) {
 
 	b = new(Binance)
-	if err := testexch.TestInstance(b); err != nil {
+	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
 	}
 

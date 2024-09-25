@@ -398,9 +398,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 	if !d.hasUpdatedFunding {
 		err = d.UpdateFunding(false)
 		if err != nil {
-			if err != nil {
-				log.Errorln(common.LiveStrategy, err)
-			}
+			log.Errorln(common.LiveStrategy, err)
 		}
 	}
 
