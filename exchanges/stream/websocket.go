@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -70,8 +71,6 @@ var (
 )
 
 var globalReporter Reporter
-
-const trafficCheckInterval = 100 * time.Millisecond
 
 // SetupGlobalReporter sets a reporter interface to be used
 // for all exchange requests
@@ -336,9 +335,16 @@ func (w *Websocket) connect() error {
 	}
 	w.subscriptions.Clear()
 
-	w.dataMonitor()
-	w.trafficMonitor()
 	w.setState(connectingState)
+
+	w.Wg.Add(2)
+	go w.monitorFrame(&w.Wg, w.monitorData)
+	go w.monitorFrame(&w.Wg, w.monitorTraffic)
+
+	if w.connectionMonitorRunning.CompareAndSwap(false, true) {
+		// This oversees all connections and does not need to be part of wait group management.
+		go w.monitorFrame(nil, w.monitorConnection)
+	}
 
 	if !w.useMultiConnectionManagement {
 		if w.connector == nil {
@@ -350,13 +356,6 @@ func (w *Websocket) connect() error {
 			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 		}
 		w.setState(connectedState)
-
-		if !w.IsConnectionMonitorRunning() {
-			err = w.connectionMonitor()
-			if err != nil {
-				log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
-			}
-		}
 
 		subs, err := w.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -475,14 +474,6 @@ func (w *Websocket) connect() error {
 	// All subscriptions have been sent and stored. All data received is being
 	// handled by the appropriate data handler.
 	w.setState(connectedState)
-
-	if !w.IsConnectionMonitorRunning() {
-		err := w.connectionMonitor()
-		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
-		}
-	}
-
 	return nil
 }
 
@@ -505,109 +496,6 @@ func (w *Websocket) Enable() error {
 
 	w.setEnabled(true)
 	return w.Connect()
-}
-
-// dataMonitor monitors job throughput and logs if there is a back log of data
-func (w *Websocket) dataMonitor() {
-	if w.IsDataMonitorRunning() {
-		return
-	}
-	w.setDataMonitorRunning(true)
-	w.Wg.Add(1)
-
-	go func() {
-		defer func() {
-			w.setDataMonitorRunning(false)
-			w.Wg.Done()
-		}()
-		dropped := 0
-		for {
-			select {
-			case <-w.ShutdownC:
-				return
-			case d := <-w.DataHandler:
-				select {
-				case w.ToRoutine <- d:
-					if dropped != 0 {
-						log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
-						dropped = 0
-					}
-				default:
-					if dropped == 0 {
-						// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
-						log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
-					}
-					dropped++
-				}
-			}
-		}
-	}()
-}
-
-// connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() error {
-	if w.checkAndSetMonitorRunning() {
-		return errAlreadyRunning
-	}
-	delay := w.connectionMonitorDelay
-
-	go func() {
-		timer := time.NewTimer(delay)
-		for {
-			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle", w.exchangeName)
-			}
-			if !w.IsEnabled() {
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr, "%v websocket: connectionMonitor - websocket disabled, shutting down", w.exchangeName)
-				}
-				if w.IsConnected() {
-					if err := w.Shutdown(); err != nil {
-						log.Errorln(log.WebsocketMgr, err)
-					}
-				}
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor exiting", w.exchangeName)
-				}
-				timer.Stop()
-				w.setConnectionMonitorRunning(false)
-				return
-			}
-			select {
-			case err := <-w.ReadMessageErrors:
-				if errors.Is(err, errConnectionFault) {
-					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
-					if w.IsConnected() {
-						if shutdownErr := w.Shutdown(); shutdownErr != nil {
-							log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", w.exchangeName, shutdownErr)
-						}
-					}
-				}
-				// Speedier reconnection, instead of waiting for the next cycle.
-				if w.IsEnabled() && (!w.IsConnected() && !w.IsConnecting()) {
-					if connectErr := w.Connect(); connectErr != nil {
-						log.Errorln(log.WebsocketMgr, connectErr)
-					}
-				}
-				w.DataHandler <- err // hand over the error to the data handler (shutdown and reconnection is priority)
-			case <-timer.C:
-				if !w.IsConnecting() && !w.IsConnected() {
-					err := w.Connect()
-					if err != nil {
-						log.Errorln(log.WebsocketMgr, err)
-					}
-				}
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(delay)
-			}
-		}
-	}()
-	return nil
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -773,63 +661,6 @@ func (w *Websocket) FlushChannels() error {
 	return nil
 }
 
-// trafficMonitor waits trafficCheckInterval before checking for a trafficAlert
-// 1 slot buffer means that connection will only write to trafficAlert once per trafficCheckInterval to avoid read/write flood in high traffic
-// Otherwise we Shutdown the connection after trafficTimeout, unless it's connecting. connectionMonitor is responsible for Connecting again
-func (w *Websocket) trafficMonitor() {
-	if w.IsTrafficMonitorRunning() {
-		return
-	}
-	w.setTrafficMonitorRunning(true)
-	w.Wg.Add(1)
-
-	go func() {
-		t := time.NewTimer(w.trafficTimeout)
-		for {
-			select {
-			case <-w.ShutdownC:
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", w.exchangeName)
-				}
-				t.Stop()
-				w.setTrafficMonitorRunning(false)
-				w.Wg.Done()
-				return
-			case <-time.After(trafficCheckInterval):
-				if signalReceived(w.TrafficAlert) {
-					t.Reset(w.trafficTimeout)
-				}
-			case <-t.C:
-				if w.IsConnecting() || signalReceived(w.TrafficAlert) {
-					t.Reset(w.trafficTimeout)
-					break
-				}
-				if w.verbose {
-					log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
-				}
-				w.setTrafficMonitorRunning(false) // Cannot defer lest Connect is called after Shutdown but before deferred call
-				w.Wg.Done()                       // Without this the w.Shutdown() call below will deadlock
-				if w.IsConnected() {
-					if err := w.Shutdown(); err != nil {
-						log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
-					}
-				}
-				return
-			}
-		}
-	}()
-}
-
-// signalReceived checks if a signal has been received, this also clears the signal.
-func signalReceived(ch chan struct{}) bool {
-	select {
-	case <-ch:
-		return true
-	default:
-		return false
-	}
-}
-
 func (w *Websocket) setState(s uint32) {
 	w.state.Store(s)
 }
@@ -856,37 +687,6 @@ func (w *Websocket) setEnabled(b bool) {
 // IsEnabled returns whether the websocket is enabled
 func (w *Websocket) IsEnabled() bool {
 	return w.enabled.Load()
-}
-
-func (w *Websocket) setTrafficMonitorRunning(b bool) {
-	w.trafficMonitorRunning.Store(b)
-}
-
-// IsTrafficMonitorRunning returns status of the traffic monitor
-func (w *Websocket) IsTrafficMonitorRunning() bool {
-	return w.trafficMonitorRunning.Load()
-}
-
-func (w *Websocket) checkAndSetMonitorRunning() (alreadyRunning bool) {
-	return !w.connectionMonitorRunning.CompareAndSwap(false, true)
-}
-
-func (w *Websocket) setConnectionMonitorRunning(b bool) {
-	w.connectionMonitorRunning.Store(b)
-}
-
-// IsConnectionMonitorRunning returns status of connection monitor
-func (w *Websocket) IsConnectionMonitorRunning() bool {
-	return w.connectionMonitorRunning.Load()
-}
-
-func (w *Websocket) setDataMonitorRunning(b bool) {
-	w.dataMonitorRunning.Store(b)
-}
-
-// IsDataMonitorRunning returns status of data monitor
-func (w *Websocket) IsDataMonitorRunning() bool {
-	return w.dataMonitorRunning.Load()
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
@@ -1295,5 +1095,151 @@ func drain(ch <-chan error) {
 		default:
 			return
 		}
+	}
+}
+
+// ClosureFrame is a closure function that wraps monitoring variables with observer, if the return is true the frame will exit
+type ClosureFrame func() func() bool
+
+// monitorFrame monitors a specific websocket componant or critical system. It will exit if the observer returns true
+// This is used for monitoring data throughput, connection status and other critical websocket components. The waitgroup
+// is optional and is used to signal when the monitor has finished.
+func (w *Websocket) monitorFrame(wg *sync.WaitGroup, fn ClosureFrame) {
+	if wg != nil {
+		defer w.Wg.Done()
+	}
+	observe := fn()
+	for {
+		if observe() {
+			return
+		}
+	}
+}
+
+// monitorData monitors data throughput and logs if there is a back log of data
+func (w *Websocket) monitorData() func() bool {
+	dropped := 0
+	return func() bool { return w.observeData(&dropped) }
+}
+
+// observeData observes data throughput and logs if there is a back log of data
+func (w *Websocket) observeData(dropped *int) (exit bool) {
+	select {
+	case <-w.ShutdownC:
+		return true
+	case d := <-w.DataHandler:
+		select {
+		case w.ToRoutine <- d:
+			if *dropped != 0 {
+				log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
+				*dropped = 0
+			}
+		default:
+			if *dropped == 0 {
+				// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
+				log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
+			}
+			*dropped++
+		}
+		return false
+	}
+}
+
+// monitorConnection monitors the connection and attempts to reconnect if the connection is lost
+func (w *Websocket) monitorConnection() func() bool {
+	timer := time.NewTimer(w.connectionMonitorDelay)
+	return func() bool { return w.observeConnection(timer) }
+}
+
+// observeConnection observes the connection and attempts to reconnect if the connection is lost
+func (w *Websocket) observeConnection(t *time.Timer) (exit bool) {
+	select {
+	case err := <-w.ReadMessageErrors:
+		if errors.Is(err, errConnectionFault) {
+			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
+			if w.IsConnected() {
+				if shutdownErr := w.Shutdown(); shutdownErr != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", w.exchangeName, shutdownErr)
+				}
+			}
+		}
+		// Speedier reconnection, instead of waiting for the next cycle.
+		if w.IsEnabled() && (!w.IsConnected() && !w.IsConnecting()) {
+			if connectErr := w.Connect(); connectErr != nil {
+				log.Errorln(log.WebsocketMgr, connectErr)
+			}
+		}
+		w.DataHandler <- err // hand over the error to the data handler (shutdown and reconnection is priority)
+	case <-t.C:
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle", w.exchangeName)
+		}
+		if !w.IsEnabled() {
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr, "%v websocket: connectionMonitor - websocket disabled, shutting down", w.exchangeName)
+			}
+			if w.IsConnected() {
+				if err := w.Shutdown(); err != nil {
+					log.Errorln(log.WebsocketMgr, err)
+				}
+			}
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor exiting", w.exchangeName)
+			}
+			t.Stop()
+			w.connectionMonitorRunning.Store(false)
+			return true
+		}
+		if !w.IsConnecting() && !w.IsConnected() {
+			err := w.Connect()
+			if err != nil {
+				log.Errorln(log.WebsocketMgr, err)
+			}
+		}
+		t.Reset(w.connectionMonitorDelay)
+	}
+	return false
+}
+
+// monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic
+// the connection is shutdown and will be reconnected by the connectionMonitor routine.
+func (w *Websocket) monitorTraffic() func() bool {
+	timer := time.NewTimer(w.trafficTimeout)
+	return func() bool { return w.observeTraffic(timer) }
+}
+
+func (w *Websocket) observeTraffic(t *time.Timer) bool {
+	select {
+	case <-w.ShutdownC:
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", w.exchangeName)
+		}
+	case <-t.C:
+		if w.IsConnecting() || signalReceived(w.TrafficAlert) {
+			t.Reset(w.trafficTimeout)
+			return false
+		}
+		if w.verbose {
+			log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
+		}
+		if w.IsConnected() {
+			w.Wg.Done() // Without this the w.Shutdown() call below will deadlock
+			if err := w.Shutdown(); err != nil {
+				log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
+			}
+			w.Wg.Add(1)
+		}
+	}
+	t.Stop()
+	return true
+}
+
+// signalReceived checks if a signal has been received, this also clears the signal.
+func signalReceived(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
 	}
 }

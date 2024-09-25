@@ -165,102 +165,6 @@ func TestSetup(t *testing.T) {
 	assert.NoError(t, err, "Setup should not error")
 }
 
-// TestTrafficMonitorTrafficAlerts ensures multiple traffic alerts work and only process one trafficAlert per interval
-// ensures shutdown works after traffic alerts
-func TestTrafficMonitorTrafficAlerts(t *testing.T) {
-	t.Parallel()
-	ws := NewWebsocket()
-	err := ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
-
-	ws.trafficTimeout = 200 * time.Millisecond
-	ws.state.Store(connectedState)
-
-	thenish := time.Now()
-	ws.trafficMonitor()
-
-	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
-	require.Equal(t, connectedState, ws.state.Load(), "websocket must be connected")
-
-	for i := range 6 { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
-		select {
-		case ws.TrafficAlert <- struct{}{}:
-			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval*2)
-		default:
-			require.Failf(t, "", "TrafficAlert should not block; Check #%d", i)
-		}
-
-		select {
-		case ws.TrafficAlert <- struct{}{}:
-			require.Failf(t, "", "TrafficAlert should block after first slot used; Check #%d", i)
-		default:
-			require.WithinDuration(t, time.Now(), thenish.Add(time.Duration(i)*trafficCheckInterval), trafficCheckInterval*2)
-		}
-
-		require.Eventuallyf(t, func() bool { return len(ws.TrafficAlert) == 0 }, 2*trafficCheckInterval, time.Millisecond, "trafficAlert should be drained; Check #%d", i)
-		assert.Truef(t, ws.IsConnected(), "state should still be connected; Check #%d", i)
-	}
-
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, disconnectedState, ws.state.Load(), "websocket must be disconnected")
-		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 2*ws.trafficTimeout, time.Millisecond, "trafficTimeout should trigger a shutdown once we stop feeding trafficAlerts")
-}
-
-// TestTrafficMonitorConnecting ensures connecting status doesn't trigger shutdown
-func TestTrafficMonitorConnecting(t *testing.T) {
-	t.Parallel()
-	ws := NewWebsocket()
-	err := ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
-
-	ws.state.Store(connectingState)
-	ws.trafficTimeout = 50 * time.Millisecond
-	ws.trafficMonitor()
-	require.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
-	require.Equal(t, connectingState, ws.state.Load(), "websocket must be connecting")
-	<-time.After(4 * ws.trafficTimeout)
-	require.Equal(t, connectingState, ws.state.Load(), "websocket must still be connecting after several checks")
-	ws.state.Store(connectedState)
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, disconnectedState, ws.state.Load(), "websocket must be disconnected")
-		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 8*ws.trafficTimeout, 10*time.Millisecond, "trafficTimeout should trigger a shutdown after connecting status changes")
-}
-
-// TestTrafficMonitorShutdown ensures shutdown is processed and waitgroup is cleared
-func TestTrafficMonitorShutdown(t *testing.T) {
-	t.Parallel()
-	ws := NewWebsocket()
-	err := ws.Setup(defaultSetup)
-	require.NoError(t, err, "Setup must not error")
-
-	ws.state.Store(connectedState)
-	ws.trafficTimeout = time.Minute
-	ws.verbose = true
-	close(ws.TrafficAlert) // Mocks channel traffic signal.
-	ws.trafficMonitor()
-	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
-
-	wgReady := make(chan bool)
-	go func() { ws.Wg.Wait(); close(wgReady) }()
-	select {
-	case <-wgReady:
-		require.Fail(t, "WaitGroup should be blocking still")
-	case <-time.After(trafficCheckInterval):
-	}
-
-	close(ws.ShutdownC)
-
-	<-time.After(4 * trafficCheckInterval)
-	assert.False(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be shutdown")
-	select {
-	case <-wgReady:
-	default:
-		require.Fail(t, "WaitGroup should be freed now")
-	}
-}
-
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
 	var wsWrong = &Websocket{}
@@ -671,31 +575,6 @@ func TestSuccessfulSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, (*Websocket)(nil).RemoveSubscriptions(nil, nil), common.ErrNilPointer, "Should error correctly when nil websocket")
 	w.subscriptions = nil
 	assert.ErrorIs(t, w.RemoveSubscriptions(nil, c), common.ErrNilPointer, "Should error correctly when nil websocket")
-}
-
-// TestConnectionMonitorNoConnection logic test
-func TestConnectionMonitorNoConnection(t *testing.T) {
-	t.Parallel()
-	ws := NewWebsocket()
-	ws.connectionMonitorDelay = 500
-	ws.exchangeName = "hello"
-	ws.setEnabled(true)
-	err := ws.connectionMonitor()
-	require.NoError(t, err, "connectionMonitor must not error")
-	assert.True(t, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
-	err = ws.connectionMonitor()
-	assert.ErrorIs(t, err, errAlreadyRunning, "connectionMonitor should error correctly")
-
-	ws.setState(connectedState)
-	ws.ReadMessageErrors <- errConnectionFault
-	select {
-	case data := <-ws.DataHandler:
-		err, ok := data.(error)
-		require.True(t, ok, "DataHandler should return an error")
-		require.ErrorIs(t, err, errConnectionFault, "DataHandler should return the correct error")
-	case <-time.After(2 * time.Second):
-		t.Fatal("DataHandler should return an error")
-	}
 }
 
 // TestGetSubscription logic test
@@ -1494,4 +1373,105 @@ func TestDrain(t *testing.T) {
 	}
 	drain(ch)
 	require.Empty(t, ch, "Drain should empty the channel")
+}
+
+func TestMonitorFrame(t *testing.T) {
+	t.Parallel()
+	ws := Websocket{}
+	require.Panics(t, func() { ws.monitorFrame(nil, nil) }, "monitorFrame must panic on nil frame")
+	require.Panics(t, func() { ws.monitorFrame(nil, func() func() bool { return nil }) }, "monitorFrame must panic on nil function")
+	ws.Wg.Add(1)
+	ws.monitorFrame(&ws.Wg, func() func() bool { return func() bool { return true } })
+	ws.Wg.Wait()
+}
+
+func TestMonitorData(t *testing.T) {
+	t.Parallel()
+	ws := Websocket{ShutdownC: make(chan struct{}), DataHandler: make(chan interface{}, 10)}
+	// Handle shutdown signal
+	close(ws.ShutdownC)
+	require.True(t, ws.observeData(nil))
+	ws.ShutdownC = make(chan struct{})
+	// Handle blockage of ToRoutine
+	go func() { ws.DataHandler <- nil }()
+	var dropped int
+	require.False(t, ws.observeData(&dropped))
+	require.Equal(t, 1, dropped)
+	// Handle reinstate of ToRoutine functionality which will reset dropped counter
+	ws.ToRoutine = make(chan interface{}, 10)
+	go func() { ws.DataHandler <- nil }()
+	require.False(t, ws.observeData(&dropped))
+	require.Empty(t, dropped)
+	// Handle outter closure shell
+	innerShell := ws.monitorData()
+	go func() { ws.DataHandler <- nil }()
+	require.False(t, innerShell())
+	// Handle shutdown signal
+	close(ws.ShutdownC)
+	require.True(t, innerShell())
+}
+
+func TestMonitorConnection(t *testing.T) {
+	t.Parallel()
+	ws := Websocket{verbose: true, ReadMessageErrors: make(chan error, 1), ShutdownC: make(chan struct{})}
+	// Handle timer expired and websocket disabled, shutdown everything.
+	timer := time.NewTimer(0)
+	ws.setState(connectedState)
+	ws.connectionMonitorRunning.Store(true)
+	require.True(t, ws.observeConnection(timer))
+	require.False(t, ws.connectionMonitorRunning.Load())
+	require.Equal(t, disconnectedState, ws.state.Load())
+	// Handle timer expired and everything is great, reset the timer.
+	ws.setEnabled(true)
+	ws.setState(connectedState)
+	ws.connectionMonitorRunning.Store(true)
+	timer = time.NewTimer(0)
+	require.False(t, ws.observeConnection(timer)) // Not shutting down
+	// Handle timer expired and for reason its not connected, so lets happily connect again.
+	ws.setState(disconnectedState)
+	require.False(t, ws.observeConnection(timer)) // Connect is intentionally erroring
+	// Handle error from a connection which will then trigger a reconnect
+	ws.setState(connectedState)
+	ws.DataHandler = make(chan interface{}, 1)
+	ws.ReadMessageErrors <- errConnectionFault
+	timer = time.NewTimer(time.Second)
+	require.False(t, ws.observeConnection(timer))
+	payload := <-ws.DataHandler
+	err, ok := payload.(error)
+	require.True(t, ok)
+	require.ErrorIs(t, err, errConnectionFault)
+	// Handle outta closure shell
+	innerShell := ws.monitorConnection()
+	ws.setState(connectedState)
+	ws.ReadMessageErrors <- errConnectionFault
+	require.False(t, innerShell())
+}
+
+func TestMonitorTraffic(t *testing.T) {
+	t.Parallel()
+	ws := Websocket{verbose: true, ShutdownC: make(chan struct{}), TrafficAlert: make(chan struct{}, 1)}
+	ws.Wg.Add(1)
+	// Handle external shutdown signal
+	timer := time.NewTimer(time.Second)
+	close(ws.ShutdownC)
+	require.True(t, ws.observeTraffic(timer))
+	// Handle timer expired but system is connecting, so reset the timer
+	ws.ShutdownC = make(chan struct{})
+	ws.setState(connectingState)
+	timer = time.NewTimer(0)
+	require.False(t, ws.observeTraffic(timer))
+	// Handle timer expired and system is connected and has traffic within time window
+	ws.setState(connectedState)
+	timer = time.NewTimer(0)
+	ws.TrafficAlert <- struct{}{}
+	require.False(t, ws.observeTraffic(timer))
+	// Handle timer expired and system is connected but no traffic within time window, causes shutdown to occur.
+	timer = time.NewTimer(0)
+	require.True(t, ws.observeTraffic(timer))
+	require.Equal(t, disconnectedState, ws.state.Load())
+	// Handle outter closure shell
+	innerShell := ws.monitorTraffic()
+	ws.setState(connectedState)
+	ws.TrafficAlert <- struct{}{}
+	require.False(t, innerShell())
 }
