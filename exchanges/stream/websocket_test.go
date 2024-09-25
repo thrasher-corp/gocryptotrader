@@ -647,19 +647,19 @@ func TestDial(t *testing.T) {
 			},
 		},
 	}
+	// Mock server rejects parallel connections
 	for i := range testCases {
-		t.Run(testCases[i].WC.ExchangeName, func(t *testing.T) {
-			if testCases[i].WC.ProxyURL != "" && !useProxyTests {
-				t.Skip("Proxy testing not enabled, skipping")
+		if testCases[i].WC.ProxyURL != "" && !useProxyTests {
+			t.Log("Proxy testing not enabled, skipping")
+			continue
+		}
+		err := testCases[i].WC.Dial(&websocket.Dialer{}, http.Header{})
+		if err != nil {
+			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
+				return
 			}
-			err := testCases[i].WC.Dial(&websocket.Dialer{}, http.Header{})
-			if err != nil {
-				if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
-					return
-				}
-				t.Fatal(err)
-			}
-		})
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -699,23 +699,23 @@ func TestSendMessage(t *testing.T) {
 			},
 		},
 	}
+	// Mock server rejects parallel connections
 	for x := range testCases {
-		t.Run(testCases[x].WC.ExchangeName, func(t *testing.T) {
-			if testCases[x].WC.ProxyURL != "" && !useProxyTests {
-				t.Skip("Proxy testing not enabled, skipping")
+		if testCases[x].WC.ProxyURL != "" && !useProxyTests {
+			t.Log("Proxy testing not enabled, skipping")
+			continue
+		}
+		err := testCases[x].WC.Dial(&websocket.Dialer{}, http.Header{})
+		if err != nil {
+			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
+				return
 			}
-			err := testCases[x].WC.Dial(&websocket.Dialer{}, http.Header{})
-			if err != nil {
-				if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
-					return
-				}
-				t.Fatal(err)
-			}
-			err = testCases[x].WC.SendJSONMessage(context.Background(), request.Unset, Ping)
-			require.NoError(t, err)
-			err = testCases[x].WC.SendRawMessage(context.Background(), request.Unset, websocket.TextMessage, []byte(Ping))
-			require.NoError(t, err)
-		})
+			t.Fatal(err)
+		}
+		err = testCases[x].WC.SendJSONMessage(context.Background(), request.Unset, Ping)
+		require.NoError(t, err)
+		err = testCases[x].WC.SendRawMessage(context.Background(), request.Unset, websocket.TextMessage, []byte(Ping))
+		require.NoError(t, err)
 	}
 }
 
