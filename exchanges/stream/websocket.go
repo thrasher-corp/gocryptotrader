@@ -1101,7 +1101,7 @@ func drain(ch <-chan error) {
 // ClosureFrame is a closure function that wraps monitoring variables with observer, if the return is true the frame will exit
 type ClosureFrame func() func() bool
 
-// monitorFrame monitors a specific websocket componant or critical system. It will exit if the observer returns true
+// monitorFrame monitors a specific websocket component or critical system. It will exit if the observer returns true
 // This is used for monitoring data throughput, connection status and other critical websocket components. The waitgroup
 // is optional and is used to signal when the monitor has finished.
 func (w *Websocket) monitorFrame(wg *sync.WaitGroup, fn ClosureFrame) {

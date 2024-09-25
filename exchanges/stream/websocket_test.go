@@ -1402,7 +1402,7 @@ func TestMonitorData(t *testing.T) {
 	go func() { ws.DataHandler <- nil }()
 	require.False(t, ws.observeData(&dropped))
 	require.Empty(t, dropped)
-	// Handle outter closure shell
+	// Handle outer closure shell
 	innerShell := ws.monitorData()
 	go func() { ws.DataHandler <- nil }()
 	require.False(t, innerShell())
@@ -1469,7 +1469,7 @@ func TestMonitorTraffic(t *testing.T) {
 	timer = time.NewTimer(0)
 	require.True(t, ws.observeTraffic(timer))
 	require.Equal(t, disconnectedState, ws.state.Load())
-	// Handle outter closure shell
+	// Handle outer closure shell
 	innerShell := ws.monitorTraffic()
 	ws.setState(connectedState)
 	ws.TrafficAlert <- struct{}{}
