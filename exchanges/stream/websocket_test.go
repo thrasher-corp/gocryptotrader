@@ -28,9 +28,8 @@ import (
 )
 
 const (
-	websocketTestURL = "wss://ws.bitmex.com/realtime"
-	useProxyTests    = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
-	proxyURL         = "http://212.186.171.4:80" // Replace with a usable proxy server
+	useProxyTests = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
+	proxyURL      = "http://212.186.171.4:80" // Replace with a usable proxy server
 )
 
 var (
@@ -806,8 +805,12 @@ func readMessages(t *testing.T, wc *WebsocketConnection) {
 // TestSetupPingHandler logic test
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
 	wc := &WebsocketConnection{
-		URL:              websocketTestURL,
+		URL:              "ws" + mock.URL[len("http"):] + "/ws",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 		Wg:               &sync.WaitGroup{},
@@ -850,8 +853,12 @@ func TestSetupPingHandler(t *testing.T) {
 // TestParseBinaryResponse logic test
 func TestParseBinaryResponse(t *testing.T) {
 	t.Parallel()
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
 	wc := &WebsocketConnection{
-		URL:              websocketTestURL,
+		URL:              "ws" + mock.URL[len("http"):] + "/ws",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 	}
@@ -1242,7 +1249,10 @@ func TestWebsocketConnectionShutdown(t *testing.T) {
 	err = wc.Dial(&websocket.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial must error correctly")
 
-	wc.URL = websocketTestURL
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
+	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
 	err = wc.Dial(&websocket.Dialer{}, nil)
 	require.NoError(t, err, "Dial must not error")
