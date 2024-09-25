@@ -36,7 +36,6 @@ func TestRateLimit_Limit(t *testing.T) {
 	require.NoError(t, err)
 
 	for name, tt := range testTable {
-		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -392,7 +391,6 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 	require.NoError(t, err)
 
 	for name, tt := range testTable {
-		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

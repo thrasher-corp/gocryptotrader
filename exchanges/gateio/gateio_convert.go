@@ -1,11 +1,18 @@
 package gateio
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
+)
+
+var (
+	zero     = []byte(`0`)
+	emptyStr = []byte(`""`)
+	zeroStr  = []byte(`"0"`)
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
@@ -13,39 +20,50 @@ type Time time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
 func (a *Time) UnmarshalJSON(data []byte) error {
-	var value interface{}
-	err := json.Unmarshal(data, &value)
+	if bytes.Equal(data, zero) || bytes.Equal(data, emptyStr) || bytes.Equal(data, zeroStr) {
+		*a = Time(time.Time{})
+		return nil
+	}
+
+	s := string(data)
+	if s[0] == '"' {
+		s = s[1 : len(s)-1]
+	}
+
+	target := strings.Index(s, ".")
+	if target != -1 {
+		s = s[:target] + s[target+1:]
+	}
+
+	standard, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return err
 	}
-	var standard int64
-	switch val := value.(type) {
-	case float64:
-		if math.Trunc(val) != val {
-			standard = int64(val * 1e3) // Account for 1684981731.098
-		} else {
-			standard = int64(val)
-		}
-	case string:
-		if val == "" {
-			return nil
-		}
-		parsedValue, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return err
-		}
-		if math.Trunc(parsedValue) != parsedValue {
-			*a = Time(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
-			return nil
-		}
-		standard = int64(parsedValue)
-	default:
-		return fmt.Errorf("cannot unmarshal %T into Time", val)
-	}
-	if standard > 9999999999 {
-		*a = Time(time.UnixMilli(standard))
-	} else {
+
+	switch len(s) {
+	case 10:
+		// Seconds
 		*a = Time(time.Unix(standard, 0))
+	case 11, 12:
+		// Milliseconds: 1726104395.5 && 1726104395.56
+		*a = Time(time.UnixMilli(standard * int64(math.Pow10(13-len(s)))))
+	case 13:
+		// Milliseconds
+		*a = Time(time.UnixMilli(standard))
+	case 14:
+		// MicroSeconds: 1726106210903.0
+		*a = Time(time.UnixMicro(standard * 100))
+	case 16:
+		// MicroSeconds
+		*a = Time(time.UnixMicro(standard))
+	case 17:
+		// NanoSeconds: 1606292218213.4578
+		*a = Time(time.Unix(0, standard*100))
+	case 19:
+		// NanoSeconds
+		*a = Time(time.Unix(0, standard))
+	default:
+		return fmt.Errorf("cannot unmarshal %s into Time", string(data))
 	}
 	return nil
 }

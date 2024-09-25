@@ -118,7 +118,7 @@ func TestDataHistoryJob(t *testing.T) {
 			}
 
 			var jerberinos, jerberoos []*DataHistoryJob
-			for i := 0; i < 20; i++ {
+			for i := range 20 {
 				uu, _ := uuid.NewV4()
 				jerberinos = append(jerberinos, &DataHistoryJob{
 					ID:           uu.String(),
@@ -138,7 +138,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Fatal(err)
 			}
 			// insert the same jerbs to test conflict resolution
-			for i := 0; i < 20; i++ {
+			for i := range 20 {
 				uu, _ := uuid.NewV4()
 				j := &DataHistoryJob{
 					ID:           uu.String(),

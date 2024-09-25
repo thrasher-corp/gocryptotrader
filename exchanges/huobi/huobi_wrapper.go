@@ -220,7 +220,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -229,7 +229,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  wsAccountsOrdersURL,
@@ -993,7 +993,7 @@ func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(h.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

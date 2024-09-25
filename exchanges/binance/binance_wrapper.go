@@ -211,10 +211,10 @@ func (b *Binance) SetDefaults() {
 			},
 		},
 		Subscriptions: subscription.List{
-			{Enabled: true, Channel: subscription.TickerChannel},
-			{Enabled: true, Channel: subscription.AllTradesChannel},
-			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 		},
 	}
 
@@ -245,16 +245,14 @@ func (b *Binance) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Binance) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
+	if err := b.SetupDefaults(exch); err != nil {
 		return err
 	}
 	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
@@ -294,7 +292,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMilliseconds,
+		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 	})
 }
 
@@ -1152,9 +1150,7 @@ func (b *Binance) orderTypeToString(orderType order.Type) (string, error) {
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	// s.TriggerPriceType
-	err := s.Validate()
-	if err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	var orderID string

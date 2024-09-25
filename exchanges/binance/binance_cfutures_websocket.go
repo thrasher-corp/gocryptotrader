@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -51,7 +52,7 @@ func (b *Binance) WsCFutureConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,

@@ -151,7 +151,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitInMilliseconds,
+		RateLimit:            request.NewWeightedRateLimitByDuration(33 * time.Millisecond),
 	})
 }
 
@@ -494,7 +494,7 @@ func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // SubmitOrder submits a new order
 func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate()
+	err := o.Validate(c.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

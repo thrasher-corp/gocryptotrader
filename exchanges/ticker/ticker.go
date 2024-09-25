@@ -141,8 +141,7 @@ func FindLast(p currency.Pair, a asset.Item) (float64, error) {
 	return 0, fmt.Errorf("%w %s %s", errTickerNotFound, p, a)
 }
 
-// ProcessTicker processes incoming tickers, creating or updating the Tickers
-// list
+// ProcessTicker processes incoming tickers, creating or updating the Tickers list
 func ProcessTicker(p *Price) error {
 	if p == nil {
 		return errors.New(errTickerPriceIsNil)

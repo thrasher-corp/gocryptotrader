@@ -39,6 +39,7 @@ func (k ExactKey) String() string {
 
 // Match implements MatchableKey
 // Returns true if the key fields exactly matches the subscription, including all Pairs
+// Does not check QualifiedChannel or Params
 func (k ExactKey) Match(eachKey MatchableKey) bool {
 	if eachKey == nil {
 		return false

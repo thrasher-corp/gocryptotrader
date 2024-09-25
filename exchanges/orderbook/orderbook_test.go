@@ -508,7 +508,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 	var catastrophicFailure bool
 
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		m.Lock()
 		if catastrophicFailure {
 			m.Unlock()
@@ -580,9 +580,9 @@ func TestProcessOrderbook(t *testing.T) {
 }
 
 func deployUnorderedSlice() Tranches {
-	var ts []Tranche
-	for i := 0; i < 1000; i++ {
-		ts = append(ts, Tranche{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
+	ts := make([]Tranche, 1000)
+	for x := range 1000 {
+		ts[x] = Tranche{Amount: 1, Price: rand.Float64(), ID: rand.Int63()} //nolint:gosec // Not needed in tests
 	}
 	return ts
 }
@@ -617,9 +617,9 @@ func TestSorting(t *testing.T) {
 }
 
 func deploySliceOrdered() Tranches {
-	var ts []Tranche
-	for i := 0; i < 1000; i++ {
-		ts = append(ts, Tranche{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
+	ts := make([]Tranche, 1000)
+	for i := range 1000 {
+		ts[i] = Tranche{Amount: 1, Price: float64(i + 1), ID: rand.Int63()} //nolint:gosec // Not needed in tests
 	}
 	return ts
 }

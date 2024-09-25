@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -775,10 +776,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			if err != nil {
 				continue
 			}
-			diff.Remove, err = diff.Remove.Remove(enabledPairs[x])
-			if err != nil {
-				return err
-			}
+			diff.Remove = diff.Remove.Remove(enabledPairs[x])
 			enabledPairs[target] = match.Format(pFmt)
 		}
 		target++
@@ -919,7 +917,7 @@ func (b *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (b *Base) FormatWithdrawPermissions() string {
 	var services []string
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		var check uint32 = 1 << uint32(i)
 		if b.GetWithdrawPermissions()&check != 0 {
 			switch check {
@@ -1150,9 +1148,20 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 
+// GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
+func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
+}
+
+// CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
+// Used to avoid import cycles on stream.websocket
+func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
+	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
@@ -1290,7 +1299,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil //nolint:nilerr // non-fatal error as we won't update the running URL
+		return nil
 	}
 	e.defaults[key] = val
 	return nil
@@ -1815,19 +1824,14 @@ func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.Li
 		return errBatchSizeZero
 	}
 
-	var j int
-	for i := 0; i < len(channels); i += batchSize {
-		j += batchSize
-		if j >= len(channels) {
-			j = len(channels)
-		}
+	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)
 		go func(c subscription.List) {
 			defer wg.Done()
 			if err := m(c); err != nil {
 				errC <- err
 			}
-		}(channels[i:j])
+		}(b)
 	}
 
 	wg.Wait()
@@ -1945,4 +1949,12 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
 	return "", common.ErrFunctionNotSupported
+}
+
+// GetTradingRequirements returns the exchange's trading requirements.
+func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
+	if b == nil {
+		return protocol.TradingRequirements{}
+	}
+	return b.Features.TradingRequirements
 }
