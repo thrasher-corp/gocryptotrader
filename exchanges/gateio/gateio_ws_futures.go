@@ -159,6 +159,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() (subscription.List, error
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fpair.Upper()},
 				Params:  params,
+				Asset:   asset.Futures,
 			}
 			count++
 		}
