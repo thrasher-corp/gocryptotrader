@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTime(t *testing.T) {
+func TestUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var testTime Time
 
@@ -52,11 +53,14 @@ func TestTime(t *testing.T) {
 
 	require.NoError(t, json.Unmarshal([]byte(`"1606292218213457800"`), &testTime))
 	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
+
+	require.ErrorIs(t, json.Unmarshal([]byte(`"blurp"`), &testTime), strconv.ErrSyntax)
+	require.Error(t, json.Unmarshal([]byte(`"123456"`), &testTime))
 }
 
 // 5046307	       216.0 ns/op	     168 B/op	       2 allocs/op (current)
 // 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
-func BenchmarkTime(b *testing.B) {
+func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
 	for i := 0; i < b.N; i++ {
 		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
@@ -64,4 +68,19 @@ func BenchmarkTime(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func TestTime(t *testing.T) {
+	t.Parallel()
+	testTime := Time(time.Time{})
+	assert.Equal(t, time.Time{}, testTime.Time())
+	assert.Equal(t, "0001-01-01 00:00:00 +0000 UTC", testTime.String())
+}
+
+func TestTime_MarshalJSON(t *testing.T) {
+	t.Parallel()
+	testTime := Time(time.Time{})
+	data, err := testTime.MarshalJSON()
+	require.NoError(t, err)
+	assert.Equal(t, `"0001-01-01T00:00:00Z"`, string(data))
 }

@@ -12,12 +12,12 @@ import (
 type Time time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
-func (a *Time) UnmarshalJSON(data []byte) error {
+func (t *Time) UnmarshalJSON(data []byte) error {
 	s := string(data)
 
 	switch s {
 	case "null", "0", `""`, `"0"`:
-		*a = Time(time.Time{})
+		*t = Time(time.Time{})
 		return nil
 	}
 
@@ -37,25 +37,25 @@ func (a *Time) UnmarshalJSON(data []byte) error {
 	switch len(s) {
 	case 10:
 		// Seconds
-		*a = Time(time.Unix(standard, 0))
+		*t = Time(time.Unix(standard, 0))
 	case 11, 12:
 		// Milliseconds: 1726104395.5 && 1726104395.56
-		*a = Time(time.UnixMilli(standard * int64(math.Pow10(13-len(s)))))
+		*t = Time(time.UnixMilli(standard * int64(math.Pow10(13-len(s)))))
 	case 13:
 		// Milliseconds
-		*a = Time(time.UnixMilli(standard))
+		*t = Time(time.UnixMilli(standard))
 	case 14:
 		// MicroSeconds: 1726106210903.0
-		*a = Time(time.UnixMicro(standard * 100))
+		*t = Time(time.UnixMicro(standard * 100))
 	case 16:
 		// MicroSeconds
-		*a = Time(time.UnixMicro(standard))
+		*t = Time(time.UnixMicro(standard))
 	case 17:
 		// NanoSeconds: 1606292218213.4578
-		*a = Time(time.Unix(0, standard*100))
+		*t = Time(time.Unix(0, standard*100))
 	case 19:
 		// NanoSeconds
-		*a = Time(time.Unix(0, standard))
+		*t = Time(time.Unix(0, standard))
 	default:
 		return fmt.Errorf("cannot unmarshal %s into Time", string(data))
 	}
@@ -63,4 +63,14 @@ func (a *Time) UnmarshalJSON(data []byte) error {
 }
 
 // Time represents a time instance.
-func (a Time) Time() time.Time { return time.Time(a) }
+func (t Time) Time() time.Time { return time.Time(t) }
+
+// String returns a string representation of the time.
+func (t Time) String() string {
+	return t.Time().String()
+}
+
+// MarshalJSON serializes the time to json.
+func (t Time) MarshalJSON() ([]byte, error) {
+	return t.Time().MarshalJSON()
+}
