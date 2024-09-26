@@ -195,6 +195,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.NoError(t, err, "Connect must not error")
 
 	checkToRoutineResult := func(t *testing.T) {
+		t.Helper()
 		v, ok := <-ws.ToRoutine
 		require.True(t, ok, "ToRoutine should not be closed on us")
 		switch err := v.(type) {
