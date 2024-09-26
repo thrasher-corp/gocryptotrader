@@ -2670,7 +2670,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		}
 
 		var resp *order.SubmitResponse
-		resp, err = s.DeriveSubmitResponse(getClientOrderIDFromText(got[0].ID))
+		resp, err = s.DeriveSubmitResponse(got[0].ID)
 		if err != nil {
 			return nil, err
 		}
