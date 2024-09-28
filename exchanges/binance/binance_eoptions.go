@@ -186,7 +186,7 @@ func (b *Binance) GetOptionsAccountInformation(ctx context.Context) (*EOptionsAc
 
 // NewOptionsOrder places a new european options order instance.
 func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) (*OptionOrder, error) {
-	if arg == nil || *arg == (OptionsOrderParams{}) {
+	if *arg == (OptionsOrderParams{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {

@@ -1150,8 +1150,8 @@ func (b *Binance) orderTypeToString(orderType order.Type) (string, error) {
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	var err error
-	if err = s.Validate(b.GetTradingRequirements()); err != nil {
+	err := s.Validate(b.GetTradingRequirements())
+	if err != nil {
 		return nil, err
 	}
 	var orderID string

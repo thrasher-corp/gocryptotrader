@@ -75,7 +75,7 @@ func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path stri
 
 // NewMarginOrder places a new cross margin order
 func (b *Binance) NewMarginOrder(ctx context.Context, arg *MarginOrderParam) (*MarginOrderResp, error) {
-	if arg == nil || *arg == (MarginOrderParam{}) {
+	if *arg == (MarginOrderParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
@@ -119,7 +119,7 @@ func (b *Binance) marginAccountBorrowRepay(ctx context.Context, ccy currency.Cod
 
 // MarginAccountNewOCO sends a new OCO order for a margin account.
 func (b *Binance) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) (*OCOOrder, error) {
-	if arg == nil || *arg == (OCOOrderParam{}) {
+	if *arg == (OCOOrderParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
@@ -151,7 +151,7 @@ func (b *Binance) NewCMConditionalOrder(ctx context.Context, arg *ConditionalOrd
 	return b.placeConditionalOrder(ctx, arg, "/papi/v1/cm/conditional/order")
 }
 func (b *Binance) placeConditionalOrder(ctx context.Context, arg *ConditionalOrderParam, path string) (*ConditionalOrder, error) {
-	if arg == nil || *arg == (ConditionalOrderParam{}) {
+	if *arg == (ConditionalOrderParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
@@ -161,7 +161,7 @@ func (b *Binance) placeConditionalOrder(ctx context.Context, arg *ConditionalOrd
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.StrategyType == "" {
-		return nil, errors.New("strategy type is required")
+		return nil, errStrategyTypeRequired
 	}
 	var resp *ConditionalOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, nil, pmDefaultRate, arg, &resp)

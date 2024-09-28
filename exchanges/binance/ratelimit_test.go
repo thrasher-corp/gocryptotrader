@@ -41,7 +41,7 @@ func TestRateLimit_Limit(t *testing.T) {
 
 			exp, got := tt.Expected, tt.Limit
 			if exp != got {
-				t.Fatalf("incorrect limit applied.\nexp: %v\ngot: %v", exp, got)
+				t.Fatalf("incorrect limit applied for '%s': \nexp: %v\ngot: %v", name, exp, got)
 			}
 
 			ctx := context.Background()

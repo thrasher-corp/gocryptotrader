@@ -2,6 +2,7 @@ package binance
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -49,6 +50,46 @@ const (
 	bookTickerCFuturesChan      = "@bookTicker"
 	indexPriceKlineCFuturesChan = "@indexPriceKline"
 	markPriceKlineCFuturesChan  = "@markPriceKline"
+)
+
+var (
+	errLoanCoinMustBeSet                      = errors.New("loan coin must bet set")
+	errLoanTermMustBeSet                      = errors.New("loan term must be set")
+	errCollateralCoinMustBeSet                = errors.New("collateral coin must be set")
+	errOrderIDMustBeSet                       = errors.New("orderID must be set")
+	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
+	errNilArgument                            = errors.New("nil argument")
+	errTimestampInfoRequired                  = errors.New("timestamp information is required")
+	errListenKeyIsRequired                    = errors.New("listen key is required")
+	errValidEmailRequired                     = errors.New("valid email address is required")
+	errPageNumberRequired                     = errors.New("page number is required")
+	errLimitNumberRequired                    = errors.New("invalid limit")
+	errEmptySubAccountEPIKey                  = errors.New("invalid sub-account API key")
+	errInvalidFuturesType                     = errors.New("invalid futures types")
+	errInvalidAccountType                     = errors.New("invalid account type specified")
+	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
+	errProductIDIsRequired                    = errors.New("product ID is required")
+	errProjectIDRequired                      = errors.New("project ID is required")
+	errPlanIDRequired                         = errors.New("plan ID  is required")
+	errIndexIDIsRequired                      = errors.New("index ID is required")
+	errTokenRequired                          = errors.New("token is required")
+	errTransferAlgorithmRequired              = errors.New("transfer algorithm is required")
+	errUsernameRequired                       = errors.New("user name is required")
+	errTransferTypeRequired                   = errors.New("transfer type is required")
+	errTokenNameRequired                      = errors.New("token name is required")
+	errTradeTypeRequired                      = errors.New("trade type is required")
+	errPositionIDRequired                     = errors.New("position ID is required")
+	errOptionTypeRequired                     = errors.New("optionType is required")
+	errInvalidPositionSide                    = errors.New("invalid positionSide")
+	errInvalidWorkingType                     = errors.New("invalid workingType")
+	errPageSizeRequired                       = errors.New("page size is required")
+	errInvalidSubscriptionStartTime           = errors.New("invalid subscription start time")
+	errPortfolioDetailRequired                = errors.New("portfolio detail is required")
+	errPlanTypeRequired                       = errors.New("planType is required")
+	errTransactionIDRequired                  = errors.New("transaction ID is required")
+	errRequestIDRequired                      = errors.New("request ID is required")
+	errStartTimeRequired                      = errors.New("start time is required")
+	errStrategyTypeRequired                   = errors.New("strategy type is required")
 )
 
 // TransferTypes represents asset transfer types

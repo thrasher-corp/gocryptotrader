@@ -194,8 +194,8 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -217,8 +217,9 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 	params.Set("symbol", symbolValue)
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		err = common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
 		}
 		params.Set("startTime", timeString(startTime))
 		params.Set("endTime", timeString(endTime))
@@ -279,8 +280,8 @@ func (b *Binance) GetUFuturesContinuousKlineData(ctx context.Context, pair curre
 	params.Set("contractType", contractType)
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", timeString(startTime))
 		params.Set("endTime", timeString(endTime))
@@ -336,8 +337,8 @@ func (b *Binance) GetIndexOrCandlesticPriceKlineData(ctx context.Context, pair c
 	params.Set("pair", pair.String())
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", timeString(startTime))
 		params.Set("endTime", timeString(endTime))
@@ -395,8 +396,8 @@ func (b *Binance) getKlineCandlesticks(ctx context.Context, symbol, interval, pa
 	params.Set("symbol", symbol)
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", timeString(startTime))
 		params.Set("endTime", timeString(endTime))
@@ -463,8 +464,8 @@ func (b *Binance) UGetFundingHistory(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -581,8 +582,8 @@ func (b *Binance) UOpenInterestStats(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -607,8 +608,8 @@ func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol curren
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -633,8 +634,8 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol currenc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -659,8 +660,8 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pai
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -680,8 +681,8 @@ func (b *Binance) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, pe
 	}
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -708,8 +709,8 @@ func (b *Binance) GetBasis(ctx context.Context, pair currency.Pair, contractType
 	}
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -736,8 +737,8 @@ func (b *Binance) GetHistoricalBLVTNAVCandlesticks(ctx context.Context, symbol, 
 	params.Set("symbol", symbol)
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -942,8 +943,8 @@ func (b *Binance) GetUSDTOrderModifyHistory(ctx context.Context, symbol currency
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -1186,8 +1187,8 @@ func (b *Binance) UPositionMarginChangeHistory(ctx context.Context, symbol curre
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -1296,8 +1297,8 @@ func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol currency.Pai
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -1324,8 +1325,8 @@ func (b *Binance) UAccountIncomeHistory(ctx context.Context, symbol currency.Pai
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
@@ -1384,8 +1385,8 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return nil, common.ErrStartAfterEnd
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))

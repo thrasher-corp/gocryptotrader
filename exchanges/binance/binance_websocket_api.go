@@ -205,7 +205,7 @@ func (b *Binance) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]Recent
 
 // GetWsAggregatedTrades retrieves aggregated trade activity.
 func (b *Binance) GetWsAggregatedTrades(arg *WsAggregateTradeRequestParams) ([]AggregatedTrade, error) {
-	if arg == nil || *arg == (WsAggregateTradeRequestParams{}) {
+	if *arg == (WsAggregateTradeRequestParams{}) {
 		return nil, errNilArgument
 	}
 	var resp []AggregatedTrade
@@ -224,7 +224,7 @@ func (b *Binance) GetWsOptimizedCandlestick(arg *KlinesRequestParams) ([]CandleS
 
 // getWsKlines retrieves spot kline data through the websocket connection.
 func (b *Binance) getWsKlines(method string, arg *KlinesRequestParams) ([]CandleStick, error) {
-	if arg == nil || *arg == (KlinesRequestParams{}) {
+	if *arg == (KlinesRequestParams{}) {
 		return nil, nil
 	}
 	if arg.Symbol.IsEmpty() {
@@ -721,7 +721,7 @@ func (b *Binance) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
 
 // WsPlaceNewSOROrder places an order using smart order routing (SOR).
 func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, error) {
-	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
+	if *arg == (WsOSRPlaceOrderParams{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
@@ -750,7 +750,7 @@ func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, er
 // WsTestNewOrderUsingSOR test new order creation and signature/recvWindow using smart order routing (SOR).
 // Creates and validates a new order but does not send it into the matching engine.
 func (b *Binance) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
-	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
+	if *arg == (WsOSRPlaceOrderParams{}) {
 		return errNilArgument
 	}
 	if arg.Symbol == "" {
