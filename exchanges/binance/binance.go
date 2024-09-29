@@ -5879,7 +5879,7 @@ func (b *Binance) CheckLockedValueVIPCollateralAccount(ctx context.Context, orde
 // VIPLoanBorrow VIP loan is available for VIP users only.
 func (b *Binance) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm int64, loanCoin, collateralCoin currency.Code, loanAmount float64, collateralAccountID string, isFlexibleRate bool) ([]VIPLoanBorrow, error) {
 	if loanAccountID == 0 {
-		return nil, errors.New("loanAccountId is required")
+		return nil, fmt.Errorf("%w, loanAccountId is required", errAccountIDRequired)
 	}
 	if loanCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, loanCoin is required", currency.ErrCurrencyCodeEmpty)
@@ -5888,7 +5888,7 @@ func (b *Binance) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm int
 		return nil, fmt.Errorf("%w, loanAmount is required", order.ErrAmountBelowMin)
 	}
 	if collateralAccountID == "" {
-		return nil, errors.New("collateralAccountID is required")
+		return nil, fmt.Errorf("%w, collateralAccountID is required", errAccountIDRequired)
 	}
 	if collateralCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, collateralCoin is required", currency.ErrCurrencyCodeEmpty)
@@ -6017,12 +6017,12 @@ func (b *Binance) SendQuoteRequest(ctx context.Context, fromAsset, toAsset curre
 	if toAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w, toAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
-	params := url.Values{}
-	params.Set("fromAsset", fromAsset.String())
-	params.Set("toAsset", toAsset.String())
 	if fromAmount <= 0 && toAmount <= 0 {
 		return nil, fmt.Errorf("%w, fromAmount or toAmount is required", order.ErrAmountIsInvalid)
 	}
+	params := url.Values{}
+	params.Set("fromAsset", fromAsset.String())
+	params.Set("toAsset", toAsset.String())
 	if fromAmount > 0 {
 		params.Set("fromAmount", strconv.FormatFloat(fromAmount, 'f', -1, 64))
 	}
@@ -6042,7 +6042,7 @@ func (b *Binance) SendQuoteRequest(ctx context.Context, fromAsset, toAsset curre
 // AcceptQuote accept the offered quote by quote ID.
 func (b *Binance) AcceptQuote(ctx context.Context, quoteID string) (*QuoteOrderStatus, error) {
 	if quoteID == "" {
-		return nil, errors.New("quote ID is required")
+		return nil, errQuoteIDRequired
 	}
 	params := url.Values{}
 	params.Set("quoteId", quoteID)
@@ -6065,6 +6065,9 @@ func (b *Binance) GetConvertOrderStatus(ctx context.Context, orderID, quoteID st
 
 // PlaceLimitOrder enable users to place a limit order
 func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrderParam) (*OrderStatusResponse, error) {
+	if *arg == (ConvertPlaceLimitOrderParam{}) {
+		return nil, common.ErrNilPointer
+	}
 	if arg.BaseAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w, baseAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -6078,7 +6081,7 @@ func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrd
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.ExpiredType == "" {
-		return nil, errors.New("expiredType is required")
+		return nil, errExpiedTypeRequired
 	}
 	var resp *OrderStatusResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/placeOrder", nil, placeLimitOrderRate, arg, &resp)
@@ -6276,7 +6279,7 @@ func (b *Binance) RedeemBinanaceGiftCard(ctx context.Context, code, externalUID 
 // VerifyBinanceGiftCardNumber verifying whether the Binance Gift Card is valid or not by entering Gift Card Number.
 func (b *Binance) VerifyBinanceGiftCardNumber(ctx context.Context, referenceNumber string) (*GiftCardVerificationResponse, error) {
 	if referenceNumber == "" {
-		return nil, errors.New("reference number is required")
+		return nil, errReferenceNumberRequired
 	}
 	params := url.Values{}
 	params.Set("referenceNo", referenceNumber)

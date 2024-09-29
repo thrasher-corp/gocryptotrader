@@ -50,9 +50,6 @@ var (
 
 	// enabled and active tradable pairs used to test endpoints.
 	spotTradablePair, usdtmTradablePair, coinmTradablePair, optionsTradablePair currency.Pair
-
-	// this pair is used to ensure that endpoints match it correctly
-	testPairMapping = currency.NewPair(currency.DOGE, currency.USDT)
 )
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -6925,6 +6922,9 @@ func TestGetPayTradeHistory(t *testing.T) {
 
 func TestGetAllConvertPairs(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetAllConvertPairs(context.Background(), currency.BTC, currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	result, err := b.GetAllConvertPairs(context.Background(), currency.BTC, currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -6940,6 +6940,13 @@ func TestGetOrderQuantityPrecisionPerAsset(t *testing.T) {
 
 func TestSendQuoteRequest(t *testing.T) {
 	t.Parallel()
+	_, err := b.SendQuoteRequest(context.Background(), currency.EMPTYCODE, currency.USDT, 10, 20, "FUNDING", "1m")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.SendQuoteRequest(context.Background(), currency.BTC, currency.EMPTYCODE, 10, 20, "FUNDING", "1m")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.SendQuoteRequest(context.Background(), currency.BTC, currency.USDT, 0, 0, "FUNDING", "1m")
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SendQuoteRequest(context.Background(), currency.BTC, currency.USDT, 10, 20, "FUNDING", "1m")
 	require.NoError(t, err)
@@ -6948,6 +6955,9 @@ func TestSendQuoteRequest(t *testing.T) {
 
 func TestAcceptQuote(t *testing.T) {
 	t.Parallel()
+	_, err := b.AcceptQuote(context.Background(), "")
+	require.ErrorIs(t, err, errQuoteIDRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.AcceptQuote(context.Background(), "933256278426274426")
 	require.NoError(t, err)
@@ -6964,6 +6974,28 @@ func TestGetConvertOrderStatus(t *testing.T) {
 
 func TestPlaceLimitOrder(t *testing.T) {
 	t.Parallel()
+	arg := &ConvertPlaceLimitOrderParam{}
+	_, err := b.PlaceLimitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg.ExpiredType = "7_D"
+	_, err = b.PlaceLimitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.BaseAsset = currency.BTC
+	arg.QuoteAsset = currency.ETH
+	_, err = b.PlaceLimitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.LimitPrice = 0.0122
+	_, err = b.PlaceLimitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = "SELL"
+	arg.ExpiredType = ""
+	_, err = b.PlaceLimitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errExpiedTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.PlaceLimitOrder(context.Background(), &ConvertPlaceLimitOrderParam{
 		BaseAsset:   currency.BTC,
@@ -6978,6 +7010,9 @@ func TestPlaceLimitOrder(t *testing.T) {
 
 func TestCancelLimitOrder(t *testing.T) {
 	t.Parallel()
+	_, err := b.CancelLimitOrder(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CancelLimitOrder(context.Background(), "123434")
 	require.NoError(t, err)
@@ -7042,6 +7077,11 @@ func TestGetNFTAsset(t *testing.T) {
 
 func TestCreateSingleTokenGiftCard(t *testing.T) {
 	t.Parallel()
+	_, err := b.CreateSingleTokenGiftCard(context.Background(), "", 0.1234)
+	require.ErrorIs(t, err, errTokenRequired)
+	_, err = b.CreateSingleTokenGiftCard(context.Background(), "BUSD", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CreateSingleTokenGiftCard(context.Background(), "BUSD", 0.1234)
 	require.NoError(t, err)
@@ -7050,6 +7090,15 @@ func TestCreateSingleTokenGiftCard(t *testing.T) {
 
 func TestCreateDualTokenGiftCard(t *testing.T) {
 	t.Parallel()
+	_, err := b.CreateDualTokenGiftCard(context.Background(), "", currency.BNB.String(), 10, 10)
+	require.ErrorIs(t, err, errTokenRequired)
+	_, err = b.CreateDualTokenGiftCard(context.Background(), currency.BUSD.String(), "", 10, 10)
+	require.ErrorIs(t, err, errTokenRequired)
+	_, err = b.CreateDualTokenGiftCard(context.Background(), currency.BUSD.String(), currency.BNB.String(), 0, 10)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.CreateDualTokenGiftCard(context.Background(), currency.BUSD.String(), currency.BNB.String(), 10, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CreateDualTokenGiftCard(context.Background(), currency.BUSD.String(), currency.BNB.String(), 10, 10)
 	require.NoError(t, err)
@@ -7066,6 +7115,9 @@ func TestRedeemBinanaceGiftCard(t *testing.T) {
 
 func TestVerifyBinanceGiftCardNumber(t *testing.T) {
 	t.Parallel()
+	_, err := b.VerifyBinanceGiftCardNumber(context.Background(), "")
+	require.ErrorIs(t, err, errReferenceNumberRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.VerifyBinanceGiftCardNumber(context.Background(), "123456")
 	require.NoError(t, err)
@@ -7082,6 +7134,9 @@ func TestFetchRSAPublicKey(t *testing.T) {
 
 func TestFetchTokenLimit(t *testing.T) {
 	t.Parallel()
+	_, err := b.FetchTokenLimit(context.Background(), "")
+	require.ErrorIs(t, err, errTokenRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.FetchTokenLimit(context.Background(), currency.BUSD.String())
 	require.NoError(t, err)
@@ -7114,6 +7169,14 @@ func TestCheckLockedValueVIPCollateralAccount(t *testing.T) {
 
 func TestVIPLoanBorrow(t *testing.T) {
 	t.Parallel()
+	_, err := b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
+
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
+
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
+
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
 	require.NoError(t, err)
@@ -7146,6 +7209,9 @@ func TestGetVIPApplicationStatus(t *testing.T) {
 
 func TestGetVIPBorrowInterestRate(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetVIPBorrowInterestRate(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetVIPBorrowInterestRate(context.Background(), currency.ETH)
 	require.NoError(t, err)
@@ -7162,8 +7228,11 @@ func TestCreateSpotListenKey(t *testing.T) {
 
 func TestKeepListenKeyAlive(t *testing.T) {
 	t.Parallel()
+	err := b.KeepSpotListenKeyAlive(context.Background(), "")
+	require.ErrorIs(t, err, errListenKeyIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	err := b.KeepSpotListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	err = b.KeepSpotListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	require.NoError(t, err)
 }
 
@@ -7184,15 +7253,21 @@ func TestCreateMarginListenKey(t *testing.T) {
 
 func TestKeepMarginListenKeyAlive(t *testing.T) {
 	t.Parallel()
+	err := b.KeepMarginListenKeyAlive(context.Background(), "")
+	require.ErrorIs(t, err, errListenKeyIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	err := b.KeepMarginListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	err = b.KeepMarginListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	assert.NoError(t, err)
 }
 
 func TestCloseMarginListenKey(t *testing.T) {
 	t.Parallel()
+	err := b.CloseMarginListenKey(context.Background(), "")
+	require.ErrorIs(t, err, errListenKeyIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	err := b.CloseMarginListenKey(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	err = b.CloseMarginListenKey(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	assert.NoError(t, err)
 }
 
@@ -7209,15 +7284,25 @@ func TestCreateCrossMarginListenKey(t *testing.T) {
 
 func TestKeepCrossMarginListenKeyAlive(t *testing.T) {
 	t.Parallel()
+	err := b.KeepCrossMarginListenKeyAlive(context.Background(), "BTCUSDT", "")
+	require.ErrorIs(t, err, errListenKeyIsRequired)
+	err = b.KeepCrossMarginListenKeyAlive(context.Background(), "", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	err := b.KeepCrossMarginListenKeyAlive(context.Background(), "BTCUSDT", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	err = b.KeepCrossMarginListenKeyAlive(context.Background(), "BTCUSDT", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	assert.NoError(t, err)
 }
 
 func TestCloseCrossMarginListenKey(t *testing.T) {
 	t.Parallel()
+	err := b.CloseCrossMarginListenKey(context.Background(), "BTCUSDT", "")
+	require.ErrorIs(t, err, errListenKeyIsRequired)
+	err = b.CloseCrossMarginListenKey(context.Background(), "", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	err := b.CloseCrossMarginListenKey(context.Background(), "BTCUSDT", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	err = b.CloseCrossMarginListenKey(context.Background(), "BTCUSDT", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	assert.NoError(t, err)
 }
 

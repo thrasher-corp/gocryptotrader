@@ -90,6 +90,10 @@ var (
 	errRequestIDRequired                      = errors.New("request ID is required")
 	errStartTimeRequired                      = errors.New("start time is required")
 	errStrategyTypeRequired                   = errors.New("strategy type is required")
+	errReferenceNumberRequired                = errors.New("reference number is required")
+	errExpiedTypeRequired                     = errors.New("expiredType is required")
+	errQuoteIDRequired                        = errors.New("quote ID is required")
+	errAccountIDRequired                      = errors.New("account ID is required")
 )
 
 // TransferTypes represents asset transfer types
