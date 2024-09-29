@@ -761,8 +761,8 @@ type UnixTimestampMilli time.Time
 // ServerTimeV3 holds information on the server's time, returned by GetV3Time
 type ServerTimeV3 struct {
 	Iso               time.Time          `json:"iso"`
-	EpochSeconds      UnixTimestamp      `json:"epochSeconds,string"`
-	EpochMilliseconds UnixTimestampMilli `json:"epochMillis,string"`
+	EpochSeconds      UnixTimestamp      `json:"epochSeconds"`
+	EpochMilliseconds UnixTimestampMilli `json:"epochMillis"`
 }
 
 // PaymentMethodData is a sub-type that holds information on a payment method

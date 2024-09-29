@@ -97,8 +97,8 @@ const (
 	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
 	warnAuth                = "%v authenticated request failed, attempting unauthenticated"
 
-	ManyFills = 65535
-	ManyOrds  = 2147483647
+	manyFills = 65535
+	manyOrds  = 2147483647
 )
 
 // Constants defining whether a transfer is a deposit or withdrawal, used to simplify

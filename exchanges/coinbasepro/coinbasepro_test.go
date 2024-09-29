@@ -575,7 +575,7 @@ func TestGetPaymentMethodByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	pmID, err := c.GetAllPaymentMethods(context.Background())
 	assert.NoError(t, err)
-	if pmID == nil || len(pmID) == 0 {
+	if len(pmID) == 0 {
 		t.Skip(skipPayMethodNotFound)
 	}
 	resp, err := c.GetPaymentMethodByID(context.Background(), pmID[0].ID)
@@ -1832,7 +1832,7 @@ func transferTestHelper(t *testing.T, wallets *GetAllWalletsResponse) (srcWallet
 	}
 	pmID, err := c.GetAllPaymentMethods(context.Background())
 	assert.NoError(t, err)
-	if pmID == nil || len(pmID) == 0 {
+	if len(pmID) == 0 {
 		t.Skip(skipPayMethodNotFound)
 	}
 	return srcWalletID, pmID[0].ID

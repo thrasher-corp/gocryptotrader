@@ -625,13 +625,13 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 		return nil, err
 	}
 	response := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
-	fillData, err := c.GetFills(ctx, orderID, "", "", time.Time{}, time.Now(), ManyFills)
+	fillData, err := c.GetFills(ctx, orderID, "", "", time.Time{}, time.Now(), manyFills)
 	if err != nil {
 		return nil, err
 	}
 	cursor := fillData.Cursor
 	for cursor != "" {
-		tempFillData, err := c.GetFills(ctx, orderID, "", cursor, time.Time{}, time.Now(), ManyFills)
+		tempFillData, err := c.GetFills(ctx, orderID, "", cursor, time.Time{}, time.Now(), manyFills)
 		if err != nil {
 			return nil, err
 		}
@@ -772,9 +772,9 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 		respOrders, err = c.iterativeGetAllOrders(ctx, pairIDs[0], req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime)
 	} else {
 		respOrders, err = c.iterativeGetAllOrders(ctx, "", req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime)
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
@@ -803,12 +803,12 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 		p = req.Pairs[0].String()
 	}
 	var ord []GetOrderResponse
-	interOrd, err := c.iterativeGetAllOrders(ctx, p, req.Type.String(), req.Side.String(), req.AssetType.Upper(), closedStatuses, ManyOrds, req.StartTime, req.EndTime)
+	interOrd, err := c.iterativeGetAllOrders(ctx, p, req.Type.String(), req.Side.String(), req.AssetType.Upper(), closedStatuses, manyOrds, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
 	ord = append(ord, interOrd...)
-	interOrd, err = c.iterativeGetAllOrders(ctx, p, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, ManyOrds, req.StartTime, req.EndTime)
+	interOrd, err = c.iterativeGetAllOrders(ctx, p, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, manyOrds, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -1094,7 +1094,7 @@ func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orde
 	return resp, nil
 }
 
-// formatExchangeKlineIntervalV3 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended
+// FormatExchangeKlineIntervalV3 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended
 // to convert kline.Interval to the string format used by V3 of Coinbase's API
 func FormatExchangeKlineIntervalV3(interval kline.Interval) string {
 	switch interval {
@@ -1289,7 +1289,7 @@ func generateIdempotency(am float64) string {
 	return strconv.FormatInt(t, 10)
 }
 
-// Formats asset items for outbound requests
+// FormatAssetOutbound formats asset items for outbound requests
 func FormatAssetOutbound(a asset.Item) string {
 	if a == asset.Futures {
 		return "FUTURE"
