@@ -191,7 +191,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
-	w.ShutdownC = make(chan struct{})
 	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
 	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler); err != nil {
@@ -301,7 +300,7 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		ResponseMaxLimit:         c.ResponseMaxLimit,
 		Traffic:                  w.TrafficAlert,
 		readMessageErrors:        w.ReadMessageErrors,
-		shutdown:                 make(chan struct{}), // Call shutdown to close the connection
+		shutdown:                 w.ShutdownC,
 		Wg:                       &w.Wg,
 		Match:                    w.Match,
 		RateLimit:                c.RateLimit,

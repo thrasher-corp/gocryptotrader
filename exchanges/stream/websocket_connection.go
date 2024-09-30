@@ -272,7 +272,6 @@ func (w *WebsocketConnection) Shutdown() error {
 		return nil
 	}
 	w.setConnectedStatus(false)
-	close(w.shutdown)
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
 	return w.Connection.NetConn().Close()
