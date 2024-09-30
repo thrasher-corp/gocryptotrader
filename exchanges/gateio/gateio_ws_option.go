@@ -238,7 +238,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe subscr
 				return nil, err
 			}
 			var sigTemp string
-			sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+			sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
 			if err != nil {
 				return nil, err
 			}
