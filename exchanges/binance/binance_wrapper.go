@@ -1737,7 +1737,7 @@ func (b *Binance) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 		return nil, err
 	}
 	v, err := b.WithdrawCrypto(ctx,
-		withdrawRequest.Currency.String(),
+		withdrawRequest.Currency,
 		"", // withdrawal order ID
 		withdrawRequest.Crypto.Chain,
 		withdrawRequest.Crypto.Address,

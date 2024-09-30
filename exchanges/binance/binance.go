@@ -185,12 +185,12 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 	// Fall back to batch requests, if possible and necessary
 	if needBatch {
 		// fromId or start time must be set
-		canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
+		canBatch := (arg.FromID == 0) != arg.StartTime.IsZero()
 		if canBatch {
 			// Split the request into multiple
 			return b.batchAggregateTrades(ctx, arg, params)
 		}
-		// Can't handle this request locally or remotely
+		// Can not handle this request locally or remotely
 		// We would receive {"code":-1128,"msg":"Combination of optional parameters invalid."}
 		return nil, errors.New("please set StartTime or FromId, but not both")
 	}
@@ -320,6 +320,7 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 	for x := range resp {
 		if len(resp[x]) != 12 {
 			return nil, errors.New("unexpected kline data length")
+
 		}
 		klineData[x] = CandleStick{
 			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
@@ -979,7 +980,7 @@ func (b *Binance) MarginAccountBorrowRepay(ctx context.Context, assetName curren
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if lendingType == "" {
-		return "", errors.New("lending type is required")
+		return "", errLendingTypeRequired
 	}
 	if amount <= 0 {
 		return "", order.ErrAmountBelowMin
@@ -1631,7 +1632,7 @@ func (b *Binance) GetSmallLiabilityExchangeCoinList(ctx context.Context) ([]Smal
 // MarginSmallLiabilityExchange set cross-margin small liability exchange
 func (b *Binance) MarginSmallLiabilityExchange(ctx context.Context, assetNames []string) ([]SmallLiabilityCoin, error) {
 	if len(assetNames) == 0 {
-		return nil, errors.New("assetNames are required")
+		return nil, errEmptyCurrencyCodes
 	}
 	params := url.Values{}
 	params.Set("assetNames", strings.Join(assetNames, ","))
@@ -1642,7 +1643,7 @@ func (b *Binance) MarginSmallLiabilityExchange(ctx context.Context, assetNames [
 // GetSmallLiabilityExchangeHistory retrieves small liability exchange history
 func (b *Binance) GetSmallLiabilityExchangeHistory(ctx context.Context, current, size int64, startTime, endTime time.Time) (*SmallLiabilityExchange, error) {
 	if current == 0 {
-		return nil, errors.New("current querying page is required")
+		return nil, fmt.Errorf("%w, current page is empty", errPageNumberRequired)
 	}
 	if size == 0 {
 		return nil, errPageSizeRequired
@@ -1937,7 +1938,7 @@ func (b *Binance) CheckLimit(limit int64) error {
 			return nil
 		}
 	}
-	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+	return fmt.Errorf("%w, incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000", errLimitNumberRequired)
 }
 
 // SetValues sets the default valid values
@@ -2048,12 +2049,18 @@ func (b *Binance) EnableFastWithdrawalSwitch(ctx context.Context) error {
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
-func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrderID, network, address, addressTag, name string, amount float64, transactionFeeFlag bool) (string, error) {
-	if cryptoAsset == "" || address == "" || amount == 0 {
-		return "", errors.New("asset, address and amount must not be empty")
+func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset currency.Code, withdrawOrderID, network, address, addressTag, name string, amount float64, transactionFeeFlag bool) (string, error) {
+	if cryptoAsset.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if address == "" {
+		return "", errAddressRequired
+	}
+	if amount == 0 {
+		return "", order.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("coin", cryptoAsset)
+	params.Set("coin", cryptoAsset.String())
 	params.Set("address", address)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	// optional params
@@ -4515,16 +4522,16 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {
-		return nil, errors.New("source type")
+		return nil, errSourceTypeRequired
 	}
 	if arg.PlanType == "" {
-		return nil, errors.New("plan type is required")
+		return nil, errPlanTypeRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
 		return nil, fmt.Errorf("%w, subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if arg.SubscriptionStartDay <= 0 {
-		return nil, errors.New("subscription start day has to be greater than 0")
+		return nil, errInvalidSubscriptionStartTime
 	}
 	if arg.SubscriptionStartTime < 0 {
 		return nil, errInvalidSubscriptionStartTime
@@ -4541,7 +4548,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.Details[a].Percentage < 0 {
-			return nil, errors.New("invalid percentage amount")
+			return nil, errInvalidPercentageAmount
 		}
 		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
 		params.Add("percentage", strconv.FormatInt(arg.Details[a].Percentage, 10))
@@ -4561,8 +4568,8 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 	if arg.SubscriptionAmount <= 0 {
 		return nil, fmt.Errorf("%w, subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
-	if arg.SubscriptionCycle == "" {
-		return nil, errors.New("subscription cycle is required")
+	if !slices.Contains(subscriptionCycleList, arg.SubscriptionCycle) {
+		return nil, fmt.Errorf("%w, subscription cycle %s", errInvalidSubscriptionCycle, arg.SubscriptionCycle)
 	}
 	if arg.SubscriptionStartTime < 0 {
 		return nil, errInvalidSubscriptionStartTime
@@ -4579,7 +4586,7 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.Details[a].Percentage < 0 {
-			return nil, errors.New("invalid percentage amount")
+			return nil, errInvalidPercentageAmount
 		}
 		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
 		params.Add("percentage", strconv.FormatInt(arg.Details[a].Percentage, 10))
@@ -4688,7 +4695,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {
-		return nil, errors.New("sourceType is required")
+		return nil, errSourceTypeRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -4697,7 +4704,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 		return nil, fmt.Errorf("%w, sourceAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if len(arg.Details) == 0 {
-		return nil, errors.New("portfolio detail is required")
+		return nil, errPortfolioDetailRequired
 	}
 	params := url.Values{}
 	for a := range arg.Details {
@@ -4705,7 +4712,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.Details[a].Percentage < 0 {
-			return nil, errors.New("invalid percentage amount")
+			return nil, errInvalidPercentageAmount
 		}
 		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
 		params.Add("percentage", strconv.FormatInt(arg.Details[a].Percentage, 10))
@@ -4738,7 +4745,7 @@ func (b *Binance) IndexLinkedPlanRedemption(ctx context.Context, indexID, redemp
 		return 0, errIndexIDIsRequired
 	}
 	if redemptionPercentage <= 0 {
-		return 0, errors.New("invalid redemption percentage value")
+		return 0, fmt.Errorf("%w, invalid redemption percentage value %v", errInvalidPercentageAmount, redemptionPercentage)
 	}
 	params := url.Values{}
 	params.Set("indexId", strconv.FormatInt(indexID, 10))
@@ -4981,7 +4988,7 @@ func (b *Binance) GetCoinNames(ctx context.Context) (*CoinNames, error) {
 // GetDetailMinerList retrieves list of miners name and other details.
 func (b *Binance) GetDetailMinerList(ctx context.Context, algorithm, userName, workerName string) (*MinersDetailList, error) {
 	if workerName == "" {
-		return nil, errors.New("worker's name is required")
+		return nil, fmt.Errorf("%w, worker's name is required", errNameRequired)
 	}
 	params, err := fillMinersRetrivalParams(algorithm, userName, workerName)
 	if err != nil {
@@ -5024,7 +5031,7 @@ func fillMinersRetrivalParams(algorithm, userName, workerName string) (url.Value
 		return nil, errTransferAlgorithmRequired
 	}
 	if userName == "" {
-		return nil, errors.New("mining account name is required")
+		return nil, fmt.Errorf("%w, mining account name is missing", errNameRequired)
 	}
 	params := url.Values{}
 	params.Set("algo", algorithm)
@@ -5101,7 +5108,7 @@ func (b *Binance) GetHashrateRescaleList(ctx context.Context, pageIndex, pageSiz
 // GetHashrateRescaleDetail retrieves a hashrate rescale detail
 func (b *Binance) GetHashrateRescaleDetail(ctx context.Context, configID, userName string, pageIndex, pageSize int64) (*HashrateRescaleDetail, error) {
 	if configID == "" {
-		return nil, errors.New("config ID is required")
+		return nil, errConfigIDRequired
 	}
 	if userName == "" {
 		return nil, errUsernameRequired
@@ -5139,10 +5146,10 @@ func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorith
 		return nil, fmt.Errorf("%w, start time and end time are required", common.ErrDateUnset)
 	}
 	if toPoolUser == "" {
-		return nil, errors.New("receiver mining account is required")
+		return nil, fmt.Errorf("%w, receiver mining account is required", errAccountRequired)
 	}
 	if hashRate > 0 {
-		return nil, errors.New("hash rate is required")
+		return nil, errHashRateRequired
 	}
 	params.Set("userName", userName)
 	params.Set("algo", algorithm)
@@ -5155,7 +5162,7 @@ func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorith
 // CancelHashrateRescaleConfiguration retrieves cancel hashrate rescale configuration
 func (b *Binance) CancelHashrateRescaleConfiguration(ctx context.Context, configID, userName string) (*HashrateRescalResponse, error) {
 	if configID == "" {
-		return nil, errors.New("config ID is required")
+		return nil, errConfigIDRequired
 	}
 	if userName == "" {
 		return nil, errUsernameRequired
@@ -5243,6 +5250,7 @@ func (b *Binance) NewFuturesAccountTransfer(ctx context.Context, assetName curre
 	params := url.Values{}
 	params.Set("asset", assetName.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("type", strconv.FormatInt(transferType, 10))
 	var resp *FundTransferResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/futures/transfer", params, sapiDefaultRate, nil, &resp)
 }
@@ -5337,7 +5345,7 @@ func (b *Binance) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (*
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Duration == 0 {
-		return nil, errors.New("duration is required: duration for TWAP orders in seconds. [300, 86400]")
+		return nil, fmt.Errorf("%w, duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
 	}
 	var resp *AlgoOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/algo/futures/newOrderTwap", nil, placeTWAveragePriceNewOrderRate, arg, &resp)
@@ -5445,7 +5453,7 @@ func (b *Binance) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam)
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Duration == 0 {
-		return nil, errors.New("duration is required: duration for TWAP orders in seconds. [300, 86400]")
+		return nil, fmt.Errorf("%w, duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
 	}
 	var resp *AlgoOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/algo/spot/newOrderTwap", nil, spotTwapNewOrderRate, arg, &resp)
@@ -5604,13 +5612,13 @@ func (b *Binance) GetBLVTInfo(ctx context.Context, tokenName string) ([]BLVTToke
 
 // SubscribeBLVT subscribe to BLVT token
 func (b *Binance) SubscribeBLVT(ctx context.Context, tokenName string, cost float64) (*BLVTSubscriptionResponse, error) {
-	params := url.Values{}
 	if tokenName == "" {
-		return nil, errTokenNameRequired
+		return nil, fmt.Errorf("%w, tokenName is missing", errNameRequired)
 	}
 	if cost <= 0 {
-		return nil, errors.New("cost must be greater than 0")
+		return nil, errCostRequired
 	}
+	params := url.Values{}
 	params.Set("tokenName", tokenName)
 	params.Set("cost", strconv.FormatFloat(cost, 'f', -1, 64))
 	var resp *BLVTSubscriptionResponse
@@ -5643,15 +5651,15 @@ func (b *Binance) GetSusbcriptionRecords(ctx context.Context, tokenName string, 
 
 // RedeemBLVT redeems a BLVT token
 // You need to openEnable Spot&Margin Trading permission for the API Key which requests this endpoint.
-func (b *Binance) RedeemBLVT(ctx context.Context, tokenName string, amount float64) (*BLVTRedemption, error) {
-	if tokenName == "" {
-		return nil, errTokenNameRequired
+func (b *Binance) RedeemBLVT(ctx context.Context, symbol string, amount float64) (*BLVTRedemption, error) {
+	if symbol == "" {
+		return nil, fmt.Errorf("%w, tokenName is missing", currency.ErrSymbolStringEmpty)
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("tokenName", tokenName)
+	params.Set("tokenName", symbol)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *BLVTRedemption
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/redeem", params, sapiDefaultRate, nil, &resp)
@@ -5720,7 +5728,7 @@ func fillFiatFetchParams(beginTime, endTime time.Time, transactionType, page, ro
 // transactionType possible values are 0 for deposit and 1 for withdrawal
 func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatTransactionHistory, error) {
 	if transactionType != 0 && transactionType != 1 {
-		return nil, errors.New("invalid transactionType, possible values are 0 for 'deposit' and '1' for withdrawal")
+		return nil, fmt.Errorf("%w, possible values are 0 for 'deposit' and '1' for withdrawal", errInvalidTransactionType)
 	}
 	params, err := fillFiatFetchParams(beginTime, endTime, transactionType, page, rows)
 	if err != nil {
@@ -5739,7 +5747,7 @@ func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginT
 // - Bank Transfer
 func (b *Binance) GetFiatPaymentHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatPaymentHistory, error) {
 	if transactionType != 0 && transactionType != 1 {
-		return nil, errors.New("invalid transactionType, possible values are 0 for 'buy' and 1 for 'sell'")
+		return nil, fmt.Errorf("%w, possible values are 0 for 'buy' and 1 for 'sell'", errInvalidTransactionType)
 	}
 	params, err := fillFiatFetchParams(beginTime, endTime, transactionType, page, rows)
 	if err != nil {
@@ -5867,7 +5875,7 @@ func (b *Binance) CheckLockedValueVIPCollateralAccount(ctx context.Context, orde
 		return nil, order.ErrOrderIDNotSet
 	}
 	if collateralAccountID == 0 {
-		return nil, errors.New("collateral Account ID is required")
+		return nil, fmt.Errorf("%w, collateral Account ID is missing", errAccountIDRequired)
 	}
 	params := url.Values{}
 	params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -5894,7 +5902,7 @@ func (b *Binance) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm int
 		return nil, fmt.Errorf("%w, collateralCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if loanTerm == 0 {
-		return nil, errors.New("loan Term is required")
+		return nil, errLoanTermMustBeSet
 	}
 	params := url.Values{}
 	params.Set("loanAccountId", strconv.FormatInt(loanAccountID, 10))
@@ -6066,7 +6074,7 @@ func (b *Binance) GetConvertOrderStatus(ctx context.Context, orderID, quoteID st
 // PlaceLimitOrder enable users to place a limit order
 func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrderParam) (*OrderStatusResponse, error) {
 	if *arg == (ConvertPlaceLimitOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.BaseAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w, baseAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -6167,7 +6175,7 @@ func fillNFTFetchParams(startTime, endTime time.Time, limit, page int64) (url.Va
 // orderType: 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee
 func (b *Binance) GetNFTTransactionHistory(ctx context.Context, orderType int64, startTime, endTime time.Time, limit, page int64) (*NFTTransactionHistory, error) {
 	if orderType < 0 || orderType > 4 {
-		return nil, errors.New("invalid order type; 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee")
+		return nil, fmt.Errorf("%s; 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee", order.ErrUnsupportedOrderType)
 	}
 	params, err := fillNFTFetchParams(startTime, endTime, limit, page)
 	if err != nil {
@@ -6265,7 +6273,7 @@ func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceTo
 // Each external unique ID represents a unique user on the partner platform.
 func (b *Binance) RedeemBinanaceGiftCard(ctx context.Context, code, externalUID string) (*RedeemBinanceGiftCard, error) {
 	if code == "" {
-		return nil, errors.New("code is required")
+		return nil, errCodeRequired
 	}
 	params := url.Values{}
 	params.Set("code", code)

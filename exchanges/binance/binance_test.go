@@ -1202,7 +1202,7 @@ func TestGetOrderBook(t *testing.T) {
 func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMostRecentTrades(context.Background(), &RecentTradeRequestParams{})
-	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorIs(t, err, errNilArgument)
 
 	result, err := b.GetMostRecentTrades(context.Background(), &RecentTradeRequestParams{
 		Symbol: currency.NewPair(currency.BTC, currency.USDT),
@@ -6560,6 +6560,11 @@ func TestHashrateRescaleRequest(t *testing.T) {
 
 func TestCancelHashrateRescaleConfiguration(t *testing.T) {
 	t.Parallel()
+	_, err := b.CancelHashrateRescaleConfiguration(context.Background(), "", "sams")
+	require.ErrorIs(t, err, errConfigIDRequired)
+	_, err = b.CancelHashrateRescaleConfiguration(context.Background(), "189", "")
+	require.ErrorIs(t, err, errUsernameRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CancelHashrateRescaleConfiguration(context.Background(), "189", "sams")
 	require.NoError(t, err)
@@ -6568,6 +6573,11 @@ func TestCancelHashrateRescaleConfiguration(t *testing.T) {
 
 func TestStatisticsList(t *testing.T) {
 	t.Parallel()
+	_, err := b.StatisticsList(context.Background(), "", "sams")
+	require.ErrorIs(t, err, errTransferAlgorithmRequired)
+	_, err = b.StatisticsList(context.Background(), "sha256", "")
+	require.ErrorIs(t, err, errUsernameRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.StatisticsList(context.Background(), "sha256", "sams")
 	require.NoError(t, err)
@@ -6576,6 +6586,11 @@ func TestStatisticsList(t *testing.T) {
 
 func TestGetAccountList(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetAccountList(context.Background(), "", "sams")
+	require.ErrorIs(t, err, errTransferAlgorithmRequired)
+	_, err = b.GetAccountList(context.Background(), "sha256", "")
+	require.ErrorIs(t, err, errUsernameRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetAccountList(context.Background(), "sha256", "sams")
 	require.NoError(t, err)
@@ -6584,6 +6599,9 @@ func TestGetAccountList(t *testing.T) {
 
 func TestGetMiningAccountEarningRate(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetMiningAccountEarningRate(context.Background(), "", time.Now().Add(-time.Hour*240), time.Now(), 0, 10)
+	require.ErrorIs(t, err, errTransferAlgorithmRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetMiningAccountEarningRate(context.Background(), "sha256", time.Now().Add(-time.Hour*240), time.Now(), 0, 10)
 	require.NoError(t, err)
@@ -6592,6 +6610,13 @@ func TestGetMiningAccountEarningRate(t *testing.T) {
 
 func TestNewFuturesAccountTransfer(t *testing.T) {
 	t.Parallel()
+	_, err := b.NewFuturesAccountTransfer(context.Background(), currency.EMPTYCODE, 0.001, 2)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.NewFuturesAccountTransfer(context.Background(), currency.ETH, 0, 2)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.NewFuturesAccountTransfer(context.Background(), currency.ETH, 0.001, 0)
+	require.ErrorIs(t, err, errTransferTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewFuturesAccountTransfer(context.Background(), currency.ETH, 0.001, 2)
 	require.NoError(t, err)
@@ -6600,6 +6625,9 @@ func TestNewFuturesAccountTransfer(t *testing.T) {
 
 func TestGetFuturesAccountTransactionHistoryList(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetFuturesAccountTransactionHistoryList(context.Background(), currency.BTC, time.Time{}, time.Time{}, 10, 20)
+	require.ErrorIs(t, err, errStartTimeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.GetFuturesAccountTransactionHistoryList(context.Background(), currency.BTC, time.Now().Add(-time.Hour*20), time.Time{}, 10, 20)
 	require.NoError(t, err)
@@ -6608,6 +6636,11 @@ func TestGetFuturesAccountTransactionHistoryList(t *testing.T) {
 
 func TestGetFutureTickLevelOrderbookHistoricalDataDownloadLink(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetFutureTickLevelOrderbookHistoricalDataDownloadLink(context.Background(), "", "T_DEPTH", time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*3))
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.GetFutureTickLevelOrderbookHistoricalDataDownloadLink(context.Background(), "BTCUSDT", "T_DEPTH", time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errStartTimeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetFutureTickLevelOrderbookHistoricalDataDownloadLink(context.Background(), "BTCUSDT", "T_DEPTH", time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*3))
 	require.NoError(t, err)
@@ -6618,6 +6651,20 @@ func TestVolumeParticipationNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{})
 	require.ErrorIs(t, err, errNilArgument)
+	_, err = b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{Urgency: "HIGH"})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
+		Symbol: "BTCUSDT",
+		Side:   "SELL",
+	})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
+		Symbol:       "BTCUSDT",
+		Side:         "SELL",
+		PositionSide: "BOTH",
+		Quantity:     0.012,
+	})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
@@ -6635,6 +6682,25 @@ func TestTWAPOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{})
 	require.ErrorIs(t, err, errNilArgument)
+	_, err = b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
+		Duration: 1000,
+	})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
+		Symbol: "BTCUSDT",
+	})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
+		Symbol: "BTCUSDT",
+		Side:   "SELL",
+	})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
+		Symbol:   "BTCUSDT",
+		Side:     "SELL",
+		Quantity: 0.012,
+	})
+	require.ErrorIs(t, err, errDurationRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
@@ -6650,6 +6716,9 @@ func TestTWAPOrder(t *testing.T) {
 
 func TestCancelAlgoOrder(t *testing.T) {
 	t.Parallel()
+	_, err := b.CancelFuturesAlgoOrder(context.Background(), 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CancelFuturesAlgoOrder(context.Background(), 1234)
 	require.NoError(t, err)
@@ -6674,6 +6743,9 @@ func TestGetHistoricalAlgoOrders(t *testing.T) {
 
 func TestGetSubOrders(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetFuturesSubOrders(context.Background(), 0, 0, 40)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetFuturesSubOrders(context.Background(), 1234, 0, 40)
 	require.NoError(t, err)
@@ -6684,6 +6756,18 @@ func TestTWAPNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{})
 	require.ErrorIs(t, err, errNilArgument)
+	_, err = b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
+		Duration: 86400})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
+		Symbol: "BTCUSDT"})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
+		Symbol: "BTCUSDT", Side: "SELL"})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
+		Symbol: "BTCUSDT", Side: "SELL", Quantity: 0.012})
+	require.ErrorIs(t, err, errDurationRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
@@ -6786,6 +6870,9 @@ func TestClassicPMFundAutoCollection(t *testing.T) {
 
 func TestClassicFundCollectionByAsset(t *testing.T) {
 	t.Parallel()
+	_, err := b.ClassicFundCollectionByAsset(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.ClassicFundCollectionByAsset(context.Background(), currency.LTC)
 	require.NoError(t, err)
@@ -6834,6 +6921,11 @@ func TestGetBLVTInfo(t *testing.T) {
 
 func TestSubscribeBLVT(t *testing.T) {
 	t.Parallel()
+	_, err := b.SubscribeBLVT(context.Background(), "", 0.011)
+	require.ErrorIs(t, err, errNameRequired)
+	_, err = b.SubscribeBLVT(context.Background(), "BTCUP", 0)
+	require.ErrorIs(t, err, errCostRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SubscribeBLVT(context.Background(), "BTCUP", 0.011)
 	require.NoError(t, err)
@@ -6850,6 +6942,12 @@ func TestGetSusbcriptionRecords(t *testing.T) {
 
 func TestRedeemBLVT(t *testing.T) {
 	t.Parallel()
+	_, err := b.RedeemBLVT(context.Background(), "", 2)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = b.RedeemBLVT(context.Background(), "BTCUSDT", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.RedeemBLVT(context.Background(), "BTCUSDT", 2)
 	require.NoError(t, err)
@@ -6874,6 +6972,9 @@ func TestGetBLVTUserLimitInfo(t *testing.T) {
 
 func TestGetFiatDepositAndWithdrawalHistory(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetFiatDepositAndWithdrawalHistory(context.Background(), time.Time{}, time.Time{}, -5, 0, 50)
+	require.ErrorIs(t, err, errInvalidTransactionType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetFiatDepositAndWithdrawalHistory(context.Background(), time.Time{}, time.Time{}, 1, 0, 50)
 	require.NoError(t, err)
@@ -6882,6 +6983,9 @@ func TestGetFiatDepositAndWithdrawalHistory(t *testing.T) {
 
 func TestGetFiatPaymentHistory(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetFiatPaymentHistory(context.Background(), time.Time{}, time.Time{}, 0, 0, 50)
+	require.ErrorIs(t, err, errInvalidTransactionType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetFiatPaymentHistory(context.Background(), time.Time{}, time.Time{}, 1, 0, 50)
 	require.NoError(t, err)
@@ -6890,6 +6994,9 @@ func TestGetFiatPaymentHistory(t *testing.T) {
 
 func TestGetC2CTradeHistory(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetC2CTradeHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 50)
+	require.ErrorIs(t, err, errTradeTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetC2CTradeHistory(context.Background(), "SELL", time.Time{}, time.Time{}, 0, 50)
 	require.NoError(t, err)
@@ -6906,6 +7013,11 @@ func TestGetVIPLoanOngoingOrders(t *testing.T) {
 
 func TestGetVIPLoanRepay(t *testing.T) {
 	t.Parallel()
+	_, err := b.VIPLoanRepay(context.Background(), 0, 0.2)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.VIPLoanRepay(context.Background(), 1234, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.VIPLoanRepay(context.Background(), 1234, 0.2)
 	require.NoError(t, err)
@@ -6976,7 +7088,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 	t.Parallel()
 	arg := &ConvertPlaceLimitOrderParam{}
 	_, err := b.PlaceLimitOrder(context.Background(), arg)
-	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorIs(t, err, errNilArgument)
 
 	arg.ExpiredType = "7_D"
 	_, err = b.PlaceLimitOrder(context.Background(), arg)
@@ -7153,6 +7265,9 @@ func TestGetVIPLoanRepaymentHistory(t *testing.T) {
 
 func TestVIPLoanRenew(t *testing.T) {
 	t.Parallel()
+	_, err := b.VIPLoanRenew(context.Background(), 0, 60)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.VIPLoanRenew(context.Background(), 1234, 60)
 	require.NoError(t, err)
@@ -7161,6 +7276,11 @@ func TestVIPLoanRenew(t *testing.T) {
 
 func TestCheckLockedValueVIPCollateralAccount(t *testing.T) {
 	t.Parallel()
+	_, err := b.CheckLockedValueVIPCollateralAccount(context.Background(), 0, 40)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.CheckLockedValueVIPCollateralAccount(context.Background(), 1223, 0)
+	require.ErrorIs(t, err, errAccountIDRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.CheckLockedValueVIPCollateralAccount(context.Background(), 1223, 40)
 	require.NoError(t, err)
@@ -7169,13 +7289,18 @@ func TestCheckLockedValueVIPCollateralAccount(t *testing.T) {
 
 func TestVIPLoanBorrow(t *testing.T) {
 	t.Parallel()
-	_, err := b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
-
-	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
-
-	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
-
-	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
+	_, err := b.VIPLoanBorrow(context.Background(), 0, 30, currency.ETH, currency.LTC, 123, "1234", false)
+	require.ErrorIs(t, err, errAccountIDRequired)
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.EMPTYCODE, currency.LTC, 123, "1234", false)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 0, "1234", false)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 1.2, "", false)
+	require.ErrorIs(t, err, errAccountIDRequired)
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.EMPTYCODE, 123, "1234", false)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.VIPLoanBorrow(context.Background(), 1234, 0, currency.ETH, currency.LTC, 123, "1234", false)
+	require.ErrorIs(t, err, errLoanTermMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)

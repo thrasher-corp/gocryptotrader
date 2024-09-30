@@ -76,7 +76,7 @@ var (
 	errTransferAlgorithmRequired              = errors.New("transfer algorithm is required")
 	errUsernameRequired                       = errors.New("user name is required")
 	errTransferTypeRequired                   = errors.New("transfer type is required")
-	errTokenNameRequired                      = errors.New("token name is required")
+	errNameRequired                           = errors.New("name is required")
 	errTradeTypeRequired                      = errors.New("trade type is required")
 	errPositionIDRequired                     = errors.New("position ID is required")
 	errOptionTypeRequired                     = errors.New("optionType is required")
@@ -94,7 +94,22 @@ var (
 	errExpiedTypeRequired                     = errors.New("expiredType is required")
 	errQuoteIDRequired                        = errors.New("quote ID is required")
 	errAccountIDRequired                      = errors.New("account ID is required")
+	errAccountRequired                        = errors.New("account information required")
+	errConfigIDRequired                       = errors.New("config ID is required")
+	errLendingTypeRequired                    = errors.New("lending type is required")
+	errEmptyCurrencyCodes                     = errors.New("assetNames are required")
+	errSourceTypeRequired                     = errors.New("source type required")
+	errInvalidPercentageAmount                = errors.New("invalid percentage amount")
+	errHashRateRequired                       = errors.New("hash rate is required")
+	errCodeRequired                           = errors.New("code is required")
+	errAddressRequired                        = errors.New("address is required")
+	errInvalidSubscriptionCycle               = errors.New("invalid subscription cycle")
+	errDurationRequired                       = errors.New("duration is required")
+	errCostRequired                           = errors.New("cost must be greater than 0")
+	errInvalidTransactionType                 = errors.New("invalid transaction type")
 )
+
+var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
 
 // TransferTypes represents asset transfer types
 type TransferTypes uint8
