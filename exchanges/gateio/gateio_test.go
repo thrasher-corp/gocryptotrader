@@ -3009,9 +3009,8 @@ func TestSubscribe(t *testing.T) {
 	subs, err := g.Features.Subscriptions.ExpandTemplates(g)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	g.Features.Subscriptions = subscription.List{}
-	err = g.SpotSubscribe(context.Background(), &DummyConnection{}, subs)
+	err = g.Subscribe(context.Background(), &DummyConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
-
 }
 
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {

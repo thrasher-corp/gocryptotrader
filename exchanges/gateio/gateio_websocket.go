@@ -706,12 +706,12 @@ func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Con
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) SpotSubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) Subscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) SpotUnsubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) Unsubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
@@ -795,9 +795,9 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 				continue
 			}
 			if event == subscribeEvent {
-				err = g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k])
+				err = common.AppendError(err, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
 			} else {
-				err = g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k])
+				err = common.AppendError(err, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
 			}
 		}
 	}
