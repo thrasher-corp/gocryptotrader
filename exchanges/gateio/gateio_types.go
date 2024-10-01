@@ -16,7 +16,7 @@ const (
 	settleUSD  = "usd"
 	settleUSDT = "usdt"
 
-	// types.Timein force variables
+	// types.Time time in force variables
 
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
