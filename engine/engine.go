@@ -71,7 +71,7 @@ func New() (*Engine, error) {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
 
-	return &b, nil
+	return &b, err
 }
 
 // NewFromSettings starts a new engine based on supplied settings
@@ -134,7 +134,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	conf := &config.Config{}
 	err = conf.ReadConfigFromFile(filePath, settings.EnableDryRun)
 	if err != nil {
-		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
+		return nil, fmt.Errorf("%w %s: %w", config.ErrFailureOpeningConfig, filePath, err)
 	}
 	// Apply overrides from settings
 	if flagSet["datadir"] {
