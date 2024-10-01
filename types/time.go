@@ -9,6 +9,9 @@ import (
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
+// MarshalJSON serializes the time to JSON using RFC 3339 format.
+// Note: Not all exchanges may support RFC 3339 for outbound requests, so ensure compatibility with each exchange's time
+// format requirements.
 type Time time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
