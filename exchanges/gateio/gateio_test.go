@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -39,30 +39,20 @@ const (
 	canManipulateRealOrders = false
 )
 
-var g = &Gateio{}
+var g *Gateio
 
 func TestMain(m *testing.M) {
-	g.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("GateIO load config error", err)
+	g = new(Gateio)
+	if err := testexch.Setup(g); err != nil {
+		log.Fatal(err)
 	}
-	gConf, err := cfg.GetExchangeConfig("GateIO")
-	if err != nil {
-		log.Fatal("GateIO Setup() init error")
+
+	if apiKey != "" && apiSecret != "" {
+		g.API.AuthenticatedSupport = true
+		g.API.AuthenticatedWebsocketSupport = true
+		g.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	gConf.API.AuthenticatedSupport = true
-	gConf.API.AuthenticatedWebsocketSupport = true
-	gConf.API.Credentials.Key = apiKey
-	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
-	gConf.Features.Enabled.FillsFeed = true
-	gConf.Features.Enabled.TradeFeed = true
-	err = g.Setup(gConf)
-	if err != nil {
-		log.Fatal("GateIO setup error", err)
-	}
+
 	os.Exit(m.Run())
 }
 
@@ -2966,12 +2956,63 @@ func TestFuturesCandlestickPushData(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultSubscriptionsSpot(t *testing.T) {
+func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateDefaultSubscriptionsSpot(); err != nil {
-		t.Error(err)
+
+	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+
+	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	g.Features.Subscriptions = append(g.Features.Subscriptions, &subscription.Subscription{
+		Enabled: true, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.ThousandMilliseconds, Levels: 5,
+	})
+	subs, err := g.generateSubscriptionsSpot()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	for _, s := range g.Features.Subscriptions {
+		for _, a := range g.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := g.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if singleSymbolChannel(channelName(s)) {
+				for i := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					switch s.Channel {
+					case subscription.CandlesChannel:
+						s.QualifiedChannel = "5m," + pairs[i].String()
+					case subscription.OrderbookChannel:
+						s.QualifiedChannel = pairs[i].String() + ",100ms"
+					case spotOrderbookChannel:
+						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					}
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s.Pairs = pairs
+				s.QualifiedChannel = pairs.Join()
+				exp = append(exp, s)
+			}
+		}
 	}
+	testsubs.EqualLists(t, exp, subs)
 }
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	subs, err := g.Features.Subscriptions.ExpandTemplates(g)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	g.Features.Subscriptions = subscription.List{}
+	err = g.SpotSubscribe(context.Background(), &DummyConnection{}, subs)
+	require.NoError(t, err, "Subscribe must not error")
+
+}
+
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateDeliveryFuturesDefaultSubscriptions(); err != nil {
