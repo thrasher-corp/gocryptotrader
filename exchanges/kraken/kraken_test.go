@@ -39,7 +39,7 @@ var (
 	k               *Kraken
 	wsSetupRan      bool
 	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
-	spotTestSpair   = currency.NewPair(currency.XBT, currency.USD)
+	spotTestPair   = currency.NewPair(currency.XBT, currency.USD)
 )
 
 // Please add your own APIkeys to do correct due diligence testing.
