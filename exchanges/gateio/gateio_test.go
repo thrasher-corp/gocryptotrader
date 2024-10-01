@@ -29,6 +29,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -3195,7 +3196,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	float64JSON := `{"number": 1684981731.098}`
 
 	time := time.UnixMilli(timeWhenTesting)
-	var in Time
+	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3204,7 +3205,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), time)
 	}
 	inInteger := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3215,7 +3216,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3235,7 +3236,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
 
 	whenTime := time.Unix(timeWhenTesting, 0)
-	var in Time
+	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3244,7 +3245,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
 	}
 	inInteger := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3255,7 +3256,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3266,7 +3267,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
 	}
 
-	var microSeconds Time
+	var microSeconds types.Time
 	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
 	if err != nil {
 		t.Fatal(err)
@@ -3658,60 +3659,6 @@ func TestGetUnifiedAccount(t *testing.T) {
 func TestGenerateWebsocketMessageID(t *testing.T) {
 	t.Parallel()
 	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
-}
-
-func TestTime(t *testing.T) {
-	t.Parallel()
-	var testTime Time
-
-	require.NoError(t, json.Unmarshal([]byte(`0`), &testTime))
-	assert.Equal(t, time.Time{}, testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`""`), &testTime))
-	assert.Equal(t, time.Time{}, testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"0"`), &testTime))
-	assert.Equal(t, time.Time{}, testTime.Time())
-
-	// seconds
-	require.NoError(t, json.Unmarshal([]byte(`"1628736847"`), &testTime))
-	assert.Equal(t, time.Unix(1628736847, 0), testTime.Time())
-
-	// milliseconds
-	require.NoError(t, json.Unmarshal([]byte(`"1726104395.5"`), &testTime))
-	assert.Equal(t, time.UnixMilli(1726104395500), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1726104395.56"`), &testTime))
-	assert.Equal(t, time.UnixMilli(1726104395560), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1628736847325"`), &testTime))
-	assert.Equal(t, time.UnixMilli(1628736847325), testTime.Time())
-
-	// microseconds
-	require.NoError(t, json.Unmarshal([]byte(`"1628736847325123"`), &testTime))
-	assert.Equal(t, time.UnixMicro(1628736847325123), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1726106210903.0"`), &testTime))
-	assert.Equal(t, time.UnixMicro(1726106210903000), testTime.Time())
-
-	// nanoseconds
-	require.NoError(t, json.Unmarshal([]byte(`"1606292218213.4578"`), &testTime))
-	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1606292218213457800"`), &testTime))
-	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
-}
-
-// 5046307	       216.0 ns/op	     168 B/op	       2 allocs/op (current)
-// 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
-func BenchmarkTime(b *testing.B) {
-	var testTime Time
-	for i := 0; i < b.N; i++ {
-		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
 }
 
 type DummyConnection struct{ stream.Connection }

@@ -2029,11 +2029,11 @@ func TestWsKlineUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
 	  "e": "kline",
-	  "E": 123456789,   
+	  "E": 1234567891,   
 	  "s": "BTCUSDT",    
 	  "k": {
-		"t": 123400000, 
-		"T": 123460000, 
+		"t": 1234000001, 
+		"T": 1234600001, 
 		"s": "BTCUSDT",  
 		"i": "1m",      
 		"f": 100,       
@@ -2062,14 +2062,14 @@ func TestWsTradeUpdate(t *testing.T) {
 	b.SetSaveTradeDataStatus(true)
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
 	  "e": "trade",     
-	  "E": 123456789,   
+	  "E": 1234567891,   
 	  "s": "BTCUSDT",    
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       
 	  "b": 88,          
 	  "a": 50,          
-	  "T": 123456785,   
+	  "T": 1234567851,   
 	  "m": true,        
 	  "M": true         
 	}}`)
@@ -2115,7 +2115,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	update1 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
-	  "E": 123456788,     
+	  "E": 1234567881,     
 	  "s": "BTCUSDT",      
 	  "U": 157,           
 	  "u": 160,           
@@ -2133,7 +2133,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	}
 
 	if err := b.wsHandleData(update1); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	b.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
@@ -2155,7 +2155,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	update2 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
-	  "E": 123456789,     
+	  "E": 1234567892,     
 	  "s": "BTCUSDT",      
 	  "U": 161,           
 	  "u": 165,           
