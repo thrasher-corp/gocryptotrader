@@ -39,7 +39,7 @@ var (
 	k               *Kraken
 	wsSetupRan      bool
 	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
-	spotTestPair   = currency.NewPair(currency.XBT, currency.USD)
+	spotTestPair    = currency.NewPair(currency.XBT, currency.USD)
 )
 
 // Please add your own APIkeys to do correct due diligence testing.
@@ -113,7 +113,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := k.UpdateTicker(context.Background(), spotTestSpair, asset.Spot)
+	_, err := k.UpdateTicker(context.Background(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "UpdateTicker spot asset should not error")
 	_, err = k.UpdateTicker(context.Background(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "UpdateTicker futures asset should not error")
@@ -147,7 +147,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := k.UpdateOrderbook(context.Background(), spotTestSpair, asset.Spot)
+	_, err := k.UpdateOrderbook(context.Background(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "UpdateOrderbook spot asset should not error")
 	_, err = k.UpdateOrderbook(context.Background(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "UpdateOrderbook futures asset should not error")
@@ -485,7 +485,7 @@ func TestGetOHLC(t *testing.T) {
 // TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetDepth(context.Background(), spotTestSpair)
+	_, err := k.GetDepth(context.Background(), spotTestPair)
 	assert.NoError(t, err, "GetDepth should not error")
 }
 
@@ -794,7 +794,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs:     currency.Pairs{spotTestSpair},
+		Pairs:     currency.Pairs{spotTestPair},
 		Side:      order.AnySide,
 	}
 
@@ -1853,7 +1853,7 @@ func TestParseTime(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetHistoricCandles(context.Background(), spotTestSpair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	_, err := k.GetHistoricCandles(context.Background(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
 	pairs, err := k.CurrencyPairs.GetPairs(asset.Futures, false)
 	require.NoError(t, err, "GetPairs must not error")
@@ -1866,7 +1866,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetHistoricCandlesExtended(context.Background(), spotTestSpair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
+	_, err := k.GetHistoricCandlesExtended(context.Background(), spotTestPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
 
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
@@ -1906,7 +1906,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetRecentTrades(context.Background(), spotTestSpair, asset.Spot)
+	_, err := k.GetRecentTrades(context.Background(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "GetRecentTrades should not error")
 	_, err = k.GetRecentTrades(context.Background(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "GetRecentTrades should not error")
@@ -1914,7 +1914,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetHistoricTrades(context.Background(), spotTestSpair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err := k.GetHistoricTrades(context.Background(), spotTestPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades should error")
 }
 
