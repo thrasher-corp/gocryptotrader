@@ -43,16 +43,14 @@ func main() {
 		log.Fatalf("Unable to read input file %s. Error: %s.", inFile, err)
 	}
 
-	if config.ConfirmECS(fileData) && encrypt {
+	switch {
+	case encrypt && config.IsEncrypted(fileData):
 		log.Println("File is already encrypted. Decrypting..")
 		encrypt = false
-	}
-
-	if !config.ConfirmECS(fileData) && !encrypt {
+	case !encrypt && !config.IsEncrypted(fileData):
 		var result interface{}
-		errf := json.Unmarshal(fileData, &result)
-		if errf != nil {
-			log.Fatal(errf)
+		if err = json.Unmarshal(fileData, &result); err != nil {
+			log.Fatal(err)
 		}
 		log.Println("File is already decrypted. Encrypting..")
 		encrypt = true
