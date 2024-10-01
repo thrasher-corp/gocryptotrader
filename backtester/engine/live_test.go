@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -402,7 +401,7 @@ func TestLoadCandleData(t *testing.T) {
 	eba := exch.CurrencyPairs.Pairs[asset.Spot]
 	eba.Available = eba.Available.Add(cp)
 	eba.Enabled = eba.Enabled.Add(cp)
-	eba.AssetEnabled = convert.BoolPtr(true)
+	eba.AssetEnabled = true
 	l.exchange = exch
 	l.dataType = common.DataCandle
 	l.asset = asset.Spot
