@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Response holds basic binance api response data
@@ -15,32 +16,32 @@ type Response struct {
 
 // FuturesPublicTradesData stores recent public trades for futures
 type FuturesPublicTradesData struct {
-	ID           int64       `json:"id"`
-	Price        float64     `json:"price,string"`
-	Qty          float64     `json:"qty,string"`
-	QuoteQty     float64     `json:"quoteQty,string"`
-	Time         binanceTime `json:"time"`
-	IsBuyerMaker bool        `json:"isBuyerMaker"`
+	ID           int64      `json:"id"`
+	Price        float64    `json:"price,string"`
+	Qty          float64    `json:"qty,string"`
+	QuoteQty     float64    `json:"quoteQty,string"`
+	Time         types.Time `json:"time"`
+	IsBuyerMaker bool       `json:"isBuyerMaker"`
 }
 
 // CompressedTradesData stores futures trades data in a compressed format
 type CompressedTradesData struct {
-	TradeID      int64       `json:"a"`
-	Price        float64     `json:"p"`
-	Quantity     float64     `json:"q"`
-	FirstTradeID int64       `json:"f"`
-	LastTradeID  int64       `json:"l"`
-	Timestamp    binanceTime `json:"t"`
-	BuyerMaker   bool        `json:"b"`
+	TradeID      int64      `json:"a"`
+	Price        float64    `json:"p"`
+	Quantity     float64    `json:"q"`
+	FirstTradeID int64      `json:"f"`
+	LastTradeID  int64      `json:"l"`
+	Timestamp    types.Time `json:"t"`
+	BuyerMaker   bool       `json:"b"`
 }
 
 // MarkPriceData stores mark price data for futures
 type MarkPriceData struct {
-	Symbol          string      `json:"symbol"`
-	MarkPrice       float64     `json:"markPrice"`
-	LastFundingRate float64     `json:"lastFundingRate"`
-	NextFundingTime int64       `json:"nextFundingTime"`
-	Time            binanceTime `json:"time"`
+	Symbol          string     `json:"symbol"`
+	MarkPrice       float64    `json:"markPrice"`
+	LastFundingRate float64    `json:"lastFundingRate"`
+	NextFundingTime int64      `json:"nextFundingTime"`
+	Time            types.Time `json:"time"`
 }
 
 // SymbolPriceTicker stores ticker price stats
@@ -445,21 +446,21 @@ type GetPositionMarginChangeHistoryData struct {
 
 // FuturesPositionInformation stores futures position info
 type FuturesPositionInformation struct {
-	Symbol           string      `json:"symbol"`
-	PositionAmount   float64     `json:"positionAmt,string"`
-	EntryPrice       float64     `json:"entryPrice,string"`
-	MarkPrice        float64     `json:"markPrice,string"`
-	UnRealizedProfit float64     `json:"unRealizedProfit,string"`
-	LiquidationPrice float64     `json:"liquidationPrice,string"`
-	Leverage         float64     `json:"leverage,string"`
-	MaxQty           float64     `json:"maxQty,string"`
-	MarginType       string      `json:"marginType"`
-	IsolatedMargin   float64     `json:"isolatedMargin,string"`
-	IsAutoAddMargin  bool        `json:"isAutoAddMargin,string"`
-	PositionSide     string      `json:"positionSide"`
-	NotionalValue    float64     `json:"notionalValue,string"`
-	IsolatedWallet   float64     `json:"isolatedWallet,string"`
-	UpdateTime       binanceTime `json:"updateTime"`
+	Symbol           string     `json:"symbol"`
+	PositionAmount   float64    `json:"positionAmt,string"`
+	EntryPrice       float64    `json:"entryPrice,string"`
+	MarkPrice        float64    `json:"markPrice,string"`
+	UnRealizedProfit float64    `json:"unRealizedProfit,string"`
+	LiquidationPrice float64    `json:"liquidationPrice,string"`
+	Leverage         float64    `json:"leverage,string"`
+	MaxQty           float64    `json:"maxQty,string"`
+	MarginType       string     `json:"marginType"`
+	IsolatedMargin   float64    `json:"isolatedMargin,string"`
+	IsAutoAddMargin  bool       `json:"isAutoAddMargin,string"`
+	PositionSide     string     `json:"positionSide"`
+	NotionalValue    float64    `json:"notionalValue,string"`
+	IsolatedWallet   float64    `json:"isolatedWallet,string"`
+	UpdateTime       types.Time `json:"updateTime"`
 }
 
 // FuturesAccountTradeList stores account trade list data
@@ -581,25 +582,25 @@ type UFuturesExchangeInfo struct {
 // UFuturesSymbolInfo contains details of a currency symbol
 // for a usdt margined future contract
 type UFuturesSymbolInfo struct {
-	Symbol                   string      `json:"symbol"`
-	Pair                     string      `json:"pair"`
-	ContractType             string      `json:"contractType"`
-	DeliveryDate             binanceTime `json:"deliveryDate"`
-	OnboardDate              binanceTime `json:"onboardDate"`
-	Status                   string      `json:"status"`
-	MaintenanceMarginPercent float64     `json:"maintMarginPercent,string"`
-	RequiredMarginPercent    float64     `json:"requiredMarginPercent,string"`
-	BaseAsset                string      `json:"baseAsset"`
-	QuoteAsset               string      `json:"quoteAsset"`
-	MarginAsset              string      `json:"marginAsset"`
-	PricePrecision           int64       `json:"pricePrecision"`
-	QuantityPrecision        int64       `json:"quantityPrecision"`
-	BaseAssetPrecision       int64       `json:"baseAssetPrecision"`
-	QuotePrecision           int64       `json:"quotePrecision"`
-	UnderlyingType           string      `json:"underlyingType"`
-	UnderlyingSubType        []string    `json:"underlyingSubType"`
-	SettlePlan               float64     `json:"settlePlan"`
-	TriggerProtect           float64     `json:"triggerProtect,string"`
+	Symbol                   string     `json:"symbol"`
+	Pair                     string     `json:"pair"`
+	ContractType             string     `json:"contractType"`
+	DeliveryDate             types.Time `json:"deliveryDate"`
+	OnboardDate              types.Time `json:"onboardDate"`
+	Status                   string     `json:"status"`
+	MaintenanceMarginPercent float64    `json:"maintMarginPercent,string"`
+	RequiredMarginPercent    float64    `json:"requiredMarginPercent,string"`
+	BaseAsset                string     `json:"baseAsset"`
+	QuoteAsset               string     `json:"quoteAsset"`
+	MarginAsset              string     `json:"marginAsset"`
+	PricePrecision           int64      `json:"pricePrecision"`
+	QuantityPrecision        int64      `json:"quantityPrecision"`
+	BaseAssetPrecision       int64      `json:"baseAssetPrecision"`
+	QuotePrecision           int64      `json:"quotePrecision"`
+	UnderlyingType           string     `json:"underlyingType"`
+	UnderlyingSubType        []string   `json:"underlyingSubType"`
+	SettlePlan               float64    `json:"settlePlan"`
+	TriggerProtect           float64    `json:"triggerProtect,string"`
 	Filters                  []struct {
 		FilterType        string  `json:"filterType"`
 		MinPrice          float64 `json:"minPrice,string"`
@@ -644,24 +645,24 @@ type CExchangeInfo struct {
 			MultiplierUp      float64 `json:"multiplierUp,string"`
 			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
 		} `json:"filters"`
-		OrderTypes            []string    `json:"orderType"`
-		TimeInForce           []string    `json:"timeInForce"`
-		Symbol                string      `json:"symbol"`
-		Pair                  string      `json:"pair"`
-		ContractType          string      `json:"contractType"`
-		DeliveryDate          binanceTime `json:"deliveryDate"`
-		OnboardDate           binanceTime `json:"onboardDate"`
-		ContractStatus        string      `json:"contractStatus"`
-		ContractSize          int64       `json:"contractSize"`
-		QuoteAsset            string      `json:"quoteAsset"`
-		BaseAsset             string      `json:"baseAsset"`
-		MarginAsset           string      `json:"marginAsset"`
-		PricePrecision        int64       `json:"pricePrecision"`
-		QuantityPrecision     int64       `json:"quantityPrecision"`
-		BaseAssetPrecision    int64       `json:"baseAssetPrecision"`
-		QuotePrecision        int64       `json:"quotePrecision"`
-		MaintMarginPercent    float64     `json:"maintMarginPercent,string"`
-		RequiredMarginPercent float64     `json:"requiredMarginPercent,string"`
+		OrderTypes            []string   `json:"orderType"`
+		TimeInForce           []string   `json:"timeInForce"`
+		Symbol                string     `json:"symbol"`
+		Pair                  string     `json:"pair"`
+		ContractType          string     `json:"contractType"`
+		DeliveryDate          types.Time `json:"deliveryDate"`
+		OnboardDate           types.Time `json:"onboardDate"`
+		ContractStatus        string     `json:"contractStatus"`
+		ContractSize          int64      `json:"contractSize"`
+		QuoteAsset            string     `json:"quoteAsset"`
+		BaseAsset             string     `json:"baseAsset"`
+		MarginAsset           string     `json:"marginAsset"`
+		PricePrecision        int64      `json:"pricePrecision"`
+		QuantityPrecision     int64      `json:"quantityPrecision"`
+		BaseAssetPrecision    int64      `json:"baseAssetPrecision"`
+		QuotePrecision        int64      `json:"quotePrecision"`
+		MaintMarginPercent    float64    `json:"maintMarginPercent,string"`
+		RequiredMarginPercent float64    `json:"requiredMarginPercent,string"`
 	} `json:"symbols"`
 	Timezone string `json:"timezone"`
 }

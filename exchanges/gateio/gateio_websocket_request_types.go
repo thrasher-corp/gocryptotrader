@@ -15,13 +15,13 @@ type WebsocketAPIResponse struct {
 
 // Header defines a websocket header
 type Header struct {
-	ResponseTime Time   `json:"response_time"`
-	Status       string `json:"status"`
-	Channel      string `json:"channel"`
-	Event        string `json:"event"`
-	ClientID     string `json:"client_id"`
-	ConnectionID string `json:"conn_id"`
-	TraceID      string `json:"trace_id"`
+	ResponseTime types.Time `json:"response_time"`
+	Status       string     `json:"status"`
+	Channel      string     `json:"channel"`
+	Event        string     `json:"event"`
+	ClientID     string     `json:"client_id"`
+	ConnectionID string     `json:"conn_id"`
+	TraceID      string     `json:"trace_id"`
 }
 
 // WebsocketRequest defines a websocket request
@@ -80,9 +80,9 @@ type WebsocketOrder struct {
 // WebsocketOrderResponse defines a websocket order response
 type WebsocketOrderResponse struct {
 	Left               types.Number  `json:"left"`
-	UpdateTime         Time          `json:"update_time"`
+	UpdateTime         types.Time    `json:"update_time"`
 	Amount             types.Number  `json:"amount"`
-	CreateTime         Time          `json:"create_time"`
+	CreateTime         types.Time    `json:"create_time"`
 	Price              types.Number  `json:"price"`
 	FinishAs           string        `json:"finish_as"`
 	TimeInForce        string        `json:"time_in_force"`
@@ -97,8 +97,8 @@ type WebsocketOrderResponse struct {
 	FilledTotal        types.Number  `json:"filled_total"`
 	ID                 string        `json:"id"`
 	FillPrice          types.Number  `json:"fill_price"`
-	UpdateTimeMs       Time          `json:"update_time_ms"`
-	CreateTimeMs       Time          `json:"create_time_ms"`
+	UpdateTimeMs       types.Time    `json:"update_time_ms"`
+	CreateTimeMs       types.Time    `json:"create_time_ms"`
 	Fee                types.Number  `json:"fee"`
 	FeeCurrency        currency.Code `json:"fee_currency"`
 	PointFee           types.Number  `json:"point_fee"`
