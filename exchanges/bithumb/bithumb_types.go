@@ -3,6 +3,7 @@ package bithumb
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Ticker holds ticker data
@@ -126,17 +127,17 @@ type Orders struct {
 
 // OrderData contains all individual order details
 type OrderData struct {
-	OrderID         string      `json:"order_id"`
-	OrderCurrency   string      `json:"order_currency"`
-	OrderDate       bithumbTime `json:"order_date"`
-	PaymentCurrency string      `json:"payment_currency"`
-	Type            string      `json:"type"`
-	Status          string      `json:"status"`
-	Units           float64     `json:"units,string"`
-	UnitsRemaining  float64     `json:"units_remaining,string"`
-	Price           float64     `json:"price,string"`
-	Fee             float64     `json:"fee,string"`
-	Total           float64     `json:"total,string"`
+	OrderID         string     `json:"order_id"`
+	OrderCurrency   string     `json:"order_currency"`
+	OrderDate       types.Time `json:"order_date"`
+	PaymentCurrency string     `json:"payment_currency"`
+	Type            string     `json:"type"`
+	Status          string     `json:"status"`
+	Units           float64    `json:"units,string"`
+	UnitsRemaining  float64    `json:"units_remaining,string"`
+	Price           float64    `json:"price,string"`
+	Fee             float64    `json:"fee,string"`
+	Total           float64    `json:"total,string"`
 }
 
 // UserTransactions holds users full transaction list
