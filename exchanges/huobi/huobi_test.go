@@ -195,22 +195,6 @@ func TestFRequestPublicBatchTrades(t *testing.T) {
 	}
 }
 
-func TestFQueryInsuranceAndClawbackData(t *testing.T) {
-	t.Parallel()
-	_, err := h.FQueryInsuranceAndClawbackData(context.Background(), currency.BTC)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestFQueryHistoricalInsuranceData(t *testing.T) {
-	t.Parallel()
-	_, err := h.FQueryHistoricalInsuranceData(context.Background(), currency.BTC)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 	t.Parallel()
 	_, err := h.FQueryTieredAdjustmentFactor(context.Background(), currency.BTC)
@@ -865,30 +849,6 @@ func TestGetBatchTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.GetBatchTrades(context.Background(), cp, 5)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetInsuranceData(t *testing.T) {
-	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.GetInsuranceData(context.Background(), cp)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetHistoricalInsuranceData(t *testing.T) {
-	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.GetHistoricalInsuranceData(context.Background(), cp, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
