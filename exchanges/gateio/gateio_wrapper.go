@@ -147,6 +147,7 @@ func (g *Gateio) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -213,9 +214,9 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleSpotData,
-		Subscriber:               g.SpotSubscribe,
-		Unsubscriber:             g.SpotUnsubscribe,
-		GenerateSubscriptions:    g.GenerateDefaultSubscriptionsSpot,
+		Subscriber:               g.Subscribe,
+		Unsubscriber:             g.Unsubscribe,
+		GenerateSubscriptions:    g.generateSubscriptionsSpot,
 		Connector:                g.WsConnectSpot,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})

@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,7 +27,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -39,30 +40,20 @@ const (
 	canManipulateRealOrders = false
 )
 
-var g = &Gateio{}
+var g *Gateio
 
 func TestMain(m *testing.M) {
-	g.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("GateIO load config error", err)
+	g = new(Gateio)
+	if err := testexch.Setup(g); err != nil {
+		log.Fatal(err)
 	}
-	gConf, err := cfg.GetExchangeConfig("GateIO")
-	if err != nil {
-		log.Fatal("GateIO Setup() init error")
+
+	if apiKey != "" && apiSecret != "" {
+		g.API.AuthenticatedSupport = true
+		g.API.AuthenticatedWebsocketSupport = true
+		g.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	gConf.API.AuthenticatedSupport = true
-	gConf.API.AuthenticatedWebsocketSupport = true
-	gConf.API.Credentials.Key = apiKey
-	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
-	gConf.Features.Enabled.FillsFeed = true
-	gConf.Features.Enabled.TradeFeed = true
-	err = g.Setup(gConf)
-	if err != nil {
-		log.Fatal("GateIO setup error", err)
-	}
+
 	os.Exit(m.Run())
 }
 
@@ -2966,12 +2957,63 @@ func TestFuturesCandlestickPushData(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultSubscriptionsSpot(t *testing.T) {
+func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateDefaultSubscriptionsSpot(); err != nil {
-		t.Error(err)
+
+	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+
+	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	g.Features.Subscriptions = append(g.Features.Subscriptions, &subscription.Subscription{
+		Enabled: true, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.ThousandMilliseconds, Levels: 5,
+	})
+	subs, err := g.generateSubscriptionsSpot()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	for _, s := range g.Features.Subscriptions {
+		for _, a := range g.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := g.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if singleSymbolChannel(channelName(s)) {
+				for i := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					switch s.Channel {
+					case subscription.CandlesChannel:
+						s.QualifiedChannel = "5m," + pairs[i].String()
+					case subscription.OrderbookChannel:
+						s.QualifiedChannel = pairs[i].String() + ",100ms"
+					case spotOrderbookChannel:
+						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					}
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s.Pairs = pairs
+				s.QualifiedChannel = pairs.Join()
+				exp = append(exp, s)
+			}
+		}
 	}
+	testsubs.EqualLists(t, exp, subs)
 }
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	subs, err := g.Features.Subscriptions.ExpandTemplates(g)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	g.Features.Subscriptions = subscription.List{}
+	result, err := g.Subscribe(context.Background(), &DummyConnection{}, subs)
+	require.NoError(t, err, "Subscribe must not error")
+	require.NotNil(t, result, "Subscribe must return a result")
+}
+
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateDeliveryFuturesDefaultSubscriptions(); err != nil {
@@ -3154,7 +3196,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	float64JSON := `{"number": 1684981731.098}`
 
 	time := time.UnixMilli(timeWhenTesting)
-	var in Time
+	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3163,7 +3205,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), time)
 	}
 	inInteger := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3174,7 +3216,7 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3194,7 +3236,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
 
 	whenTime := time.Unix(timeWhenTesting, 0)
-	var in Time
+	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
@@ -3203,7 +3245,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
 	}
 	inInteger := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	if err != nil {
@@ -3214,7 +3256,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	}
 
 	inFloat64 := struct {
-		Number Time `json:"number"`
+		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	if err != nil {
@@ -3225,7 +3267,7 @@ func TestParseTimeUnmarshal(t *testing.T) {
 		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
 	}
 
-	var microSeconds Time
+	var microSeconds types.Time
 	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
 	if err != nil {
 		t.Fatal(err)
@@ -3617,60 +3659,6 @@ func TestGetUnifiedAccount(t *testing.T) {
 func TestGenerateWebsocketMessageID(t *testing.T) {
 	t.Parallel()
 	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
-}
-
-func TestTime(t *testing.T) {
-	t.Parallel()
-	var testTime Time
-
-	require.NoError(t, json.Unmarshal([]byte(`0`), &testTime))
-	assert.Equal(t, time.Time{}, testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`""`), &testTime))
-	assert.Equal(t, time.Time{}, testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"0"`), &testTime))
-	assert.Equal(t, time.Time{}, testTime.Time())
-
-	// seconds
-	require.NoError(t, json.Unmarshal([]byte(`"1628736847"`), &testTime))
-	assert.Equal(t, time.Unix(1628736847, 0), testTime.Time())
-
-	// milliseconds
-	require.NoError(t, json.Unmarshal([]byte(`"1726104395.5"`), &testTime))
-	assert.Equal(t, time.UnixMilli(1726104395500), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1726104395.56"`), &testTime))
-	assert.Equal(t, time.UnixMilli(1726104395560), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1628736847325"`), &testTime))
-	assert.Equal(t, time.UnixMilli(1628736847325), testTime.Time())
-
-	// microseconds
-	require.NoError(t, json.Unmarshal([]byte(`"1628736847325123"`), &testTime))
-	assert.Equal(t, time.UnixMicro(1628736847325123), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1726106210903.0"`), &testTime))
-	assert.Equal(t, time.UnixMicro(1726106210903000), testTime.Time())
-
-	// nanoseconds
-	require.NoError(t, json.Unmarshal([]byte(`"1606292218213.4578"`), &testTime))
-	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
-
-	require.NoError(t, json.Unmarshal([]byte(`"1606292218213457800"`), &testTime))
-	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
-}
-
-// 5046307	       216.0 ns/op	     168 B/op	       2 allocs/op (current)
-// 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
-func BenchmarkTime(b *testing.B) {
-	var testTime Time
-	for i := 0; i < b.N; i++ {
-		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
 }
 
 type DummyConnection struct{ stream.Connection }
