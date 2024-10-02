@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,10 +29,29 @@ var (
 	errRateLimitNotFound       = errors.New("rate limit definition not found")
 )
 
+// WebsocketConnection contains all the data needed to send a message to a WS
+// connection
+type WebsocketConnection struct {
+	// Gorilla websocket does not allow more than one goroutine to utilise writes methods
+	writeControl sync.Mutex
+	connected    int32
+	connection   *websocket.Conn
+	// rateLimit is a rate limiter for the connection itself
+	rateLimit        *request.RateLimiterWithWeight
+	_URL             string
+	parent           *Websocket
+	responseMaxLimit time.Duration
+	reporter         Reporter
+	// bespokeGenerateMessageID is a function that returns a unique message ID
+	// defined externally. This is used for exchanges that require a unique
+	// message ID for each message sent.
+	bespokeGenerateMessageID func(highPrecision bool) int64
+}
+
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
-	if w.ProxyURL != "" {
-		proxy, err := url.Parse(w.ProxyURL)
+	if w.parent.proxyAddr != "" {
+		proxy, err := url.Parse(w.parent.proxyAddr)
 		if err != nil {
 			return err
 		}
@@ -41,20 +61,20 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var err error
 	var conStatus *http.Response
 
-	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+	w.connection, conStatus, err = dialer.Dial(w._URL, headers)
 	if err != nil {
 		if conStatus != nil {
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.parent.exchangeName, w._URL, conStatus, conStatus.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", w.parent.exchangeName, w._URL, err)
 	}
 	defer conStatus.Body.Close()
 
-	if w.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
+	if w.parent.verbose {
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.parent.exchangeName, w._URL)
 	}
 	select {
-	case w.Traffic <- struct{}{}:
+	case w.parent.TrafficAlert <- struct{}{}:
 	default:
 	}
 	w.setConnectedStatus(true)
@@ -64,49 +84,49 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
 	return w.writeToConn(ctx, epl, func() error {
-		if request.IsVerbose(ctx, w.Verbose) {
+		if request.IsVerbose(ctx, w.parent.verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(msg))
+				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.parent.exchangeName, removeURLQueryString(w._URL), string(msg))
 			}
 		}
-		return w.Connection.WriteJSON(data)
+		return w.connection.WriteJSON(data)
 	})
 }
 
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
 	return w.writeToConn(ctx, epl, func() error {
-		if request.IsVerbose(ctx, w.Verbose) {
-			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(message))
+		if request.IsVerbose(ctx, w.parent.verbose) {
+			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.parent.exchangeName, removeURLQueryString(w._URL), string(message))
 		}
-		return w.Connection.WriteMessage(messageType, message)
+		return w.connection.WriteMessage(messageType, message)
 	})
 }
 
 func (w *WebsocketConnection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket connection: cannot send message %w", w.ExchangeName, errWebsocketIsDisconnected)
+		return fmt.Errorf("%v websocket connection: cannot send message %w", w.parent.exchangeName, errWebsocketIsDisconnected)
 	}
 
 	var rl *request.RateLimiterWithWeight
-	if w.RateLimitDefinitions != nil {
+	if w.parent.rateLimitDefinitions != nil {
 		var ok bool
-		if rl, ok = w.RateLimitDefinitions[epl]; !ok && w.RateLimit == nil {
+		if rl, ok = w.parent.rateLimitDefinitions[epl]; !ok && w.rateLimit == nil {
 			// Return an error if no specific connection rate limit is found for the endpoint but a global rate limit is
 			// set. This ensures the system attempts to apply rate limiting, prioritizing endpoint-specific limits
 			// if they are defined.
-			return fmt.Errorf("%s websocket connection: %w for %v", w.ExchangeName, errRateLimitNotFound, epl)
+			return fmt.Errorf("%s websocket connection: %w for %v", w.parent.exchangeName, errRateLimitNotFound, epl)
 		}
 	}
 
 	if rl == nil {
 		// If a global rate limit definition is not found, use the connection rate limit as a fallback.
-		rl = w.RateLimit
+		rl = w.rateLimit
 	}
 
 	if rl != nil {
 		if err := request.RateLimit(ctx, rl); err != nil {
-			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
+			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.parent.exchangeName, err)
 		}
 	}
 	// This lock acts as a rolling gate to prevent WriteMessage panics. Acquire after rate limit check.
@@ -119,8 +139,8 @@ func (w *WebsocketConnection) writeToConn(ctx context.Context, epl request.Endpo
 // WebsocketPingHandler configuration
 func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
 	if handler.UseGorillaHandler {
-		w.Connection.SetPingHandler(func(msg string) error {
-			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
+		w.connection.SetPingHandler(func(msg string) error {
+			err := w.connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
 			if err == websocket.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -130,19 +150,19 @@ func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handle
 		})
 		return
 	}
-	w.Wg.Add(1)
-	defer w.Wg.Done()
+	w.parent.Wg.Add(1)
 	go func() {
+		defer w.parent.Wg.Done()
 		ticker := time.NewTicker(handler.Delay)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-w.ShutdownC:
-				ticker.Stop()
+			case <-w.parent.ShutdownC:
 				return
 			case <-ticker.C:
 				err := w.SendRawMessage(context.TODO(), epl, handler.MessageType, handler.Message)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]", w.ExchangeName, handler.Message)
+					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", w.parent.exchangeName, handler.Message, err)
 					return
 				}
 			}
@@ -166,7 +186,7 @@ func (w *WebsocketConnection) IsConnected() bool {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() Response {
-	mType, resp, err := w.Connection.ReadMessage()
+	mType, resp, err := w.connection.ReadMessage()
 	if err != nil {
 		if IsDisconnectionError(err) {
 			if w.setConnectedStatus(false) {
@@ -176,13 +196,13 @@ func (w *WebsocketConnection) ReadMessage() Response {
 				// method on WebsocketConnection type has been called and can
 				// be skipped.
 				select {
-				case w.readMessageErrors <- err:
+				case w.parent.ReadMessageErrors <- fmt.Errorf("%s %s: %w", w.parent.exchangeName, w._URL, err):
 				default:
 					// bypass if there is no receiver, as this stops it returning
 					// when shutdown is called.
 					log.Warnf(log.WebsocketMgr,
 						"%s failed to relay error: %v",
-						w.ExchangeName,
+						w.parent.exchangeName,
 						err)
 				}
 			}
@@ -191,7 +211,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	}
 
 	select {
-	case w.Traffic <- struct{}{}:
+	case w.parent.TrafficAlert <- struct{}{}:
 	default: // Non-Blocking write ensures 1 buffered signal per trafficCheckInterval to avoid flooding
 	}
 
@@ -202,12 +222,12 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", w.ExchangeName, removeURLQueryString(w.URL), err)
+			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", w.parent.exchangeName, removeURLQueryString(w._URL), err)
 			return Response{}
 		}
 	}
-	if w.Verbose {
-		log.Debugf(log.WebsocketMgr, "%v %v: Message received: %v", w.ExchangeName, removeURLQueryString(w.URL), string(standardMessage))
+	if w.parent.verbose {
+		log.Debugf(log.WebsocketMgr, "%v %v: Message received: %v", w.parent.exchangeName, removeURLQueryString(w._URL), string(standardMessage))
 	}
 	return Response{Raw: standardMessage, Type: mType}
 }
@@ -260,26 +280,21 @@ func (w *WebsocketConnection) defaultGenerateMessageID(highPrec bool) int64 {
 
 // Shutdown shuts down and closes specific connection
 func (w *WebsocketConnection) Shutdown() error {
-	if w == nil || w.Connection == nil {
+	if w == nil || w.connection == nil {
 		return nil
 	}
 	w.setConnectedStatus(false)
-	return w.Connection.UnderlyingConn().Close()
+	return w.connection.UnderlyingConn().Close()
 }
 
 // SetURL sets connection URL
 func (w *WebsocketConnection) SetURL(url string) {
-	w.URL = url
-}
-
-// SetProxy sets connection proxy
-func (w *WebsocketConnection) SetProxy(proxy string) {
-	w.ProxyURL = proxy
+	w._URL = url
 }
 
 // GetURL returns the connection URL
 func (w *WebsocketConnection) GetURL() string {
-	return w.URL
+	return w._URL
 }
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
@@ -299,7 +314,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
 	}
 
-	ch, err := w.Match.Set(signature, expected)
+	ch, err := w.parent.Match.Set(signature, expected)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +325,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		return nil, err
 	}
 
-	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
+	timeout := time.NewTimer(w.responseMaxLimit * time.Duration(expected))
 
 	resps := make([][]byte, 0, expected)
 	for err == nil && len(resps) < expected {
@@ -318,24 +333,24 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		case resp := <-ch:
 			resps = append(resps, resp)
 		case <-timeout.C:
-			w.Match.RemoveSignature(signature)
-			err = fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
+			w.parent.Match.RemoveSignature(signature)
+			err = fmt.Errorf("%s %w %v", w.parent.exchangeName, ErrSignatureTimeout, signature)
 		case <-ctx.Done():
-			w.Match.RemoveSignature(signature)
+			w.parent.Match.RemoveSignature(signature)
 			err = ctx.Err()
 		}
 	}
 
 	timeout.Stop()
 
-	if err == nil && w.Reporter != nil {
-		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
+	if err == nil && w.reporter != nil {
+		w.reporter.Latency(w.parent.exchangeName, outbound, time.Since(start))
 	}
 
 	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
 	if request.IsVerbose(ctx, false) {
 		for i := range resps {
-			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", w.ExchangeName, removeURLQueryString(w.URL), i+1, len(resps), string(resps[i]))
+			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", w.parent.exchangeName, removeURLQueryString(w._URL), i+1, len(resps), string(resps[i]))
 		}
 	}
 

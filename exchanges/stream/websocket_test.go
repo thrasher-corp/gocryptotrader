@@ -13,7 +13,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -42,7 +41,7 @@ var dialer websocket.Dialer
 
 type testStruct struct {
 	Error error
-	WC    WebsocketConnection
+	WC    *WebsocketConnection
 }
 
 type testRequest struct {
@@ -363,8 +362,8 @@ func TestWebsocket(t *testing.T) {
 	err := ws.SetProxyAddress("garbagio")
 	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
-	ws.Conn = &dodgyConnection{}
-	ws.AuthConn = &WebsocketConnection{}
+	ws.Conn = &dodgyConnection{WebsocketConnection: WebsocketConnection{parent: ws}}
+	ws.AuthConn = &WebsocketConnection{parent: ws}
 	ws.setEnabled(true)
 
 	err = ws.Setup(defaultSetup) // Sets to enabled again
@@ -625,43 +624,38 @@ func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
 func TestDial(t *testing.T) {
 	t.Parallel()
 	var testCases = []testStruct{
-		{Error: nil,
-			WC: WebsocketConnection{
-				ExchangeName:     "test1",
-				Verbose:          true,
-				URL:              websocketTestURL,
-				RateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
-				ResponseMaxLimit: 7000000000,
+		{
+			WC: &WebsocketConnection{
+				parent:           &Websocket{exchangeName: "test1", verbose: true},
+				_URL:             websocketTestURL,
+				rateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
+				responseMaxLimit: 7000000000,
 			},
 		},
-		{Error: errors.New(" Error: malformed ws or wss URL"),
-			WC: WebsocketConnection{
-				ExchangeName:     "test2",
-				Verbose:          true,
-				URL:              "",
-				ResponseMaxLimit: 7000000000,
+		{
+			Error: errors.New(" Error: malformed ws or wss URL"),
+			WC: &WebsocketConnection{
+				parent:           &Websocket{exchangeName: "test2", verbose: true},
+				responseMaxLimit: 7000000000,
 			},
 		},
-		{Error: nil,
-			WC: WebsocketConnection{
-				ExchangeName:     "test3",
-				Verbose:          true,
-				URL:              websocketTestURL,
-				ProxyURL:         proxyURL,
-				ResponseMaxLimit: 7000000000,
+		{
+			WC: &WebsocketConnection{
+				parent:           &Websocket{exchangeName: "test3", verbose: true, proxyAddr: proxyURL},
+				_URL:             websocketTestURL,
+				responseMaxLimit: 7000000000,
 			},
 		},
 	}
-	for i := range testCases {
-		testData := &testCases[i]
-		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+	for _, run := range testCases {
+		t.Run(run.WC.parent.exchangeName, func(t *testing.T) {
 			t.Parallel()
-			if testData.WC.ProxyURL != "" && !useProxyTests {
+			if run.WC.parent.proxyAddr != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
-			err := testData.WC.Dial(&dialer, http.Header{})
+			err := run.WC.Dial(&dialer, http.Header{})
 			if err != nil {
-				if testData.Error != nil && strings.Contains(err.Error(), testData.Error.Error()) {
+				if run.Error != nil && strings.Contains(err.Error(), run.Error.Error()) {
 					return
 				}
 				t.Fatal(err)
@@ -674,51 +668,47 @@ func TestDial(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	t.Parallel()
 	var testCases = []testStruct{
-		{Error: nil, WC: WebsocketConnection{
-			ExchangeName:     "test1",
-			Verbose:          true,
-			URL:              websocketTestURL,
-			RateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
-			ResponseMaxLimit: 7000000000,
-		},
-		},
-		{Error: errors.New(" Error: malformed ws or wss URL"),
-			WC: WebsocketConnection{
-				ExchangeName:     "test2",
-				Verbose:          true,
-				URL:              "",
-				ResponseMaxLimit: 7000000000,
+		{
+			WC: &WebsocketConnection{
+				parent:           &Websocket{exchangeName: "test1", verbose: true},
+				_URL:             websocketTestURL,
+				rateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
+				responseMaxLimit: 7000000000,
 			},
 		},
-		{Error: nil,
-			WC: WebsocketConnection{
-				ExchangeName:     "test3",
-				Verbose:          true,
-				URL:              websocketTestURL,
-				ProxyURL:         proxyURL,
-				ResponseMaxLimit: 7000000000,
+		{
+			Error: errors.New(" Error: malformed ws or wss URL"),
+			WC: &WebsocketConnection{
+				parent:           &Websocket{exchangeName: "test2", verbose: true},
+				responseMaxLimit: 7000000000,
+			},
+		},
+		{
+			WC: &WebsocketConnection{
+				parent:           &Websocket{exchangeName: "test3", verbose: true, proxyAddr: proxyURL},
+				_URL:             websocketTestURL,
+				responseMaxLimit: 7000000000,
 			},
 		},
 	}
-	for i := range testCases {
-		testData := &testCases[i]
-		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+	for _, run := range testCases {
+		t.Run(run.WC.parent.exchangeName, func(t *testing.T) {
 			t.Parallel()
-			if testData.WC.ProxyURL != "" && !useProxyTests {
+			if run.WC.parent.proxyAddr != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
-			err := testData.WC.Dial(&dialer, http.Header{})
+			err := run.WC.Dial(&dialer, http.Header{})
 			if err != nil {
-				if testData.Error != nil && strings.Contains(err.Error(), testData.Error.Error()) {
+				if run.Error != nil && strings.Contains(err.Error(), run.Error.Error()) {
 					return
 				}
 				t.Fatal(err)
 			}
-			err = testData.WC.SendJSONMessage(context.Background(), request.Unset, Ping)
+			err = run.WC.SendJSONMessage(context.Background(), request.Unset, Ping)
 			if err != nil {
 				t.Error(err)
 			}
-			err = testData.WC.SendRawMessage(context.Background(), request.Unset, websocket.TextMessage, []byte(Ping))
+			err = run.WC.SendRawMessage(context.Background(), request.Unset, websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}
@@ -729,13 +719,9 @@ func TestSendMessage(t *testing.T) {
 func TestSendMessageReturnResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
-		Verbose:          true,
-		URL:              "wss://ws.kraken.com",
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
-	}
-	if wc.ProxyURL != "" && !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
+		parent:           &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
+		_URL:             "wss://ws.kraken.com",
+		responseMaxLimit: time.Second * 5,
 	}
 
 	err := wc.Dial(&dialer, http.Header{})
@@ -765,7 +751,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// with timeout
-	wc.ResponseMaxLimit = 1
+	wc.responseMaxLimit = 1
 	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
@@ -803,7 +789,7 @@ func readMessages(t *testing.T, wc *WebsocketConnection) {
 				return
 			}
 			if incoming.RequestID > 0 {
-				wc.Match.IncomingWithData(incoming.RequestID, resp.Raw)
+				wc.parent.Match.IncomingWithData(incoming.RequestID, resp.Raw)
 				return
 			}
 		}
@@ -814,53 +800,36 @@ func readMessages(t *testing.T, wc *WebsocketConnection) {
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
-		URL:              websocketTestURL,
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
-		Wg:               &sync.WaitGroup{},
+		parent:           &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
+		_URL:             websocketTestURL,
+		responseMaxLimit: time.Second * 5,
 	}
 
-	if wc.ProxyURL != "" && !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
-	}
-	wc.ShutdownC = make(chan struct{})
+	wc.parent.ShutdownC = make(chan struct{})
 	err := wc.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	wc.SetupPingHandler(request.Unset, PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       websocket.PingMessage,
-		Delay:             100,
-	})
+	wc.SetupPingHandler(request.Unset, PingHandler{UseGorillaHandler: true, MessageType: websocket.PingMessage, Delay: 100})
 
-	err = wc.Connection.Close()
-	if err != nil {
-		t.Error(err)
-	}
+	err = wc.connection.Close()
+	require.NoError(t, err)
 
 	err = wc.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wc.SetupPingHandler(request.Unset, PingHandler{
-		MessageType: websocket.TextMessage,
-		Message:     []byte(Ping),
-		Delay:       200,
-	})
+	require.NoError(t, err)
+
+	wc.SetupPingHandler(request.Unset, PingHandler{MessageType: websocket.TextMessage, Message: []byte(Ping), Delay: 200})
 	time.Sleep(time.Millisecond * 201)
-	close(wc.ShutdownC)
-	wc.Wg.Wait()
+	close(wc.parent.ShutdownC)
+	wc.parent.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test
 func TestParseBinaryResponse(t *testing.T) {
 	t.Parallel()
 	wc := &WebsocketConnection{
-		URL:              websocketTestURL,
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
+		parent:           &Websocket{exchangeName: "test1", verbose: true, Match: NewMatch()},
+		_URL:             websocketTestURL,
+		responseMaxLimit: time.Second * 5,
 	}
 
 	var b bytes.Buffer
@@ -1147,14 +1116,14 @@ func TestSetupNewConnection(t *testing.T) {
 
 func TestWebsocketConnectionShutdown(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{}
+	wc := WebsocketConnection{parent: &Websocket{exchangeName: "test"}}
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 
 	err = wc.Dial(&websocket.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial must error correctly")
 
-	wc.URL = websocketTestURL
+	wc._URL = websocketTestURL
 
 	err = wc.Dial(&websocket.Dialer{}, nil)
 	require.NoError(t, err, "Dial must not error")
@@ -1169,31 +1138,22 @@ func TestLatency(t *testing.T) {
 	r := &reporter{}
 	exch := "Kraken"
 	wc := &WebsocketConnection{
-		ExchangeName:     exch,
-		Verbose:          true,
-		URL:              "wss://ws.kraken.com",
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
-		Reporter:         r,
-	}
-	if wc.ProxyURL != "" && !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
+		parent:           &Websocket{exchangeName: exch, verbose: true, Match: NewMatch()},
+		_URL:             "wss://ws.kraken.com",
+		responseMaxLimit: time.Second * 5,
+		reporter:         r,
 	}
 
 	err := wc.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	go readMessages(t, wc)
 
 	req := testRequest{
-		Event: "subscribe",
-		Pairs: []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
-		Subscription: testRequestData{
-			Name: "ticker",
-		},
-		RequestID: wc.GenerateMessageID(false),
+		Event:        "subscribe",
+		Pairs:        []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
+		Subscription: testRequestData{Name: "ticker"},
+		RequestID:    wc.GenerateMessageID(false),
 	}
 
 	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
@@ -1251,26 +1211,26 @@ func TestRemoveURLQueryString(t *testing.T) {
 
 func TestWriteToConn(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{}
+	wc := WebsocketConnection{parent: &Websocket{exchangeName: "test"}}
 	require.ErrorIs(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
 	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
 	// connection rate limit set
-	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
+	wc.rateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
 	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
 	// context cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.Canceled)
 	// definitions set but with fallover
-	wc.RateLimitDefinitions = request.RateLimitDefinitions{
+	wc.parent.rateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),
 	}
 	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
 	// match with global rate limit
 	require.NoError(t, wc.writeToConn(context.Background(), request.Auth, func() error { return nil }))
 	// definitions set but connection rate limiter not set
-	wc.RateLimit = nil
+	wc.rateLimit = nil
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
 }

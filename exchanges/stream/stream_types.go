@@ -30,7 +30,6 @@ type Connection interface {
 	// SendJSONMessage sends a JSON encoded message over the connection
 	SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error
 	SetURL(string)
-	SetProxy(string)
 	GetURL() string
 	Shutdown() error
 }
