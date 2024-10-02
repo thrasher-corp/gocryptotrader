@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -71,14 +72,16 @@ const (
 	huobiCurrenciesReference          = "/v2/reference/currencies"
 	huobiWithdrawHistory              = "/query/deposit-withdraw"
 	huobiBatchCoinMarginSwapContracts = "/v2/swap-ex/market/detail/batch_merged"
-	huobiBatchLinearSwapContracts     = "/linear-swap-ex/market/detail/batch_merged"
+	huobiBatchLinearSwapContracts     = "/v2/linear-swap-ex/market/detail/batch_merged"
 	huobiBatchContracts               = "/v2/market/detail/batch_merged"
 )
 
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
-	AccountID string
+	AccountID                string
+	futureContractCodesMutex sync.RWMutex
+	futureContractCodes      map[string]currency.Code
 }
 
 // GetMarginRates gets margin rates

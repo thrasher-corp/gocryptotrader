@@ -3,6 +3,8 @@ package binanceus
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
@@ -139,7 +141,7 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 	type Alias NewOrderResponse
 	aux := &struct {
-		TransactionTime binanceusTime `json:"transactTime"`
+		TransactionTime types.Time `json:"transactTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -306,8 +308,8 @@ func (a *WsListStatus) UnmarshalJSON(data []byte) error {
 	type Alias WsListStatus
 	aux := &struct {
 		Data struct {
-			EventTime       binanceusTime `json:"E"`
-			TransactionTime binanceusTime `json:"T"`
+			EventTime       types.Time `json:"E"`
+			TransactionTime types.Time `json:"T"`
 			*WsListStatusData
 		} `json:"data"`
 		*Alias
@@ -327,9 +329,9 @@ func (a *WsListStatus) UnmarshalJSON(data []byte) error {
 func (a *TickerStream) UnmarshalJSON(data []byte) error {
 	type Alias TickerStream
 	aux := &struct {
-		EventTime binanceusTime `json:"E"`
-		OpenTime  binanceusTime `json:"O"`
-		CloseTime binanceusTime `json:"C"`
+		EventTime types.Time `json:"E"`
+		OpenTime  types.Time `json:"O"`
+		CloseTime types.Time `json:"C"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -347,10 +349,10 @@ func (a *TickerStream) UnmarshalJSON(data []byte) error {
 func (a *KlineStream) UnmarshalJSON(data []byte) error {
 	type Alias KlineStream
 	aux := &struct {
-		EventTime binanceusTime `json:"E"`
+		EventTime types.Time `json:"E"`
 		Kline     struct {
-			StartTime binanceusTime `json:"t"`
-			CloseTime binanceusTime `json:"T"`
+			StartTime types.Time `json:"t"`
+			CloseTime types.Time `json:"T"`
 			*KlineStreamData
 		} `json:"k"`
 		*Alias
@@ -371,8 +373,8 @@ func (a *KlineStream) UnmarshalJSON(data []byte) error {
 func (a *TradeStream) UnmarshalJSON(data []byte) error {
 	type Alias TradeStream
 	aux := &struct {
-		TimeStamp binanceusTime `json:"T"`
-		EventTime binanceusTime `json:"E"`
+		TimeStamp types.Time `json:"T"`
+		EventTime types.Time `json:"E"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -390,9 +392,9 @@ func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
 	type Alias wsOrderUpdate
 	aux := &struct {
 		Data struct {
-			EventTime         binanceusTime `json:"E"`
-			OrderCreationTime binanceusTime `json:"O"`
-			TransactionTime   binanceusTime `json:"T"`
+			EventTime         types.Time `json:"E"`
+			OrderCreationTime types.Time `json:"O"`
+			TransactionTime   types.Time `json:"T"`
 			*WsOrderUpdateData
 		} `json:"data"`
 		*Alias
@@ -414,8 +416,8 @@ func (a *wsBalanceUpdate) UnmarshalJSON(data []byte) error {
 	type Alias wsBalanceUpdate
 	aux := &struct {
 		Data struct {
-			EventTime binanceusTime `json:"E"`
-			ClearTime binanceusTime `json:"T"`
+			EventTime types.Time `json:"E"`
+			ClearTime types.Time `json:"T"`
 			*WsBalanceUpdateData
 		} `json:"data"`
 		*Alias
@@ -436,8 +438,8 @@ func (a *wsAccountPosition) UnmarshalJSON(data []byte) error {
 	type Alias wsAccountPosition
 	aux := &struct {
 		Data struct {
-			EventTime   binanceusTime `json:"E"`
-			LastUpdated binanceusTime `json:"u"`
+			EventTime   types.Time `json:"E"`
+			LastUpdated types.Time `json:"u"`
 			*WsAccountPositionData
 		} `json:"data"`
 		*Alias
@@ -457,7 +459,7 @@ func (a *wsAccountPosition) UnmarshalJSON(data []byte) error {
 func (a *WebsocketDepthStream) UnmarshalJSON(data []byte) error {
 	type Alias WebsocketDepthStream
 	aux := &struct {
-		Timestamp binanceusTime `json:"E"`
+		Timestamp types.Time `json:"E"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -489,23 +491,6 @@ func (a *WebsocketAggregateTradeStream) UnmarshalJSON(data []byte) error {
 		a.EventTime = time.UnixMilli(chil.EventTime)
 	}
 	return nil
-}
-
-// binanceTime provides an internal conversion helper
-type binanceusTime time.Time
-
-func (t *binanceusTime) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	if err := json.Unmarshal(data, &timestamp); err != nil {
-		return err
-	}
-	*t = binanceusTime(time.UnixMilli(timestamp))
-	return nil
-}
-
-// Time returns a time.Time object
-func (t binanceusTime) Time() time.Time {
-	return time.Time(t)
 }
 
 // UnmarshalJSON deserialises createTime timestamp to built in time.
