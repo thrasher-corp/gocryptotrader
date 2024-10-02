@@ -48,8 +48,8 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 		return nil, err
 	}
 
-	tn := time.Now()
-	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn.Unix(), 10)
+	tn := time.Now().Unix()
+	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn, 10)
 	mac := hmac.New(sha512.New, []byte(creds.Secret))
 	if _, err = mac.Write([]byte(msg)); err != nil {
 		return nil, err
@@ -60,10 +60,10 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
 		APIKey:    creds.Key,
 		Signature: signature,
-		Timestamp: strconv.FormatInt(tn.Unix(), 10),
+		Timestamp: strconv.FormatInt(tn, 10),
 	}
 
-	req := WebsocketRequest{Time: tn.Unix(), Channel: channel, Event: "api", Payload: payload}
+	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
 
 	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Payload.RequestID, req)
 	if err != nil {
@@ -253,9 +253,9 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		return err
 	}
 
-	tn := time.Now()
+	tn := time.Now().Unix()
 	req := &WebsocketRequest{
-		Time:    tn.Unix(),
+		Time:    tn,
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
@@ -263,7 +263,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 			// response.
 			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
 			RequestParam: paramPayload,
-			Timestamp:    strconv.FormatInt(tn.Unix(), 10),
+			Timestamp:    strconv.FormatInt(tn, 10),
 		},
 	}
 

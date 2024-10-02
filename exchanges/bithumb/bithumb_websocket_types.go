@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // WsResponse is a generalised response data structure which will defer
@@ -41,7 +42,7 @@ type WsTicker struct {
 // WsOrderbooks defines an amalgamated bid ask orderbook tranche list
 type WsOrderbooks struct {
 	List     []WsOrderbook `json:"list"`
-	DateTime bithumbTime   `json:"datetime"`
+	DateTime types.Time    `json:"datetime"`
 }
 
 // WsOrderbook defines a singular orderbook tranche
