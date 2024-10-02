@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -77,11 +79,12 @@ const (
 	fTriggerOrderHistory       = "/api/v1/contract_trigger_hisorders"
 
 	uContractOpenInterest = "/linear-swap-api/v1/swap_open_interest"
-
-	fContractDateFormat = "060102"
 )
 
-var errInvalidContractType = errors.New("invalid contract type")
+var (
+	errInvalidContractType        = errors.New("invalid contract type")
+	errInconsistentContractExpiry = errors.New("inconsistent contract expiry date codes")
+)
 
 // FGetContractInfo gets contract info for futures
 func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType string, code currency.Pair) (FContractInfoData, error) {
@@ -90,11 +93,11 @@ func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType strin
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, errors.New("invalid contractType")
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		params.Set("contract_type", contractType)
+		params.Set("contract_type", t)
 	}
 	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.Futures)
@@ -129,11 +132,11 @@ func (h *HUOBI) FContractPriceLimitations(ctx context.Context, symbol, contractT
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, fmt.Errorf("invalid contractType: %s", contractType)
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		params.Set("contract_type", contractType)
+		params.Set("contract_type", t)
 	}
 	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.Futures)
@@ -163,11 +166,11 @@ func (h *HUOBI) ContractOpenInterestUSDT(ctx context.Context, contractCode, pair
 		}
 		params.Set("pair", p)
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return nil, errors.New("invalid contractType")
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		params.Set("contract_type", contractType)
+		params.Set("contract_type", t)
 	}
 	if businessType != "" {
 		params.Set("business_type", businessType)
@@ -186,11 +189,11 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, errors.New("invalid contractType")
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		params.Set("contract_type", contractType)
+		params.Set("contract_type", t)
 	}
 	if !code.IsEmpty() {
 		codeValue, err := h.formatFuturesPair(code, true)
@@ -263,7 +266,7 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params.Set("period", period)
@@ -375,11 +378,12 @@ func (h *HUOBI) FQueryHisOpenInterest(ctx context.Context, symbol, contractType,
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-		return resp, fmt.Errorf("%w %v", errInvalidContractType, contractType)
+	contractType = strings.ToLower(contractType)
+	if _, ok := contractExpiryNames[contractType]; !ok {
+		return resp, fmt.Errorf("%w: %v", errInvalidContractType, contractType)
 	}
 	params.Set("contract_type", contractType)
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -417,7 +421,7 @@ func (h *HUOBI) FQueryTopAccountsRatio(ctx context.Context, symbol, period strin
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -432,7 +436,7 @@ func (h *HUOBI) FQueryTopPositionsRatio(ctx context.Context, symbol, period stri
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -476,7 +480,7 @@ func (h *HUOBI) FIndexKline(ctx context.Context, symbol currency.Pair, period st
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params.Set("period", period)
@@ -497,12 +501,12 @@ func (h *HUOBI) FGetBasisData(ctx context.Context, symbol currency.Pair, period,
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params.Set("period", period)
 	if basisPriceType != "" {
-		if common.StringDataCompareInsensitive(validBasisPriceTypes, basisPriceType) {
+		if common.StringSliceCompareInsensitive(validBasisPriceTypes, basisPriceType) {
 			params.Set("basis_price_type", basisPriceType)
 		}
 	}
@@ -632,7 +636,7 @@ func (h *HUOBI) FGetOrderLimits(ctx context.Context, symbol, orderPriceType stri
 		req["symbol"] = symbol
 	}
 	if orderPriceType != "" {
-		if !common.StringDataCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
+		if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 		req["order_price_type"] = orderPriceType
@@ -697,7 +701,7 @@ func (h *HUOBI) FTransfer(ctx context.Context, subUID, symbol, transferType stri
 	req["symbol"] = symbol
 	req["subUid"] = subUID
 	req["amount"] = amount
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -711,7 +715,7 @@ func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType st
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -749,11 +753,11 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, errors.New("invalid contractType")
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		req["contract_type"] = contractType
+		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -773,10 +777,10 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 		req["client_order_id"] = id
 	}
 	req["direction"] = direction
-	if !common.StringDataCompareInsensitive(validOffsetTypes, offset) {
+	if !common.StringSliceCompareInsensitive(validOffsetTypes, offset) {
 		return resp, errors.New("invalid offset amounts")
 	}
-	if !common.StringDataCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
 		return resp, errors.New("invalid orderPriceType")
 	}
 	req["order_price_type"] = orderPriceType
@@ -807,14 +811,14 @@ func (h *HUOBI) FPlaceBatchOrder(ctx context.Context, data []fBatchOrderData) (F
 			data[x].ContractCode = formattedPair.String()
 		}
 		if data[x].ContractType != "" {
-			if !common.StringDataCompareInsensitive(validContractTypes, data[x].ContractType) {
-				return resp, errors.New("invalid contractType")
+			if _, ok := contractExpiryNames[strings.ToLower(data[x].ContractType)]; !ok {
+				return resp, fmt.Errorf("%w %v", errInvalidContractType, data[x].ContractType)
 			}
 		}
-		if !common.StringDataCompareInsensitive(validOffsetTypes, data[x].Offset) {
+		if !common.StringSliceCompareInsensitive(validOffsetTypes, data[x].Offset) {
 			return resp, errors.New("invalid offset amounts")
 		}
-		if !common.StringDataCompareInsensitive(validFuturesOrderPriceTypes, data[x].OrderPriceType) {
+		if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, data[x].OrderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 	}
@@ -846,11 +850,11 @@ func (h *HUOBI) FCancelAllOrders(ctx context.Context, contractCode currency.Pair
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, errors.New("invalid contractType")
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		req["contract_type"] = contractType
+		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -867,11 +871,11 @@ func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair
 	var resp FOrderData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, errors.New("invalid contractType")
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		req["contract_type"] = contractType
+		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -886,7 +890,7 @@ func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair
 		req["client_order_id"] = clientOrderID
 	}
 	if orderPriceType != "" {
-		if !common.StringDataCompareInsensitive(validOPTypes, orderPriceType) {
+		if !common.StringSliceCompareInsensitive(validOPTypes, orderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 		req["orderPriceType"] = orderPriceType
@@ -1039,11 +1043,11 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, fmt.Errorf("invalid contractType: %s", contractType)
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		req["contract_type"] = contractType
+		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -1058,7 +1062,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 	}
 	req["trigger_type"] = tType
 	req["direction"] = direction
-	if !common.StringDataCompareInsensitive(validOffsetTypes, offset) {
+	if !common.StringSliceCompareInsensitive(validOffsetTypes, offset) {
 		return resp, errors.New("invalid offset")
 	}
 	req["offset"] = offset
@@ -1066,7 +1070,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 	req["volume"] = volume
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
-	if !common.StringDataCompareInsensitive(validOrderPriceType, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validOrderPriceType, orderPriceType) {
 		return resp, errors.New("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
@@ -1094,11 +1098,11 @@ func (h *HUOBI) FCancelAllTriggerOrders(ctx context.Context, contractCode curren
 		}
 		req["contract_code"] = codeValue
 	}
-	if contractType != "" {
-		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-			return resp, nil
+	if t := strings.ToLower(contractType); t != "" {
+		if _, ok := contractExpiryNames[t]; !ok {
+			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
-		req["contract_type"] = contractType
+		req["contract_type"] = t
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp)
 }
@@ -1256,9 +1260,9 @@ func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 
 // formatFuturesPair handles pairs in the format as "BTC-NW" and "BTC210827"
 func (h *HUOBI) formatFuturesPair(p currency.Pair, convertQuoteToExpiry bool) (string, error) {
-	if common.StringDataCompareInsensitive(validContractShortTypes, p.Quote.String()) {
+	if slices.Contains(validContractExpiryCodes, strings.ToUpper(p.Quote.String())) {
 		if convertQuoteToExpiry {
-			cp, err := h.convertContractShortHandToExpiry(p, time.Now())
+			cp, err := h.pairFromContractExpiryCode(p)
 			if err != nil {
 				return "", err
 			}
@@ -1273,42 +1277,16 @@ func (h *HUOBI) formatFuturesPair(p currency.Pair, convertQuoteToExpiry bool) (s
 	return h.FormatSymbol(p, asset.Futures)
 }
 
-// convertContractShortHandToExpiry converts a contract shorthand eg BTC-CW into a full expiry date
-// eg BTC240329 to associate with tradable pair formatting
-func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
-	loc, err := time.LoadLocation("Asia/Singapore")
-	if err != nil {
-		return currency.EMPTYPAIR, err
+// pairFromContractExpiryCode converts a pair with contract expiry shorthand in the Quote to a concrete tradable pair
+// We need this because some apis, such as ticker, use BTC_CW, NW, CQ, NQ
+// Other apis, such as contract_info, use contract type of this_week, next_week, quarter (sic), and next_quater
+func (h *HUOBI) pairFromContractExpiryCode(p currency.Pair) (currency.Pair, error) {
+	h.futureContractCodesMutex.RLock()
+	defer h.futureContractCodesMutex.RUnlock()
+	exp, ok := h.futureContractCodes[p.Quote.String()]
+	if !ok {
+		return p, fmt.Errorf("%w: %s", errInvalidContractType, p.Quote.String())
 	}
-	tt = tt.In(loc)
-	switch pair.Quote.Item.Symbol {
-	case "NW":
-		tt = tt.AddDate(0, 0, 7)
-		fallthrough
-	case "CW":
-		for {
-			if tt.Weekday() == time.Friday {
-				break
-			}
-			tt = tt.AddDate(0, 0, 1)
-		}
-	case "NQ":
-		tt = tt.AddDate(0, 3, 0)
-		fallthrough
-	case "CQ":
-		// Find the next quarter end
-		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
-			tt = tt.AddDate(0, 1, 0)
-		}
-		// Find the last day of the quarter
-		tt = time.Date(tt.Year(), tt.Month()+1, 0, 0, 0, 0, 0, time.UTC)
-		// Find the last Friday of the quarter
-		for tt.Weekday() != time.Friday {
-			tt = tt.AddDate(0, 0, -1)
-		}
-	default:
-		return currency.EMPTYPAIR, fmt.Errorf(" %w %v", errInvalidContractType, pair)
-	}
-	pair.Quote = currency.NewCode(tt.Format(fContractDateFormat))
-	return pair, nil
+	p.Quote = exp
+	return p, nil
 }

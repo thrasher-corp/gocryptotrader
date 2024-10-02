@@ -13,12 +13,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
@@ -733,14 +733,14 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 	result := e.GetExchangeNamesByCurrency(btsusd,
 		true,
 		assetType)
-	if !common.StringDataCompare(result, testExchange) {
+	if !slices.Contains(result, testExchange) {
 		t.Fatal("Unexpected result")
 	}
 
 	result = e.GetExchangeNamesByCurrency(btcjpy,
 		true,
 		assetType)
-	if !common.StringDataCompare(result, bf) {
+	if !slices.Contains(result, bf) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -1176,7 +1176,7 @@ func TestGetExchangeNames(t *testing.T) {
 	if err := bot.UnloadExchange(testExchange); err != nil {
 		t.Fatal(err)
 	}
-	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
+	if e := bot.GetExchangeNames(true); slices.Contains(e, testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
 	if e := bot.GetExchangeNames(false); len(e) != 0 {
@@ -1378,10 +1378,10 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		name := exchange.Exchanges[x]
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				t.Skipf("skipping %s due to CI test restrictions", name)
 			}
-			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)

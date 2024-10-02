@@ -914,7 +914,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	method := methods[0]
 	if len(methods) > 1 && withdrawRequest.Crypto.Chain != "" {
-		if !common.StringDataCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
+		if !common.StringSliceCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
 			return nil, fmt.Errorf("invalid chain %s supplied, %v available", withdrawRequest.Crypto.Chain, methods)
 		}
 		method = withdrawRequest.Crypto.Chain

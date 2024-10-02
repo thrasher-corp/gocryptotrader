@@ -38,8 +38,6 @@ type Websocket struct {
 	state                        atomic.Uint32
 	verbose                      bool
 	connectionMonitorRunning     atomic.Bool
-	trafficMonitorRunning        atomic.Bool
-	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -107,6 +105,10 @@ type Websocket struct {
 	// MaxSubScriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxSubscriptionsPerConnection int
+
+	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential
+	// endpoints.
+	rateLimitDefinitions request.RateLimitDefinitions
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -137,6 +139,13 @@ type WebsocketSetup struct {
 	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxWebsocketSubscriptionsPerConnection int
+
+	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
+	// These rate limits take precedence over any rate limits specified in individual connection configurations.
+	// If no connection-specific rate limit is provided and the endpoint does not match any of these definitions,
+	// an error will be returned. However, if a connection configuration includes its own rate limit,
+	// it will fall back to that configuration’s rate limit without raising an error.
+	RateLimitDefinitions request.RateLimitDefinitions
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
@@ -149,13 +158,20 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    *request.RateLimiterWithWeight
+	// RateLimit is a rate limiter for the connection itself
+	RateLimit *request.RateLimiterWithWeight
+	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all
+	// potential endpoints.
+	RateLimitDefinitions request.RateLimitDefinitions
+
 	ExchangeName string
 	URL          string
 	ProxyURL     string
 	Wg           *sync.WaitGroup
 	Connection   *websocket.Conn
-	ShutdownC    chan struct{}
+
+	// shutdown synchronises shutdown event across routines associated with this connection only e.g. ping handler
+	shutdown chan struct{}
 
 	Match             *Match
 	ResponseMaxLimit  time.Duration

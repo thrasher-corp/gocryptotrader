@@ -147,6 +147,7 @@ func (g *Gateio) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -155,11 +156,12 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	// TODO: Add websocket margin and cross margin support.
+	// TODO: Majority of margin REST endpoints are labelled as deprecated on the API docs. These will need to be removed.
 	err = g.DisableAssetWebsocketSupport(asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	// TODO: Add websocket cross margin support.
 	err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -212,9 +214,9 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleSpotData,
-		Subscriber:               g.SpotSubscribe,
-		Unsubscriber:             g.SpotUnsubscribe,
-		GenerateSubscriptions:    g.GenerateDefaultSubscriptionsSpot,
+		Subscriber:               g.Subscribe,
+		Unsubscriber:             g.Unsubscribe,
+		GenerateSubscriptions:    g.generateSubscriptionsSpot,
 		Connector:                g.WsConnectSpot,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
