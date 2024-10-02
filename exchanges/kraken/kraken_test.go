@@ -35,8 +35,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var k *Kraken
-var wsSetupRan bool
+var (
+	k               *Kraken
+	wsSetupRan      bool
+	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
+	spotTestPair    = currency.NewPair(currency.XBT, currency.USD)
+)
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -109,23 +113,10 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	sp, err := currency.NewPairFromString("XBTUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.UpdateTicker(context.Background(), sp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-
-	fp, err := currency.NewPairFromString("pi_xbtusd")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.UpdateTicker(context.Background(), fp, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.UpdateTicker(context.Background(), spotTestPair, asset.Spot)
+	assert.NoError(t, err, "UpdateTicker spot asset should not error")
+	_, err = k.UpdateTicker(context.Background(), futuresTestPair, asset.Futures)
+	assert.NoError(t, err, "UpdateTicker futures asset should not error")
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -156,23 +147,10 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	sp, err := currency.NewPairFromString("BTCEUR")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.UpdateOrderbook(context.Background(), sp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-
-	fp, err := currency.NewPairFromString("pi_xbtusd")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.UpdateOrderbook(context.Background(), fp, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.UpdateOrderbook(context.Background(), spotTestPair, asset.Spot)
+	assert.NoError(t, err, "UpdateOrderbook spot asset should not error")
+	_, err = k.UpdateOrderbook(context.Background(), futuresTestPair, asset.Futures)
+	assert.NoError(t, err, "UpdateOrderbook futures asset should not error")
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
@@ -202,7 +180,7 @@ func TestFuturesBatchOrder(t *testing.T) {
 	var tempData PlaceBatchOrderData
 	tempData.PlaceOrderType = "meow"
 	tempData.OrderID = "test123"
-	tempData.Symbol = "pi_xbtusd"
+	tempData.Symbol = futuresTestPair.Lower().String()
 	data = append(data, tempData)
 	_, err := k.FuturesBatchOrder(context.Background(), data)
 	if !errors.Is(err, errInvalidBatchOrderType) {
@@ -232,15 +210,8 @@ func TestFuturesSendOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 
-	cp, err := currency.NewPairFromString("PI_XBTUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.FuturesSendOrder(context.Background(),
-		order.Limit, cp, "buy", "", "", "", true, 1, 1, 0.9)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.FuturesSendOrder(context.Background(), order.Limit, futuresTestPair, "buy", "", "", "", true, 1, 1, 0.9)
+	assert.NoError(t, err, "FuturesSendOrder should not error")
 }
 
 func TestFuturesCancelOrder(t *testing.T) {
@@ -297,14 +268,8 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 
-	cp, err := currency.NewPairFromString("PI_XBTUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.FuturesCancelAllOrders(context.Background(), cp)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.FuturesCancelAllOrders(context.Background(), futuresTestPair)
+	assert.NoError(t, err, "FuturesCancelAllOrders should not error")
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
@@ -341,14 +306,8 @@ func TestFuturesRecentOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	cp, err := currency.NewPairFromString("PI_XBTUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.FuturesRecentOrders(context.Background(), cp)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.FuturesRecentOrders(context.Background(), futuresTestPair)
+	assert.NoError(t, err, "FuturesRecentOrders should not error")
 }
 
 func TestFuturesWithdrawToSpotWallet(t *testing.T) {
@@ -374,14 +333,8 @@ func TestFuturesGetTransfers(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("FI_xbtusd_200925")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.GetFuturesOrderbook(context.Background(), cp)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.GetFuturesOrderbook(context.Background(), futuresTestPair)
+	assert.NoError(t, err, "GetFuturesOrderbook should not error")
 }
 
 func TestGetFuturesMarkets(t *testing.T) {
@@ -402,15 +355,8 @@ func TestGetFuturesTickers(t *testing.T) {
 
 func TestGetFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("pi_xbtusd")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.GetFuturesTradeHistory(context.Background(),
-		cp, time.Now().Add(-time.Hour*24))
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.GetFuturesTradeHistory(context.Background(), futuresTestPair, time.Now().Add(-time.Hour*24))
+	assert.NoError(t, err, "GetFuturesTradeHistory should not error")
 }
 
 // TestGetAssets API endpoint test
@@ -539,14 +485,8 @@ func TestGetOHLC(t *testing.T) {
 // TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BCHEUR")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.GetDepth(context.Background(), cp)
-	if err != nil {
-		t.Error("GetDepth() error", err)
-	}
+	_, err := k.GetDepth(context.Background(), spotTestPair)
+	assert.NoError(t, err, "GetDepth should not error")
 }
 
 // TestGetTrades API endpoint test
@@ -851,18 +791,14 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	pair, err := currency.NewPairFromString("LTC_USDT")
-	if err != nil {
-		t.Error(err)
-	}
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs:     currency.Pairs{pair},
+		Pairs:     currency.Pairs{spotTestPair},
 		Side:      order.AnySide,
 	}
 
-	_, err = k.GetActiveOrders(context.Background(), &getOrdersRequest)
+	_, err := k.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
 	}
@@ -965,15 +901,9 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
-	pair := currency.Pair{
-		Delimiter: "/",
-		Base:      currency.BTC,
-		Quote:     currency.USD,
-	}
-
 	var ordersCancellation []order.Cancel
 	ordersCancellation = append(ordersCancellation, order.Cancel{
-		Pair:      pair,
+		Pair:      currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "/"),
 		OrderID:   "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
 		AssetType: asset.Spot,
 	})
@@ -1923,41 +1853,22 @@ func TestParseTime(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("XBT-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-
+	_, err := k.GetHistoricCandles(context.Background(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	assert.NoError(t, err, "GetHistoricCandles should not error")
 	pairs, err := k.CurrencyPairs.GetPairs(asset.Futures, false)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "GetPairs must not error")
 	err = k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
-	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-		t.Error(err)
-	}
+	assert.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error")
+
 	_, err = k.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error with asset.ErrNotSupported")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("XBT-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := k.GetHistoricCandlesExtended(context.Background(), spotTestPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
 
-	_, err = k.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
-	if !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
@@ -1995,37 +1906,16 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BCHEUR")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = k.GetRecentTrades(context.Background(), cp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-
-	cp, err = currency.NewPairFromStrings("PI", "BCHUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	cp.Delimiter = "_"
-	_, err = k.GetRecentTrades(context.Background(), cp, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.GetRecentTrades(context.Background(), spotTestPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
+	_, err = k.GetRecentTrades(context.Background(), futuresTestPair, asset.Futures)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("XBTUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = k.GetHistoricTrades(context.Background(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := k.GetHistoricTrades(context.Background(), spotTestPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades should error")
 }
 
 var testOb = orderbook.Base{
@@ -2078,34 +1968,22 @@ func TestChecksumCalculation(t *testing.T) {
 
 func TestGetCharts(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
-	require.NoError(t, err)
-	cp.Delimiter = "_"
-	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
+	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", futuresTestPair, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Candles)
 
 	end := time.UnixMilli(resp.Candles[0].Time)
-	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
+	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", futuresTestPair, end.Add(-time.Hour*24*7), end)
 	require.NoError(t, err)
 }
 
 func TestGetFuturesTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	cp.Delimiter = "_"
-	_, err = k.GetFuturesTrades(context.Background(), cp, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := k.GetFuturesTrades(context.Background(), futuresTestPair, time.Time{}, time.Time{})
+	assert.NoError(t, err, "GetFuturesTrades should not error")
 
-	_, err = k.GetFuturesTrades(context.Background(), cp, time.Now().Add(-time.Hour), time.Now())
-	if err != nil {
-		t.Error(err)
-	}
+	_, err = k.GetFuturesTrades(context.Background(), futuresTestPair, time.Now().Add(-time.Hour), time.Now())
+	assert.NoError(t, err, "GetFuturesTrades should not error")
 }
 
 var websocketXDGUSDOrderbookUpdates = []string{
@@ -2190,58 +2068,36 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Pair:                 currency.NewPair(currency.BTC, currency.USD),
 		IncludePredictedRate: true,
 	})
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error")
 
 	_, err = k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 	})
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetLatestFundingRates should not error")
 
-	cp := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
-	cp.Delimiter = "_"
-	err = k.CurrencyPairs.EnablePair(asset.Futures, cp)
-	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-		t.Fatal(err)
-	}
+	err = k.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
+	assert.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error")
 	_, err = k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Futures,
-		Pair:                 cp,
+		Pair:                 futuresTestPair,
 		IncludePredictedRate: true,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetLatestFundingRates should not error")
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	is, err := k.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
-	}
-	if is {
-		t.Error("expected false")
-	}
+	assert.NoError(t, err)
+	assert.False(t, is, "IsPerpetualFutureCurrency should return false for a binary asset")
 
 	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
-	}
-	if is {
-		t.Error("expected false")
-	}
+	assert.NoError(t, err)
+	assert.False(t, is, "IsPerpetualFutureCurrency should return false for a non-perpetual future")
 
-	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.PF, currency.NewCode("XBTUSD")))
-	if err != nil {
-		t.Error(err)
-	}
-	if !is {
-		t.Error("expected true")
-	}
+	is, err = k.IsPerpetualFutureCurrency(asset.Futures, futuresTestPair)
+	assert.NoError(t, err)
+	assert.True(t, is, "IsPerpetualFutureCurrency should return true for a perpetual future")
 }
 
 func TestGetOpenInterest(t *testing.T) {
