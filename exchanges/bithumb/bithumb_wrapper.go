@@ -167,7 +167,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(time.Second),

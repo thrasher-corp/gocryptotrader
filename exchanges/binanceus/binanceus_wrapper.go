@@ -185,7 +185,7 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(300 * time.Millisecond),

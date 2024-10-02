@@ -252,7 +252,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     bybitWebsocketTimer,
@@ -261,7 +261,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  websocketPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

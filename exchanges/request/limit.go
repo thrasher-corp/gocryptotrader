@@ -10,6 +10,9 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// NoRateLimit specifically not needed for the end point.
+var NoRateLimit *RateLimiterWithWeight = nil
+
 // Defines rate limiting errors
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")

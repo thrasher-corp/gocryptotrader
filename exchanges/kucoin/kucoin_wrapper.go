@@ -214,7 +214,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return ku.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ku.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
