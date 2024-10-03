@@ -238,7 +238,7 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, assetType)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, assetType, push.Time.Time())
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, assetType, push.TimeMs.Time())
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
