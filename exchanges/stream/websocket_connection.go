@@ -315,36 +315,16 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 	}
 
 	start := time.Now()
-	err = w.SendRawMessage(ctx, epl, websocket.TextMessage, outbound)
+	if err := w.SendRawMessage(ctx, epl, websocket.TextMessage, outbound); err != nil {
+		return nil, err
+	}
+
+	resps, err := w.waitForResponses(ctx, signature, ch, expected, isFinalMessage...)
 	if err != nil {
 		return nil, err
 	}
 
-	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
-
-	resps := make([][]byte, 0, expected)
-	for err == nil && len(resps) < expected {
-		select {
-		case resp := <-ch:
-			resps = append(resps, resp)
-		case <-timeout.C:
-			w.Match.RemoveSignature(signature)
-			err = fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
-		case <-ctx.Done():
-			w.Match.RemoveSignature(signature)
-			err = ctx.Err()
-		}
-		// Checks recently received message to determine if this is in fact the
-		// final message in a sequence of messages.
-		if len(isFinalMessage) == 1 && isFinalMessage[0](resps[len(resps)-1]) {
-			w.Match.RemoveSignature(signature)
-			break
-		}
-	}
-
-	timeout.Stop()
-
-	if err == nil && w.Reporter != nil {
+	if w.Reporter != nil {
 		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 	}
 
@@ -356,6 +336,32 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 	}
 
 	return resps, err
+}
+
+// waitForResponses waits for N responses from a channel
+func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, isFinalMessage ...Inspector) ([][]byte, error) {
+	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
+	defer timeout.Stop()
+
+	resps := make([][]byte, 0, expected)
+	for range expected {
+		select {
+		case resp := <-ch:
+			resps = append(resps, resp)
+			// Checks recently received message to determine if this is in fact the final message in a sequence of messages.
+			if len(isFinalMessage) == 1 && isFinalMessage[0](resp) {
+				w.Match.RemoveSignature(signature)
+				return resps, nil
+			}
+		case <-timeout.C:
+			w.Match.RemoveSignature(signature)
+			return nil, fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
+		case <-ctx.Done():
+			w.Match.RemoveSignature(signature)
+			return nil, ctx.Err()
+		}
+	}
+	return resps, nil
 }
 
 func removeURLQueryString(url string) string {
