@@ -765,15 +765,13 @@ func (w *Websocket) GetWebsocketURL() string {
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	w.m.Lock()
-
+	defer w.m.Unlock()
 	if proxyAddr != "" {
 		if _, err := url.ParseRequestURI(proxyAddr); err != nil {
-			w.m.Unlock()
 			return fmt.Errorf("%v websocket: cannot set proxy address: %w", w.exchangeName, err)
 		}
 
 		if w.proxyAddr == proxyAddr {
-			w.m.Unlock()
 			return fmt.Errorf("%v websocket: %w '%v'", w.exchangeName, errSameProxyAddress, w.proxyAddr)
 		}
 
@@ -796,17 +794,13 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 
 	w.proxyAddr = proxyAddr
 
-	if w.IsConnected() {
-		w.m.Unlock()
-		if err := w.Shutdown(); err != nil {
-			return err
-		}
-		return w.Connect()
+	if !w.IsConnected() {
+		return nil
 	}
-
-	w.m.Unlock()
-
-	return nil
+	if err := w.shutdown(); err != nil {
+		return err
+	}
+	return w.connect()
 }
 
 // GetProxyAddress returns the current websocket proxy
