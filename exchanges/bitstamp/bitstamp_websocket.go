@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -15,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -31,17 +33,21 @@ const (
 
 var (
 	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
-
-	defaultSubChannels = []string{
-		bitstampAPIWSTrades,
-		bitstampAPIWSOrderbook,
-	}
-
-	defaultAuthSubChannels = []string{
-		bitstampAPIWSMyOrders,
-		bitstampAPIWSMyTrades,
-	}
 )
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.OrderbookChannel: bitstampAPIWSOrderbook,
+	subscription.AllTradesChannel: bitstampAPIWSTrades,
+	subscription.MyOrdersChannel:  bitstampAPIWSMyOrders,
+	subscription.MyTradesChannel:  bitstampAPIWSMyTrades,
+}
 
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
@@ -232,66 +238,40 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateDefaultSubscriptions() (subscription.List, error) {
-	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	var subscriptions subscription.List
-	for i := range enabledCurrencies {
-		p, err := b.FormatExchangeCurrency(enabledCurrencies[i], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-		for j := range defaultSubChannels {
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: defaultSubChannels[j] + "_" + p.String(),
-				Asset:   asset.Spot,
-				Pairs:   currency.Pairs{p},
-			})
-		}
-		if b.Websocket.CanUseAuthenticatedEndpoints() {
-			for j := range defaultAuthSubChannels {
-				subscriptions = append(subscriptions, &subscription.Subscription{
-					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
-					Asset:   asset.Spot,
-					Pairs:   currency.Pairs{p},
-					Params: map[string]interface{}{
-						"auth": struct{}{},
-					},
-				})
-			}
-		}
-	}
-	return subscriptions, nil
+func (b *Bitstamp) generateSubscriptions() (subscription.List, error) {
+	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *Bitstamp) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
+}
+
+// Subscribe sends a websocket message to receive data from a list of channels
+func (b *Bitstamp) Subscribe(subs subscription.List) error {
 	var errs error
-	var auth *WebsocketAuthResponse
-
-	for i := range channelsToSubscribe {
-		if _, ok := channelsToSubscribe[i].Params["auth"]; ok {
-			var err error
-			auth, err = b.FetchWSAuth(context.TODO())
-			if err != nil {
-				errs = common.AppendError(errs, err)
-			}
-			break
-		}
+	var creds *WebsocketAuthResponse
+	if authed := subs.Private(); len(authed) > 0 {
+		creds, errs = b.FetchWSAuth(context.TODO())
 	}
+	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.subscribe(s, creds) }, 1))
+}
 
-	for _, s := range channelsToSubscribe {
+func (b *Bitstamp) subscribe(subs subscription.List, creds *WebsocketAuthResponse) error {
+	subs, errs := subs.ExpandTemplates(b)
+	for _, s := range subs {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
 			Data: websocketData{
-				Channel: s.Channel,
+				Channel: s.QualifiedChannel,
 			},
 		}
-		if _, ok := s.Params["auth"]; ok && auth != nil {
-			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
-			req.Data.Auth = auth.Token
+		if s.Authenticated {
+			if creds == nil {
+				return request.ErrAuthRequestFailed
+			}
+			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(creds.UserID))
+			req.Data.Auth = creds.Token
 		}
 		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
@@ -305,14 +285,18 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 	return errs
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+// Unsubscribe sends a websocket message to stop receiving data from a list of channels
+func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
+	return b.ParallelChanOp(subs, b.unsubscribe, 1)
+}
+
+func (b *Bitstamp) unsubscribe(subs subscription.List) error {
 	var errs error
-	for _, s := range channelsToUnsubscribe {
+	for _, s := range subs {
 		req := websocketEventRequest{
 			Event: "bts:unsubscribe",
 			Data: websocketData{
-				Channel: s.Channel,
+				Channel: s.QualifiedChannel,
 			},
 		}
 		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
@@ -459,3 +443,24 @@ func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
 
 	return err
 }
+
+// channelName converts global channel Names to exchange specific ones
+// panics if name is not supported, so should be called within a recover chain
+func channelName(s *subscription.Subscription) string {
+	if s, ok := subscriptionNames[s.Channel]; ok {
+		return s
+	}
+	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+}
+
+const subTplText = `
+{{ range $asset, $pairs := $.AssetPairs }}
+	{{- with $name := channelName $.S }}
+		{{- range $p := $pairs -}}
+			{{- $name -}} _ {{- $p -}}
+			{{ $.PairSeparator }}
+		{{- end -}}
+	{{- end }}
+	{{ $.AssetSeparator }}
+{{- end }}
+`
