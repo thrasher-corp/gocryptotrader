@@ -152,11 +152,11 @@ func (b *Bitmex) wsReadData() {
 }
 
 func (b *Bitmex) wsHandleData(respRaw []byte) error {
-	// We don't need to know about errors, since we're using looking optimistically into the json
 	msg, _, _, err := jsonparser.Get(respRaw, "[3]")
 	if err != nil {
 		return fmt.Errorf("unknown message format: %s", respRaw)
 	}
+	// We don't need to know about errors, since we're looking optimistically into the json
 	op, _ := jsonparser.GetString(msg, "request", "op")
 	errMsg, _ := jsonparser.GetString(msg, "error")
 	success, _ := jsonparser.GetBoolean(msg, "success")
