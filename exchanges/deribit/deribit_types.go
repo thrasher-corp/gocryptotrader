@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -88,28 +87,28 @@ type UnmarshalError struct {
 
 // BookSummaryData stores summary data
 type BookSummaryData struct {
-	InterestRate           float64              `json:"interest_rate"`
-	AskPrice               float64              `json:"ask_price"`
-	VolumeUSD              float64              `json:"volume_usd"`
-	Volume                 float64              `json:"volume"`
-	QuoteCurrency          string               `json:"quote_currency"`
-	PriceChange            float64              `json:"price_change"`
-	OpenInterest           float64              `json:"open_interest"`
-	MidPrice               float64              `json:"mid_price"`
-	MarkPrice              float64              `json:"mark_price"`
-	Low                    float64              `json:"low"`
-	Last                   float64              `json:"last"`
-	InstrumentName         string               `json:"instrument_name"`
-	High                   float64              `json:"high"`
-	EstimatedDeliveryPrice float64              `json:"estimated_delivery_price"`
-	CreationTimestamp      convert.ExchangeTime `json:"creation_timestamp"`
-	BidPrice               float64              `json:"bid_price"`
-	BaseCurrency           string               `json:"base_currency"`
-	Funding8H              float64              `json:"funding_8h,omitempty"`
-	CurrentFunding         float64              `json:"current_funding,omitempty"`
-	UnderlyingIndex        string               `json:"underlying_index"`
-	UnderlyingPrice        float64              `json:"underlying_price"`
-	VolumeNotional         float64              `json:"volume_notional"`
+	InterestRate           float64    `json:"interest_rate"`
+	AskPrice               float64    `json:"ask_price"`
+	VolumeUSD              float64    `json:"volume_usd"`
+	Volume                 float64    `json:"volume"`
+	QuoteCurrency          string     `json:"quote_currency"`
+	PriceChange            float64    `json:"price_change"`
+	OpenInterest           float64    `json:"open_interest"`
+	MidPrice               float64    `json:"mid_price"`
+	MarkPrice              float64    `json:"mark_price"`
+	Low                    float64    `json:"low"`
+	Last                   float64    `json:"last"`
+	InstrumentName         string     `json:"instrument_name"`
+	High                   float64    `json:"high"`
+	EstimatedDeliveryPrice float64    `json:"estimated_delivery_price"`
+	CreationTimestamp      types.Time `json:"creation_timestamp"`
+	BidPrice               float64    `json:"bid_price"`
+	BaseCurrency           string     `json:"base_currency"`
+	Funding8H              float64    `json:"funding_8h,omitempty"`
+	CurrentFunding         float64    `json:"current_funding,omitempty"`
+	UnderlyingIndex        string     `json:"underlying_index"`
+	UnderlyingPrice        float64    `json:"underlying_price"`
+	VolumeNotional         float64    `json:"volume_notional"`
 }
 
 // ContractSizeData stores contract size for given instrument
@@ -149,19 +148,19 @@ type FundingChartData struct {
 	CurrentInterest float64 `json:"current_interest"`
 	Interest8H      float64 `json:"interest_8h"`
 	Data            []struct {
-		IndexPrice float64              `json:"index_price"`
-		Interest8H float64              `json:"interest_8h"`
-		Timestamp  convert.ExchangeTime `json:"timestamp"`
+		IndexPrice float64    `json:"index_price"`
+		Interest8H float64    `json:"interest_8h"`
+		Timestamp  types.Time `json:"timestamp"`
 	} `json:"data"`
 }
 
 // FundingRateHistory represents a funding rate history item
 type FundingRateHistory struct {
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	IndexPrice     float64              `json:"index_price"`      // Index price in base currency
-	PrevIndexPrice float64              `json:"prev_index_price"` // Previous index price in base currency
-	Interest8H     float64              `json:"interest_8h"`      // 8hour interest rate
-	Interest1H     float64              `json:"interest_1h"`      // 1hour interest rate
+	Timestamp      types.Time `json:"timestamp"`
+	IndexPrice     float64    `json:"index_price"`      // Index price in base currency
+	PrevIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
+	Interest8H     float64    `json:"interest_8h"`      // 8hour interest rate
+	Interest1H     float64    `json:"interest_1h"`      // 1hour interest rate
 }
 
 // HistoricalVolatilityData stores volatility data for requested symbols
@@ -185,31 +184,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	InstrumentName               string               `json:"instrument_name"`
-	BaseCurrency                 string               `json:"base_currency"`
-	Kind                         string               `json:"kind"`
-	OptionType                   string               `json:"option_type"`
-	QuoteCurrency                string               `json:"quote_currency"`
-	BlockTradeCommission         float64              `json:"block_trade_commission"`
-	ContractSize                 float64              `json:"contract_size"`
-	CreationTimestamp            convert.ExchangeTime `json:"creation_timestamp"`
-	ExpirationTimestamp          convert.ExchangeTime `json:"expiration_timestamp"`
-	IsActive                     bool                 `json:"is_active"`
-	Leverage                     float64              `json:"leverage"`
-	MaxLeverage                  float64              `json:"max_leverage"`
-	MakerCommission              float64              `json:"maker_commission"`
-	MinimumTradeAmount           float64              `json:"min_trade_amount"`
-	TickSize                     float64              `json:"tick_size"`
-	TakerCommission              float64              `json:"taker_commission"`
-	Strike                       float64              `json:"strike"`
-	SettlementPeriod             string               `json:"settlement_period"`
-	SettlementCurrency           string               `json:"settlement_currency"`
-	RequestForQuote              bool                 `json:"rfq"`
-	PriceIndex                   string               `json:"price_index"`
-	InstrumentID                 int64                `json:"instrument_id"`
-	CounterCurrency              string               `json:"counter_currency"`
-	MaximumLiquidationCommission float64              `json:"max_liquidation_commission"`
-	FutureType                   string               `json:"future_type"`
+	InstrumentName               string     `json:"instrument_name"`
+	BaseCurrency                 string     `json:"base_currency"`
+	Kind                         string     `json:"kind"`
+	OptionType                   string     `json:"option_type"`
+	QuoteCurrency                string     `json:"quote_currency"`
+	BlockTradeCommission         float64    `json:"block_trade_commission"`
+	ContractSize                 float64    `json:"contract_size"`
+	CreationTimestamp            types.Time `json:"creation_timestamp"`
+	ExpirationTimestamp          types.Time `json:"expiration_timestamp"`
+	IsActive                     bool       `json:"is_active"`
+	Leverage                     float64    `json:"leverage"`
+	MaxLeverage                  float64    `json:"max_leverage"`
+	MakerCommission              float64    `json:"maker_commission"`
+	MinimumTradeAmount           float64    `json:"min_trade_amount"`
+	TickSize                     float64    `json:"tick_size"`
+	TakerCommission              float64    `json:"taker_commission"`
+	Strike                       float64    `json:"strike"`
+	SettlementPeriod             string     `json:"settlement_period"`
+	SettlementCurrency           string     `json:"settlement_currency"`
+	RequestForQuote              bool       `json:"rfq"`
+	PriceIndex                   string     `json:"price_index"`
+	InstrumentID                 int64      `json:"instrument_id"`
+	CounterCurrency              string     `json:"counter_currency"`
+	MaximumLiquidationCommission float64    `json:"max_liquidation_commission"`
+	FutureType                   string     `json:"future_type"`
 	TickSizeSteps                []struct {
 		AbovePrice float64 `json:"above_price"`
 		TickSize   float64 `json:"tick_size"`
@@ -222,19 +221,19 @@ type InstrumentData struct {
 // SettlementsData stores data for settlement futures
 type SettlementsData struct {
 	Settlements []struct {
-		Funded            float64              `json:"funded"`
-		Funding           float64              `json:"funding"`
-		IndexPrice        float64              `json:"index_price"`
-		SessionTax        float64              `json:"session_tax"`
-		SessionTaxRate    float64              `json:"session_tax_rate"`
-		Socialized        float64              `json:"socialized"`
-		SettlementType    string               `json:"type"`
-		Timestamp         convert.ExchangeTime `json:"timestamp"`
-		SessionProfitLoss float64              `json:"session_profit_loss"`
-		ProfitLoss        float64              `json:"profit_loss"`
-		Position          float64              `json:"position"`
-		MarkPrice         float64              `json:"mark_price"`
-		InstrumentName    string               `json:"instrument_name"`
+		Funded            float64    `json:"funded"`
+		Funding           float64    `json:"funding"`
+		IndexPrice        float64    `json:"index_price"`
+		SessionTax        float64    `json:"session_tax"`
+		SessionTaxRate    float64    `json:"session_tax_rate"`
+		Socialized        float64    `json:"socialized"`
+		SettlementType    string     `json:"type"`
+		Timestamp         types.Time `json:"timestamp"`
+		SessionProfitLoss float64    `json:"session_profit_loss"`
+		ProfitLoss        float64    `json:"profit_loss"`
+		Position          float64    `json:"position"`
+		MarkPrice         float64    `json:"mark_price"`
+		InstrumentName    string     `json:"instrument_name"`
 	} `json:"settlements"`
 	Continuation string `json:"continuation"`
 }
@@ -242,26 +241,26 @@ type SettlementsData struct {
 // PublicTradesData stores data for public trades
 type PublicTradesData struct {
 	Trades []struct {
-		TradeSeq          float64              `json:"trade_seq"`
-		TradeID           string               `json:"trade_id"`
-		Timestamp         convert.ExchangeTime `json:"timestamp"`
-		TickDirection     int64                `json:"tick_direction"`
-		Price             float64              `json:"price"`
-		MarkPrice         float64              `json:"mark_price"`
-		Liquidation       string               `json:"liquidation"`
-		ImpliedVolatility float64              `json:"iv"`
-		InstrumentName    string               `json:"instrument_name"`
-		IndexPrice        float64              `json:"index_price"`
-		Direction         string               `json:"direction"`
-		BlockTradeID      string               `json:"block_trade_id"`
-		Amount            float64              `json:"amount"`
+		TradeSeq          float64    `json:"trade_seq"`
+		TradeID           string     `json:"trade_id"`
+		Timestamp         types.Time `json:"timestamp"`
+		TickDirection     int64      `json:"tick_direction"`
+		Price             float64    `json:"price"`
+		MarkPrice         float64    `json:"mark_price"`
+		Liquidation       string     `json:"liquidation"`
+		ImpliedVolatility float64    `json:"iv"`
+		InstrumentName    string     `json:"instrument_name"`
+		IndexPrice        float64    `json:"index_price"`
+		Direction         string     `json:"direction"`
+		BlockTradeID      string     `json:"block_trade_id"`
+		Amount            float64    `json:"amount"`
 	} `json:"trades"`
 	HasMore bool `json:"has_more"`
 }
 
 // MarkPriceHistory stores data for mark price history
 type MarkPriceHistory struct {
-	Timestamp      convert.ExchangeTime
+	Timestamp      types.Time
 	MarkPriceValue float64
 }
 
@@ -272,17 +271,17 @@ func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.Timestamp = convert.ExchangeTime(time.UnixMilli(int64(resp[0])))
+	a.Timestamp = types.Time(time.UnixMilli(int64(resp[0])))
 	a.MarkPriceValue = resp[1]
 	return nil
 }
 
 // Orderbook stores orderbook data
 type Orderbook struct {
-	EstimatedDeliveryPrice float64              `json:"estimated_delivery_price"`
-	UnderlyingPrice        float64              `json:"underlying_price"`
-	UnderlyingIndex        string               `json:"underlying_index"`
-	Timestamp              convert.ExchangeTime `json:"timestamp"`
+	EstimatedDeliveryPrice float64    `json:"estimated_delivery_price"`
+	UnderlyingPrice        float64    `json:"underlying_price"`
+	UnderlyingIndex        string     `json:"underlying_index"`
+	Timestamp              types.Time `json:"timestamp"`
 	Stats                  struct {
 		Volume      float64 `json:"volume"`
 		PriceChange float64 `json:"price_change"`
@@ -395,47 +394,47 @@ type TickerData struct {
 		Low            float64 `json:"low"`
 		High           float64 `json:"high"`
 	} `json:"stats"`
-	Timestamp              convert.ExchangeTime `json:"timestamp"`
-	UnderlyingIndex        string               `json:"underlying_index"`
-	UnderlyingPrice        float64              `json:"underlying_price"`
-	EstimatedDeliveryPrice float64              `json:"estimated_delivery_price"`
-	InterestValue          float64              `json:"interest_value"`
+	Timestamp              types.Time `json:"timestamp"`
+	UnderlyingIndex        string     `json:"underlying_index"`
+	UnderlyingPrice        float64    `json:"underlying_price"`
+	EstimatedDeliveryPrice float64    `json:"estimated_delivery_price"`
+	InterestValue          float64    `json:"interest_value"`
 }
 
 // CancelWithdrawalData stores cancel request data for a withdrawal
 type CancelWithdrawalData struct {
-	Address            string               `json:"address"`
-	Amount             float64              `json:"amount"`
-	ConfirmedTimestamp convert.ExchangeTime `json:"confirmed_timestamp"`
-	CreatedTimestamp   convert.ExchangeTime `json:"created_timestamp"`
-	Currency           string               `json:"currency"`
-	Fee                float64              `json:"fee"`
-	ID                 int64                `json:"id"`
-	Priority           float64              `json:"priority"`
-	Status             string               `json:"status"`
-	TransactionID      int64                `json:"transaction_id"`
-	UpdatedTimestamp   convert.ExchangeTime `json:"updated_timestamp"`
+	Address            string     `json:"address"`
+	Amount             float64    `json:"amount"`
+	ConfirmedTimestamp types.Time `json:"confirmed_timestamp"`
+	CreatedTimestamp   types.Time `json:"created_timestamp"`
+	Currency           string     `json:"currency"`
+	Fee                float64    `json:"fee"`
+	ID                 int64      `json:"id"`
+	Priority           float64    `json:"priority"`
+	Status             string     `json:"status"`
+	TransactionID      int64      `json:"transaction_id"`
+	UpdatedTimestamp   types.Time `json:"updated_timestamp"`
 }
 
 // DepositAddressData stores data of a deposit address
 type DepositAddressData struct {
-	Address           string               `json:"address"`
-	CreationTimestamp convert.ExchangeTime `json:"creation_timestamp"`
-	Currency          string               `json:"currency"`
-	Type              string               `json:"type"`
+	Address           string     `json:"address"`
+	CreationTimestamp types.Time `json:"creation_timestamp"`
+	Currency          string     `json:"currency"`
+	Type              string     `json:"type"`
 }
 
 // DepositsData stores data of deposits
 type DepositsData struct {
 	Count int64 `json:"count"`
 	Data  []struct {
-		Address           string               `json:"address"`
-		Amount            float64              `json:"amount"`
-		Currency          string               `json:"currency"`
-		ReceivedTimestamp convert.ExchangeTime `json:"received_timestamp"`
-		State             string               `json:"state"`
-		TransactionID     string               `json:"transaction_id"`
-		UpdatedTimestamp  convert.ExchangeTime `json:"updated_timestamp"`
+		Address           string     `json:"address"`
+		Amount            float64    `json:"amount"`
+		Currency          string     `json:"currency"`
+		ReceivedTimestamp types.Time `json:"received_timestamp"`
+		State             string     `json:"state"`
+		TransactionID     string     `json:"transaction_id"`
+		UpdatedTimestamp  types.Time `json:"updated_timestamp"`
 	} `json:"data"`
 }
 
@@ -447,30 +446,30 @@ type TransfersData struct {
 
 // TransferData stores data for a transfer
 type TransferData struct {
-	Amount           float64              `json:"amount"`
-	CreatedTimestamp convert.ExchangeTime `json:"created_timestamp"`
-	Currency         string               `json:"currency"`
-	Direction        string               `json:"direction"`
-	ID               int64                `json:"id"`
-	OtherSide        string               `json:"other_side"`
-	State            string               `json:"state"`
-	Type             string               `json:"type"`
-	UpdatedTimestamp convert.ExchangeTime `json:"updated_timestamp"`
+	Amount           float64    `json:"amount"`
+	CreatedTimestamp types.Time `json:"created_timestamp"`
+	Currency         string     `json:"currency"`
+	Direction        string     `json:"direction"`
+	ID               int64      `json:"id"`
+	OtherSide        string     `json:"other_side"`
+	State            string     `json:"state"`
+	Type             string     `json:"type"`
+	UpdatedTimestamp types.Time `json:"updated_timestamp"`
 }
 
 // WithdrawData stores data of withdrawal
 type WithdrawData struct {
-	Address            string               `json:"address"`
-	Amount             float64              `json:"amount"`
-	ConfirmedTimestamp convert.ExchangeTime `json:"confirmed_timestamp"`
-	CreatedTimestamp   convert.ExchangeTime `json:"created_timestamp"`
-	Currency           string               `json:"currency"`
-	Fee                float64              `json:"fee"`
-	ID                 int64                `json:"id"`
-	Priority           float64              `json:"priority"`
-	State              string               `json:"state"`
-	TransactionID      string               `json:"transaction_id"`
-	UpdatedTimestamp   convert.ExchangeTime `json:"updated_timestamp"`
+	Address            string     `json:"address"`
+	Amount             float64    `json:"amount"`
+	ConfirmedTimestamp types.Time `json:"confirmed_timestamp"`
+	CreatedTimestamp   types.Time `json:"created_timestamp"`
+	Currency           string     `json:"currency"`
+	Fee                float64    `json:"fee"`
+	ID                 int64      `json:"id"`
+	Priority           float64    `json:"priority"`
+	State              string     `json:"state"`
+	TransactionID      string     `json:"transaction_id"`
+	UpdatedTimestamp   types.Time `json:"updated_timestamp"`
 }
 
 // WithdrawalsData stores data of withdrawals
@@ -481,54 +480,54 @@ type WithdrawalsData struct {
 
 // TradeData stores a data for a private trade
 type TradeData struct {
-	TradeSequence  int64                `json:"trade_seq"`
-	TradeID        string               `json:"trade_id"`
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	TickDirection  int64                `json:"tick_direction"`
-	State          string               `json:"state"`
-	SelfTrade      bool                 `json:"self_trade"`
-	ReduceOnly     bool                 `json:"reduce_only"`
-	Price          float64              `json:"price"`
-	PostOnly       bool                 `json:"post_only"`
-	OrderType      string               `json:"order_type"`
-	OrderID        string               `json:"order_id"`
-	MatchingID     int64                `json:"matching_id"`
-	MarkPrice      float64              `json:"mark_price"`
-	Liquidity      string               `json:"liquidity"`
-	Label          string               `json:"label"`
-	InstrumentName string               `json:"instrument_name"`
-	IndexPrice     float64              `json:"index_price"`
-	FeeCurrency    string               `json:"fee_currency"`
-	Fee            float64              `json:"fee"`
-	Direction      string               `json:"direction"`
-	Amount         float64              `json:"amount"`
+	TradeSequence  int64      `json:"trade_seq"`
+	TradeID        string     `json:"trade_id"`
+	Timestamp      types.Time `json:"timestamp"`
+	TickDirection  int64      `json:"tick_direction"`
+	State          string     `json:"state"`
+	SelfTrade      bool       `json:"self_trade"`
+	ReduceOnly     bool       `json:"reduce_only"`
+	Price          float64    `json:"price"`
+	PostOnly       bool       `json:"post_only"`
+	OrderType      string     `json:"order_type"`
+	OrderID        string     `json:"order_id"`
+	MatchingID     int64      `json:"matching_id"`
+	MarkPrice      float64    `json:"mark_price"`
+	Liquidity      string     `json:"liquidity"`
+	Label          string     `json:"label"`
+	InstrumentName string     `json:"instrument_name"`
+	IndexPrice     float64    `json:"index_price"`
+	FeeCurrency    string     `json:"fee_currency"`
+	Fee            float64    `json:"fee"`
+	Direction      string     `json:"direction"`
+	Amount         float64    `json:"amount"`
 }
 
 // OrderData stores order data
 type OrderData struct {
-	Web                 bool                 `json:"web"`
-	TimeInForce         string               `json:"time_in_force"`
-	Replaced            bool                 `json:"replaced"`
-	ReduceOnly          bool                 `json:"reduce_only"`
-	ProfitLoss          float64              `json:"profit_loss"`
-	Price               float64              `json:"price"`
-	PostOnly            bool                 `json:"post_only"`
-	OrderType           string               `json:"order_type"`
-	OrderState          string               `json:"order_state"`
-	OrderID             string               `json:"order_id"`
-	MaxShow             float64              `json:"max_show"`
-	LastUpdateTimestamp convert.ExchangeTime `json:"last_update_timestamp"`
-	Label               string               `json:"label"`
-	IsLiquidation       bool                 `json:"is_liquidation"`
-	InstrumentName      string               `json:"instrument_name"`
-	FilledAmount        float64              `json:"filled_amount"`
-	Direction           string               `json:"direction"`
-	CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
-	Commission          float64              `json:"commission"`
-	AveragePrice        float64              `json:"average_price"`
-	API                 bool                 `json:"api"`
-	Amount              float64              `json:"amount"`
-	IsRebalance         bool                 `json:"is_rebalance"`
+	Web                 bool       `json:"web"`
+	TimeInForce         string     `json:"time_in_force"`
+	Replaced            bool       `json:"replaced"`
+	ReduceOnly          bool       `json:"reduce_only"`
+	ProfitLoss          float64    `json:"profit_loss"`
+	Price               float64    `json:"price"`
+	PostOnly            bool       `json:"post_only"`
+	OrderType           string     `json:"order_type"`
+	OrderState          string     `json:"order_state"`
+	OrderID             string     `json:"order_id"`
+	MaxShow             float64    `json:"max_show"`
+	LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
+	Label               string     `json:"label"`
+	IsLiquidation       bool       `json:"is_liquidation"`
+	InstrumentName      string     `json:"instrument_name"`
+	FilledAmount        float64    `json:"filled_amount"`
+	Direction           string     `json:"direction"`
+	CreationTimestamp   types.Time `json:"creation_timestamp"`
+	Commission          float64    `json:"commission"`
+	AveragePrice        float64    `json:"average_price"`
+	API                 bool       `json:"api"`
+	Amount              float64    `json:"amount"`
+	IsRebalance         bool       `json:"is_rebalance"`
 }
 
 // InitialMarginInfo represents an initial margin of an order.
@@ -554,36 +553,36 @@ type CancelResp struct {
 
 // PrivateCancelData stores data of a private cancel
 type PrivateCancelData struct {
-	Triggered           bool                 `json:"triggered"`
-	Trigger             string               `json:"trigger"`
-	TimeInForce         string               `json:"time_in_force"`
-	TriggerPrice        float64              `json:"trigger_price"`
-	ReduceOnly          bool                 `json:"reduce_only"`
-	ProfitLoss          float64              `json:"profit_loss"`
-	Price               types.Number         `json:"price"`
-	PostOnly            bool                 `json:"post_only"`
-	OrderType           string               `json:"order_type"`
-	OrderState          string               `json:"order_state"`
-	OrderID             string               `json:"order_id"`
-	MaxShow             float64              `json:"max_show"`
-	LastUpdateTimestamp convert.ExchangeTime `json:"last_update_timestamp"`
-	Label               string               `json:"label"`
-	IsLiquidation       bool                 `json:"is_liquidation"`
-	InstrumentName      string               `json:"instrument_name"`
-	Direction           string               `json:"direction"`
-	CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
-	API                 bool                 `json:"api"`
-	Amount              float64              `json:"amount"`
-	Web                 bool                 `json:"web"`
-	StopPrice           float64              `json:"stop_price"`
-	Replaced            bool                 `json:"replaced"`
-	IsRebalance         bool                 `json:"is_rebalance"`
-	RiskReducing        bool                 `json:"risk_reducing"`
-	Contracts           float64              `json:"contracts"`
-	AveragePrice        float64              `json:"average_price"`
-	FilledAmount        float64              `json:"filled_amount"`
-	Mmp                 bool                 `json:"mmp"`
-	CancelReason        string               `json:"cancel_reason"`
+	Triggered           bool         `json:"triggered"`
+	Trigger             string       `json:"trigger"`
+	TimeInForce         string       `json:"time_in_force"`
+	TriggerPrice        float64      `json:"trigger_price"`
+	ReduceOnly          bool         `json:"reduce_only"`
+	ProfitLoss          float64      `json:"profit_loss"`
+	Price               types.Number `json:"price"`
+	PostOnly            bool         `json:"post_only"`
+	OrderType           string       `json:"order_type"`
+	OrderState          string       `json:"order_state"`
+	OrderID             string       `json:"order_id"`
+	MaxShow             float64      `json:"max_show"`
+	LastUpdateTimestamp types.Time   `json:"last_update_timestamp"`
+	Label               string       `json:"label"`
+	IsLiquidation       bool         `json:"is_liquidation"`
+	InstrumentName      string       `json:"instrument_name"`
+	Direction           string       `json:"direction"`
+	CreationTimestamp   types.Time   `json:"creation_timestamp"`
+	API                 bool         `json:"api"`
+	Amount              float64      `json:"amount"`
+	Web                 bool         `json:"web"`
+	StopPrice           float64      `json:"stop_price"`
+	Replaced            bool         `json:"replaced"`
+	IsRebalance         bool         `json:"is_rebalance"`
+	RiskReducing        bool         `json:"risk_reducing"`
+	Contracts           float64      `json:"contracts"`
+	AveragePrice        float64      `json:"average_price"`
+	FilledAmount        float64      `json:"filled_amount"`
+	Mmp                 bool         `json:"mmp"`
+	CancelReason        string       `json:"cancel_reason"`
 }
 
 // MultipleCancelResponse represents a response after cancelling multiple orders.
@@ -637,28 +636,28 @@ type UserTradesData struct {
 
 // UserTradeData stores data of user trades
 type UserTradeData struct {
-	UnderlyingPrice float64              `json:"underlying_price"`
-	TradeSequence   int64                `json:"trade_sequence"`
-	TradeInstrument string               `json:"trade_id"`
-	Timestamp       convert.ExchangeTime `json:"timestamp"`
-	TickDirection   int64                `json:"tick_direction"`
-	State           string               `json:"state"`
-	SelfTrade       bool                 `json:"self_trade"`
-	ReduceOnly      bool                 `json:"reduce_only"`
-	Price           float64              `json:"price"`
-	PostOnly        bool                 `json:"post_only"`
-	OrderType       string               `json:"order_type"`
-	OrderID         string               `json:"order_id"`
-	MatchingID      int64                `json:"matching_id"`
-	MarkPrice       float64              `json:"mark_price"`
-	Liquidity       string               `json:"liquidity"`
-	IV              float64              `json:"iv"`
-	InstrumentName  string               `json:"instrument_name"`
-	IndexPrice      float64              `json:"index_price"`
-	FeeCurrency     string               `json:"fee_currency"`
-	Fee             float64              `json:"fee"`
-	Direction       string               `json:"direction"`
-	Amount          float64              `json:"amount"`
+	UnderlyingPrice float64    `json:"underlying_price"`
+	TradeSequence   int64      `json:"trade_sequence"`
+	TradeInstrument string     `json:"trade_id"`
+	Timestamp       types.Time `json:"timestamp"`
+	TickDirection   int64      `json:"tick_direction"`
+	State           string     `json:"state"`
+	SelfTrade       bool       `json:"self_trade"`
+	ReduceOnly      bool       `json:"reduce_only"`
+	Price           float64    `json:"price"`
+	PostOnly        bool       `json:"post_only"`
+	OrderType       string     `json:"order_type"`
+	OrderID         string     `json:"order_id"`
+	MatchingID      int64      `json:"matching_id"`
+	MarkPrice       float64    `json:"mark_price"`
+	Liquidity       string     `json:"liquidity"`
+	IV              float64    `json:"iv"`
+	InstrumentName  string     `json:"instrument_name"`
+	IndexPrice      float64    `json:"index_price"`
+	FeeCurrency     string     `json:"fee_currency"`
+	Fee             float64    `json:"fee"`
+	Direction       string     `json:"direction"`
+	Amount          float64    `json:"amount"`
 }
 
 // PrivateSettlementsHistoryData stores data for private settlement history
@@ -669,14 +668,14 @@ type PrivateSettlementsHistoryData struct {
 
 // PrivateSettlementData stores private settlement data
 type PrivateSettlementData struct {
-	Type              string               `json:"type"`
-	Timestamp         convert.ExchangeTime `json:"timestamp"`
-	SessionProfitLoss float64              `json:"session_profit_loss"`
-	ProfitLoss        float64              `json:"profit_loss"`
-	Position          float64              `json:"position"`
-	MarkPrice         float64              `json:"mark_price"`
-	InstrumentName    string               `json:"instrument_name"`
-	IndexPrice        float64              `json:"index_price"`
+	Type              string     `json:"type"`
+	Timestamp         types.Time `json:"timestamp"`
+	SessionProfitLoss float64    `json:"session_profit_loss"`
+	ProfitLoss        float64    `json:"profit_loss"`
+	Position          float64    `json:"position"`
+	MarkPrice         float64    `json:"mark_price"`
+	InstrumentName    string     `json:"instrument_name"`
+	IndexPrice        float64    `json:"index_price"`
 }
 
 // AccountSummaryData stores data of account summary for a given currency
@@ -737,14 +736,14 @@ type AccountSummaryData struct {
 
 // APIKeyData stores data regarding the api key
 type APIKeyData struct {
-	Timestamp    convert.ExchangeTime `json:"timestamp"`
-	MaxScope     string               `json:"max_scope"`
-	ID           int64                `json:"id"`
-	Enabled      bool                 `json:"enabled"`
-	Default      bool                 `json:"default"`
-	ClientSecret string               `json:"client_secret"`
-	ClientID     string               `json:"client_id"`
-	Name         string               `json:"name"`
+	Timestamp    types.Time `json:"timestamp"`
+	MaxScope     string     `json:"max_scope"`
+	ID           int64      `json:"id"`
+	Enabled      bool       `json:"enabled"`
+	Default      bool       `json:"default"`
+	ClientSecret string     `json:"client_secret"`
+	ClientID     string     `json:"client_id"`
+	Name         string     `json:"name"`
 }
 
 // SubAccountData stores subaccount data
@@ -811,18 +810,18 @@ type PositionData struct {
 
 // TransactionLogData stores information regarding an account transaction
 type TransactionLogData struct {
-	Username        string               `json:"username"`
-	UserSeq         int64                `json:"user_seq"`
-	UserID          int64                `json:"user_id"`
-	TransactionType string               `json:"transaction_type"`
-	TradeID         string               `json:"trade_id"`
-	Timestamp       convert.ExchangeTime `json:"timestamp"`
-	Side            string               `json:"side"`
-	Price           float64              `json:"price"`
-	Position        float64              `json:"position"`
-	OrderID         string               `json:"order_id"`
-	InterestPL      float64              `json:"interest_pl"`
-	InstrumentName  string               `json:"instrument_name"`
+	Username        string     `json:"username"`
+	UserSeq         int64      `json:"user_seq"`
+	UserID          int64      `json:"user_id"`
+	TransactionType string     `json:"transaction_type"`
+	TradeID         string     `json:"trade_id"`
+	Timestamp       types.Time `json:"timestamp"`
+	Side            string     `json:"side"`
+	Price           float64    `json:"price"`
+	Position        float64    `json:"position"`
+	OrderID         string     `json:"order_id"`
+	InterestPL      float64    `json:"interest_pl"`
+	InstrumentName  string     `json:"instrument_name"`
 	Info            struct {
 		TransferType string `json:"transfer_type"`
 		OtherUserID  int64  `json:"other_user_id"`
@@ -898,20 +897,20 @@ type wsSubscriptionResponse struct {
 
 // RequestForQuote RFQs for instruments in given currency.
 type RequestForQuote struct {
-	TradedVolume     float64              `json:"traded_volume"`
-	Amount           float64              `json:"amount"`
-	Side             string               `json:"side"`
-	LastRFQTimestamp convert.ExchangeTime `json:"last_rfq_tstamp"`
-	InstrumentName   string               `json:"instrument_name"`
+	TradedVolume     float64    `json:"traded_volume"`
+	Amount           float64    `json:"amount"`
+	Side             string     `json:"side"`
+	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
+	InstrumentName   string     `json:"instrument_name"`
 }
 
 // ComboDetail retrieves information about a combo
 type ComboDetail struct {
-	ID                string               `json:"id"`
-	InstrumentID      int64                `json:"instrument_id"`
-	CreationTimestamp convert.ExchangeTime `json:"creation_timestamp"`
-	StateTimestamp    convert.ExchangeTime `json:"state_timestamp"`
-	State             string               `json:"state"`
+	ID                string     `json:"id"`
+	InstrumentID      int64      `json:"instrument_id"`
+	CreationTimestamp types.Time `json:"creation_timestamp"`
+	StateTimestamp    types.Time `json:"state_timestamp"`
+	State             string     `json:"state"`
 	Legs              []struct {
 		InstrumentName string  `json:"instrument_name"`
 		Amount         float64 `json:"amount"`
@@ -935,34 +934,34 @@ type BlockTradeParam struct {
 
 // BlockTradeData represents a user's block trade data.
 type BlockTradeData struct {
-	TradeSeq               int64                `json:"trade_seq"`
-	TradeID                string               `json:"trade_id"`
-	Timestamp              convert.ExchangeTime `json:"timestamp"`
-	TickDirection          int64                `json:"tick_direction"`
-	State                  string               `json:"state"`
-	SelfTrade              bool                 `json:"self_trade"`
-	Price                  float64              `json:"price"`
-	OrderType              string               `json:"order_type"`
-	OrderID                string               `json:"order_id"`
-	MatchingID             interface{}          `json:"matching_id"`
-	Liquidity              string               `json:"liquidity"`
-	OptionmpliedVolatility float64              `json:"iv,omitempty"`
-	InstrumentName         string               `json:"instrument_name"`
-	IndexPrice             float64              `json:"index_price"`
-	FeeCurrency            string               `json:"fee_currency"`
-	Fee                    float64              `json:"fee"`
-	Direction              string               `json:"direction"`
-	BlockTradeID           string               `json:"block_trade_id"`
-	Amount                 float64              `json:"amount"`
+	TradeSeq               int64       `json:"trade_seq"`
+	TradeID                string      `json:"trade_id"`
+	Timestamp              types.Time  `json:"timestamp"`
+	TickDirection          int64       `json:"tick_direction"`
+	State                  string      `json:"state"`
+	SelfTrade              bool        `json:"self_trade"`
+	Price                  float64     `json:"price"`
+	OrderType              string      `json:"order_type"`
+	OrderID                string      `json:"order_id"`
+	MatchingID             interface{} `json:"matching_id"`
+	Liquidity              string      `json:"liquidity"`
+	OptionmpliedVolatility float64     `json:"iv,omitempty"`
+	InstrumentName         string      `json:"instrument_name"`
+	IndexPrice             float64     `json:"index_price"`
+	FeeCurrency            string      `json:"fee_currency"`
+	Fee                    float64     `json:"fee"`
+	Direction              string      `json:"direction"`
+	BlockTradeID           string      `json:"block_trade_id"`
+	Amount                 float64     `json:"amount"`
 }
 
 // Announcement represents public announcements.
 type Announcement struct {
-	Title                string               `json:"title"`
-	PublicationTimestamp convert.ExchangeTime `json:"publication_timestamp"`
-	Important            bool                 `json:"important"`
-	ID                   int64                `json:"id"`
-	Body                 string               `json:"body"`
+	Title                string     `json:"title"`
+	PublicationTimestamp types.Time `json:"publication_timestamp"`
+	Important            bool       `json:"important"`
+	ID                   int64      `json:"id"`
+	Body                 string     `json:"body"`
 
 	// Action taken by the platform administrators.
 	Action string `json:"action"`
@@ -994,23 +993,23 @@ type PortfolioMargin struct {
 	MarginPos           float64            `json:"margin_pos"`
 	Margin              float64            `json:"margin"`
 	FtuSummary          []struct {
-		ShortTotalCost  float64              `json:"short_total_cost"`
-		PlVec           []float64            `json:"pl_vec"`
-		LongTotalCost   float64              `json:"long_total_cost"`
-		ExpiryTimestamp convert.ExchangeTime `json:"exp_tstamp"`
+		ShortTotalCost  float64    `json:"short_total_cost"`
+		PlVec           []float64  `json:"pl_vec"`
+		LongTotalCost   float64    `json:"long_total_cost"`
+		ExpiryTimestamp types.Time `json:"exp_tstamp"`
 	} `json:"ftu_summary"`
 	FtuPls     []float64 `json:"ftu_pls"`
 	FtuEntries []struct {
-		TotalCost       float64              `json:"total_cost"`
-		Size            float64              `json:"size"`
-		PlVec           []float64            `json:"pl_vec"`
-		MarkPrice       float64              `json:"mark_price"`
-		InstrumentName  string               `json:"instrument_name"`
-		ExpiryTimestamp convert.ExchangeTime `json:"exp_tstamp"`
+		TotalCost       float64    `json:"total_cost"`
+		Size            float64    `json:"size"`
+		PlVec           []float64  `json:"pl_vec"`
+		MarkPrice       float64    `json:"mark_price"`
+		InstrumentName  string     `json:"instrument_name"`
+		ExpiryTimestamp types.Time `json:"exp_tstamp"`
 	} `json:"ftu_entries"`
-	CoOpt                float64              `json:"co_opt"`
-	CoFtu                float64              `json:"co_ftu"`
-	CalculationTimestamp convert.ExchangeTime `json:"calculation_timestamp"`
+	CoOpt                float64    `json:"co_opt"`
+	CoFtu                float64    `json:"co_ftu"`
+	CalculationTimestamp types.Time `json:"calculation_timestamp"`
 }
 
 // AccessLog represents access log information.
@@ -1021,12 +1020,12 @@ type AccessLog struct {
 
 // AccessLogDetail represents detailed access log information.
 type AccessLogDetail struct {
-	Timestamp convert.ExchangeTime `json:"timestamp"`
-	Result    string               `json:"result"`
-	IP        string               `json:"ip"`
-	ID        int64                `json:"id"`
-	Country   string               `json:"country"`
-	City      string               `json:"city"`
+	Timestamp types.Time `json:"timestamp"`
+	Result    string     `json:"result"`
+	IP        string     `json:"ip"`
+	ID        int64      `json:"id"`
+	Country   string     `json:"country"`
+	City      string     `json:"city"`
 }
 
 // SubAccountDetail represents subaccount positions detail.
@@ -1078,27 +1077,27 @@ type TogglePortfolioMarginResponse struct {
 
 // BlockTradeResponse represents a block trade response.
 type BlockTradeResponse struct {
-	TradeSeq       int64                `json:"trade_seq"`
-	TradeID        string               `json:"trade_id"`
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	TickDirection  int64                `json:"tick_direction"`
-	State          string               `json:"state"`
-	SelfTrade      bool                 `json:"self_trade"`
-	ReduceOnly     bool                 `json:"reduce_only"`
-	Price          float64              `json:"price"`
-	PostOnly       bool                 `json:"post_only"`
-	OrderType      string               `json:"order_type"`
-	OrderID        string               `json:"order_id"`
-	MatchingID     string               `json:"matching_id"`
-	MarkPrice      float64              `json:"mark_price"`
-	Liquidity      string               `json:"liquidity"`
-	InstrumentName string               `json:"instrument_name"`
-	IndexPrice     float64              `json:"index_price"`
-	FeeCurrency    string               `json:"fee_currency"`
-	Fee            float64              `json:"fee"`
-	Direction      string               `json:"direction"`
-	BlockTradeID   string               `json:"block_trade_id"`
-	Amount         float64              `json:"amount"`
+	TradeSeq       int64      `json:"trade_seq"`
+	TradeID        string     `json:"trade_id"`
+	Timestamp      types.Time `json:"timestamp"`
+	TickDirection  int64      `json:"tick_direction"`
+	State          string     `json:"state"`
+	SelfTrade      bool       `json:"self_trade"`
+	ReduceOnly     bool       `json:"reduce_only"`
+	Price          float64    `json:"price"`
+	PostOnly       bool       `json:"post_only"`
+	OrderType      string     `json:"order_type"`
+	OrderID        string     `json:"order_id"`
+	MatchingID     string     `json:"matching_id"`
+	MarkPrice      float64    `json:"mark_price"`
+	Liquidity      string     `json:"liquidity"`
+	InstrumentName string     `json:"instrument_name"`
+	IndexPrice     float64    `json:"index_price"`
+	FeeCurrency    string     `json:"fee_currency"`
+	Fee            float64    `json:"fee"`
+	Direction      string     `json:"direction"`
+	BlockTradeID   string     `json:"block_trade_id"`
+	Amount         float64    `json:"amount"`
 }
 
 // BlockTradeMoveResponse represents block trade move response.
@@ -1135,12 +1134,12 @@ type VersionInformation struct {
 
 // wsOrderbook represents orderbook push data for a book websocket subscription.
 type wsOrderbook struct {
-	Type           string               `json:"type"`
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	InstrumentName string               `json:"instrument_name"`
-	ChangeID       int64                `json:"change_id"`
-	Bids           [][]interface{}      `json:"bids"`
-	Asks           [][]interface{}      `json:"asks"`
+	Type           string          `json:"type"`
+	Timestamp      types.Time      `json:"timestamp"`
+	InstrumentName string          `json:"instrument_name"`
+	ChangeID       int64           `json:"change_id"`
+	Bids           [][]interface{} `json:"bids"`
+	Asks           [][]interface{} `json:"asks"`
 }
 
 // wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
@@ -1156,19 +1155,19 @@ type wsCandlestickData struct {
 
 // wsIndexPrice represents information about current value (price) for Deribit Index
 type wsIndexPrice struct {
-	Timestamp convert.ExchangeTime `json:"timestamp"`
-	Price     float64              `json:"price"`
-	IndexName string               `json:"index_name"`
+	Timestamp types.Time `json:"timestamp"`
+	Price     float64    `json:"price"`
+	IndexName string     `json:"index_name"`
 }
 
 // wsRankingPrice
 type wsRankingPrice struct {
-	Weight        float64              `json:"weight"`
-	Timestamp     convert.ExchangeTime `json:"timestamp"`
-	Price         float64              `json:"price"`
-	OriginalPrice float64              `json:"original_price"`
-	Identifier    string               `json:"identifier"`
-	Enabled       bool                 `json:"enabled"`
+	Weight        float64    `json:"weight"`
+	Timestamp     types.Time `json:"timestamp"`
+	Price         float64    `json:"price"`
+	OriginalPrice float64    `json:"original_price"`
+	Identifier    string     `json:"identifier"`
+	Enabled       bool       `json:"enabled"`
 }
 
 // wsRankingPrices
@@ -1185,10 +1184,10 @@ type wsPriceStatistics struct {
 
 // wsVolatilityIndex represents volatility index push data
 type wsVolatilityIndex struct {
-	Volatility        float64              `json:"volatility"`
-	Timestamp         convert.ExchangeTime `json:"timestamp"`
-	IndexName         string               `json:"index_name"`
-	EstimatedDelivery float64              `json:"estimated_delivery"`
+	Volatility        float64    `json:"volatility"`
+	Timestamp         types.Time `json:"timestamp"`
+	IndexName         string     `json:"index_name"`
+	EstimatedDelivery float64    `json:"estimated_delivery"`
 }
 
 // wsEstimatedExpirationPrice represents push data of ending price for given index.
@@ -1200,7 +1199,7 @@ type wsEstimatedExpirationPrice struct {
 
 // wsTicker represents changes in ticker (key information about the instrument).
 type wsTicker struct {
-	Timestamp convert.ExchangeTime `json:"timestamp"`
+	Timestamp types.Time `json:"timestamp"`
 	Stats     struct {
 		VolumeUsd   float64 `json:"volume_usd"`
 		Volume      float64 `json:"volume"`
@@ -1229,8 +1228,8 @@ type wsTicker struct {
 
 // WsIncrementalTicker represents a ticker information for incremental ticker subscriptions.
 type WsIncrementalTicker struct {
-	Type      string               `json:"type"`
-	Timestamp convert.ExchangeTime `json:"timestamp"`
+	Type      string     `json:"type"`
+	Timestamp types.Time `json:"timestamp"`
 	Stats     struct {
 		VolumeUsd   float64 `json:"volume_usd"`
 		Volume      float64 `json:"volume"`
@@ -1274,24 +1273,24 @@ type WsIncrementalTicker struct {
 
 // wsInstrumentState represents notifications about new or terminated instruments of given kind in given currency.
 type wsInstrumentState struct {
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	State          string               `json:"state"`
-	InstrumentName string               `json:"instrument_name"`
+	Timestamp      types.Time `json:"timestamp"`
+	State          string     `json:"state"`
+	InstrumentName string     `json:"instrument_name"`
 }
 
 // wsMarkPriceOptions represents information about options markprices.
 type wsMarkPriceOptions struct {
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	MarkPrice      float64              `json:"mark_price"`
-	Iv             float64              `json:"iv"`
-	InstrumentName string               `json:"instrument_name"`
+	Timestamp      types.Time `json:"timestamp"`
+	MarkPrice      float64    `json:"mark_price"`
+	Iv             float64    `json:"iv"`
+	InstrumentName string     `json:"instrument_name"`
 }
 
 // wsPerpetualInterest represents current interest rate - but only for perpetual instruments.
 type wsPerpetualInterest struct {
-	Timestamp  convert.ExchangeTime `json:"timestamp"`
-	Interest   float64              `json:"interest"`
-	IndexPrice float64              `json:"index_price"`
+	Timestamp  types.Time `json:"timestamp"`
+	Interest   float64    `json:"interest"`
+	IndexPrice float64    `json:"index_price"`
 }
 
 // wsPlatformState holds Information whether unauthorized public requests are allowed
@@ -1301,96 +1300,96 @@ type wsPlatformState struct {
 
 // wsQuoteTickerInformation represents best bid/ask price and size.
 type wsQuoteTickerInformation struct {
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	InstrumentName string               `json:"instrument_name"`
-	BestBidPrice   float64              `json:"best_bid_price"`
-	BestBidAmount  float64              `json:"best_bid_amount"`
-	BestAskPrice   float64              `json:"best_ask_price"`
-	BestAskAmount  float64              `json:"best_ask_amount"`
+	Timestamp      types.Time `json:"timestamp"`
+	InstrumentName string     `json:"instrument_name"`
+	BestBidPrice   float64    `json:"best_bid_price"`
+	BestBidAmount  float64    `json:"best_bid_amount"`
+	BestAskPrice   float64    `json:"best_ask_price"`
+	BestAskAmount  float64    `json:"best_ask_amount"`
 }
 
 // wsRequestForQuote represents a notifications about RFQs for instruments in given currency.
 type wsRequestForQuote struct {
-	State            bool                 `json:"state"`
-	Side             interface{}          `json:"side"`
-	LastRFQTimestamp convert.ExchangeTime `json:"last_rfq_tstamp"`
-	InstrumentName   string               `json:"instrument_name"`
-	Amount           interface{}          `json:"amount"`
+	State            bool        `json:"state"`
+	Side             interface{} `json:"side"`
+	LastRFQTimestamp types.Time  `json:"last_rfq_tstamp"`
+	InstrumentName   string      `json:"instrument_name"`
+	Amount           interface{} `json:"amount"`
 }
 
 // wsTrade represents trades for an instrument.
 type wsTrade struct {
-	TradeSequence  int64                `json:"trade_seq"`
-	TradeID        string               `json:"trade_id"`
-	Timestamp      convert.ExchangeTime `json:"timestamp"`
-	TickDirection  float64              `json:"tick_direction"`
-	Price          float64              `json:"price"`
-	MarkPrice      float64              `json:"mark_price"`
-	InstrumentName string               `json:"instrument_name"`
-	IndexPrice     float64              `json:"index_price"`
-	Direction      string               `json:"direction"`
-	Amount         float64              `json:"amount"`
+	TradeSequence  int64      `json:"trade_seq"`
+	TradeID        string     `json:"trade_id"`
+	Timestamp      types.Time `json:"timestamp"`
+	TickDirection  float64    `json:"tick_direction"`
+	Price          float64    `json:"price"`
+	MarkPrice      float64    `json:"mark_price"`
+	InstrumentName string     `json:"instrument_name"`
+	IndexPrice     float64    `json:"index_price"`
+	Direction      string     `json:"direction"`
+	Amount         float64    `json:"amount"`
 }
 
 // wsAccessLog represents security events related to the account
 type wsAccessLog struct {
-	Timestamp convert.ExchangeTime `json:"timestamp"`
-	Log       string               `json:"log"`
-	IP        string               `json:"ip"`
-	ID        int64                `json:"id"`
-	Country   string               `json:"country"`
-	City      string               `json:"city"`
+	Timestamp types.Time `json:"timestamp"`
+	Log       string     `json:"log"`
+	IP        string     `json:"ip"`
+	ID        int64      `json:"id"`
+	Country   string     `json:"country"`
+	City      string     `json:"city"`
 }
 
 // wsChanges represents user's updates related to order, trades, etc. in an instrument.
 type wsChanges struct {
 	Trades []struct {
-		TradeSeq       float64              `json:"trade_seq"`
-		TradeID        string               `json:"trade_id"`
-		Timestamp      convert.ExchangeTime `json:"timestamp"`
-		TickDirection  float64              `json:"tick_direction"`
-		State          string               `json:"state"`
-		SelfTrade      bool                 `json:"self_trade"`
-		ReduceOnly     bool                 `json:"reduce_only"`
-		ProfitLoss     float64              `json:"profit_loss"`
-		Price          float64              `json:"price"`
-		PostOnly       bool                 `json:"post_only"`
-		OrderType      string               `json:"order_type"`
-		OrderID        string               `json:"order_id"`
-		MatchingID     interface{}          `json:"matching_id"`
-		MarkPrice      float64              `json:"mark_price"`
-		Liquidity      string               `json:"liquidity"`
-		InstrumentName string               `json:"instrument_name"`
-		IndexPrice     float64              `json:"index_price"`
-		FeeCurrency    string               `json:"fee_currency"`
-		Fee            float64              `json:"fee"`
-		Direction      string               `json:"direction"`
-		Amount         float64              `json:"amount"`
+		TradeSeq       float64     `json:"trade_seq"`
+		TradeID        string      `json:"trade_id"`
+		Timestamp      types.Time  `json:"timestamp"`
+		TickDirection  float64     `json:"tick_direction"`
+		State          string      `json:"state"`
+		SelfTrade      bool        `json:"self_trade"`
+		ReduceOnly     bool        `json:"reduce_only"`
+		ProfitLoss     float64     `json:"profit_loss"`
+		Price          float64     `json:"price"`
+		PostOnly       bool        `json:"post_only"`
+		OrderType      string      `json:"order_type"`
+		OrderID        string      `json:"order_id"`
+		MatchingID     interface{} `json:"matching_id"`
+		MarkPrice      float64     `json:"mark_price"`
+		Liquidity      string      `json:"liquidity"`
+		InstrumentName string      `json:"instrument_name"`
+		IndexPrice     float64     `json:"index_price"`
+		FeeCurrency    string      `json:"fee_currency"`
+		Fee            float64     `json:"fee"`
+		Direction      string      `json:"direction"`
+		Amount         float64     `json:"amount"`
 	} `json:"trades"`
 	Positions []WebsocketPosition `json:"positions"`
 	Orders    []struct {
-		Web                 bool                 `json:"web"`
-		TimeInForce         string               `json:"time_in_force"`
-		Replaced            bool                 `json:"replaced"`
-		ReduceOnly          bool                 `json:"reduce_only"`
-		ProfitLoss          float64              `json:"profit_loss"`
-		Price               float64              `json:"price"`
-		PostOnly            bool                 `json:"post_only"`
-		OrderType           string               `json:"order_type"`
-		OrderState          string               `json:"order_state"`
-		OrderID             string               `json:"order_id"`
-		MaxShow             float64              `json:"max_show"`
-		LastUpdateTimestamp convert.ExchangeTime `json:"last_update_timestamp"`
-		Label               string               `json:"label"`
-		IsLiquidation       bool                 `json:"is_liquidation"`
-		InstrumentName      string               `json:"instrument_name"`
-		FilledAmount        float64              `json:"filled_amount"`
-		Direction           string               `json:"direction"`
-		CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
-		Commission          float64              `json:"commission"`
-		AveragePrice        float64              `json:"average_price"`
-		API                 bool                 `json:"api"`
-		Amount              float64              `json:"amount"`
+		Web                 bool       `json:"web"`
+		TimeInForce         string     `json:"time_in_force"`
+		Replaced            bool       `json:"replaced"`
+		ReduceOnly          bool       `json:"reduce_only"`
+		ProfitLoss          float64    `json:"profit_loss"`
+		Price               float64    `json:"price"`
+		PostOnly            bool       `json:"post_only"`
+		OrderType           string     `json:"order_type"`
+		OrderState          string     `json:"order_state"`
+		OrderID             string     `json:"order_id"`
+		MaxShow             float64    `json:"max_show"`
+		LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
+		Label               string     `json:"label"`
+		IsLiquidation       bool       `json:"is_liquidation"`
+		InstrumentName      string     `json:"instrument_name"`
+		FilledAmount        float64    `json:"filled_amount"`
+		Direction           string     `json:"direction"`
+		CreationTimestamp   types.Time `json:"creation_timestamp"`
+		Commission          float64    `json:"commission"`
+		AveragePrice        float64    `json:"average_price"`
+		API                 bool       `json:"api"`
+		Amount              float64    `json:"amount"`
 	} `json:"orders"`
 	InstrumentName string `json:"instrument_name"`
 }
@@ -1432,28 +1431,28 @@ type WsMMPTrigger struct {
 
 // WsOrder represents changes in user's orders for given instrument.
 type WsOrder struct {
-	TimeInForce         string               `json:"time_in_force"`
-	Replaced            bool                 `json:"replaced"`
-	ReduceOnly          bool                 `json:"reduce_only"`
-	ProfitLoss          float64              `json:"profit_loss"`
-	Price               float64              `json:"price"`
-	PostOnly            bool                 `json:"post_only"`
-	OriginalOrderType   string               `json:"original_order_type"`
-	OrderType           string               `json:"order_type"`
-	OrderState          string               `json:"order_state"`
-	OrderID             string               `json:"order_id"`
-	MaxShow             float64              `json:"max_show"`
-	LastUpdateTimestamp convert.ExchangeTime `json:"last_update_timestamp"`
-	Label               string               `json:"label"`
-	IsLiquidation       bool                 `json:"is_liquidation"`
-	InstrumentName      string               `json:"instrument_name"`
-	FilledAmount        float64              `json:"filled_amount"`
-	Direction           string               `json:"direction"`
-	CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
-	Commission          float64              `json:"commission"`
-	AveragePrice        float64              `json:"average_price"`
-	API                 bool                 `json:"api"`
-	Amount              float64              `json:"amount"`
+	TimeInForce         string     `json:"time_in_force"`
+	Replaced            bool       `json:"replaced"`
+	ReduceOnly          bool       `json:"reduce_only"`
+	ProfitLoss          float64    `json:"profit_loss"`
+	Price               float64    `json:"price"`
+	PostOnly            bool       `json:"post_only"`
+	OriginalOrderType   string     `json:"original_order_type"`
+	OrderType           string     `json:"order_type"`
+	OrderState          string     `json:"order_state"`
+	OrderID             string     `json:"order_id"`
+	MaxShow             float64    `json:"max_show"`
+	LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
+	Label               string     `json:"label"`
+	IsLiquidation       bool       `json:"is_liquidation"`
+	InstrumentName      string     `json:"instrument_name"`
+	FilledAmount        float64    `json:"filled_amount"`
+	Direction           string     `json:"direction"`
+	CreationTimestamp   types.Time `json:"creation_timestamp"`
+	Commission          float64    `json:"commission"`
+	AveragePrice        float64    `json:"average_price"`
+	API                 bool       `json:"api"`
+	Amount              float64    `json:"amount"`
 }
 
 // wsUserPortfolio represents current user portfolio

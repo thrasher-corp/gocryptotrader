@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -37,7 +38,7 @@ func (b *BTSE) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
@@ -78,7 +79,7 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, sign},
 	}
-	return b.Websocket.Conn.SendJSONMessage(ctx, req)
+	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -392,7 +393,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 	for i := range channelsToSubscribe {
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), sub)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, sub)
 	if err == nil {
 		err = b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	}
@@ -407,7 +408,7 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 		unSub.Arguments = append(unSub.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), unSub)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, unSub)
 	if err == nil {
 		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}

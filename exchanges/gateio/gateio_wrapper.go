@@ -146,6 +146,7 @@ func (g *Gateio) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -217,7 +218,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Connector:             g.WsConnect,
 		Subscriber:            g.Subscribe,
 		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: g.generateSubscriptions,
 		Features:              &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:             g.Features.Enabled.FillsFeed,
 		TradeFeed:             g.Features.Enabled.TradeFeed,
