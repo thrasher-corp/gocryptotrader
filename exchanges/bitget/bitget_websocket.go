@@ -33,15 +33,35 @@ const (
 	bitgetPrivateWSURL = "wss://ws.bitget.com/v2/ws/private"
 )
 
-var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    bitgetTicker,
-	subscription.CandlesChannel:   bitgetCandleDailyChannel,
-	subscription.AllOrdersChannel: bitgetTrade,
-	subscription.OrderbookChannel: bitgetBookFullChannel,
-	subscription.AllTradesChannel: bitgetFillChannel,
-	subscription.MyOrdersChannel:  bitgetOrdersChannel,
-	"myTriggerOrders":             bitgetOrdersAlgoChannel,
-	"account":                     bitgetAccount,
+var subscriptionNames = map[asset.Item]map[string]string{
+	asset.Spot: {
+		subscription.TickerChannel:    bitgetTicker,
+		subscription.CandlesChannel:   bitgetCandleDailyChannel,
+		subscription.AllOrdersChannel: bitgetTrade,
+		subscription.OrderbookChannel: bitgetBookFullChannel,
+		subscription.MyTradesChannel:  bitgetFillChannel,
+		subscription.MyOrdersChannel:  bitgetOrdersChannel,
+		"myTriggerOrders":             bitgetOrdersAlgoChannel,
+		"account":                     bitgetAccount,
+	},
+	asset.Futures: {
+		subscription.TickerChannel:    bitgetTicker,
+		subscription.CandlesChannel:   bitgetCandleDailyChannel,
+		subscription.AllOrdersChannel: bitgetTrade,
+		subscription.OrderbookChannel: bitgetBookFullChannel,
+		subscription.MyTradesChannel:  bitgetFillChannel,
+		subscription.MyOrdersChannel:  bitgetOrdersChannel,
+		"myTriggerOrders":             bitgetOrdersAlgoChannel,
+		"account":                     bitgetAccount,
+		"positions":                   bitgetPositionsChannel,
+		"positionsHistory":            bitgetPositionsHistoryChannel,
+	},
+	asset.Margin: {
+		"indexPrice": bitgetIndexPriceChannel,
+	},
+	asset.CrossMargin: {
+		"indexPrice": bitgetIndexPriceChannel,
+	},
 }
 
 var defaultSubscriptions = subscription.List{
@@ -53,11 +73,17 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.AllTradesChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
+	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Futures},
+	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Futures},
+	{Enabled: false, Channel: "positions", Authenticated: true, Asset: asset.Futures},
+	{Enabled: false, Channel: "positionsHistory", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "indexPrice", Asset: asset.Margin},
 }
 
 // WsConnect connects to a websocket feed
@@ -135,6 +161,8 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
+	// Without this, the exchange will sometimes process a subscription message before it finishes processing the login message. Might be able to reduce the duration
+	time.Sleep(time.Second)
 	return nil
 }
 
@@ -172,8 +200,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 	switch toCheck {
 	case "subscribe":
 		if bi.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket %v succeeded for %v\n", bi.Name, wsResponse.Event,
-				wsResponse.Arg)
+			log.Debugf(log.ExchangeSys, "%v - Websocket %v succeeded for %v\n", bi.Name, wsResponse.Event, wsResponse.Arg)
 		}
 	case "error":
 		return fmt.Errorf("%v - Websocket error, code: %v message: %v", bi.Name, wsResponse.Code, wsResponse.Message)
@@ -314,117 +341,297 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 					}
 				}
 			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage +
-					string(respRaw)}
+				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 			}
 			// Plan to add handling of account.Holdings on websocketDataHandler side in a later PR
 			bi.Websocket.DataHandler <- hold
 		case bitgetFillChannel:
-			var fil []WsFillResponse
-			err := json.Unmarshal(wsResponse.Data, &fil)
-			if err != nil {
-				return err
-			}
-			resp := make([]fill.Data, len(fil))
-			for i := range fil {
-				pair, err := pairFromStringHelper(fil[i].Symbol)
+			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+			switch respAsset {
+			case asset.Spot:
+				var fil []WsFillSpotResponse
+				err := json.Unmarshal(wsResponse.Data, &fil)
 				if err != nil {
 					return err
 				}
-				resp[i] = fill.Data{
-					ID:           strconv.FormatInt(fil[i].TradeID, 10),
-					Timestamp:    fil[i].CreationTime.Time(),
-					Exchange:     bi.Name,
-					AssetType:    asset.Spot,
-					CurrencyPair: pair,
-					Side:         sideDecoder(fil[i].Side),
-					OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
-					TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
-					Price:        fil[i].PriceAverage,
-					Amount:       fil[i].Size,
+				resp := make([]fill.Data, len(fil))
+				for i := range fil {
+					pair, err := pairFromStringHelper(fil[i].Symbol)
+					if err != nil {
+						return err
+					}
+					resp[i] = fill.Data{
+						ID:           strconv.FormatInt(fil[i].TradeID, 10),
+						Timestamp:    fil[i].CreationTime.Time(),
+						Exchange:     bi.Name,
+						AssetType:    asset.Spot,
+						CurrencyPair: pair,
+						Side:         sideDecoder(fil[i].Side),
+						OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
+						TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
+						Price:        fil[i].PriceAverage,
+						Amount:       fil[i].Size,
+					}
 				}
+				bi.Websocket.DataHandler <- resp
+			case asset.Futures:
+				var fil []WsFillFuturesResponse
+				err := json.Unmarshal(wsResponse.Data, &fil)
+				if err != nil {
+					return err
+				}
+				resp := make([]fill.Data, len(fil))
+				for i := range fil {
+					pair, err := pairFromStringHelper(fil[i].Symbol)
+					if err != nil {
+						return err
+					}
+					resp[i] = fill.Data{
+						Exchange:     bi.Name,
+						CurrencyPair: pair,
+						OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
+						TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
+						Side:         sideDecoder(fil[i].Side),
+						Price:        fil[i].Price,
+						Amount:       fil[i].BaseVolume,
+						Timestamp:    fil[i].CreationTime.Time(),
+					}
+				}
+				bi.Websocket.DataHandler <- resp
+			default:
+				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 			}
-			bi.Websocket.DataHandler <- resp
 		case bitgetOrdersChannel:
-			var orders []WsOrderResponse
-			err := json.Unmarshal(wsResponse.Data, &orders)
-			if err != nil {
-				return err
-			}
-			resp := make([]order.Detail, len(orders))
-			for i := range orders {
-				pair, err := pairFromStringHelper(orders[i].InstrumentID)
+			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+			switch respAsset {
+			case asset.Spot:
+				var orders []WsOrderSpotResponse
+				err := json.Unmarshal(wsResponse.Data, &orders)
 				if err != nil {
 					return err
 				}
-				ioc, fok, po := strategyDecoder(orders[i].Force)
-				var baseAmount, quoteAmount float64
-				side := sideDecoder(orders[i].Side)
-				if side == order.Buy {
-					quoteAmount = orders[i].Size
+				resp := make([]order.Detail, len(orders))
+				for i := range orders {
+					pair, err := pairFromStringHelper(orders[i].InstrumentID)
+					if err != nil {
+						return err
+					}
+					ioc, fok, po := strategyDecoder(orders[i].Force)
+					var baseAmount, quoteAmount float64
+					side := sideDecoder(orders[i].Side)
+					if side == order.Buy {
+						quoteAmount = orders[i].Size
+					}
+					if side == order.Sell {
+						baseAmount = orders[i].Size
+					}
+					orderType := typeDecoder(orders[i].OrderType)
+					if orderType == order.Limit {
+						baseAmount = orders[i].NewSize
+					}
+					resp[i] = order.Detail{
+						Exchange:             bi.Name,
+						AssetType:            asset.Spot,
+						Pair:                 pair,
+						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+						ClientOrderID:        orders[i].ClientOrderID,
+						Price:                orders[i].Price,
+						Amount:               baseAmount,
+						QuoteAmount:          quoteAmount,
+						Type:                 orderType,
+						ImmediateOrCancel:    ioc,
+						FillOrKill:           fok,
+						PostOnly:             po,
+						Side:                 side,
+						Fee:                  orders[i].FillFee,
+						FeeAsset:             currency.NewCode(orders[i].FillFeeCoin),
+						AverageExecutedPrice: orders[i].PriceAverage,
+						Status:               statusDecoder(orders[i].Status),
+						Date:                 orders[i].CreationTime.Time(),
+						LastUpdated:          orders[i].UpdateTime.Time(),
+					}
 				}
-				if side == order.Sell {
-					baseAmount = orders[i].Size
+				bi.Websocket.DataHandler <- resp
+			case asset.Futures:
+				var orders []WsOrderFuturesResponse
+				err := json.Unmarshal(wsResponse.Data, &orders)
+				if err != nil {
+					return err
 				}
-				orderType := typeDecoder(orders[i].OrderType)
-				if orderType == order.Limit {
-					baseAmount = orders[i].NewSize
+				resp := make([]order.Detail, len(orders))
+				for i := range orders {
+					pair, err := pairFromStringHelper(orders[i].InstrumentID)
+					if err != nil {
+						return err
+					}
+					ioc, fok, po := strategyDecoder(orders[i].Force)
+					var baseAmount, quoteAmount float64
+					side := sideDecoder(orders[i].Side)
+					if side == order.Buy {
+						quoteAmount = orders[i].Size
+					}
+					if side == order.Sell {
+						baseAmount = orders[i].Size
+					}
+					orderType := typeDecoder(orders[i].OrderType)
+					if orderType == order.Limit {
+						baseAmount = orders[i].BaseVolume
+					}
+					resp[i] = order.Detail{
+						Exchange:             bi.Name,
+						AssetType:            asset.Futures,
+						Pair:                 pair,
+						Amount:               baseAmount,
+						QuoteAmount:          quoteAmount,
+						Type:                 orderType,
+						ImmediateOrCancel:    ioc,
+						FillOrKill:           fok,
+						PostOnly:             po,
+						Side:                 side,
+						ExecutedAmount:       orders[i].FilledQuantity,
+						Date:                 orders[i].CreationTime.Time(),
+						ClientOrderID:        orders[i].ClientOrderID,
+						Fee:                  orders[i].FillFee,
+						FeeAsset:             currency.NewCode(orders[i].FillFeeCoin),
+						Leverage:             orders[i].Leverage,
+						MarginType:           marginDecoder(orders[i].MarginMode),
+						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+						Price:                orders[i].Price,
+						AverageExecutedPrice: orders[i].PriceAverage,
+						ReduceOnly:           bool(orders[i].ReduceOnly),
+						Status:               statusDecoder(orders[i].Status),
+						LastUpdated:          orders[i].UpdateTime.Time(),
+					}
+				}
+				bi.Websocket.DataHandler <- resp
+			default:
+				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+			}
+		case bitgetOrdersAlgoChannel:
+			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+			switch respAsset {
+			case asset.Spot:
+				var orders []WsTriggerOrderSpotResponse
+				err := json.Unmarshal(wsResponse.Data, &orders)
+				if err != nil {
+					return err
+				}
+				resp := make([]order.Detail, len(orders))
+				for i := range orders {
+					pair, err := pairFromStringHelper(orders[i].InstrumentID)
+					if err != nil {
+						return err
+					}
+					resp[i] = order.Detail{
+						Exchange:      bi.Name,
+						AssetType:     asset.Spot,
+						Pair:          pair,
+						OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
+						ClientOrderID: orders[i].ClientOrderID,
+						TriggerPrice:  orders[i].TriggerPrice,
+						Price:         orders[i].Price,
+						Amount:        orders[i].Size,
+						Type:          typeDecoder(orders[i].OrderType),
+						Side:          sideDecoder(orders[i].Side),
+						Status:        statusDecoder(orders[i].Status),
+						Date:          orders[i].CreationTime.Time(),
+						LastUpdated:   orders[i].UpdateTime.Time(),
+					}
+				}
+				bi.Websocket.DataHandler <- resp
+			case asset.Futures:
+				var orders []WsTriggerOrderFuturesResponse
+				err := json.Unmarshal(wsResponse.Data, &orders)
+				if err != nil {
+					return err
+				}
+				resp := make([]order.Detail, len(orders))
+				for i := range orders {
+					pair, err := pairFromStringHelper(orders[i].InstrumentID)
+					if err != nil {
+						return err
+					}
+					resp[i] = order.Detail{
+						Exchange:      bi.Name,
+						AssetType:     asset.Futures,
+						Pair:          pair,
+						OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
+						ClientOrderID: orders[i].ClientOrderID,
+						TriggerPrice:  orders[i].TriggerPrice,
+						Price:         orders[i].Price,
+						Amount:        orders[i].Size,
+						Type:          typeDecoder(orders[i].OrderType),
+						Side:          sideDecoder(orders[i].Side),
+						Status:        statusDecoder(orders[i].Status),
+						Date:          orders[i].CreationTime.Time(),
+						LastUpdated:   orders[i].UpdateTime.Time(),
+					}
+				}
+				bi.Websocket.DataHandler <- resp
+			default:
+				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+			}
+		case bitgetPositionsChannel:
+			var positions []WsPositionResponse
+			err := json.Unmarshal(wsResponse.Data, &positions)
+			if err != nil {
+				return err
+			}
+			resp := make([]order.Detail, len(positions))
+			for i := range positions {
+				pair, err := pairFromStringHelper(positions[i].InstrumentID)
+				if err != nil {
+					return err
 				}
 				resp[i] = order.Detail{
 					Exchange:             bi.Name,
-					AssetType:            asset.Spot,
+					AssetType:            asset.Futures,
 					Pair:                 pair,
-					OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
-					ClientOrderID:        orders[i].ClientOrderID,
-					Price:                orders[i].Price,
-					Amount:               baseAmount,
-					QuoteAmount:          quoteAmount,
-					Type:                 orderType,
-					ImmediateOrCancel:    ioc,
-					FillOrKill:           fok,
-					PostOnly:             po,
-					Side:                 side,
-					Fee:                  orders[i].FillFee,
-					FeeAsset:             currency.NewCode(orders[i].FillFeeCoin),
-					AverageExecutedPrice: orders[i].PriceAverage,
-					Status:               statusDecoder(orders[i].Status),
-					Date:                 orders[i].CreationTime.Time(),
-					LastUpdated:          orders[i].UpdateTime.Time(),
+					OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
+					MarginType:           marginDecoder(positions[i].MarginMode),
+					Side:                 sideDecoder(positions[i].HoldSide),
+					Amount:               positions[i].Total,
+					AverageExecutedPrice: positions[i].OpenPriceAverage,
+					Leverage:             positions[i].Leverage,
+					Date:                 positions[i].CreationTime.Time(),
+					Fee:                  positions[i].TotalFee,
+					LastUpdated:          positions[i].UpdateTime.Time(),
 				}
 			}
 			bi.Websocket.DataHandler <- resp
-		case bitgetOrdersAlgoChannel:
-			var orders []WsTriggerOrderResponse
-			err := json.Unmarshal(wsResponse.Data, &orders)
+		case bitgetPositionsHistoryChannel:
+			var positions []WsPositionHistoryResponse
+			err := json.Unmarshal(wsResponse.Data, &positions)
 			if err != nil {
 				return err
 			}
-			resp := make([]order.Detail, len(orders))
-			for i := range orders {
-				pair, err := pairFromStringHelper(orders[i].InstrumentID)
+			resp := make([]order.Detail, len(positions))
+			for i := range positions {
+				pair, err := pairFromStringHelper(positions[i].InstrumentID)
 				if err != nil {
 					return err
 				}
 				resp[i] = order.Detail{
-					Exchange:      bi.Name,
-					AssetType:     asset.Spot,
-					Pair:          pair,
-					OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
-					ClientOrderID: orders[i].ClientOrderID,
-					TriggerPrice:  orders[i].TriggerPrice,
-					Price:         orders[i].Price,
-					Amount:        orders[i].Size,
-					Type:          typeDecoder(orders[i].OrderType),
-					Side:          sideDecoder(orders[i].Side),
-					Status:        statusDecoder(orders[i].Status),
-					Date:          orders[i].CreationTime.Time(),
-					LastUpdated:   orders[i].UpdateTime.Time(),
+					Exchange:             bi.Name,
+					AssetType:            asset.Futures,
+					Pair:                 pair,
+					OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
+					MarginType:           marginDecoder(positions[i].MarginMode),
+					Side:                 sideDecoder(positions[i].HoldSide),
+					AverageExecutedPrice: positions[i].OpenPriceAverage,
+					Date:                 positions[i].CreationTime.Time(),
+					LastUpdated:          positions[i].UpdateTime.Time(),
 				}
 			}
 			bi.Websocket.DataHandler <- resp
+		case bitgetIndexPriceChannel:
+			// var indexPrice []WsIndexPriceResponse
+			// err := json.Unmarshal(wsResponse.Data, &indexPrice)
+			// if err != nil {
+			// 	return err
+			// }
 		default:
-			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage +
-				string(respRaw)}
+			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 		}
 	case "update":
 		switch wsResponse.Arg.Channel {
@@ -526,16 +733,13 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				}
 				bi.Websocket.DataHandler <- resp
 			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage +
-					string(respRaw)}
+				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 			}
 		default:
-			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage +
-				string(respRaw)}
+			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 		}
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage +
-			string(respRaw)}
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
@@ -676,9 +880,9 @@ func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
 	}
 	subs = subs[:len(subs):len(subs)]
 	for i := range subs {
-		subs[i].Channel = subscriptionNames[subs[i].Channel]
+		subs[i].Channel = subscriptionNames[subs[i].Asset][subs[i].Channel]
 		switch subs[i].Channel {
-		case bitgetAccount, bitgetFillChannel:
+		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel:
 		default:
 			subs[i].Pairs = enabledPairs
 		}
@@ -722,6 +926,28 @@ func (bi *Bitget) reqBuilder(req *WsRequest, sub *subscription.Subscription) {
 			InstrumentID:   sub.Pairs[i].String(),
 		})
 	}
+	if len(sub.Pairs) == 0 {
+		req.Arguments = append(req.Arguments, WsArgument{
+			Channel:        sub.Channel,
+			InstrumentType: itemEncoder(sub.Asset, currency.Pair{}),
+			Coin:           "default",
+			InstrumentID:   "default",
+		})
+		if sub.Asset == asset.Futures {
+			req.Arguments = append(req.Arguments, WsArgument{
+				Channel:        sub.Channel,
+				InstrumentType: "USDT-FUTURES",
+				Coin:           "default",
+				InstrumentID:   "default",
+			})
+			req.Arguments = append(req.Arguments, WsArgument{
+				Channel:        sub.Channel,
+				InstrumentType: "USDC-FUTURES",
+				Coin:           "default",
+				InstrumentID:   "default",
+			})
+		}
+	}
 }
 
 // websocketMessage sends a websocket message
@@ -732,29 +958,7 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 	authBase := &WsRequest{
 		Operation: op,
 	}
-forloop:
 	for _, s := range subs {
-		switch s.Channel {
-		case bitgetAccount, bitgetFillChannel:
-			authBase.Arguments = append(authBase.Arguments, WsArgument{
-				Channel:        s.Channel,
-				InstrumentType: itemEncoder(s.Asset, currency.Pair{}),
-				Coin:           "default",
-			})
-			if s.Asset == asset.Futures {
-				authBase.Arguments = append(authBase.Arguments, WsArgument{
-					Channel:        s.Channel,
-					InstrumentType: "USDT-FUTURES",
-					Coin:           "default",
-				})
-				authBase.Arguments = append(authBase.Arguments, WsArgument{
-					Channel:        s.Channel,
-					InstrumentType: "USDC-FUTURES",
-					Coin:           "default",
-				})
-			}
-			continue forloop // Could be removed, and this case turned into an if statement, if no other channels have special cases
-		}
 		if s.Authenticated {
 			bi.reqBuilder(authBase, s)
 		} else {
@@ -805,6 +1009,8 @@ func itemEncoder(a asset.Item, pair currency.Pair) string {
 		return "SPOT"
 	case asset.Futures:
 		return getProductType(pair)
+	case asset.Margin, asset.CrossMargin:
+		return "MARGIN"
 	}
 	return ""
 }
@@ -815,7 +1021,7 @@ func (bi *Bitget) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 }
 
 func channelName(s *subscription.Subscription) string {
-	if n, ok := subscriptionNames[s.Channel]; ok {
+	if n, ok := subscriptionNames[s.Asset][s.Channel]; ok {
 		return n
 	}
 	// Replace error with subscription.ErrNotSupported after merge
