@@ -58,7 +58,6 @@ var (
 	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
-	errBatchSizeZero                     = errors.New("batch size cannot be 0")
 )
 
 // SetRequester sets the instance of the requester
@@ -172,12 +171,7 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
 	}
-	b.Features.Subscriptions = subscription.List{}
-	for _, s := range b.Config.Features.Subscriptions {
-		if s.Enabled {
-			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
-		}
-	}
+	b.Features.Subscriptions = b.Config.Features.Subscriptions.Enabled()
 	if b.Verbose {
 		names := make([]string, 0, len(b.Features.Subscriptions))
 		for _, s := range b.Features.Subscriptions {
@@ -1816,9 +1810,6 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
-	if batchSize == 0 {
-		return errBatchSizeZero
-	}
 
 	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)
