@@ -1180,7 +1180,8 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 		return "", currency.ErrCurrencyPairEmpty
 	}
 
-	// This is required as the case as any uppercase characters will cause the currency pair to be all uppercase
+	// Convert input to lowercase to ensure consistent formatting.
+	// Any uppercase characters in the input would result in the entire currency pair being uppercase.
 	in = in.Lower()
 
 	var checkString [2]byte
