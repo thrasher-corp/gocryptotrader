@@ -23,8 +23,7 @@ func NewBTCUSD() Pair {
 	return NewPair(BTC, USD)
 }
 
-// NewPairDelimiter splits the desired currency string at delimiter, the returns
-// a Pair struct
+// NewPairDelimiter splits the desired currency string at delimiter, then returns a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
 	if currencyPair == "" {
 		return EMPTYPAIR, errEmptyPairString

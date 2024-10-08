@@ -211,7 +211,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	}
 	if resp.ID != "" {
 		if !ku.Websocket.Match.IncomingWithData("msgID:"+resp.ID, respData) {
-			return fmt.Errorf("message listener not found: %s", resp.ID)
+			return fmt.Errorf("%w: %s", stream.ErrNoMessageListener, resp.ID)
 		}
 		return nil
 	}
