@@ -186,17 +186,11 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 		return EMPTYCODE
 	}
 
-	var format bool
-	for x := range c {
-		if unicode.IsLetter(rune(c[x])) {
-			// Digits fool upper and lower casing. So find first letter and check case.
-			format = unicode.IsUpper(rune(c[x]))
-			break
-		}
-	}
+	format := strings.ContainsFunc(c, func(r rune) bool { return unicode.IsLetter(r) && unicode.IsUpper(r) })
 
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
+	lower := strings.ToLower(c)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -218,20 +212,13 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 				}
 				stored[x].Role = newRole
 			}
-			if !stored[x].CaseSensitive {
-				format = true
-			}
-			return Code{Item: stored[x], upperCase: format}
+			return Code{Item: stored[x], upperCase: format || c == lower}
 		}
 	}
 
-	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: newRole}
-	newItem.CaseSensitive = newItem.Symbol != newItem.Lower
-	if !newItem.CaseSensitive {
-		format = true
-	}
+	newItem := &Item{Symbol: c, Lower: lower, Role: newRole}
 	b.Items[c] = append(b.Items[c], newItem)
-	return Code{Item: newItem, upperCase: format}
+	return Code{Item: newItem, upperCase: format || c == lower}
 }
 
 // LoadItem sets item data
@@ -282,24 +269,26 @@ func (c Code) String() string {
 	if c.Item == nil {
 		return ""
 	}
-	if !c.Item.CaseSensitive || c.upperCase {
+	if c.upperCase {
 		return c.Item.Symbol
 	}
 	return c.Item.Lower
 }
 
-// Lower converts the code to lowercase formatting
+// Lower flags the Code to use LowerCase formatting, but does not change Symbol
+// If Code cannot be lowercased then it will return Code unchanged
 func (c Code) Lower() Code {
-	if c.Item != nil && !c.Item.CaseSensitive {
+	if c.Item == nil || c.Item.Symbol == c.Item.Lower {
 		return c
 	}
 	c.upperCase = false
 	return c
 }
 
-// Upper converts the code to uppercase formatting
+// Upper flags the Code to use UpperCase formatting, but does not change Symbol
+// If Code cannot be uppercased then it will return Code unchanged
 func (c Code) Upper() Code {
-	if c.Item != nil && !c.Item.CaseSensitive {
+	if c.Item == nil || c.Item.Symbol == c.Item.Lower {
 		return c
 	}
 	c.upperCase = true

@@ -715,35 +715,40 @@ func TestValidateAndConform(t *testing.T) {
 
 func TestPairs_GetFormatting(t *testing.T) {
 	t.Parallel()
-	p := Pairs{NewPair(BTC, USDT)}
-	pFmt, err := p.GetFormatting()
-	if err != nil {
-		t.Error(err)
-	}
-	if !pFmt.Uppercase || pFmt.Delimiter != "" {
-		t.Error("incorrect formatting")
-	}
+	pFmt, err := Pairs{NewPair(BTC, USDT)}.GetFormatting()
+	require.NoError(t, err)
+	assert.True(t, pFmt.Uppercase)
+	assert.Empty(t, pFmt.Delimiter)
 
-	p = Pairs{NewPairWithDelimiter("eth", "usdt", "/")}
-	pFmt, err = p.GetFormatting()
-	if err != nil {
-		t.Error(err)
-	}
-	if pFmt.Uppercase || pFmt.Delimiter != "/" {
-		t.Error("incorrect formatting")
-	}
+	pFmt, err = Pairs{NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	require.NoError(t, err)
+	assert.False(t, pFmt.Uppercase)
+	assert.Equal(t, "/", pFmt.Delimiter)
 
-	p = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}
-	_, err = p.GetFormatting()
-	if !errors.Is(err, errPairFormattingInconsistent) {
-		t.Error(err)
-	}
+	_, err = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
 
-	p = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}
-	_, err = p.GetFormatting()
-	if !errors.Is(err, errPairFormattingInconsistent) {
-		t.Error(err)
-	}
+	_, err = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}.GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
+
+	_, err = Pairs{NewPairWithDelimiter("eth", "usdt", "/"), NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	require.NoError(t, err)
+
+	_, err = Pairs{NewPairWithDelimiter("eth", "usdt", "/"), NewPairWithDelimiter("eth", "usdt", "|")}.GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
+
+	_, err = Pairs{NewPairWithDelimiter("eth", "420", "/"), NewPairWithDelimiter("eth", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("ETH", "420", "/"), NewPairWithDelimiter("ETH", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "ETH", "/"), NewPairWithDelimiter("420", "ETH", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "eth", "/"), NewPairWithDelimiter("420", "eth", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "eth", "/"), NewPairWithDelimiter("eth", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "ETH", "/"), NewPairWithDelimiter("ETH", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
 }
 
 func TestGetPairsByQuote(t *testing.T) {

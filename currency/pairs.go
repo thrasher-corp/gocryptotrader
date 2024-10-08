@@ -293,12 +293,6 @@ func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
 	return false
 }
 
-func (p Pair) hasFormatDifference(pairFmt PairFormat) bool {
-	return p.Delimiter != pairFmt.Delimiter ||
-		(!p.Base.IsEmpty() && p.Base.Item.CaseSensitive && p.Base.upperCase != pairFmt.Uppercase) ||
-		(!p.Quote.IsEmpty() && p.Quote.Item.CaseSensitive && p.Quote.upperCase != pairFmt.Uppercase)
-}
-
 // GetRandomPair returns a random pair from a list of pairs
 func (p Pairs) GetRandomPair() (Pair, error) {
 	if len(p) == 0 {

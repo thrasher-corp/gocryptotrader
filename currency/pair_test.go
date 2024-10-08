@@ -349,66 +349,29 @@ func TestNewPairWithDelimiter(t *testing.T) {
 func TestNewPairDelimiter(t *testing.T) {
 	t.Parallel()
 	_, err := NewPairDelimiter("", "")
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	require.ErrorIs(t, err, errEmptyPairString)
+
+	_, err = NewPairDelimiter("BTC_USD", "")
+	require.ErrorIs(t, err, errDelimiterCannotBeEmpty)
+
 	_, err = NewPairDelimiter("BTC_USD", "wow")
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	require.ErrorIs(t, err, errDelimiterNotFound)
 
 	_, err = NewPairDelimiter("BTC_USD", " ")
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	require.ErrorIs(t, err, errDelimiterNotFound)
 
 	pair, err := NewPairDelimiter(defaultPairWDelimiter, "-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	actual := pair.String()
-	expected := defaultPairWDelimiter
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
-
-	actual = pair.Delimiter
-	expected = "-"
-	if actual != expected {
-		t.Errorf(
-			"Delmiter: %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, defaultPairWDelimiter, pair.String())
+	assert.Equal(t, "-", pair.Delimiter)
 
 	pair, err = NewPairDelimiter("BTC-MOVE-0626", "-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	actual = pair.String()
-	expected = "BTC-MOVE-0626"
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "BTC-MOVE-0626", pair.String())
 
-	pair, err = NewPairDelimiter("fBTC-USDT", "-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	actual = pair.String()
-	expected = "fbtc-USDT"
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
+	pair, err = NewPairDelimiter("sETH-USDT", "-")
+	require.NoError(t, err)
+	assert.Equal(t, "SETH-USDT", pair.String(), "If any upper case is found in set this forces the pair to be uppercase")
 }
 
 func TestNewPairFromString(t *testing.T) {
@@ -904,34 +867,38 @@ func TestIsAssociated(t *testing.T) {
 
 func TestPair_GetFormatting(t *testing.T) {
 	t.Parallel()
-	p := NewPair(BTC, USDT)
-	pFmt, err := p.GetFormatting()
-	if err != nil {
-		t.Error(err)
-	}
-	if !pFmt.Uppercase || pFmt.Delimiter != "" {
-		t.Error("incorrect formatting")
-	}
+	pFmt, err := NewPair(BTC, USDT).GetFormatting()
+	require.NoError(t, err)
+	assert.True(t, pFmt.Uppercase)
+	assert.Empty(t, pFmt.Delimiter)
 
-	p = NewPairWithDelimiter("eth", "usdt", "/")
-	pFmt, err = p.GetFormatting()
-	if err != nil {
-		t.Error(err)
-	}
-	if pFmt.Uppercase || pFmt.Delimiter != "/" {
-		t.Error("incorrect formatting")
-	}
+	pFmt, err = NewPairWithDelimiter("eth", "usdt", "/").GetFormatting()
+	require.NoError(t, err)
+	assert.False(t, pFmt.Uppercase)
+	assert.Equal(t, "/", pFmt.Delimiter)
 
-	p = NewPairWithDelimiter("eth", "USDT", "/")
-	_, err = p.GetFormatting()
-	if !errors.Is(err, errPairFormattingInconsistent) {
-		t.Error(err)
-	}
+	_, err = NewPairWithDelimiter("eth", "USDT", "/").GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
 
-	p = EMPTYPAIR
-	pFmt, err = p.GetFormatting()
+	pFmt, err = EMPTYPAIR.GetFormatting()
 	require.NoError(t, err)
 	assert.Equal(t, EMPTYFORMAT, pFmt)
+
+	pFmt, err = NewPairWithDelimiter("eth", "420", "/").GetFormatting()
+	require.NoError(t, err)
+	assert.False(t, pFmt.Uppercase)
+
+	pFmt, err = NewPairWithDelimiter("ETH", "420", "/").GetFormatting()
+	require.NoError(t, err)
+	assert.True(t, pFmt.Uppercase)
+
+	pFmt, err = NewPairWithDelimiter("420", "eth", "/").GetFormatting()
+	require.NoError(t, err)
+	assert.False(t, pFmt.Uppercase)
+
+	pFmt, err = NewPairWithDelimiter("420", "ETH", "/").GetFormatting()
+	require.NoError(t, err)
+	assert.True(t, pFmt.Uppercase)
 }
 
 func TestNewBTCUSD(t *testing.T) {

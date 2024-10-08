@@ -55,8 +55,6 @@ type Item struct {
 	Lower      string `json:"-"`
 	Role       Role   `json:"role"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
-
-	CaseSensitive bool `json:"-"`
 }
 
 // Lock implements the sync.Locker interface and forces a govet check nocopy
