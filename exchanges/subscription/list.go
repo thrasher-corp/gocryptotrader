@@ -113,3 +113,14 @@ func (l List) assetPairs(e iExchange) (assetPairs, error) {
 	}
 	return ap, nil
 }
+
+// Enabled returns a new list of only enabled subscriptions
+func (l List) Enabled() List {
+	n := make(List, 0, len(l))
+	for _, s := range l {
+		if s.Enabled {
+			n = append(n, s)
+		}
+	}
+	return slices.Clip(n)
+}

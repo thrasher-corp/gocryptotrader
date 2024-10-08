@@ -87,18 +87,15 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	exch.SetDefaults()
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.Credentials = getExchangeCredentials(name)
-
 	err = exch.Setup(exchCfg)
 	if err != nil {
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
-
 	err = exch.UpdateTradablePairs(ctx, true)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
 	}
 	b := exch.GetBase()
-
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	if len(assets) == 0 {
 		t.Fatalf("Cannot setup %v, exchange has no assets", name)
@@ -109,7 +106,6 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 			t.Fatalf("Cannot setup %v SetAssetEnabled %v", name, err)
 		}
 	}
-
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
 	assetPairs := make([]assetPair, 0, len(assets)+1)
 assets:
@@ -151,7 +147,6 @@ assets:
 		})
 	}
 	assetPairs = append(assetPairs, assetPair{})
-
 	return exch, assetPairs
 }
 
@@ -182,7 +177,6 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			continue
 		}
 		method := actualExchange.MethodByName(methodName)
-
 		var assetLen int
 		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
@@ -382,6 +376,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Description:   "1337",
 			Amount:        1,
 			ClientOrderID: "1337",
+			WalletID:      "7331",
 		}
 		if argGenerator.MethodName == "WithdrawCryptocurrencyFunds" {
 			req.Type = withdraw.Crypto
