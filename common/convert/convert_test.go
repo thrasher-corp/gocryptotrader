@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFloatFromString(t *testing.T) {
@@ -97,18 +98,17 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 }
 
 func TestTimeFromUnixTimestampDecimal(t *testing.T) {
-	r := TimeFromUnixTimestampDecimal(1590633982.5714)
-	if r.Year() != 2020 ||
-		r.Month().String() != "May" ||
-		r.Day() != 28 {
-		t.Error("unexpected result")
-	}
-
-	r = TimeFromUnixTimestampDecimal(1560516023.070651)
-	if r.Year() != 2019 ||
-		r.Month().String() != "June" ||
-		r.Day() != 14 {
-		t.Error("unexpected result")
+	for in, exp := range map[float64]time.Time{
+		1590633982.5714:   time.Date(2020, 5, 28, 2, 46, 22, 571400000, time.UTC),
+		1560516023.070651: time.Date(2019, 6, 14, 12, 40, 23, 70651000, time.UTC),
+		// Examples from Kraken
+		1373750306.9819:   time.Date(2013, 7, 13, 21, 18, 26, 981900000, time.UTC),
+		1534614098.345543: time.Date(2018, 8, 18, 17, 41, 38, 345543000, time.UTC),
+	} {
+		got := TimeFromUnixTimestampDecimal(in)
+		z, _ := got.Zone()
+		assert.Equal(t, "UTC", z, "TimeFromUnixTimestampDecimal should return a UTC time")
+		assert.WithinRangef(t, got, exp.Add(-time.Microsecond), exp.Add(time.Microsecond), "TimeFromUnixTimestampDecimal(%f) should parse a unix timestamp correctly", in)
 	}
 }
 

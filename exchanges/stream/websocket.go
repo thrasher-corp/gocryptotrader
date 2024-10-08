@@ -1065,7 +1065,10 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 	}
 
 	for _, s := range subs {
-		if found := subscriptionStore.Get(s); found != nil {
+		if s.State() == subscription.ResubscribingState {
+			continue
+		}
+		if found := w.subscriptions.Get(s); found != nil {
 			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
 		}
 	}
