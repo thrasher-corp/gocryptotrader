@@ -4335,3 +4335,23 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err := ku.CancelBatchOrders(context.Background(), nil)
 	assert.ErrorIs(t, common.ErrFunctionNotSupported, err)
 }
+
+func TestChannelName(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		a   asset.Item
+		ch  string
+		exp string
+	}{
+		{asset.Futures, futuresOrderbookDepth50Channel, futuresOrderbookDepth50Channel},
+		{asset.Futures, subscription.OrderbookChannel, futuresOrderbookDepth5Channel},
+		{asset.Futures, subscription.CandlesChannel, marketCandlesChannel},
+		{asset.Futures, subscription.TickerChannel, futuresTickerChannel},
+		{asset.Spot, subscription.OrderbookChannel, marketOrderbookDepth5Channel},
+		{asset.Spot, subscription.AllTradesChannel, marketMatchChannel},
+		{asset.Spot, subscription.CandlesChannel, marketCandlesChannel},
+		{asset.Spot, subscription.TickerChannel, marketTickerChannel},
+	} {
+		assert.Equal(t, tt.exp, channelName(&subscription.Subscription{Channel: tt.ch}, tt.a))
+	}
+}
