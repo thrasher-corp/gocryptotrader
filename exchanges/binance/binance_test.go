@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -44,8 +43,6 @@ const (
 
 var (
 	b = &Binance{}
-	// this lock guards against orderbook tests race
-	binanceOrderBookLock = &sync.Mutex{}
 	// this pair is used to ensure that endpoints match it correctly
 	testPairMapping = currency.NewPair(currency.DOGE, currency.USDT)
 )
@@ -1985,10 +1982,11 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
-		mock := func(msg []byte, w *websocket.Conn) error {
+		mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+			tb.Helper()
 			var req WsPayload
-			require.NoError(t, json.Unmarshal(msg, &req), "Unmarshal should not error")
-			require.ElementsMatch(t, req.Params, exp, "Params should have correct channels")
+			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
+			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
 		}
 		b = testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock))
@@ -2006,10 +2004,11 @@ func TestSubscribeBadResp(t *testing.T) {
 	channels := subscription.List{
 		{Channel: "moons@ticker"},
 	}
-	mock := func(msg []byte, w *websocket.Conn) error {
+	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+		tb.Helper()
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
-		require.NoError(t, err, "Unmarshal should not error")
+		require.NoError(tb, err, "Unmarshal should not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
 	}
 	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
@@ -2031,11 +2030,11 @@ func TestWsKlineUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
 	  "e": "kline",
-	  "E": 123456789,   
+	  "E": 1234567891,   
 	  "s": "BTCUSDT",    
 	  "k": {
-		"t": 123400000, 
-		"T": 123460000, 
+		"t": 1234000001, 
+		"T": 1234600001, 
 		"s": "BTCUSDT",  
 		"i": "1m",      
 		"f": 100,       
@@ -2064,14 +2063,14 @@ func TestWsTradeUpdate(t *testing.T) {
 	b.SetSaveTradeDataStatus(true)
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
 	  "e": "trade",     
-	  "E": 123456789,   
+	  "E": 1234567891,   
 	  "s": "BTCUSDT",    
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       
 	  "b": 88,          
 	  "a": 50,          
-	  "T": 123456785,   
+	  "T": 1234567851,   
 	  "m": true,        
 	  "M": true         
 	}}`)
@@ -2082,8 +2081,9 @@ func TestWsTradeUpdate(t *testing.T) {
 }
 
 func TestWsDepthUpdate(t *testing.T) {
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
+	t.Parallel()
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	b.setupOrderbookManager()
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
@@ -2116,7 +2116,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	update1 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
-	  "E": 123456788,     
+	  "E": 1234567881,     
 	  "s": "BTCUSDT",      
 	  "U": 157,           
 	  "u": 160,           
@@ -2134,7 +2134,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	}
 
 	if err := b.wsHandleData(update1); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	b.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
@@ -2156,7 +2156,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	update2 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
-	  "E": 123456789,     
+	  "E": 1234567892,     
 	  "s": "BTCUSDT",      
 	  "U": 161,           
 	  "u": 165,           
@@ -2470,8 +2470,9 @@ var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["1945
 
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	b.setupOrderbookManager()
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
@@ -2562,7 +2563,9 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 }
 
 func TestWsOrderExecutionReport(t *testing.T) {
-	// cannot run in parallel due to inspecting the DataHandler result
+	t.Parallel()
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1616627567900}}`)
 	// this is a buy BTC order, normally commission is charged in BTC, vice versa.
 	expectedResult := order.Detail{

@@ -94,7 +94,7 @@ type PerpetualDetails struct {
 	FundingRate   types.Number `json:"funding_rate"`
 	FundingTime   time.Time    `json:"funding_time"`
 	MaxLeverage   types.Number `json:"max_leverage"`
-	BaseAssetUUID uuid.UUID    `json:"base_asset_uuid"`
+	BaseAssetUUID string       `json:"base_asset_uuid"`
 }
 
 // FutureProductDetails is a sub-struct used in the type Product

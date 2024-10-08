@@ -1488,7 +1488,6 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
-	c.Verbose = true
 	t.Parallel()
 	p := currency.Pairs{testPair}
 	for _, a := range c.GetAssetTypes(true) {
