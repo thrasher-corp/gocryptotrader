@@ -646,8 +646,15 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
-	timeInForce := ""
-	if s.ImmediateOrCancel {
+	var timeInForce string
+	switch s.TimeInForce {
+	case order.GTC:
+		timeInForce = "good_til_cancelled"
+	case order.GTD:
+		timeInForce = strings.ToLower(order.GTD.String())
+	case order.FOK:
+		timeInForce = "fill_or_kill"
+	case order.IOC:
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData

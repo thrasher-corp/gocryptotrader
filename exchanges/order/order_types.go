@@ -44,9 +44,8 @@ type Submit struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	// Time in force values ------ TODO: Time In Force uint8
-	ImmediateOrCancel bool
-	FillOrKill        bool
+	// TimeInForce holds time in force values
+	TimeInForce TimeInForce
 
 	PostOnly bool
 	// ReduceOnly reduces a position instead of opening an opposing
@@ -102,18 +101,19 @@ type SubmitResponse struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	ImmediateOrCancel    bool
-	FillOrKill           bool
+	TimeInForce          TimeInForce
 	PostOnly             bool
 	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
-	AverageExecutedPrice float64
 	Amount               float64
 	QuoteAmount          float64
 	TriggerPrice         float64
 	ClientID             string
 	ClientOrderID        string
+	ImmediateOrCancel    bool
+	FillOrKill           bool
+	AverageExecutedPrice float64
 
 	LastUpdated time.Time
 	Date        time.Time
@@ -144,11 +144,11 @@ type Modify struct {
 	Pair          currency.Pair
 
 	// Change fields
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	PostOnly     bool
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
 	// https://bybit-exchange.github.io/docs/v5/order/create-order
@@ -170,11 +170,11 @@ type ModifyResponse struct {
 	AssetType     asset.Item
 
 	// Fields that will be copied over from Modify
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	PostOnly     bool
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
@@ -187,9 +187,8 @@ type ModifyResponse struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Detail struct {
-	ImmediateOrCancel    bool
 	HiddenOrder          bool
-	FillOrKill           bool
+	TimeInForce          TimeInForce
 	PostOnly             bool
 	ReduceOnly           bool
 	Leverage             float64
@@ -387,6 +386,22 @@ const (
 	CouldNotCloseShort
 	CouldNotCloseLong
 	MissingData
+)
+
+// TimeInForce enforces a standard for time-in-force values across the code base.
+type TimeInForce uint8
+
+// TimeInForce types
+const (
+	UnknownTIF  TimeInForce = 0
+	GTC         TimeInForce = iota // GTC represents GoodTillCancel
+	GTD                            // GTD represents GoodTillDay
+	GTT                            // GTT represents GoodTillTime
+	FOK                            // FOK represents FillOrKill
+	IOC                            // IOC represents ImmediateOrCancel
+	PostOnlyGTC                    // PostOnlyGCT represents PostOnlyGoodTilCancelled
+
+	supportedTimeInForceFlag = UnknownTIF | GTC | GTT | FOK | IOC | PostOnlyGTC
 )
 
 // ByPrice used for sorting orders by price
