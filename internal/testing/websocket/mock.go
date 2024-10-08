@@ -42,7 +42,7 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 }
 
 // EchoHandler is a simple echo function after a read, this doesn't need to worry if writing to the connection fails
-func EchoHandler(tb testing.TB, p []byte, c *websocket.Conn) error {
+func EchoHandler(_ testing.TB, p []byte, c *websocket.Conn) error {
 	time.Sleep(time.Nanosecond) // Shift clock to simulate time passing
 	_ = c.WriteMessage(websocket.TextMessage, p)
 	return nil
