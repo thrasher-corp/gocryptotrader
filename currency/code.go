@@ -186,11 +186,10 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 		return EMPTYCODE
 	}
 
-	format := strings.ContainsFunc(c, func(r rune) bool { return unicode.IsLetter(r) && unicode.IsUpper(r) })
+	isUpperCase := strings.ContainsFunc(c, func(r rune) bool { return unicode.IsLetter(r) && unicode.IsUpper(r) })
 
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
-	lower := strings.ToLower(c)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -212,13 +211,13 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 				}
 				stored[x].Role = newRole
 			}
-			return Code{Item: stored[x], upperCase: format || c == lower}
+			return Code{Item: stored[x], upperCase: isUpperCase}
 		}
 	}
 
-	newItem := &Item{Symbol: c, Lower: lower, Role: newRole}
+	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: newRole}
 	b.Items[c] = append(b.Items[c], newItem)
-	return Code{Item: newItem, upperCase: format || c == lower}
+	return Code{Item: newItem, upperCase: isUpperCase}
 }
 
 // LoadItem sets item data
@@ -278,7 +277,7 @@ func (c Code) String() string {
 // Lower flags the Code to use LowerCase formatting, but does not change Symbol
 // If Code cannot be lowercased then it will return Code unchanged
 func (c Code) Lower() Code {
-	if c.Item == nil || c.Item.Symbol == c.Item.Lower {
+	if c.Item == nil {
 		return c
 	}
 	c.upperCase = false
@@ -288,7 +287,7 @@ func (c Code) Lower() Code {
 // Upper flags the Code to use UpperCase formatting, but does not change Symbol
 // If Code cannot be uppercased then it will return Code unchanged
 func (c Code) Upper() Code {
-	if c.Item == nil || c.Item.Symbol == c.Item.Lower {
+	if c.Item == nil {
 		return c
 	}
 	c.upperCase = true

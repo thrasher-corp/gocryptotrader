@@ -462,9 +462,9 @@ func TestNewCodeFormatting(t *testing.T) {
 	require.True(t, NewCode("BTC").upperCase)
 	require.False(t, NewCode("btc").upperCase)
 	require.True(t, NewCode("BTC").Equal(NewCode("btc")))
-	require.True(t, NewCode("420").upperCase)
+	require.False(t, NewCode("420").upperCase)
 	require.False(t, NewCode("btc420").upperCase)
-	require.True(t, NewCode("420").Lower().upperCase)
+	require.False(t, NewCode("420").Lower().upperCase)
 }
 
 func TestCodeString(t *testing.T) {
