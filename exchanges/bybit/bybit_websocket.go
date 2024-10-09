@@ -86,7 +86,7 @@ func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn strea
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, crypto.HexEncodeToString(hmac)},
 	}
-	resp, err := conn.SendMessageReturnResponse(request.WithVerbose(ctx), request.Unset, req.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,6 @@ func (by *Bybit) handleSubscriptions(conn stream.Connection, assetType asset.Ite
 	}
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
-			fmt.Println(channelsToSubscribe)
 			return nil, subscription.ErrNotSinglePair
 		}
 		pair := channelsToSubscribe[i].Pairs[0]
@@ -196,19 +195,16 @@ func (by *Bybit) handleSubscription(ctx context.Context, conn stream.Connection,
 			continue
 		}
 		var response []byte
-		response, err = conn.SendMessageReturnResponse(request.WithVerbose(ctx), request.Unset, payload.RequestID, payload)
+		response, err = conn.SendMessageReturnResponse(ctx, request.Unset, payload.RequestID, payload)
 		if err != nil {
-			fmt.Printf("error submit: %+v\n", payload)
 			return err
 		}
 		var resp SubscriptionResponse
 		err = json.Unmarshal(response, &resp)
 		if err != nil {
-			fmt.Printf("sub resp %+v\n", payload)
 			return err
 		}
 		if !resp.Success {
-			fmt.Printf("resp not success: %+v\n", payload)
 			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
 		}
 	}
