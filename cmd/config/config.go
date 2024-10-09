@@ -1,80 +1,96 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-// EncryptOrDecrypt returns a string from a boolean
-func EncryptOrDecrypt(encrypt bool) string {
-	if encrypt {
-		return "encrypted"
-	}
-	return "decrypted"
-}
-
 func main() {
 	var inFile, outFile, key string
-	var encrypt bool
+	var encrypt, decrypt, upgrade bool
 	defaultCfgFile := config.DefaultFilePath()
 	flag.StringVar(&inFile, "infile", defaultCfgFile, "The config input file to process.")
-	flag.StringVar(&outFile, "outfile", defaultCfgFile+".out", "The config output file.")
-	flag.BoolVar(&encrypt, "encrypt", true, "Whether to encrypt or decrypt.")
+	flag.StringVar(&outFile, "outfile", "", "The config output file.")
+	flag.BoolVar(&encrypt, "encrypt", false, "Encrypt the config file")
+	flag.BoolVar(&decrypt, "decrypt", false, "Decrypt the config file")
+	flag.BoolVar(&upgrade, "upgrade", false, "Upgrade the config file")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
 
-	log.Println("GoCryptoTrader: config-helper tool.")
+	if outFile == "" {
+		outFile = inFile + ".out"
+	}
+
+	fmt.Println("GoCryptoTrader: config-helper tool.")
+
+	if !(encrypt || decrypt || upgrade) {
+		fatal("Must provide one of -encrypt, -decrypt or -upgrade")
+	}
+
+	if upgrade {
+		doUpgrade(inFile, outFile)
+		return
+	}
 
 	if key == "" {
 		result, err := config.PromptForConfigKey(false)
 		if err != nil {
-			log.Fatalf("Unable to obtain encryption/decryption key: %s", err)
+			fatal("Unable to obtain encryption/decryption key: " + err.Error())
 		}
 		key = string(result)
 	}
 
 	fileData, err := os.ReadFile(inFile)
 	if err != nil {
-		log.Fatalf("Unable to read input file %s. Error: %s.", inFile, err)
+		fatal("Unable to read input file " + inFile + "; Error: " + err.Error())
 	}
 
 	switch {
-	case encrypt && config.IsEncrypted(fileData):
-		log.Println("File is already encrypted. Decrypting..")
-		encrypt = false
-	case !encrypt && !config.IsEncrypted(fileData):
-		var result interface{}
-		if err = json.Unmarshal(fileData, &result); err != nil {
-			log.Fatal(err)
+	case encrypt:
+		if config.IsEncrypted(fileData) {
+			fatal("File is already encrypted")
 		}
-		log.Println("File is already decrypted. Encrypting..")
-		encrypt = true
+		if fileData, err = config.EncryptConfigFile(fileData, []byte(key)); err != nil {
+			fatal("Unable to encrypt config data. Error: " + err.Error())
+		}
+		fmt.Println("Encrypted config file")
+	case decrypt:
+		if !config.IsEncrypted(fileData) {
+			fatal("File is already decrypted")
+		}
+		if fileData, err = config.DecryptConfigFile(fileData, []byte(key)); err != nil {
+			fatal("Unable to decrypt config data. Error: " + err.Error())
+		}
+		fmt.Println("Decrypted config file")
 	}
 
-	var data []byte
-	if encrypt {
-		data, err = config.EncryptConfigFile(fileData, []byte(key))
-		if err != nil {
-			log.Fatalf("Unable to encrypt config data. Error: %s.", err)
-		}
-	} else {
-		data, err = config.DecryptConfigFile(fileData, []byte(key))
-		if err != nil {
-			log.Fatalf("Unable to decrypt config data. Error: %s.", err)
-		}
+	if err = file.Write(outFile, fileData); err != nil {
+		fatal("Unable to write output file " + outFile + "; Error: " + err.Error())
 	}
 
-	err = file.Write(outFile, data)
+	fmt.Println("Success! File written to " + outFile)
+}
+
+func doUpgrade(in, out string) {
+	if config.IsFileEncrypted(in) {
+		fatal("Cannot upgrade an encrypted file. Please decrypt first")
+	}
+	c := &config.Config{}
+	err := c.ReadConfigFromFile(in, true)
+	if err == nil {
+		err = c.SaveConfigToFile(out)
+	}
 	if err != nil {
-		log.Fatalf("Unable to write output file %s. Error: %s", outFile, err)
+		fatal(err.Error())
 	}
-	log.Printf(
-		"Successfully %s input file %s and wrote output to %s.\n",
-		EncryptOrDecrypt(encrypt), inFile, outFile,
-	)
+	fmt.Println("Success! File written to ", out)
+}
+
+func fatal(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
 }
