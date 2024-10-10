@@ -27,10 +27,10 @@ import (
 // Bybit is the overarching type across this package
 type Bybit struct {
 	exchange.Base
-
 	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
 	// 0: unified, and 1: for normal account
 	AccountType uint8
+	Counter     common.Counter
 }
 
 const (
