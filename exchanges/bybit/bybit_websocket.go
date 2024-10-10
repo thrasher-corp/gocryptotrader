@@ -74,6 +74,7 @@ var subscriptionNames = map[string]string{
 	subscription.MyOrdersChannel:  chanOrder,
 	subscription.MyTradesChannel:  chanExecution,
 	subscription.MyWalletChannel:  chanWallet,
+	subscription.CandlesChannel:   chanKline,
 }
 
 // WsConnect connects to a websocket feed
