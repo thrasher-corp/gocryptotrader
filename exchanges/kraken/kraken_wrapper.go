@@ -168,6 +168,7 @@ func (k *Kraken) SetDefaults() {
 				GlobalResultLimit: 720,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	k.Requester, err = request.New(k.Name,
@@ -178,10 +179,11 @@ func (k *Kraken) SetDefaults() {
 	}
 	k.API.Endpoints = k.NewEndpoints()
 	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                 krakenAPIURL,
-		exchange.RestFutures:              krakenFuturesURL,
-		exchange.WebsocketSpot:            krakenWSURL,
-		exchange.RestFuturesSupplementary: krakenFuturesSupplementaryURL,
+		exchange.RestSpot:                   krakenAPIURL,
+		exchange.RestFutures:                krakenFuturesURL,
+		exchange.WebsocketSpot:              krakenWSURL,
+		exchange.WebsocketSpotSupplementary: krakenAuthWSURL,
+		exchange.RestFuturesSupplementary:   krakenFuturesSupplementaryURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -207,11 +209,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = k.SeedAssets(context.TODO())
-	if err != nil {
-		return err
-	}
-
 	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -223,7 +220,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		Connector:             k.WsConnect,
 		Subscriber:            k.Subscribe,
 		Unsubscriber:          k.Unsubscribe,
-		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: k.generateSubscriptions,
 		Features:              &k.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
@@ -235,25 +232,45 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenWSURL,
 	})
 	if err != nil {
 		return err
 	}
 
+	wsRunningAuthURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
 	return k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenAuthWSURL,
 		Authenticated:        true,
+		URL:                  wsRunningAuthURL,
 	})
+}
+
+// Bootstrap provides initialisation for an exchange
+func (k *Kraken) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+	continueBootstrap = true
+
+	if err = k.SeedAssets(context.TODO()); err != nil {
+		err = fmt.Errorf("failed to Seed Assets: %w", err)
+	}
+
+	return
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
+	}
+
+	if !assetTranslator.Seeded() {
+		if err := k.SeedAssets(ctx); err != nil {
+			return err
+		}
 	}
 
 	pairInfo, err := k.fetchSpotPairInfo(ctx)
@@ -547,6 +564,11 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var info account.Holdings
 	var balances []account.Balance
 	info.Exchange = k.Name
+	if !assetTranslator.Seeded() {
+		if err := k.SeedAssets(ctx); err != nil {
+			return info, err
+		}
+	}
 	switch assetType {
 	case asset.Spot:
 		bal, err := k.GetBalance(ctx)
@@ -798,8 +820,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (k *Kraken) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }

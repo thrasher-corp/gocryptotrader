@@ -13,7 +13,7 @@ import (
 var upgrader = websocket.Upgrader{CheckOrigin: func(_ *http.Request) bool { return true }}
 
 // WsMockFunc is a websocket handler to be called with each websocket message
-type WsMockFunc func([]byte, *websocket.Conn) error
+type WsMockFunc func(testing.TB, []byte, *websocket.Conn) error
 
 // CurryWsMockUpgrader curries a WsMockUpgrader with a testing.TB and a mock func
 // bridging the gap between information known before the Server is created and during a request
@@ -36,13 +36,13 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 			// Any error here is likely due to the connection closing
 			return
 		}
-		err = wsHandler(p, c)
+		err = wsHandler(tb, p, c)
 		assert.NoError(tb, err, "WS Mock Function should not error")
 	}
 }
 
 // EchoHandler is a simple echo function after a read, this doesn't need to worry if writing to the connection fails
-func EchoHandler(p []byte, c *websocket.Conn) error {
+func EchoHandler(_ testing.TB, p []byte, c *websocket.Conn) error {
 	time.Sleep(time.Nanosecond) // Shift clock to simulate time passing
 	_ = c.WriteMessage(websocket.TextMessage, p)
 	return nil

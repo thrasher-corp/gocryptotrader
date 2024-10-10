@@ -58,11 +58,10 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	return time.UnixMilli(int64(ts)), nil
 }
 
-// TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to
-// a time.Time
+// TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to a time.Time in UTC
 func TimeFromUnixTimestampDecimal(input float64) time.Time {
 	i, f := math.Modf(input)
-	return time.Unix(int64(i), int64(f*(1e9)))
+	return time.Unix(int64(i), int64(f*(1e9))).UTC()
 }
 
 // UnixTimestampToTime returns time.time
