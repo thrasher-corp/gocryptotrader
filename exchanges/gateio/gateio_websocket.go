@@ -97,6 +97,12 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	return nil
 }
 
+// AuthenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) AuthenticateSpot(ctx context.Context, conn stream.Connection) error {
+	_, err := g.WebsocketLogin(ctx, conn, "spot.login")
+	return err
+}
+
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
 	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10)
 	mac := hmac.New(sha512.New, []byte(secret))
@@ -109,9 +115,15 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &push); err != nil {
 		return err
+	}
+
+	if push.RequestID != "" {
+		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
+		}
+		return nil
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
