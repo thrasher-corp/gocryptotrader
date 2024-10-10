@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var errInvalidWebsocketRequest = errors.New("invalid websocket request")
@@ -176,33 +175,23 @@ func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 // TODO: Websocket request endpoint rate limits are shared with their REST API counterparts. A future update should
 // access request level rate limits and update the rate limiter accordingly.
 func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, id, operation string, payload, response any) error {
-	if id == "" || operation == "" || payload == nil || response == nil {
+	if id == "" || operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}
 
 	outbound := &struct {
-		ID        string      `json:"id"`
-		Operation string      `json:"op"`
-		Arguments interface{} `json:"args"`
+		ID        string `json:"id"`
+		Operation string `json:"op"`
+		Arguments any    `json:"args"`
 	}{
 		ID:        id,
 		Operation: operation,
 		Arguments: payload,
 	}
 
-	if ok.Verbose {
-		if payload, err := json.Marshal(outbound); err != nil {
-			log.Debugf(log.ExchangeSys, "%s sending outbound request via websocket: %v", ok.Name, string(payload))
-		}
-	}
-
 	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, id, outbound)
 	if err != nil {
 		return err
-	}
-
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys, "%s received incoming request response via websocket: %v", ok.Name, string(incoming))
 	}
 
 	intermediary := struct {
@@ -217,8 +206,7 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, id, operat
 		Data: response,
 	}
 
-	err = json.Unmarshal(incoming, &intermediary)
-	if err != nil {
+	if err := json.Unmarshal(incoming, &intermediary); err != nil {
 		return err
 	}
 

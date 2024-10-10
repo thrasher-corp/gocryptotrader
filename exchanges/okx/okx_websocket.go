@@ -283,9 +283,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			Sign:       base64Sign,
 		},
 	}
-	var nothing interface{}
-	err = ok.SendAuthenticatedWebsocketRequest(ctx, "login-response", operationLogin, args, &nothing)
-	return err
+	return ok.SendAuthenticatedWebsocketRequest(ctx, "login-response", operationLogin, args, nil)
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
