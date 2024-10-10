@@ -48,9 +48,10 @@ type Response struct {
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout    time.Duration
-	ResponseMaxLimit        time.Duration
-	RateLimit               *request.RateLimiterWithWeight
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            *request.RateLimiterWithWeight
+	// Authenticated indicates if the connection can be authenticated, this is not used for multi-connection.
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
 
@@ -89,6 +90,18 @@ type ConnectionSetup struct {
 	// `asset.Spot`, a string type denoting the individual URL, an
 	// authenticated or unauthenticated string or a mixture of these.
 	OutboundRequestSignature any
+}
+
+// SubscriberNotRequired is a default subscriber function that can be used when a connection does not require
+// subscription functionality.
+func SubscriberNotRequired(ctx context.Context, conn Connection, sub subscription.List) error {
+	return nil
+}
+
+// SubscriptionGenerationNotRequired is a default subscription generation function that can be used when a connection
+// does not require subscription functionality. This returns a single dummy subscription to spawn a connection.
+func SubscriptionGenerationNotRequired() (subscription.List, error) {
+	return subscription.List{{Channel: "INTENTIONAL_DUMMY"}}, nil
 }
 
 // ConnectionWrapper contains the connection setup details to be used when

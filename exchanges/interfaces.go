@@ -136,6 +136,10 @@ type OrderManagement interface {
 
 	// WebsocketSubmitOrder submits an order via the websocket connection
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	// WebsocketCancelOrder cancels an order via the websocket connection
+	WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
+	// WebsocketCancelOrder cancels an order via the websocket connection
+	WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error
 }
 
 // CurrencyStateManagement defines functionality for currency state management

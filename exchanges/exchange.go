@@ -1955,3 +1955,13 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	return common.ErrFunctionNotSupported
+}

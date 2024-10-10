@@ -507,72 +507,21 @@ func isValidCategory(category string) error {
 
 // PlaceOrder creates an order for spot, spot margin, USDT perpetual, USDC perpetual, USDC futures, inverse futures and options.
 func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
+	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if arg.WhetherToBorrow {
-		arg.IsLeverage = 1
-	}
-	// specifies whether to borrow or to trade.
-	if arg.IsLeverage != 0 && arg.IsLeverage != 1 {
-		return nil, errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
-	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
-	}
-	if arg.OrderType == "" { // Market and Limit order types are allowed
-		return nil, order.ErrTypeIsInvalid
-	}
-	if arg.OrderQuantity <= 0 {
-		return nil, order.ErrAmountBelowMin
-	}
-	switch arg.TriggerDirection {
-	case 0, 1, 2: // 0: None, 1: triggered when market price rises to triggerPrice, 2: triggered when market price falls to triggerPrice
-	default:
-		return nil, fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, arg.TriggerDirection)
-	}
-	if arg.OrderFilter != "" && arg.Category == cSpot {
-		switch arg.OrderFilter {
-		case "Order", "tpslOrder", "StopOrder":
-		default:
-			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
-		}
-	}
-	switch arg.TriggerPriceType {
-	case "", "LastPrice", "IndexPrice", "MarkPrice":
-	default:
-		return nil, errInvalidTriggerPriceType
-	}
-	var resp OrderResponse
-
 	epl := createOrderEPL
 	if arg.Category == "spot" {
 		epl = createSpotOrderEPL
 	}
+	var resp OrderResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
 func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.OrderID == "" && arg.OrderLinkID == "" {
-		return nil, errEitherOrderIDOROrderLinkIDRequired
-	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
+	if err := arg.Validate(); err != nil {
 		return nil, err
-	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *OrderResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend", nil, arg, &resp, amendOrderEPL)
@@ -580,35 +529,14 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 
 // CancelTradeOrder cancels an open unfilled or partially filled order.
 func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.OrderID == "" && arg.OrderLinkID == "" {
-		return nil, errEitherOrderIDOROrderLinkIDRequired
-	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
+	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	switch {
-	case arg.OrderFilter != "" && arg.Category == cSpot:
-		switch arg.OrderFilter {
-		case "Order", "tpslOrder", "StopOrder":
-		default:
-			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
-		}
-	case arg.OrderFilter != "":
-		return nil, fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
-	}
-	var resp *OrderResponse
-
 	epl := cancelOrderEPL
 	if arg.Category == "spot" {
 		epl = cancelSpotEPL
 	}
+	var resp *OrderResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, epl)
 }
 

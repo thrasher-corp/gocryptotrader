@@ -54,6 +54,7 @@ const (
 
 	// Main-net private
 	websocketPrivate = "wss://stream.bybit.com/v5/private"
+	websocketTrade   = "wss://stream.bybit.com/v5/trade"
 )
 
 // WsConnect connects to a websocket feed
@@ -69,22 +70,12 @@ func (by *Bybit) WsConnect(ctx context.Context, conn stream.Connection) error {
 	return nil
 }
 
-// WebsocketAuthenticateConnection sends an authentication message to the websocket
-func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn stream.Connection) error {
-	creds, err := by.GetCredentials(ctx)
+// WebsocketAuthenticatePrivateConnection sends an authentication message to the private websocket for inbound account
+// data
+func (by *Bybit) WebsocketAuthenticatePrivateConnection(ctx context.Context, conn stream.Connection) error {
+	req, err := by.GetAuthenticationPayload(ctx, strconv.FormatInt(conn.GenerateMessageID(false), 10))
 	if err != nil {
 		return err
-	}
-	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
-	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+strNonce), []byte(creds.Secret))
-	if err != nil {
-		return err
-	}
-	req := Authenticate{
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
-		Operation: "auth",
-		Args:      []interface{}{creds.Key, intNonce, crypto.HexEncodeToString(hmac)},
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
@@ -95,9 +86,56 @@ func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn strea
 		return err
 	}
 	if !response.Success {
-		return fmt.Errorf("%s with request ID %s msg: %s", response.Operation, response.RequestID, response.RetMsg)
+		return fmt.Errorf("%s with request ID %s msg: %s", response.Operation, response.RequestID, response.ReturnMessage)
 	}
 	return nil
+}
+
+// WebsocketAuthenticateTradeConnection sends an authentication message to the private websocket for outbound account
+// data
+func (by *Bybit) WebsocketAuthenticateTradeConnection(ctx context.Context, conn stream.Connection) error {
+	// request ID is not returned with the response, a workaround in the trade connection handler monitors the response
+	// for the operation type "auth", which is then set in the response match key.
+	req, err := by.GetAuthenticationPayload(ctx, "auth")
+	if err != nil {
+		return err
+	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
+	if err != nil {
+		return err
+	}
+	var response struct {
+		ReturnCode    int64  `json:"retCode"`
+		ReturnMessage string `json:"retMsg"`
+		Operation     string `json:"op"`
+		ConnectionID  string `json:"connId"`
+	}
+	if err := json.Unmarshal(resp, &response); err != nil {
+		return err
+	}
+	if response.ReturnCode != 0 {
+		return fmt.Errorf("%s failed - code:%d [%v] msg:%s", response.Operation, response.ReturnCode, retCode[response.ReturnCode], response.ReturnMessage)
+	}
+	return nil
+}
+
+// GetAuthenticationPayload returns the authentication payload for the websocket connection to upgrade the connection.
+func (by *Bybit) GetAuthenticationPayload(ctx context.Context, requestID string) (*Authenticate, error) {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
+	strNonce := strconv.FormatInt(intNonce, 10)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+strNonce), []byte(creds.Secret))
+	if err != nil {
+		return nil, err
+	}
+	return &Authenticate{
+		RequestID: requestID,
+		Operation: "auth",
+		Args:      []any{creds.Key, intNonce, crypto.HexEncodeToString(hmac)},
+	}, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -205,7 +243,7 @@ func (by *Bybit) handleSubscription(ctx context.Context, conn stream.Connection,
 			return err
 		}
 		if !resp.Success {
-			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
+			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.ReturnMessage)
 		}
 	}
 	return nil
@@ -249,6 +287,29 @@ func (by *Bybit) GenerateDefaultSubscriptions(auth bool) (subscription.List, err
 		}
 	}
 	return subscriptions, nil
+}
+
+func (by *Bybit) wsHandleTradeData(_ context.Context, respRaw []byte) error {
+	var response struct {
+		RequestID string `json:"reqId"`
+		Operation string `json:"op"`
+	}
+	if err := json.Unmarshal(respRaw, &response); err != nil {
+		return err
+	}
+	if response.RequestID == "" && response.Operation != "auth" {
+		return fmt.Errorf("cannot route trade data %v to correct handler", string(respRaw))
+	}
+
+	if response.RequestID != "" && !by.Websocket.Match.IncomingWithData(response.RequestID, respRaw) {
+		return fmt.Errorf("could not match subscription with id %s data %s", response.RequestID, respRaw)
+	}
+
+	if response.Operation == "auth" && !by.Websocket.Match.IncomingWithData(response.Operation, respRaw) {
+		return fmt.Errorf("could not match subscription with id %s data %s", response.Operation, respRaw)
+	}
+
+	return nil
 }
 
 func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset.Item) error {
