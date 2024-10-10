@@ -3766,7 +3766,7 @@ func (b *Binance) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanCo
 // CryptoLoanCustomiseMarginCall customises a loan's margin call
 func (b *Binance) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID int64, collateralCoin currency.Code, marginCallValue float64) (*CustomiseMarginCall, error) {
 	if marginCallValue <= 0 {
-		return nil, errors.New("marginCallValue must not be <= 0")
+		return nil, fmt.Errorf("%w, marginCallValue must not be <= 0", errMarginCallValueRequired)
 	}
 	params := url.Values{}
 	if orderID != 0 {
@@ -4403,7 +4403,7 @@ func (b *Binance) SubscribeDualInvestmentProducts(ctx context.Context, id, order
 		return nil, order.ErrAmountBelowMin
 	}
 	if autoCompoundPlan == "" {
-		return nil, errors.New("accountCompoundPlan is required")
+		return nil, fmt.Errorf("%w, accountCompoundPlan is required", errPlanTypeRequired)
 	}
 	params := url.Values{}
 	params.Set("id", id)
@@ -4496,7 +4496,7 @@ func (b *Binance) GetAllSourceAssetAndTargetAsset(ctx context.Context) (*AutoInv
 // usageType: "RECURRING", "ONE_TIME"
 func (b *Binance) GetSourceAssetList(ctx context.Context, targetAsset currency.Code, indexID int64, usageType, sourceType string, flexibleAllowedToUse bool) (*SourceAssetsList, error) {
 	if usageType == "" {
-		return nil, errors.New("usage type is required")
+		return nil, errUsageTypeRequired
 	}
 	params := url.Values{}
 	params.Set("usageType", usageType)
@@ -4518,7 +4518,7 @@ func (b *Binance) GetSourceAssetList(ctx context.Context, targetAsset currency.C
 
 // InvestmentPlanCreation creates an investment plan
 func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPlanParams) (*InvestmentPlanResponse, error) {
-	if arg == nil || len(arg.Details) == 0 {
+	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {
@@ -4602,7 +4602,7 @@ func (b *Binance) ChangePlanStatus(ctx context.Context, planID int64, status str
 		return nil, errPlanIDRequired
 	}
 	if status == "" {
-		return nil, errors.New("plan status is required")
+		return nil, errPlanStatusRequired
 	}
 	params := url.Values{}
 	params.Set("planId", strconv.FormatInt(planID, 10))
@@ -4711,7 +4711,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 		if arg.Details[a].TargetAsset.IsEmpty() {
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
-		if arg.Details[a].Percentage < 0 {
+		if arg.Details[a].Percentage <= 0 {
 			return nil, errInvalidPercentageAmount
 		}
 		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
@@ -5105,8 +5105,8 @@ func (b *Binance) GetHashrateRescaleList(ctx context.Context, pageIndex, pageSiz
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/hash-transfer/config/details/list", params, getHashrateRescaleRate, nil, &resp)
 }
 
-// GetHashrateRescaleDetail retrieves a hashrate rescale detail
-func (b *Binance) GetHashrateRescaleDetail(ctx context.Context, configID, userName string, pageIndex, pageSize int64) (*HashrateRescaleDetail, error) {
+// GetHashRateRescaleDetail retrieves a hashrate rescale detail
+func (b *Binance) GetHashRateRescaleDetail(ctx context.Context, configID, userName string, pageIndex, pageSize int64) (*HashrateRescaleDetail, error) {
 	if configID == "" {
 		return nil, errConfigIDRequired
 	}
@@ -5126,8 +5126,8 @@ func (b *Binance) GetHashrateRescaleDetail(ctx context.Context, configID, userNa
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/hash-transfer/profit/details", params, getHashrateRescaleDetailRate, nil, &resp)
 }
 
-// HashrateRescaleRequest retrieves a hashrate rescale request
-func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorithm, toPoolUser string, startTime, endTime time.Time, hashRate int64) (*HashrateRescalResponse, error) {
+// HashRateRescaleRequest retrieves a hashrate rescale request
+func (b *Binance) HashRateRescaleRequest(ctx context.Context, userName, algorithm, toPoolUser string, startTime, endTime time.Time, hashRate int64) (*HashrateRescalResponse, error) {
 	if userName == "" {
 		return nil, errUsernameRequired
 	}
@@ -5324,7 +5324,8 @@ func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumePa
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Urgency == "" {
-		return nil, errors.New("urgency field is required, with possible values of 'LOW', 'MEDIUM', and 'HIGH'")
+		// Possible values of 'LOW', 'MEDIUM', and 'HIGH'
+		return nil, errPossibleValuesRequired
 	}
 	var resp *AlgoOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/algo/futures/newOrderVp", nil, placeVPOrderRate, arg, &resp)

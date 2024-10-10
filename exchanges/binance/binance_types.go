@@ -107,6 +107,10 @@ var (
 	errDurationRequired                       = errors.New("duration is required")
 	errCostRequired                           = errors.New("cost must be greater than 0")
 	errInvalidTransactionType                 = errors.New("invalid transaction type")
+	errPossibleValuesRequired                 = errors.New("urgency field is required")
+	errPlanStatusRequired                     = errors.New("plan status is required")
+	errUsageTypeRequired                      = errors.New("usage type is required")
+	errMarginCallValueRequired                = errors.New("margin call value required") //
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
