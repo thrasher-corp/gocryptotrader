@@ -96,10 +96,10 @@ var (
 		Value: "error",
 	}
 	currencyPair = &objects.String{
-		Value: "BTCUSD",
+		Value: "BTC-USD",
 	}
 	delimiter = &objects.String{
-		Value: "",
+		Value: "-",
 	}
 	assetType = &objects.String{
 		Value: "spot",

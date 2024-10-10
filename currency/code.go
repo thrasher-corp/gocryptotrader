@@ -186,14 +186,7 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 		return EMPTYCODE
 	}
 
-	var format bool
-	// Digits fool upper and lower casing. So find first letter and check case.
-	for x := range c {
-		if unicode.IsLetter(rune(c[x])) {
-			format = unicode.IsUpper(rune(c[x]))
-			break
-		}
-	}
+	isUpperCase := strings.ContainsFunc(c, func(r rune) bool { return unicode.IsLetter(r) && unicode.IsUpper(r) })
 
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
@@ -218,13 +211,13 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 				}
 				stored[x].Role = newRole
 			}
-			return Code{Item: stored[x], UpperCase: format}
+			return Code{Item: stored[x], upperCase: isUpperCase}
 		}
 	}
 
 	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: newRole}
 	b.Items[c] = append(b.Items[c], newItem)
-	return Code{Item: newItem, UpperCase: format}
+	return Code{Item: newItem, upperCase: isUpperCase}
 }
 
 // LoadItem sets item data
@@ -275,21 +268,29 @@ func (c Code) String() string {
 	if c.Item == nil {
 		return ""
 	}
-	if c.UpperCase {
+	if c.upperCase {
 		return c.Item.Symbol
 	}
 	return c.Item.Lower
 }
 
-// Lower converts the code to lowercase formatting
+// Lower flags the Code to use LowerCase formatting, but does not change Symbol
+// If Code cannot be lowercased then it will return Code unchanged
 func (c Code) Lower() Code {
-	c.UpperCase = false
+	if c.Item == nil {
+		return c
+	}
+	c.upperCase = false
 	return c
 }
 
-// Upper converts the code to uppercase formatting
+// Upper flags the Code to use UpperCase formatting, but does not change Symbol
+// If Code cannot be uppercased then it will return Code unchanged
 func (c Code) Upper() Code {
-	c.UpperCase = true
+	if c.Item == nil {
+		return c
+	}
+	c.upperCase = true
 	return c
 }
 
@@ -345,22 +346,4 @@ func (i *Item) Currency() Code {
 		return EMPTYCODE
 	}
 	return NewCode(i.Symbol)
-}
-
-// UpperCurrency allows an item to revert to a code
-// taking an upper
-func (i *Item) UpperCurrency() Code {
-	if i == nil {
-		return EMPTYCODE.Upper()
-	}
-	return NewCode(i.Symbol).Upper()
-}
-
-// LowerCurrency allows an item to revert to a code
-// returning in lower format
-func (i *Item) LowerCurrency() Code {
-	if i == nil {
-		return EMPTYCODE.Lower()
-	}
-	return NewCode(i.Symbol).Lower()
 }
