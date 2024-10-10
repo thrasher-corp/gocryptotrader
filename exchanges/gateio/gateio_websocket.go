@@ -109,9 +109,15 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &push); err != nil {
 		return err
+	}
+
+	if push.RequestID != "" {
+		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
+		}
+		return nil
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
