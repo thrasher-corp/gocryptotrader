@@ -17,9 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	jobBuffer = 5000
-)
+const jobBuffer = 5000
 
 // Public websocket errors
 var (
@@ -35,7 +33,6 @@ var (
 
 // Private websocket errors
 var (
-	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
@@ -55,7 +52,6 @@ var (
 	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
-	errClosedConnection                     = errors.New("use of closed network connection")
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
