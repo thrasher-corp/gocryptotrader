@@ -143,8 +143,7 @@ func (p Pair) GetFormatting() (PairFormat, error) {
 	if p.Base.isCaseSensitive() && p.Quote.isCaseSensitive() && (p.Base.upperCase != p.Quote.upperCase) {
 		return EMPTYFORMAT, fmt.Errorf("%w casing mismatch", errPairFormattingInconsistent)
 	}
-	upper := p.Base.isCaseSensitive() && p.Base.upperCase || p.Quote.isCaseSensitive() && p.Quote.upperCase
-	return PairFormat{Uppercase: upper, Delimiter: p.Delimiter}, nil
+	return PairFormat{Uppercase: p.Base.upperCase || p.Quote.upperCase, Delimiter: p.Delimiter}, nil
 }
 
 func (p Pair) hasFormatDifference(pairFmt PairFormat) bool {

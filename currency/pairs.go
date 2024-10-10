@@ -285,12 +285,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 
 // HasFormatDifference checks and validates full formatting across a pairs list
 func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
-	for x := range p {
-		if p[x].hasFormatDifference(pairFmt) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(p, func(pair Pair) bool { return pair.hasFormatDifference(pairFmt) })
 }
 
 // GetRandomPair returns a random pair from a list of pairs

@@ -1181,7 +1181,7 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	}
 
 	// Convert input to lowercase to ensure consistent formatting.
-	// Any uppercase characters in the input would result in the entire currency pair being uppercase.
+	// Required for currencies that start with T or F eg tTNBUSD
 	in = in.Lower()
 
 	var checkString [2]byte

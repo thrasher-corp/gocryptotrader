@@ -465,6 +465,7 @@ func TestNewCodeFormatting(t *testing.T) {
 	require.False(t, NewCode("420").upperCase)
 	require.False(t, NewCode("btc420").upperCase)
 	require.False(t, NewCode("420").Lower().upperCase)
+	require.True(t, NewCode("4BTC").upperCase)
 }
 
 func TestCodeString(t *testing.T) {
