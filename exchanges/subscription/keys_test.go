@@ -110,6 +110,39 @@ func TestIgnoringPairsKeyString(t *testing.T) {
 	assert.Equal(t, "ticker spot", key.String())
 }
 
+// TestIgnoringAssetKeyMatch exercises IgnoringAssetKey.Match
+func TestIgnoringAssetKeyMatch(t *testing.T) {
+	t.Parallel()
+
+	key := &IgnoringAssetKey{&Subscription{Channel: TickerChannel, Asset: asset.Spot}}
+	try := &DummyKey{&Subscription{Channel: OrderbookChannel}, t}
+
+	require.False(t, key.Match(nil), "Match on a nil must return false")
+	require.False(t, key.Match(try), "Gate 1: Match must reject a bad Channel")
+	try.Channel = TickerChannel
+	require.True(t, key.Match(try), "Gate 1: Match must accept a good Channel")
+	key.Pairs = currency.Pairs{btcusdtPair}
+	require.False(t, key.Match(try), "Gate 2: Match must reject bad Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair}
+	require.True(t, key.Match(try), "Gate 2: Match must accept a good Pairs")
+	key.Levels = 4
+	require.False(t, key.Match(try), "Gate 3: Match must reject a bad Level")
+	try.Levels = 4
+	require.True(t, key.Match(try), "Gate 3: Match must accept a good Level")
+	key.Interval = kline.FiveMin
+	require.False(t, key.Match(try), "Gate 4: Match must reject a bad Interval")
+	try.Interval = kline.FiveMin
+	require.True(t, key.Match(try), "Gate 4: Match must accept a good Interval")
+}
+
+// TestIgnoringAssetKeyString exercises IgnoringAssetKey.String
+func TestIgnoringAssetKeyString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "Uninitialised IgnoringAssetKey", IgnoringAssetKey{}.String())
+	key := &IgnoringAssetKey{&Subscription{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}}}
+	assert.Equal(t, "ticker [ETHUSDC BTCUSDT]", key.String())
+}
+
 // TestGetSubscription exercises GetSubscription
 func TestGetSubscription(t *testing.T) {
 	t.Parallel()

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 // TestSetup exercises Setup
@@ -30,6 +31,6 @@ func TestMockHTTPInstance(t *testing.T) {
 
 // TestMockWsInstance exercises MockWsInstance
 func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Binance](t, CurryWsMockUpgrader(t, func(_ []byte, _ *websocket.Conn) error { return nil }))
+	b := MockWsInstance[binance.Binance](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *websocket.Conn) error { return nil }))
 	require.NotNil(t, b, "MockWsInstance must not be nil")
 }

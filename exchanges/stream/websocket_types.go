@@ -37,8 +37,6 @@ type Websocket struct {
 	state                        atomic.Uint32
 	verbose                      bool
 	connectionMonitorRunning     atomic.Bool
-	trafficMonitorRunning        atomic.Bool
-	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -50,6 +48,15 @@ type Websocket struct {
 	m                            sync.Mutex
 	connector                    func() error
 
+	// connectionManager stores all *potential* connections for the exchange, organised within ConnectionWrapper structs.
+	// Each ConnectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types. // TODO: Expand this to support multiple connections per ConnectionWrapper
+	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
+	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
+	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
+	connectionManager []ConnectionWrapper
+	// connections holds a look up table for all connections to their corresponding ConnectionWrapper and subscription holder
+	connections map[Connection]*ConnectionWrapper
+
 	subscriptions *subscription.Store
 
 	// Subscriber function for exchange specific subscribe implementation
@@ -58,6 +65,8 @@ type Websocket struct {
 	Unsubscriber func(subscription.List) error
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() (subscription.List, error)
+
+	useMultiConnectionManagement bool
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -115,6 +124,11 @@ type WebsocketSetup struct {
 
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config
+
+	// UseMultiConnectionManagement allows the connections to be managed by the
+	// connection manager. If false, this will default to the global fields
+	// provided in this struct.
+	UseMultiConnectionManagement bool
 
 	TradeFeed bool
 
