@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1982,13 +1983,14 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
-		mock := func(msg []byte, w *websocket.Conn) error {
+		mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+			tb.Helper()
 			var req WsPayload
-			require.NoError(t, json.Unmarshal(msg, &req), "Unmarshal should not error")
-			require.ElementsMatch(t, req.Params, exp, "Params should have correct channels")
+			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
+			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
 		}
-		b = testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock))
+		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
 		testexch.SetupWs(t, b)
 	}
@@ -2003,13 +2005,14 @@ func TestSubscribeBadResp(t *testing.T) {
 	channels := subscription.List{
 		{Channel: "moons@ticker"},
 	}
-	mock := func(msg []byte, w *websocket.Conn) error {
+	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+		tb.Helper()
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
-		require.NoError(t, err, "Unmarshal should not error")
+		require.NoError(tb, err, "Unmarshal should not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
 	}
-	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, common.ErrUnknownError, "Subscribe should error correctly")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")

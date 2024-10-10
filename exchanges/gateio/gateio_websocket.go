@@ -50,6 +50,9 @@ const (
 	spotFundingBalanceChannel  = "spot.funding_balances"
 	crossMarginBalanceChannel  = "spot.cross_balances"
 	crossMarginLoanChannel     = "spot.cross_loan"
+
+	subscribeEvent   = "subscribe"
+	unsubscribeEvent = "unsubscribe"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -71,16 +74,13 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel: spotTradesChannel,
 }
 
-// WsConnect initiates a websocket connection
-func (g *Gateio) WsConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
-	}
+// WsConnectSpot initiates a websocket connection
+func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -88,14 +88,12 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
-	g.Websocket.Wg.Add(1)
-	go g.wsReadConnData()
 	return nil
 }
 
@@ -108,29 +106,15 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// wsReadConnData receives and passes on websocket messages for processing
-func (g *Gateio) wsReadConnData() {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := g.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := g.wsHandleData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (g *Gateio) wsHandleData(respRaw []byte) error {
+// WsHandleSpotData handles spot data
+func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
 
-	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
 		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}
@@ -641,22 +625,25 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// generateSubscriptions returns configured subscriptions
-func (g *Gateio) generateSubscriptions() (subscription.List, error) {
+// generateSubscriptionsSpot returns configured subscriptions
+func (g *Gateio) generateSubscriptionsSpot() (subscription.List, error) {
 	return g.Features.Subscriptions.ExpandTemplates(g)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
 func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
-	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
-		"channelName":         channelName,
-		"singleSymbolChannel": singleSymbolChannel,
-		"interval":            g.GetIntervalString,
-	}).Parse(subTplText)
+	return template.New("master.tmpl").
+		Funcs(sprig.FuncMap()).
+		Funcs(template.FuncMap{
+			"channelName":         channelName,
+			"singleSymbolChannel": singleSymbolChannel,
+			"interval":            g.GetIntervalString,
+		}).
+		Parse(subTplText)
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
-func (g *Gateio) manageSubs(event string, subs subscription.List) error {
+func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Connection, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(g)
 	if errs != nil {
@@ -665,11 +652,11 @@ func (g *Gateio) manageSubs(event string, subs subscription.List) error {
 
 	for _, s := range subs {
 		if err := func() error {
-			msg, err := g.manageSubReq(event, s)
+			msg, err := g.manageSubReq(ctx, event, conn, s)
 			if err != nil {
 				return err
 			}
-			result, err := g.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, msg.ID, msg)
+			result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
 			if err != nil {
 				return err
 			}
@@ -681,9 +668,9 @@ func (g *Gateio) manageSubs(event string, subs subscription.List) error {
 				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
 			}
 			if event == "unsubscribe" {
-				return g.Websocket.RemoveSubscriptions(s)
+				return g.Websocket.RemoveSubscriptions(conn, s)
 			}
-			return g.Websocket.AddSuccessfulSubscriptions(s)
+			return g.Websocket.AddSuccessfulSubscriptions(conn, s)
 		}(); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
 		}
@@ -692,16 +679,16 @@ func (g *Gateio) manageSubs(event string, subs subscription.List) error {
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (g *Gateio) manageSubReq(event string, s *subscription.Subscription) (*WsInput, error) {
+func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Connection, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
-		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		ID:      conn.GenerateMessageID(false),
 		Event:   event,
 		Channel: channelName(s),
 		Time:    time.Now().Unix(),
 		Payload: strings.Split(s.QualifiedChannel, ","),
 	}
 	if s.Authenticated {
-		creds, err := g.GetCredentials(context.TODO())
+		creds, err := g.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -719,13 +706,13 @@ func (g *Gateio) manageSubReq(event string, s *subscription.Subscription) (*WsIn
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(subs subscription.List) error {
-	return g.manageSubs("subscribe", subs)
+func (g *Gateio) Subscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+	return g.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(subs subscription.List) error {
-	return g.manageSubs("unsubscribe", subs)
+func (g *Gateio) Unsubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
@@ -782,3 +769,37 @@ const subTplText = `
 	{{- end }}
 {{- end }}
 `
+
+// GeneratePayload returns the payload for a websocket message
+type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
+// handleSubscription sends a websocket message to receive data from the channel
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for k := range payloads {
+		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		var resp WsEventResponse
+		if err = json.Unmarshal(result, &resp); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			if resp.Error != nil && resp.Error.Code != 0 {
+				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
+				continue
+			}
+			if event == subscribeEvent {
+				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
+			} else {
+				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
+			}
+		}
+	}
+	return errs
+}

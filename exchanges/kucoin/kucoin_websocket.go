@@ -211,7 +211,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	}
 	if resp.ID != "" {
 		if !ku.Websocket.Match.IncomingWithData("msgID:"+resp.ID, respData) {
-			return fmt.Errorf("message listener not found: %s", resp.ID)
+			return fmt.Errorf("%w: %s", stream.ErrNoMessageListener, resp.ID)
 		}
 		return nil
 	}
@@ -1036,9 +1036,9 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
 				if operation == "unsubscribe" {
-					err = ku.Websocket.RemoveSubscriptions(s)
+					err = ku.Websocket.RemoveSubscriptions(ku.Websocket.Conn, s)
 				} else {
-					err = ku.Websocket.AddSuccessfulSubscriptions(s)
+					err = ku.Websocket.AddSuccessfulSubscriptions(ku.Websocket.Conn, s)
 					if ku.Verbose {
 						log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", ku.Name, s.Channel)
 					}
@@ -1658,12 +1658,7 @@ func (ku *Kucoin) checkSubscriptions() {
 		return false
 	})
 	if upgraded {
-		ku.Features.Subscriptions = subscription.List{}
-		for _, s := range ku.Config.Features.Subscriptions {
-			if s.Enabled {
-				ku.Features.Subscriptions = append(ku.Features.Subscriptions, s)
-			}
-		}
+		ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
 	}
 }
 

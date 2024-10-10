@@ -207,7 +207,7 @@ func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
 		}
 		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
