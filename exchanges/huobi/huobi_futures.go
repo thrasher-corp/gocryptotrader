@@ -35,8 +35,6 @@ const (
 	fMarketOverview            = "/market/detail/merged"
 	fLastTradeContract         = "/market/trade"
 	fContractBatchTradeRecords = "/market/history/trade"
-	fInsuranceAndClawback      = "/api/v1/contract_risk_info"
-	fInsuranceBalanceHistory   = "/api/v1/contract_insurance_fund"
 	fTieredAdjustmentFactor    = "/api/v1/contract_adjustfactor"
 	fHisContractOpenInterest   = "/api/v1/contract_his_open_interest"
 	fSystemStatus              = "/api/v1/contract_api_state"
@@ -323,36 +321,6 @@ func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.P
 	}
 	var resp FBatchTradesForContractData
 	path := common.EncodeURLValues(fContractBatchTradeRecords, params)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
-}
-
-// FQueryInsuranceAndClawbackData gets insurance and clawback data for a futures contract
-func (h *HUOBI) FQueryInsuranceAndClawbackData(ctx context.Context, symbol currency.Code) (FClawbackRateAndInsuranceData, error) {
-	var resp FClawbackRateAndInsuranceData
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		codeValue, err := h.formatFuturesCode(symbol)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("symbol", codeValue)
-	}
-	path := common.EncodeURLValues(fInsuranceAndClawback, params)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
-}
-
-// FQueryHistoricalInsuranceData gets insurance data
-func (h *HUOBI) FQueryHistoricalInsuranceData(ctx context.Context, symbol currency.Code) (FHistoricalInsuranceRecordsData, error) {
-	var resp FHistoricalInsuranceRecordsData
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		codeValue, err := h.formatFuturesCode(symbol)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("symbol", codeValue)
-	}
-	path := common.EncodeURLValues(fInsuranceBalanceHistory, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 

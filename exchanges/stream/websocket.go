@@ -17,9 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	jobBuffer = 5000
-)
+const jobBuffer = 5000
 
 // Public websocket errors
 var (
@@ -35,7 +33,6 @@ var (
 
 // Private websocket errors
 var (
-	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
@@ -55,7 +52,6 @@ var (
 	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
-	errClosedConnection                     = errors.New("use of closed network connection")
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
@@ -772,15 +768,13 @@ func (w *Websocket) GetWebsocketURL() string {
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	w.m.Lock()
-
+	defer w.m.Unlock()
 	if proxyAddr != "" {
 		if _, err := url.ParseRequestURI(proxyAddr); err != nil {
-			w.m.Unlock()
 			return fmt.Errorf("%v websocket: cannot set proxy address: %w", w.exchangeName, err)
 		}
 
 		if w.proxyAddr == proxyAddr {
-			w.m.Unlock()
 			return fmt.Errorf("%v websocket: %w '%v'", w.exchangeName, errSameProxyAddress, w.proxyAddr)
 		}
 
@@ -803,17 +797,13 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 
 	w.proxyAddr = proxyAddr
 
-	if w.IsConnected() {
-		w.m.Unlock()
-		if err := w.Shutdown(); err != nil {
-			return err
-		}
-		return w.Connect()
+	if !w.IsConnected() {
+		return nil
 	}
-
-	w.m.Unlock()
-
-	return nil
+	if err := w.shutdown(); err != nil {
+		return err
+	}
+	return w.connect()
 }
 
 // GetProxyAddress returns the current websocket proxy
@@ -1078,6 +1068,9 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 	}
 
 	for _, s := range subs {
+		if s.State() == subscription.ResubscribingState {
+			continue
+		}
 		if found := subscriptionStore.Get(s); found != nil {
 			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
 		}
