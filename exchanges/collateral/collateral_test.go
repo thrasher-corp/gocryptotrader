@@ -1,10 +1,11 @@
 package collateral
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestValidCollateralType(t *testing.T) {

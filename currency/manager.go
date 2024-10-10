@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 

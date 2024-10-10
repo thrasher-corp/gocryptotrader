@@ -1,11 +1,11 @@
 package deribit
 
 import (
-	"encoding/json"
 	"errors"
 	"regexp"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 

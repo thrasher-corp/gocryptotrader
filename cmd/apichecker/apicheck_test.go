@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"reflect"
 	"testing"
 
 	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )

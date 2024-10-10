@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +8,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // MatchURLVals matches url.Value query strings

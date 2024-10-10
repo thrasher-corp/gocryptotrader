@@ -1,10 +1,10 @@
 package currency
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestCurrenciesUnmarshalJSON(t *testing.T) {

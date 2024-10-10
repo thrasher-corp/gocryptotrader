@@ -1,10 +1,11 @@
 package margin
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestValid(t *testing.T) {

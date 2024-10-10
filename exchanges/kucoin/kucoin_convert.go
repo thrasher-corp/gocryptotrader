@@ -1,8 +1,9 @@
 package kucoin
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // UnmarshalJSON valid data to SubAccountsResponse of return nil if the data is empty list.

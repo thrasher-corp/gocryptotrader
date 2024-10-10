@@ -1,13 +1,13 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestLoadBacktesterConfig(t *testing.T) {
