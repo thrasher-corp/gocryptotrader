@@ -54,9 +54,15 @@ type Websocket struct {
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
 	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
-	connectionManager []ConnectionWrapper
+	connectionManager []*ConnectionWrapper
 	// connections holds a look up table for all connections to their corresponding ConnectionWrapper and subscription holder
 	connections map[Connection]*ConnectionWrapper
+	// outbound is map holding wrapper specific signatures to an active
+	// connection for outbound messaging. Wrapper specific connections
+	// might be asset specific e.g. spot, margin, futures or
+	// authenticated/unauthenticated or a mix of both. This map is used
+	// to send messages to the correct connection.
+	outbound map[any]*ConnectionWrapper
 
 	subscriptions *subscription.Store
 
