@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {
@@ -99,31 +102,10 @@ func TestDecryptConfigFile(t *testing.T) {
 	}
 }
 
-func TestConfirmECS(t *testing.T) {
+func TestIsEncrypted(t *testing.T) {
 	t.Parallel()
-
-	ECStest := []byte(EncryptConfirmString)
-	if !ConfirmECS(ECStest) {
-		t.Errorf("TestConfirmECS: Error finding ECS.")
-	}
-}
-
-func TestRemoveECS(t *testing.T) {
-	t.Parallel()
-
-	ECStest := []byte(EncryptConfirmString)
-	reader := bytes.NewReader(ECStest)
-	err := skipECS(reader)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Attempt read
-	var buf []byte
-	_, err = reader.Read(buf)
-	if err != io.EOF {
-		t.Errorf("TestConfirmECS: Error ECS not deleted.")
-	}
+	assert.True(t, IsEncrypted(encryptionPrefix))
+	assert.False(t, IsEncrypted([]byte("mhmmm. Donuts.")))
 }
 
 func TestMakeNewSessionDK(t *testing.T) {
@@ -189,7 +171,7 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 		t.Fatalf("Problem reading file %s: %s\n", enc2, err)
 	}
 	// length of prefix + salt
-	l := len(EncryptConfirmString+SaltPrefix) + SaltRandomLength
+	l := len(encryptionPrefix) + len(saltPrefix) + saltRandomLength
 	// Even though prefix, including salt with the random bytes is the same
 	if !bytes.Equal(data1[:l], data2[:l]) {
 		t.Error("Salt is not reused.")
@@ -211,9 +193,7 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	err := withInteractiveResponse(t, "pass\npass\n", func() error {
 		return c.SaveConfigToFile(enc)
 	})
-	if err != nil {
-		t.Fatalf("Problem storing config in file %s: %s\n", enc, err)
-	}
+	require.NoError(t, err)
 
 	readConf := &Config{}
 	err = withInteractiveResponse(t, "pass\n", func() error {
@@ -221,14 +201,9 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 		return readConf.ReadConfigFromFile(enc, true)
 	})
 
-	// Verify
-	if err != nil {
-		t.Fatalf("Problem reading config in file %s: %s\n", enc, err)
-	}
-
-	if c.Name != readConf.Name || c.EncryptConfig != readConf.EncryptConfig {
-		t.Error("Loaded conf not the same as original")
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "myCustomName", readConf.Name, "Name must be correct")
+	assert.Equal(t, 1, readConf.EncryptConfig, "EncryptConfig must be set correctly")
 }
 
 // setAnswersFile sets the given file as the current stdin
@@ -281,33 +256,23 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	if c.EncryptConfig != fileEncryptionEnabled {
 		t.Error("Config encryption flag should be set after prompts")
 	}
-	if !ConfirmECS(data) {
-		t.Error("Config file should be encrypted after prompts")
-	}
+	assert.True(t, IsEncrypted(data), "data should be encrypted after prompts")
 }
 
 func TestReadEncryptedConfigFromReader(t *testing.T) {
 	t.Parallel()
+	c := &Config{}
 	keyProvider := func() ([]byte, error) { return []byte("pass"), nil }
 	// Encrypted conf for: `{"name":"test"}` with key `pass`
 	confBytes := []byte{84, 72, 79, 82, 83, 45, 72, 65, 77, 77, 69, 82, 126, 71, 67, 84, 126, 83, 79, 126, 83, 65, 76, 84, 89, 126, 246, 110, 128, 3, 30, 168, 172, 160, 198, 176, 136, 62, 152, 155, 253, 176, 16, 48, 52, 246, 44, 29, 151, 47, 217, 226, 178, 12, 218, 113, 248, 172, 195, 232, 136, 104, 9, 199, 20, 4, 71, 4, 253, 249}
-	conf, encrypted, err := ReadConfig(bytes.NewReader(confBytes), keyProvider)
-	if err != nil {
-		t.Errorf("TestReadConfig %s", err)
-	}
-	if !encrypted {
-		t.Errorf("Expected encrypted config %s", err)
-	}
-	if conf.Name != "test" {
-		t.Errorf("Conf not properly loaded %s", err)
-	}
+	err := c.readConfig(bytes.NewReader(confBytes), keyProvider)
+	require.NoError(t, err)
+	assert.Equal(t, "test", c.Name)
 
 	// Change the salt
 	confBytes[20] = 0
-	conf, _, err = ReadConfig(bytes.NewReader(confBytes), keyProvider)
-	if err == nil {
-		t.Errorf("Expected unable to decrypt, but got %+v", conf)
-	}
+	err = c.readConfig(bytes.NewReader(confBytes), keyProvider)
+	require.ErrorIs(t, err, errDecryptFailed)
 }
 
 // TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file

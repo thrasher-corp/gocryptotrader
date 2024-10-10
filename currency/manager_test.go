@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -24,7 +23,7 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	spot := &PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		Available:     spotAvailable,
 		Enabled:       spotEnabled,
 		RequestFormat: &PairFormat{Uppercase: true},
@@ -32,7 +31,7 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	futures := &PairStore{
-		AssetEnabled:  convert.BoolPtr(false),
+		AssetEnabled:  false,
 		Available:     spotAvailable,
 		Enabled:       spotEnabled,
 		RequestFormat: &PairFormat{Uppercase: true},
@@ -528,7 +527,7 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	var um = make(FullStore)
-	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
+	um[asset.Spot] = &PairStore{AssetEnabled: true}
 
 	data, err := json.Marshal(um)
 	if err != nil {
@@ -667,7 +666,7 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {},
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available: []Pair{
 					p,
 				},
@@ -700,13 +699,13 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	pm = PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available: []Pair{
 					NewPair(BTC, USDC),
 				},
 			},
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled: []Pair{
 					p,
 				},
@@ -733,11 +732,11 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	pm = PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{p},
 			},
 			asset.Options: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{},
 			},
 		},
@@ -776,11 +775,11 @@ func TestLoad(t *testing.T) {
 		RequestFormat:   fmt2,
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{p},
 			},
 			asset.Options: {
-				AssetEnabled: convert.BoolPtr(false),
+				AssetEnabled: false,
 				Available:    []Pair{},
 			},
 		},
@@ -909,7 +908,7 @@ func TestIsAssetSupported(t *testing.T) {
 	p := PairsManager{
 		Pairs: FullStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(false),
+				AssetEnabled: false,
 			},
 		},
 	}

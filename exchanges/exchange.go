@@ -15,7 +15,6 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1012,10 +1011,6 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 			b.Name)
 	}
 
-	if f.AssetEnabled == nil {
-		f.AssetEnabled = convert.BoolPtr(true)
-	}
-
 	if f.RequestFormat == nil {
 		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
 			b.Name)
@@ -1077,7 +1072,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
-		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
+		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = true
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
