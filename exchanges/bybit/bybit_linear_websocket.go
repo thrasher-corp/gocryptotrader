@@ -84,7 +84,7 @@ func (by *Bybit) LinearUnsubscribe(channelSubscriptions subscription.List) error
 }
 
 func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
-	payloads, err := by.handleSubscriptions(asset.USDTMarginedFutures, operation, channelSubscriptions)
+	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}
