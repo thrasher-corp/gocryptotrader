@@ -78,8 +78,7 @@ func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, batch []OrderCr
 	}
 
 	var resp []WebsocketFuturesOrderResponse
-	err := g.SendWebsocketRequest(ctx, "futures.order_batch_place", a, batch, &resp, 2)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, "futures.order_batch_place", a, batch, &resp, 2)
 }
 
 // WebsocketOrderCancelFutures cancels an order via the websocket connection.
@@ -103,8 +102,7 @@ func (g *Gateio) WebsocketOrderCancelFutures(ctx context.Context, orderID string
 	}{OrderID: orderID}
 
 	var resp WebsocketFuturesOrderResponse
-	err := g.SendWebsocketRequest(ctx, "futures.order_cancel", a, params, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, "futures.order_cancel", a, params, &resp, 1)
 }
 
 // WebsocketOrderCancelAllOpenFuturesOrdersMatched cancels multiple orders via
@@ -129,8 +127,7 @@ func (g *Gateio) WebsocketOrderCancelAllOpenFuturesOrdersMatched(ctx context.Con
 	}
 
 	var resp []WebsocketFuturesOrderResponse
-	err := g.SendWebsocketRequest(ctx, "futures.order_cancel_cp", a, params, &resp, 2)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, "futures.order_cancel_cp", a, params, &resp, 2)
 }
 
 // WebsocketOrderAmendFutures amends an order via the websocket connection
@@ -157,8 +154,7 @@ func (g *Gateio) WebsocketOrderAmendFutures(ctx context.Context, amend *Websocke
 	}
 
 	var resp WebsocketFuturesOrderResponse
-	err := g.SendWebsocketRequest(ctx, "futures.order_amend", a, amend, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, "futures.order_amend", a, amend, &resp, 1)
 }
 
 // WebsocketOrderListFutures fetches a list of orders via the websocket connection
@@ -181,8 +177,7 @@ func (g *Gateio) WebsocketOrderListFutures(ctx context.Context, list *WebsocketF
 	}
 
 	var resp []WebsocketFuturesOrderResponse
-	err := g.SendWebsocketRequest(ctx, "futures.order_list", a, list, &resp, 1)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, "futures.order_list", a, list, &resp, 1)
 }
 
 // WebsocketGetOrderStatusFutures gets the status of an order via the websocket
@@ -206,6 +201,5 @@ func (g *Gateio) WebsocketGetOrderStatusFutures(ctx context.Context, contract cu
 	}
 
 	var resp WebsocketFuturesOrderResponse
-	err := g.SendWebsocketRequest(ctx, "futures.order_status", a, params, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, "futures.order_status", a, params, &resp, 1)
 }
