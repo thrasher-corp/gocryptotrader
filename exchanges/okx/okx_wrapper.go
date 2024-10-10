@@ -46,7 +46,6 @@ func (ok *Okx) SetDefaults() {
 	ok.Enabled = true
 	ok.Verbose = true
 
-	ok.WsRequestSemaphore = make(chan int, 20)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
@@ -192,14 +191,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
-		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
-		Register:              make(chan *wsRequestInfo),
-		Unregister:            make(chan string),
-		Message:               make(chan *wsIncomingData),
-		shutdown:              make(chan bool),
-	}
-
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -222,36 +213,24 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	go ok.WsResponseMultiplexer.Run()
-
 	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPublicURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                      okxAPIWebsocketPublicURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         okxWebsocketResponseMaxLimit,
+		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
+		BespokeGenerateMessageID: func(bool) int64 { return ok.Counter.IncrementAndGet() },
 	}); err != nil {
 		return err
 	}
 
 	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPrivateURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                      okxAPIWebsocketPrivateURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         okxWebsocketResponseMaxLimit,
+		Authenticated:            true,
+		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
+		BespokeGenerateMessageID: func(bool) int64 { return ok.Counter.IncrementAndGet() },
 	})
-}
-
-// Shutdown calls Base.Shutdown and then shuts down the response multiplexer
-func (ok *Okx) Shutdown() error {
-	if err := ok.Base.Shutdown(); err != nil {
-		return err
-	}
-
-	// Must happen after the Websocket shutdown in Base.Shutdown, so there are no new blocking writes to the multiplexer
-	ok.WsResponseMultiplexer.Shutdown()
-
-	return nil
 }
 
 // GetServerTime returns the current exchange server time.
@@ -783,7 +762,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
+		placeOrderResponse, err = ok.WsPlaceOrder(ctx, orderRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -833,7 +812,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		ClientOrderID: action.ClientOrderID,
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = ok.WsAmendOrder(&amendRequest)
+		_, err = ok.WsAmendOrder(ctx, &amendRequest)
 	} else {
 		_, err = ok.AmendOrder(ctx, &amendRequest)
 	}
@@ -865,7 +844,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		ClientOrderID: ord.ClientOrderID,
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = ok.WsCancelOrder(req)
+		_, err = ok.WsCancelOrder(ctx, req)
 	} else {
 		_, err = ok.CancelSingleOrder(ctx, req)
 	}
@@ -906,7 +885,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	}
 	var canceledOrders []OrderData
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		canceledOrders, err = ok.WsCancelMultipleOrder(cancelOrderParams)
+		canceledOrders, err = ok.WsCancelMultipleOrder(ctx, cancelOrderParams)
 	} else {
 		canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
 	}
@@ -916,7 +895,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	for x := range canceledOrders {
 		resp.Status[canceledOrders[x].OrderID] = func() string {
-			if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
+			if canceledOrders[x].SCode > 0 {
 				return ""
 			}
 			return order.Cancelled.String()
@@ -995,14 +974,14 @@ ordersLoop:
 		var response []OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = ok.WsCancelMultipleOrder(remaining[:20])
+				response, err = ok.WsCancelMultipleOrder(ctx, remaining[:20])
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = ok.WsCancelMultipleOrder(remaining)
+				response, err = ok.WsCancelMultipleOrder(ctx, remaining)
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining)
 			}
@@ -1013,7 +992,7 @@ ordersLoop:
 			}
 		}
 		for y := range response {
-			if response[y].SCode == "0" {
+			if response[y].SCode == 0 {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
 				cancelAllResponse.Status[response[y].OrderID] = response[y].SMessage
