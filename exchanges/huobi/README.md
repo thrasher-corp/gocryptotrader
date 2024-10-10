@@ -118,7 +118,10 @@ Default Public Subscriptions:
 - Ticker
 - Candles ( Interval: 1min )
 - Orderbook ( Level: 0 - No aggregation )
-  - Configure Level: 1-5 for depth aggregation
+  - Configure Level: 1-5 for depth aggregation, for example:
+```json
+ {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
+```
 - Trades
 
 Default Authenticated Subscriptions:
