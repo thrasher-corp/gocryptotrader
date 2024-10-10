@@ -61,8 +61,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
+	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanPositions},
-	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanExecution},
 }
 
 var subscriptionNames = map[string]string{
@@ -71,6 +71,7 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel: chanPublicTrade,
 	subscription.MyOrdersChannel:  chanOrder,
 	subscription.MyTradesChannel:  chanExecution,
+	subscription.MyWalletChannel:  chanWallet,
 }
 
 // WsConnect connects to a websocket feed
