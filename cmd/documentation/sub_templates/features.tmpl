@@ -1,0 +1,18 @@
+{{define "features" -}}
+## Trading Methods Supported
+
+{{range $feature := .Features -}}
+### Protocol: {{$feature.Protocol}}
+
+{{range $assetFeatures := $feature.Assets -}}
+#### Asset: {{$assetFeatures.Asset}}
+
+Supported Methods:
+{{- range $method := $assetFeatures.Methods }}
+- {{$method}}
+{{- end }}
+
+{{end}}
+{{end}}
+
+{{end}}
