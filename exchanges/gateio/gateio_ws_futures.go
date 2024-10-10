@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -164,17 +163,16 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
-	if requestID, err := jsonparser.GetString(respRaw, "request_id"); err == nil && requestID != "" {
-		if !g.Websocket.Match.IncomingWithData(requestID, respRaw) {
-			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", requestID)
-		}
-		return nil
+	var push WsResponse
+	if err := json.Unmarshal(respRaw, &push); err != nil {
+		return err
 	}
 
-	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
-	if err != nil {
-		return err
+	if push.RequestID != "" {
+		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
+		}
+		return nil
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
@@ -190,7 +188,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, a)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.Time.Time())
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.TimeMs.Time())
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
@@ -198,8 +196,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
-		var processed []order.Detail
-		processed, err = g.processFuturesOrdersPushData(respRaw, a)
+		processed, err := g.processFuturesOrdersPushData(respRaw, a)
 		if err != nil {
 			return err
 		}

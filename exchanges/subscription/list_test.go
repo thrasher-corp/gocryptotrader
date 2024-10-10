@@ -106,3 +106,34 @@ func TestListClone(t *testing.T) {
 	l[0].Interval = kline.OneHour
 	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
 }
+
+var filterable = List{
+	{Channel: "a", Enabled: true, Authenticated: false},
+	{Channel: "b", Enabled: true, Authenticated: true},
+	{Channel: "c", Enabled: false, Authenticated: true},
+	{Channel: "d", Enabled: false, Authenticated: false},
+}
+
+func TestListEnabled(t *testing.T) {
+	t.Parallel()
+	l := filterable.Enabled()
+	require.Len(t, l, 2)
+	assert.Equal(t, filterable[:2], l)
+	assert.Len(t, filterable, 4)
+}
+
+func TestListPublic(t *testing.T) {
+	t.Parallel()
+	l := filterable.Public()
+	require.Len(t, l, 2)
+	assert.Equal(t, List{filterable[0], filterable[3]}, l)
+	assert.Len(t, filterable, 4)
+}
+
+func TestListPrivate(t *testing.T) {
+	t.Parallel()
+	l := filterable.Private()
+	require.Len(t, l, 2)
+	assert.Equal(t, filterable[1:3], l)
+	assert.Len(t, filterable, 4)
+}
