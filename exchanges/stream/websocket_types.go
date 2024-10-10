@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -146,42 +145,4 @@ type WebsocketSetup struct {
 	// an error will be returned. However, if a connection configuration includes its own rate limit,
 	// it will fall back to that configuration’s rate limit without raising an error.
 	RateLimitDefinitions request.RateLimitDefinitions
-}
-
-// WebsocketConnection contains all the data needed to send a message to a WS
-// connection
-type WebsocketConnection struct {
-	Verbose   bool
-	connected int32
-
-	// Gorilla websocket does not allow more than one goroutine to utilise
-	// writes methods
-	writeControl sync.Mutex
-
-	// RateLimit is a rate limiter for the connection itself
-	RateLimit *request.RateLimiterWithWeight
-	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all
-	// potential endpoints.
-	RateLimitDefinitions request.RateLimitDefinitions
-
-	ExchangeName string
-	URL          string
-	ProxyURL     string
-	Wg           *sync.WaitGroup
-	Connection   *websocket.Conn
-
-	// shutdown synchronises shutdown event across routines associated with this connection only e.g. ping handler
-	shutdown chan struct{}
-
-	Match             *Match
-	ResponseMaxLimit  time.Duration
-	Traffic           chan struct{}
-	readMessageErrors chan error
-
-	// bespokeGenerateMessageID is a function that returns a unique message ID
-	// defined externally. This is used for exchanges that require a unique
-	// message ID for each message sent.
-	bespokeGenerateMessageID func(highPrecision bool) int64
-
-	Reporter Reporter
 }

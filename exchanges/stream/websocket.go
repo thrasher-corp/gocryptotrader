@@ -289,20 +289,12 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		connectionURL = c.URL
 	}
 	return &WebsocketConnection{
-		ExchangeName:             w.exchangeName,
-		URL:                      connectionURL,
-		ProxyURL:                 w.GetProxyAddress(),
-		Verbose:                  w.verbose,
-		ResponseMaxLimit:         c.ResponseMaxLimit,
-		Traffic:                  w.TrafficAlert,
-		readMessageErrors:        w.ReadMessageErrors,
-		shutdown:                 w.ShutdownC,
-		Wg:                       &w.Wg,
-		Match:                    w.Match,
-		RateLimit:                c.RateLimit,
-		Reporter:                 c.ConnectionLevelReporter,
+		_URL:                     connectionURL,
+		responseMaxLimit:         c.ResponseMaxLimit,
+		rateLimit:                c.RateLimit,
+		reporter:                 c.ConnectionLevelReporter,
 		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
-		RateLimitDefinitions:     w.rateLimitDefinitions,
+		parent:                   w,
 	}
 }
 
@@ -418,7 +410,7 @@ func (w *Websocket) connect() error {
 		}
 
 		if !conn.IsConnected() {
-			multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn.URL)
+			multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn._URL)
 			break
 		}
 
@@ -438,7 +430,7 @@ func (w *Websocket) connect() error {
 			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
 				w.exchangeName,
 				i+1,
-				conn.URL,
+				conn._URL,
 				len(subs))
 		}
 	}
@@ -774,18 +766,6 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		log.Debugf(log.ExchangeSys, "%s websocket: setting websocket proxy: %s", w.exchangeName, proxyAddr)
 	} else {
 		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", w.exchangeName)
-	}
-
-	for _, wrapper := range w.connectionManager {
-		if wrapper.Connection != nil {
-			wrapper.Connection.SetProxy(proxyAddr)
-		}
-	}
-	if w.Conn != nil {
-		w.Conn.SetProxy(proxyAddr)
-	}
-	if w.AuthConn != nil {
-		w.AuthConn.SetProxy(proxyAddr)
 	}
 
 	w.proxyAddr = proxyAddr
