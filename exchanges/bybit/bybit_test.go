@@ -3715,6 +3715,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					switch s.Channel {
+					case subscription.CandlesChannel:
+						s.QualifiedChannel = fmt.Sprintf("%s.%.f.%s", channelName(s), s.Interval.Duration().Minutes(), p)
 					case subscription.OrderbookChannel:
 						s.QualifiedChannel = fmt.Sprintf("%s.%d.%s", channelName(s), s.Levels, p)
 					default:
