@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -77,10 +76,18 @@ const (
 	statusOpen = "open"
 
 	krakenFormat = "2006-01-02T15:04:05.000Z"
+
+	// ChannelOrderbookDepthKey configures the orderbook depth in stream.ChannelSubscription.Params
+	ChannelOrderbookDepthKey = "_depth"
+	// ChannelCandlesTimeframeKey configures the candle bar timeframe in stream.ChannelSubscription.Params
+	ChannelCandlesTimeframeKey = "_timeframe"
 )
 
 var (
 	assetTranslator assetTranslatorStore
+
+	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
+	errBadChannelSuffix         = errors.New("bad websocket channel suffix")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -492,43 +499,29 @@ type WithdrawStatusResponse struct {
 	Status string  `json:"status"`
 }
 
-// WebsocketSubscriptionEventRequest handles WS subscription events
-type WebsocketSubscriptionEventRequest struct {
-	Event        string                    `json:"event"`           // subscribe
-	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs        []string                  `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+// WebsocketSubRequest contains request data for Subscribe/Unsubscribe to channels
+type WebsocketSubRequest struct {
+	Event        string                    `json:"event"`
+	RequestID    int64                     `json:"reqid,omitempty"`
+	Pairs        []string                  `json:"pair,omitempty"`
 	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
-	Channels     subscription.List         `json:"-"` // Keeps track of associated subscriptions in batched outgoings
-}
-
-// WebsocketBaseEventRequest Just has an "event" property
-type WebsocketBaseEventRequest struct {
-	Event string `json:"event"` // eg "unsubscribe"
-}
-
-// WebsocketUnsubscribeByChannelIDEventRequest  handles WS unsubscribe events
-type WebsocketUnsubscribeByChannelIDEventRequest struct {
-	WebsocketBaseEventRequest
-	RequestID int64    `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs     []string `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
-	ChannelID int64    `json:"channelID,omitempty"`
 }
 
 // WebsocketSubscriptionData contains details on WS channel
 type WebsocketSubscriptionData struct {
 	Name     string `json:"name,omitempty"`     // ticker|ohlc|trade|book|spread|*, * for all (ohlc interval value is 1 if all channels subscribed)
-	Interval int64  `json:"interval,omitempty"` // Optional - Time interval associated with ohlc subscription in minutes. Default 1. Valid Interval values: 1|5|15|30|60|240|1440|10080|21600
-	Depth    int64  `json:"depth,omitempty"`    // Optional - depth associated with book subscription in number of levels each side, default 10. Valid Options are: 10, 25, 100, 500, 1000
-	Token    string `json:"token,omitempty"`    // Optional used for authenticated requests
+	Interval int    `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
+	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000
+	Token    string `json:"token,omitempty"`    // Optional - Token for authenticated channels
 
 }
 
 // WebsocketEventResponse holds all data response types
 type WebsocketEventResponse struct {
-	WebsocketBaseEventRequest
+	Event        string                            `json:"event"`
 	Status       string                            `json:"status"`
 	Pair         currency.Pair                     `json:"pair,omitempty"`
-	RequestID    int64                             `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	RequestID    int64                             `json:"reqid,omitempty"`
 	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
 	ChannelName  string                            `json:"channelName,omitempty"`
 	WebsocketSubscriptionEventResponse
@@ -545,21 +538,9 @@ type WebsocketSubscriptionResponseData struct {
 	Name string `json:"name"`
 }
 
-// WebsocketDataResponse defines a websocket data type
-type WebsocketDataResponse []interface{}
-
 // WebsocketErrorResponse defines a websocket error response
 type WebsocketErrorResponse struct {
 	ErrorMessage string `json:"errorMessage"`
-}
-
-// WebsocketChannelData Holds relevant data for channels to identify what we're
-// doing
-type WebsocketChannelData struct {
-	Subscription string
-	Pair         currency.Pair
-	ChannelID    *int64
-	MaxDepth     int
 }
 
 // WsTokenResponse holds the WS auth token
@@ -573,21 +554,6 @@ type wsSystemStatus struct {
 	Event        string  `json:"event"`
 	Status       string  `json:"status"`
 	Version      string  `json:"version"`
-}
-
-type wsSubscription struct {
-	ChannelID    *int64 `json:"channelID"`
-	ChannelName  string `json:"channelName"`
-	ErrorMessage string `json:"errorMessage"`
-	Event        string `json:"event"`
-	Pair         string `json:"pair"`
-	RequestID    int64  `json:"reqid"`
-	Status       string `json:"status"`
-	Subscription struct {
-		Depth    int    `json:"depth"`
-		Interval int    `json:"interval"`
-		Name     string `json:"name"`
-	} `json:"subscription"`
 }
 
 // WsOpenOrder contains all open order data from ws feed

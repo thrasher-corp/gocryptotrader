@@ -71,15 +71,13 @@ func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, cha
 	}
 
 	var inbound WebsocketAPIResponse
-	err = json.Unmarshal(resp, &inbound)
-	if err != nil {
+	if err := json.Unmarshal(resp, &inbound); err != nil {
 		return nil, err
 	}
 
 	if inbound.Header.Status != "200" {
 		var wsErr WebsocketErrors
-		err := json.Unmarshal(inbound.Data, &wsErr.Errors)
-		if err != nil {
+		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
@@ -190,8 +188,7 @@ func (g *Gateio) WebsocketOrderCancelAllByPairSpot(ctx context.Context, pair cur
 	}
 
 	var resp []WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
 }
 
 // WebsocketOrderAmendSpot amends an order via the websocket connection
@@ -213,8 +210,7 @@ func (g *Gateio) WebsocketOrderAmendSpot(ctx context.Context, amend *WebsocketAm
 	}
 
 	var resp WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_amend", asset.Spot, amend, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, "spot.order_amend", asset.Spot, amend, &resp, 1)
 }
 
 // WebsocketGetOrderStatusSpot gets the status of an order via the websocket connection
@@ -237,8 +233,7 @@ func (g *Gateio) WebsocketGetOrderStatusSpot(ctx context.Context, orderID string
 	}
 
 	var resp WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
 }
 
 // SendWebsocketRequest sends a websocket request to the exchange
@@ -282,15 +277,13 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 	// from that as the next response won't come anyway.
 	endResponse := responses[len(responses)-1]
 
-	err = json.Unmarshal(endResponse, &inbound)
-	if err != nil {
+	if err := json.Unmarshal(endResponse, &inbound); err != nil {
 		return err
 	}
 
 	if inbound.Header.Status != "200" {
 		var wsErr WebsocketErrors
-		err = json.Unmarshal(inbound.Data, &wsErr)
-		if err != nil {
+		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
 			return err
 		}
 		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
