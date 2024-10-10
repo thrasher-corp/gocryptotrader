@@ -438,16 +438,16 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 			return fmt.Errorf("%w 'chanId': %w from message: %s", errParsingWSField, err, respRaw)
 		}
 		if !b.Websocket.Match.IncomingWithData("unsubscribe:"+chanID, respRaw) {
-			return fmt.Errorf("%v channel unsubscribe listener not found", chanID)
+			return fmt.Errorf("%w: unsubscribe:%v", stream.ErrNoMessageListener, chanID)
 		}
 	case wsEventError:
 		if subID, err := jsonparser.GetUnsafeString(respRaw, "subId"); err == nil {
 			if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
-				return fmt.Errorf("%v channel subscribe listener not found", subID)
+				return fmt.Errorf("%w: subscribe:%v", stream.ErrNoMessageListener, subID)
 			}
 		} else if chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId"); err == nil {
 			if !b.Websocket.Match.IncomingWithData("unsubscribe:"+chanID, respRaw) {
-				return fmt.Errorf("%v channel unsubscribe listener not found", chanID)
+				return fmt.Errorf("%w: unsubscribe:%v", stream.ErrNoMessageListener, chanID)
 			}
 		} else {
 			return fmt.Errorf("unknown channel error; Message: %s", respRaw)
@@ -520,7 +520,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Pairs, chanID)
 	}
 	if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
-		return fmt.Errorf("%v channel subscribe listener not found", subID)
+		return fmt.Errorf("%w: subscribe:%v", stream.ErrNoMessageListener, subID)
 	}
 	return nil
 }
