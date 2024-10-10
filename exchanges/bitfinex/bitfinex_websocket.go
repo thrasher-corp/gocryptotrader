@@ -36,6 +36,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
 	{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.All},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.OneMin},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Margin, Interval: kline.OneMin},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.MarginFunding, Interval: kline.OneMin, Params: map[string]any{CandlesPeriodKey: "p30"}},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Levels: 100, Params: map[string]any{"prec": "R0"}},
 }
@@ -1693,7 +1694,13 @@ func (b *Bitfinex) generateSubscriptions() (subscription.List, error) {
 
 // GetSubscriptionTemplate returns a subscription channel template
 func (b *Bitfinex) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
-	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToMap": subToMap}).Parse(subTplText)
+	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
+		"subToMap": subToMap,
+		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string {
+			spotPairs, _ := b.GetEnabledPairs(asset.Spot)
+			return removeSpotFromMargin(ap, spotPairs)
+		},
+	}).Parse(subTplText)
 }
 
 // ConfigureWS to send checksums and sequence numbers
@@ -2218,7 +2225,16 @@ func subToMap(s *subscription.Subscription, a asset.Item, p currency.Pair) map[s
 	return req
 }
 
+// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map to avoid duplicate subscriptions
+func removeSpotFromMargin(ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+	if p, ok := ap[asset.Margin]; ok {
+		ap[asset.Margin] = p.Remove(spotPairs...)
+	}
+	return ""
+}
+
 const subTplText = `
+{{- removeSpotFromMargin $.AssetPairs -}}
 {{ range $asset, $pairs := $.AssetPairs }}
 	{{- range $p := $pairs  -}}
 		{{- subToMap $.S $asset $p | mustToJson }}
