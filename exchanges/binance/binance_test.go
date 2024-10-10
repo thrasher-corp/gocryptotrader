@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1989,7 +1990,7 @@ func TestSubscribe(t *testing.T) {
 			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
 		}
-		b = testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock))
+		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
 		testexch.SetupWs(t, b)
 	}
@@ -2011,7 +2012,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		require.NoError(tb, err, "Unmarshal should not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
 	}
-	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, common.ErrUnknownError, "Subscribe should error correctly")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
