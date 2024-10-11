@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -25,9 +25,9 @@ var (
 )
 
 // CheckEOptionsServerTime retrieves the server time.
-func (b *Binance) CheckEOptionsServerTime(ctx context.Context) (convert.ExchangeTime, error) {
+func (b *Binance) CheckEOptionsServerTime(ctx context.Context) (types.Time, error) {
 	resp := &struct {
-		ServerTime convert.ExchangeTime `json:"serverTime"`
+		ServerTime types.Time `json:"serverTime"`
 	}{}
 	return resp.ServerTime, b.SendHTTPRequest(ctx, exchange.RestOptions, "/eapi/v1/time", optionsDefaultRate, &resp)
 }

@@ -672,12 +672,12 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels sub
 		}
 	}
 	if operation == "UNSUBSCRIBE" {
-		err := b.Websocket.RemoveSubscriptions(subscriptionChannels...)
+		err := b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subscriptionChannels...)
 		if err != nil {
 			return err
 		}
 	}
-	return b.Websocket.AddSuccessfulSubscriptions(subscriptionChannels...)
+	return b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subscriptionChannels...)
 }
 
 // GenerateUFuturesDefaultSubscriptions generates the default subscription set

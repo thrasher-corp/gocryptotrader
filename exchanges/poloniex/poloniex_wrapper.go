@@ -181,7 +181,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return p.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -55,7 +54,7 @@ const (
 // GetExchangeServerTime retrieves the server time.
 func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) {
 	resp := &struct {
-		ServerTime convert.ExchangeTime `json:"serverTime"`
+		ServerTime types.Time `json:"serverTime"`
 	}{}
 	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpot, "/api/v3/time", spotDefaultRate, resp)
 }

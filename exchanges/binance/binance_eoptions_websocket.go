@@ -178,12 +178,12 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscript
 		return fmt.Errorf("err: code: %d, msg: %s", resp.Error.Code, resp.Error.Message)
 	}
 	if operation == "SUBSCRIBE" {
-		err = b.Websocket.AddSuccessfulSubscriptions(subscs...)
+		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subscs...)
 		if err != nil {
 			return err
 		}
 	}
-	return b.Websocket.RemoveSubscriptions(subscs...)
+	return b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subscs...)
 }
 
 // OptionSubscribe sends an european option subscription messages.
