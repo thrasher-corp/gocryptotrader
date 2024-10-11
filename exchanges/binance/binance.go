@@ -1066,6 +1066,9 @@ func (b *Binance) GetMarginPriceIndex(ctx context.Context, symbol string) (*Marg
 // PostMarginAccountOrder post a new order for margin account.
 // autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
 func (b *Binance) PostMarginAccountOrder(ctx context.Context, arg *MarginAccountOrderParam) (*MarginAccountOrder, error) {
+	if *arg == (MarginAccountOrderParam{}) {
+		return nil, errNilArgument
+	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1302,6 +1305,9 @@ func (b *Binance) GetMarginAccountAllOrders(ctx context.Context, symbol string, 
 // OCO counts as 2 orders against the order rate limit.
 // autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
 func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOrderParam) (*OCOOrder, error) {
+	if *arg == (MarginOCOOrderParam{}) {
+		return nil, errNilArgument
+	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1403,14 +1409,14 @@ func (b *Binance) GetMarginAccountAllOCO(ctx context.Context, symbol string, isI
 
 // GetMarginAccountsOpenOCOOrder retrieves margin account's open OCO order
 func (b *Binance) GetMarginAccountsOpenOCOOrder(ctx context.Context, isIsolated bool, symbol string) ([]OCOOrder, error) {
-	params := url.Values{}
-	if isIsolated {
-		params.Set("isIsolated", "TRUE")
-	}
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := url.Values{}
 	params.Set("symbol", symbol)
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
 	var resp []OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/openOrderList", params, marginAccountOpenOCOOrdersRate, nil, &resp)
 }
@@ -1641,10 +1647,10 @@ func (b *Binance) MarginSmallLiabilityExchange(ctx context.Context, assetNames [
 
 // GetSmallLiabilityExchangeHistory retrieves small liability exchange history
 func (b *Binance) GetSmallLiabilityExchangeHistory(ctx context.Context, current, size int64, startTime, endTime time.Time) (*SmallLiabilityExchange, error) {
-	if current == 0 {
+	if current <= 0 {
 		return nil, fmt.Errorf("%w, current page is empty", errPageNumberRequired)
 	}
-	if size == 0 {
+	if size <= 0 {
 		return nil, errPageSizeRequired
 	}
 	params := url.Values{}
@@ -2055,7 +2061,7 @@ func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset currency.Code,
 	if address == "" {
 		return "", errAddressRequired
 	}
-	if amount == 0 {
+	if amount <= 0 {
 		return "", order.ErrAmountBelowMin
 	}
 	params := url.Values{}
@@ -2359,11 +2365,11 @@ func (b *Binance) ConvertBUSD(ctx context.Context, clientTransactionID, accountT
 
 // BUSDConvertHistory convert transfer, convert between BUSD and stablecoins.
 func (b *Binance) BUSDConvertHistory(ctx context.Context, transactionID, clientTransactionID, accountType string, assetCcy currency.Code, startTime, endTime time.Time, current, size int64) (*BUSDConvertHistory, error) {
-	params := url.Values{}
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	if transactionID != "" {
@@ -2621,7 +2627,7 @@ func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail,
 	if futuresType != 0 && futuresType != 1 {
 		return nil, fmt.Errorf("%w 1: USDT-margined Futures or 2: Coin-margined Futures", errInvalidFuturesType)
 	}
-	if !asset.IsEmpty() {
+	if asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
