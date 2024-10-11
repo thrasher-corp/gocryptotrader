@@ -842,9 +842,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 	exchanges := 0
 	for i := range c.Exchanges {
 		e := &c.Exchanges[i]
-		if strings.EqualFold(e.Name, "GDAX") {
-			e.Name = "CoinbasePro"
-		}
 
 		// Check to see if the old API storage format is used
 		if e.APIKey != nil {
