@@ -1498,6 +1498,8 @@ func (c *Config) ReadConfigFromFile(path string, dryrun bool) error {
 	return c.saveWithEncryptPrompt(path)
 }
 
+type keyProvider func() ([]byte, error)
+
 // readConfig loads config from a io.Reader into the config object
 // versions manager will upgrade/downgrade if appropriate
 // If encrypted, prompts for encryption key
@@ -1534,8 +1536,6 @@ func (c *Config) saveWithEncryptPrompt(path string) error {
 	c.EncryptConfig = fileEncryptionDisabled
 	return c.SaveConfigToFile(path)
 }
-
-type keyProvider func() ([]byte, error)
 
 // decryptConfig reads encrypted configuration and requests key from provider
 func (c *Config) decryptConfig(j []byte, keyProvider keyProvider) ([]byte, error) {
