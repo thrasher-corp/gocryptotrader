@@ -1532,11 +1532,7 @@ func (c *Config) saveWithEncryptPrompt(path string) error {
 	}
 
 	c.EncryptConfig = fileEncryptionDisabled
-	if err := c.SaveConfigToFile(path); err != nil {
-		return err
-	}
-
-	return nil
+	return c.SaveConfigToFile(path)
 }
 
 type keyProvider func() ([]byte, error)
