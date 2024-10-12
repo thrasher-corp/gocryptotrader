@@ -1,15 +1,12 @@
+// Package versions handles config upgrades and downgrades
 /*
-versions handles config upgrades and downgrades
+  - Versions must be stateful, and not rely upon type definitions in the config pkg
 
-  - Versions must be stateful, and not rely upon type definitions in the config pkg. Instead versions must localise types to avoid issues with subsequent changes
+  - Instead versions should localise types into vN/types.go to avoid issues with subsequent changes
 
   - Versions must upgrade to the next version. Do not retrospectively change versions to match new type changes. Create a new version
 
-  - Versions must be registered in import.go
-
   - Versions must implement ExchangeVersion or ConfigVersion, and may implement both
-
-  - Versions implementing DisabledVersion will be silently ignored, but must be the highest version numbers to avoid errVersionSequence
 */
 package versions
 
@@ -20,7 +17,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/buger/jsonparser"
@@ -35,11 +31,6 @@ var (
 	errNoVersions          = errors.New("error retrieving latest config version: No config versions are registered")
 	errApplyingVersion     = errors.New("error applying version")
 )
-
-// DisabledVersion allows authors to rollback changes easily during development
-type DisabledVersion interface {
-	Disabled()
-}
 
 // ConfigVersion is a version that affects the general configuration
 type ConfigVersion interface {
@@ -173,17 +164,10 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 // registerVersion takes instances of config versions and adds them to the registry
 // Versions should be added sequentially without gaps, in import.go init
 // Any errors will also added to the registry for reporting later
-func (m *manager) registerVersion(v any) {
+func (m *manager) registerVersion(ver int, v any) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	ver, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(fmt.Sprintf("%T", v), "*v"), ".Version"))
-	if err != nil {
-		m.errors = common.AppendError(m.errors, fmt.Errorf("%w '%T': %w", errRegisteringVersion, v, err))
-		return
-	}
 	switch v.(type) {
-	case DisabledVersion:
-		return
 	case ExchangeVersion, ConfigVersion:
 	default:
 		m.errors = common.AppendError(m.errors, fmt.Errorf("%w: %v", errVersionIncompatible, ver))
