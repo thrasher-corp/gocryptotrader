@@ -45,6 +45,7 @@ const (
 	gateioSpotCandlesticks                               = "spot/candlesticks"
 	gateioSpotFeeRate                                    = "spot/fee"
 	gateioSpotAccounts                                   = "spot/accounts"
+	gateioUnifiedAccounts                                = "unified/accounts"
 	gateioSpotBatchOrders                                = "spot/batch_orders"
 	gateioSpotOpenOrders                                 = "spot/open_orders"
 	gateioSpotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
@@ -172,6 +173,7 @@ var (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
+	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
 }
 
@@ -552,6 +554,16 @@ func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Spot
 		exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioSpotAccounts, params, nil, &response)
 }
 
+// GetUnifiedAccount retrieves unified account.
+func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var response UnifiedUserAccount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioUnifiedAccounts, params, nil, &response)
+}
+
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
 func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderRequestData) ([]SpotOrder, error) {
@@ -701,7 +713,7 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 	} else if len(args) > 20 {
 		return nil, fmt.Errorf("%w maximum order size to cancel is 20", errInvalidOrderSize)
 	}
-	for x := 0; x < len(args); x++ {
+	for x := range args {
 		if args[x].CurrencyPair.IsEmpty() || args[x].ID == "" {
 			return nil, errors.New("currency pair and order ID are required")
 		}
@@ -1152,28 +1164,26 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !strings.EqualFold(arg.From, asset.Spot.String()) {
-		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", asset.ErrNotSupported, asset.Spot)
+	if arg.From == "" {
+		return nil, errors.New("from account is required")
 	}
-	if !g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", asset.ErrNotSupported, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+	if arg.To == "" {
+		return nil, errors.New("to account is required")
 	}
-	if arg.Amount < 0 {
+	if arg.To == arg.From {
+		return nil, errors.New("from and to account cannot be the same")
+	}
+	if (arg.To == "margin" || arg.From == "margin") && arg.CurrencyPair.IsEmpty() {
+		return nil, errors.New("currency pair is required for margin account transfer")
+	}
+	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
+		return nil, errors.New("settle is required for futures account transfer")
+	}
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	var response *TransactionIDResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodPost, walletTransfer, nil, &arg, &response)
-}
-
-func (g *Gateio) isAccountAccepted(account string) bool {
-	if account == "" {
-		return false
-	}
-	acc, err := asset.New(account)
-	if err != nil {
-		return false
-	}
-	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Options
 }
 
 func (g *Gateio) assetTypeToString(acc asset.Item) string {
@@ -3753,8 +3763,12 @@ func (g *Gateio) IsValidPairString(currencyPair string) bool {
 	if len(currencyPair) < 3 {
 		return false
 	}
-	if strings.Contains(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter) {
-		result := strings.Split(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter)
+	pf, err := g.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(currencyPair, pf.Delimiter) {
+		result := strings.Split(currencyPair, pf.Delimiter)
 		return len(result) >= 2
 	}
 	return false

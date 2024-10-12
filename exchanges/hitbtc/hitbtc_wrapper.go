@@ -112,7 +112,7 @@ func (h *HitBTC) SetDefaults() {
 
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -168,8 +168,8 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -428,7 +428,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate()
+	err := o.Validate(h.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

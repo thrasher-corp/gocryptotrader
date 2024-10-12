@@ -3,7 +3,6 @@ package request
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"math"
@@ -28,12 +27,12 @@ import (
 const unexpected = "unexpected values"
 
 var testURL string
-var serverLimit *rate.Limiter
+var serverLimit *RateLimiterWithWeight
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
-	serverLimit = NewRateLimit(serverLimitInterval, 1)
-	serverLimitRetry := NewRateLimit(serverLimitInterval, 1)
+	serverLimit = NewWeightedRateLimitByDuration(serverLimitInterval)
+	serverLimitRetry := NewWeightedRateLimitByDuration(serverLimitInterval)
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -102,26 +101,26 @@ func TestMain(m *testing.M) {
 	os.Exit(issues)
 }
 
-func TestNewRateLimit(t *testing.T) {
+func TestNewRateLimitWithWeight(t *testing.T) {
 	t.Parallel()
-	r := NewRateLimit(time.Second*10, 5)
+	r := NewRateLimitWithWeight(time.Second*10, 5, 1)
 	if r.Limit() != 0.5 {
 		t.Fatal(unexpected)
 	}
 
 	// Ensures rate limiting factor is the same
-	r = NewRateLimit(time.Second*2, 1)
+	r = NewRateLimitWithWeight(time.Second*2, 1, 1)
 	if r.Limit() != 0.5 {
 		t.Fatal(unexpected)
 	}
 
 	// Test for open rate limit
-	r = NewRateLimit(time.Second*2, 0)
+	r = NewRateLimitWithWeight(time.Second*2, 0, 1)
 	if r.Limit() != rate.Inf {
 		t.Fatal(unexpected)
 	}
 
-	r = NewRateLimit(0, 69)
+	r = NewRateLimitWithWeight(0, 69, 1)
 	if r.Limit() != rate.Inf {
 		t.Fatal(unexpected)
 	}
@@ -201,39 +200,13 @@ func TestCheckRequest(t *testing.T) {
 	}
 }
 
-type GlobalLimitTest struct {
-	Auth   *rate.Limiter
-	UnAuth *rate.Limiter
-}
-
-var errEndpointLimitNotFound = errors.New("endpoint limit not found")
-
-func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) error {
-	switch e {
-	case Auth:
-		if g.Auth == nil {
-			return errors.New("auth rate not set")
-		}
-		return g.Auth.Wait(ctx)
-	case UnAuth:
-		if g.UnAuth == nil {
-			return errors.New("unauth rate not set")
-		}
-		return g.UnAuth.Wait(ctx)
-	default:
-		return fmt.Errorf("cannot execute functionality: %d %w",
-			e,
-			errEndpointLimitNotFound)
-	}
-}
-
-var globalshell = GlobalLimitTest{
-	Auth:   NewRateLimit(time.Millisecond*600, 1),
-	UnAuth: NewRateLimit(time.Second*1, 100)}
+var globalshell = RateLimitDefinitions{
+	Auth:   NewWeightedRateLimitByDuration(time.Millisecond * 600),
+	UnAuth: NewRateLimitWithWeight(time.Second*1, 100, 1)}
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
-	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,13 +243,9 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	// Invalid/missing endpoint limit
-	err = r.SendPayload(ctx, Unset, func() (*Item, error) {
-		return &Item{
-			Path: testURL,
-		}, nil
-	}, UnauthenticatedRequest)
-	if !errors.Is(err, errEndpointLimitNotFound) {
-		t.Fatalf("expected: %v but received: %v", errEndpointLimitNotFound, err)
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &Item{Path: testURL}, nil }, UnauthenticatedRequest)
+	if !errors.Is(err, errSpecificRateLimiterIsNil) {
+		t.Fatalf("expected: %v but received: %v", errSpecificRateLimiterIsNil, err)
 	}
 
 	// Force debug
@@ -376,7 +345,7 @@ func TestDoRequest(t *testing.T) {
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func(wg *sync.WaitGroup) {
 			var resp struct {
 				Response bool `json:"response"`
@@ -419,7 +388,7 @@ func TestDoRequest_Retries(t *testing.T) {
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(4)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			var resp struct {
@@ -497,7 +466,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
-	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	require.NoError(t, err)
 	n1 := r.GetNonce(nonce.Unix)
 	assert.NotZero(t, n1)
@@ -505,7 +474,7 @@ func TestGetNonce(t *testing.T) {
 	assert.NotZero(t, n2)
 	assert.NotEqual(t, n1, n2)
 
-	r2, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	r2, err := New("test", new(http.Client), WithLimiter(globalshell))
 	require.NoError(t, err)
 	n3 := r2.GetNonce(nonce.UnixNano)
 	assert.NotZero(t, n3)
@@ -520,7 +489,7 @@ func TestGetNonce(t *testing.T) {
 // 40532461	       30.29 ns/op	       0 B/op	       0 allocs/op (prev)
 // 45329203	       26.53 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkGetNonce(b *testing.B) {
-	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -536,9 +505,7 @@ func TestSetProxy(t *testing.T) {
 	if !errors.Is(err, ErrRequestSystemIsNil) {
 		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
 	}
-	r, err = New("test",
-		&http.Client{Transport: new(http.Transport)},
-		WithLimiter(&globalshell))
+	r, err = New("test", &http.Client{Transport: new(http.Transport)}, WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,16 +528,11 @@ func TestSetProxy(t *testing.T) {
 }
 
 func TestBasicLimiter(t *testing.T) {
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(NewBasicRateLimit(time.Second, 1)))
+	r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(time.Second, 1, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	i := Item{
-		Path:   "http://www.google.com",
-		Method: http.MethodGet,
-	}
+	i := Item{Path: "http://www.google.com", Method: http.MethodGet}
 	ctx := context.Background()
 
 	tn := time.Now()
@@ -595,9 +557,7 @@ func TestBasicLimiter(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
-	r, err := New("TestRequest",
-		new(http.Client),
-		WithLimiter(NewBasicRateLimit(time.Minute, 1)))
+	r, err := New("TestRequest", new(http.Client), WithLimiter(NewBasicRateLimit(time.Minute, 1, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -740,29 +700,19 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 
 func TestContextVerbosity(t *testing.T) {
 	t.Parallel()
-	if isVerbose(context.Background(), false) {
-		t.Fatal("unexpected value")
-	}
+	require.False(t, IsVerbose(context.Background(), false))
+	require.True(t, IsVerbose(context.Background(), true))
+	require.True(t, IsVerbose(WithVerbose(context.Background()), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, false), false))
+	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, "bruh"), false))
+	require.True(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, true), false))
+}
 
-	if !isVerbose(context.Background(), true) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx := context.Background()
-	ctx = WithVerbose(ctx)
-	if !isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, false)
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
-
-	ctx = context.Background()
-	ctx = context.WithValue(ctx, contextVerboseFlag, "bruh")
-	if isVerbose(ctx, false) {
-		t.Fatal("unexpected value")
-	}
+func TestGetRateLimiterDefinitions(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, RateLimitDefinitions(nil), (*Requester)(nil).GetRateLimiterDefinitions())
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
+	require.NoError(t, err)
+	require.NotEmpty(t, r.GetRateLimiterDefinitions())
+	assert.Equal(t, globalshell, r.GetRateLimiterDefinitions())
 }

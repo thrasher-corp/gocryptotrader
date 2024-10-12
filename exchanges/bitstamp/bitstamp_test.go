@@ -160,7 +160,7 @@ func TestGetAccountTradingFees(t *testing.T) {
 
 	fees, err := b.GetAccountTradingFees(context.Background())
 	require.NoError(t, err, "GetAccountTradingFee must not error")
-	if assert.Positive(t, len(fees), "Should get back multiple fees") {
+	if assert.NotEmpty(t, fees, "Should get back multiple fees") {
 		fee := fees[0]
 		assert.NotEmpty(t, fee.Symbol, "Should get back a symbol")
 		if mockTests {
@@ -776,84 +776,79 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	n := new(Bitstamp)
-	sharedtestvalues.TestFixtureToDataHandler(t, b, n, "testdata/wsMyOrders.json", n.wsHandleData)
-	seen := 0
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *order.Detail:
-				switch seen {
-				case 1:
-					assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
-					assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")
-					assert.Equal(t, "test_market_buy", v.ClientOrderID, "ClientOrderID")
-					assert.Equal(t, order.New, v.Status, "Status")
-					assert.Equal(t, order.Buy, v.Side, "Side")
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "/"), v.Pair, "Pair")
-					assert.Equal(t, 0.0, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 999999999.0, v.Price, "Price") // Market Buy Price
-					// Note: Amount is 0 for market order create messages, oddly
-				case 2:
-					assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
-					assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
-					assert.Equal(t, 0.00038667, v.Amount, "Amount")
-					assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount") // During live tests we consistently got back this Sat remaining
-					assert.Equal(t, 0.00038666, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 25862.0, v.Price, "Price")
-				case 3:
-					assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
-					assert.Equal(t, order.Cancelled, v.Status, "Status") // Even though they probably consider it filled, Deleted + PartialFill = Cancelled
-					assert.Equal(t, 0.00038667, v.Amount, "Amount")
-					assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038666, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 25862.0, v.Price, "Price")
-				case 4:
-					assert.Equal(t, "1658870500933632", v.OrderID, "OrderID")
-					assert.Equal(t, order.New, v.Status, "Status")
-					assert.Equal(t, order.Sell, v.Side, "Side")
-					assert.Equal(t, 0.0, v.Price, "Price") // Market Sell Price
-				case 5:
-					assert.Equal(t, "1658870500933632", v.OrderID, "OrderID")
-					assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
-					assert.Equal(t, 0.00038679, v.Amount, "Amount")
-					assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038678, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 25854.0, v.Price, "Price")
-				case 6:
-					assert.Equal(t, "1658870500933632", v.OrderID, "OrderID")
-					assert.Equal(t, order.Cancelled, v.Status, "Status")
-					assert.Equal(t, 0.00038679, v.Amount, "Amount")
-					assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038678, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 25854.0, v.Price, "Price")
-				case 7:
-					assert.Equal(t, "1658869033291777", v.OrderID, "OrderID")
-					assert.Equal(t, order.New, v.Status, "Status")
-					assert.Equal(t, order.Sell, v.Side, "Side")
-					assert.Equal(t, 25845.0, v.Price, "Price")
-					assert.Equal(t, 0.00038692, v.Amount, "Amount")
-				case 8:
-					assert.Equal(t, "1658869033291777", v.OrderID, "OrderID")
-					assert.Equal(t, order.Filled, v.Status, "Status")
-					assert.Equal(t, 25845.0, v.Price, "Price")
-					assert.Equal(t, 0.00038692, v.Amount, "Amount")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038692, v.ExecutedAmount, "ExecutedAmount")
-				}
-			case error:
-				t.Error(v)
-			default:
-				t.Errorf("Got unexpected data: %T %v", v, v)
+	b := new(Bitstamp) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", b.wsHandleData)
+	close(b.Websocket.DataHandler)
+	assert.Len(t, b.Websocket.DataHandler, 8, "Should see 8 orders")
+	for resp := range b.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *order.Detail:
+			switch len(b.Websocket.DataHandler) {
+			case 7:
+				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
+				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")
+				assert.Equal(t, "test_market_buy", v.ClientOrderID, "ClientOrderID")
+				assert.Equal(t, order.New, v.Status, "Status")
+				assert.Equal(t, order.Buy, v.Side, "Side")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "/"), v.Pair, "Pair")
+				assert.Equal(t, 0.0, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 999999999.0, v.Price, "Price") // Market Buy Price
+				// Note: Amount is 0 for market order create messages, oddly
+			case 6:
+				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
+				assert.Equal(t, 0.00038667, v.Amount, "Amount")
+				assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount") // During live tests we consistently got back this Sat remaining
+				assert.Equal(t, 0.00038666, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 25862.0, v.Price, "Price")
+			case 5:
+				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
+				assert.Equal(t, order.Cancelled, v.Status, "Status") // Even though they probably consider it filled, Deleted + PartialFill = Cancelled
+				assert.Equal(t, 0.00038667, v.Amount, "Amount")
+				assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038666, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 25862.0, v.Price, "Price")
+			case 4:
+				assert.Equal(t, "1658870500933632", v.OrderID, "OrderID")
+				assert.Equal(t, order.New, v.Status, "Status")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, 0.0, v.Price, "Price") // Market Sell Price
+			case 3:
+				assert.Equal(t, "1658870500933632", v.OrderID, "OrderID")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
+				assert.Equal(t, 0.00038679, v.Amount, "Amount")
+				assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038678, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 25854.0, v.Price, "Price")
+			case 2:
+				assert.Equal(t, "1658870500933632", v.OrderID, "OrderID")
+				assert.Equal(t, order.Cancelled, v.Status, "Status")
+				assert.Equal(t, 0.00038679, v.Amount, "Amount")
+				assert.Equal(t, 0.00000001, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038678, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 25854.0, v.Price, "Price")
+			case 1:
+				assert.Equal(t, "1658869033291777", v.OrderID, "OrderID")
+				assert.Equal(t, order.New, v.Status, "Status")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, 25845.0, v.Price, "Price")
+				assert.Equal(t, 0.00038692, v.Amount, "Amount")
+			case 0:
+				assert.Equal(t, "1658869033291777", v.OrderID, "OrderID")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, 25845.0, v.Price, "Price")
+				assert.Equal(t, 0.00038692, v.Amount, "Amount")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038692, v.ExecutedAmount, "ExecutedAmount")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
 	}
-	assert.Equal(t, 8, seen, "Number of messages")
 }
 
 func TestWsRequestReconnect(t *testing.T) {

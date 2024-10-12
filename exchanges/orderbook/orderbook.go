@@ -71,7 +71,7 @@ func (s *Service) Update(b *Base) error {
 		book.AssignOptions(b)
 		m1.m[mapKey] = book
 	}
-	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
+	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true)
 	s.mu.Unlock()
 	if err != nil {
 		return err
@@ -122,8 +122,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	return book, nil
 }
 
-// GetDepth returns the actual depth struct for potential subsystems and
-// strategies to interact with
+// GetDepth returns the actual depth struct for potential subsystems and strategies to interact with
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -139,9 +138,7 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			ErrCannotFindOrderbook,
-			p.Quote)
+		return nil, fmt.Errorf("%w associated with base currency %s", ErrCannotFindOrderbook, p.Quote)
 	}
 	return book, nil
 }
@@ -160,9 +157,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s exchange",
-			ErrCannotFindOrderbook,
-			exchange)
+		return nil, fmt.Errorf("%w for %s exchange", ErrCannotFindOrderbook, exchange)
 	}
 	book, ok := m1.m[key.PairAsset{
 		Base:  p.Base.Item,
@@ -214,7 +209,7 @@ func (b *Base) Verify() error {
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
-	if len(b.Asks) == 0 || len(b.Bids) == 0 {
+	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
 		log.Warnf(log.OrderBook,
 			bookLengthIssue,
 			b.Exchange,

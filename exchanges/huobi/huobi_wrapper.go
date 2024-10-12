@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -165,7 +166,7 @@ func (h *HUOBI) SetDefaults() {
 
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -219,8 +220,8 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+	err = h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -228,8 +229,8 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
+	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  wsAccountsOrdersURL,
@@ -244,7 +245,6 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 	}
 
 	var pairs []currency.Pair
-	var pair currency.Pair
 	switch a {
 	case asset.Spot:
 		symbols, err := h.GetSymbols(ctx)
@@ -258,7 +258,7 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 				continue
 			}
 
-			pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency,
+			pair, err := currency.NewPairFromStrings(symbols[x].BaseCurrency,
 				symbols[x].QuoteCurrency)
 			if err != nil {
 				return nil, err
@@ -288,16 +288,30 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 			return nil, err
 		}
 		pairs = make([]currency.Pair, 0, len(symbols.Data))
-		for c := range symbols.Data {
-			if symbols.Data[c].ContractStatus != 1 {
+		expiryCodeDates := map[string]currency.Code{}
+		for _, c := range symbols.Data {
+			if c.ContractStatus != 1 {
 				continue
 			}
-			pair, err := currency.NewPairFromString(symbols.Data[c].ContractCode)
+			pair, err := currency.NewPairFromString(c.ContractCode)
 			if err != nil {
 				return nil, err
 			}
 			pairs = append(pairs, pair)
+			if cType, ok := contractExpiryNames[c.ContractType]; ok {
+				if v, ok := expiryCodeDates[cType]; !ok {
+					expiryCodeDates[cType] = currency.NewCode(pair.Quote.String())
+				} else if v.String() != pair.Quote.String() {
+					return nil, fmt.Errorf("%w: %s (%s vs %s)", errInconsistentContractExpiry, cType, v.String(), pair.Quote.String())
+				}
+			}
 		}
+		// We cache contract expiries on the exchange locally right now because there's no exchange base holder for them
+		// It's not as dangerous as it seems, because when contracts change, so would tradeable pairs,
+		// so by caching them in FetchTradablePairs we're not adding any extra-layer of out-of-date data
+		h.futureContractCodesMutex.Lock()
+		h.futureContractCodes = expiryCodeDates
+		h.futureContractCodesMutex.Unlock()
 	}
 	return pairs, nil
 }
@@ -321,6 +335,7 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
+	var errs error
 	switch a {
 	case asset.Spot:
 		ticks, err := h.GetTickers(ctx)
@@ -331,10 +346,10 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, _, err = h.MatchSymbolCheckEnabled(ticks.Data[i].Symbol, a, false)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					errs = common.AppendError(errs, err)
 				}
-				return err
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks.Data[i].High,
@@ -353,7 +368,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				LastUpdated:  time.Now(),
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -365,10 +380,10 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, _, err = h.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					errs = common.AppendError(errs, err)
 				}
-				return err
+				continue
 			}
 			tt := time.UnixMilli(ticks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -388,73 +403,67 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				LastUpdated:  tt,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.Futures:
-		linearTicks, err := h.GetBatchLinearSwapContracts(ctx)
-		if err != nil {
-			return err
+		ticks := []FuturesBatchTicker{}
+		// TODO: Linear swap contracts are coin-m assets
+		if coinMTicks, err := h.GetBatchLinearSwapContracts(ctx); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			ticks = append(ticks, coinMTicks...)
 		}
-		ticks, err := h.GetBatchFuturesContracts(ctx)
-		if err != nil {
-			return err
+		if futureTicks, err := h.GetBatchFuturesContracts(ctx); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			ticks = append(ticks, futureTicks...)
 		}
-		allTicks := make([]FuturesBatchTicker, 0, len(linearTicks)+len(ticks))
-		allTicks = append(allTicks, linearTicks...)
-		allTicks = append(allTicks, ticks...)
-		for i := range allTicks {
+		for i := range ticks {
 			var cp currency.Pair
-			if allTicks[i].Symbol != "" {
-				cp, err = currency.NewPairFromString(allTicks[i].Symbol)
-				if err != nil {
-					return err
+			var err error
+			if ticks[i].Symbol != "" {
+				cp, err = currency.NewPairFromString(ticks[i].Symbol)
+				if err == nil {
+					cp, err = h.pairFromContractExpiryCode(cp)
 				}
-				cp, err = h.convertContractShortHandToExpiry(cp, time.Now())
-				if err != nil {
-					return err
-				}
-				cp, _, err = h.MatchSymbolCheckEnabled(cp.String(), a, true)
-				if err != nil {
-					if errors.Is(err, currency.ErrPairNotFound) {
-						continue
-					}
-					return err
+				if err == nil {
+					cp, _, err = h.MatchSymbolCheckEnabled(cp.String(), a, true)
 				}
 			} else {
-				cp, _, err = h.MatchSymbolCheckEnabled(allTicks[i].ContractCode, a, true)
-				if err != nil {
-					if errors.Is(err, currency.ErrPairNotFound) {
-						continue
-					}
-					return err
-				}
+				cp, _, err = h.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			}
-			tt := time.UnixMilli(allTicks[i].Timestamp)
+			if err != nil {
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					errs = common.AppendError(errs, err)
+				}
+				continue
+			}
+			tt := time.UnixMilli(ticks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
-				High:         allTicks[i].High.Float64(),
-				Low:          allTicks[i].Low.Float64(),
-				Volume:       allTicks[i].Volume.Float64(),
-				QuoteVolume:  allTicks[i].Amount.Float64(),
-				Open:         allTicks[i].Open.Float64(),
-				Close:        allTicks[i].Close.Float64(),
-				Bid:          allTicks[i].Bid[0],
-				BidSize:      allTicks[i].Bid[1],
-				Ask:          allTicks[i].Ask[0],
-				AskSize:      allTicks[i].Ask[1],
+				High:         ticks[i].High.Float64(),
+				Low:          ticks[i].Low.Float64(),
+				Volume:       ticks[i].Volume.Float64(),
+				QuoteVolume:  ticks[i].Amount.Float64(),
+				Open:         ticks[i].Open.Float64(),
+				Close:        ticks[i].Close.Float64(),
+				Bid:          ticks[i].Bid[0],
+				BidSize:      ticks[i].Bid[1],
+				Ask:          ticks[i].Ask[0],
+				AskSize:      ticks[i].Ask[1],
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
 				LastUpdated:  tt,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -962,7 +971,7 @@ func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(h.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -2298,8 +2307,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 	if len(k) == 1 {
 		switch k[0].Asset {
 		case asset.Futures:
-			_, err := strconv.ParseInt(k[0].Quote.Symbol, 10, 64)
-			if err == nil {
+			if !slices.Contains(validContractExpiryCodes, strings.ToUpper(k[0].Pair().Quote.String())) {
 				// Huobi does not like requests being made with contract expiry in them (eg BTC240109)
 				return nil, fmt.Errorf("%w %v, must use shorthand such as CW (current week)", currency.ErrCurrencyNotSupported, k[0].Pair())
 			}

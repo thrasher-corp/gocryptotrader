@@ -93,7 +93,7 @@ func (g *Gemini) SetDefaults() {
 
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -152,7 +152,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
@@ -161,7 +161,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
@@ -457,7 +457,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(g.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

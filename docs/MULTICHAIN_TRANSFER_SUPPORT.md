@@ -55,6 +55,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Bybit | Yes | Yes | |
 | CoinbasePro | No | No | No|
 | COINUT | No | No | NA |
+| Deribit | Yes | Yes | |
 | Exmo | Yes | Yes | Addresses must be created via their website first |
 | GateIO | Yes | Yes | |
 | Gemini | No | No | |
@@ -63,7 +64,6 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
 | Kucoin |  Yes | Yes | |
 | Lbank | No | No | |
-| Okcoin | Yes | Yes | |
 | Okx | Yes | Yes | |
 | Poloniex | Yes | Yes | |
 | Yobit | No | No | |

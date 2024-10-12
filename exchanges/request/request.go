@@ -149,10 +149,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		default:
 		}
 
-		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(ctx, endpoint)
-		if err != nil {
-			return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+		if r.limiter != nil {
+			// Initiate a rate limit reservation and sleep on requested endpoint
+			err := r.InitiateRateLimit(ctx, endpoint)
+			if err != nil {
+				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+			}
 		}
 
 		p, err := newRequest()
@@ -165,7 +167,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return err
 		}
 
-		verbose := isVerbose(ctx, p.Verbose)
+		verbose := IsVerbose(ctx, p.Verbose)
 
 		if verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
@@ -231,7 +233,15 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d", r.name, delay, attempt)
 			}
 
-			time.Sleep(delay)
+			if delay > 0 {
+				// Allow for context cancellation while delaying the retry.
+				select {
+				case <-time.After(delay):
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+
 			continue
 		}
 
@@ -370,9 +380,9 @@ func WithVerbose(ctx context.Context) context.Context {
 	return context.WithValue(ctx, contextVerboseFlag, true)
 }
 
-// isVerbose checks main verbosity first then checks context verbose values
+// IsVerbose checks main verbosity first then checks context verbose values
 // for specific request verbosity.
-func isVerbose(ctx context.Context, verbose bool) bool {
+func IsVerbose(ctx context.Context, verbose bool) bool {
 	if verbose {
 		return true
 	}

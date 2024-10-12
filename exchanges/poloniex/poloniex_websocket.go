@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -541,28 +542,28 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 	enabledPairs, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 
-	subscriptions := make([]subscription.Subscription, 0, len(enabledPairs))
-	subscriptions = append(subscriptions, subscription.Subscription{
+	subscriptions := make(subscription.List, 0, len(enabledPairs))
+	subscriptions = append(subscriptions, &subscription.Subscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
 
 	if p.IsWebsocketAuthenticationSupported() {
-		subscriptions = append(subscriptions, subscription.Subscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: strconv.FormatInt(wsAccountNotificationID, 10),
 		})
 	}
 
 	for j := range enabledPairs {
 		enabledPairs[j].Delimiter = currency.UnderscoreDelimiter
-		subscriptions = append(subscriptions, subscription.Subscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: "orderbook",
-			Pair:    enabledPairs[j],
+			Pairs:   currency.Pairs{enabledPairs[j]},
 			Asset:   asset.Spot,
 		})
 	}
@@ -570,54 +571,16 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(sub []subscription.Subscription) error {
-	var creds *account.Credentials
-	if p.IsWebsocketAuthenticationSupported() {
-		var err error
-		creds, err = p.GetCredentials(context.TODO())
-		if err != nil {
-			return err
-		}
-	}
-	var errs error
-channels:
-	for i := range sub {
-		subscriptionRequest := WsCommand{
-			Command: "subscribe",
-		}
-		switch {
-		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
-			sub[i].Channel) && creds != nil:
-			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue channels
-			}
-			p.Websocket.AddSuccessfulSubscriptions(sub[i])
-			continue channels
-		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
-			sub[i].Channel):
-			subscriptionRequest.Channel = wsTickerDataID
-		default:
-			subscriptionRequest.Channel = sub[i].Pair.String()
-		}
-
-		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-
-		p.Websocket.AddSuccessfulSubscriptions(sub[i])
-	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+func (p *Poloniex) Subscribe(subs subscription.List) error {
+	return p.manageSubs(subs, wsSubscribeOp)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
+func (p *Poloniex) Unsubscribe(subs subscription.List) error {
+	return p.manageSubs(subs, wsUnsubscribeOp)
+}
+
+func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
@@ -626,42 +589,39 @@ func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
 			return err
 		}
 	}
+
 	var errs error
-channels:
-	for i := range unsub {
-		unsubscriptionRequest := WsCommand{
-			Command: "unsubscribe",
-		}
-		switch {
-		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
-			unsub[i].Channel) && creds != nil:
-			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "unsubscribe")
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue channels
+	for _, s := range subs {
+		var err error
+		if creds != nil && strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), s.Channel) {
+			err = p.wsSendAuthorisedCommand(creds.Secret, creds.Key, op)
+		} else {
+			req := wsCommand{Command: op}
+			if strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), s.Channel) {
+				req.Channel = wsTickerDataID
+			} else {
+				if len(s.Pairs) != 1 {
+					return subscription.ErrNotSinglePair
+				}
+				req.Channel = s.Pairs[0].String()
 			}
-			p.Websocket.RemoveSubscriptions(unsub[i])
-			continue channels
-		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
-			unsub[i].Channel):
-			unsubscriptionRequest.Channel = wsTickerDataID
-		default:
-			unsubscriptionRequest.Channel = unsub[i].Pair.String()
+			err = p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		}
-		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
+		if err == nil {
+			if op == wsSubscribeOp {
+				err = p.Websocket.AddSuccessfulSubscriptions(p.Websocket.Conn, s)
+			} else {
+				err = p.Websocket.RemoveSubscriptions(p.Websocket.Conn, s)
+			}
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		p.Websocket.RemoveSubscriptions(unsub[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
-func (p *Poloniex) wsSendAuthorisedCommand(secret, key, command string) error {
+func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(nonce),
@@ -669,14 +629,14 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key, command string) error {
 	if err != nil {
 		return err
 	}
-	request := WsAuthorisationRequest{
-		Command: command,
+	req := wsAuthorisationRequest{
+		Command: op,
 		Channel: 1000,
 		Sign:    crypto.HexEncodeToString(hmac),
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(request)
+	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []interface{}) error {

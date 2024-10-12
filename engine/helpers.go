@@ -40,6 +40,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
@@ -48,7 +49,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -731,7 +731,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 					}
 					if len(availChains) > 0 {
 						// store the default non-chain specified address for a specified crypto
-						chainContainsItself := common.StringDataCompareInsensitive(availChains, cryptocurrency)
+						chainContainsItself := common.StringSliceCompareInsensitive(availChains, cryptocurrency)
 						if !chainContainsItself && !requiresChainSet {
 							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
 							if err != nil {
@@ -993,6 +993,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bybit.Bybit), nil
 	case "coinut":
 		return new(coinut.COINUT), nil
+	case "deribit":
+		return new(deribit.Deribit), nil
 	case "exmo":
 		return new(exmo.EXMO), nil
 	case "coinbasepro":
@@ -1011,8 +1013,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(kucoin.Kucoin), nil
 	case "lbank":
 		return new(lbank.Lbank), nil
-	case "okcoin":
-		return new(okcoin.Okcoin), nil
 	case "okx":
 		return new(okx.Okx), nil
 	case "poloniex":

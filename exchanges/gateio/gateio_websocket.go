@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -22,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -30,7 +33,7 @@ import (
 
 const (
 	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -47,26 +50,37 @@ const (
 	spotFundingBalanceChannel  = "spot.funding_balances"
 	crossMarginBalanceChannel  = "spot.cross_balances"
 	crossMarginLoanChannel     = "spot.cross_loan"
+
+	subscribeEvent   = "subscribe"
+	unsubscribeEvent = "unsubscribe"
 )
 
-var defaultSubscriptions = []string{
-	spotTickerChannel,
-	spotCandlesticksChannel,
-	spotOrderbookTickerChannel,
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
+	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
+	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
+	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 }
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
-// WsConnect initiates a websocket connection
-func (g *Gateio) WsConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
-	}
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    spotTickerChannel,
+	subscription.OrderbookChannel: spotOrderbookUpdateChannel,
+	subscription.CandlesChannel:   spotCandlesticksChannel,
+	subscription.AllTradesChannel: spotTradesChannel,
+}
+
+// WsConnectSpot initiates a websocket connection
+func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -74,19 +88,17 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
-	g.Websocket.Wg.Add(1)
-	go g.wsReadConnData()
 	return nil
 }
 
-func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.Time) (string, error) {
-	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(dtime.Unix(), 10)
+func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
+	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10)
 	mac := hmac.New(sha512.New, []byte(secret))
 	if _, err := mac.Write([]byte(msg)); err != nil {
 		return "", err
@@ -94,29 +106,15 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// wsReadConnData receives and passes on websocket messages for processing
-func (g *Gateio) wsReadConnData() {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := g.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := g.wsHandleData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (g *Gateio) wsHandleData(respRaw []byte) error {
+// WsHandleSpotData handles spot data
+func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	var push WsResponse
 	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
 
-	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
 		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
 			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
 		}
@@ -125,17 +123,17 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.Time)
+		return g.processTicker(push.Result, push.Time.Time())
 	case spotTradesChannel:
 		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
 		return g.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(push.Result)
+		return g.processOrderbookTicker(push.Result, push.TimeMs.Time())
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result)
+		return g.processOrderbookUpdate(push.Result, push.TimeMs.Time())
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(push.Result)
+		return g.processOrderbookSnapshot(push.Result, push.TimeMs.Time())
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -160,7 +158,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
+func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 	var data WsTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -177,7 +175,7 @@ func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
 		Ask:          data.LowestAsk.Float64(),
 		AssetType:    asset.Spot,
 		Pair:         data.CurrencyPair,
-		LastUpdated:  time.Unix(pushTime, 0),
+		LastUpdated:  pushTime,
 	}
 	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	if assetPairEnabled[asset.Spot] {
@@ -253,7 +251,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 		Pair:       currencyPair,
 		AssetType:  asset.Spot,
 		Exchange:   g.Name,
-		StartTime:  time.Unix(data.Timestamp, 0),
+		StartTime:  data.Timestamp.Time(),
 		Interval:   icp[0],
 		OpenPrice:  data.OpenPrice.Float64(),
 		ClosePrice: data.ClosePrice.Float64(),
@@ -278,7 +276,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(incoming []byte) error {
+func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookTickerData
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -286,16 +284,17 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 	}
 
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:    g.Name,
-		Pair:        data.CurrencyPair,
-		Asset:       asset.Spot,
-		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
-		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Exchange:       g.Name,
+		Pair:           data.CurrencyPair,
+		Asset:          asset.Spot,
+		LastUpdated:    data.UpdateTimeMS.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
+func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -323,8 +322,9 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] = true
 	}
 	updates := orderbook.Update{
-		UpdateTime: data.UpdateTimeMs.Time(),
-		Pair:       data.CurrencyPair,
+		UpdateTime:     data.UpdateTimeMs.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Pair:           data.CurrencyPair,
 	}
 	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
@@ -377,7 +377,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
+func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookSnapshot
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -389,6 +389,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 		Pair:            data.CurrencyPair,
 		Asset:           asset.Spot,
 		LastUpdated:     data.UpdateTimeMs.Time(),
+		UpdatePushedAt:  updatePushedAt,
 		LastUpdateID:    data.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
@@ -624,226 +625,94 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	channelsToSubscribe := defaultSubscriptions
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe, []string{
-			crossMarginBalanceChannel,
-			marginBalancesChannel,
-			spotBalancesChannel}...)
-	}
-
-	if g.IsSaveTradeDataEnabled() || g.IsTradeFeedEnabled() {
-		channelsToSubscribe = append(channelsToSubscribe, spotTradesChannel)
-	}
-
-	var subscriptions []subscription.Subscription
-	var err error
-	for i := range channelsToSubscribe {
-		var pairs []currency.Pair
-		var assetType asset.Item
-		switch channelsToSubscribe[i] {
-		case marginBalancesChannel:
-			assetType = asset.Margin
-			pairs, err = g.GetEnabledPairs(asset.Margin)
-		case crossMarginBalanceChannel:
-			assetType = asset.CrossMargin
-			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
-		default:
-			assetType = asset.Spot
-			pairs, err = g.GetEnabledPairs(asset.Spot)
-		}
-		if err != nil {
-			if errors.Is(err, asset.ErrNotEnabled) {
-				continue // Skip if asset is not enabled.
-			}
-			return nil, err
-		}
-
-		for j := range pairs {
-			params := make(map[string]interface{})
-			switch channelsToSubscribe[i] {
-			case spotOrderbookChannel:
-				params["level"] = 100
-				params["interval"] = kline.HundredMilliseconds
-			case spotCandlesticksChannel:
-				params["interval"] = kline.FiveMin
-			case spotOrderbookUpdateChannel:
-				params["interval"] = kline.HundredMilliseconds
-			}
-
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
-			if err != nil {
-				return nil, err
-			}
-
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: channelsToSubscribe[i],
-				Pair:    fpair.Upper(),
-				Asset:   assetType,
-				Params:  params,
-			})
-		}
-	}
-	return subscriptions, nil
+// generateSubscriptionsSpot returns configured subscriptions
+func (g *Gateio) generateSubscriptionsSpot() (subscription.List, error) {
+	return g.Features.Subscriptions.ExpandTemplates(g)
 }
 
-// handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
-	payloads, err := g.generatePayload(event, channelsToSubscribe)
-	if err != nil {
-		return err
-	}
+// GetSubscriptionTemplate returns a subscription channel template
+func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").
+		Funcs(sprig.FuncMap()).
+		Funcs(template.FuncMap{
+			"channelName":         channelName,
+			"singleSymbolChannel": singleSymbolChannel,
+			"interval":            g.GetIntervalString,
+		}).
+		Parse(subTplText)
+}
+
+// manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
+func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Connection, subs subscription.List) error {
 	var errs error
-	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
+	subs, errs = subs.ExpandTemplates(g)
+	if errs != nil {
+		return errs
+	}
+
+	for _, s := range subs {
+		if err := func() error {
+			msg, err := g.manageSubReq(ctx, event, conn, s)
+			if err != nil {
+				return err
+			}
+			result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+			if err != nil {
+				return err
+			}
+			var resp WsEventResponse
+			if err := json.Unmarshal(result, &resp); err != nil {
+				return err
+			}
 			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
+				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
 			}
-			if payloads[k].Event == "subscribe" {
-				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
-			} else {
-				g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+			if event == "unsubscribe" {
+				return g.Websocket.RemoveSubscriptions(conn, s)
 			}
+			return g.Websocket.AddSuccessfulSubscriptions(conn, s)
+		}(); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
 		}
 	}
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscription.Subscription) ([]WsInput, error) {
-	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+// manageSubReq constructs the subscription management message for a subscription
+func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Connection, s *subscription.Subscription) (*WsInput, error) {
+	req := &WsInput{
+		ID:      conn.GenerateMessageID(false),
+		Event:   event,
+		Channel: channelName(s),
+		Time:    time.Now().Unix(),
+		Payload: strings.Split(s.QualifiedChannel, ","),
 	}
-	var creds *account.Credentials
-	var err error
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(context.TODO())
+	if s.Authenticated {
+		creds, err := g.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
+		sig, err := g.generateWsSignature(creds.Secret, event, req.Channel, req.Time)
+		if err != nil {
+			return nil, err
+		}
+		req.Auth = &WsAuthInput{
+			Method: "api_key",
+			Key:    creds.Key,
+			Sign:   sig,
+		}
 	}
-	var batch *[]string
-	var intervalString string
-	payloads := make([]WsInput, 0, len(channelsToSubscribe))
-	for i := range channelsToSubscribe {
-		var auth *WsAuthInput
-		timestamp := time.Now()
-		channelsToSubscribe[i].Pair.Delimiter = currency.UnderscoreDelimiter
-		params := []string{channelsToSubscribe[i].Pair.String()}
-		switch channelsToSubscribe[i].Channel {
-		case spotOrderbookChannel:
-			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !okay {
-				return nil, errors.New("invalid interval parameter")
-			}
-			level, okay := channelsToSubscribe[i].Params["level"].(int)
-			if !okay {
-				return nil, errors.New("invalid spot order level")
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(params,
-				strconv.Itoa(level),
-				intervalString,
-			)
-		case spotCandlesticksChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, errors.New("missing spot candlesticks interval")
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(
-				[]string{intervalString},
-				params...)
-		}
-		switch channelsToSubscribe[i].Channel {
-		case spotUserTradesChannel,
-			spotBalancesChannel,
-			marginBalancesChannel,
-			spotFundingBalanceChannel,
-			crossMarginBalanceChannel,
-			crossMarginLoanChannel:
-			if !g.Websocket.CanUseAuthenticatedEndpoints() {
-				continue
-			}
-			value, ok := channelsToSubscribe[i].Params["user"].(string)
-			if ok {
-				params = append(
-					[]string{value},
-					params...)
-			}
-			var sigTemp string
-			sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
-			if err != nil {
-				return nil, err
-			}
-			auth = &WsAuthInput{
-				Method: "api_key",
-				Key:    creds.Key,
-				Sign:   sigTemp,
-			}
-		case spotOrderbookUpdateChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, errors.New("missing spot orderbook interval")
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(params, intervalString)
-		}
-
-		payload := WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
-			Event:   event,
-			Channel: channelsToSubscribe[i].Channel,
-			Payload: params,
-			Auth:    auth,
-			Time:    timestamp.Unix(),
-		}
-
-		if channelsToSubscribe[i].Channel == "spot.book_ticker" {
-			// To get all orderbook assets subscribed it needs to be batched and
-			// only spot.book_ticker can be batched, if not it will take about
-			// half an hour for initial sync.
-			if batch != nil {
-				*batch = append(*batch, params...)
-			} else {
-				// Sets up pointer to the field for the outbound payload.
-				payloads = append(payloads, payload)
-				batch = &payloads[len(payloads)-1].Payload
-			}
-			continue
-		}
-		payloads = append(payloads, payload)
-	}
-	return payloads, nil
+	return req, nil
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return g.handleSubscription("subscribe", channelsToUnsubscribe)
+func (g *Gateio) Subscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+	return g.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
+func (g *Gateio) Unsubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
@@ -858,4 +727,79 @@ func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.
 		assetPairEnabled[assetTypes[i]] = pairs.Contains(cp, true)
 	}
 	return assetPairEnabled
+}
+
+// GenerateWebsocketMessageID generates a message ID for the individual connection
+func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
+	return g.Counter.IncrementAndGet()
+}
+
+// channelName converts global channel names to gateio specific channel names
+func channelName(s *subscription.Subscription) string {
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
+	}
+	return s.Channel
+}
+
+// singleSymbolChannel returns if the channel should be fanned out into single symbol requests
+func singleSymbolChannel(name string) bool {
+	switch name {
+	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
+		return true
+	}
+	return false
+}
+
+const subTplText = `
+{{- with $name := channelName $.S }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- if singleSymbolChannel $name }}
+			{{- range $i, $p := $pairs -}}
+				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
+				{{- $p }}
+				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}
+				{{- if hasPrefix "spot.order_book" $name -}} , {{- interval $.S.Interval }}{{ end }}
+				{{- $.PairSeparator }}
+			{{- end }}
+			{{- $.AssetSeparator }}
+		{{- else }}
+			{{- $pairs.Join }}
+		{{- end }}
+	{{- end }}
+{{- end }}
+`
+
+// GeneratePayload returns the payload for a websocket message
+type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
+// handleSubscription sends a websocket message to receive data from the channel
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for k := range payloads {
+		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		var resp WsEventResponse
+		if err = json.Unmarshal(result, &resp); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			if resp.Error != nil && resp.Error.Code != 0 {
+				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
+				continue
+			}
+			if event == subscribeEvent {
+				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
+			} else {
+				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
+			}
+		}
+	}
+	return errs
 }

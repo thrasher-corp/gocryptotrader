@@ -163,7 +163,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -218,7 +218,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  publicBitfinexWebsocketEndpoint,
@@ -227,7 +227,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
@@ -565,7 +565,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -577,8 +577,8 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
-		if err != nil {
+		var symbolStr string
+		if symbolStr, err = b.fixCasing(fPair, o.AssetType); err != nil {
 			return nil, err
 		}
 		orderType := strings.ToUpper(o.Type.String())
@@ -871,7 +871,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	method := methods[0]
 	if len(methods) > 1 && withdrawRequest.Crypto.Chain != "" {
-		if !common.StringDataCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
+		if !common.StringSliceCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
 			return nil, fmt.Errorf("invalid chain %s supplied, %v available", withdrawRequest.Crypto.Chain, methods)
 		}
 		method = withdrawRequest.Crypto.Chain

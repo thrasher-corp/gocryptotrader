@@ -766,7 +766,6 @@ func TestCalculateRealisedPNL(t *testing.T) {
 
 func TestSetupPositionTracker(t *testing.T) {
 	t.Parallel()
-	m := &MultiPositionTracker{}
 	p, err := SetupPositionTracker(nil)
 	if !errors.Is(err, errNilSetup) {
 		t.Errorf("received '%v' expected '%v", err, errNilSetup)
@@ -774,7 +773,6 @@ func TestSetupPositionTracker(t *testing.T) {
 	if p != nil {
 		t.Error("expected nil")
 	}
-	m.exchange = testExchange
 	p, err = SetupPositionTracker(&PositionTrackerSetup{
 		Asset: asset.Spot,
 	})
@@ -832,7 +830,6 @@ func TestSetupPositionTracker(t *testing.T) {
 	if !errors.Is(err, ErrNilPNLCalculator) {
 		t.Errorf("received '%v' expected '%v", err, ErrNilPNLCalculator)
 	}
-	m.exchangePNLCalculation = &PNLCalculator{}
 	p, err = SetupPositionTracker(&PositionTrackerSetup{
 		Exchange:                  testExchange,
 		Asset:                     asset.Futures,

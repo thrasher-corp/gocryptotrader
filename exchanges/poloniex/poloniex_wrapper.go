@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -123,7 +124,7 @@ func (p *Poloniex) SetDefaults() {
 
 	p.Requester, err = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -180,7 +181,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return p.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -510,7 +511,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(p.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
@@ -745,7 +746,7 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 
 	address, ok = depositAddrs.Addresses[strings.ToUpper(targetCurrency)]
 	if !ok {
-		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
+		if len(coinParams.ChildChains) > 1 && chain != "" && !slices.Contains(coinParams.ChildChains, targetCurrency) {
 			// rather than assume, return an error
 			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
 				cryptocurrency,

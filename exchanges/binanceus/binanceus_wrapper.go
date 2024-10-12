@@ -124,7 +124,7 @@ func (bi *Binanceus) SetDefaults() {
 	}
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -185,10 +185,10 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMilliseconds,
+		RateLimit:            request.NewWeightedRateLimitByDuration(300 * time.Millisecond),
 	})
 }
 
@@ -490,7 +490,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	var submitOrderResponse order.SubmitResponse
 	var timeInForce RequestParamsTimeForceType
 	var sideType string
-	err := s.Validate()
+	err := s.Validate(bi.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

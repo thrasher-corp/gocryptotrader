@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -136,11 +137,24 @@ func (b *Bitmex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 		},
+		Subscriptions: subscription.List{
+			{Enabled: true, Channel: bitmexWSAnnouncement},
+			{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+			{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+			{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSPrivateNotifications, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+			{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+			{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
+		},
 	}
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -185,7 +199,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
@@ -194,7 +208,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  bitmexWSURL,
@@ -638,7 +652,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(b.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

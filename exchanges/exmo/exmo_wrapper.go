@@ -90,7 +90,7 @@ func (e *EXMO) SetDefaults() {
 
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -441,7 +441,7 @@ func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 
 // SubmitOrder submits a new order
 func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

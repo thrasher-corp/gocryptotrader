@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -55,7 +56,7 @@ func (b *Bitstamp) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     hbMsg,
 		Delay:       hbInterval,
@@ -231,30 +232,30 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *Bitstamp) generateDefaultSubscriptions() (subscription.List, error) {
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	for i := range enabledCurrencies {
 		p, err := b.FormatExchangeCurrency(enabledCurrencies[i], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		for j := range defaultSubChannels {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: defaultSubChannels[j] + "_" + p.String(),
 				Asset:   asset.Spot,
-				Pair:    p,
+				Pairs:   currency.Pairs{p},
 			})
 		}
 		if b.Websocket.CanUseAuthenticatedEndpoints() {
 			for j := range defaultAuthSubChannels {
-				subscriptions = append(subscriptions, subscription.Subscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
 					Asset:   asset.Spot,
-					Pair:    p,
+					Pairs:   currency.Pairs{p},
 					Params: map[string]interface{}{
 						"auth": struct{}{},
 					},
@@ -266,7 +267,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 	var errs error
 	var auth *WebsocketAuthResponse
 
@@ -281,44 +282,46 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) er
 		}
 	}
 
-	for i := range channelsToSubscribe {
+	for _, s := range channelsToSubscribe {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
 			Data: websocketData{
-				Channel: channelsToSubscribe[i].Channel,
+				Channel: s.Channel,
 			},
 		}
-		if _, ok := channelsToSubscribe[i].Params["auth"]; ok && auth != nil {
+		if _, ok := s.Params["auth"]; ok && auth != nil {
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
 			req.Data.Auth = auth.Token
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+		if err == nil {
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 
 	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var errs error
-	for i := range channelsToUnsubscribe {
+	for _, s := range channelsToUnsubscribe {
 		req := websocketEventRequest{
 			Event: "bts:unsubscribe",
 			Data: websocketData{
-				Channel: channelsToUnsubscribe[i].Channel,
+				Channel: s.Channel,
 			},
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+		if err == nil {
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
+		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
-			continue
 		}
-		b.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }

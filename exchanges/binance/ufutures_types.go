@@ -52,12 +52,12 @@ type OrderbookData struct {
 
 // UPublicTradesData stores trade data
 type UPublicTradesData struct {
-	ID           int64       `json:"id"`
-	Price        float64     `json:"price,string"`
-	Qty          float64     `json:"qty,string"`
-	QuoteQty     float64     `json:"quoteQty,string"`
-	Time         binanceTime `json:"time"`
-	IsBuyerMaker bool        `json:"isBuyerMaker"`
+	ID           int64      `json:"id"`
+	Price        float64    `json:"price,string"`
+	Qty          float64    `json:"qty,string"`
+	QuoteQty     float64    `json:"quoteQty,string"`
+	Time         types.Time `json:"time"`
+	IsBuyerMaker bool       `json:"isBuyerMaker"`
 }
 
 // UCompressedTradeData stores compressed trade data
@@ -300,22 +300,22 @@ type UAsset struct {
 
 // UPosition holds account position information
 type UPosition struct {
-	Symbol                 string      `json:"symbol"`
-	InitialMargin          float64     `json:"initialMargin,string"`
-	MaintenanceMargin      float64     `json:"maintMargin,string"`
-	UnrealisedProfit       float64     `json:"unrealizedProfit,string"`
-	PositionInitialMargin  float64     `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64     `json:"openOrderInitialMargin,string"`
-	Leverage               float64     `json:"leverage,string"`
-	Isolated               bool        `json:"isolated"`
-	IsolatedWallet         float64     `json:"isolatedWallet,string"`
-	EntryPrice             float64     `json:"entryPrice,string"`
-	MaxNotional            float64     `json:"maxNotional,string"`
-	BidNotional            float64     `json:"bidNotional,string"`
-	AskNotional            float64     `json:"askNotional,string"`
-	PositionSide           string      `json:"positionSide"`
-	PositionAmount         float64     `json:"positionAmt,string"`
-	UpdateTime             binanceTime `json:"updateTime"`
+	Symbol                 string     `json:"symbol"`
+	InitialMargin          float64    `json:"initialMargin,string"`
+	MaintenanceMargin      float64    `json:"maintMargin,string"`
+	UnrealisedProfit       float64    `json:"unrealizedProfit,string"`
+	PositionInitialMargin  float64    `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64    `json:"openOrderInitialMargin,string"`
+	Leverage               float64    `json:"leverage,string"`
+	Isolated               bool       `json:"isolated"`
+	IsolatedWallet         float64    `json:"isolatedWallet,string"`
+	EntryPrice             float64    `json:"entryPrice,string"`
+	MaxNotional            float64    `json:"maxNotional,string"`
+	BidNotional            float64    `json:"bidNotional,string"`
+	AskNotional            float64    `json:"askNotional,string"`
+	PositionSide           string     `json:"positionSide"`
+	PositionAmount         float64    `json:"positionAmt,string"`
+	UpdateTime             types.Time `json:"updateTime"`
 }
 
 // UChangeInitialLeverage stores leverage change data
@@ -343,21 +343,21 @@ type UPositionMarginChangeHistoryData struct {
 
 // UPositionInformationV2 stores positions data
 type UPositionInformationV2 struct {
-	Symbol           string      `json:"symbol"`
-	PositionAmount   float64     `json:"positionAmt,string"`
-	EntryPrice       float64     `json:"entryPrice,string"`
-	MarkPrice        float64     `json:"markPrice,string"`
-	UnrealizedProfit float64     `json:"unrealizedProfit,string"`
-	LiquidationPrice float64     `json:"liquidationPrice,string"`
-	Leverage         float64     `json:"leverage,string"`
-	MaxNotionalValue float64     `json:"maxNotionalValue,string"`
-	MarginType       string      `json:"marginType"`
-	IsAutoAddMargin  bool        `json:"isAutoAddMargin,string"`
-	PositionSide     string      `json:"positionSide"`
-	Notional         float64     `json:"notional,string"`
-	IsolatedWallet   float64     `json:"isolatedWallet,string"`
-	IsolatedMargin   float64     `json:"isolatedMargin,string"`
-	UpdateTime       binanceTime `json:"updateTime"`
+	Symbol           string     `json:"symbol"`
+	PositionAmount   float64    `json:"positionAmt,string"`
+	EntryPrice       float64    `json:"entryPrice,string"`
+	MarkPrice        float64    `json:"markPrice,string"`
+	UnrealizedProfit float64    `json:"unrealizedProfit,string"`
+	LiquidationPrice float64    `json:"liquidationPrice,string"`
+	Leverage         float64    `json:"leverage,string"`
+	MaxNotionalValue float64    `json:"maxNotionalValue,string"`
+	MarginType       string     `json:"marginType"`
+	IsAutoAddMargin  bool       `json:"isAutoAddMargin,string"`
+	PositionSide     string     `json:"positionSide"`
+	Notional         float64    `json:"notional,string"`
+	IsolatedWallet   float64    `json:"isolatedWallet,string"`
+	IsolatedMargin   float64    `json:"isolatedMargin,string"`
+	UpdateTime       types.Time `json:"updateTime"`
 }
 
 // UAccountTradeHistory stores trade data for the users account

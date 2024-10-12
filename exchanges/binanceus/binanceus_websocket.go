@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -81,7 +82,7 @@ func (bi *Binanceus) WsConnect() error {
 		go bi.KeepAuthKeyAlive()
 	}
 
-	bi.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -117,8 +118,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 			err := bi.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				bi.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					bi.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", bi.Name)
 			}
 		}
 	}
@@ -540,9 +540,9 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (bi *Binanceus) GenerateSubscriptions() ([]subscription.Subscription, error) {
+func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -558,9 +558,9 @@ subs:
 				log.Warnf(log.WebsocketMgr, "BinanceUS has 1024 subscription limit, only subscribing within limit. Requested %v", len(pairs)*len(channels))
 				break subs
 			}
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: lp.String() + channels[z],
-				Pair:    pairs[y],
+				Pairs:   currency.Pairs{pairs[y]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -570,14 +570,14 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
 	}
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payload)
 			if err != nil {
 				return err
 			}
@@ -585,24 +585,23 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) 
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payload)
 		if err != nil {
 			return err
 		}
 	}
-	bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return bi.Websocket.AddSuccessfulSubscriptions(bi.Websocket.Conn, channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
 	}
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payload)
 			if err != nil {
 				return err
 			}
@@ -610,13 +609,12 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscripti
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payload)
 		if err != nil {
 			return err
 		}
 	}
-	bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return bi.Websocket.RemoveSubscriptions(bi.Websocket.Conn, channelsToUnsubscribe...)
 }
 
 func (bi *Binanceus) setupOrderbookManager() {
@@ -637,7 +635,7 @@ func (bi *Binanceus) setupOrderbookManager() {
 			}
 		}
 	}
-	for i := 0; i < maxWSOrderbookWorkers; i++ {
+	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
 		bi.SynchroniseWebsocketOrderbook()
 	}

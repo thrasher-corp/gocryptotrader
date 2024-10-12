@@ -198,7 +198,6 @@ func TestPlaceOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -256,7 +255,6 @@ func TestExecuteOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -392,7 +390,6 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -105,11 +106,18 @@ func (c *CoinbasePro) SetDefaults() {
 				GlobalResultLimit: 300,
 			},
 		},
+		Subscriptions: subscription.List{
+			{Enabled: true, Channel: "heartbeat"},
+			{Enabled: true, Channel: "level2_batch"}, // Other orderbook feeds require authentication; This is batched in 50ms lots
+			{Enabled: true, Channel: "ticker"},
+			{Enabled: true, Channel: "user", Authenticated: true},
+			{Enabled: true, Channel: "matches"},
+		},
 	}
 
 	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -155,7 +163,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		Connector:             c.WsConnect,
 		Subscriber:            c.Subscribe,
 		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: c.generateSubscriptions,
 		Features:              &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer: true,
@@ -166,7 +174,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return c.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -401,7 +409,7 @@ func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ as
 
 // SubmitOrder submits a new order
 func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(c.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

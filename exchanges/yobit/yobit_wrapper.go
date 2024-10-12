@@ -77,7 +77,7 @@ func (y *Yobit) SetDefaults() {
 	y.Requester, err = request.New(y.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
-		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
+		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -339,7 +339,7 @@ func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
 func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(y.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

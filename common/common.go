@@ -13,11 +13,12 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -50,37 +51,30 @@ var (
 	_HTTPClient    *http.Client
 	_HTTPUserAgent string
 	m              sync.RWMutex
-	// ErrNotYetImplemented defines a common error across the code base that
-	// alerts of a function that has not been completed or tied into main code
-	ErrNotYetImplemented = errors.New("not yet implemented")
-	// ErrFunctionNotSupported defines a standardised error for an unsupported
-	// wrapper function by an API
-	ErrFunctionNotSupported  = errors.New("unsupported wrapper function")
-	errInvalidCryptoCurrency = errors.New("invalid crypto currency")
-	// ErrDateUnset is an error for start end check calculations
-	ErrDateUnset = errors.New("date unset")
-	// ErrStartAfterEnd is an error for start end check calculations
-	ErrStartAfterEnd = errors.New("start date after end date")
-	// ErrStartEqualsEnd is an error for start end check calculations
-	ErrStartEqualsEnd = errors.New("start date equals end date")
-	// ErrStartAfterTimeNow is an error for start end check calculations
-	ErrStartAfterTimeNow = errors.New("start date is after current time")
-	// ErrNilPointer defines an error for a nil pointer
-	ErrNilPointer = errors.New("nil pointer")
-	// ErrCannotCalculateOffline is returned when a request wishes to calculate
-	// something offline, but has an online requirement
-	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
-	// ErrNoResponse is returned when a response has no entries/is empty
-	// when one is expected
-	ErrNoResponse = errors.New("no response")
+	zeroValueUnix  = time.Unix(0, 0)
+)
 
+// Public common Errors
+var (
+	ErrNotYetImplemented      = errors.New("not yet implemented")
+	ErrFunctionNotSupported   = errors.New("unsupported wrapper function")
+	errInvalidCryptoCurrency  = errors.New("invalid crypto currency")
+	ErrDateUnset              = errors.New("date unset")
+	ErrStartAfterEnd          = errors.New("start date after end date")
+	ErrStartEqualsEnd         = errors.New("start date equals end date")
+	ErrStartAfterTimeNow      = errors.New("start date is after current time")
+	ErrNilPointer             = errors.New("nil pointer")
+	ErrEmptyParams            = errors.New("empty parameters")
+	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
+	ErrNoResponse             = errors.New("no response")
+	ErrTypeAssertFailure      = errors.New("type assert failure")
+	ErrUnknownError           = errors.New("unknown error")
+)
+
+var (
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
-
-	zeroValueUnix = time.Unix(0, 0)
-	// ErrTypeAssertFailure defines an error when type assertion fails
-	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
 // MatchesEmailPattern ensures that the string is an email address by regexp check
@@ -142,66 +136,43 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	return h
 }
 
-// StringSliceDifference concatenates slices together based on its index and
-// returns an individual string array
-func StringSliceDifference(slice1, slice2 []string) []string {
-	var diff []string
-	for i := 0; i < 2; i++ {
-		for _, s1 := range slice1 {
-			found := false
-			for _, s2 := range slice2 {
-				if s1 == s2 {
-					found = true
-					break
-				}
-			}
-			if !found {
-				diff = append(diff, s1)
-			}
-		}
-		if i == 0 {
-			slice1, slice2 = slice2, slice1
+// SliceDifference returns the elements that are in slice1 or slice2 but not in both
+func SliceDifference[T comparable](slice1, slice2 []T) []T {
+	diff := make([]T, 0, len(slice1)+len(slice2))
+	for x := range slice1 {
+		if !slices.Contains(slice2, slice1[x]) {
+			diff = append(diff, slice1[x])
+			continue
 		}
 	}
-	return diff
-}
-
-// StringDataContains checks the substring array with an input and returns a bool
-func StringDataContains(haystack []string, needle string) bool {
-	data := strings.Join(haystack, ",")
-	return strings.Contains(data, needle)
-}
-
-// StringDataCompare data checks the substring array with an input and returns a bool
-func StringDataCompare(haystack []string, needle string) bool {
-	for x := range haystack {
-		if haystack[x] == needle {
-			return true
+	for x := range slice2 {
+		if !slices.Contains(slice1, slice2[x]) {
+			diff = append(diff, slice2[x])
 		}
 	}
-	return false
+	return slices.Clip(diff)
 }
 
-// StringDataCompareInsensitive data checks the substring array with an input and returns
-// a bool irrespective of lower or upper case strings
-func StringDataCompareInsensitive(haystack []string, needle string) bool {
-	for x := range haystack {
-		if strings.EqualFold(haystack[x], needle) {
-			return true
-		}
-	}
-	return false
+// StringSliceContains returns whether case sensitive needle is contained within haystack
+func StringSliceContains(haystack []string, needle string) bool {
+	return slices.ContainsFunc(haystack, func(s string) bool {
+		return strings.Contains(s, needle)
+	})
 }
 
-// StringDataContainsInsensitive checks the substring array with an input and returns
-// a bool irrespective of lower or upper case strings
-func StringDataContainsInsensitive(haystack []string, needle string) bool {
-	for _, data := range haystack {
-		if strings.Contains(strings.ToUpper(data), strings.ToUpper(needle)) {
-			return true
-		}
-	}
-	return false
+// StringSliceCompareInsensitive returns whether case insensitive needle exists within haystack
+func StringSliceCompareInsensitive(haystack []string, needle string) bool {
+	return slices.ContainsFunc(haystack, func(s string) bool {
+		return strings.EqualFold(s, needle)
+	})
+}
+
+// StringSliceContainsInsensitive returns whether case insensitive needle is contained within haystack
+func StringSliceContainsInsensitive(haystack []string, needle string) bool {
+	needleUpper := strings.ToUpper(needle)
+	return slices.ContainsFunc(haystack, func(s string) bool {
+		return strings.Contains(strings.ToUpper(s), needleUpper)
+	})
 }
 
 // IsEnabled takes in a boolean param  and returns a string if it is enabled
@@ -397,20 +368,6 @@ func ChangePermission(directory string) error {
 	})
 }
 
-// SplitStringSliceByLimit splits a slice of strings into slices by input limit and returns a slice of slice of strings
-func SplitStringSliceByLimit(in []string, limit uint) [][]string {
-	var stringSlice []string
-	sliceSlice := make([][]string, 0, len(in)/int(limit)+1)
-	for len(in) >= int(limit) {
-		stringSlice, in = in[:limit], in[limit:]
-		sliceSlice = append(sliceSlice, stringSlice)
-	}
-	if len(in) > 0 {
-		sliceSlice = append(sliceSlice, in)
-	}
-	return sliceSlice
-}
-
 // AddPaddingOnUpperCase adds padding to a string when detecting an upper case letter. If
 // there are multiple upper case items like `ThisIsHTTPExample`, it will only
 // pad between like this `This Is HTTP Example`.
@@ -420,7 +377,7 @@ func AddPaddingOnUpperCase(s string) string {
 	}
 	var result []string
 	left := 0
-	for x := 0; x < len(s); x++ {
+	for x := range s {
 		if x == 0 {
 			continue
 		}
@@ -440,27 +397,6 @@ func AddPaddingOnUpperCase(s string) string {
 	}
 	result = append(result, s[left:])
 	return strings.Join(result, " ")
-}
-
-// InArray checks if _val_ belongs to _array_
-func InArray(val, array interface{}) (exists bool, index int) {
-	exists = false
-	index = -1
-	if array == nil {
-		return
-	}
-	switch reflect.TypeOf(array).Kind() {
-	case reflect.Array, reflect.Slice:
-		s := reflect.ValueOf(array)
-		for i := 0; i < s.Len(); i++ {
-			if reflect.DeepEqual(val, s.Index(i).Interface()) {
-				index = i
-				exists = true
-				return
-			}
-		}
-	}
-	return
 }
 
 // fmtError holds a formatted msg and the errors which formatted it
@@ -661,4 +597,51 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 		description = " for: " + strings.Join(fieldDescription, ", ")
 	}
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
+}
+
+// Batch takes a slice type and converts it into a slice of containing slices of length batchSize, and any remainder in the final batch
+// batchSize <= 0 will return the entire input slice in one batch
+func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
+	if len(blobs) == 0 {
+		return []S{}
+	}
+	blobs = slices.Clone(blobs)
+	if batchSize <= 0 {
+		return []S{blobs}
+	}
+	i := 0
+	batches := make([]S, (len(blobs)+batchSize-1)/batchSize)
+	for batchSize < len(blobs) {
+		blobs, batches[i] = blobs[batchSize:], blobs[:batchSize:batchSize]
+		i++
+	}
+	if len(blobs) > 0 {
+		batches[i] = blobs
+	}
+	return batches
+}
+
+// SortStrings takes a slice of fmt.Stringer implementers and returns a new ascending sorted slice
+func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
+	n := slices.Clone(x)
+	slices.SortFunc(n, func(a, b E) int {
+		return strings.Compare(a.String(), b.String())
+	})
+	return n
+}
+
+// Counter is a thread-safe counter.
+type Counter struct {
+	n int64 // privatised so you can't use counter as a value type
+}
+
+// IncrementAndGet returns the next count after incrementing.
+func (c *Counter) IncrementAndGet() int64 {
+	newID := atomic.AddInt64(&c.n, 1)
+	// Handle overflow by resetting the counter to 1 if it becomes negative
+	if newID < 0 {
+		atomic.StoreInt64(&c.n, 1)
+		return 1
+	}
+	return newID
 }

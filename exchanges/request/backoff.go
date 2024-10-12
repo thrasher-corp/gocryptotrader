@@ -10,11 +10,11 @@ func DefaultBackoff() Backoff {
 }
 
 // LinearBackoff applies a backoff increasing by a base amount with each retry capped at a maximum duration.
-func LinearBackoff(base, max time.Duration) Backoff {
+func LinearBackoff(base, maxDuration time.Duration) Backoff {
 	return func(n int) time.Duration {
 		d := base * time.Duration(n)
-		if d > max {
-			return max
+		if d > maxDuration {
+			return maxDuration
 		}
 
 		return d
