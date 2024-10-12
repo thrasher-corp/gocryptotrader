@@ -70,7 +70,7 @@ func TestExchangeDeploy(t *testing.T) {
 	v := &v9998.Version{}
 	in := []byte(`{"version":0,"exchanges":[{}]}`)
 	_, err = exchangeDeploy(context.Background(), v, ExchangeVersion.UpgradeExchange, in)
-	require.ErrorIs(t, err, errModifiyingExchange)
+	require.ErrorIs(t, err, errModifyingExchange)
 	require.ErrorIs(t, err, common.ErrGettingField)
 	require.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
 	require.ErrorContains(t, err, "`name`")

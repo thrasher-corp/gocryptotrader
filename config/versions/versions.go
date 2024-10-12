@@ -27,7 +27,7 @@ var (
 	errRegisteringVersion  = errors.New("error registering config version")
 	errVersionIncompatible = errors.New("version does not implement ConfigVersion or ExchangeVersion")
 	errVersionSequence     = errors.New("version registered out of sequence")
-	errModifiyingExchange  = errors.New("error modifying exchange config")
+	errModifyingExchange   = errors.New("error modifying exchange config")
 	errNoVersions          = errors.New("error retrieving latest config version: No config versions are registered")
 	errApplyingVersion     = errors.New("error applying version")
 )
@@ -134,7 +134,7 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 		defer func() { i++ }()
 		name, err := jsonparser.GetString(exchOrig, "name")
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w: %w `name`: %w", errModifiyingExchange, common.ErrGettingField, err))
+			errs = common.AppendError(errs, fmt.Errorf("%w: %w `name`: %w", errModifyingExchange, common.ErrGettingField, err))
 			return
 		}
 		for _, want := range wanted {
@@ -143,12 +143,12 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			}
 			exchNew, err := method(patch, ctx, exchOrig)
 			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w: %w", errModifiyingExchange, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w: %w", errModifyingExchange, err))
 				continue
 			}
 			if !bytes.Equal(exchNew, exchOrig) {
 				if j, err = jsonparser.Set(j, exchNew, "exchanges", "["+strconv.Itoa(i)+"]"); err != nil {
-					errs = common.AppendError(errs, fmt.Errorf("%w: %w `exchanges.[%d]`: %w", errModifiyingExchange, common.ErrSettingField, i, err))
+					errs = common.AppendError(errs, fmt.Errorf("%w: %w `exchanges.[%d]`: %w", errModifyingExchange, common.ErrSettingField, i, err))
 				}
 			}
 		}
@@ -158,7 +158,7 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 	case errors.Is(err, jsonparser.KeyPathNotFoundError), dataType != jsonparser.Array:
 		return j, nil
 	case err != nil:
-		return j, fmt.Errorf("%w: %w `exchanges`: %w", errModifiyingExchange, common.ErrGettingField, err)
+		return j, fmt.Errorf("%w: %w `exchanges`: %w", errModifyingExchange, common.ErrGettingField, err)
 	}
 	if _, err := jsonparser.ArrayEach(bytes.Clone(v), eFunc); err != nil {
 		return j, err
