@@ -1548,7 +1548,7 @@ func (c *Config) decryptConfig(j []byte, keyProvider keyProvider) ([]byte, error
 
 		d, err := c.decryptConfigData(j, key)
 		if err != nil {
-			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password? ", err)
+			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
 			continue
 		}
 		return d, nil
