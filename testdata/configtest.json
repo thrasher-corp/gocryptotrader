@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 1,
+ "version": 2,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -2309,6 +2309,7 @@
    "connectionMonitorDelay": 2000000000,
    "baseCurrencies": "EUR,USD,CAD,GBP,JPY",
    "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
     "requestFormat": {
      "uppercase": true,
      "separator": ","
