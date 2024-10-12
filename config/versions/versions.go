@@ -6,6 +6,8 @@ versions handles config upgrades and downgrades
   - Versions must upgrade to the next version. Do not retrospectively change versions to match new type changes. Create a new version
 
   - Versions must be registered in import.go
+
+  - Versions must implement ExchangeVersion or ConfigVersion, and may implement both
 */
 package versions
 
