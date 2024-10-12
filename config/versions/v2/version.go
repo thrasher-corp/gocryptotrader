@@ -24,7 +24,6 @@ func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 		return jsonparser.Set(e, []byte(`"`+to+`"`), "name")
 	}
 	return e, nil
-
 }
 
 // DowngradeExchange will change the exchange name from CoinbasePro to GDAX
