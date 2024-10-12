@@ -155,8 +155,8 @@ func TestGetHoldings(t *testing.T) {
 	}
 
 	_, err = GetHoldings("bla", happyCredentials, asset.Spot)
-	if !errors.Is(err, errExchangeHoldingsNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeHoldingsNotFound)
+	if !errors.Is(err, ErrExchangeHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeHoldingsNotFound)
 	}
 
 	_, err = GetHoldings("bla", happyCredentials, asset.Empty)
@@ -265,8 +265,8 @@ func TestGetBalance(t *testing.T) {
 	}
 
 	_, err = GetBalance("bruh", "", happyCredentials, asset.Spot, currency.BTC)
-	if !errors.Is(err, errExchangeHoldingsNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeHoldingsNotFound)
+	if !errors.Is(err, ErrExchangeHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeHoldingsNotFound)
 	}
 
 	err = Process(&Holdings{

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -27,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -1948,4 +1950,31 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 		return protocol.TradingRequirements{}
 	}
 	return b.Features.TradingRequirements
+}
+
+// FetchTicker returns the ticker for a currency pair and asset type
+// associated with the exchange.
+// NOTE: UpdateTicker (or if supported UpdateTickers) method must be
+// called first to update the ticker map.
+func (b *Base) FetchTicker(_ context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	return ticker.GetTicker(b.Name, p, assetType)
+}
+
+// FetchOrderbook returns orderbook base on the currency pair and asset type
+// associated with the exchange.
+// NOTE: UpdateOrderbook method must be called first to update the orderbook
+// map.
+func (b *Base) FetchOrderbook(_ context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	return orderbook.Get(b.Name, p, assetType)
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+// NOTE: UpdateAccountInfo method must be called first to update the
+// account info map.
+func (b *Base) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	return account.GetHoldings(b.Name, creds, assetType)
 }

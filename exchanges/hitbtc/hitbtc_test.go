@@ -166,10 +166,6 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FetchTicker(context.Background(), pairs[1], asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestUpdateTickers(t *testing.T) {

@@ -37,7 +37,7 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 	exch, ok := service.books[strings.ToLower(exchange)]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("%w for %s exchange",
-			errCannotFindOrderbook, exchange)
+			ErrCannotFindOrderbook, exchange)
 	}
 	return service.Mux.Subscribe(exch.ID)
 }
@@ -129,7 +129,7 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
 		return nil, fmt.Errorf("%w for %s exchange",
-			errCannotFindOrderbook, exchange)
+			ErrCannotFindOrderbook, exchange)
 	}
 
 	book, ok := m1.m[key.PairAsset{
@@ -138,7 +138,7 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s", errCannotFindOrderbook, p.Quote)
+		return nil, fmt.Errorf("%w associated with base currency %s", ErrCannotFindOrderbook, p.Quote)
 	}
 	return book, nil
 }
@@ -157,7 +157,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s exchange", errCannotFindOrderbook, exchange)
+		return nil, fmt.Errorf("%w for %s exchange", ErrCannotFindOrderbook, exchange)
 	}
 	book, ok := m1.m[key.PairAsset{
 		Base:  p.Base.Item,
@@ -165,7 +165,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s", errCannotFindOrderbook, p.Quote)
+		return nil, fmt.Errorf("%w associated with currency %s %s", ErrCannotFindOrderbook, p, a)
 	}
 	return book.Retrieve()
 }
