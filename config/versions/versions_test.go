@@ -8,11 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	v9997 "github.com/thrasher-corp/gocryptotrader/config/versions/testfixtures/v9997"
-	v9998 "github.com/thrasher-corp/gocryptotrader/config/versions/testfixtures/v9998"
-	v9999 "github.com/thrasher-corp/gocryptotrader/config/versions/testfixtures/v9999"
-	v0 "github.com/thrasher-corp/gocryptotrader/config/versions/v0"
-	v1 "github.com/thrasher-corp/gocryptotrader/config/versions/v1"
 )
 
 func TestDeploy(t *testing.T) {
@@ -21,12 +16,12 @@ func TestDeploy(t *testing.T) {
 	_, err := m.Deploy(context.Background(), []byte(``))
 	assert.ErrorIs(t, err, errNoVersions)
 
-	m.registerVersion(&v9999.Version{})
+	m.registerVersion(1, &TestVersion1{})
 	_, err = m.Deploy(context.Background(), []byte(``))
 	require.ErrorIs(t, err, errVersionIncompatible)
 
 	m.errors = nil
-	m.registerVersion(&v0.Version{})
+	m.registerVersion(0, &Version0{})
 	_, err = m.Deploy(context.Background(), []byte(`not an object`))
 	require.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "Must throw the correct error trying to add version to bad json")
 	require.ErrorIs(t, err, common.ErrSettingField, "Must throw the correct error trying to add version to bad json")
@@ -40,7 +35,7 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(in), string(j))
 
-	m.registerVersion(&v1.Version{})
+	m.registerVersion(1, &Version1{})
 	j, err = m.Deploy(context.Background(), in)
 	require.NoError(t, err)
 	require.Contains(t, string(j), `"version":1`)
@@ -50,14 +45,14 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(j), `"version":0`)
 
-	m.versions = append(m.versions, &v9998.Version{ConfigErr: true, ExchErr: false}) // Bit hacky, but this will actually work
+	m.versions = append(m.versions, &TestVersion2{ConfigErr: true, ExchErr: false}) // Bit hacky, but this will actually work
 	_, err = m.Deploy(context.Background(), j)
-	require.ErrorIs(t, err, v9998.ErrUpgrade)
+	require.ErrorIs(t, err, errUpgrade)
 
-	m.versions[1] = &v9998.Version{ConfigErr: false, ExchErr: true}
+	m.versions[1] = &TestVersion2{ConfigErr: false, ExchErr: true}
 	_, err = m.Deploy(context.Background(), in)
 	require.Implements(t, (*ExchangeVersion)(nil), m.versions[1])
-	require.ErrorIs(t, err, v9998.ErrUpgrade)
+	require.ErrorIs(t, err, errUpgrade)
 }
 
 // TestExchangeDeploy exercises exchangeDeploy
@@ -68,7 +63,7 @@ func TestExchangeDeploy(t *testing.T) {
 	_, err := m.Deploy(context.Background(), []byte(``))
 	assert.ErrorIs(t, err, errNoVersions)
 
-	v := &v9998.Version{}
+	v := &TestVersion2{}
 	in := []byte(`{"version":0,"exchanges":[{}]}`)
 	_, err = exchangeDeploy(context.Background(), v, ExchangeVersion.UpgradeExchange, in)
 	require.ErrorIs(t, err, errModifyingExchange)
@@ -85,27 +80,19 @@ func TestRegisterVersion(t *testing.T) {
 	t.Parallel()
 	m := manager{}
 
-	m.registerVersion(&v0.Version{})
+	m.registerVersion(0, &Version0{})
 	require.NoError(t, m.errors)
 	assert.NotEmpty(t, m.versions)
 
-	m.registerVersion("cheese string")
-	require.ErrorIs(t, m.errors, errRegisteringVersion)
-
 	m.errors = nil
-	m.registerVersion(&v9999.Version{})
+	m.registerVersion(1, &TestVersion1{})
 	require.ErrorIs(t, m.errors, errVersionIncompatible)
-	assert.ErrorContains(t, m.errors, "9999")
+	assert.ErrorContains(t, m.errors, ": 1")
 
 	m.errors = nil
-	m.registerVersion(&v9998.Version{})
+	m.registerVersion(2, &TestVersion2{})
 	assert.ErrorIs(t, m.errors, errVersionSequence)
-	assert.ErrorContains(t, m.errors, "9998")
-
-	m.errors = nil
-	m.registerVersion(&v9997.Version{})
-	assert.NoError(t, m.errors)
-	assert.Len(t, m.versions, 1, "Disabled Versions should not be registered")
+	assert.ErrorContains(t, m.errors, ": 2")
 }
 
 func TestLatest(t *testing.T) {
@@ -114,9 +101,14 @@ func TestLatest(t *testing.T) {
 	_, err := m.latest()
 	require.ErrorIs(t, err, errNoVersions)
 
-	m.registerVersion(&v0.Version{})
-	m.registerVersion(&v1.Version{})
+	m.registerVersion(0, &Version0{})
+	m.registerVersion(1, &Version1{})
 	v, err := m.latest()
 	require.NoError(t, err)
 	assert.Equal(t, 1, v)
+
+	m.registerVersion(2, &Version2{})
+	v, err = m.latest()
+	require.NoError(t, err)
+	assert.Equal(t, 2, v)
 }
