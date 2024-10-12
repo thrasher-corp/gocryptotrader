@@ -1517,11 +1517,7 @@ func (c *Config) readConfig(d io.Reader, keyProvider keyProvider) error {
 		return err
 	}
 
-	if err := json.Unmarshal(j, c); err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(j, c)
 }
 
 // saveWithEncryptPrompt will prompt the user if they want to encrypt their config
