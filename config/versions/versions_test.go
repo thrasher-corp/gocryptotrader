@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	v9997 "github.com/thrasher-corp/gocryptotrader/config/versions/testfixtures/v9997"
 	v9998 "github.com/thrasher-corp/gocryptotrader/config/versions/testfixtures/v9998"
 	v9999 "github.com/thrasher-corp/gocryptotrader/config/versions/testfixtures/v9999"
 	v0 "github.com/thrasher-corp/gocryptotrader/config/versions/v0"
@@ -84,6 +85,10 @@ func TestRegisterVersion(t *testing.T) {
 	t.Parallel()
 	m := manager{}
 
+	m.registerVersion(&v0.Version{})
+	require.NoError(t, m.errors)
+	assert.NotEmpty(t, m.versions)
+
 	m.registerVersion("cheese string")
 	require.ErrorIs(t, m.errors, errRegisteringVersion)
 
@@ -96,6 +101,11 @@ func TestRegisterVersion(t *testing.T) {
 	m.registerVersion(&v9998.Version{})
 	assert.ErrorIs(t, m.errors, errVersionSequence)
 	assert.ErrorContains(t, m.errors, "9998")
+
+	m.errors = nil
+	m.registerVersion(&v9997.Version{})
+	assert.NoError(t, m.errors)
+	assert.Len(t, m.versions, 1, "Disabled Versions should not be registered")
 }
 
 func TestLatest(t *testing.T) {

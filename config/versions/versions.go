@@ -8,6 +8,8 @@ versions handles config upgrades and downgrades
   - Versions must be registered in import.go
 
   - Versions must implement ExchangeVersion or ConfigVersion, and may implement both
+
+  - Versions implementing DisabledVersion will be silently ignored, but must be the highest version numbers to avoid errVersionSequence
 */
 package versions
 
@@ -36,7 +38,7 @@ var (
 
 // DisabledVersion allows authors to rollback changes easily during development
 type DisabledVersion interface {
-	Disabled() bool
+	Disabled()
 }
 
 // ConfigVersion is a version that affects the general configuration
@@ -180,6 +182,8 @@ func (m *manager) registerVersion(v any) {
 		return
 	}
 	switch v.(type) {
+	case DisabledVersion:
+		return
 	case ExchangeVersion, ConfigVersion:
 	default:
 		m.errors = common.AppendError(m.errors, fmt.Errorf("%w: %v", errVersionIncompatible, ver))
