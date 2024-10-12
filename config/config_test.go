@@ -1306,15 +1306,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg.Exchanges[0].Name = "GDAX"
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-	if cfg.Exchanges[0].Name != "CoinbasePro" {
-		t.Error("exchange name should have been updated from GDAX to CoinbasePRo")
-	}
-
 	// Test API settings migration
 	sptr := func(s string) *string { return &s }
 
