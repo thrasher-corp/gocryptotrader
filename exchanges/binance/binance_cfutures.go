@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -241,7 +242,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if !slices.Contains(validContractType, contractType) {
-		return nil, errors.New("invalid contractType")
+		return nil, errContractTypeIsRequired
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, kline.ErrInvalidInterval
@@ -679,7 +680,7 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 		}
 	}
 	if x.NewOrderRespType != "" && !slices.Contains(validNewOrderRespType, x.NewOrderRespType) {
-		return nil, errors.New("invalid newOrderRespType")
+		return nil, errInvalidNewOrderResponseType
 	}
 	var resp *FuturesOrderPlaceData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/order", nil, cFuturesOrdersDefaultRate, x, &resp)
@@ -687,16 +688,15 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 
 // FuturesBatchOrder sends a batch order request
 func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
+	if len(data) == 0 {
+		return nil, errNilArgument
+	}
+	var err error
 	for x := range data {
-		unformattedPair, err := currency.NewPairFromString(data[x].Symbol)
+		data[x].Symbol, err = b.FormatExchangeCurrency(data[x].Symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return nil, err
 		}
-		formattedPair, err := b.FormatExchangeCurrency(unformattedPair, asset.CoinMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		data[x].Symbol = formattedPair.String()
 		if data[x].PositionSide != "" {
 			if !slices.Contains(validPositionSide, data[x].PositionSide) {
 				return nil, fmt.Errorf("%w %s", errInvalidPositionSide, data[x].PositionSide)
@@ -709,7 +709,7 @@ func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderD
 		}
 		if data[x].NewOrderRespType != "" {
 			if !slices.Contains(validNewOrderRespType, data[x].NewOrderRespType) {
-				return nil, errors.New("invalid newOrderRespType")
+				return nil, errInvalidNewOrderResponseType
 			}
 		}
 	}
@@ -920,7 +920,7 @@ func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.P
 		return nil, err
 	}
 	if !slices.Contains(validMarginType, marginType) {
-		return nil, errMarginTypeIsRequired
+		return nil, margin.ErrInvalidMarginType
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
@@ -937,7 +937,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 	}
 	cType, ok := validMarginChange[changeType]
 	if !ok {
-		return nil, errors.New("invalid changeType")
+		return nil, errMarginChangeTypeInvalid
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
@@ -961,7 +961,7 @@ func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currenc
 	}
 	cType, ok := validMarginChange[changeType]
 	if !ok {
-		return nil, errors.New("invalid changeType")
+		return nil, errMarginChangeTypeInvalid
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
@@ -1079,7 +1079,7 @@ func (b *Binance) FuturesForceOrders(ctx context.Context, symbol currency.Pair, 
 	}
 	if autoCloseType != "" {
 		if !slices.Contains(validAutoCloseTypes, autoCloseType) {
-			return nil, errors.New("invalid autoCloseType")
+			return nil, errInvalidAutoCloseType
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}

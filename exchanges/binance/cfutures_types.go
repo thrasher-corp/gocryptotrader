@@ -160,21 +160,21 @@ type FuturesBasisData struct {
 
 // PlaceBatchOrderData stores batch order data for placing
 type PlaceBatchOrderData struct {
-	Symbol           string  `json:"symbol"`
-	Side             string  `json:"side"`
-	PositionSide     string  `json:"positionSide,omitempty"`
-	OrderType        string  `json:"type"`
-	TimeInForce      string  `json:"timeInForce,omitempty"`
-	Quantity         float64 `json:"quantity"`
-	ReduceOnly       string  `json:"reduceOnly,omitempty"`
-	Price            float64 `json:"price"`
-	NewClientOrderID string  `json:"newClientOrderId,omitempty"`
-	StopPrice        float64 `json:"stopPrice,omitempty"`
-	ActivationPrice  float64 `json:"activationPrice,omitempty"`
-	CallbackRate     float64 `json:"callbackRate,omitempty"`
-	WorkingType      string  `json:"workingType,omitempty"`
-	PriceProtect     string  `json:"priceProtect,omitempty"`
-	NewOrderRespType string  `json:"newOrderRespType,omitempty"`
+	Symbol           currency.Pair `json:"symbol"`
+	Side             string        `json:"side"`
+	PositionSide     string        `json:"positionSide,omitempty"`
+	OrderType        string        `json:"type"`
+	TimeInForce      string        `json:"timeInForce,omitempty"`
+	Quantity         float64       `json:"quantity"`
+	ReduceOnly       string        `json:"reduceOnly,omitempty"`
+	Price            float64       `json:"price"`
+	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
+	StopPrice        float64       `json:"stopPrice,omitempty"`
+	ActivationPrice  float64       `json:"activationPrice,omitempty"`
+	CallbackRate     float64       `json:"callbackRate,omitempty"`
+	WorkingType      string        `json:"workingType,omitempty"`
+	PriceProtect     string        `json:"priceProtect,omitempty"`
+	NewOrderRespType string        `json:"newOrderRespType,omitempty"`
 }
 
 // BatchCancelOrderData stores batch cancel order data

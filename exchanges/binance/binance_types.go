@@ -55,7 +55,6 @@ var (
 	errLoanCoinMustBeSet                      = errors.New("loan coin must bet set")
 	errLoanTermMustBeSet                      = errors.New("loan term must be set")
 	errCollateralCoinMustBeSet                = errors.New("collateral coin must be set")
-	errOrderIDMustBeSet                       = errors.New("orderID must be set")
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
 	errNilArgument                            = errors.New("nil argument")
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
@@ -66,7 +65,6 @@ var (
 	errEmptySubAccountEPIKey                  = errors.New("invalid sub-account API key")
 	errInvalidFuturesType                     = errors.New("invalid futures types")
 	errInvalidAccountType                     = errors.New("invalid account type specified")
-	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
 	errProductIDIsRequired                    = errors.New("product ID is required")
 	errProjectIDRequired                      = errors.New("project ID is required")
 	errPlanIDRequired                         = errors.New("plan ID  is required")
@@ -109,7 +107,13 @@ var (
 	errPossibleValuesRequired                 = errors.New("urgency field is required")
 	errPlanStatusRequired                     = errors.New("plan status is required")
 	errUsageTypeRequired                      = errors.New("usage type is required")
-	errMarginCallValueRequired                = errors.New("margin call value required") //
+	errMarginCallValueRequired                = errors.New("margin call value required")
+	errTimeInForceRequired                    = errors.New("time in force required")
+	errIncomeTypeRequired                     = errors.New("invalid incomeType")
+	errInvalidNewOrderResponseType            = errors.New("invalid new order response type")
+	errInvalidAutoCloseType                   = errors.New("invalid auto close type")
+	errDownloadIDRequired                     = errors.New("downloadId is required")
+	errMarginChangeTypeInvalid                = errors.New("invalid margin changeType")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}

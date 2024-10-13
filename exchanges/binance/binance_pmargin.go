@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -52,9 +51,9 @@ func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path stri
 	}
 	arg.OrderType = strings.ToUpper(arg.OrderType)
 	switch arg.OrderType {
-	case "limit":
+	case "limit", "LIMIT":
 		if arg.TimeInForce == "" {
-			return nil, errTimestampInfoRequired
+			return nil, errTimeInForceRequired
 		}
 		if arg.Quantity <= 0 {
 			return nil, order.ErrAmountBelowMin
@@ -737,7 +736,7 @@ func (b *Binance) ChangeUMInitialLeverage(ctx context.Context, symbol string, le
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if leverage < 1 || leverage > 125 {
-		return nil, errors.New("invalid leverage, must be between 1 and 125")
+		return nil, fmt.Errorf("%w, leverage must be between 1 and 125", order.ErrSubmitLeverageNotSupported)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -752,7 +751,7 @@ func (b *Binance) ChangeCMInitialLeverage(ctx context.Context, symbol string, le
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if leverage < 1 || leverage > 125 {
-		return nil, errors.New("invalid leverage, must be between 1 and 125")
+		return nil, fmt.Errorf("%w, leverage must be between 1 and 125", order.ErrSubmitLeverageNotSupported)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)

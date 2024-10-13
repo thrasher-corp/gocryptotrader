@@ -723,7 +723,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		}
 
 	case asset.USDTMarginedFutures:
-		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
+		orderbookNew, err = b.UFuturesOrderbook(ctx, p.String(), 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(ctx, p, 1000)
 	case asset.Options:
@@ -973,7 +973,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 			})
 		}
 	case asset.USDTMarginedFutures:
-		tradeData, err := b.URecentTrades(ctx, pFmt, "", limit)
+		tradeData, err := b.URecentTrades(ctx, pFmt.String(), "", limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1081,7 +1081,7 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		var trades []UPublicTradesData
 		if a == asset.USDTMarginedFutures {
-			trades, err = b.UFuturesHistoricalTrades(ctx, pFmt, "", 0)
+			trades, err = b.UFuturesHistoricalTrades(ctx, pFmt.String(), "", 0)
 		} else {
 			trades, err = b.GetFuturesHistoricalTrades(ctx, pFmt, "", 0)
 		}
@@ -1435,14 +1435,14 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 	case asset.USDTMarginedFutures:
-		_, err := b.UCancelOrder(ctx, o.Pair, o.OrderID, "")
+		_, err := b.UCancelOrder(ctx, o.Pair.String(), o.OrderID, "")
 		if err != nil {
 			return err
 		}
 	case asset.Options:
 		reg := regexp.MustCompile(`^\d+$`)
 		if !reg.MatchString(o.OrderID) {
-			return fmt.Errorf("%w, invalid orderID", errOrderIDMustBeSet)
+			return fmt.Errorf("%w, invalid orderID", order.ErrOrderIDNotSet)
 		}
 		orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
@@ -1526,13 +1526,13 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 				return cancelAllOrdersResponse, err
 			}
 			for i := range enabledPairs {
-				_, err = b.UCancelAllOpenOrders(ctx, enabledPairs[i])
+				_, err = b.UCancelAllOpenOrders(ctx, enabledPairs[i].String())
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
 			}
 		} else {
-			_, err = b.UCancelAllOpenOrders(ctx, req.Pair)
+			_, err = b.UCancelAllOpenOrders(ctx, req.Pair.String())
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1643,7 +1643,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Date:            orderData.Time.Time(),
 			LastUpdated:     orderData.UpdateTime.Time()}, nil
 	case asset.USDTMarginedFutures:
-		orderData, err := b.UGetOrderData(ctx, pair, orderID, "")
+		orderData, err := b.UGetOrderData(ctx, pair.String(), orderID, "")
 		if err != nil {
 			return nil, err
 		}
@@ -2159,7 +2159,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("can only fetch orders 7 days out")
 				}
 				orderHistory, err = b.UAllAccountOrders(ctx,
-					req.Pairs[i], 0, 0, req.StartTime, req.EndTime)
+					req.Pairs[i].String(), 0, 0, req.StartTime, req.EndTime)
 				if err != nil {
 					return nil, err
 				}
@@ -2169,7 +2169,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 				orderHistory, err = b.UAllAccountOrders(ctx,
-					req.Pairs[i], fromID, 0, time.Time{}, time.Time{})
+					req.Pairs[i].String(), fromID, 0, time.Time{}, time.Time{})
 				if err != nil {
 					return nil, err
 				}
@@ -2306,7 +2306,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	case asset.USDTMarginedFutures:
 		var candles []FuturesCandleStick
 		candles, err = b.UKlineData(ctx,
-			req.RequestFormatted,
+			req.RequestFormatted.String(),
 			b.FormatExchangeKlineInterval(interval),
 			req.RequestLimit,
 			req.Start,
@@ -2413,7 +2413,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		case asset.USDTMarginedFutures:
 			var candles []FuturesCandleStick
 			candles, err = b.UKlineData(ctx,
-				req.RequestFormatted,
+				req.RequestFormatted.String(),
 				b.FormatExchangeKlineInterval(interval),
 				int64(req.RangeHolder.Limit),
 				req.RangeHolder.Ranges[x].Start.Time,
@@ -2660,7 +2660,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			return nil, err
 		}
 
-		mp, err = b.UGetMarkPrice(ctx, fPair)
+		mp, err = b.UGetMarkPrice(ctx, fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -2816,7 +2816,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		}
 		for {
 			var frh []FundingRateHistory
-			frh, err = b.UGetFundingHistory(ctx, fPair, int64(requestLimit), sd, r.EndDate)
+			frh, err = b.UGetFundingHistory(ctx, fPair.String(), int64(requestLimit), sd, r.EndDate)
 			if err != nil {
 				return nil, err
 			}
@@ -2832,7 +2832,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			sd = frh[len(frh)-1].FundingTime.Time()
 		}
 		var mp []UMarkPrice
-		mp, err = b.UGetMarkPrice(ctx, fPair)
+		mp, err = b.UGetMarkPrice(ctx, fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -2843,7 +2843,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
 			var income []UAccountIncomeHistory
-			income, err = b.UAccountIncomeHistory(ctx, fPair, "FUNDING_FEE", int64(requestLimit), r.StartDate, r.EndDate)
+			income, err = b.UAccountIncomeHistory(ctx, fPair.String(), "FUNDING_FEE", int64(requestLimit), r.StartDate, r.EndDate)
 			if err != nil {
 				return nil, err
 			}
@@ -3028,7 +3028,7 @@ func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.Position
 	case asset.CoinMarginedFutures:
 		_, err = b.ModifyIsolatedPositionMargin(ctx, req.Pair, side, marginType, req.NewAllocatedMargin)
 	case asset.USDTMarginedFutures:
-		_, err = b.UModifyIsolatedPositionMarginReq(ctx, req.Pair, side, marginType, req.NewAllocatedMargin)
+		_, err = b.UModifyIsolatedPositionMarginReq(ctx, req.Pair.String(), side, marginType, req.NewAllocatedMargin)
 	}
 	if err != nil {
 		return nil, err
@@ -3370,7 +3370,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 				}
 				for {
 					var orders []UFuturesOrderData
-					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), sd, req.EndDate)
+					orders, err = b.UAllAccountOrders(ctx, fPair.String(), 0, int64(orderLimit), sd, req.EndDate)
 					if err != nil {
 						return nil, err
 					}
@@ -3502,7 +3502,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, _ order.Side) error {
 	switch item {
 	case asset.USDTMarginedFutures:
-		_, err := b.UChangeInitialLeverageRequest(ctx, pair, amount)
+		_, err := b.UChangeInitialLeverageRequest(ctx, pair.String(), amount)
 		return err
 	case asset.CoinMarginedFutures:
 		_, err := b.FuturesChangeInitialLeverage(ctx, pair, amount)
@@ -3670,7 +3670,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	for i := range k {
 		switch k[i].Asset {
 		case asset.USDTMarginedFutures:
-			oi, err := b.UOpenInterest(ctx, k[i].Pair())
+			oi, err := b.UOpenInterest(ctx, k[i].Pair().String())
 			if err != nil {
 				return nil, err
 			}

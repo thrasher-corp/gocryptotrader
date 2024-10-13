@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -569,8 +570,10 @@ func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair,
 // Careful when accessing this with no symbol: The number of requests counted
 // against the rate limiter is significantly higher
 func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOrder, error) {
-	var p string
-	var err error
+	var (
+		p   string
+		err error
+	)
 	params := url.Values{}
 	if !pair.IsEmpty() {
 		p, err = b.FormatSymbol(pair, asset.Spot)
@@ -688,7 +691,7 @@ func (b *Binance) CancelOCOOrder(ctx context.Context, symbol, orderListID, listC
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if orderListID == "" && listClientOrderID == "" {
-		return nil, errOrderIDMustBeSet
+		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -708,7 +711,7 @@ func (b *Binance) CancelOCOOrder(ctx context.Context, symbol, orderListID, listC
 // GetOCOOrders retrieves a specific OCO based on provided optional parameters
 func (b *Binance) GetOCOOrders(ctx context.Context, orderListID, origiClientOrderID string) (*OCOOrder, error) {
 	if orderListID == "" && origiClientOrderID == "" {
-		return nil, errOrderIDMustBeSet
+		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	if orderListID != "" {
@@ -1742,7 +1745,7 @@ func (b *Binance) GetTokensOrSymbolsDelistSchedule(ctx context.Context) ([]Margi
 // GetMarginAvailableInventory retrieves margin account available inventory
 func (b *Binance) GetMarginAvailableInventory(ctx context.Context, marginType string) ([]MarginInventory, error) {
 	if marginType == "" {
-		return nil, errMarginTypeIsRequired
+		return nil, margin.ErrInvalidMarginType
 	}
 	params := url.Values{}
 	params.Set("type", marginType)
@@ -1754,7 +1757,7 @@ func (b *Binance) GetMarginAvailableInventory(ctx context.Context, marginType st
 // marginType possible values are 'MARGIN','ISOLATED'
 func (b *Binance) MarginManualLiquidiation(ctx context.Context, marginType, symbol string) ([]SmallLiabilityCoin, error) {
 	if marginType == "" {
-		return nil, errMarginTypeIsRequired
+		return nil, margin.ErrInvalidMarginType
 	}
 	params := url.Values{}
 	params.Set("type", marginType)
@@ -3627,7 +3630,7 @@ func (b *Binance) CryptoLoanOngoingOrders(ctx context.Context, orderID int64, lo
 // CryptoLoanRepay repays a crypto loan
 func (b *Binance) CryptoLoanRepay(ctx context.Context, orderID int64, amount float64, repayType int64, collateralReturn bool) ([]CryptoLoanRepay, error) {
 	if orderID <= 0 {
-		return nil, errOrderIDMustBeSet
+		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -3676,7 +3679,7 @@ func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64,
 // CryptoLoanAdjustLTV adjusts the LTV of a crypto loan
 func (b *Binance) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduce bool, amount float64) (*CryptoLoanAdjustLTV, error) {
 	if orderID <= 0 {
-		return nil, errOrderIDMustBeSet
+		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin

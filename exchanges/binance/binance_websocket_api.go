@@ -651,7 +651,7 @@ func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
 // WsQueryOCOOrder execution status of an OCO.
 func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID, recvWindow int64) (*OCOOrderInfo, error) {
 	if origClientOrderID == "" {
-		return nil, fmt.Errorf("origClientOrderID %w", errOrderIDMustBeSet)
+		return nil, fmt.Errorf("origClientOrderID %w", order.ErrOrderIDNotSet)
 	}
 	params := map[string]interface{}{
 		"origClientOrderId": origClientOrderID,
@@ -681,7 +681,7 @@ func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if orderListID == "" {
-		return nil, fmt.Errorf("orderListID %w", errOrderIDMustBeSet)
+		return nil, fmt.Errorf("orderListID %w", order.ErrOrderIDNotSet)
 	}
 	params := map[string]interface{}{}
 	if listClientOrderID == "" {
