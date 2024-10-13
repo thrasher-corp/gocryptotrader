@@ -122,7 +122,7 @@ func parseCommand(fs *flag.FlagSet) string {
 		}
 		fmt.Fprintln(os.Stderr, "Unknown command provided: "+command)
 	default:
-		fmt.Fprintln(os.Stderr, "Too many commands porvided: "+strings.Join(fs.Args(), " "))
+		fmt.Fprintln(os.Stderr, "Too many commands provided: "+strings.Join(fs.Args(), " "))
 	}
 	usage(fs)
 	os.Exit(2)
