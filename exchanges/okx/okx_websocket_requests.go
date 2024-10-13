@@ -210,7 +210,7 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, id, operat
 		return err
 	}
 
-	if intermediary.Code > 1 {
+	if intermediary.Code > 2 {
 		return fmt.Errorf("error code: %d message: %s", intermediary.Code, intermediary.Message)
 	}
 
