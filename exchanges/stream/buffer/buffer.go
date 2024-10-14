@@ -170,20 +170,6 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 		}
 	}
 
-	var ret *orderbook.Base
-	if book.ob.VerifyOrderbook {
-		// This is used here so as to not retrieve book if verification is off.
-		// On every update, this will retrieve and verify orderbook depth.
-		ret, err = book.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-		err = ret.Verify()
-		if err != nil {
-			return book.ob.Invalidate(err)
-		}
-	}
-
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	book.ob.Publish()
 
@@ -246,8 +232,7 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
-	err := o.updateByPrice(u)
-	if err != nil {
+	if err := o.updateByPrice(u); err != nil {
 		return err
 	}
 	if w.checksum != nil {
@@ -260,6 +245,15 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 			return o.ob.Invalidate(err)
 		}
 		o.updateID = u.UpdateID
+	} else if o.ob.VerifyOrderbook {
+		compare, err := o.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+		err = compare.Verify()
+		if err != nil {
+			return o.ob.Invalidate(err)
+		}
 	}
 	return nil
 }
@@ -341,20 +335,6 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		false)
 	if err != nil {
 		return err
-	}
-
-	if holder.ob.VerifyOrderbook {
-		// This is used here so as to not retrieve book if verification is off.
-		// Checks to see if orderbook snapshot that was deployed has not been
-		// altered in any way
-		book, err = holder.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-		err = book.Verify()
-		if err != nil {
-			return holder.ob.Invalidate(err)
-		}
 	}
 
 	holder.ob.Publish()
