@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -77,7 +78,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			cr.Websocket.GetWebsocketURL())
 	}
-	cr.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	cr.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PingMessage,
 		Delay:             time.Second * 10,
@@ -142,9 +143,9 @@ func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnect
 		Method: publicRespondHeartbeat,
 	}
 	if authConnection {
-		return cr.Websocket.AuthConn.SendJSONMessage(subscriptionInput)
+		return cr.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, subscriptionInput)
 	}
-	return cr.Websocket.Conn.SendJSONMessage(subscriptionInput)
+	return cr.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, subscriptionInput)
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
@@ -183,7 +184,7 @@ func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 	}
 	req.APIKey = creds.Key
 	req.Signature = crypto.HexEncodeToString(hmac)
-	payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(req.ID, req)
+	payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	if err != nil {
 		return err
 	}
@@ -273,9 +274,9 @@ func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions subs
 	}
 	for p := range subscriptionPayloads {
 		if subscriptionPayloads[p].Authenticated {
-			err = cr.Websocket.AuthConn.SendJSONMessage(subscriptionPayloads[p])
+			err = cr.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, subscriptionPayloads[p])
 		} else {
-			err = cr.Websocket.Conn.SendJSONMessage(subscriptionPayloads[p])
+			err = cr.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, subscriptionPayloads[p])
 		}
 		if err != nil {
 			return err
@@ -625,7 +626,7 @@ func (cr *Cryptodotcom) processUserOrderbook(resp *WsResult) error {
 		if err != nil {
 			return err
 		}
-		oType, err := stringToOrderType(data[x].Type)
+		oType, err := StringToOrderType(data[x].Type)
 		if err != nil {
 			return err
 		}

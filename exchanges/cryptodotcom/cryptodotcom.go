@@ -167,7 +167,7 @@ func (cr *Cryptodotcom) WithdrawFunds(ctx context.Context, ccy currency.Code, am
 		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountBelowMin, amount)
 	}
 	if address == "" {
-		return nil, errors.New("address is required")
+		return nil, errAddressRequired
 	}
 	params := make(map[string]interface{})
 	params["currency"] = ccy.String()
@@ -248,7 +248,7 @@ func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, symbol, clientR
 		return nil, err
 	}
 	if len(requestedData) == 0 {
-		return nil, errors.New("requested data is required")
+		return nil, errRequestedDataTypesRequired
 	}
 	params["start_ts"] = startTime.UnixMilli()
 	params["end_ts"] = endTime.UnixMilli()
@@ -274,7 +274,7 @@ func (cr *Cryptodotcom) GetExportRequests(ctx context.Context, symbol string, st
 		params["start_ts"] = startTime.UnixMilli()
 		params["end_ts"] = endTime.UnixMilli()
 	}
-	if len(requestedData) == 0 {
+	if len(requestedData) != 0 {
 		params["requested_data"] = requestedData
 	}
 	if pageSize > 0 {
@@ -353,7 +353,7 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 	cancelOrderList := make([]map[string]interface{}, 0, len(args))
 	for x := range args {
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
-			return nil, errors.New("either InstrumentName or OrderID is required")
+			return nil, errInstrumentNameOrOrderIDRequired
 		}
 		result := make(map[string]interface{})
 		if args[x].InstrumentName != "" {
@@ -391,10 +391,10 @@ func (cr *Cryptodotcom) GetAccounts(ctx context.Context) (*AccountResponse, erro
 // Possible value for 'from' and 'to' : the master account UUID, or a sub-account UUID.
 func (cr *Cryptodotcom) SubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
 	if from == "" {
-		return fmt.Errorf("%w source address, 'from', is required", errSubAccountAddressRequired)
+		return fmt.Errorf("%w source address, 'from', is missing", errSubAccountAddressRequired)
 	}
 	if to == "" {
-		return fmt.Errorf("%w destination address, 'to', is required", errSubAccountAddressRequired)
+		return fmt.Errorf("%w destination address, 'to', is missing", errSubAccountAddressRequired)
 	}
 	if ccy.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
@@ -435,10 +435,10 @@ func (cr *Cryptodotcom) GetTransactions(ctx context.Context, symbol, journalType
 // CreateSubAccountTransfer transfer between subaccounts (and master account).
 func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
 	if from == "" {
-		return errors.New("'from' subaccount address is required")
+		return fmt.Errorf("%w, 'from' is empty", errSubAccountAddressRequired)
 	}
 	if to == "" {
-		return errors.New("'to' subaccount address is required")
+		return fmt.Errorf("%w, 'to' is empty", errSubAccountAddressRequired)
 	}
 	if ccy.IsEmpty() {
 		return fmt.Errorf("%w Currency: %v", currency.ErrCurrencyCodeEmpty, ccy)
@@ -547,14 +547,14 @@ func (cr *Cryptodotcom) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsR
 func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair currency.Pair,
 	baseCurrencySize, quoteCurrencySize float64, direction string) (*OTCQuoteResponse, error) {
 	if !currencyPair.IsPopulated() {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if baseCurrencySize <= 0 && quoteCurrencySize <= 0 {
-		return nil, errors.New("either base_currency_size or quote_currency_size is required")
+		return nil, fmt.Errorf("%w, either base_currency_size or quote_currency_size is required", order.ErrAmountMustBeSet)
 	}
 	direction = strings.ToUpper(direction)
 	if direction != "BUY" && direction != "SELL" && direction != "TWO-WAY" {
-		return nil, errors.New("invalid order direction; must be BUY, SELL, or TWO-WAY")
+		return nil, fmt.Errorf("%w, invalid order direction; must be BUY, SELL, or TWO-WAY", order.ErrSideIsInvalid)
 	}
 	params := make(map[string]interface{})
 	params["direction"] = direction
@@ -573,7 +573,7 @@ func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair curren
 // AcceptOTCQuote accept a quote from request quote.
 func (cr *Cryptodotcom) AcceptOTCQuote(ctx context.Context, quoteID, direction string) (*AcceptQuoteResponse, error) {
 	if quoteID == "" {
-		return nil, errors.New("missing quote ID")
+		return nil, errQuoteIDRequired
 	}
 	params := make(map[string]interface{})
 	if direction != "" {
@@ -678,11 +678,12 @@ func intervalToString(interval kline.Interval) (string, error) {
 	return intervalString, nil
 }
 
+var intervalStringMap = map[string]kline.Interval{
+	"1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "1h": kline.OneHour, "4h": kline.FourHour, "6h": kline.SixHour, "12h": kline.TwelveHour, "1D": kline.OneDay, "7D": kline.SevenDay, "14D": kline.TwoWeek, "1M": kline.OneMonth}
+
 // stringToInterval converts a string representation to kline.Interval instance.
 func stringToInterval(interval string) (kline.Interval, error) {
-	intervalMap := map[string]kline.Interval{
-		"1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "1h": kline.OneHour, "4h": kline.FourHour, "6h": kline.SixHour, "12h": kline.TwelveHour, "1D": kline.OneDay, "7D": kline.SevenDay, "14D": kline.TwoWeek, "1M": kline.OneMonth}
-	klineInterval, okay := intervalMap[interval]
+	klineInterval, okay := intervalStringMap[interval]
 	if !okay {
 		return 0, fmt.Errorf("%w %s", kline.ErrInvalidInterval, interval)
 	}
@@ -831,7 +832,8 @@ func (cr *Cryptodotcom) sortParams(params map[string]interface{}) []string {
 	return keys
 }
 
-func orderTypeToString(orderType order.Type) string {
+// OrderTypeToString returns a string representation of order type for outbound requests
+func OrderTypeToString(orderType order.Type) string {
 	switch orderType {
 	case order.StopLimit:
 		return "STOP_LIMIT"
@@ -842,7 +844,8 @@ func orderTypeToString(orderType order.Type) string {
 	}
 }
 
-func stringToOrderType(orderType string) (order.Type, error) {
+// StringToOrderType returns an order.Type representation from string
+func StringToOrderType(orderType string) (order.Type, error) {
 	orderType = strings.ToUpper(orderType)
 	switch orderType {
 	case "STOP_LIMIT":

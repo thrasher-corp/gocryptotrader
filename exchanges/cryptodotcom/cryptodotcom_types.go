@@ -6,37 +6,39 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
-	errInvalidOrderCancellationScope = errors.New("invalid order cancellation scope, only ACCOUNT or CONNECTION is supported")
-	errInvalidResponseFromServer     = errors.New("invalid response from server")
-	errInvalidQuantity               = errors.New("quantity must be non-zero positive decimal value for order")
-	errTriggerPriceRequired          = errors.New("trigger price is required")
-	errSubAccountAddressRequired     = errors.New("sub-account address is required")
+	errInvalidOrderCancellationScope   = errors.New("invalid order cancellation scope, only ACCOUNT or CONNECTION is supported")
+	errInvalidResponseFromServer       = errors.New("invalid response from server")
+	errInstrumentNameOrOrderIDRequired = errors.New("either InstrumentName or OrderID is required")
+	errTriggerPriceRequired            = errors.New("trigger price is required")
+	errSubAccountAddressRequired       = errors.New("sub-account address is required")
+	errRequestedDataTypesRequired      = errors.New("requested data types are required")
+	errQuoteIDRequired                 = errors.New("missing quote ID")
+	errAddressRequired                 = errors.New("address is required")
 )
 
 // Instrument represents an details.
 type Instrument struct {
-	InstrumentName          string               `json:"instrument_name"`
-	QuoteCurrency           string               `json:"quote_currency"`
-	BaseCurrency            string               `json:"base_currency"`
-	PriceDecimals           int64                `json:"price_decimals"`
-	QuantityDecimals        int64                `json:"quantity_decimals"`
-	MarginTradingEnabled    bool                 `json:"margin_trading_enabled"`
-	MarginTradingEnabled5X  bool                 `json:"margin_trading_enabled_5x"`
-	MarginTradingEnabled10X bool                 `json:"margin_trading_enabled_10x"`
-	MaxQuantity             SafeNumber           `json:"max_quantity"`
-	MinQuantity             SafeNumber           `json:"min_quantity"`
-	MaxPrice                SafeNumber           `json:"max_price"`
-	MinPrice                SafeNumber           `json:"min_price"`
-	LastUpdateDate          convert.ExchangeTime `json:"last_update_date"`
-	QuantityTickSize        SafeNumber           `json:"quantity_tick_size"`
-	PriceTickSize           SafeNumber           `json:"price_tick_size"`
+	InstrumentName          string     `json:"instrument_name"`
+	QuoteCurrency           string     `json:"quote_currency"`
+	BaseCurrency            string     `json:"base_currency"`
+	PriceDecimals           int64      `json:"price_decimals"`
+	QuantityDecimals        int64      `json:"quantity_decimals"`
+	MarginTradingEnabled    bool       `json:"margin_trading_enabled"`
+	MarginTradingEnabled5X  bool       `json:"margin_trading_enabled_5x"`
+	MarginTradingEnabled10X bool       `json:"margin_trading_enabled_10x"`
+	MaxQuantity             SafeNumber `json:"max_quantity"`
+	MinQuantity             SafeNumber `json:"min_quantity"`
+	MaxPrice                SafeNumber `json:"max_price"`
+	MinPrice                SafeNumber `json:"min_price"`
+	LastUpdateDate          types.Time `json:"last_update_date"`
+	QuantityTickSize        SafeNumber `json:"quantity_tick_size"`
+	PriceTickSize           SafeNumber `json:"price_tick_size"`
 }
 
 // OrderbookDetail public order book detail.
@@ -58,19 +60,19 @@ type CandlestickDetail struct {
 
 // CandlestickItem candlesticks (k-line data history) item.
 type CandlestickItem struct {
-	EndTime convert.ExchangeTime `json:"t"` // this represents Start Time for websocket push data.
-	Open    float64              `json:"o,string"`
-	High    float64              `json:"h,string"`
-	Low     float64              `json:"l,string"`
-	Close   float64              `json:"c,string"`
-	Volume  float64              `json:"v,string"`
+	EndTime types.Time `json:"t"` // this represents Start Time for websocket push data.
+	Open    float64    `json:"o,string"`
+	High    float64    `json:"h,string"`
+	Low     float64    `json:"l,string"`
+	Close   float64    `json:"c,string"`
+	Volume  float64    `json:"v,string"`
 }
 
 // WsCandlestickItem represents candlestick (k-line data history) item pushed through the websocket connection.
 type WsCandlestickItem struct {
 	CandlestickItem
 	// Added for websocket push data
-	UpdateTime convert.ExchangeTime `json:"ut"` // this represents Update Time for websocket push data.
+	UpdateTime types.Time `json:"ut"` // this represents Update Time for websocket push data.
 }
 
 // OTCBook represents an orderbook data for OTC instrument.
@@ -87,25 +89,25 @@ type TickersResponse struct {
 // InstrumentValuation represents a particular instrument valuation.
 type InstrumentValuation struct {
 	Data []struct {
-		Value     types.Number         `json:"v"`
-		Timestamp convert.ExchangeTime `json:"t"`
+		Value     types.Number `json:"v"`
+		Timestamp types.Time   `json:"t"`
 	} `json:"data"`
 	InstrumentName string `json:"instrument_name"`
 }
 
 // TickerItem represents a ticker item.
 type TickerItem struct {
-	InstrumentName       string               `json:"i"`
-	HighestTradePrice    SafeNumber           `json:"h"`  // Price of the 24h highest trade
-	LowestTradePrice     SafeNumber           `json:"l"`  // Price of the 24h lowest trade, null if there weren't any trades
-	LatestTradePrice     SafeNumber           `json:"a"`  // The price of the latest trade, null if there weren't any trades
-	TradedVolume         SafeNumber           `json:"v"`  // The total 24h traded volume
-	TradedVolumeInUSD24H SafeNumber           `json:"vv"` // The total 24h traded volume value (in USD)
-	OpenInterest         string               `json:"oi"`
-	PriceChange24H       SafeNumber           `json:"c"` // 24-hour price change, null if there weren't any trades
-	BestBidPrice         SafeNumber           `json:"b"` // The current best bid price, null if there aren't any bids
-	BestAskPrice         SafeNumber           `json:"k"` // The current best ask price, null if there aren't any asks
-	TradeTimestamp       convert.ExchangeTime `json:"t"`
+	InstrumentName       string     `json:"i"`
+	HighestTradePrice    SafeNumber `json:"h"`  // Price of the 24h highest trade
+	LowestTradePrice     SafeNumber `json:"l"`  // Price of the 24h lowest trade, null if there weren't any trades
+	LatestTradePrice     SafeNumber `json:"a"`  // The price of the latest trade, null if there weren't any trades
+	TradedVolume         SafeNumber `json:"v"`  // The total 24h traded volume
+	TradedVolumeInUSD24H SafeNumber `json:"vv"` // The total 24h traded volume value (in USD)
+	OpenInterest         string     `json:"oi"`
+	PriceChange24H       SafeNumber `json:"c"` // 24-hour price change, null if there weren't any trades
+	BestBidPrice         SafeNumber `json:"b"` // The current best bid price, null if there aren't any bids
+	BestAskPrice         SafeNumber `json:"k"` // The current best ask price, null if there aren't any asks
+	TradeTimestamp       types.Time `json:"t"`
 
 	// Added for websocket push data.
 	BestBidSize SafeNumber `json:"bs"`
@@ -119,13 +121,13 @@ type TradesResponse struct {
 
 // TradeItem represents a public trade item.
 type TradeItem struct {
-	Side           string               `json:"s"`
-	TradePrice     SafeNumber           `json:"p"`
-	TradeQuantity  SafeNumber           `json:"q"`
-	TradeTimestamp convert.ExchangeTime `json:"t"`
-	TradeID        string               `json:"d"`
-	InstrumentName string               `json:"i"`
-	DataTime       convert.ExchangeTime `json:"dataTime"`
+	Side           string     `json:"s"`
+	TradePrice     SafeNumber `json:"p"`
+	TradeQuantity  SafeNumber `json:"q"`
+	TradeTimestamp types.Time `json:"t"`
+	TradeID        string     `json:"d"`
+	InstrumentName string     `json:"i"`
+	DataTime       types.Time `json:"dataTime"`
 }
 
 // CancelOnDisconnectScope represents a scope of cancellation.
@@ -170,18 +172,18 @@ type WithdrawalResponse struct {
 
 // WithdrawalItem represents a withdrawal instance item.
 type WithdrawalItem struct {
-	Currency           string               `json:"currency"`
-	Fee                float64              `json:"fee"`
-	ID                 string               `json:"id"`
-	UpdateTime         convert.ExchangeTime `json:"update_time"`
-	Amount             float64              `json:"amount"`
-	Address            string               `json:"address"`
-	Status             string               `json:"status"`
-	TransactionID      string               `json:"txid"`
-	NetworkID          string               `json:"network_id"`
-	Symbol             string               `json:"symbol"`
-	ClientWithdrawalID string               `json:"client_wid"` // client generated withdrawal id.
-	CreateTime         convert.ExchangeTime `json:"create_time"`
+	Currency           string     `json:"currency"`
+	Fee                float64    `json:"fee"`
+	ID                 string     `json:"id"`
+	UpdateTime         types.Time `json:"update_time"`
+	Amount             float64    `json:"amount"`
+	Address            string     `json:"address"`
+	Status             string     `json:"status"`
+	TransactionID      string     `json:"txid"`
+	NetworkID          string     `json:"network_id"`
+	Symbol             string     `json:"symbol"`
+	ClientWithdrawalID string     `json:"client_wid"` // client generated withdrawal id.
+	CreateTime         types.Time `json:"create_time"`
 }
 
 // DepositResponse represents accounts list of deposit funds.
@@ -191,14 +193,14 @@ type DepositResponse struct {
 
 // DepositItem represents accounts deposit item
 type DepositItem struct {
-	Currency   string               `json:"currency"`
-	Fee        float64              `json:"fee"`
-	ID         string               `json:"id"`
-	CreateTime convert.ExchangeTime `json:"create_time"`
-	UpdateTime convert.ExchangeTime `json:"update_time"`
-	Amount     float64              `json:"amount"`
-	Address    string               `json:"address"`
-	Status     string               `json:"status"`
+	Currency   string     `json:"currency"`
+	Fee        float64    `json:"fee"`
+	ID         string     `json:"id"`
+	CreateTime types.Time `json:"create_time"`
+	UpdateTime types.Time `json:"update_time"`
+	Amount     float64    `json:"amount"`
+	Address    string     `json:"address"`
+	Status     string     `json:"status"`
 }
 
 // DepositAddresses represents a list of deposit address.
@@ -216,24 +218,24 @@ type ExportRequestResponse struct {
 // ExportRequests represents a list of export requests
 type ExportRequests struct {
 	UserBatchList []struct {
-		ID              string               `json:"id"`
-		StartTime       convert.ExchangeTime `json:"start_ts"`
-		EndTime         convert.ExchangeTime `json:"end_ts"`
-		InstrumentNames []string             `json:"instrument_names"`
-		RequestedData   []string             `json:"requested_data"`
-		ClientRequestID string               `json:"client_request_id"`
-		Status          string               `json:"status"`
+		ID              string     `json:"id"`
+		StartTime       types.Time `json:"start_ts"`
+		EndTime         types.Time `json:"end_ts"`
+		InstrumentNames []string   `json:"instrument_names"`
+		RequestedData   []string   `json:"requested_data"`
+		ClientRequestID string     `json:"client_request_id"`
+		Status          string     `json:"status"`
 	} `json:"user_batch_list"`
 }
 
 // DepositAddress represents a single deposit address item.
 type DepositAddress struct {
-	Currency   string               `json:"currency"`
-	CreateTime convert.ExchangeTime `json:"create_time"`
-	ID         string               `json:"id"`
-	Address    string               `json:"address"`
-	Status     string               `json:"status"`
-	Network    string               `json:"network"`
+	Currency   string     `json:"currency"`
+	CreateTime types.Time `json:"create_time"`
+	ID         string     `json:"id"`
+	Address    string     `json:"address"`
+	Status     string     `json:"status"`
+	Network    string     `json:"network"`
 }
 
 // Accounts represents list of currency account.
@@ -263,15 +265,15 @@ type PersonalTrades struct {
 
 // PersonalTradeItem represents a personal trade item instance.
 type PersonalTradeItem struct {
-	Side           string               `json:"side"`
-	InstrumentName string               `json:"instrument_name"`
-	Fee            float64              `json:"fee"`
-	TradeID        string               `json:"trade_id"`
-	CreateTime     convert.ExchangeTime `json:"create_time"`
-	TradedPrice    float64              `json:"traded_price"`
-	TradedQuantity float64              `json:"traded_quantity"`
-	FeeCurrency    string               `json:"fee_currency"`
-	OrderID        string               `json:"order_id"`
+	Side           string     `json:"side"`
+	InstrumentName string     `json:"instrument_name"`
+	Fee            float64    `json:"fee"`
+	TradeID        string     `json:"trade_id"`
+	CreateTime     types.Time `json:"create_time"`
+	TradedPrice    float64    `json:"traded_price"`
+	TradedQuantity float64    `json:"traded_quantity"`
+	FeeCurrency    string     `json:"fee_currency"`
+	OrderID        string     `json:"order_id"`
 }
 
 // OrderDetail represents an order detail.
@@ -292,22 +294,22 @@ type OrderDetail struct {
 
 // OrderItem represents order instance detail information.
 type OrderItem struct {
-	Status             string               `json:"status"`
-	Side               string               `json:"side"`
-	OrderID            string               `json:"order_id"`
-	ClientOid          string               `json:"client_oid"`
-	CreateTime         convert.ExchangeTime `json:"create_time"`
-	UpdateTime         convert.ExchangeTime `json:"update_time"`
-	Type               string               `json:"type"`
-	InstrumentName     string               `json:"instrument_name"`
-	CumulativeQuantity float64              `json:"cumulative_quantity"`
-	CumulativeValue    float64              `json:"cumulative_value"`
-	AvgPrice           float64              `json:"avg_price"`
-	FeeCurrency        string               `json:"fee_currency"`
-	TimeInForce        string               `json:"time_in_force"`
-	ExecInst           string               `json:"exec_inst"`
-	Price              float64              `json:"price"`
-	Quantity           float64              `json:"quantity"`
+	Status             string     `json:"status"`
+	Side               string     `json:"side"`
+	OrderID            string     `json:"order_id"`
+	ClientOid          string     `json:"client_oid"`
+	CreateTime         types.Time `json:"create_time"`
+	UpdateTime         types.Time `json:"update_time"`
+	Type               string     `json:"type"`
+	InstrumentName     string     `json:"instrument_name"`
+	CumulativeQuantity float64    `json:"cumulative_quantity"`
+	CumulativeValue    float64    `json:"cumulative_value"`
+	AvgPrice           float64    `json:"avg_price"`
+	FeeCurrency        string     `json:"fee_currency"`
+	TimeInForce        string     `json:"time_in_force"`
+	ExecInst           string     `json:"exec_inst"`
+	Price              float64    `json:"price"`
+	Quantity           float64    `json:"quantity"`
 }
 
 // PersonalOrdersResponse represents a personal order.
@@ -320,7 +322,7 @@ type PersonalOrdersResponse struct {
 type CreateOrderParam struct {
 	Symbol        string     `json:"instrument_name"`
 	Side          order.Side `json:"side"`
-	OrderType     string     `json:"type"`
+	OrderType     order.Type `json:"type"`
 	Price         float64    `json:"price"`
 	Quantity      float64    `json:"quantity"`
 	Notional      float64    `json:"notional"`
@@ -331,7 +333,7 @@ type CreateOrderParam struct {
 }
 
 func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error) {
-	if arg == nil {
+	if arg == nil || *arg == (CreateOrderParam{}) {
 		return nil, fmt.Errorf("%w, CreateOrderParam can not be nil", common.ErrNilPointer)
 	}
 	if arg.Symbol == "" {
@@ -340,19 +342,15 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	if arg.Side != order.Sell && arg.Side != order.Buy {
 		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)
 	}
-	oType, err := stringToOrderType(arg.OrderType)
-	if err != nil {
-		return nil, err
-	}
-	switch oType {
+	switch arg.OrderType {
 	case order.Limit, order.StopLimit, order.TakeProfitLimit:
 		if arg.Price <= 0 { // Unit price
 			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
 		}
 		if arg.Quantity <= 0 {
-			return nil, errInvalidQuantity
+			return nil, order.ErrAmountBelowMin
 		}
-		switch oType {
+		switch arg.OrderType {
 		case order.StopLimit, order.TakeProfitLimit:
 			if arg.TriggerPrice <= 0 {
 				return nil, fmt.Errorf("%w for Order Type: %v", errTriggerPriceRequired, arg.OrderType)
@@ -361,28 +359,28 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	case order.Market:
 		if arg.Side == order.Buy {
 			if arg.Notional <= 0 && arg.Quantity <= 0 {
-				return nil, fmt.Errorf("either notional or quantity must be non-zero value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w, either notional or quantity must be non-zero value for order type: %v and order side: %v", order.ErrAmountMustBeSet, arg.OrderType, arg.Side)
 			}
 		} else {
 			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("%w order type: %v and order side: %v", errInvalidQuantity, arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountBelowMin, arg.OrderType, arg.Side)
 			}
 		}
 	case order.StopLoss, order.TakeProfit:
 		if arg.Side == order.Sell {
 			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("%w order type: %v and order side: %v", errInvalidQuantity, arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountBelowMin, arg.OrderType, arg.Side)
 			}
 		} else {
 			if arg.Notional <= 0 {
-				return nil, fmt.Errorf("notional must be non-zero positive decimal value for order type: %v", arg.OrderType)
+				return nil, fmt.Errorf("%w, notional must be non-zero positive decimal value for order type: %v", order.ErrAmountMustBeSet, arg.OrderType)
 			}
 		}
 		if arg.TriggerPrice <= 0 {
 			return nil, fmt.Errorf("%w for Order Type: %s", errTriggerPriceRequired, arg.OrderType)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported order type: %v", arg.OrderType)
+		return nil, fmt.Errorf("%w, unsupported order type: %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	params := make(map[string]interface{})
 	params["instrument_name"] = arg.Symbol
@@ -446,25 +444,25 @@ type AccountResponse struct {
 
 // AccountInfo represents the account information.
 type AccountInfo struct {
-	UUID              string               `json:"uuid"`
-	MasterAccountUUID string               `json:"master_account_uuid"`
-	MarginAccountUUID string               `json:"margin_account_uuid"`
-	Enabled           bool                 `json:"enabled"`
-	Tradable          bool                 `json:"tradable"`
-	Name              string               `json:"name"`
-	Email             string               `json:"email"`
-	MobileNumber      string               `json:"mobile_number"`
-	CountryCode       string               `json:"country_code"`
-	Address           string               `json:"address"`
-	MarginAccess      string               `json:"margin_access"`
-	DerivativesAccess string               `json:"derivatives_access"`
-	CreateTime        convert.ExchangeTime `json:"create_time"`
-	UpdateTime        convert.ExchangeTime `json:"update_time"`
-	TwoFaEnabled      bool                 `json:"two_fa_enabled"`
-	KycLevel          string               `json:"kyc_level"`
-	Suspended         bool                 `json:"suspended"`
-	Terminated        bool                 `json:"terminated"`
-	Label             string               `json:"label"`
+	UUID              string     `json:"uuid"`
+	MasterAccountUUID string     `json:"master_account_uuid"`
+	MarginAccountUUID string     `json:"margin_account_uuid"`
+	Enabled           bool       `json:"enabled"`
+	Tradable          bool       `json:"tradable"`
+	Name              string     `json:"name"`
+	Email             string     `json:"email"`
+	MobileNumber      string     `json:"mobile_number"`
+	CountryCode       string     `json:"country_code"`
+	Address           string     `json:"address"`
+	MarginAccess      string     `json:"margin_access"`
+	DerivativesAccess string     `json:"derivatives_access"`
+	CreateTime        types.Time `json:"create_time"`
+	UpdateTime        types.Time `json:"update_time"`
+	TwoFaEnabled      bool       `json:"two_fa_enabled"`
+	KycLevel          string     `json:"kyc_level"`
+	Suspended         bool       `json:"suspended"`
+	Terminated        bool       `json:"terminated"`
+	Label             string     `json:"label"`
 }
 
 // TransactionResponse represents a transaction response.
@@ -474,31 +472,31 @@ type TransactionResponse struct {
 
 // TransactionItem represents a transaction instance.
 type TransactionItem struct {
-	OrderID             string               `json:"order_id,omitempty"`
-	AccountID           string               `json:"account_id"`
-	TradeMatchID        string               `json:"trade_match_id"`
-	TradeID             string               `json:"trade_id,omitempty"`
-	EventDate           string               `json:"event_date"` // format 2021-02-18
-	JournalType         string               `json:"journal_type"`
-	JournalID           string               `json:"journal_id"`
-	TransactionCost     SafeNumber           `json:"transaction_cost"`
-	TransactionQuantity SafeNumber           `json:"transaction_qty"`
-	RealizedPnl         SafeNumber           `json:"realized_pnl"`
-	EventTimestampMs    convert.ExchangeTime `json:"event_timestamp_ms"` // Event timestamp in milliseconds
-	EventTimestampNs    convert.ExchangeTime `json:"event_timestamp_ns"` // Event timestamp in nanoseconds
-	ClientOrderID       string               `json:"client_oid"`
-	TakerSide           string               `json:"taker_side"`
-	Side                string               `json:"side,omitempty"`
-	InstrumentName      string               `json:"instrument_name"`
+	OrderID             string     `json:"order_id,omitempty"`
+	AccountID           string     `json:"account_id"`
+	TradeMatchID        string     `json:"trade_match_id"`
+	TradeID             string     `json:"trade_id,omitempty"`
+	EventDate           string     `json:"event_date"` // format 2021-02-18
+	JournalType         string     `json:"journal_type"`
+	JournalID           string     `json:"journal_id"`
+	TransactionCost     SafeNumber `json:"transaction_cost"`
+	TransactionQuantity SafeNumber `json:"transaction_qty"`
+	RealizedPnl         SafeNumber `json:"realized_pnl"`
+	EventTimestampMs    types.Time `json:"event_timestamp_ms"` // Event timestamp in milliseconds
+	EventTimestampNs    types.Time `json:"event_timestamp_ns"` // Event timestamp in nanoseconds
+	ClientOrderID       string     `json:"client_oid"`
+	TakerSide           string     `json:"taker_side"`
+	Side                string     `json:"side,omitempty"`
+	InstrumentName      string     `json:"instrument_name"`
 }
 
 // OTCTrade represents an OTC trade.
 type OTCTrade struct {
-	AccountUUID         string               `json:"account_uuid"`
-	RequestsPerMinute   int64                `json:"requests_per_minute"`
-	MaxTradeValueUSD    SafeNumber           `json:"max_trade_value_usd"`
-	MinTradeValueUSD    SafeNumber           `json:"min_trade_value_usd"`
-	AcceptOtcTcDatetime convert.ExchangeTime `json:"accept_otc_tc_datetime"`
+	AccountUUID         string     `json:"account_uuid"`
+	RequestsPerMinute   int64      `json:"requests_per_minute"`
+	MaxTradeValueUSD    SafeNumber `json:"max_trade_value_usd"`
+	MinTradeValueUSD    SafeNumber `json:"min_trade_value_usd"`
+	AcceptOtcTcDatetime types.Time `json:"accept_otc_tc_datetime"`
 }
 
 // OTCInstrumentsResponse represents an OTC instruments instance.
@@ -520,66 +518,66 @@ type OTCInstrument struct {
 
 // OTCQuoteResponse represents quote to buy or sell with either base currency or quote currency.
 type OTCQuoteResponse struct {
-	QuoteID           string               `json:"quote_id"`
-	QuoteStatus       string               `json:"quote_status"`
-	QuoteDirection    string               `json:"quote_direction"`
-	BaseCurrency      string               `json:"base_currency"`
-	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  SafeNumber           `json:"base_currency_size"`
-	QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
-	QuoteBuy          SafeNumber           `json:"quote_buy"`
-	QuoteBuyQuantity  SafeNumber           `json:"quote_buy_quantity"`
-	QuoteBuyValue     SafeNumber           `json:"quote_buy_value"`
-	QuoteSell         SafeNumber           `json:"quote_sell"`
-	QuoteSellQuantity SafeNumber           `json:"quote_sell_quantity"`
-	QuoteSellValue    SafeNumber           `json:"quote_sell_value"`
-	QuoteDuration     int64                `json:"quote_duration"`
-	QuoteTime         convert.ExchangeTime `json:"quote_time"`
-	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
+	QuoteID           string     `json:"quote_id"`
+	QuoteStatus       string     `json:"quote_status"`
+	QuoteDirection    string     `json:"quote_direction"`
+	BaseCurrency      string     `json:"base_currency"`
+	QuoteCurrency     string     `json:"quote_currency"`
+	BaseCurrencySize  SafeNumber `json:"base_currency_size"`
+	QuoteCurrencySize SafeNumber `json:"quote_currency_size"`
+	QuoteBuy          SafeNumber `json:"quote_buy"`
+	QuoteBuyQuantity  SafeNumber `json:"quote_buy_quantity"`
+	QuoteBuyValue     SafeNumber `json:"quote_buy_value"`
+	QuoteSell         SafeNumber `json:"quote_sell"`
+	QuoteSellQuantity SafeNumber `json:"quote_sell_quantity"`
+	QuoteSellValue    SafeNumber `json:"quote_sell_value"`
+	QuoteDuration     int64      `json:"quote_duration"`
+	QuoteTime         types.Time `json:"quote_time"`
+	QuoteExpiryTime   types.Time `json:"quote_expiry_time"`
 }
 
 // AcceptQuoteResponse represents response param for accepting quote.
 type AcceptQuoteResponse struct {
-	QuoteID           string               `json:"quote_id"`
-	QuoteStatus       string               `json:"quote_status"`
-	TradeDirection    string               `json:"trade_direction"`
-	QuoteDirection    string               `json:"quote_direction"`
-	BaseCurrency      string               `json:"base_currency"`
-	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  SafeNumber           `json:"base_currency_size"`
-	QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
-	QuoteBuy          SafeNumber           `json:"quote_buy"`
-	QuoteSell         SafeNumber           `json:"quote_sell"`
-	QuoteDuration     int64                `json:"quote_duration"`
-	QuoteTime         convert.ExchangeTime `json:"quote_time"`
-	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
-	TradePrice        SafeNumber           `json:"trade_price"`
-	TradeQuantity     SafeNumber           `json:"trade_quantity"`
-	TradedValue       SafeNumber           `json:"trade_value"`
-	TradeTime         convert.ExchangeTime `json:"trade_time"`
+	QuoteID           string     `json:"quote_id"`
+	QuoteStatus       string     `json:"quote_status"`
+	TradeDirection    string     `json:"trade_direction"`
+	QuoteDirection    string     `json:"quote_direction"`
+	BaseCurrency      string     `json:"base_currency"`
+	QuoteCurrency     string     `json:"quote_currency"`
+	BaseCurrencySize  SafeNumber `json:"base_currency_size"`
+	QuoteCurrencySize SafeNumber `json:"quote_currency_size"`
+	QuoteBuy          SafeNumber `json:"quote_buy"`
+	QuoteSell         SafeNumber `json:"quote_sell"`
+	QuoteDuration     int64      `json:"quote_duration"`
+	QuoteTime         types.Time `json:"quote_time"`
+	QuoteExpiryTime   types.Time `json:"quote_expiry_time"`
+	TradePrice        SafeNumber `json:"trade_price"`
+	TradeQuantity     SafeNumber `json:"trade_quantity"`
+	TradedValue       SafeNumber `json:"trade_value"`
+	TradeTime         types.Time `json:"trade_time"`
 }
 
 // QuoteHistoryResponse represents a quote history instance.
 type QuoteHistoryResponse struct {
 	Count     int64 `json:"count"`
 	QuoteList []struct {
-		QuoteID           string               `json:"quote_id"`
-		QuoteStatus       string               `json:"quote_status"`
-		QuoteDirection    string               `json:"quote_direction"`
-		BaseCurrency      string               `json:"base_currency"`
-		QuoteCurrency     string               `json:"quote_currency"`
-		BaseCurrencySize  float64              `json:"base_currency_size"`
-		QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
-		QuoteBuy          SafeNumber           `json:"quote_buy"`
-		QuoteSell         SafeNumber           `json:"quote_sell"`
-		QuoteDuration     int64                `json:"quote_duration"`
-		QuoteTime         convert.ExchangeTime `json:"quote_time"`
-		QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
-		TradeDirection    string               `json:"trade_direction"`
-		TradePrice        float64              `json:"trade_price"`
-		TradeQuantity     float64              `json:"trade_quantity"`
-		TradeValue        float64              `json:"trade_value"`
-		TradeTime         convert.ExchangeTime `json:"trade_time"`
+		QuoteID           string     `json:"quote_id"`
+		QuoteStatus       string     `json:"quote_status"`
+		QuoteDirection    string     `json:"quote_direction"`
+		BaseCurrency      string     `json:"base_currency"`
+		QuoteCurrency     string     `json:"quote_currency"`
+		BaseCurrencySize  float64    `json:"base_currency_size"`
+		QuoteCurrencySize SafeNumber `json:"quote_currency_size"`
+		QuoteBuy          SafeNumber `json:"quote_buy"`
+		QuoteSell         SafeNumber `json:"quote_sell"`
+		QuoteDuration     int64      `json:"quote_duration"`
+		QuoteTime         types.Time `json:"quote_time"`
+		QuoteExpiryTime   types.Time `json:"quote_expiry_time"`
+		TradeDirection    string     `json:"trade_direction"`
+		TradePrice        float64    `json:"trade_price"`
+		TradeQuantity     float64    `json:"trade_quantity"`
+		TradeValue        float64    `json:"trade_value"`
+		TradeTime         types.Time `json:"trade_time"`
 	} `json:"quote_list"`
 }
 
@@ -591,37 +589,37 @@ type OTCTradeHistoryResponse struct {
 
 // OTCOrderResponse represents an OTC order response.
 type OTCOrderResponse struct {
-	ClientOid       string               `json:"client_oid"`
-	OrderID         string               `json:"order_id"`
-	Status          string               `json:"status"` // FILLED, REJECTED, UNSETTLED, PENDING
-	InstrumentName  string               `json:"instrument_name"`
-	Side            string               `json:"side"`
-	Price           types.Number         `json:"price"`
-	Quantity        types.Number         `json:"quantity"`
-	Value           string               `json:"value"`
-	CreateTime      convert.ExchangeTime `json:"create_time"`
-	RejectionReason string               `json:"reject_reason"`
+	ClientOid       string       `json:"client_oid"`
+	OrderID         string       `json:"order_id"`
+	Status          string       `json:"status"` // FILLED, REJECTED, UNSETTLED, PENDING
+	InstrumentName  string       `json:"instrument_name"`
+	Side            string       `json:"side"`
+	Price           types.Number `json:"price"`
+	Quantity        types.Number `json:"quantity"`
+	Value           string       `json:"value"`
+	CreateTime      types.Time   `json:"create_time"`
+	RejectionReason string       `json:"reject_reason"`
 }
 
 // OTCTradeItem represents an OTC trade item detail.
 type OTCTradeItem struct {
-	QuoteID           string               `json:"quote_id"`
-	QuoteStatus       string               `json:"quote_status"`
-	QuoteDirection    string               `json:"quote_direction"`
-	BaseCurrency      string               `json:"base_currency"`
-	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  SafeNumber           `json:"base_currency_size"`
-	QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
-	QuoteBuy          string               `json:"quote_buy"`
-	QuoteSell         string               `json:"quote_sell"`
-	QuoteDuration     int64                `json:"quote_duration"`
-	QuoteTime         convert.ExchangeTime `json:"quote_time"`
-	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
-	TradeDirection    string               `json:"trade_direction"`
-	TradePrice        SafeNumber           `json:"trade_price"`
-	TradeQuantity     SafeNumber           `json:"trade_quantity"`
-	TradeValue        SafeNumber           `json:"trade_value"`
-	TradeTime         convert.ExchangeTime `json:"trade_time"`
+	QuoteID           string     `json:"quote_id"`
+	QuoteStatus       string     `json:"quote_status"`
+	QuoteDirection    string     `json:"quote_direction"`
+	BaseCurrency      string     `json:"base_currency"`
+	QuoteCurrency     string     `json:"quote_currency"`
+	BaseCurrencySize  SafeNumber `json:"base_currency_size"`
+	QuoteCurrencySize SafeNumber `json:"quote_currency_size"`
+	QuoteBuy          string     `json:"quote_buy"`
+	QuoteSell         string     `json:"quote_sell"`
+	QuoteDuration     int64      `json:"quote_duration"`
+	QuoteTime         types.Time `json:"quote_time"`
+	QuoteExpiryTime   types.Time `json:"quote_expiry_time"`
+	TradeDirection    string     `json:"trade_direction"`
+	TradePrice        SafeNumber `json:"trade_price"`
+	TradeQuantity     SafeNumber `json:"trade_quantity"`
+	TradeValue        SafeNumber `json:"trade_value"`
+	TradeTime         types.Time `json:"trade_time"`
 }
 
 // SubscriptionPayload represents a subscription payload
@@ -656,45 +654,45 @@ type SubscriptionRawData struct {
 
 // WsResult represents a subscriptions response result
 type WsResult struct {
-	Channel        string               `json:"channel,omitempty"`
-	Subscription   string               `json:"subscription,omitempty"`
-	Data           json.RawMessage      `json:"data,omitempty"`
-	InstrumentName string               `json:"instrument_name,omitempty"`
-	Depth          int64                `json:"depth,omitempty"`    // for orderbooks
-	Interval       string               `json:"interval,omitempty"` // for candlestick data.
-	Timestamp      convert.ExchangeTime `json:"t"`                  // Timestamp of book publish (milliseconds since the Unix epoch)
+	Channel        string          `json:"channel,omitempty"`
+	Subscription   string          `json:"subscription,omitempty"`
+	Data           json.RawMessage `json:"data,omitempty"`
+	InstrumentName string          `json:"instrument_name,omitempty"`
+	Depth          int64           `json:"depth,omitempty"`    // for orderbooks
+	Interval       string          `json:"interval,omitempty"` // for candlestick data.
+	Timestamp      types.Time      `json:"t"`                  // Timestamp of book publish (milliseconds since the Unix epoch)
 }
 
 // UserOrder represents a user orderbook object.
 type UserOrder struct {
-	Status                     string               `json:"status"`
-	Side                       string               `json:"side"`
-	Price                      float64              `json:"price"`
-	Quantity                   float64              `json:"quantity"`
-	OrderID                    string               `json:"order_id"`
-	ClientOrderID              string               `json:"client_oid"`
-	CreateTime                 convert.ExchangeTime `json:"create_time"`
-	UpdateTime                 convert.ExchangeTime `json:"update_time"`
-	Type                       string               `json:"type"`
-	InstrumentName             string               `json:"instrument_name"`
-	CumulativeExecutedQuantity float64              `json:"cumulative_quantity"`
-	CumulativeExecutedValue    float64              `json:"cumulative_value"`
-	AvgPrice                   float64              `json:"avg_price"`
-	FeeCurrency                string               `json:"fee_currency"`
-	TimeInForce                string               `json:"time_in_force"`
+	Status                     string     `json:"status"`
+	Side                       string     `json:"side"`
+	Price                      float64    `json:"price"`
+	Quantity                   float64    `json:"quantity"`
+	OrderID                    string     `json:"order_id"`
+	ClientOrderID              string     `json:"client_oid"`
+	CreateTime                 types.Time `json:"create_time"`
+	UpdateTime                 types.Time `json:"update_time"`
+	Type                       string     `json:"type"`
+	InstrumentName             string     `json:"instrument_name"`
+	CumulativeExecutedQuantity float64    `json:"cumulative_quantity"`
+	CumulativeExecutedValue    float64    `json:"cumulative_value"`
+	AvgPrice                   float64    `json:"avg_price"`
+	FeeCurrency                string     `json:"fee_currency"`
+	TimeInForce                string     `json:"time_in_force"`
 }
 
 // UserTrade represents a user trade instance.
 type UserTrade struct {
-	Side           string               `json:"side"`
-	InstrumentName string               `json:"instrument_name"`
-	Fee            float64              `json:"fee"`
-	TradeID        string               `json:"trade_id"`
-	CreateTime     convert.ExchangeTime `json:"create_time"`
-	TradedPrice    float64              `json:"traded_price"`
-	TradedQuantity float64              `json:"traded_quantity"`
-	FeeCurrency    string               `json:"fee_currency"`
-	OrderID        string               `json:"order_id"`
+	Side           string     `json:"side"`
+	InstrumentName string     `json:"instrument_name"`
+	Fee            float64    `json:"fee"`
+	TradeID        string     `json:"trade_id"`
+	CreateTime     types.Time `json:"create_time"`
+	TradedPrice    float64    `json:"traded_price"`
+	TradedQuantity float64    `json:"traded_quantity"`
+	FeeCurrency    string     `json:"fee_currency"`
+	OrderID        string     `json:"order_id"`
 }
 
 // UserBalance represents a user balance information.
@@ -708,12 +706,12 @@ type UserBalance struct {
 
 // WsOrderbook represents an orderbook websocket push data.
 type WsOrderbook struct {
-	Asks                [][3]string          `json:"asks"`
-	Bids                [][3]string          `json:"bids"`
-	PushTime            convert.ExchangeTime `json:"t"`
-	OrderbookUpdateTime convert.ExchangeTime `json:"tt"`
-	UpdateSequence      int64                `json:"u"`
-	Cs                  int64                `json:"cs"`
+	Asks                [][3]string `json:"asks"`
+	Bids                [][3]string `json:"bids"`
+	PushTime            types.Time  `json:"t"`
+	OrderbookUpdateTime types.Time  `json:"tt"`
+	UpdateSequence      int64       `json:"u"`
+	Cs                  int64       `json:"cs"`
 }
 
 // WsRequestPayload represents authentication and request sending payload

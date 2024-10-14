@@ -1,6 +1,7 @@
 package cryptodotcom
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // WsGetInstruments retrieves information on all supported instruments through the public websocket connection.
@@ -261,10 +263,10 @@ func (cr *Cryptodotcom) SendWebsocketRequest(method string, arg map[string]inter
 	var err error
 	if authenticated {
 		req.ID = cr.Websocket.AuthConn.GenerateMessageID(false)
-		payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(req.ID, req)
+		payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	} else {
 		req.ID = cr.Websocket.Conn.GenerateMessageID(false)
-		payload, err = cr.Websocket.Conn.SendMessageReturnResponse(req.ID, req)
+		payload, err = cr.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	}
 	if err != nil {
 		return err

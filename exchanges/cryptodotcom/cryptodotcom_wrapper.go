@@ -189,7 +189,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = cr.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  cryptodotcomWebsocketMarketAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -197,7 +197,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return cr.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  cryptodotcomWebsocketUserAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -712,7 +712,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		notional = s.Amount
 	}
 	var ordersResp *CreateOrderResponse
-	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: orderTypeToString(s.Type), Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice}
+	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice}
 	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		ordersResp, err = cr.WsPlaceOrder(arg)
 	} else {
@@ -828,7 +828,7 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 	if err != nil {
 		return nil, err
 	}
-	orderType, err := stringToOrderType(orderDetail.OrderInfo.Type)
+	orderType, err := StringToOrderType(orderDetail.OrderInfo.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -948,7 +948,7 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				continue
 			}
 		}
-		orderType, err := stringToOrderType(orders.OrderList[x].Type)
+		orderType, err := StringToOrderType(orders.OrderList[x].Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1017,7 +1017,7 @@ func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 				continue
 			}
 		}
-		orderType, err := stringToOrderType(orders.OrderList[x].Type)
+		orderType, err := StringToOrderType(orders.OrderList[x].Type)
 		if err != nil {
 			return nil, err
 		}
