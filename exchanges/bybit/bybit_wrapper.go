@@ -74,6 +74,32 @@ func (by *Bybit) SetDefaults() {
 	}
 
 	by.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(
+			map[currency.Code]currency.Code{
+				currency.NewCode("10000000AIDOGE"):  currency.AIDOGE,
+				currency.NewCode("1000000BABYDOGE"): currency.BABYDOGE,
+				currency.NewCode("1000000MOG"):      currency.NewCode("MOG"),
+				currency.NewCode("10000COQ"):        currency.NewCode("COQ"),
+				currency.NewCode("10000LADYS"):      currency.NewCode("LADYS"),
+				currency.NewCode("10000NFT"):        currency.NFT,
+				currency.NewCode("10000SATS"):       currency.NewCode("SATS"),
+				currency.NewCode("10000STARL"):      currency.STARL,
+				currency.NewCode("10000WEN"):        currency.NewCode("WEN"),
+				currency.NewCode("1000APU"):         currency.NewCode("APU"),
+				currency.NewCode("1000BEER"):        currency.NewCode("BEER"),
+				currency.NewCode("1000BONK"):        currency.BONK,
+				currency.NewCode("1000BTT"):         currency.BTT,
+				currency.NewCode("1000FLOKI"):       currency.FLOKI,
+				currency.NewCode("1000IQ50"):        currency.NewCode("IQ50"),
+				currency.NewCode("1000LUNC"):        currency.LUNC,
+				currency.NewCode("1000PEPE"):        currency.PEPE,
+				currency.NewCode("1000RATS"):        currency.NewCode("RATS"),
+				currency.NewCode("1000TURBO"):       currency.NewCode("TURBO"),
+				currency.NewCode("1000XEC"):         currency.XEC,
+				currency.NewCode("LUNA2"):           currency.LUNA,
+				currency.NewCode("SHIB1000"):        currency.SHIB,
+			},
+		),
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -226,7 +252,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     bybitWebsocketTimer,
@@ -235,7 +261,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  websocketPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -588,8 +614,8 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
 			balance := account.Balance{
-				Currency: currency.NewCode(balances.List[i].Coin[c].Coin),
-				Total:    balances.List[i].TotalWalletBalance.Float64(),
+				Currency: balances.List[i].Coin[c].Coin,
+				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
 				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
 				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
 				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),

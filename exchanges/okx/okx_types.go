@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1241,7 +1240,7 @@ type AccountDetail struct {
 	AvailableBalance              types.Number     `json:"availBal"`
 	AvailableEquity               types.Number     `json:"availEq"`
 	CashBalance                   types.Number     `json:"cashBal"` // Cash Balance
-	Currency                      string           `json:"ccy"`
+	Currency                      currency.Code    `json:"ccy"`
 	CrossLiab                     types.Number     `json:"crossLiab"`
 	DiscountEquity                types.Number     `json:"disEq"`
 	EquityOfCurrency              types.Number     `json:"eq"`
@@ -1270,7 +1269,7 @@ type AccountPosition struct {
 	AvailablePosition            string           `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
 	AveragePrice                 types.Number     `json:"avgPx"`
 	CreationTime                 okxUnixMilliTime `json:"cTime"`
-	Currency                     string           `json:"ccy"`
+	Currency                     currency.Code    `json:"ccy"`
 	DeltaBS                      string           `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
 	DeltaPA                      string           `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
 	GammaBS                      string           `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
@@ -2169,16 +2168,16 @@ type BlockTicker struct {
 
 // BlockTrade represents a block trade.
 type BlockTrade struct {
-	InstrumentID   string               `json:"instId"`
-	TradeID        string               `json:"tradeId"`
-	Price          types.Number         `json:"px"`
-	Size           types.Number         `json:"sz"`
-	Side           order.Side           `json:"side"`
-	FillVolatility types.Number         `json:"fillVol"`
-	ForwardPrice   types.Number         `json:"fwdPx"`
-	IndexPrice     types.Number         `json:"idxPx"`
-	MarkPrice      types.Number         `json:"markPx"`
-	Timestamp      convert.ExchangeTime `json:"ts"`
+	InstrumentID   string       `json:"instId"`
+	TradeID        string       `json:"tradeId"`
+	Price          types.Number `json:"px"`
+	Size           types.Number `json:"sz"`
+	Side           order.Side   `json:"side"`
+	FillVolatility types.Number `json:"fillVol"`
+	ForwardPrice   types.Number `json:"fwdPx"`
+	IndexPrice     types.Number `json:"idxPx"`
+	MarkPrice      types.Number `json:"markPx"`
+	Timestamp      types.Time   `json:"ts"`
 }
 
 // UnitConvertResponse unit convert response.

@@ -139,7 +139,7 @@ func TestDataHistoryJob(t *testing.T) {
 			}
 
 			var resulterinos, resultaroos []*DataHistoryJobResult
-			for i := 0; i < 20; i++ {
+			for range 20 {
 				uu, _ := uuid.NewV4()
 				resulterinos = append(resulterinos, &DataHistoryJobResult{
 					ID:                uu.String(),
@@ -156,7 +156,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Fatal(err)
 			}
 			// insert the same results to test conflict resolution
-			for i := 0; i < 20; i++ {
+			for i := range 20 {
 				uu, _ := uuid.NewV4()
 				j := &DataHistoryJobResult{
 					ID:                uu.String(),

@@ -826,7 +826,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var events []data.Event
-	for i := int64(0); i < 100; i++ {
+	for i := range int64(100) {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
 		even := &event.Base{
 			Exchange:     exch,

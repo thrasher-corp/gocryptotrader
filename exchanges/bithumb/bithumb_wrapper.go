@@ -32,8 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const wsRateLimitMillisecond = 1000
-
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
 
 // SetDefaults sets the basic defaults for Bithumb
@@ -169,10 +167,10 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMillisecond,
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Second),
 	})
 }
 
