@@ -177,7 +177,7 @@ func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol, fromID s
 }
 
 // UCompressedTrades gets compressed public trades for usdt margined futures
-func (b *Binance) UCompressedTrades(ctx context.Context, symbol string, fromID string, limit int64, startTime, endTime time.Time) ([]UCompressedTradeData, error) {
+func (b *Binance) UCompressedTrades(ctx context.Context, symbol, fromID string, limit int64, startTime, endTime time.Time) ([]UCompressedTradeData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -832,7 +832,7 @@ func (b *Binance) validatePlaceOrder(arg *USDTOrderUpdateParams) error {
 // Weight: 1 on 10s order rate limit(X-MBX-ORDER-COUNT-10S); 1 on 1min order rate limit(X-MBX-ORDER-COUNT-1M); 1 on IP rate limit(x-mbx-used-weight-1m);
 // PriceMatch: only available for LIMIT/STOP/TAKE_PROFIT order; can be set to OPPONENT/ OPPONENT_5/ OPPONENT_10/ OPPONENT_20: /QUEUE/ QUEUE_5/ QUEUE_10/ QUEUE_20; Can't be passed together with price
 func (b *Binance) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams) (*UOrderData, error) {
-	if arg == (&USDTOrderUpdateParams{}) {
+	if *arg == (USDTOrderUpdateParams{}) {
 		return nil, errNilArgument
 	}
 	err := b.validatePlaceOrder(arg)

@@ -320,7 +320,6 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 	for x := range resp {
 		if len(resp[x]) != 12 {
 			return nil, errors.New("unexpected kline data length")
-
 		}
 		klineData[x] = CandleStick{
 			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
@@ -840,7 +839,7 @@ func (b *Binance) CancelExistingOrderAndSendNewOrder(ctx context.Context, arg *C
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.CancelReplaceMode == "" {
-		return nil, errors.New("cancelReplaceMode is required")
+		return nil, errCancelReplaceModeRequired
 	}
 	var resp *CancelAndReplaceResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/cancelReplace", nil, spotOrderRate, arg, &resp)
@@ -4019,7 +4018,7 @@ func (b *Binance) GetSimpleEarnLockedProducts(ctx context.Context, assetName cur
 // sourceAccount: possible values are- SPOT, FUND, ALL, default SPOT
 func (b *Binance) SubscribeToFlexibleProducts(ctx context.Context, productID, sourceAccount string, amount float64, autoSubscribe bool) (*SimpleEarnSubscriptionResponse, error) {
 	if productID == "" {
-		return nil, errProductIDIsRequired
+		return nil, errProductIDRequired
 	}
 	return b.subscribeToFlexibleAndLockedProducts(ctx, productID, "", sourceAccount, "/sapi/v1/simple-earn/flexible/subscribe", amount, autoSubscribe)
 }
@@ -4058,7 +4057,7 @@ func (b *Binance) subscribeToFlexibleAndLockedProducts(ctx context.Context, prod
 // destinationAccount: possible values SPOT, FUND, default SPOT
 func (b *Binance) RedeemFlexibleProduct(ctx context.Context, productID, destinationAccount string, redeemAll bool, amount float64) (*RedeemResponse, error) {
 	if productID == "" {
-		return nil, errProductIDIsRequired
+		return nil, errProductIDRequired
 	}
 	params := url.Values{}
 	params.Set("productId", productID)
@@ -4077,7 +4076,7 @@ func (b *Binance) RedeemFlexibleProduct(ctx context.Context, productID, destinat
 
 // RedeemLockedProduct posts a redeem locked product
 func (b *Binance) RedeemLockedProduct(ctx context.Context, positionID int64) (*RedeemResponse, error) {
-	if positionID != 0 {
+	if positionID == 0 {
 		return nil, errPositionIDRequired
 	}
 	params := url.Values{}
@@ -4230,7 +4229,7 @@ func (b *Binance) GetLockedRewardHistory(ctx context.Context, positionID string,
 // SetFlexibleAutoSusbcribe sets auto subscribe on to flexible products
 func (b *Binance) SetFlexibleAutoSusbcribe(ctx context.Context, productID string, autoSubscribe bool) (bool, error) {
 	if productID == "" {
-		return false, errProductIDIsRequired
+		return false, errProductIDRequired
 	}
 	params := url.Values{}
 	params.Set("productId", productID)
@@ -4286,7 +4285,7 @@ func (b *Binance) GetLockedPersonalLeftQuota(ctx context.Context, projectID stri
 // GetFlexibleSubscriptionPreview retrieves flexible subscription preview
 func (b *Binance) GetFlexibleSubscriptionPreview(ctx context.Context, productID string, amount float64) (*FlexibleSubscriptionPreview, error) {
 	if productID == "" {
-		return nil, errProductIDIsRequired
+		return nil, errProductIDRequired
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -4300,7 +4299,7 @@ func (b *Binance) GetFlexibleSubscriptionPreview(ctx context.Context, productID 
 
 // GetLockedSubscriptionPreview retrieves locked subscription preview.
 func (b *Binance) GetLockedSubscriptionPreview(ctx context.Context, projectID string, amount float64, autoSubscribe bool) ([]LockedSubscriptionPreview, error) {
-	if projectID != "" {
+	if projectID == "" {
 		return nil, errProjectIDRequired
 	}
 	if amount <= 0 {
@@ -4402,7 +4401,7 @@ func (b *Binance) GetDualInvestmentProductList(ctx context.Context, optionType s
 // Failed. This means System or network errors.
 func (b *Binance) SubscribeDualInvestmentProducts(ctx context.Context, id, orderID, autoCompoundPlan string, depositAmount float64) (*DualInvestmentProductSubscription, error) {
 	if id == "" {
-		return nil, errProductIDIsRequired
+		return nil, errProductIDRequired
 	}
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -5156,7 +5155,7 @@ func (b *Binance) HashRateRescaleRequest(ctx context.Context, userName, algorith
 	if toPoolUser == "" {
 		return nil, fmt.Errorf("%w, receiver mining account is required", errAccountRequired)
 	}
-	if hashRate > 0 {
+	if hashRate <= 0 {
 		return nil, errHashRateRequired
 	}
 	params.Set("userName", userName)

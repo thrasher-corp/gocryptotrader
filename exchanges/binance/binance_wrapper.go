@@ -1302,10 +1302,8 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		asset.USDTMarginedFutures:
 		var reqSide string
 		switch s.Side {
-		case order.Buy:
-			reqSide = "BUY"
-		case order.Sell:
-			reqSide = "SELL"
+		case order.Buy, order.Sell:
+			reqSide = s.Side.String()
 		default:
 			return nil, order.ErrSideIsInvalid
 		}

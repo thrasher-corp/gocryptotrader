@@ -65,7 +65,7 @@ var (
 	errEmptySubAccountEPIKey                  = errors.New("invalid sub-account API key")
 	errInvalidFuturesType                     = errors.New("invalid futures types")
 	errInvalidAccountType                     = errors.New("invalid account type specified")
-	errProductIDIsRequired                    = errors.New("product ID is required")
+	errProductIDRequired                      = errors.New("product ID is required")
 	errProjectIDRequired                      = errors.New("project ID is required")
 	errPlanIDRequired                         = errors.New("plan ID  is required")
 	errIndexIDIsRequired                      = errors.New("index ID is required")
@@ -114,6 +114,7 @@ var (
 	errInvalidAutoCloseType                   = errors.New("invalid auto close type")
 	errDownloadIDRequired                     = errors.New("downloadId is required")
 	errMarginChangeTypeInvalid                = errors.New("invalid margin changeType")
+	errCancelReplaceModeRequired              = errors.New("cancelReplaceMode is required")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}

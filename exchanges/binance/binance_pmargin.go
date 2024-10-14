@@ -51,7 +51,7 @@ func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path stri
 	}
 	arg.OrderType = strings.ToUpper(arg.OrderType)
 	switch arg.OrderType {
-	case "limit", "LIMIT":
+	case "limit", order.Limit.String():
 		if arg.TimeInForce == "" {
 			return nil, errTimeInForceRequired
 		}

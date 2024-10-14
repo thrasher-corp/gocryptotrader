@@ -15,7 +15,6 @@ import (
 )
 
 var mockTests = true
-var assetToTradablePairMap map[asset.Item]currency.Pair
 
 func TestMain(m *testing.M) {
 	if useTestNet {

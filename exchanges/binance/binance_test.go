@@ -53,6 +53,8 @@ var (
 	spotTradablePair, usdtmTradablePair, coinmTradablePair, optionsTradablePair currency.Pair
 )
 
+var assetToTradablePairMap map[asset.Item]currency.Pair
+
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:        1,
@@ -104,8 +106,8 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	for assetType, pair := range assetToTradablePairMap {
 		r, err := b.UpdateTicker(context.Background(), pair, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type: %s pair: %v", err, assetType, pair)
-		require.NotNilf(t, r, "unexpected value nil for asset type: %s pair: %v", assetType, pair)
+		assert.NoErrorf(t, err, "expected nil, got %v for asset type: %s pair: %v", err, assetType, pair)
+		assert.NotNilf(t, r, "unexpected value nil for asset type: %s pair: %v", assetType, pair)
 	}
 }
 
@@ -114,7 +116,7 @@ func TestUpdateTickers(t *testing.T) {
 	enabledAssets := b.GetAssetTypes(true)
 	for _, assetType := range enabledAssets {
 		err := b.UpdateTickers(context.Background(), assetType)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 }
 
@@ -136,8 +138,8 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 	for assetType, tp := range assetPairMapTempo {
 		result, err := b.UpdateOrderbook(context.Background(), tp, assetType)
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 	}
 }
 
@@ -156,7 +158,7 @@ func TestUFuturesOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	result, err := b.UFuturesOrderbook(context.Background(), "BTCUSDT", 1000)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -188,10 +190,10 @@ func TestUCompressedTrades(t *testing.T) {
 func TestUKlineData(t *testing.T) {
 	t.Parallel()
 	_, err := b.UKlineData(context.Background(), "", "1d", 5, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = b.UKlineData(context.Background(), usdtmTradablePair.String(), "", 5, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	result, err := b.UKlineData(context.Background(), usdtmTradablePair.String(), "1d", 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
@@ -328,7 +330,7 @@ func TestUOpenInterest(t *testing.T) {
 func TestGetQuarterlyContractSettlementPrice(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetQuarterlyContractSettlementPrice(context.Background(), currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	result, err := b.GetQuarterlyContractSettlementPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
 	assert.NoError(t, err)
@@ -338,10 +340,10 @@ func TestGetQuarterlyContractSettlementPrice(t *testing.T) {
 func TestUOpenInterestStats(t *testing.T) {
 	t.Parallel()
 	_, err := b.UOpenInterestStats(context.Background(), "", "5m", 1, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = b.UOpenInterestStats(context.Background(), usdtmTradablePair.String(), "", 1, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, errInvalidPeriodOrInterval)
+	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	result, err := b.UOpenInterestStats(context.Background(), usdtmTradablePair.String(), "5m", 1, time.Time{}, time.Time{})
 	assert.NoError(t, err)
@@ -355,15 +357,16 @@ func TestUOpenInterestStats(t *testing.T) {
 func TestUTopAcccountsLongShortRatio(t *testing.T) {
 	t.Parallel()
 	_, err := b.UTopAcccountsLongShortRatio(context.Background(), "", "5m", 2, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = b.UTopAcccountsLongShortRatio(context.Background(), "BTCUSDT", "", 2, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, errInvalidPeriodOrInterval)
+	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	result, err := b.UTopAcccountsLongShortRatio(context.Background(), "BTCUSDT", "5m", 2, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	start, end := getTime()
+
 	result, err = b.UTopAcccountsLongShortRatio(context.Background(), "BTCUSDT", "5m", 2, start, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -372,10 +375,10 @@ func TestUTopAcccountsLongShortRatio(t *testing.T) {
 func TestUTopPostionsLongShortRatio(t *testing.T) {
 	t.Parallel()
 	_, err := b.UTopPostionsLongShortRatio(context.Background(), "", "5m", 3, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = b.UTopPostionsLongShortRatio(context.Background(), "BTCUSDT", "", 3, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, errInvalidPeriodOrInterval)
+	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	result, err := b.UTopPostionsLongShortRatio(context.Background(), "BTCUSDT", "5m", 3, time.Time{}, time.Time{})
 	assert.NoError(t, err)
@@ -390,10 +393,10 @@ func TestUTopPostionsLongShortRatio(t *testing.T) {
 func TestUGlobalLongShortRatio(t *testing.T) {
 	t.Parallel()
 	_, err := b.UGlobalLongShortRatio(context.Background(), "", "5m", 3, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = b.UGlobalLongShortRatio(context.Background(), "BTCUSDT", "", 3, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, errInvalidPeriodOrInterval)
+	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	result, err := b.UGlobalLongShortRatio(context.Background(), "BTCUSDT", "5m", 3, time.Time{}, time.Time{})
 	assert.NoError(t, err)
@@ -422,13 +425,13 @@ func TestUTakerBuySellVol(t *testing.T) {
 func TestGetBasis(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetBasis(context.Background(), currency.EMPTYPAIR, "CURRENT_QUARTER", "15m", time.Time{}, time.Time{}, 20)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = b.GetBasis(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", "15m", time.Time{}, time.Time{}, 20)
-	assert.ErrorIs(t, err, errContractTypeIsRequired)
+	require.ErrorIs(t, err, errContractTypeIsRequired)
 
 	_, err = b.GetBasis(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "CURRENT_QUARTER", "", time.Time{}, time.Time{}, 20)
-	assert.ErrorIs(t, err, errInvalidPeriodOrInterval)
+	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	result, err := b.GetBasis(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "CURRENT_QUARTER", "15m", time.Time{}, time.Time{}, 20)
 	assert.NoError(t, err)
@@ -491,16 +494,19 @@ func TestUFuturesNewOrder(t *testing.T) {
 	require.ErrorIs(t, err, errNilArgument)
 
 	arg := &UFuturesNewOrderRequest{
-		ReduceOnly: true,
+		ReduceOnly:   true,
+		PositionSide: "position-side",
 	}
 	_, err = b.UFuturesNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errInvalidPositionSide)
 
-	arg.Side = "BUY"
+	arg.PositionSide = "LONG"
+	arg.WorkingType = "abc"
 	_, err = b.UFuturesNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errInvalidWorkingType)
 
 	arg.WorkingType = "MARK_PRICE"
+	arg.NewOrderRespType = "abc"
 	_, err = b.UFuturesNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errInvalidNewOrderResponseType)
 
@@ -536,7 +542,7 @@ func TestUModifyOrder(t *testing.T) {
 	_, err = b.UModifyOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "SELL"
+	arg.Side = order.Sell.String()
 	_, err = b.UModifyOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -548,7 +554,7 @@ func TestUModifyOrder(t *testing.T) {
 	result, err := b.UModifyOrder(context.Background(), &USDTOrderUpdateParams{
 		OrderID:           1,
 		OrigClientOrderID: "",
-		Side:              "SELL",
+		Side:              order.Sell.String(),
 		PriceMatch:        "TAKE_PROFIT",
 		Symbol:            currency.NewPair(currency.BTC, currency.USD),
 		Amount:            0.0000001,
@@ -608,7 +614,7 @@ func TestModifyMultipleOrders(t *testing.T) {
 	_, err = b.UModifyMultipleOrders(context.Background(), []USDTOrderUpdateParams{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "SELL"
+	arg.Side = order.Sell.String()
 	_, err = b.UModifyMultipleOrders(context.Background(), []USDTOrderUpdateParams{arg})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -621,7 +627,7 @@ func TestModifyMultipleOrders(t *testing.T) {
 		{
 			OrderID:           1,
 			OrigClientOrderID: "",
-			Side:              "SELL",
+			Side:              order.Sell.String(),
 			PriceMatch:        "TAKE_PROFIT",
 			Symbol:            spotTradablePair,
 			Amount:            0.0000001,
@@ -1485,12 +1491,14 @@ func TestGetPriceChangeStats(t *testing.T) {
 
 func TestGetTradingDayTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, "", "")
+	_, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{}, "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 	_, err = b.GetTradingDayTicker(context.Background(), []currency.Pair{currency.EMPTYPAIR}, "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{currency.EMPTYPAIR}, "", "")
+	b.Verbose = true
+	println("spotTradablePair: ", spotTradablePair.String())
+	result, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{spotTradablePair}, "", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1538,15 +1546,15 @@ func TestGetAssetsThatCanBeConvertedIntoBNB(t *testing.T) {
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, err := b.WithdrawCrypto(context.Background(), currency.EMPTYCODE, "123435", "", "address-here", "", "", 100, false)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = b.WithdrawCrypto(context.Background(), currency.USDT, "", "", "", "", "", 100, false)
-	assert.ErrorIs(t, err, errAddressRequired)
+	require.ErrorIs(t, err, errAddressRequired)
 	_, err = b.WithdrawCrypto(context.Background(), currency.USDT, "123435", "", "address-here", "123213", "", 0, false)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.WithdrawCrypto(context.Background(), currency.USDT, "123435", "", "address", "", "", 100, false)
-	require.ErrorIs(t, err, nil)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -1971,7 +1979,7 @@ func TestGetFuturesPositionRiskSubAccount(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetV2FuturesPositionRiskSubAccount(context.Background(), "address", 1)
 	require.ErrorIs(t, err, errValidEmailRequired)
-	_, err = b.GetV2FuturesPositionRiskSubAccount(context.Background(), "address@mail.com", 0)
+	_, err = b.GetV2FuturesPositionRiskSubAccount(context.Background(), "address@mail.com", -1)
 	require.ErrorIs(t, err, errInvalidFuturesType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -1982,7 +1990,7 @@ func TestGetFuturesPositionRiskSubAccount(t *testing.T) {
 
 func TestEnableLeverageTokenForSubAccount(t *testing.T) {
 	t.Parallel()
-	_, err := b.EnableLeverageTokenForSubAccount(context.Background(), "someone@thrasher.io", false)
+	_, err := b.EnableLeverageTokenForSubAccount(context.Background(), "email-address", false)
 	require.ErrorIs(t, err, errValidEmailRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -2281,20 +2289,23 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	_, err := b.CancelExistingOrderAndSendNewOrder(context.Background(), &CancelReplaceOrderParams{})
 	require.ErrorIs(t, err, errNilArgument)
 
-	arg := &CancelReplaceOrderParams{}
-	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
-	require.ErrorIs(t, err, errNilArgument)
+	arg := &CancelReplaceOrderParams{
+		TimeInForce: "GTC",
+	}
 	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	arg.Symbol = "BTCUSDT"
 	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
 	arg.Side = "BUY"
 	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
 	arg.OrderType = "LIMIT"
 	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	require.ErrorIs(t, err, errCancelReplaceModeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CancelExistingOrderAndSendNewOrder(context.Background(), &CancelReplaceOrderParams{
@@ -2321,7 +2332,7 @@ func TestOpenOrders(t *testing.T) {
 
 func TestCancelAllOpenOrderOnSymbol(t *testing.T) {
 	t.Parallel()
-	_, err := b.CancelAllOpenOrderOnSymbol(context.Background(), "BTCUSDT")
+	_, err := b.CancelAllOpenOrderOnSymbol(context.Background(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -2438,7 +2449,7 @@ func TestNewOrderUsingSOR(t *testing.T) {
 	_, err = b.NewOrderUsingSOR(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "SELL"
+	arg.Side = order.Sell.String()
 	_, err = b.NewOrderUsingSOR(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
@@ -2976,7 +2987,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ModifyOrder(context.Background(),
 		&order.Modify{AssetType: asset.Spot})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetAllCoinsInfo(t *testing.T) {
@@ -3555,7 +3566,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	err = limit.Conforms(0.01, 1, order.Limit)
-	assert.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 }
 
 func TestWsOrderExecutionReport(t *testing.T) {
@@ -3747,7 +3758,7 @@ func TestFetchExchangeLimits(t *testing.T) {
 	require.NotEmpty(t, limits, "Should get some limits back")
 
 	_, err = b.FetchExchangeLimits(context.Background(), asset.Futures)
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits should error on other asset types")
+	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits should error on other asset types")
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -3977,7 +3988,7 @@ func TestGetCollateralMode(t *testing.T) {
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	err := b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, collateral.PortfolioMode)
-	assert.ErrorIs(t, err, order.ErrCollateralInvalid)
+	require.ErrorIs(t, err, order.ErrCollateralInvalid)
 	err = b.SetCollateralMode(context.Background(), asset.Spot, collateral.SingleMode)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	err = b.SetCollateralMode(context.Background(), asset.CoinMarginedFutures, collateral.SingleMode)
@@ -4011,7 +4022,7 @@ func TestGetPositionSummary(t *testing.T) {
 		Pair:           p,
 		UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
 	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	bb := currency.NewBTCUSDT()
@@ -4065,7 +4076,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	err := b.SetMarginType(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT), margin.Isolated)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err = b.SetMarginType(context.Background(), asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT), margin.Isolated)
@@ -4078,7 +4089,7 @@ func TestSetMarginType(t *testing.T) {
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSDT(), 0, order.UnknownSide)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetLeverage(context.Background(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), 0, order.UnknownSide)
@@ -4093,7 +4104,7 @@ func TestGetLeverage(t *testing.T) {
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	err := b.SetLeverage(context.Background(), asset.Spot, spotTradablePair, margin.Multi, 5, order.UnknownSide)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err = b.SetLeverage(context.Background(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Multi, 5, order.UnknownSide)
@@ -4360,23 +4371,23 @@ func TestWsUFuturesConnect(t *testing.T) {
 var messageMap = map[string]string{
 	"Asset Index":                   `{"stream": "!assetIndex@arr", "data": [{ "e":"assetIndexUpdate", "E":1686749230000, "s":"ADAUSD", "i":"0.27462452", "b":"0.10000000", "a":"0.10000000", "B":"0.24716207", "A":"0.30208698", "q":"0.05000000", "g":"0.05000000", "Q":"0.26089330", "G":"0.28835575" }, { "e":"assetIndexUpdate", "E":1686749230000, "s":"USDTUSD", "i":"0.99987691", "b":"0.00010000", "a":"0.00010000", "B":"0.99977692", "A":"0.99997689", "q":"0.00010000", "g":"0.00010000", "Q":"0.99977692", "G":"0.99997689" } ]}`,
 	"Contract Info":                 `{"stream": "!contractInfo", "data": {"e":"contractInfo", "E":1669356423908, "s":"IOTAUSDT", "ps":"IOTAUSDT", "ct":"PERPETUAL", "dt":4133404800000, "ot":1569398400000, "cs":"TRADING", "bks":[ { "bs":1, "bnf":0, "bnc":5000, "mmr":0.01, "cf":0, "mi":21, "ma":50 }, { "bs":2, "bnf":5000, "bnc":25000, "mmr":0.025, "cf":75, "mi":11, "ma":20 } ] }}`,
-	"Force Order":                   `{"stream": "!forceOrder@arr", "data": {"e":"forceOrder", "E":1568014460893, "o":{ "s":"BTCUSDT", "S":"SELL", "o":"LIMIT", "f":"IOC", "q":"0.014", "p":"9910", "ap":"9910", "X":"FILLED", "l":"0.014", "z":"0.014", "T":1568014460893 }}}`,
+	"Force Order":                   `{"stream": "!forceOrder@arr", "data": {"e":"forceOrder", "E":1568014460893, "o":{ "s":"BTCUSDT", "S":order.Sell.String(), "o":"LIMIT", "f":"IOC", "q":"0.014", "p":"9910", "ap":"9910", "X":"FILLED", "l":"0.014", "z":"0.014", "T":1568014460893 }}}`,
 	"All BookTicker":                `{"stream": "!bookTicker","data":{"e":"bookTicker","u":3682854202063,"s":"NEARUSDT","b":"2.4380","B":"20391","a":"2.4390","A":"271","T":1703015198639,"E":1703015198640}}`,
 	"Multiple Market Ticker":        `{"stream": "!ticker@arr", "data": [{"e":"24hrTicker","E":1703018247910,"s":"ICPUSDT","p":"-0.540000","P":"-5.395","w":"9.906194","c":"9.470000","Q":"1","o":"10.010000","h":"10.956000","l":"9.236000","v":"34347035","q":"340248403.001000","O":1702931820000,"C":1703018247909,"F":78723309,"L":80207941,"n":1484628},{"e":"24hrTicker","E":1703018247476,"s":"MEMEUSDT","p":"0.0020900","P":"7.331","w":"0.0300554","c":"0.0305980","Q":"7568","o":"0.0285080","h":"0.0312730","l":"0.0284120","v":"5643663185","q":"169622568.3721920","O":1702931820000,"C":1703018247475,"F":88665791,"L":89517438,"n":851643},{"e":"24hrTicker","E":1703018247822,"s":"SOLUSDT","p":"0.8680","P":"1.192","w":"74.4933","c":"73.6900","Q":"21","o":"72.8220","h":"76.3840","l":"71.8000","v":"26283647","q":"1957955612.4830","O":1702931820000,"C":1703018247820,"F":1126774871,"L":1129007642,"n":2232761},{"e":"24hrTicker","E":1703018247254,"s":"IMXUSDT","p":"0.0801","P":"3.932","w":"2.1518","c":"2.1171","Q":"225","o":"2.0370","h":"2.2360","l":"2.0319","v":"59587050","q":"128216496.4538","O":1702931820000,"C":1703018247252,"F":169814879,"L":170587124,"n":772246},{"e":"24hrTicker","E":1703018247309,"s":"DYDXUSDT","p":"-0.036","P":"-1.255","w":"2.896","c":"2.832","Q":"169.6","o":"2.868","h":"2.987","l":"2.782","v":"81690098.5","q":"236599791.383","O":1702931820000,"C":1703018247308,"F":385238821,"L":385888621,"n":649799},{"e":"24hrTicker","E":1703018247240,"s":"ONTUSDT","p":"0.0022","P":"1.011","w":"0.2213","c":"0.2197","Q":"45.7","o":"0.2175","h":"0.2251","l":"0.2157","v":"60880132.6","q":"13471239.8637","O":1702931820000,"C":1703018247238,"F":186008331,"L":186088275,"n":79945},{"e":"24hrTicker","E":1703018247658,"s":"AAVEUSDT","p":"4.660","P":"4.778","w":"102.969","c":"102.190","Q":"0.4","o":"97.530","h":"108.000","l":"97.370","v":"1205430.6","q":"124121750.870","O":1702931820000,"C":1703018247657,"F":343017862,"L":343487276,"n":469414},{"e":"24hrTicker","E":1703018247545,"s":"USTCUSDT","p":"0.0018500","P":"5.628","w":"0.0348991","c":"0.0347200","Q":"2316","o":"0.0328700","h":"0.0371100","l":"0.0328000","v":"2486985654","q":"86793545.3903700","O":1702931820000,"C":1703018247544,"F":32136013,"L":32601947,"n":465935},{"e":"24hrTicker","E":1703018247997,"s":"FTMUSDT","p":"-0.005000","P":"-1.221","w":"0.409721","c":"0.404400","Q":"1421","o":"0.409400","h":"0.421200","l":"0.392100","v":"471077518","q":"193010517.884400","O":1702931820000,"C":1703018247996,"F":716077491,"L":716712548,"n":635055},{"e":"24hrTicker","E":1703018247338,"s":"LRCUSDT","p":"-0.00290","P":"-1.104","w":"0.26531","c":"0.25980","Q":"113","o":"0.26270","h":"0.27190","l":"0.25590","v":"142488749","q":"37803477.10260","O":1702931820000,"C":1703018247336,"F":318115460,"L":318317340,"n":201880},{"e":"24hrTicker","E":1703018247776,"s":"TRBUSDT","p":"25.037","P":"21.840","w":"131.860","c":"139.677","Q":"0.3","o":"114.640","h":"143.900","l":"113.600","v":"3955845.0","q":"521616257.947","O":1702931820000,"C":1703018247775,"F":417041483,"L":419226886,"n":2185249},{"e":"24hrTicker","E":1703018247513,"s":"ACEUSDT","p":"0.108200","P":"0.826","w":"13.544944","c":"13.211400","Q":"14.37","o":"13.103200","h":"15.131200","l":"12.402900","v":"41359842.25","q":"560216757.038015","O":1702931820000,"C":1703018247512,"F":2261106,"L":4779982,"n":2518828},{"e":"24hrTicker","E":1703018247995,"s":"KEYUSDT","p":"0.0000270","P":"0.506","w":"0.0054583","c":"0.0053660","Q":"3540","o":"0.0053390","h":"0.0056230","l":"0.0053220","v":"1658962254","q":"9055176.9144700","O":1702931820000,"C":1703018247993,"F":32127330,"L":32236546,"n":109217},{"e":"24hrTicker","E":1703018247825,"s":"SUIUSDT","p":"0.094400","P":"15.783","w":"0.658766","c":"0.692500","Q":"157.6","o":"0.598100","h":"0.719600","l":"0.596400","v":"538807943.2","q":"354948524.988570","O":1702931820000,"C":1703018247824,"F":129572611,"L":130637476,"n":1064863},{"e":"24hrTicker","E":1703018247328,"s":"AGLDUSDT","p":"0.0738000","P":"7.016","w":"1.1222224","c":"1.1257000","Q":"49","o":"1.0519000","h":"1.1936000","l":"1.0471000","v":"63230369","q":"70958539.3508000","O":1702931820000,"C":1703018247327,"F":40498492,"L":41170995,"n":672503},{"e":"24hrTicker","E":1703018247882,"s":"BTCUSDT","p":"412.30","P":"0.986","w":"42651.76","c":"42247.00","Q":"0.003","o":"41834.70","h":"43550.00","l":"41792.00","v":"366582.423","q":"15635385730.76","O":1702931820000,"C":1703018247880,"F":4392041494,"L":4395950440,"n":3908934},{"e":"24hrTicker","E":1703018247531,"s":"WLDUSDT","p":"-0.0475000","P":"-1.232","w":"3.9879959","c":"3.8089000","Q":"50","o":"3.8564000","h":"4.3320000","l":"3.7237000","v":"119350666","q":"475969966.2747000","O":1702931820000,"C":1703018247530,"F":183723717,"L":186154953,"n":2431230},{"e":"24hrTicker","E":1703018247595,"s":"WAVESUSDT","p":"0.1108","P":"4.876","w":"2.4490","c":"2.3833","Q":"8.1","o":"2.2725","h":"2.5775","l":"2.2658","v":"54051344.0","q":"132369622.6356","O":1702931820000,"C":1703018247593,"F":503343992,"L":504167968,"n":823975},{"e":"24hrTicker","E":1703018247943,"s":"BLZUSDT","p":"0.00441","P":"1.274","w":"0.34477","c":"0.35043","Q":"35","o":"0.34602","h":"0.35844","l":"0.33146","v":"224686045","q":"77465133.09517","O":1702931820000,"C":1703018247942,"F":301286442,"L":301919432,"n":632991},{"e":"24hrTicker","E":1703018248027,"s":"ALGOUSDT","p":"0.0044","P":"2.329","w":"0.1982","c":"0.1933","Q":"1724.4","o":"0.1889","h":"0.2053","l":"0.1883","v":"418107041.7","q":"82860752.3534","O":1702931820000,"C":1703018248025,"F":317274252,"L":317530189,"n":255937},{"e":"24hrTicker","E":1703018247795,"s":"LUNA2USDT","p":"0.0849000","P":"9.610","w":"0.9622720","c":"0.9684000","Q":"91","o":"0.8835000","h":"1.0234000","l":"0.8800000","v":"132211955","q":"127223857.1990000","O":1702931820000,"C":1703018247793,"F":143814989,"L":144504341,"n":689350},{"e":"24hrTicker","E":1703018247557,"s":"DOGEUSDT","p":"-0.000290","P":"-0.320","w":"0.091710","c":"0.090210","Q":"1211","o":"0.090500","h":"0.093550","l":"0.089300","v":"4695249277","q":"430603554.425970","O":1702931820000,"C":1703018247556,"F":1408300026,"L":1409042131,"n":742103},{"e":"24hrTicker","E":1703018247578,"s":"SUSHIUSDT","p":"0.0024","P":"0.217","w":"1.1263","c":"1.1097","Q":"34","o":"1.1073","h":"1.1479","l":"1.0921","v":"34830643","q":"39229338.9293","O":1702931820000,"C":1703018247576,"F":389676753,"L":389892337,"n":215584},{"e":"24hrTicker","E":1703018247636,"s":"ROSEUSDT","p":"0.00859","P":"9.826","w":"0.09344","c":"0.09601","Q":"300","o":"0.08742","h":"0.09842","l":"0.08724","v":"768803655","q":"71837497.60153","O":1702931820000,"C":1703018247635,"F":145874088,"L":146347778,"n":473689},{"e":"24hrTicker","E":1703018247446,"s":"CTKUSDT","p":"0.05240","P":"6.933","w":"0.76993","c":"0.80820","Q":"16","o":"0.75580","h":"0.81760","l":"0.73560","v":"39275735","q":"30239750.04250","O":1702931820000,"C":1703018247445,"F":129601557,"L":129911270,"n":309714},{"e":"24hrTicker","E":1703018247083,"s":"MATICUSDT","p":"-0.02260","P":"-2.883","w":"0.78657","c":"0.76130","Q":"11","o":"0.78390","h":"0.82380","l":"0.74930","v":"510723474","q":"401719478.20480","O":1702931820000,"C":1703018247081,"F":899425701,"L":900164133,"n":738432},{"e":"24hrTicker","E":1703018247954,"s":"INJUSDT","p":"3.554000","P":"10.740","w":"37.577625","c":"36.646000","Q":"9.3","o":"33.092000","h":"39.988000","l":"32.803000","v":"30119373.7","q":"1131814520.584100","O":1702931820000,"C":1703018247953,"F":210846748,"L":214612851,"n":3766053},{"e":"24hrTicker","E":1703018247559,"s":"OCEANUSDT","p":"0.00890","P":"1.805","w":"0.50791","c":"0.50200","Q":"147","o":"0.49310","h":"0.52090","l":"0.49170","v":"42754656","q":"21715597.51239","O":1702931820000,"C":1703018247557,"F":243729859,"L":243879437,"n":149578},{"e":"24hrTicker","E":1703018247779,"s":"UNIUSDT","p":"0.0220","P":"0.378","w":"5.9288","c":"5.8470","Q":"10","o":"5.8250","h":"6.0440","l":"5.7520","v":"11324960","q":"67143423.4300","O":1702931820000,"C":1703018247778,"F":356204442,"L":356430119,"n":225678},{"e":"24hrTicker","E":1703018247999,"s":"1000BONKUSDT","p":"-0.0004410","P":"-2.245","w":"0.0205588","c":"0.0192000","Q":"1562","o":"0.0196410","h":"0.0231060","l":"0.0188770","v":"30632634003","q":"629769968.4590968","O":1702931820000,"C":1703018247998,"F":75958362,"L":80131721,"n":4173351},{"e":"24hrTicker","E":1703018247559,"s":"ARUSDT","p":"-0.382","P":"-4.176","w":"9.030","c":"8.765","Q":"4.5","o":"9.147","h":"9.467","l":"8.571","v":"3178087.5","q":"28698158.147","O":1702931820000,"C":1703018247557,"F":143756455,"L":143985699,"n":229244},{"e":"24hrTicker","E":1703018247344,"s":"AUCTIONUSDT","p":"9.690000","P":"31.369","w":"38.302392","c":"40.580000","Q":"0.65","o":"30.890000","h":"43.400000","l":"30.650000","v":"15656989.13","q":"599700134.856300","O":1702931820000,"C":1703018247343,"F":2451094,"L":5013398,"n":2561767},{"e":"24hrTicker","E":1703018247959,"s":"XRPUSDT","p":"-0.0021","P":"-0.346","w":"0.6083","c":"0.6045","Q":"396.3","o":"0.6066","h":"0.6170","l":"0.5973","v":"744301855.7","q":"452752948.7478","O":1702931820000,"C":1703018247957,"F":1344388341,"L":1344913573,"n":525224},{"e":"24hrTicker","E":1703018247813,"s":"EGLDUSDT","p":"-0.130","P":"-0.223","w":"58.569","c":"58.070","Q":"1.1","o":"58.200","h":"60.240","l":"56.670","v":"802381.7","q":"46994956.463","O":1702931820000,"C":1703018247811,"F":235206699,"L":235456030,"n":249331},{"e":"24hrTicker","E":1703018247990,"s":"ETHUSDT","p":"-10.21","P":"-0.468","w":"2206.89","c":"2170.39","Q":"0.060","o":"2180.60","h":"2256.64","l":"2135.03","v":"3187161.031","q":"7033700225.77","O":1702931820000,"C":1703018247988,"F":3443398114,"L":3446512406,"n":3114283},{"e":"24hrTicker","E":1703018247096,"s":"PENDLEUSDT","p":"-0.0059000","P":"-0.569","w":"1.0590403","c":"1.0319000","Q":"12","o":"1.0378000","h":"1.0960000","l":"1.0120000","v":"7593669","q":"8042001.5937000","O":1702931820000,"C":1703018247095,"F":16663914,"L":16782530,"n":118617}]}`,
-	"Single Market Ticker":          `{"stream": "<symbol>@ticker", "data": { "e": "24hrTicker", "E": 123456789, "s": "BTCUSDT", "p": "0.0015", "P": "250.00", "w": "0.0018", "c": "0.0025", "Q": "10", "o": "0.0010", "h": "0.0025", "l": "0.0010", "v": "10000", "q": "18", "O": 0, "C": 86400000, "F": 0, "L": 18150, "n": 18151 } }`,
+	"Single Market Ticker":          `{"stream": "<symbol>@ticker", "data": { "e": "24hrTicker", "E": 1571889248277, "s": "BTCUSDT", "p": "0.0015", "P": "250.00", "w": "0.0018", "c": "0.0025", "Q": "10", "o": "0.0010", "h": "0.0025", "l": "0.0010", "v": "10000", "q": "18", "O": 0, "C": 1703019429985, "F": 0, "L": 18150, "n": 18151 } }`,
 	"Multiple Mini Tickers":         `{"stream": "!miniTicker@arr","data":[{"e":"24hrMiniTicker","E":1703019429455,"s":"BICOUSDT","c":"0.3667000","o":"0.3792000","h":"0.3892000","l":"0.3639000","v":"28768370","q":"10779000.9922000"},{"e":"24hrMiniTicker","E":1703019429985,"s":"API3USDT","c":"1.6834","o":"1.7326","h":"1.8406","l":"1.6699","v":"12371516.4","q":"21642153.0574"},{"e":"24hrMiniTicker","E":1703019429111,"s":"ICPUSDT","c":"9.414000","o":"10.126000","h":"10.956000","l":"9.236000","v":"34262192","q":"339148145.539000"},{"e":"24hrMiniTicker","E":1703019429945,"s":"SOLUSDT","c":"73.0930","o":"73.2180","h":"76.3840","l":"71.8000","v":"26319095","q":"1960871540.2620"}]}`,
 	"Multi Asset Mode Asset":        `{"stream": "!assetIndex@arr", "data":[{ "e":"assetIndexUpdate", "E":1686749230000, "s":"ADAUSD","i":"0.27462452","b":"0.10000000","a":"0.10000000","B":"0.24716207","A":"0.30208698","q":"0.05000000","g":"0.05000000","Q":"0.26089330","G":"0.28835575"}, { "e":"assetIndexUpdate", "E":1686749230000, "s":"USDTUSD", "i":"0.99987691", "b":"0.00010000", "a":"0.00010000", "B":"0.99977692", "A":"0.99997689", "q":"0.00010000", "g":"0.00010000", "Q":"0.99977692", "G":"0.99997689" }]}`,
 	"Composite Index Symbol":        `{"stream": "<symbol>@compositeIndex", "data":{ "e":"compositeIndex", "E":1602310596000, "s":"DEFIUSDT", "p":"554.41604065", "C":"baseAsset", "c":[ { "b":"BAL", "q":"USDT", "w":"1.04884844", "W":"0.01457800", "i":"24.33521021" }, { "b":"BAND", "q":"USDT" , "w":"3.53782729", "W":"0.03935200", "i":"7.26420084" } ] } }`,
-	"Diff Book Depth Stream":        `{"stream": "<symbol>@depth@500ms", "data": { "e": "depthUpdate", "E": 123456789, "T": 123456788, "s": "BTCUSDT", "U": 157, "u": 160, "pu": 149, "b": [ [ "0.0024", "10" ] ], "a": [ [ "0.0026", "100" ] ] } }`,
+	"Diff Book Depth Stream":        `{"stream": "<symbol>@depth@500ms", "data": { "e": "depthUpdate", "E": 1571889248277, "T": 1571889248276, "s": "BTCUSDT", "U": 157, "u": 160, "pu": 149, "b": [ [ "0.0024", "10" ] ], "a": [ [ "0.0026", "100" ] ] } }`,
 	"Partial Book Depth Stream":     `{"stream": "<symbol>@depth<levels>", "data":{ "e": "depthUpdate", "E": 1571889248277, "T": 1571889248276, "s": "BTCUSDT", "U": 390497796, "u": 390497878, "pu": 390497794, "b": [ [ "7403.89", "0.002" ], [ "7403.90", "3.906" ], [ "7404.00", "1.428" ], [ "7404.85", "5.239" ], [ "7405.43", "2.562" ] ], "a": [ [ "7405.96", "3.340" ], [ "7406.63", "4.525" ], [ "7407.08", "2.475" ], [ "7407.15", "4.800" ], [ "7407.20","0.175"]]}}`,
-	"Individual Symbol Mini Ticker": `{"stream": "<symbol>@miniTicker", "data": { "e": "24hrMiniTicker", "E": 123456789, "s": "BTCUSDT", "c": "0.0025", "o": "0.0010", "h": "0.0025", "l": "0.0010", "v": "10000", "q": "18"}}`,
+	"Individual Symbol Mini Ticker": `{"stream": "<symbol>@miniTicker", "data": { "e": "24hrMiniTicker", "E": 1571889248277, "s": "BTCUSDT", "c": "0.0025", "o": "0.0010", "h": "0.0025", "l": "0.0010", "v": "10000", "q": "18"}}`,
 }
 
 func TestHandleData(t *testing.T) {
 	t.Parallel()
 	for x := range messageMap {
 		err := b.wsHandleFuturesData([]byte(messageMap[x]), asset.USDTMarginedFutures)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 }
 
@@ -4605,7 +4616,7 @@ func TestPlaceNewOrder(t *testing.T) {
 	}
 	result, err := b.WsPlaceNewOrder(&TradeOrderRequestParam{
 		Symbol:      "BTCUSDT",
-		Side:        "SELL",
+		Side:        order.Sell.String(),
 		OrderType:   "LIMIT",
 		TimeInForce: "GTC",
 		Price:       1234,
@@ -4623,7 +4634,7 @@ func TestValidatePlaceNewOrderRequest(t *testing.T) {
 	}
 	err := b.ValidatePlaceNewOrderRequest(&TradeOrderRequestParam{
 		Symbol:      "BTCUSDT",
-		Side:        "SELL",
+		Side:        order.Sell.String(),
 		OrderType:   "LIMIT",
 		TimeInForce: "GTC",
 		Price:       1234,
@@ -4669,7 +4680,7 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 		Symbol:                    "BTCUSDT",
 		CancelReplaceMode:         "ALLOW_FAILURE",
 		CancelOriginClientOrderID: "4d96324ff9d44481926157",
-		Side:                      "SELL",
+		Side:                      order.Sell.String(),
 		OrderType:                 "LIMIT",
 		TimeInForce:               "GTC",
 		Price:                     23416.10000000,
@@ -4709,7 +4720,7 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 	}
 	result, err := b.WsPlaceOCOOrder(&PlaceOCOOrderParam{
 		Symbol:               "BTCUSDT",
-		Side:                 "SELL",
+		Side:                 order.Sell.String(),
 		Price:                23420.00000000,
 		Quantity:             0.00650000,
 		StopPrice:            23410.00000000,
@@ -4949,7 +4960,7 @@ func TestGetOpenInterest(t *testing.T) {
 		Quote: currency.USDT.Item,
 		Asset: asset.Spot,
 	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	result, err := b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
@@ -5337,7 +5348,7 @@ func TestNewOptionsOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewOptionsOrder(context.Background(), &OptionsOrderParams{
 		Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
-		Side:                    "Sell",
+		Side:                    order.Sell.String(),
 		OrderType:               "LIMIT",
 		Amount:                  0.00001,
 		Price:                   0.00001,
@@ -5357,7 +5368,7 @@ func TestPlaceEOptionsOrder(t *testing.T) {
 	result, err := b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{
 		{
 			Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
-			Side:                    "Sell",
+			Side:                    order.Sell.String(),
 			OrderType:               "LIMIT",
 			Amount:                  0.00001,
 			Price:                   0.00001,
@@ -5646,14 +5657,14 @@ func TestNewMarginOrder(t *testing.T) {
 	_, err = b.NewMarginOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "SELL"
+	arg.Side = order.Sell.String()
 	_, err = b.NewMarginOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	arg.OrderType = "LIMIT"
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewMarginOrder(context.Background(), arg)
-	require.ErrorIs(t, err, nil)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -5734,7 +5745,7 @@ func TestNewOCOOrderList(t *testing.T) {
 	_, err = b.NewOCOOrderList(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "SELL"
+	arg.Side = order.Sell.String()
 	_, err = b.NewOCOOrderList(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -5746,11 +5757,10 @@ func TestNewOCOOrderList(t *testing.T) {
 	_, err = b.NewOCOOrderList(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	// arg.BelowType = "LIMIT_MAKER"
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.NewOCOOrderList(context.Background(), &OCOOrderListParams{
 		Symbol:     "LTCBTC",
-		Side:       "SELL",
+		Side:       order.Sell.String(),
 		Quantity:   1,
 		AbovePrice: 100,
 		AboveType:  "STOP_LOSS_LIMIT",
@@ -5766,7 +5776,7 @@ func TestNewUMConditionalOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewUMConditionalOrder(context.Background(), &ConditionalOrderParam{
 		Symbol:       "BTCUSDT",
-		Side:         "Sell",
+		Side:         order.Sell.String(),
 		PositionSide: "SHORT",
 		StrategyType: "STOP_MARKET",
 		PriceProtect: true,
@@ -6655,7 +6665,7 @@ func TestGetBNBBurnStatus(t *testing.T) {
 
 func TestGetMarginInterestRateHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarginInterestRateHistory(context.Background(), currency.ETH, 0, time.Time{}, time.Time{})
+	_, err := b.GetMarginInterestRateHistory(context.Background(), currency.EMPTYCODE, 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -6812,7 +6822,7 @@ func TestGetSimpleEarnLockedProducts(t *testing.T) {
 func TestSubscribeToFlexibleProducts(t *testing.T) {
 	t.Parallel()
 	_, err := b.SubscribeToFlexibleProducts(context.Background(), "", "FUND", 1, false)
-	require.ErrorIs(t, err, errProjectIDRequired)
+	require.ErrorIs(t, err, errProductIDRequired)
 	_, err = b.SubscribeToFlexibleProducts(context.Background(), "project-id", "FUND", 0, false)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -6838,7 +6848,7 @@ func TestSubscribeToLockedProducts(t *testing.T) {
 func TestRedeemFlexibleProduct(t *testing.T) {
 	t.Parallel()
 	_, err := b.RedeemFlexibleProduct(context.Background(), "", "FUND", true, 0.1234)
-	require.ErrorIs(t, err, errProductIDIsRequired)
+	require.ErrorIs(t, err, errProductIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.RedeemFlexibleProduct(context.Background(), "product-id", "FUND", true, 0.1234)
@@ -6932,7 +6942,7 @@ func TestGetLockedRewardHistory(t *testing.T) {
 func TestSetFlexibleAutoSusbcribe(t *testing.T) {
 	t.Parallel()
 	_, err := b.SetFlexibleAutoSusbcribe(context.Background(), "", true)
-	require.ErrorIs(t, err, errPositionIDRequired)
+	require.ErrorIs(t, err, errProductIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SetFlexibleAutoSusbcribe(context.Background(), "product-id", true)
@@ -6970,7 +6980,7 @@ func TestGetLockedPersonalLeftQuota(t *testing.T) {
 func TestGetFlexibleSubscriptionPreview(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFlexibleSubscriptionPreview(context.Background(), "", 0.0001)
-	require.ErrorIs(t, err, errProductIDIsRequired)
+	require.ErrorIs(t, err, errProductIDRequired)
 	_, err = b.GetFlexibleSubscriptionPreview(context.Background(), "1234", 0)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -7027,7 +7037,7 @@ func TestGetDualInvestmentProductList(t *testing.T) {
 func TestSubscribeDualInvestmentProducts(t *testing.T) {
 	t.Parallel()
 	_, err := b.SubscribeDualInvestmentProducts(context.Background(), "", "order-id", "STANDARD", 0.1)
-	require.ErrorIs(t, err, errProductIDIsRequired)
+	require.ErrorIs(t, err, errProductIDRequired)
 	_, err = b.SubscribeDualInvestmentProducts(context.Background(), "1234", "", "STANDARD", 0.1)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = b.SubscribeDualInvestmentProducts(context.Background(), "1234", "order-id", "STANDARD", 0)
@@ -7600,9 +7610,9 @@ func TestHashrateRescaleRequest(t *testing.T) {
 	require.ErrorIs(t, err, errTransferAlgorithmRequired)
 	_, err = b.HashRateRescaleRequest(context.Background(), "sams", "sha256", "S19pro", time.Now(), time.Time{}, 10000)
 	require.ErrorIs(t, err, common.ErrDateUnset)
-	_, err = b.HashRateRescaleRequest(context.Background(), "sams", "sha256", "", time.Time{}, time.Time{}, 10000)
+	_, err = b.HashRateRescaleRequest(context.Background(), "sams", "sha256", "", time.Now().Add(-time.Hour*240), time.Now(), 10000)
 	require.ErrorIs(t, err, errAccountRequired)
-	_, err = b.HashRateRescaleRequest(context.Background(), "sams", "sha256", "S19pro", time.Time{}, time.Time{}, 0)
+	_, err = b.HashRateRescaleRequest(context.Background(), "sams", "sha256", "S19pro", time.Now().Add(-time.Hour*240), time.Now(), 0)
 	require.ErrorIs(t, err, errHashRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -7713,13 +7723,13 @@ func TestVolumeParticipationNewOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
 		Symbol:       "BTCUSDT",
-		Side:         "SELL",
+		Side:         order.Sell.String(),
 		PositionSide: "BOTH",
 	})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
 		Symbol:       "BTCUSDT",
-		Side:         "SELL",
+		Side:         order.Sell.String(),
 		PositionSide: "BOTH",
 		Quantity:     0.012,
 	})
@@ -7728,7 +7738,7 @@ func TestVolumeParticipationNewOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
 		Symbol:       "BTCUSDT",
-		Side:         "SELL",
+		Side:         order.Sell.String(),
 		PositionSide: "BOTH",
 		Quantity:     0.012,
 		Urgency:      "HIGH",
@@ -7751,12 +7761,12 @@ func TestTWAPOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
 		Symbol: "BTCUSDT",
-		Side:   "SELL",
+		Side:   order.Sell.String(),
 	})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
 		Symbol:   "BTCUSDT",
-		Side:     "SELL",
+		Side:     order.Sell.String(),
 		Quantity: 0.012,
 	})
 	require.ErrorIs(t, err, errDurationRequired)
@@ -7764,7 +7774,7 @@ func TestTWAPOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
 		Symbol:       "BTCUSDT",
-		Side:         "SELL",
+		Side:         order.Sell.String(),
 		PositionSide: "BOTH",
 		Quantity:     0.012,
 		Duration:     1000,
@@ -7822,16 +7832,16 @@ func TestTWAPNewOrder(t *testing.T) {
 		Symbol: "BTCUSDT"})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
-		Symbol: "BTCUSDT", Side: "SELL"})
+		Symbol: "BTCUSDT", Side: order.Sell.String()})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
-		Symbol: "BTCUSDT", Side: "SELL", Quantity: 0.012})
+		Symbol: "BTCUSDT", Side: order.Sell.String(), Quantity: 0.012})
 	require.ErrorIs(t, err, errDurationRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
 		Symbol:   "BTCUSDT",
-		Side:     "SELL",
+		Side:     order.Sell.String(),
 		Quantity: 0.012,
 		Duration: 86400,
 	})
@@ -8042,7 +8052,7 @@ func TestGetFiatDepositAndWithdrawalHistory(t *testing.T) {
 
 func TestGetFiatPaymentHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFiatPaymentHistory(context.Background(), time.Time{}, time.Time{}, 0, 0, 50)
+	_, err := b.GetFiatPaymentHistory(context.Background(), time.Time{}, time.Time{}, -1, 0, 50)
 	require.ErrorIs(t, err, errInvalidTransactionType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -8057,7 +8067,7 @@ func TestGetC2CTradeHistory(t *testing.T) {
 	require.ErrorIs(t, err, errTradeTypeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetC2CTradeHistory(context.Background(), "SELL", time.Time{}, time.Time{}, 0, 50)
+	result, err := b.GetC2CTradeHistory(context.Background(), order.Sell.String(), time.Time{}, time.Time{}, 0, 50)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -8093,7 +8103,7 @@ func TestGetPayTradeHistory(t *testing.T) {
 
 func TestGetAllConvertPairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAllConvertPairs(context.Background(), currency.BTC, currency.EMPTYCODE)
+	_, err := b.GetAllConvertPairs(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := b.GetAllConvertPairs(context.Background(), currency.BTC, currency.EMPTYCODE)
@@ -8162,7 +8172,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 	_, err = b.PlaceLimitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "SELL"
+	arg.Side = order.Sell.String()
 	arg.ExpiredType = ""
 	_, err = b.PlaceLimitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errExpiedTypeRequired)
@@ -8172,7 +8182,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 		BaseAsset:   currency.BTC,
 		QuoteAsset:  currency.ETH,
 		LimitPrice:  0.0122,
-		Side:        "SELL",
+		Side:        order.Sell.String(),
 		ExpiredType: "7_D",
 	})
 	require.NoError(t, err)
