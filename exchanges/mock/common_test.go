@@ -2,6 +2,7 @@ package mock
 
 import (
 	"encoding/json"
+	"errors"
 	"net/url"
 	"testing"
 )
@@ -133,8 +134,13 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 		t.Error("DeriveURLValsFromJSON error", err)
 	}
 
-	if vals["val"][0] != "1" {
+	if vals[0]["val"][0] != "1" {
 		t.Error("DeriveURLValsFromJSON unexpected value",
-			vals["val"][0])
+			vals[0]["val"][0])
+	}
+	payload = []byte(`[1, 2, 3, 4, 5]`)
+	_, err = DeriveURLValsFromJSONMap(payload)
+	if !errors.Is(err, errUnsupportedType) {
+		t.Errorf("DeriveURLValsFromJSON expected %v, got %v", errUnsupportedType, err)
 	}
 }
