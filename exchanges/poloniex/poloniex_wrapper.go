@@ -183,7 +183,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = p.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  poloniexWebsocketAddress,
@@ -192,7 +192,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return p.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  poloniexPrivateWebsocketAddress,
