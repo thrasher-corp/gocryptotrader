@@ -760,33 +760,25 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if len(asks) == 0 && len(bids) == 0 {
 		return nil
 	}
-	if resp.Type == "snapshot" || result.UpdateID == 1 {
-		err = by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+	if resp.Type == "snapshot" {
+		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Pair:           cp,
 			Exchange:       by.Name,
 			Asset:          assetType,
 			LastUpdated:    resp.OrderbookLastUpdated.Time(),
-			LastUpdateID:   result.Sequence,
+			LastUpdateID:   result.UpdateID,
 			UpdatePushedAt: resp.PushTimestamp.Time(),
 			Asks:           asks,
 			Bids:           bids,
 		})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = by.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:           cp,
-			Asks:           asks,
-			Bids:           bids,
-			Asset:          assetType,
-			UpdateID:       result.Sequence,
-			UpdateTime:     resp.OrderbookLastUpdated.Time(),
-			UpdatePushedAt: resp.PushTimestamp.Time(),
-		})
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+	return by.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:           cp,
+		Asks:           asks,
+		Bids:           bids,
+		Asset:          assetType,
+		UpdateID:       result.UpdateID,
+		UpdateTime:     resp.OrderbookLastUpdated.Time(),
+		UpdatePushedAt: resp.PushTimestamp.Time(),
+	})
 }
