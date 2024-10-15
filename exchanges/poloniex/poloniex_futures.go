@@ -3,7 +3,6 @@ package poloniex
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -71,7 +70,7 @@ func (p *Poloniex) GetPartialOrderbookLevel2(ctx context.Context, symbol, depth 
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if depth == "" {
-		return nil, errors.New("depth is required")
+		return nil, errOrderbookDepthRequired
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -86,10 +85,10 @@ func (p *Poloniex) Level2PullingMessages(ctx context.Context, symbol string, sta
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if startSequence <= 0 {
-		return nil, errors.New("start sequence is required")
+		return nil, fmt.Errorf("%w, start sequence %d", errInvalidSequenceNumber, startSequence)
 	}
 	if endSequence <= 0 {
-		return nil, errors.New("end sequence is required")
+		return nil, fmt.Errorf("%w, end sequence %d", errInvalidSequenceNumber, endSequence)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -214,7 +213,7 @@ func (p *Poloniex) GetFuturesKlineDataOfContract(ctx context.Context, symbol str
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if granularity == 0 {
-		return nil, errors.New("granularity is required")
+		return nil, errGranularityRequired
 	}
 	params := url.Values{}
 	if !from.IsZero() {
@@ -685,7 +684,7 @@ func filterManualMarginParams(arg *AlterMarginManuallyParams) error {
 		return fmt.Errorf("%w, margin amount is required", order.ErrAmountBelowMin)
 	}
 	if arg.BizNo == "" {
-		return errors.New("bizNo is required")
+		return errBizNoRequired
 	}
 	return nil
 }

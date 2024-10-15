@@ -637,7 +637,7 @@ func (p *Poloniex) SubscribeFutures(subs subscription.List) error {
 			return err
 		}
 	}
-	return p.Websocket.AddSuccessfulSubscriptions(subs...)
+	return p.Websocket.AddSuccessfulSubscriptions(p.Websocket.Conn, subs...)
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
@@ -650,5 +650,5 @@ func (p *Poloniex) UnsubscribeFutures(unsub subscription.List) error {
 			return err
 		}
 	}
-	return p.Websocket.RemoveSubscriptions(unsub...)
+	return p.Websocket.RemoveSubscriptions(p.Websocket.Conn, unsub...)
 }

@@ -39,6 +39,10 @@ var (
 	errAccountTypeRequired             = errors.New("account type required")
 	errInvalidResponse                 = errors.New("invalid response data")
 	errUnexpectedIncomingDataType      = errors.New("unexpected incoming data type")
+	errOrderbookDepthRequired          = errors.New("depth is required")
+	errGranularityRequired             = errors.New("granularity is required")
+	errBizNoRequired                   = errors.New("bizNo is required")
+	errInvalidSequenceNumber           = errors.New("invalid sequence number")
 )
 
 // Poloniex is the overarching type across the poloniex package
