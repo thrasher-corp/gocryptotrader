@@ -59,7 +59,7 @@ func (cr *Cryptodotcom) WsCreateWithdrawal(ccy currency.Code, amount float64, ad
 		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountBelowMin, amount)
 	}
 	if address == "" {
-		return nil, errors.New("address is required")
+		return nil, errAddressRequired
 	}
 	params := make(map[string]interface{})
 	params["currency"] = ccy.String()
@@ -112,6 +112,9 @@ func (cr *Cryptodotcom) WsCancelExistingOrder(symbol, orderID string) error {
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
 func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+	if len(arg) == 0 {
+		return nil, common.ErrNilPointer
+	}
 	orderParams := make([]map[string]interface{}, len(arg))
 	for x := range arg {
 		p, err := arg[x].getCreateParamMap()
@@ -138,7 +141,7 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 	cancelOrderList := []map[string]interface{}{}
 	for x := range args {
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
-			return nil, errors.New("either InstrumentName or OrderID is required")
+			return nil, errInstrumentNameOrOrderIDRequired
 		}
 		result := make(map[string]interface{})
 		if args[x].InstrumentName != "" {
@@ -251,7 +254,7 @@ func (cr *Cryptodotcom) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, e
 // SendWebsocketRequest pushed a request data through the websocket data for authenticated and public messages.
 func (cr *Cryptodotcom) SendWebsocketRequest(method string, arg map[string]interface{}, result interface{}, authenticated bool) error {
 	if authenticated && !cr.Websocket.CanUseAuthenticatedEndpoints() {
-		return errors.New("can't send authenticated websocket request")
+		return errors.New("can not send authenticated websocket request")
 	}
 	timestamp := time.Now()
 	req := &WsRequestPayload{

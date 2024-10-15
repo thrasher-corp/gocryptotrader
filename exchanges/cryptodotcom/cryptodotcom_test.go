@@ -144,6 +144,15 @@ func TestWithdrawFunds(t *testing.T) {
 }
 func TestWsCreateWithdrawal(t *testing.T) {
 	t.Parallel()
+	_, err := cr.WsCreateWithdrawal(currency.EMPTYCODE, 10, core.BitcoinDonationAddress, "", "", "")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = cr.WsCreateWithdrawal(currency.BTC, 0, core.BitcoinDonationAddress, "", "", "")
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	_, err = cr.WsCreateWithdrawal(currency.BTC, 10, "", "", "", "")
+	require.ErrorIs(t, err, errAddressRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	result, err := cr.WsCreateWithdrawal(currency.BTC, 10, core.BitcoinDonationAddress, "", "", "")
 	require.NoError(t, err)
@@ -319,8 +328,13 @@ func TestCancelExistingOrder(t *testing.T) {
 }
 func TestWsCancelExistingOrder(t *testing.T) {
 	t.Parallel()
+	err := cr.WsCancelExistingOrder("", "1232412")
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	err = cr.WsCancelExistingOrder("BTC_USDT", "")
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	err := cr.WsCancelExistingOrder("BTC_USDT", "1232412")
+	err = cr.WsCancelExistingOrder("BTC_USDT", "1232412")
 	assert.NoError(t, err)
 }
 
@@ -357,6 +371,9 @@ func TestGetOrderDetail(t *testing.T) {
 
 func TestWsRetriveOrderDetail(t *testing.T) {
 	t.Parallel()
+	_, err := cr.WsRetriveOrderDetail("")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	result, err := cr.WsRetriveOrderDetail("1234")
 	require.NoError(t, err)
@@ -406,6 +423,9 @@ func TestCreateOrderList(t *testing.T) {
 }
 func TestWsCreateOrderList(t *testing.T) {
 	t.Parallel()
+	_, err := cr.WsCreateOrderList("LIST", []CreateOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	result, err := cr.WsCreateOrderList("LIST", []CreateOrderParam{
 		{
@@ -433,6 +453,12 @@ func TestCancelOrderList(t *testing.T) {
 
 func TestWsCancelOrderList(t *testing.T) {
 	t.Parallel()
+	_, err := cr.WsCancelOrderList([]CancelOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = cr.WsCancelOrderList([]CancelOrderParam{{InstrumentName: "", OrderID: ""}})
+	require.ErrorIs(t, err, errInstrumentNameOrOrderIDRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	result, err := cr.WsCancelOrderList([]CancelOrderParam{
 		{InstrumentName: "BTC_USDT", OrderID: "1234567"}, {InstrumentName: "BTC_USDT",
@@ -453,8 +479,11 @@ func TestCancelAllPersonalOrders(t *testing.T) {
 
 func TestWsCancelAllPersonalOrders(t *testing.T) {
 	t.Parallel()
+	err := cr.WsCancelAllPersonalOrders("")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	err := cr.WsCancelAllPersonalOrders(tradablePair.String())
+	err = cr.WsCancelAllPersonalOrders(tradablePair.String())
 	assert.NoError(t, err)
 }
 
@@ -864,6 +893,9 @@ func TestWsRetriveCancelOnDisconnect(t *testing.T) {
 }
 func TestWsSetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
+	_, err := cr.WsSetCancelOnDisconnect("")
+	require.ErrorIs(t, err, errInvalidOrderCancellationScope)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	result, err := cr.WsSetCancelOnDisconnect("ACCOUNT")
 	assert.NoError(t, err)
@@ -982,5 +1014,15 @@ func TestSafeNumberUnmarshal(t *testing.T) {
 	}{}
 	err := json.Unmarshal(result, &resp)
 	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWsRetriveTrades(t *testing.T) {
+	t.Parallel()
+	_, err := cr.WsRetriveTrades("")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := cr.WsRetriveTrades("BTC_USDT")
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
