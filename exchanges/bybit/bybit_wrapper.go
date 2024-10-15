@@ -679,6 +679,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 				Fee:             withdrawals.Rows[i].WithdrawFee.Float64(),
 				CryptoToAddress: withdrawals.Rows[i].ToAddress,
 				CryptoTxID:      withdrawals.Rows[i].TransactionID,
+				CryptoChain:     withdrawals.Rows[i].Chain,
 				Timestamp:       withdrawals.Rows[i].UpdateTime.Time(),
 			}
 		}
