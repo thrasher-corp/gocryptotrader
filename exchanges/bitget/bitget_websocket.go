@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -605,31 +606,59 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			resp := make([]order.Detail, len(positions))
+			resp := make([]futures.PositionHistory, len(positions))
 			for i := range positions {
 				pair, err := pairFromStringHelper(positions[i].InstrumentID)
 				if err != nil {
 					return err
 				}
-				resp[i] = order.Detail{
-					Exchange:             bi.Name,
-					AssetType:            asset.Futures,
-					Pair:                 pair,
-					OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
-					MarginType:           marginDecoder(positions[i].MarginMode),
-					Side:                 sideDecoder(positions[i].HoldSide),
-					AverageExecutedPrice: positions[i].OpenPriceAverage,
-					Date:                 positions[i].CreationTime.Time(),
-					LastUpdated:          positions[i].UpdateTime.Time(),
+				resp[i] = futures.PositionHistory{
+					Exchange:          bi.Name,
+					PositionID:        strconv.FormatInt(positions[i].PositionID, 10),
+					Pair:              pair,
+					MarginCoin:        currency.NewCode(positions[i].MarginCoin),
+					MarginType:        marginDecoder(positions[i].MarginMode),
+					Side:              sideDecoder(positions[i].HoldSide),
+					PositionMode:      positionModeDecoder(positions[i].PositionMode),
+					OpenAveragePrice:  positions[i].OpenPriceAverage,
+					CloseAveragePrice: positions[i].ClosePriceAverage,
+					OpenSize:          positions[i].OpenSize,
+					CloseSize:         positions[i].CloseSize,
+					RealisedPnl:       positions[i].AchievedProfits,
+					SettlementFee:     positions[i].SettleFee,
+					OpenFee:           positions[i].OpenFee,
+					CloseFee:          positions[i].CloseFee,
+					StartDate:         positions[i].CreationTime.Time(),
+					LastUpdated:       positions[i].UpdateTime.Time(),
 				}
 			}
+			// Implement a better handler for this once work on account.Holdings begins
 			bi.Websocket.DataHandler <- resp
 		case bitgetIndexPriceChannel:
-			// var indexPrice []WsIndexPriceResponse
-			// err := json.Unmarshal(wsResponse.Data, &indexPrice)
-			// if err != nil {
-			// 	return err
-			// }
+			var indexPrice []WsIndexPriceResponse
+			err := json.Unmarshal(wsResponse.Data, &indexPrice)
+			if err != nil {
+				return err
+			}
+			resp := make([]ticker.Price, len(indexPrice))
+			var cur int
+			for i := range indexPrice {
+				as := itemDecoder(wsResponse.Arg.InstrumentType)
+				pair, enabled, err := bi.MatchSymbolCheckEnabled(indexPrice[i].Symbol, as, false)
+				// The exchange sometimes returns unavailable pairs such as "USDT/USDT" which should be ignored
+				if !enabled || err != nil {
+					continue
+				}
+				resp[cur] = ticker.Price{
+					ExchangeName: bi.Name,
+					AssetType:    as,
+					Pair:         pair,
+					Last:         indexPrice[i].IndexPrice,
+					LastUpdated:  indexPrice[i].Timestamp.Time(),
+				}
+			}
+			resp = resp[:cur]
+			bi.Websocket.DataHandler <- resp
 		default:
 			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 		}
@@ -882,7 +911,7 @@ func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
 	for i := range subs {
 		subs[i].Channel = subscriptionNames[subs[i].Asset][subs[i].Channel]
 		switch subs[i].Channel {
-		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel:
+		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel, bitgetIndexPriceChannel:
 		default:
 			subs[i].Pairs = enabledPairs
 		}
@@ -1000,19 +1029,6 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 		errs = common.AppendError(errs, err)
 	}
 	return errs
-}
-
-// itemEncoder encodes an asset.Item into a string
-func itemEncoder(a asset.Item, pair currency.Pair) string {
-	switch a {
-	case asset.Spot:
-		return "SPOT"
-	case asset.Futures:
-		return getProductType(pair)
-	case asset.Margin, asset.CrossMargin:
-		return "MARGIN"
-	}
-	return ""
 }
 
 // GetSubscriptionTemplate returns a subscription channel template

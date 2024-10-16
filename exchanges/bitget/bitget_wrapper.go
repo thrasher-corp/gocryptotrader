@@ -237,22 +237,9 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			return nil, err
 		}
 		pairs := make(currency.Pairs, len(resp))
-		var cur int
 		for x := range resp {
-			if a == asset.Margin && resp[x].MaxIsolatedLeverage == 0 {
-				continue
-			}
-			if a == asset.CrossMargin && resp[x].MaxCrossedLeverage == 0 {
-				continue
-			}
-			pair, err := currency.NewPairFromString(resp[x].BaseCoin + "-" + resp[x].QuoteCoin)
-			if err != nil {
-				return nil, err
-			}
-			pairs[cur] = pair
-			cur++
+			pairs[x] = currency.NewPair(currency.NewCode(resp[x].BaseCoin), currency.NewCode(resp[x].QuoteCoin))
 		}
-		pairs = pairs[:cur]
 		return pairs, nil
 	}
 	return nil, asset.ErrNotSupported
@@ -261,7 +248,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := bi.GetAssetTypes(true)
+	assetTypes := bi.GetAssetTypes(false)
 	for x := range assetTypes {
 		pairs, err := bi.FetchTradablePairs(ctx, assetTypes[x])
 		if err != nil {
@@ -2663,7 +2650,7 @@ func itemDecoder(s string) asset.Item {
 	switch s {
 	case "spot", "SPOT":
 		return asset.Spot
-	case "margin":
+	case "margin", "MARGIN":
 		return asset.Margin
 	case "futures", "USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES", "SUSD-FUTURES", "SCOIN-FUTURES", "SUSDC-FUTURES":
 		return asset.Futures
@@ -2858,4 +2845,28 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, pairStr, productTyp
 		})
 	}
 	return resp, nil
+}
+
+// ItemEncoder encodes an asset.Item into a string
+func itemEncoder(a asset.Item, pair currency.Pair) string {
+	switch a {
+	case asset.Spot:
+		return "SPOT"
+	case asset.Futures:
+		return getProductType(pair)
+	case asset.Margin, asset.CrossMargin:
+		return "MARGIN"
+	}
+	return ""
+}
+
+// PositionModeDecoder is a helper function that returns the appropriate position mode for a given string
+func positionModeDecoder(s string) futures.PositionMode {
+	switch s {
+	case "one_way_mode":
+		return futures.OneWayMode
+	case "hedge_mode":
+		return futures.HedgeMode
+	}
+	return futures.UnknownMode
 }

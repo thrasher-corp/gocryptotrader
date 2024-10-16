@@ -1132,3 +1132,15 @@ func checkTrackerPrerequisitesLowerExchange(exch string, item asset.Item, cp cur
 	}
 	return exch, nil
 }
+
+// String implements the stringer interface
+func (t PositionMode) String() string {
+	switch t {
+	case OneWayMode:
+		return "OneWay"
+	case HedgeMode:
+		return "Hedge"
+	default:
+		return ""
+	}
+}
