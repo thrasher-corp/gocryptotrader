@@ -1372,6 +1372,49 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetOrderRespToOrderDetail(t *testing.T) {
+	t.Parallel()
+	mockData := &GetOrderResponse{
+		OrderConfiguration: OrderConfiguration{
+			MarketMarketIOC:       &MarketMarketIOC{},
+			LimitLimitGTC:         &LimitLimitGTC{},
+			LimitLimitGTD:         &LimitLimitGTD{},
+			StopLimitStopLimitGTC: &StopLimitStopLimitGTC{},
+			StopLimitStopLimitGTD: &StopLimitStopLimitGTD{},
+		},
+		SizeInQuote: false,
+		Side:        "BUY",
+		Status:      "OPEN",
+		Settled:     true,
+		EditHistory: []EditHistory{(EditHistory{})},
+	}
+	resp := c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x2, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPair}
+	assert.EqualValues(t, expected, resp)
+	mockData.Side = "SELL"
+	mockData.Status = "FILLED"
+	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	expected.Side = 0x4
+	expected.Status = 0x80
+	assert.EqualValues(t, expected, resp)
+	mockData.Status = "CANCELLED"
+	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	expected.Status = 0x100
+	assert.EqualValues(t, expected, resp)
+	mockData.Status = "EXPIRED"
+	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	expected.Status = 0x2000
+	assert.EqualValues(t, expected, resp)
+	mockData.Status = "FAILED"
+	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	expected.Status = 0x1000
+	assert.EqualValues(t, expected, resp)
+	mockData.Status = "UNKNOWN_ORDER_STATUS"
+	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	expected.Status = 0x0
+	assert.EqualValues(t, expected, resp)
+}
+
 func TestFiatTransferTypeString(t *testing.T) {
 	t.Parallel()
 	var f FiatTransferType
