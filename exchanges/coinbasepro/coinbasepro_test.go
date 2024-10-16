@@ -1092,7 +1092,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = c.UpdateOrderbook(context.Background(), currency.NewPairWithDelimiter("meow", "woof", "-"), asset.Spot)
 	assert.EqualValues(t, errInvalidProductID, err.Error())
-	resp, err := c.UpdateOrderbook(context.Background(), testPair, asset.Spot)
+	resp, err := c.UpdateOrderbook(context.Background(), testPair, asset.Futures)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
