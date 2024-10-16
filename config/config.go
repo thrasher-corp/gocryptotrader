@@ -30,7 +30,6 @@ import (
 )
 
 var (
-	// errExchangeConfigIsNil defines an error when the config is nil
 	errExchangeConfigIsNil = errors.New("exchange config is nil")
 	errPairsManagerIsNil   = errors.New("currency pairs manager is nil")
 )
