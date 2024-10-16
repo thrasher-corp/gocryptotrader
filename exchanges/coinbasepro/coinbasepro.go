@@ -833,15 +833,6 @@ func (c *CoinbasePro) GetPaymentMethodByID(ctx context.Context, paymentMethodID 
 	return &resp.PaymentMethod, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp, nil)
 }
 
-// ListNotifications lists the notifications the user is subscribed to
-func (c *CoinbasePro) ListNotifications(ctx context.Context, pag PaginationInp) (*ListNotificationsResponse, error) {
-	var resp *ListNotificationsResponse
-	var params Params
-	params.Values = url.Values{}
-	params.preparePagination(pag)
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseNotifications, params.Values, nil, false, &resp, nil)
-}
-
 // GetCurrentUser returns information about the user associated with the API key
 func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
 	resp := struct {

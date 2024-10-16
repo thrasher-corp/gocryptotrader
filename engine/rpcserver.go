@@ -2934,6 +2934,13 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 		return nil, err
 	}
 
+	if base.IsWebsocketEnabled() && base.Websocket.IsConnected() {
+		err = exch.FlushWebsocketChannels()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 

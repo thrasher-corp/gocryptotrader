@@ -220,7 +220,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -229,7 +229,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -356,8 +356,8 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          ticks.Data[i].Low,
 				Bid:          ticks.Data[i].Bid,
 				Ask:          ticks.Data[i].Ask,
-				Volume:       ticks.Data[i].Volume,
-				QuoteVolume:  ticks.Data[i].Amount,
+				Volume:       ticks.Data[i].Amount,
+				QuoteVolume:  ticks.Data[i].Volume,
 				Open:         ticks.Data[i].Open,
 				Close:        ticks.Data[i].Close,
 				BidSize:      ticks.Data[i].BidSize,
@@ -389,8 +389,8 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Volume.Float64(),
-				QuoteVolume:  ticks[i].Amount.Float64(),
+				Volume:       ticks[i].Amount.Float64(),
+				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
 				Close:        ticks[i].Close.Float64(),
 				Bid:          ticks[i].Bid[0],
@@ -439,12 +439,11 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				}
 				continue
 			}
-			tt := time.UnixMilli(ticks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Volume.Float64(),
-				QuoteVolume:  ticks[i].Amount.Float64(),
+				Volume:       ticks[i].Amount.Float64(),
+				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
 				Close:        ticks[i].Close.Float64(),
 				Bid:          ticks[i].Bid[0],
@@ -454,7 +453,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
-				LastUpdated:  tt,
+				LastUpdated:  time.UnixMilli(ticks[i].Timestamp),
 			})
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -483,7 +482,8 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         tickerData.Tick.High,
 			Low:          tickerData.Tick.Low,
-			Volume:       tickerData.Tick.Volume,
+			Volume:       tickerData.Tick.Amount,
+			QuoteVolume:  tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
 			Pair:         p,
@@ -509,7 +509,8 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
-			Volume:       marketData.Tick.Vol,
+			Volume:       marketData.Tick.Amount,
+			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
 			Pair:         p,
@@ -530,7 +531,8 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
-			Volume:       marketData.Tick.Vol,
+			Volume:       marketData.Tick.Amount,
+			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
 			Pair:         p,

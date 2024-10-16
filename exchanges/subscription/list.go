@@ -124,3 +124,25 @@ func (l List) Enabled() List {
 	}
 	return slices.Clip(n)
 }
+
+// Private returns only subscriptions which require authentication
+func (l List) Private() List {
+	n := List{}
+	for _, s := range l {
+		if s.Authenticated {
+			n = append(n, s)
+		}
+	}
+	return n
+}
+
+// Public returns only subscriptions which do not require authentication
+func (l List) Public() List {
+	n := List{}
+	for _, s := range l {
+		if !s.Authenticated {
+			n = append(n, s)
+		}
+	}
+	return n
+}

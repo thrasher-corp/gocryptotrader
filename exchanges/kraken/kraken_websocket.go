@@ -628,7 +628,7 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "%s Resubscribing to invalid %s orderbook", k.Name, pair)
 			go func() {
-				if e2 := k.Websocket.ResubscribeToChannel(s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
+				if e2 := k.Websocket.ResubscribeToChannel(k.Websocket.Conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
 					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", k.Name, pair, e2)
 				}
 			}()
@@ -981,7 +981,7 @@ func (k *Kraken) Subscribe(in subscription.List) error {
 	subs := subscription.List{}
 	for _, s := range in {
 		if s.State() != subscription.ResubscribingState {
-			if err := k.Websocket.AddSubscriptions(s); err != nil {
+			if err := k.Websocket.AddSubscriptions(k.Websocket.Conn, s); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 				continue
 			}
@@ -999,7 +999,7 @@ func (k *Kraken) Subscribe(in subscription.List) error {
 	for _, s := range subs {
 		if s.State() != subscription.SubscribedState {
 			_ = s.SetState(subscription.InactiveState)
-			if err := k.Websocket.RemoveSubscriptions(s); err != nil {
+			if err := k.Websocket.RemoveSubscriptions(k.Websocket.Conn, s); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 			}
 		}
@@ -1215,7 +1215,7 @@ func (k *Kraken) wsProcessSubStatus(resp []byte) {
 	if status == krakenWsSubscribed {
 		err = s.SetState(subscription.SubscribedState)
 	} else if s.State() != subscription.ResubscribingState { // Do not remove a resubscribing sub which just unsubbed
-		err = k.Websocket.RemoveSubscriptions(s)
+		err = k.Websocket.RemoveSubscriptions(k.Websocket.Conn, s)
 		if e2 := s.SetState(subscription.UnsubscribedState); e2 != nil {
 			err = common.AppendError(err, e2)
 		}

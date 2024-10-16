@@ -583,13 +583,6 @@ func TestGetPaymentMethodByID(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-func TestListNotifications(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.ListNotifications(context.Background(), PaginationInp{})
-	assert.NoError(t, err)
-}
-
 func TestGetCurrentUser(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)

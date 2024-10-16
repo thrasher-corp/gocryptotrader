@@ -374,9 +374,9 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 		if err = c.Websocket.Conn.SendJSONMessage(context.TODO(), limitType, r); err == nil {
 			switch op {
 			case "subscribe":
-				err = c.Websocket.AddSuccessfulSubscriptions(s)
+				err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, s)
 			case "unsubscribe":
-				err = c.Websocket.RemoveSubscriptions(s)
+				err = c.Websocket.RemoveSubscriptions(c.Websocket.Conn, s)
 			}
 		}
 		errs = common.AppendError(errs, err)
