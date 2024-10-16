@@ -58,10 +58,14 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		"positionsHistory":            bitgetPositionsHistoryChannel,
 	},
 	asset.Margin: {
-		"indexPrice": bitgetIndexPriceChannel,
+		"indexPrice":                 bitgetIndexPriceChannel,
+		subscription.MyOrdersChannel: bitgetOrdersIsolatedChannel,
+		"account":                    bitgetAccountIsolatedChannel,
 	},
 	asset.CrossMargin: {
-		"indexPrice": bitgetIndexPriceChannel,
+		"indexPrice":                 bitgetIndexPriceChannel,
+		subscription.MyOrdersChannel: bitgetOrdersCrossedChannel,
+		"account":                    bitgetAccountCrossedChannel,
 	},
 }
 
@@ -78,13 +82,17 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
+	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Futures},
+	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Margin},
+	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: false, Channel: "positions", Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: "positionsHistory", Authenticated: true, Asset: asset.Futures},
-	{Enabled: true, Channel: "indexPrice", Asset: asset.Margin},
+	{Enabled: false, Channel: "indexPrice", Asset: asset.Margin},
 }
 
 // WsConnect connects to a websocket feed
@@ -444,12 +452,14 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 						FillOrKill:           fok,
 						PostOnly:             po,
 						Side:                 side,
-						Fee:                  orders[i].FillFee,
-						FeeAsset:             currency.NewCode(orders[i].FillFeeCoin),
 						AverageExecutedPrice: orders[i].PriceAverage,
 						Status:               statusDecoder(orders[i].Status),
 						Date:                 orders[i].CreationTime.Time(),
 						LastUpdated:          orders[i].UpdateTime.Time(),
+					}
+					for x := range orders[i].FeeDetail {
+						resp[i].Fee += orders[i].FeeDetail[x].TotalFee
+						resp[i].FeeAsset = currency.NewCode(orders[i].FeeDetail[x].FeeCoin)
 					}
 				}
 				bi.Websocket.DataHandler <- resp
@@ -492,8 +502,6 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 						ExecutedAmount:       orders[i].FilledQuantity,
 						Date:                 orders[i].CreationTime.Time(),
 						ClientOrderID:        orders[i].ClientOrderID,
-						Fee:                  orders[i].FillFee,
-						FeeAsset:             currency.NewCode(orders[i].FillFeeCoin),
 						Leverage:             orders[i].Leverage,
 						MarginType:           marginDecoder(orders[i].MarginMode),
 						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
@@ -502,6 +510,10 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 						ReduceOnly:           bool(orders[i].ReduceOnly),
 						Status:               statusDecoder(orders[i].Status),
 						LastUpdated:          orders[i].UpdateTime.Time(),
+					}
+					for x := range orders[i].FeeDetail {
+						resp[i].Fee += orders[i].FeeDetail[x].Fee
+						resp[i].FeeAsset = currency.NewCode(orders[i].FeeDetail[x].FeeCoin)
 					}
 				}
 				bi.Websocket.DataHandler <- resp
@@ -659,6 +671,93 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			}
 			resp = resp[:cur]
 			bi.Websocket.DataHandler <- resp
+		case bitgetAccountCrossedChannel:
+			var acc []WsAccountCrossMarginResponse
+			err := json.Unmarshal(wsResponse.Data, &acc)
+			if err != nil {
+				return err
+			}
+			var hold account.Holdings
+			hold.Exchange = bi.Name
+			var sub account.SubAccount
+			hold.Accounts = append(hold.Accounts, sub)
+			sub.AssetType = asset.CrossMargin
+			sub.Currencies = make([]account.Balance, len(acc))
+			for i := range acc {
+				sub.Currencies[i] = account.Balance{
+					Currency:               currency.NewCode(acc[i].Coin),
+					Hold:                   acc[i].Frozen,
+					Free:                   acc[i].Available,
+					Borrowed:               acc[i].Borrow,
+					AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
+					Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
+				}
+			}
+			bi.Websocket.DataHandler <- hold
+		case bitgetOrdersCrossedChannel, bitgetOrdersIsolatedChannel:
+			var orders []WsOrderMarginResponse
+			err := json.Unmarshal(wsResponse.Data, &orders)
+			if err != nil {
+				return err
+			}
+			resp := make([]order.Detail, len(orders))
+			pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+			if err != nil {
+				return err
+			}
+			for i := range orders {
+				ioc, fok, po := strategyDecoder(orders[i].Force)
+				resp[i] = order.Detail{
+					Exchange:             bi.Name,
+					Pair:                 pair,
+					OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+					ClientOrderID:        orders[i].ClientOrderID,
+					AverageExecutedPrice: orders[i].FillPrice,
+					Price:                orders[i].Price,
+					Amount:               orders[i].BaseSize,
+					QuoteAmount:          orders[i].QuoteSize,
+					Type:                 typeDecoder(orders[i].OrderType),
+					ImmediateOrCancel:    ioc,
+					FillOrKill:           fok,
+					PostOnly:             po,
+					Side:                 sideDecoder(orders[i].Side),
+					Status:               statusDecoder(orders[i].Status),
+					Date:                 orders[i].CreationTime.Time(),
+				}
+				for x := range orders[i].FeeDetail {
+					resp[i].Fee += orders[i].FeeDetail[x].TotalFee
+					resp[i].FeeAsset = currency.NewCode(orders[i].FeeDetail[x].FeeCoin)
+				}
+				if wsResponse.Arg.Channel == bitgetOrdersIsolatedChannel {
+					resp[i].AssetType = asset.Margin
+				} else {
+					resp[i].AssetType = asset.CrossMargin
+				}
+			}
+			bi.Websocket.DataHandler <- resp
+		case bitgetAccountIsolatedChannel:
+			var acc []WsAccountIsolatedMarginResponse
+			err := json.Unmarshal(wsResponse.Data, &acc)
+			if err != nil {
+				return err
+			}
+			var hold account.Holdings
+			hold.Exchange = bi.Name
+			var sub account.SubAccount
+			hold.Accounts = append(hold.Accounts, sub)
+			sub.AssetType = asset.Margin
+			sub.Currencies = make([]account.Balance, len(acc))
+			for i := range acc {
+				sub.Currencies[i] = account.Balance{
+					Currency:               currency.NewCode(acc[i].Coin),
+					Hold:                   acc[i].Frozen,
+					Free:                   acc[i].Available,
+					Borrowed:               acc[i].Borrow,
+					AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
+					Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
+				}
+			}
+			bi.Websocket.DataHandler <- hold
 		default:
 			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 		}
@@ -911,7 +1010,7 @@ func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
 	for i := range subs {
 		subs[i].Channel = subscriptionNames[subs[i].Asset][subs[i].Channel]
 		switch subs[i].Channel {
-		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel, bitgetIndexPriceChannel:
+		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel, bitgetIndexPriceChannel, bitgetAccountCrossedChannel, bitgetAccountIsolatedChannel: // Not fully sure that bitgetIndexPriceChannel belongs here
 		default:
 			subs[i].Pairs = enabledPairs
 		}

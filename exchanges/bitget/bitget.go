@@ -213,6 +213,10 @@ const (
 	bitgetOrdersAlgoChannel       = "orders-algo"
 	bitgetPositionsChannel        = "positions"
 	bitgetPositionsHistoryChannel = "positions-history"
+	bitgetAccountCrossedChannel   = "account-crossed"
+	bitgetOrdersCrossedChannel    = "orders-crossed"
+	bitgetAccountIsolatedChannel  = "account-isolated"
+	bitgetOrdersIsolatedChannel   = "orders-isolated"
 
 	errIntervalNotSupported           = "interval not supported"
 	errAuthenticatedWebsocketDisabled = "%v AuthenticatedWebsocketAPISupport not enabled"

@@ -507,7 +507,7 @@ type BGBConvHistResp struct {
 	ToCoin        string        `json:"toCoin"`
 	ToAmount      float64       `json:"toAmount,string"`
 	ToCoinPrice   float64       `json:"toCoinPrice,string"`
-	FeeDetail     FeeAndCoin    `json:"feeDetail"`
+	FeeDetail     []FeeAndCoin  `json:"feeDetail"`
 	Status        SuccessBool   `json:"status"`
 	CreationTime  UnixTimestamp `json:"cTime"`
 }
@@ -2309,47 +2309,47 @@ type WsOrderBookResponse struct {
 
 // WsFillSpotResponse contains information on a fill response for spot trading
 type WsFillSpotResponse struct {
-	OrderID      int64             `json:"orderId,string"`
-	TradeID      int64             `json:"tradeId,string"`
-	Symbol       string            `json:"symbol"`
-	OrderType    string            `json:"orderType"`
-	Side         string            `json:"side"`
-	PriceAverage float64           `json:"priceAvg,string"`
-	Size         float64           `json:"size,string"`
-	Amount       float64           `json:"amount,string"`
-	TradeScope   string            `json:"tradeScope"`
-	FeeDetail    AbridgedFeeDetail `json:"feeDetail"`
-	CreationTime UnixTimestamp     `json:"cTime"`
-	UpdateTime   UnixTimestamp     `json:"uTime"`
+	OrderID      int64               `json:"orderId,string"`
+	TradeID      int64               `json:"tradeId,string"`
+	Symbol       string              `json:"symbol"`
+	OrderType    string              `json:"orderType"`
+	Side         string              `json:"side"`
+	PriceAverage float64             `json:"priceAvg,string"`
+	Size         float64             `json:"size,string"`
+	Amount       float64             `json:"amount,string"`
+	TradeScope   string              `json:"tradeScope"`
+	FeeDetail    []AbridgedFeeDetail `json:"feeDetail"`
+	CreationTime UnixTimestamp       `json:"cTime"`
+	UpdateTime   UnixTimestamp       `json:"uTime"`
 }
 
 // WsOrderSpotResponse contains information on an order response for spot trading
 type WsOrderSpotResponse struct {
-	InstrumentID      string            `json:"instId"`
-	OrderID           int64             `json:"orderId,string"`
-	ClientOrderID     string            `json:"clientOid"`
-	Price             float64           `json:"price,string"`
-	Size              float64           `json:"size,string"`
-	NewSize           float64           `json:"newSize,string"`
-	Notional          float64           `json:"notional,string"`
-	OrderType         string            `json:"orderType"`
-	Force             string            `json:"force"`
-	Side              string            `json:"side"`
-	FillPrice         float64           `json:"fillPrice,string"`
-	TradeID           int64             `json:"tradeId,string"`
-	BaseVolume        float64           `json:"baseVolume,string"`
-	FillTime          UnixTimestamp     `json:"fillTime"`
-	FillFee           float64           `json:"fillFee,string"`
-	FillFeeCoin       string            `json:"fillFeeCoin"`
-	TradeScope        string            `json:"tradeScope"`
-	AccountBaseVolume float64           `json:"accBaseVolume,string"`
-	PriceAverage      float64           `json:"priceAvg,string"`
-	Status            string            `json:"status"`
-	CreationTime      UnixTimestamp     `json:"cTime"`
-	UpdateTime        UnixTimestamp     `json:"uTime"`
-	STPMode           string            `json:"stpMode"`
-	FeeDetail         AbridgedFeeDetail `json:"feeDetail"`
-	EnterPointSource  string            `json:"enterPointSource"`
+	InstrumentID      string              `json:"instId"`
+	OrderID           int64               `json:"orderId,string"`
+	ClientOrderID     string              `json:"clientOid"`
+	Price             float64             `json:"price,string"`
+	Size              float64             `json:"size,string"`
+	NewSize           float64             `json:"newSize,string"`
+	Notional          float64             `json:"notional,string"`
+	OrderType         string              `json:"orderType"`
+	Force             string              `json:"force"`
+	Side              string              `json:"side"`
+	FillPrice         float64             `json:"fillPrice,string"`
+	TradeID           int64               `json:"tradeId,string"`
+	BaseVolume        float64             `json:"baseVolume,string"`
+	FillTime          UnixTimestamp       `json:"fillTime"`
+	FillFee           float64             `json:"fillFee,string"`
+	FillFeeCoin       string              `json:"fillFeeCoin"`
+	TradeScope        string              `json:"tradeScope"`
+	AccountBaseVolume float64             `json:"accBaseVolume,string"`
+	PriceAverage      float64             `json:"priceAvg,string"`
+	Status            string              `json:"status"`
+	CreationTime      UnixTimestamp       `json:"cTime"`
+	UpdateTime        UnixTimestamp       `json:"uTime"`
+	STPMode           string              `json:"stpMode"`
+	FeeDetail         []AbridgedFeeDetail `json:"feeDetail"`
+	EnterPointSource  string              `json:"enterPointSource"`
 }
 
 // WsTriggerOrderSpotResponse contains information on a trigger order response for spot trading
@@ -2414,21 +2414,21 @@ type WsPositionResponse struct {
 
 // WsFillFuturesResponse contains information on a fill response for futures trading
 type WsFillFuturesResponse struct {
-	OrderID      int64             `json:"orderId,string"`
-	TradeID      int64             `json:"tradeId,string"`
-	Symbol       string            `json:"symbol"`
-	Side         string            `json:"side"`
-	OrderType    string            `json:"orderType"`
-	PosMode      string            `json:"posMode"`
-	Price        float64           `json:"price,string"`
-	BaseVolume   float64           `json:"baseVolume,string"`
-	QuoteVolume  float64           `json:"quoteVolume,string"`
-	Profit       float64           `json:"profit,string"`
-	TradeSide    string            `json:"tradeSide"`
-	TradeScope   string            `json:"tradeScope"`
-	FeeDetail    AbridgedFeeDetail `json:"feeDetail"`
-	CreationTime UnixTimestamp     `json:"cTime"`
-	UpdateTime   UnixTimestamp     `json:"uTime"`
+	OrderID      int64               `json:"orderId,string"`
+	TradeID      int64               `json:"tradeId,string"`
+	Symbol       string              `json:"symbol"`
+	Side         string              `json:"side"`
+	OrderType    string              `json:"orderType"`
+	PosMode      string              `json:"posMode"`
+	Price        float64             `json:"price,string"`
+	BaseVolume   float64             `json:"baseVolume,string"`
+	QuoteVolume  float64             `json:"quoteVolume,string"`
+	Profit       float64             `json:"profit,string"`
+	TradeSide    string              `json:"tradeSide"`
+	TradeScope   string              `json:"tradeScope"`
+	FeeDetail    []AbridgedFeeDetail `json:"feeDetail"`
+	CreationTime UnixTimestamp       `json:"cTime"`
+	UpdateTime   UnixTimestamp       `json:"uTime"`
 }
 
 // WsOrderFuturesResponse contains information on an order response for futures trading
@@ -2436,7 +2436,7 @@ type WsOrderFuturesResponse struct {
 	FilledQuantity   float64       `json:"accBaseVolume,string"`
 	CreationTime     UnixTimestamp `json:"cTime"`
 	ClientOrderID    string        `json:"clientOid"`
-	FeeDetail        FeeAndCoin    `json:"feeDetail"`
+	FeeDetail        []FeeAndCoin  `json:"feeDetail"`
 	FillFee          float64       `json:"fillFee,string"`
 	FillFeeCoin      string        `json:"fillFeeCoin"`
 	FillNotionalUSD  float64       `json:"fillNotionalUsd,string"`
@@ -2522,4 +2522,50 @@ type WsIndexPriceResponse struct {
 	QuoteCoin  string        `json:"quoteCoin"`
 	IndexPrice float64       `json:"indexPrice,string"`
 	Timestamp  UnixTimestamp `json:"ts"`
+}
+
+// WsAccountCrossMarginResponse contains information on an account response for cross margin trading
+type WsAccountCrossMarginResponse struct {
+	UpdateTime UnixTimestamp `json:"uTime"`
+	ID         int64         `json:"id,string"`
+	Coin       string        `json:"coin"`
+	Available  float64       `json:"available,string"`
+	Borrow     float64       `json:"borrow,string"`
+	Frozen     float64       `json:"frozen,string"`
+	Interest   float64       `json:"interest,string"`
+	Coupon     float64       `json:"coupon,string"`
+}
+
+// WsOrderCrossMarginResponse contains information on an order response for margin trading
+type WsOrderMarginResponse struct {
+	Force            string              `json:"force"`
+	OrderType        string              `json:"orderType"`
+	Price            float64             `json:"price,string"`
+	QuoteSize        float64             `json:"quoteSize,string"`
+	Side             string              `json:"side"`
+	FeeDetail        []AbridgedFeeDetail `json:"feeDetail"`
+	EnterPointSource string              `json:"enterPointSource"`
+	Status           string              `json:"status"`
+	BaseSize         float64             `json:"baseSize,string"`
+	CreationTime     UnixTimestamp       `json:"cTime"`
+	ClientOrderID    string              `json:"clientOid"`
+	FillPrice        float64             `json:"fillPrice,string"`
+	BaseVolume       float64             `json:"baseVolume,string"`
+	FillTotalAmount  float64             `json:"fillTotalAmount,string"`
+	LoanType         string              `json:"loanType"`
+	OrderID          int64               `json:"orderId,string"`
+	STPMode          string              `json:"stpMode"`
+}
+
+// WsAccountisolatedMarginResponse contains information on an account response for isolated margin trading
+type WsAccountIsolatedMarginResponse struct {
+	UpdateTime UnixTimestamp `json:"uTime"`
+	ID         int64         `json:"id,string"`
+	Coin       string        `json:"coin"`
+	Symbol     string        `json:"symbol"`
+	Available  float64       `json:"available,string"`
+	Borrow     float64       `json:"borrow,string"`
+	Frozen     float64       `json:"frozen,string"`
+	Interest   float64       `json:"interest,string"`
+	Coupon     float64       `json:"coupon,string"`
 }
