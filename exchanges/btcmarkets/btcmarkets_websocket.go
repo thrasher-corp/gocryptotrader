@@ -297,13 +297,18 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
+		clientID := ""
+		if creds != nil {
+			clientID = creds.ClientID
+		}
+
 		b.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          originalAmount,
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
 			OrderID:         orderID,
-			ClientID:        creds.ClientID,
+			ClientID:        clientID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
