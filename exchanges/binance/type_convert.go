@@ -2,39 +2,11 @@ package binance
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-// binanceTime provides an internal conversion helper
-type binanceTime time.Time
-
-func (t *binanceTime) UnmarshalJSON(data []byte) error {
-	var result interface{}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return err
-	}
-
-	switch v := result.(type) {
-	case string:
-		timestamp, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return err
-		}
-		*t = binanceTime(time.UnixMilli(timestamp))
-	case float64:
-		*t = binanceTime(time.UnixMilli(int64(v)))
-	default:
-		return errors.New("invalid time format received")
-	}
-	return nil
-}
-
-// Time returns a time.Time object
-func (t binanceTime) Time() time.Time {
-	return time.Time(t)
-}
 
 // timeString gets the time as Binance timestamp
 func timeString(t time.Time) string {
@@ -45,7 +17,7 @@ func timeString(t time.Time) string {
 func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 	type Alias ExchangeInfo
 	aux := &struct {
-		Servertime binanceTime `json:"serverTime"`
+		Servertime types.Time `json:"serverTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -61,7 +33,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 func (a *AggregatedTrade) UnmarshalJSON(data []byte) error {
 	type Alias AggregatedTrade
 	aux := &struct {
-		TimeStamp binanceTime `json:"T"`
+		TimeStamp types.Time `json:"T"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -77,7 +49,7 @@ func (a *AggregatedTrade) UnmarshalJSON(data []byte) error {
 func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 	type Alias NewOrderResponse
 	aux := &struct {
-		TransactionTime binanceTime `json:"transactTime"`
+		TransactionTime types.Time `json:"transactTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -95,8 +67,8 @@ func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 func (a *TradeStream) UnmarshalJSON(data []byte) error {
 	type Alias TradeStream
 	aux := &struct {
-		TimeStamp binanceTime `json:"T"`
-		EventTime binanceTime `json:"E"`
+		TimeStamp types.Time `json:"T"`
+		EventTime types.Time `json:"E"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -113,10 +85,10 @@ func (a *TradeStream) UnmarshalJSON(data []byte) error {
 func (a *KlineStream) UnmarshalJSON(data []byte) error {
 	type Alias KlineStream
 	aux := &struct {
-		EventTime binanceTime `json:"E"`
+		EventTime types.Time `json:"E"`
 		Kline     struct {
-			StartTime binanceTime `json:"t"`
-			CloseTime binanceTime `json:"T"`
+			StartTime types.Time `json:"t"`
+			CloseTime types.Time `json:"T"`
 			*KlineStreamData
 		} `json:"k"`
 		*Alias
@@ -137,9 +109,9 @@ func (a *KlineStream) UnmarshalJSON(data []byte) error {
 func (a *TickerStream) UnmarshalJSON(data []byte) error {
 	type Alias TickerStream
 	aux := &struct {
-		EventTime binanceTime `json:"E"`
-		OpenTime  binanceTime `json:"O"`
-		CloseTime binanceTime `json:"C"`
+		EventTime types.Time `json:"E"`
+		OpenTime  types.Time `json:"O"`
+		CloseTime types.Time `json:"C"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -157,8 +129,8 @@ func (a *TickerStream) UnmarshalJSON(data []byte) error {
 func (a *PriceChangeStats) UnmarshalJSON(data []byte) error {
 	type Alias PriceChangeStats
 	aux := &struct {
-		OpenTime  binanceTime `json:"openTime"`
-		CloseTime binanceTime `json:"closeTime"`
+		OpenTime  types.Time `json:"openTime"`
+		CloseTime types.Time `json:"closeTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -175,7 +147,7 @@ func (a *PriceChangeStats) UnmarshalJSON(data []byte) error {
 func (a *RecentTrade) UnmarshalJSON(data []byte) error {
 	type Alias RecentTrade
 	aux := &struct {
-		Time binanceTime `json:"time"`
+		Time types.Time `json:"time"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -191,7 +163,7 @@ func (a *RecentTrade) UnmarshalJSON(data []byte) error {
 func (a *HistoricalTrade) UnmarshalJSON(data []byte) error {
 	type Alias HistoricalTrade
 	aux := &struct {
-		Time binanceTime `json:"time"`
+		Time types.Time `json:"time"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -207,8 +179,8 @@ func (a *HistoricalTrade) UnmarshalJSON(data []byte) error {
 func (a *QueryOrderData) UnmarshalJSON(data []byte) error {
 	type Alias QueryOrderData
 	aux := &struct {
-		Time       binanceTime `json:"time"`
-		UpdateTime binanceTime `json:"updateTime"`
+		Time       types.Time `json:"time"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -225,8 +197,8 @@ func (a *QueryOrderData) UnmarshalJSON(data []byte) error {
 func (a *FuturesOrderData) UnmarshalJSON(data []byte) error {
 	type Alias FuturesOrderData
 	aux := &struct {
-		Time       binanceTime `json:"time"`
-		UpdateTime binanceTime `json:"updateTime"`
+		Time       types.Time `json:"time"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -243,8 +215,8 @@ func (a *FuturesOrderData) UnmarshalJSON(data []byte) error {
 func (a *UFuturesOrderData) UnmarshalJSON(data []byte) error {
 	type Alias UFuturesOrderData
 	aux := &struct {
-		Time       binanceTime `json:"time"`
-		UpdateTime binanceTime `json:"updateTime"`
+		Time       types.Time `json:"time"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -261,8 +233,8 @@ func (a *UFuturesOrderData) UnmarshalJSON(data []byte) error {
 func (a *FuturesOrderGetData) UnmarshalJSON(data []byte) error {
 	type Alias FuturesOrderGetData
 	aux := &struct {
-		Time       binanceTime `json:"time"`
-		UpdateTime binanceTime `json:"updateTime"`
+		Time       types.Time `json:"time"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -279,8 +251,8 @@ func (a *FuturesOrderGetData) UnmarshalJSON(data []byte) error {
 func (a *UOrderData) UnmarshalJSON(data []byte) error {
 	type Alias UOrderData
 	aux := &struct {
-		Time       binanceTime `json:"time"`
-		UpdateTime binanceTime `json:"updateTime"`
+		Time       types.Time `json:"time"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -297,7 +269,7 @@ func (a *UOrderData) UnmarshalJSON(data []byte) error {
 func (a *Account) UnmarshalJSON(data []byte) error {
 	type Alias Account
 	aux := &struct {
-		UpdateTime binanceTime `json:"updateTime"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -313,7 +285,7 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 func (a *WebsocketDepthStream) UnmarshalJSON(data []byte) error {
 	type Alias WebsocketDepthStream
 	aux := &struct {
-		Timestamp binanceTime `json:"E"`
+		Timestamp types.Time `json:"E"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -330,8 +302,8 @@ func (a *wsAccountPosition) UnmarshalJSON(data []byte) error {
 	type Alias wsAccountPosition
 	aux := &struct {
 		Data struct {
-			EventTime   binanceTime `json:"E"`
-			LastUpdated binanceTime `json:"u"`
+			EventTime   types.Time `json:"E"`
+			LastUpdated types.Time `json:"u"`
 			*WsAccountPositionData
 		} `json:"data"`
 		*Alias
@@ -352,8 +324,8 @@ func (a *wsBalanceUpdate) UnmarshalJSON(data []byte) error {
 	type Alias wsBalanceUpdate
 	aux := &struct {
 		Data struct {
-			EventTime binanceTime `json:"E"`
-			ClearTime binanceTime `json:"T"`
+			EventTime types.Time `json:"E"`
+			ClearTime types.Time `json:"T"`
 			*WsBalanceUpdateData
 		} `json:"data"`
 		*Alias
@@ -374,10 +346,10 @@ func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
 	type Alias wsOrderUpdate
 	aux := &struct {
 		Data struct {
-			EventTime         binanceTime `json:"E"`
-			OrderCreationTime binanceTime `json:"O"`
-			TransactionTime   binanceTime `json:"T"`
-			WorkingTime       binanceTime `json:"W"`
+			EventTime         types.Time `json:"E"`
+			OrderCreationTime types.Time `json:"O"`
+			TransactionTime   types.Time `json:"T"`
+			WorkingTime       types.Time `json:"W"`
 			*WsOrderUpdateData
 		} `json:"data"`
 		*Alias
@@ -400,8 +372,8 @@ func (a *wsListStatus) UnmarshalJSON(data []byte) error {
 	type Alias wsListStatus
 	aux := &struct {
 		Data struct {
-			EventTime       binanceTime `json:"E"`
-			TransactionTime binanceTime `json:"T"`
+			EventTime       types.Time `json:"E"`
+			TransactionTime types.Time `json:"T"`
 			*WsListStatusData
 		} `json:"data"`
 		*Alias
@@ -422,7 +394,7 @@ func (a *FuturesAccountInformationPosition) UnmarshalJSON(data []byte) error {
 	type Alias FuturesAccountInformationPosition
 
 	aux := &struct {
-		UpdateTime binanceTime `json:"updateTime"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -442,7 +414,7 @@ func (a *FuturesAccountInformation) UnmarshalJSON(data []byte) error {
 	type Alias FuturesAccountInformation
 
 	aux := &struct {
-		UpdateTime binanceTime `json:"updateTime"`
+		UpdateTime types.Time `json:"updateTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),

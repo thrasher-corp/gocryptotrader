@@ -2502,16 +2502,16 @@ type BlockTicker struct {
 
 // BlockTrade represents a block trade.
 type BlockTrade struct {
-	InstrumentID   string               `json:"instId"`
-	TradeID        string               `json:"tradeId"`
-	Price          types.Number         `json:"px"`
-	Size           types.Number         `json:"sz"`
-	Side           order.Side           `json:"side"`
-	FillVolatility types.Number         `json:"fillVol"`
-	ForwardPrice   types.Number         `json:"fwdPx"`
-	IndexPrice     types.Number         `json:"idxPx"`
-	MarkPrice      types.Number         `json:"markPx"`
-	Timestamp      convert.ExchangeTime `json:"ts"`
+	InstrumentID   string       `json:"instId"`
+	TradeID        string       `json:"tradeId"`
+	Price          types.Number `json:"px"`
+	Size           types.Number `json:"sz"`
+	Side           order.Side   `json:"side"`
+	FillVolatility types.Number `json:"fillVol"`
+	ForwardPrice   types.Number `json:"fwdPx"`
+	IndexPrice     types.Number `json:"idxPx"`
+	MarkPrice      types.Number `json:"markPx"`
+	Timestamp      types.Time   `json:"ts"`
 }
 
 // SpreadOrderParam holds parameters for spread orders.

@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -477,7 +476,7 @@ func (ku *Kucoin) GetSingleIsolatedMarginAccountInfo(ctx context.Context, symbol
 // GetCurrentServerTime gets the server time
 func (ku *Kucoin) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
-		Timestamp convert.ExchangeTime `json:"data"`
+		Timestamp types.Time `json:"data"`
 		Error
 	}{}
 	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, currentServerTimeEPL, "/v1/timestamp", &resp)
