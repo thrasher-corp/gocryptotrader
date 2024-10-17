@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -55,106 +54,6 @@ const (
 
 	okxAPIWebsocketPublicURL  = okxWebsocketURL + "public"
 	okxAPIWebsocketPrivateURL = okxWebsocketURL + "private"
-)
-
-var (
-	errNo24HrTradeVolumeFound                 = errors.New("no trade record found in the 24 trade volume")
-	errOracleInformationNotFound              = errors.New("oracle information not found")
-	errExchangeInfoNotFound                   = errors.New("exchange information not found")
-	errIndexComponentNotFound                 = errors.New("unable to fetch index components")
-	errLimitValueExceedsMaxOf100              = errors.New("limit value exceeds the maximum value 100")
-	errMissingInstrumentID                    = errors.New("missing instrument id")
-	errFundingRateHistoryNotFound             = errors.New("funding rate history not found")
-	errMissingRequiredUnderlying              = errors.New("error missing required parameter underlying")
-	errMissingRequiredParamInstID             = errors.New("missing required parameter instrument id")
-	errLiquidationOrderResponseNotFound       = errors.New("liquidation order not found")
-	errEitherInstIDOrCcyIsRequired            = errors.New("either parameter instId or ccy is required")
-	errIncorrectRequiredParameterTradeMode    = errors.New("unacceptable required argument, trade mode")
-	errInterestRateAndLoanQuotaNotFound       = errors.New("interest rate and loan quota not found")
-	errInsuranceFundInformationNotFound       = errors.New("insurance fund information not found")
-	errMissingExpiryTimeParameter             = errors.New("missing expiry date parameter")
-	errInvalidTradeModeValue                  = errors.New("invalid trade mode value")
-	errMissingClientOrderIDOrOrderID          = errors.New("client order id or order id is missing")
-	errWebsocketStreamNotAuthenticated        = errors.New("websocket stream not authenticated")
-	errInvalidNewSizeOrPriceInformation       = errors.New("invalid the new size or price information")
-	errSizeOrPriceIsRequired                  = errors.New("either size or price is required")
-	errMissingNewSize                         = errors.New("missing the order size information")
-	errMissingMarginMode                      = errors.New("missing required param margin mode 'mgnMode'")
-	errInvalidTriggerPrice                    = errors.New("invalid trigger price value")
-	errInvalidPriceLimit                      = errors.New("invalid price limit value")
-	errMissingIntervalValue                   = errors.New("missing interval value")
-	errMissingTakeProfitTriggerPrice          = errors.New("missing take profit trigger price")
-	errMissingTakeProfitOrderPrice            = errors.New("missing take profit order price")
-	errMissingSizeLimit                       = errors.New("missing required parameter 'szLimit'")
-	errMissingEitherAlgoIDOrState             = errors.New("either algo id or order state is required")
-	errUnacceptableAmount                     = errors.New("amount must be greater than 0")
-	errMissingValidWithdrawalID               = errors.New("missing valid withdrawal id")
-	errInstrumentFamilyRequired               = errors.New("instrument family is required")
-	errCountdownTimeoutRequired               = errors.New("countdown timeout is required")
-	errInstrumentIDorFamilyRequired           = errors.New("either instrumen id or instrument family is required")
-	errInvalidQuantityLimit                   = errors.New("invalid quantity limit")
-	errInstrumentTypeRequired                 = errors.New("instrument type required")
-	errInvalidInstrumentType                  = errors.New("invalid instrument type")
-	errMissingValidGreeksType                 = errors.New("missing valid greeks type")
-	errMissingIsolatedMarginTradingSetting    = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
-	errInvalidCounterParties                  = errors.New("missing counter parties")
-	errMissingRfqIDAndClientRfqID             = errors.New("missing rfq id or client rfq id")
-	errMissingRfqIDOrQuoteID                  = errors.New("either Rfq ID or Quote ID is missing")
-	errMissingRfqID                           = errors.New("error missing rfq id")
-	errMissingLegs                            = errors.New("missing legs")
-	errMissingSizeOfQuote                     = errors.New("missing size of quote leg")
-	errMossingLegsQuotePrice                  = errors.New("error missing quote price")
-	errMissingQuoteIDOrClientQuoteID          = errors.New("missing quote id or client quote id")
-	errMissingEitherQuoteIDAOrClientQuoteIDs  = errors.New("missing either quote ids or client quote ids")
-	errMissingRequiredParameterSubaccountName = errors.New("missing required parameter subaccount name")
-	errInvalidLoanAllocationValue             = errors.New("invalid loan allocation value, must be between 0 to 100")
-	errInvalidSubaccount                      = errors.New("invalid account type")
-	errMissingDestinationSubaccountName       = errors.New("missing destination subaccount name")
-	errMissingInitialSubaccountName           = errors.New("missing initial subaccount name")
-	errMissingAlgoOrderType                   = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
-	errInvalidMaximumPrice                    = errors.New("invalid maximum price")
-	errInvalidMinimumPrice                    = errors.New("invalid minimum price")
-	errInvalidGridQuantity                    = errors.New("invalid grid quantity (grid number)")
-	errMissingRequiredArgumentDirection       = errors.New("missing required argument, direction")
-	errRequiredParameterMissingLeverage       = errors.New("missing required parameter, leverage")
-	errMissingValidStopType                   = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
-	errMissingSubOrderType                    = errors.New("missing sub order type")
-	errMissingQuantity                        = errors.New("invalid quantity to buy or sell")
-	errDepositAddressNotFound                 = errors.New("deposit address with the specified currency code and chain not found")
-	errAddressRequired                        = errors.New("address is required")
-	errInvalidWebsocketEvent                  = errors.New("invalid websocket event")
-	errMissingValidChannelInformation         = errors.New("missing channel information")
-	errMaxRfqOrdersToCancel                   = errors.New("no more than 100 Rfq cancel order parameter is allowed")
-	errMalformedData                          = errors.New("malformed data")
-	errInvalidUnderlying                      = errors.New("invalid underlying")
-	errInstrumentFamilyOrUnderlyingRequired   = errors.New("either underlying or instrument family is required")
-	errMissingRequiredParameter               = errors.New("missing required parameter")
-	errMissingMakerInstrumentSettings         = errors.New("missing maker instrument settings")
-	errInvalidSubAccountName                  = errors.New("invalid sub-account name")
-	errInvalidAPIKey                          = errors.New("invalid api key")
-	errInvalidMarginTypeAdjust                = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
-	errInvalidAlgoOrderType                   = errors.New("invalid algo order type")
-	errInvalidIPAddress                       = errors.New("invalid ip address")
-	errInvalidAPIKeyPermission                = errors.New("invalid API Key permission")
-	errInvalidResponseParam                   = errors.New("invalid response parameter, response must be non-nil pointer")
-	errTooManyArgument                        = errors.New("too many cancel request params")
-	errInvalidDuration                        = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
-	errInvalidProtocolType                    = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
-	errExceedLimit                            = errors.New("limit exceeded")
-	errOnlyThreeMonthsSupported               = errors.New("only three months of trade data retrieval supported")
-	errOnlyOneResponseExpected                = errors.New("one response item expected")
-	errNoInstrumentFound                      = errors.New("no instrument found")
-	errStrategyNameRequired                   = errors.New("strategy name required")
-	errSubPositionIDRequired                  = errors.New("sub position id is required")
-	errUserIDRequired                         = errors.New("uid is required")
-	errSubPositionCloseTypeRequired           = errors.New("sub position close type")
-	errUniqueCodeRequired                     = errors.New("unique code is required")
-	errLastDaysRequired                       = errors.New("last days required")
-	errCopyInstrumentIDTypeRequired           = errors.New("copy instrument ID type is required")
-	errInvalidChecksum                        = errors.New("invalid checksum")
-	errInvalidPositionMode                    = errors.New("invalid position mode")
-	errLendingTermIsRequired                  = errors.New("lending term is required")
-	errLendingRateRequired                    = errors.New("lending rate is required")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -294,7 +193,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, errors.New("either order id or client id is required")
+		return nil, errMissingClientOrderIDOrOrderID
 	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, true)
@@ -319,7 +218,7 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, errors.New("either order id or client id is required")
+			return nil, errMissingClientOrderIDOrOrderID
 		}
 	}
 	var resp []OrderData
@@ -516,7 +415,7 @@ func (ok *Okx) SetTransactionDetailIntervalFor2Years(ctx context.Context, arg *F
 		return time.Time{}, common.ErrNilPointer
 	}
 	resp := &struct {
-		Timestamp convert.ExchangeTime `json:"ts"`
+		Timestamp types.Time `json:"ts"`
 	}{}
 	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, setTransactionDetail2YearIntervalEPL, http.MethodPost, "trade/fills-archive", arg, &resp, true)
 }
@@ -527,7 +426,7 @@ func (ok *Okx) GetTransactionDetailsLast2Year(ctx context.Context, year int64, q
 		return nil, errors.New("year is required")
 	}
 	if quarter == "" {
-		return nil, errors.New("quarter is required; possible values are Q1, Q2, Q3, and Q4")
+		return nil, fmt.Errorf("%w; possible values are Q1, Q2, Q3, and Q4", errQuarterValueRequired)
 	}
 	params := url.Values{}
 	params.Set("year", strconv.FormatInt(year, 10))
@@ -759,7 +658,7 @@ func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID
 func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	orderType = strings.ToLower(orderType)
 	if orderType == "" {
-		return nil, errors.New("order type is required")
+		return nil, order.ErrTypeIsInvalid
 	}
 	params := url.Values{}
 	params.Set("ordType", orderType)
@@ -792,7 +691,7 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 // GetAlgoOrderHistory load a list of all algo orders under the current account in the last 3 months.
 func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	if orderType == "" {
-		return nil, errors.New("order type is required")
+		return nil, order.ErrTypeIsInvalid
 	}
 	if algoOrderID == "" &&
 		state != "effective" &&
@@ -1042,7 +941,7 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 // ResetRFQMMPStatus reset the MMP status to be inactive.
 func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 	resp := &struct {
-		Timestamp convert.ExchangeTime `json:"ts"`
+		Timestamp types.Time `json:"ts"`
 	}{}
 	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, true)
 }
@@ -1403,7 +1302,7 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 	case input.WithdrawalDestination == "":
 		return nil, fmt.Errorf("%w, withdrawal destination required", errAddressRequired)
 	case input.ToAddress == "":
-		return nil, errors.New("missing verified digital currency address \"toAddr\" information")
+		return nil, fmt.Errorf("%w, missing verified digital currency address \"toAddr\" information", errAddressRequired)
 	}
 	var resp *WithdrawalResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, "asset/withdrawal", &input, &resp, true)
@@ -2400,7 +2299,7 @@ func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*R
 // ActivateOption activates option
 func (ok *Okx) ActivateOption(ctx context.Context) (time.Time, error) {
 	resp := &struct {
-		Timestamp convert.ExchangeTime `json:"ts"`
+		Timestamp types.Time `json:"ts"`
 	}{}
 	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, true)
 }
@@ -3033,7 +2932,7 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 		return nil, fmt.Errorf("%w, minPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
 	}
 	if arg.GridNumber == 0 {
-		return nil, errors.New("grid number is required")
+		return nil, fmt.Errorf("%w, grid number is required", errInvalidGridQuantity)
 	}
 	if arg.RunType == "" {
 		return nil, errors.New("runType is required; possible values are 1: Arithmetic, 2: Geometric")
@@ -3136,7 +3035,7 @@ func (ok *Okx) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderType,
 		return nil, errInvalidAlgoOrderType
 	}
 	if subOrderType == "" && clientOrderID == "" {
-		return nil, errors.New("either client order ID or sub-order state is required")
+		return nil, fmt.Errorf("%w, either client order ID or sub-order state is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)

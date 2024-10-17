@@ -507,7 +507,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 			if len(underlyings) > 0 {
 				if len(underlyings) != len(instrumentIDs) {
-					return errors.New("mismatch in instrument IDs and underlyings length")
+					return fmt.Errorf("%w, instrument IDs and underlyings length is not equal", errLengthMismatch)
 				}
 				for uliID := range underlyings {
 					args[uliID].Underlying = underlyings[uliID]
@@ -1104,7 +1104,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	if response.Argument.Channel == okxChannelOrderBooks &&
 		response.Action != wsOrderbookUpdate &&
 		response.Action != wsOrderbookSnapshot {
-		return errors.New("invalid order book action")
+		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
 	}
 	assets, err := ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
 	if err != nil {
@@ -1775,7 +1775,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, errors.New("either order id or client supplier id is required")
+		return nil, errMissingClientOrderIDOrOrderID
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, errWebsocketStreamNotAuthenticated
@@ -1825,7 +1825,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, errors.New("either order id or client supplier id is required")
+			return nil, errMissingClientOrderIDOrOrderID
 		}
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {

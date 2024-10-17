@@ -259,9 +259,9 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 				return err
 			}
 			if operation == operationUnsubscribe {
-				err = ok.Websocket.RemoveSubscriptions(channels...)
+				err = ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
 			} else {
-				err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
+				err = ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
 			}
 			if err != nil {
 				return err
@@ -278,10 +278,10 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		err = ok.Websocket.RemoveSubscriptions(channels...)
+		err = ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
+		err = ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
 	}
 	return err
 }

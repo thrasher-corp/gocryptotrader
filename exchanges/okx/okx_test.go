@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -53,40 +52,26 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	ok = new(Okx)
+	if err := testexch.Setup(ok); err != nil {
 		log.Fatal(err)
 	}
-	exchCfg, err := cfg.GetExchangeConfig("Okx")
-	if err != nil {
-		log.Fatal(err)
-	}
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = passphrase
-	ok.SetDefaults()
+
 	if apiKey != "" && apiSecret != "" && passphrase != "" {
-		exchCfg.API.AuthenticatedSupport = true
-		exchCfg.API.AuthenticatedWebsocketSupport = true
+		ok.API.AuthenticatedSupport = true
+		ok.API.AuthenticatedWebsocketSupport = true
+		ok.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		ok.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
+
 	if !useTestNet {
 		ok.Websocket = sharedtestvalues.NewTestWebsocket()
-	}
-	err = ok.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ok.UpdateTradablePairs(contextGenerate(), true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !useTestNet {
 		ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 		setupWS()
 	}
-	err = populateTradablePairs()
+	err := populateTradablePairs()
 	if err != nil {
 		log.Fatal(err)
 	}
