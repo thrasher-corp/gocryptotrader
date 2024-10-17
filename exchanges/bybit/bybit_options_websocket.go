@@ -73,7 +73,7 @@ func (by *Bybit) OptionUnsubscribe(channelSubscriptions subscription.List) error
 }
 
 func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
-	payloads, err := by.handleSubscriptions(asset.Options, operation, channelSubscriptions)
+	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}
