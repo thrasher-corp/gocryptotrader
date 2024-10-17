@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -3743,4 +3744,35 @@ func TestSubscribe(t *testing.T) {
 	testexch.SetupWs(t, b)
 	err = b.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
+}
+
+func TestAuthSubcribe(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	b.Features.Subscriptions = subscription.List{}
+	success := true
+	mock := func(msg []byte, w *websocket.Conn) error {
+		var req SubscriptionArgument
+		require.NoError(t, json.Unmarshal(msg, &req), "Unmarshal must not error")
+		require.Equal(t, "subscribe", req.Operation)
+		msg, err = json.Marshal(SubscriptionResponse{
+			Success:   success,
+			RetMsg:    "Mock Resp Error",
+			RequestID: req.RequestID,
+			Operation: req.Operation,
+		})
+		require.NoError(t, err, "Marshal must not error")
+		return w.WriteMessage(websocket.TextMessage, msg)
+	}
+	b = testexch.MockWsInstance[Bybit](t, testexch.CurryWsMockUpgrader(t, mock))
+	b.Websocket.AuthConn = b.Websocket.Conn
+	err = b.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+	success = false
+	err = b.Subscribe(subs)
+	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
 }
