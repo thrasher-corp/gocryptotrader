@@ -90,6 +90,10 @@ type ConnectionSetup struct {
 	// `asset.Spot`, a string type denoting the individual URL, an
 	// authenticated or unauthenticated string or a mixture of these.
 	OutboundRequestSignature any
+	// ConnectionDoesNotRequireSubscriptions is for when this is a dedicated connection for only outbound requests.
+	// Subscription generation and handling is not required. Please use dummy functions `SubscriberNotRequired` &
+	// `SubscriptionGenerationNotRequired` for fields.
+	ConnectionDoesNotRequireSubscriptions bool
 }
 
 // SubscriberNotRequired is a default subscriber function that can be used when a connection does not require
@@ -101,7 +105,7 @@ func SubscriberNotRequired(ctx context.Context, conn Connection, sub subscriptio
 // SubscriptionGenerationNotRequired is a default subscription generation function that can be used when a connection
 // does not require subscription functionality. This returns a single dummy subscription to spawn a connection.
 func SubscriptionGenerationNotRequired() (subscription.List, error) {
-	return subscription.List{{Channel: "INTENTIONAL_DUMMY"}}, nil
+	return nil, nil
 }
 
 // ConnectionWrapper contains the connection setup details to be used when

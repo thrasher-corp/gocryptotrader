@@ -396,7 +396,7 @@ func (w *Websocket) connect() error {
 			break
 		}
 
-		if len(subs) == 0 {
+		if len(subs) == 0 && !w.connectionManager[i].Setup.ConnectionDoesNotRequireSubscriptions {
 			// If no subscriptions are generated, we skip the connection
 			if w.verbose {
 				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", w.exchangeName)
