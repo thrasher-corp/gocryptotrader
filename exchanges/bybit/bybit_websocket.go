@@ -274,6 +274,7 @@ func (by *Bybit) GenerateDefaultSubscriptions() (subscription.List, error) {
 				&subscription.Subscription{
 					Channel: channels[x],
 					Asset:   asset.Spot,
+					Pairs:   currency.Pairs{currency.EMPTYPAIR}, // Quick fix for private channels
 				})
 		default:
 			for z := range pairs {
@@ -409,7 +410,7 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
 		if err != nil {
 			return err
 		}
@@ -450,7 +451,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
 		if err != nil {
 			return err
 		}
@@ -501,7 +502,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(result.Symbol)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, true)
 	if err != nil {
 		return err
 	}
@@ -512,7 +513,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 		Pair:         cp,
 		ExchangeName: by.Name,
 		AssetType:    assetType,
-		LastUpdated:  resp.Timestamp.Time(),
+		LastUpdated:  resp.PushTimestamp.Time(),
 	}
 	return nil
 }
@@ -523,7 +524,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(topicSplit[2])
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, true)
 	if err != nil {
 		return err
 	}
@@ -567,7 +568,7 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(topicSplit[2])
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, true)
 	if err != nil {
 		return err
 	}
@@ -628,7 +629,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	}
 
 	updateTicker(tick, tickResp)
-	tick.LastUpdated = resp.Timestamp.Time()
+	tick.LastUpdated = resp.PushTimestamp.Time()
 
 	if err = ticker.ProcessTicker(tick); err == nil {
 		by.Websocket.DataHandler <- tick
@@ -703,7 +704,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 	}
 	tradeDatas := make([]trade.Data, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
 		if err != nil {
 			return err
 		}
@@ -731,7 +732,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(result.Symbol)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, true)
 	if err != nil {
 		return err
 	}
@@ -760,31 +761,25 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if len(asks) == 0 && len(bids) == 0 {
 		return nil
 	}
-	if resp.Type == "snapshot" || result.UpdateID == 1 {
-		err = by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:         cp,
-			Exchange:     by.Name,
-			Asset:        assetType,
-			LastUpdated:  resp.Timestamp.Time(),
-			LastUpdateID: result.Sequence,
-			Asks:         asks,
-			Bids:         bids,
+	if resp.Type == "snapshot" {
+		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Pair:           cp,
+			Exchange:       by.Name,
+			Asset:          assetType,
+			LastUpdated:    resp.OrderbookLastUpdated.Time(),
+			LastUpdateID:   result.UpdateID,
+			UpdatePushedAt: resp.PushTimestamp.Time(),
+			Asks:           asks,
+			Bids:           bids,
 		})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = by.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
-			Asks:       asks,
-			Bids:       bids,
-			Asset:      assetType,
-			UpdateID:   result.Sequence,
-			UpdateTime: resp.Timestamp.Time(),
-		})
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+	return by.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:           cp,
+		Asks:           asks,
+		Bids:           bids,
+		Asset:          assetType,
+		UpdateID:       result.UpdateID,
+		UpdateTime:     resp.OrderbookLastUpdated.Time(),
+		UpdatePushedAt: resp.PushTimestamp.Time(),
+	})
 }
