@@ -974,8 +974,7 @@ func (b *Base) SupportsAsset(a asset.Item) bool {
 // PrintEnabledPairs prints the exchanges enabled asset pairs
 func (b *Base) PrintEnabledPairs() {
 	for k, v := range b.CurrencyPairs.Pairs {
-		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
-			b.Name, strings.ToUpper(k.String()), v.Enabled)
+		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v", b.Name, strings.ToUpper(k.String()), v.Enabled)
 	}
 }
 
@@ -986,10 +985,7 @@ func (b *Base) GetBase() *Base { return b }
 // for validation of API credentials
 func (b *Base) CheckTransientError(err error) error {
 	if _, ok := err.(net.Error); ok {
-		log.Warnf(log.ExchangeSys,
-			"%s net error captured, will not disable authentication %s",
-			b.Name,
-			err)
+		log.Warnf(log.ExchangeSys, "%s net error captured, will not disable authentication %s", b.Name, err)
 		return nil
 	}
 	return err
@@ -1948,4 +1944,19 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 		return protocol.TradingRequirements{}
 	}
 	return b.Features.TradingRequirements
+}
+
+// WebsocketSubmitOrder submits an order to the exchange via a websocket connection
+func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketModifyOrder cancels an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
 }

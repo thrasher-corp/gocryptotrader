@@ -223,12 +223,16 @@ func TestConnectionMessageErrors(t *testing.T) {
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
 	ws.useMultiConnectionManagement = true
+	ws.SetCanUseAuthenticatedEndpoints(true)
+	ws.verbose = true // NOTE: Intentional
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
+
+	ws.connectionManager[0].Setup.Authenticate = func(context.Context, Connection) error { return errDastardlyReason }
 
 	ws.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) {
 		return nil, errDastardlyReason
@@ -371,7 +375,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -464,7 +468,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
 	multi.connections = map[Connection]*ConnectionWrapper{
-		amazingConn: &multi.connectionManager[0],
+		amazingConn: multi.connectionManager[0],
 	}
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
@@ -1483,4 +1487,44 @@ func TestMonitorTraffic(t *testing.T) {
 	ws.setState(connectedState)
 	ws.TrafficAlert <- struct{}{}
 	require.False(t, innerShell())
+}
+
+func TestGetOutboundConnection(t *testing.T) {
+	t.Parallel()
+	var ws *Websocket
+	_, err := ws.GetOutboundConnection("")
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	ws = &Websocket{}
+	_, err = ws.GetOutboundConnection("")
+	require.ErrorIs(t, err, ErrRequestRouteNotSet)
+
+	_, err = ws.GetOutboundConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	ws.setState(connectedState)
+	_, err = ws.GetOutboundConnection("testURL")
+	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
+
+	ws.useMultiConnectionManagement = true
+	_, err = ws.GetOutboundConnection("testURL")
+	require.ErrorIs(t, err, ErrRequestRouteNotFound)
+
+	ws.connectionManager = []*ConnectionWrapper{{
+		Setup: &ConnectionSetup{URL: "testURL"},
+	}}
+
+	ws.outbound = map[any]*ConnectionWrapper{
+		"testURL": ws.connectionManager[0],
+	}
+
+	_, err = ws.GetOutboundConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	expected := &WebsocketConnection{}
+	ws.connectionManager[0].Connection = expected
+
+	conn, err := ws.GetOutboundConnection("testURL")
+	require.NoError(t, err)
+	assert.Same(t, expected, conn)
 }

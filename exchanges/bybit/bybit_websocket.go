@@ -3,6 +3,7 @@ package bybit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -53,103 +54,106 @@ const (
 
 	// Main-net private
 	websocketPrivate = "wss://stream.bybit.com/v5/private"
+	websocketTrade   = "wss://stream.bybit.com/v5/trade"
 )
 
 // WsConnect connects to a websocket feed
-func (by *Bybit) WsConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
-		return stream.ErrWebsocketNotEnabled
-	}
-	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
+func (by *Bybit) WsConnect(ctx context.Context, conn stream.Connection) error {
+	if err := conn.DialContext(ctx, &websocket.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
-
-	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Spot, by.Websocket.Conn)
-	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = by.WsAuth(context.TODO())
-		if err != nil {
-			by.Websocket.DataHandler <- err
-			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
 	return nil
 }
 
-// WsAuth sends an authentication message to receive auth data
-func (by *Bybit) WsAuth(ctx context.Context) error {
-	var dialer websocket.Dialer
-	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+// WebsocketAuthenticatePrivateConnection sends an authentication message to the private websocket for inbound account
+// data
+func (by *Bybit) WebsocketAuthenticatePrivateConnection(ctx context.Context, conn stream.Connection) error {
+	req, err := by.GetAuthenticationPayload(ctx, strconv.FormatInt(conn.GenerateMessageID(false), 10))
 	if err != nil {
 		return err
 	}
-
-	by.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
-		Message:     []byte(`{"op":"ping"}`),
-		Delay:       bybitWebsocketTimer,
-	})
-
-	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Spot, by.Websocket.AuthConn)
-	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
-	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac, err := crypto.GetHMAC(
-		crypto.HashSHA256,
-		[]byte("GET/realtime"+strNonce),
-		[]byte(creds.Secret),
-	)
-	if err != nil {
-		return err
-	}
-	sign := crypto.HexEncodeToString(hmac)
-	req := Authenticate{
-		RequestID: strconv.FormatInt(by.Websocket.AuthConn.GenerateMessageID(false), 10),
-		Operation: "auth",
-		Args:      []interface{}{creds.Key, intNonce, sign},
-	}
-	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return err
 	}
 	var response SubscriptionResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
+	if err := json.Unmarshal(resp, &response); err != nil {
 		return err
 	}
 	if !response.Success {
-		return fmt.Errorf("%s with request ID %s msg: %s", response.Operation, response.RequestID, response.RetMsg)
+		return fmt.Errorf("%s with request ID %s msg: %s", response.Operation, response.RequestID, response.ReturnMessage)
 	}
 	return nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe subscription.List) error {
-	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
+// WebsocketAuthenticateTradeConnection sends an authentication message to the private websocket for outbound account
+// data
+func (by *Bybit) WebsocketAuthenticateTradeConnection(ctx context.Context, conn stream.Connection) error {
+	// request ID is not returned with the response, a workaround in the trade connection handler monitors the response
+	// for the operation type "auth", which is then set in the response match key.
+	req, err := by.GetAuthenticationPayload(ctx, "auth")
+	if err != nil {
+		return err
+	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
+	if err != nil {
+		return err
+	}
+	var response struct {
+		ReturnCode    int64  `json:"retCode"`
+		ReturnMessage string `json:"retMsg"`
+		Operation     string `json:"op"`
+		ConnectionID  string `json:"connId"`
+	}
+	if err := json.Unmarshal(resp, &response); err != nil {
+		return err
+	}
+	if response.ReturnCode != 0 {
+		return fmt.Errorf("%s failed - code:%d [%v] msg:%s", response.Operation, response.ReturnCode, retCode[response.ReturnCode], response.ReturnMessage)
+	}
+	return nil
 }
 
-func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
+// GetAuthenticationPayload returns the authentication payload for the websocket connection to upgrade the connection.
+func (by *Bybit) GetAuthenticationPayload(ctx context.Context, requestID string) (*Authenticate, error) {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
+	strNonce := strconv.FormatInt(intNonce, 10)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+strNonce), []byte(creds.Secret))
+	if err != nil {
+		return nil, err
+	}
+	return &Authenticate{
+		RequestID: requestID,
+		Operation: "auth",
+		Args:      []any{creds.Key, intNonce, crypto.HexEncodeToString(hmac)},
+	}, nil
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (by *Bybit) Subscribe(ctx context.Context, conn stream.Connection, channelsToSubscribe subscription.List) error {
+	return by.handleSubscription(ctx, conn, asset.Spot, "subscribe", channelsToSubscribe)
+}
+
+func (by *Bybit) handleSubscriptions(conn stream.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
-		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
 		Arguments: []string{},
 	}
 	authArg := SubscriptionArgument{
 		auth:      true,
 		Operation: operation,
-		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
 		Arguments: []string{},
 	}
 
@@ -194,7 +198,7 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
-				RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+				RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
 				Arguments: []string{},
 			}
 		}
@@ -209,27 +213,29 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return by.handleSpotSubscription("unsubscribe", channelsToUnsubscribe)
+func (by *Bybit) Unsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+	return by.handleSubscription(ctx, conn, asset.Spot, "unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := by.handleSubscriptions(asset.Spot, operation, channelsToSubscribe)
+func (by *Bybit) handleSubscription(ctx context.Context, conn stream.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
+	payloads, err := by.handleSubscriptions(conn, a, operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
-	for a := range payloads {
+	for _, payload := range payloads {
+		if a == asset.Options {
+			// The options connection does not send the subscription request id back with the subscription notification payload
+			// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
+			err = conn.SendJSONMessage(ctx, request.Unset, payload)
+			if err != nil {
+				return err
+			}
+			continue
+		}
 		var response []byte
-		if payloads[a].auth {
-			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[a].RequestID, payloads[a])
-			if err != nil {
-				return err
-			}
-		} else {
-			response, err = by.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[a].RequestID, payloads[a])
-			if err != nil {
-				return err
-			}
+		response, err = conn.SendMessageReturnResponse(ctx, request.Unset, payload.RequestID, payload)
+		if err != nil {
+			return err
 		}
 		var resp SubscriptionResponse
 		err = json.Unmarshal(response, &resp)
@@ -237,82 +243,84 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe su
 			return err
 		}
 		if !resp.Success {
-			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
+			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.ReturnMessage)
 		}
 	}
 	return nil
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var subscriptions subscription.List
-	var channels = []string{
-		chanPublicTicker,
-		chanOrderbook,
-		chanPublicTrade,
-	}
-	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, []string{
-			chanPositions,
-			chanExecution,
-			chanOrder,
-			chanWallet,
-		}...)
-	}
+func (by *Bybit) GenerateDefaultSubscriptions(auth bool) (subscription.List, error) {
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil
+		}
 		return nil, err
 	}
+
+	var channels []string
+	if !auth {
+		channels = []string{chanPublicTicker, chanOrderbook, chanPublicTrade}
+	}
+	if by.Websocket.CanUseAuthenticatedEndpoints() && auth {
+		channels = append(channels, []string{chanPositions, chanExecution, chanOrder, chanWallet}...)
+	}
+
+	var subscriptions subscription.List
 	for x := range channels {
 		switch channels[x] {
-		case chanPositions,
-			chanExecution,
-			chanOrder,
-			chanDCP,
-			chanWallet:
-			subscriptions = append(subscriptions,
-				&subscription.Subscription{
-					Channel: channels[x],
-					Asset:   asset.Spot,
-				})
+		case chanPositions, chanExecution, chanOrder, chanDCP, chanWallet:
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channels[x],
+				Pairs:   currency.Pairs{currency.EMPTYPAIR}, // This is a placeholder, the actual pair is not required for these channels
+				Asset:   asset.Spot,
+			})
 		default:
 			for z := range pairs {
-				subscriptions = append(subscriptions,
-					&subscription.Subscription{
-						Channel: channels[x],
-						Pairs:   currency.Pairs{pairs[z]},
-						Asset:   asset.Spot,
-					})
+				subscriptions = append(subscriptions, &subscription.Subscription{
+					Channel: channels[x],
+					Pairs:   currency.Pairs{pairs[z]},
+					Asset:   asset.Spot,
+				})
 			}
 		}
 	}
 	return subscriptions, nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (by *Bybit) wsReadData(assetType asset.Item, ws stream.Connection) {
-	defer by.Websocket.Wg.Done()
-	for {
-		select {
-		case <-by.Websocket.ShutdownC:
-			return
-		default:
-			resp := ws.ReadMessage()
-			if resp.Raw == nil {
-				return
-			}
-			err := by.wsHandleData(assetType, resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
+func (by *Bybit) wsHandleTradeData(_ context.Context, respRaw []byte) error {
+	var response struct {
+		RequestID string `json:"reqId"`
+		Operation string `json:"op"`
+	}
+	if err := json.Unmarshal(respRaw, &response); err != nil {
+		return err
+	}
+
+	if response.RequestID != "" {
+		if !by.Websocket.Match.IncomingWithData(response.RequestID, respRaw) {
+			return fmt.Errorf("could not match subscription with id %s data %s", response.RequestID, respRaw)
 		}
+		return nil
+	}
+
+	switch response.Operation {
+	case "auth": // When authenticating the connection there is no request ID, so a static value is used.
+		if !by.Websocket.Match.IncomingWithData(response.Operation, respRaw) {
+			return fmt.Errorf("could not match subscription with id %s data %s", response.Operation, respRaw)
+		}
+		return nil
+	case "pong":
+		return nil
+	default:
+		return fmt.Errorf("cannot route trade data %v to correct handler", string(respRaw))
 	}
 }
 
-func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
+func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset.Item) error {
 	var result WebsocketResponse
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Topic == "" {
@@ -353,14 +361,16 @@ func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 		return by.wsProcessLeverageTokenTicker(assetType, &result)
 	case chanLeverageTokenNav:
 		return by.wsLeverageTokenNav(&result)
+		// TODO: The following cases are coming from the dedicated authenticated websocket connection, this is asset
+		// agnostic and will need an update in a future PR to handle asset specific data.
 	case chanPositions:
 		return by.wsProcessPosition(&result)
 	case chanExecution:
-		return by.wsProcessExecution(asset.Spot, &result)
+		return by.wsProcessExecution(assetType, &result)
 	case chanOrder:
-		return by.wsProcessOrder(asset.Spot, &result)
+		return by.wsProcessOrder(assetType, &result)
 	case chanWallet:
-		return by.wsProcessWalletPushData(asset.Spot, respRaw)
+		return by.wsProcessWalletPushData(assetType, respRaw)
 	case chanGreeks:
 		return by.wsProcessGreeks(respRaw)
 	case chanDCP:
@@ -409,7 +419,7 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
 		if err != nil {
 			return err
 		}
@@ -450,7 +460,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, false)
 		if err != nil {
 			return err
 		}
@@ -501,7 +511,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(result.Symbol)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, true)
 	if err != nil {
 		return err
 	}
@@ -523,7 +533,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(topicSplit[2])
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, true)
 	if err != nil {
 		return err
 	}
@@ -567,7 +577,7 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(topicSplit[2])
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, true)
 	if err != nil {
 		return err
 	}
@@ -597,8 +607,9 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 }
 
 func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
-	tickResp := new(TickerItem)
-	if err := json.Unmarshal(resp.Data, tickResp); err != nil {
+	var tickResp TickerItem
+	if err := json.Unmarshal(resp.Data, &tickResp); err != nil {
+		fmt.Println("MEOW")
 		return err
 	}
 
@@ -606,34 +617,17 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	if err != nil {
 		return err
 	}
-	pFmt, err := by.GetPairFormat(assetType, false)
-	if err != nil {
-		return err
-	}
-	p = p.Format(pFmt)
 
-	var tick *ticker.Price
-	if resp.Type == "snapshot" {
-		tick = &ticker.Price{
-			Pair:         p,
-			ExchangeName: by.Name,
-			AssetType:    assetType,
-		}
-	} else {
+	tick := &ticker.Price{Pair: p, ExchangeName: by.Name, AssetType: assetType}
+	if snapshot, err := ticker.GetTicker(by.Name, p, assetType); err == nil && resp.Type != "snapshot" {
 		// ticker updates may be partial, so we need to update the current ticker
-		tick, err = ticker.GetTicker(by.Name, p, assetType)
-		if err != nil {
-			return err
-		}
+		tick = snapshot
 	}
-
-	updateTicker(tick, tickResp)
 	tick.LastUpdated = resp.Timestamp.Time()
-
+	updateTicker(tick, &tickResp)
 	if err = ticker.ProcessTicker(tick); err == nil {
 		by.Websocket.DataHandler <- tick
 	}
-
 	return err
 }
 
@@ -703,7 +697,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 	}
 	tradeDatas := make([]trade.Data, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
 		if err != nil {
 			return err
 		}
@@ -731,7 +725,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(result.Symbol)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, true)
 	if err != nil {
 		return err
 	}
