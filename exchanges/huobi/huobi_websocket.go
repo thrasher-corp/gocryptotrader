@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -31,20 +33,22 @@ const (
 	baseWSURL    = "wss://api.huobi.pro"
 	futuresWSURL = "wss://api.hbdm.com/"
 
-	wsMarketURL    = baseWSURL + "/ws"
-	wsMarketKline  = "market.%s.kline.1min"
-	wsMarketDepth  = "market.%s.depth.step0"
-	wsMarketTrade  = "market.%s.trade.detail"
-	wsMarketTicker = "market.%s.detail"
+	wsMarketURL           = baseWSURL + "/ws"
+	wsCandlesChannel      = "market.%s.kline"
+	wsOrderbookChannel    = "market.%s.depth"
+	wsTradesChannel       = "market.%s.trade.detail"
+	wsMarketDetailChannel = "market.%s.detail"
+	wsMyOrdersChannel     = "orders.%s"
+	wsMyTradesChannel     = "orders.%s.update"
 
-	wsAccountsOrdersEndPoint = "/ws/v1"
-	wsAccountsList           = "accounts.list"
-	wsOrdersList             = "orders.list"
-	wsOrdersDetail           = "orders.detail"
-	wsAccountsOrdersURL      = baseWSURL + wsAccountsOrdersEndPoint
-	wsAccountListEndpoint    = wsAccountsOrdersEndPoint + "/" + wsAccountsList
-	wsOrdersListEndpoint     = wsAccountsOrdersEndPoint + "/" + wsOrdersList
-	wsOrdersDetailEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
+	wsPrivateURL           = "/ws/v2"
+	wsAccountsList         = "accounts.list"
+	wsOrdersList           = "orders.list"
+	wsOrdersDetail         = "orders.detail"
+	wsAccountsOrdersURL    = baseWSURL + wsAccountsOrdersEndPoint
+	wsAccountListEndpoint  = wsAccountsOrdersEndPoint + "/" + wsAccountsList
+	wsOrdersListEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersList
+	wsOrdersDetailEndpoint = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
 
 	wsDateTimeFormatting = "2006-01-02T15:04:05"
 
@@ -55,6 +59,31 @@ const (
 
 	loginDelay = 50 * time.Millisecond
 )
+
+type wsOpType uint8
+const (
+	wsSubOp wsOptType iota
+	wsUnsubOp
+)
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 0}, // Aggregation Levels; 0 is no depth aggregation
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    wsMarketDetailChannel,
+	subscription.CandlesChannel:   wsCandlesChannel,
+	subscription.OrderbookChannel: wsOrderbookChannel,
+	subscription.AllTradesChannel: wsTradesChannel,
+	subscription.MyTradesChannel:  wsMyOrdersChannel,
+	subscription.MyOrdersChannel:  wsMyTradesChannel,
+}
 
 // Instantiates a communications channel between websocket connections
 var comms = make(chan WsMessage)
@@ -514,101 +543,76 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HUOBI) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var channels = []string{wsMarketKline,
-		wsMarketDepth,
-		wsMarketTrade,
-		wsMarketTicker}
-	var subscriptions subscription.List
-	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, "orders.%v", "orders.%v.update")
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: "accounts",
-		})
-	}
-	enabledCurrencies, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	for i := range channels {
-		for j := range enabledCurrencies {
-			enabledCurrencies[j].Delimiter = ""
-			channel := fmt.Sprintf(channels[i],
-				enabledCurrencies[j].Lower().String())
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channel,
-				Pairs:   currency.Pairs{enabledCurrencies[j]},
-			})
-		}
-	}
-	return subscriptions, nil
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (h *HUOBI) generateSubscriptions() (subscription.List, error) {
+	return h.Features.Subscriptions.ExpandTemplates(h)
+}
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName": channelName,
+		"interval":    h.FormatExchangeKlineInterval,
+	}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelsToSubscribe subscription.List) error {
-	var creds *account.Credentials
-	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		var err error
-		creds, err = h.GetCredentials(context.TODO())
-		if err != nil {
-			return err
-		}
-	}
+func (h *HUOBI) Subscribe(subs subscription.List) error {
+	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsSubOp, l) }, len(subs))
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (h *HUOBI) Unsubscribe(subs subscription.List) error {
+	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsUnsubOp, l) }, len(subs))
+}
+
+
+// manageSubs
+func (h *HUOBI) manageSubs(op wsOpType, subs subscription.List) error {
+	ctx := context.Background()
 	var errs error
-	for i := range channelsToSubscribe {
+	var creds *account.Credentials
+	for _, s := range subs {
 		var err error
-		if (strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
-			strings.Contains(channelsToSubscribe[i].Channel, "accounts")) && creds != nil {
-			err = h.wsAuthenticatedSubscribe(creds,
-				"sub",
-				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
-				channelsToSubscribe[i].Channel)
 		} else {
-			err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsRequest{
-				Subscribe: channelsToSubscribe[i].Channel,
-			})
+			req := WsRequest{
+				id: h.
+			}
+			if op == wsSubOp {
+				req.
+			} else {
+			}
+				Subscribe: s.QualifiedChannel,
+			if err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req); err == nil {
+				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.AuthConn, s)
+			}
 		}
-		if err == nil {
-			err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, channelsToSubscribe[i])
-		}
-		if err != nil {
-			errs = common.AppendError(errs, err)
-		}
+		errs = common.AppendError(errs, err)
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+func (h *HUOBI) Unsubscribe(subs subscription.List) error {
+	ctx := context.Background()
+	var errs error
 	var creds *account.Credentials
-	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		var err error
-		creds, err = h.GetCredentials(context.TODO())
-		if err != nil {
-			return err
+	if len(subs.Private()) > 0 {
+		if creds, errs = h.GetCredentials(context.TODO()); errs != nil {
+			return errs
 		}
 	}
-	var errs error
-	for i := range channelsToUnsubscribe {
+	for _, s := range subs {
 		var err error
-		if (strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
-			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts")) && creds != nil {
-			err = h.wsAuthenticatedSubscribe(creds,
-				"unsub",
-				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,
-				channelsToUnsubscribe[i].Channel)
+		if s.Authenticated {
+			err = h.wsAuthenticatedSubscribe(creds, "unsub", wsAccountsOrdersEndPoint+"/"+s.QualifiedChannel, s.QualifiedChannel)
 		} else {
-			err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsRequest{
-				Unsubscribe: channelsToUnsubscribe[i].Channel,
-			})
+			err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, WsRequest{Unsubscribe: s.QualifiedChannel})
 		}
 		if err == nil {
-			err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, channelsToUnsubscribe[i])
+			err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, s)
 		}
-		if err != nil {
-			errs = common.AppendError(errs, err)
-		}
+		errs = common.AppendError(errs, err)
 	}
 	return errs
 }
@@ -810,3 +814,25 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 	}
 	return &response, nil
 }
+
+// channelName converts global channel Names used in config of channel input into bitmex channel names
+// returns the name unchanged if no match is found
+func channelName(s *subscription.Subscription, p currency.Pair) string {
+	name := s.Channel
+	if n, ok := subscriptionNames[name]; ok {
+		name = n
+	}
+	return fmt.Sprintf(name, p)
+}
+
+const subTplText = `
+{{ range $asset, $pairs := $.AssetPairs }}
+	{{- range $p := $pairs -}}
+		{{- channelName $.S $p -}}
+		{{- if eq $.S.Channel "candles" -}} . {{- interval $.S.Interval }}{{ end }}
+		{{- if eq $.S.Channel "orderbook" -}} .step {{- $.S.Levels }}{{ end }}
+		{{ $.PairSeparator }}
+	{{- end }}
+	{{ $.AssetSeparator }}
+{{- end }}
+`

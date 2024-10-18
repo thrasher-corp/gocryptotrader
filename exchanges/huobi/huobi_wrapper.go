@@ -162,6 +162,7 @@ func (h *HUOBI) SetDefaults() {
 				GlobalResultLimit: 2000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	h.Requester, err = request.New(h.Name,
@@ -213,7 +214,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
 		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: h.generateSubscriptions,
 		Features:              &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
