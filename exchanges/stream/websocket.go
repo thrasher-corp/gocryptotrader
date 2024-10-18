@@ -1100,7 +1100,7 @@ func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ct
 			return // Connection has been closed
 		}
 		if err := handler(ctx, resp.Raw); err != nil {
-			w.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
+			w.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w for %s", conn.GetURL(), err, resp.Raw)
 		}
 	}
 }

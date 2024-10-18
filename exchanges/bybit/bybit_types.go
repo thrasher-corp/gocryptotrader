@@ -190,7 +190,7 @@ type TickerItem struct {
 	PredictedDeliveryPrice types.Number `json:"predictedDeliveryPrice"`
 	BasisRate              types.Number `json:"basisRate"`
 	DeliveryFeeRate        types.Number `json:"deliveryFeeRate"`
-	DeliveryTime           types.Time   `json:"deliveryTime"`
+	DeliveryTime           time.Time    `json:"deliveryTime"` // "2025-03-28T08:00:00Z"
 	Ask1Size               types.Number `json:"ask1Size"`
 	Bid1Price              types.Number `json:"bid1Price"`
 	Ask1Price              types.Number `json:"ask1Price"`
