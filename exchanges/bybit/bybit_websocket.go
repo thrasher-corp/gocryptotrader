@@ -540,8 +540,9 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 }
 
 func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
-	tickResp := new(TickerItem)
-	if err := json.Unmarshal(resp.Data, tickResp); err != nil {
+	var tickResp TickerItem
+	if err := json.Unmarshal(resp.Data, &tickResp); err != nil {
+		fmt.Println("MEOW")
 		return err
 	}
 
@@ -549,34 +550,17 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	if err != nil {
 		return err
 	}
-	pFmt, err := by.GetPairFormat(assetType, false)
-	if err != nil {
-		return err
-	}
-	p = p.Format(pFmt)
 
-	var tick *ticker.Price
-	if resp.Type == "snapshot" {
-		tick = &ticker.Price{
-			Pair:         p,
-			ExchangeName: by.Name,
-			AssetType:    assetType,
-		}
-	} else {
+	tick := &ticker.Price{Pair: p, ExchangeName: by.Name, AssetType: assetType}
+	if snapshot, err := ticker.GetTicker(by.Name, p, assetType); err == nil && resp.Type != "snapshot" {
 		// ticker updates may be partial, so we need to update the current ticker
-		tick, err = ticker.GetTicker(by.Name, p, assetType)
-		if err != nil {
-			return err
-		}
+		tick = snapshot
 	}
-
-	updateTicker(tick, tickResp)
 	tick.LastUpdated = resp.Timestamp.Time()
-
+	updateTicker(tick, &tickResp)
 	if err = ticker.ProcessTicker(tick); err == nil {
 		by.Websocket.DataHandler <- tick
 	}
-
 	return err
 }
 
