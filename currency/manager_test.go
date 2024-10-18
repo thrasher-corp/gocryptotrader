@@ -842,7 +842,7 @@ func TestPairManagerSetDelimitersFromConfig(t *testing.T) {
 	err = json.Unmarshal([]byte(`{"pairs":{"spot":{"configFormat":{"delimiter":"_"},"enabled":"BTC-USDT","available":"BTC-USDT"}}}`), p)
 	if assert.NoError(t, err, "UnmarshalJSON should not error") {
 		err := p.SetDelimitersFromConfig()
-		assert.ErrorContains(t, err, "spot.enabled.BTC-USDT: delimiter: [_] not found in currencypair string", "SetDelimitersFromConfig should error correctly")
+		assert.ErrorIs(t, err, errDelimiterNotFound, "SetDelimitersFromConfig should error correctly")
 	}
 }
 

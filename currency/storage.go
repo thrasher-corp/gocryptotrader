@@ -55,7 +55,7 @@ func (s *Storage) SetDefaults() {
 		if item == USDT.Item {
 			continue
 		}
-		fiatCurrencies = append(fiatCurrencies, Code{Item: item, UpperCase: true})
+		fiatCurrencies = append(fiatCurrencies, Code{Item: item, upperCase: true})
 	}
 
 	err := s.SetDefaultFiatCurrencies(fiatCurrencies)

@@ -1177,9 +1177,14 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
-	if in.IsEmpty() || in.Base.IsEmpty() {
+	if in.Base.IsEmpty() {
 		return "", currency.ErrCurrencyPairEmpty
 	}
+
+	// Convert input to lowercase to ensure consistent formatting.
+	// Required for currencies that start with T or F eg tTNBUSD
+	in = in.Lower()
+
 	var checkString [2]byte
 	if a == asset.Spot || a == asset.Margin {
 		checkString[0] = 't'
