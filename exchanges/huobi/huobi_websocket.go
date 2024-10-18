@@ -41,14 +41,14 @@ const (
 	wsMyOrdersChannel     = "orders.%s"
 	wsMyTradesChannel     = "orders.%s.update"
 
-	wsAccountsOrdersEndPoint = "/ws/v1"
-	wsAccountsList           = "accounts.list"
-	wsOrdersList             = "orders.list"
-	wsOrdersDetail           = "orders.detail"
-	wsAccountsOrdersURL      = baseWSURL + wsAccountsOrdersEndPoint
-	wsAccountListEndpoint    = wsAccountsOrdersEndPoint + "/" + wsAccountsList
-	wsOrdersListEndpoint     = wsAccountsOrdersEndPoint + "/" + wsOrdersList
-	wsOrdersDetailEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
+	wsPrivateURL           = "/ws/v2"
+	wsAccountsList         = "accounts.list"
+	wsOrdersList           = "orders.list"
+	wsOrdersDetail         = "orders.detail"
+	wsAccountsOrdersURL    = baseWSURL + wsAccountsOrdersEndPoint
+	wsAccountListEndpoint  = wsAccountsOrdersEndPoint + "/" + wsAccountsList
+	wsOrdersListEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersList
+	wsOrdersDetailEndpoint = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
 
 	wsDateTimeFormatting = "2006-01-02T15:04:05"
 
@@ -58,6 +58,12 @@ const (
 	authOp           = "auth"
 
 	loginDelay = 50 * time.Millisecond
+)
+
+type wsOpType uint8
+const (
+	wsSubOp wsOptType iota
+	wsUnsubOp
 )
 
 var defaultSubscriptions = subscription.List{
@@ -552,22 +558,32 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(subs subscription.List) error {
+	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsSubOp, l) }, len(subs))
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (h *HUOBI) Unsubscribe(subs subscription.List) error {
+	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsUnsubOp, l) }, len(subs))
+}
+
+
+// manageSubs
+func (h *HUOBI) manageSubs(op wsOpType, subs subscription.List) error {
 	ctx := context.Background()
 	var errs error
 	var creds *account.Credentials
-	if len(subs.Private()) > 0 {
-		if creds, errs = h.GetCredentials(context.TODO()); errs != nil {
-			return errs
-		}
-	}
 	for _, s := range subs {
 		var err error
-		if s.Authenticated {
-			if err = h.wsAuthenticatedSubscribe(creds, "sub", wsAccountsOrdersEndPoint+"/"+s.QualifiedChannel, s.QualifiedChannel); err == nil {
-				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, s)
-			}
 		} else {
-			if err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, WsRequest{Subscribe: s.QualifiedChannel}); err == nil {
+			req := WsRequest{
+				id: h.
+			}
+			if op == wsSubOp {
+				req.
+			} else {
+			}
+				Subscribe: s.QualifiedChannel,
+			if err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req); err == nil {
 				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.AuthConn, s)
 			}
 		}
