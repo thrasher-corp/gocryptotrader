@@ -1951,12 +1951,12 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 	return nil, common.ErrFunctionNotSupported
 }
 
-// WebsocketCancelOrder cancels an order via the websocket connection
-func (*Base) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+// WebsocketModifyOrder cancels an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WebsocketCancelOrder cancels an order via the websocket connection
-func (*Base) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
 	return common.ErrFunctionNotSupported
 }

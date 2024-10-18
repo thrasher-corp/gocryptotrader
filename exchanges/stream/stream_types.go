@@ -98,7 +98,7 @@ type ConnectionSetup struct {
 
 // SubscriberNotRequired is a default subscriber function that can be used when a connection does not require
 // subscription functionality.
-func SubscriberNotRequired(ctx context.Context, conn Connection, sub subscription.List) error {
+func SubscriberNotRequired(context.Context, Connection, subscription.List) error {
 	return nil
 }
 
