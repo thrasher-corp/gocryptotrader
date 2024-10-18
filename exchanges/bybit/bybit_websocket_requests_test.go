@@ -74,7 +74,7 @@ func TestCreateOrderThroughWebsocket(t *testing.T) {
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
-	// Test quote amount needs to be used due to protocol trade requirments
+	// Test quote amount needs to be used due to protocol trade requirements
 	s := &order.Submit{
 		Exchange:  b.Name,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),

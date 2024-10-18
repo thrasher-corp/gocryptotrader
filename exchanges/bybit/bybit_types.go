@@ -396,7 +396,7 @@ type AmendOrderParams struct {
 	OrderID     string        `json:"orderId,omitempty"`     // This Required or orderLinkID required
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 
-	// Atleast one of the following fields is required
+	// At least one of the following fields is required
 	OrderImpliedVolatility string  `json:"orderIv,omitempty"`
 	TriggerPrice           float64 `json:"triggerPrice,omitempty,string"`
 	OrderQuantity          float64 `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
