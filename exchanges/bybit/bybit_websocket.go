@@ -297,19 +297,25 @@ func (by *Bybit) wsHandleTradeData(_ context.Context, respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &response); err != nil {
 		return err
 	}
-	if response.RequestID == "" && response.Operation != "auth" {
+
+	if response.RequestID != "" {
+		if !by.Websocket.Match.IncomingWithData(response.RequestID, respRaw) {
+			return fmt.Errorf("could not match subscription with id %s data %s", response.RequestID, respRaw)
+		}
+		return nil
+	}
+
+	switch response.Operation {
+	case "auth": // When authenticating the connection there is no request ID, so a static value is used.
+		if !by.Websocket.Match.IncomingWithData(response.Operation, respRaw) {
+			return fmt.Errorf("could not match subscription with id %s data %s", response.Operation, respRaw)
+		}
+		return nil
+	case "pong":
+		return nil
+	default:
 		return fmt.Errorf("cannot route trade data %v to correct handler", string(respRaw))
 	}
-
-	if response.RequestID != "" && !by.Websocket.Match.IncomingWithData(response.RequestID, respRaw) {
-		return fmt.Errorf("could not match subscription with id %s data %s", response.RequestID, respRaw)
-	}
-
-	if response.Operation == "auth" && !by.Websocket.Match.IncomingWithData(response.Operation, respRaw) {
-		return fmt.Errorf("could not match subscription with id %s data %s", response.Operation, respRaw)
-	}
-
-	return nil
 }
 
 func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset.Item) error {
