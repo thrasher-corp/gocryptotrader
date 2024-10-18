@@ -176,7 +176,7 @@ func (h *HUOBI) SetDefaults() {
 		exchange.RestSpot:         huobiAPIURL,
 		exchange.RestFutures:      huobiFuturesURL,
 		exchange.RestCoinMargined: huobiFuturesURL,
-		exchange.WebsocketSpot:    wsMarketURL,
+		exchange.WebsocketSpot:    wsSpotURL + wsPublicPath,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -220,7 +220,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            wsMarketURL,
+		DefaultURL:            wsSpotURL + wsPublicPath,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
@@ -245,7 +245,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsAccountsOrdersURL,
+		URL:                  wsSpotURL + wsPrivatePath,
 		Authenticated:        true,
 	})
 }
@@ -676,72 +676,50 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Exchange = h.Name
 	switch assetType {
 	case asset.Spot:
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetAccountsList(ctx)
+		accounts, err := h.GetAccountID(ctx)
+		if err != nil {
+			return info, err
+		}
+		for i := range accounts {
+			if accounts[i].Type != "spot" {
+				continue
+			}
+			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
+			balances, err := h.GetAccountBalance(ctx, acc.ID)
 			if err != nil {
 				return info, err
 			}
+
 			var currencyDetails []account.Balance
-			for i := range resp.Data {
-				if len(resp.Data[i].List) == 0 {
-					continue
+		balance:
+			for j := range balances {
+				frozen := balances[j].Type == "frozen"
+				for i := range currencyDetails {
+					if currencyDetails[i].Currency.String() == balances[j].Currency {
+						if frozen {
+							currencyDetails[i].Hold = balances[j].Balance
+						} else {
+							currencyDetails[i].Total = balances[j].Balance
+						}
+						continue balance
+					}
 				}
-				currData := account.Balance{
-					Currency: currency.NewCode(resp.Data[i].List[0].Currency),
-					Total:    resp.Data[i].List[0].Balance,
+
+				if frozen {
+					currencyDetails = append(currencyDetails,
+						account.Balance{
+							Currency: currency.NewCode(balances[j].Currency),
+							Hold:     balances[j].Balance,
+						})
+				} else {
+					currencyDetails = append(currencyDetails,
+						account.Balance{
+							Currency: currency.NewCode(balances[j].Currency),
+							Total:    balances[j].Balance,
+						})
 				}
-				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
-					currData.Hold = resp.Data[i].List[1].Balance
-				}
-				currencyDetails = append(currencyDetails, currData)
 			}
 			acc.Currencies = currencyDetails
-		} else {
-			accounts, err := h.GetAccountID(ctx)
-			if err != nil {
-				return info, err
-			}
-			for i := range accounts {
-				if accounts[i].Type != "spot" {
-					continue
-				}
-				acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-				balances, err := h.GetAccountBalance(ctx, acc.ID)
-				if err != nil {
-					return info, err
-				}
-
-				var currencyDetails []account.Balance
-			balance:
-				for j := range balances {
-					frozen := balances[j].Type == "frozen"
-					for i := range currencyDetails {
-						if currencyDetails[i].Currency.String() == balances[j].Currency {
-							if frozen {
-								currencyDetails[i].Hold = balances[j].Balance
-							} else {
-								currencyDetails[i].Total = balances[j].Balance
-							}
-							continue balance
-						}
-					}
-
-					if frozen {
-						currencyDetails = append(currencyDetails,
-							account.Balance{
-								Currency: currency.NewCode(balances[j].Currency),
-								Hold:     balances[j].Balance,
-							})
-					} else {
-						currencyDetails = append(currencyDetails,
-							account.Balance{
-								Currency: currency.NewCode(balances[j].Currency),
-								Total:    balances[j].Balance,
-							})
-					}
-				}
-				acc.Currencies = currencyDetails
-			}
 		}
 
 	case asset.CoinMarginedFutures:
@@ -1285,24 +1263,15 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
-		var respData *OrderInfo
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetOrderDetails(ctx, orderID)
-			if err != nil {
-				return nil, err
-			}
-			respData = &resp.Data
-		} else {
-			oID, err := strconv.ParseInt(orderID, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			resp, err := h.GetOrder(ctx, oID)
-			if err != nil {
-				return nil, err
-			}
-			respData = &resp
+		oID, err := strconv.ParseInt(orderID, 10, 64)
+		if err != nil {
+			return nil, err
 		}
+		resp, err := h.GetOrder(ctx, oID)
+		if err != nil {
+			return nil, err
+		}
+		respData := &resp
 		if respData.ID == 0 {
 			return nil, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
 		}
@@ -1512,87 +1481,34 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			for i := range req.Pairs {
-				resp, err := h.wsGetOrdersList(ctx, -1, req.Pairs[i])
-				if err != nil {
-					return orders, err
-				}
-				for j := range resp.Data {
-					sideData := strings.Split(resp.Data[j].OrderState, "-")
-					side = sideData[0]
-					var orderID = strconv.FormatInt(resp.Data[j].OrderID, 10)
-					orderSide, err := order.StringToOrderSide(side)
-					if err != nil {
-						h.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: h.Name,
-							OrderID:  orderID,
-							Err:      err,
-						}
-					}
-					orderType, err := order.StringToOrderType(sideData[1])
-					if err != nil {
-						h.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: h.Name,
-							OrderID:  orderID,
-							Err:      err,
-						}
-					}
-					orderStatus, err := order.StringToOrderStatus(resp.Data[j].OrderState)
-					if err != nil {
-						h.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: h.Name,
-							OrderID:  orderID,
-							Err:      err,
-						}
-					}
-					orders = append(orders, order.Detail{
-						Exchange:        h.Name,
-						AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
-						OrderID:         orderID,
-						Pair:            req.Pairs[i],
-						Type:            orderType,
-						Side:            orderSide,
-						Date:            time.UnixMilli(resp.Data[j].CreatedAt),
-						Status:          orderStatus,
-						Price:           resp.Data[j].Price,
-						Amount:          resp.Data[j].OrderAmount,
-						ExecutedAmount:  resp.Data[j].FilledAmount,
-						RemainingAmount: resp.Data[j].UnfilledAmount,
-						Fee:             resp.Data[j].FilledFees,
-					})
-				}
-			}
-		} else {
-			creds, err := h.GetCredentials(ctx)
+		creds, err := h.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range req.Pairs {
+			resp, err := h.GetOpenOrders(ctx,
+				req.Pairs[i],
+				creds.ClientID,
+				side,
+				500)
 			if err != nil {
 				return nil, err
 			}
-			for i := range req.Pairs {
-				resp, err := h.GetOpenOrders(ctx,
-					req.Pairs[i],
-					creds.ClientID,
-					side,
-					500)
-				if err != nil {
-					return nil, err
+			for x := range resp {
+				orderDetail := order.Detail{
+					OrderID:         strconv.FormatInt(resp[x].ID, 10),
+					Price:           resp[x].Price,
+					Amount:          resp[x].Amount,
+					ExecutedAmount:  resp[x].FilledAmount,
+					RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
+					Pair:            req.Pairs[i],
+					Exchange:        h.Name,
+					Date:            time.UnixMilli(resp[x].CreatedAt),
+					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
+					Fee:             resp[x].FilledFees,
 				}
-				for x := range resp {
-					orderDetail := order.Detail{
-						OrderID:         strconv.FormatInt(resp[x].ID, 10),
-						Price:           resp[x].Price,
-						Amount:          resp[x].Amount,
-						ExecutedAmount:  resp[x].FilledAmount,
-						RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
-						Pair:            req.Pairs[i],
-						Exchange:        h.Name,
-						Date:            time.UnixMilli(resp[x].CreatedAt),
-						AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
-						Fee:             resp[x].FilledFees,
-					}
-					setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
-					orders = append(orders, orderDetail)
-				}
+				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				orders = append(orders, orderDetail)
 			}
 		}
 	case asset.CoinMarginedFutures:

@@ -2,6 +2,8 @@ package huobi
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -9,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,12 +26,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -69,31 +74,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
-
 	os.Exit(m.Run())
-}
-
-func setupWsTests(t *testing.T) {
-	t.Helper()
-	if wsSetupRan {
-		return
-	}
-	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
-	}
-	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
-	go h.wsReadData()
-	var dialer websocket.Dialer
-	err := h.wsAuthenticatedDial(&dialer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = h.wsLogin(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	wsSetupRan = true
 }
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
@@ -1315,284 +1296,226 @@ func TestQueryWithdrawQuota(t *testing.T) {
 	}
 }
 
-// TestWsGetAccountsList connects to WS, logs in, gets account list
-func TestWsGetAccountsList(t *testing.T) {
-	setupWsTests(t)
-	if _, err := h.wsGetAccountsList(context.Background()); err != nil {
-		t.Error(err)
-	}
-}
-
-// TestWsGetOrderList connects to WS, logs in, gets order list
-func TestWsGetOrderList(t *testing.T) {
-	setupWsTests(t)
-	p, err := currency.NewPairFromString("ethbtc")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.wsGetOrdersList(context.Background(), 1, p)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestWsGetOrderDetails connects to WS, logs in, gets order details
-func TestWsGetOrderDetails(t *testing.T) {
-	setupWsTests(t)
-	orderID := "123"
-	_, err := h.wsGetOrderDetails(context.Background(), orderID)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsSubResponse(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "op": "sub",
-  "cid": "123",
-  "err-code": 0,
-  "ts": 1489474081631,
-  "topic": "accounts"
-}`)
-	err := h.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsKline(t *testing.T) {
+func TestWsCandles(t *testing.T) {
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	pressXToJSON := []byte(`{
-  "ch": "market.btcusdt.kline.1min",
-  "ts": 1489474082831,
-  "tick": {
-    "id": 1489464480,
-    "amount": 0.0,
-    "count": 0,
-    "open": 7962.62,
-    "close": 7962.62,
-    "low": 7962.62,
-    "high": 7962.62,
-    "vol": 0.0
-  }
-}`)
-	err = h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
+	cAny := <-h.Websocket.DataHandler
+	c, ok := cAny.(stream.KlineData)
+	require.True(t, ok, "Must get the correct type from DataHandler")
+	exp := stream.KlineData{
+		Timestamp:  time.UnixMilli(1489474082831),
+		Pair:       btcusdtPair,
+		AssetType:  asset.Spot,
+		Exchange:   h.Name,
+		OpenPrice:  7962.62,
+		ClosePrice: 8014.56,
+		HighPrice:  14962.77,
+		LowPrice:   5110.14,
+		Volume:     4.4,
+		Interval:   "0s",
+	}
+	assert.Equal(t, exp, c)
 }
 
-func TestWsKlineArray(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "status": "ok",
-  "rep": "market.btcusdt.kline.1min",
-  "data": [
-    {
-      "amount": 1.6206,
-      "count":  3,
-      "id":     1494465840,
-      "open":   9887.00,
-      "close":  9885.00,
-      "low":    9885.00,
-      "high":   9887.00,
-      "vol":    16021.632026
-    },
-    {
-      "amount": 2.2124,
-      "count":  6,
-      "id":     1494465900,
-      "open":   9885.00,
-      "close":  9880.00,
-      "low":    9880.00,
-      "high":   9885.00,
-      "vol":    21859.023500
-    }
-  ]
-}`)
-	err := h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
-}
-
-func TestWsMarketDepth(t *testing.T) {
+func TestWsOrderbook(t *testing.T) {
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	pressXToJSON := []byte(`{
-  "ch": "market.btcusdt.depth.step0",
-  "ts": 1572362902027,
-  "tick": {
-    "bids": [
-      [3.7721, 344.86],
-      [3.7709, 46.66]
-    ],
-    "asks": [
-      [3.7745, 15.44],
-      [3.7746, 70.52]
-    ],
-    "version": 100434317651,
-    "ts": 1572362902012
-  }
-}`)
-	err = h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
+	dAny := <-h.Websocket.DataHandler
+	d, ok := dAny.(*orderbook.Depth)
+	require.True(t, ok, "Must get the correct type from DataHandler")
+	require.NotNil(t, d)
+	l, err := d.GetAskLength()
+	require.NoError(t, err, "GetAskLength must not error")
+	assert.Equal(t, 2, l, "Ask length should be correct")
+	liq, _, err := d.TotalAskAmounts()
+	require.NoError(t, err, "TotalAskAmount must not error")
+	assert.Equal(t, 0.502591, liq, "Ask Liquidity should be correct")
+	l, err = d.GetBidLength()
+	require.NoError(t, err, "GetBidLength must not error")
+	assert.Equal(t, 2, l, "Bid length should be correct")
+	liq, _, err = d.TotalBidAmounts()
+	require.NoError(t, err, "TotalBidAmount must not error")
+	assert.Equal(t, 0.56281, liq, "Bid Liquidity should be correct")
 }
 
+// TestWsTradeDetail checks we can send a trade detail through
+// We can't currently easily see the result with the current DB instance, so we just check it doesn't error
 func TestWsTradeDetail(t *testing.T) {
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	pressXToJSON := []byte(`{
-	  "ch": "market.btcusdt.trade.detail",
-	  "ts": 1489474082831,
-	  "tick": {
-			"id": 14650745135,
-			"ts": 1533265950234,
-			"data": [
-				{
-					"amount": 0.0099,
-					"ts": 1533265950234,
-					"id": 146507451359183894799,
-					"tradeId": 102043495674,
-					"price": 401.74,
-					"direction": "buy"
-				}
-			]
-	  }
-	}`)
-	err = h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	h.SetSaveTradeDataStatus(true)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Empty(t, h.Websocket.DataHandler, "Must not see any errors going to datahandler")
 }
 
 func TestWsTicker(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "rep": "market.btcusdt.detail",
-  "id": "id11",
-	"data":{
-		"amount": 12224.2922,
-		"open":   9790.52,
-		"close":  10195.00,
-		"high":   10300.00,
-		"ts":     1494496390000,
-		"id":     1494496390,
-		"count":  15195,
-		"low":    9657.00,
-		"vol":    121906001.754751
-	  }
-}`)
-	err := h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
+	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
+	require.NoError(t, err, "AddSubscriptions must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
+	tickAny := <-h.Websocket.DataHandler
+	tick, ok := tickAny.(*ticker.Price)
+	require.True(t, ok, "Must get the correct type from DataHandler")
+	require.NotNil(t, tick)
+	exp := &ticker.Price{
+		High:         52924.14,
+		Low:          51000,
+		Bid:          0,
+		Volume:       13991.028076056185,
+		QuoteVolume:  7.27676440200527e+08,
+		Open:         51823.62,
+		Close:        52379.99,
+		Pair:         btcusdtPair,
+		ExchangeName: h.Name,
+		AssetType:    asset.Spot,
+		LastUpdated:  time.UnixMilli(1630998026649),
+	}
+	assert.Equal(t, exp, tick)
 }
 
 func TestWsAccountUpdate(t *testing.T) {
-	pressXToJSON := []byte(`{
-	  "op": "notify",
-	  "ts": 1522856623232,
-	  "topic": "accounts",
-	  "data": {
-		"event": "order.place",
-		"list": [
-		  {
-			"account-id": 419013,
-			"currency": "usdt",
-			"type": "trade",
-			"balance": "500009195917.4362872650"
-		  }
-		]
-	  }
-	}`)
-	err := h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
+	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
+	require.NoError(t, err, "AddSubscriptions must not error")
+	h.SetSaveTradeDataStatus(true)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Len(t, h.Websocket.DataHandler, 3, "Must see correct number of records")
+	exp := []WsAccountUpdate{
+		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: 1568601800000, SeqNum: 1},
+		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: 1574393385167, SeqNum: 2},
+		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade", SeqNum: 3},
+	}
+	for _, e := range exp {
+		uAny := <-h.Websocket.DataHandler
+		u, ok := uAny.(WsAccountUpdate)
+		require.True(t, ok, "Must get the correct type from DataHandler")
+		require.NotNil(t, u)
+		assert.Equal(t, e, u)
+	}
 }
 
 func TestWsOrderUpdate(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "op": "notify",
-  "topic": "orders.htusdt",
-  "ts": 1522856623232,
-  "data": {
-    "seq-id": 94984,
-    "order-id": 2039498445,
-    "symbol": "btcusdt",
-    "account-id": 100077,
-    "order-amount": "5000.000000000000000000",
-    "order-price": "1.662100000000000000",
-    "created-at": 1522858623622,
-    "order-type": "buy-limit",
-    "order-source": "api",
-    "order-state": "filled",
-    "role": "taker",
-    "price": "1.662100000000000000",
-    "filled-amount": "5000.000000000000000000",
-    "unfilled-amount": "0.000000000000000000",
-    "filled-cash-amount": "8301.357280000000000000",
-    "filled-fees": "8.000000000000000000"
-  }
-}`)
-	err := h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
-}
-
-func TestWsMarketByPrice(t *testing.T) {
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.mbp.150", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
+	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	pressXToJSON := []byte(`{
-		"ch": "market.btcusdt.mbp.150",
-		"ts": 1573199608679,
-		"tick": {
-			"seqNum": 100020146795,
-			"prevSeqNum": 100020146794,
-			"bids": [],
-			"asks": [
-				[645.140000000000000000, 26.755973959140651643]
-			]
-		}
-	}`)
-	err = h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
-	pressXToJSON = []byte(`{
-		"id": "id2",
-		"rep": "market.btcusdt.mbp.150",
-		"status": "ok",
-		"data": {
-			"seqNum": 100020142010,
-			"bids": [
-				[618.37, 71.594],
-				[423.33, 77.726],
-				[223.18, 47.997],
-				[219.34, 24.82],
-				[210.34, 94.463]
-		],
-			"asks": [
-				[650.59, 14.909733438479636],
-				[650.63, 97.996],
-				[650.77, 97.465],
-				[651.23, 83.973],
-				[651.42, 34.465]
-			]
-		}
-	}`)
-	err = h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	h.SetSaveTradeDataStatus(true)
+	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Equal(t, 1, len(errs), "Must receive the correct number of errors back")
+	require.ErrorContains(t, errs[0].Err, "error with order `test1`: invalid.client.order.id (NT) (2002)")
+	require.Len(t, h.Websocket.DataHandler, 4, "Must see correct number of records")
+	exp := []*order.Detail{
+		{
+			Exchange:      h.Name,
+			Pair:          btcusdtPair,
+			Side:          order.Buy,
+			Status:        order.Rejected,
+			ClientOrderID: "test1",
+			AssetType:     asset.Spot,
+			LastUpdated:   time.Unix(1583853365586000, 0),
+		},
+		{
+			Exchange:      h.Name,
+			Pair:          btcusdtPair,
+			Side:          order.Buy,
+			Status:        order.Cancelled,
+			ClientOrderID: "test2",
+			AssetType:     asset.Spot,
+			LastUpdated:   time.Unix(1583853365586000, 0),
+		},
+		{
+			Exchange:      h.Name,
+			Pair:          btcusdtPair,
+			Side:          order.Sell,
+			Status:        order.New,
+			ClientOrderID: "test3",
+			AssetType:     asset.Spot,
+			Price:         77,
+			Amount:        2,
+			Type:          order.Limit,
+			OrderID:       "27163533",
+			LastUpdated:   time.Unix(1583853365586000, 0),
+		},
+		{
+			Exchange:    h.Name,
+			Pair:        btcusdtPair,
+			Side:        order.Buy,
+			Status:      order.New,
+			AssetType:   asset.Spot,
+			Price:       70000,
+			Amount:      0.000157,
+			Type:        order.Limit,
+			OrderID:     "1199329381585359",
+			LastUpdated: time.Unix(1731039387696000, 0),
+		},
+	}
+	for _, e := range exp {
+		m := <-h.Websocket.DataHandler
+		require.IsType(t, &order.Detail{}, m, "Must get the correct type from DataHandler")
+		d, _ := m.(*order.Detail)
+		require.NotNil(t, d)
+		assert.Equal(t, e, d, "Order Detail should match")
+	}
 }
 
-func TestWsOrdersUpdate(t *testing.T) {
-	pressXToJSON := []byte(`{
-		"op": "notify",
-		"ts": 1522856623232,
-		"topic": "orders.btcusdt.update",
-		"data": {
-		"unfilled-amount": "0.000000000000000000",
-			"filled-amount": "5000.000000000000000000",
-			"price": "1.662100000000000000",
-			"order-id": 2039498445,
-			"symbol": "btcusdt",
-			"match-id": 94984,
-			"filled-cash-amount": "8301.357280000000000000",
-			"role": "taker|maker",
-			"order-state": "filled",
-			"client-order-id": "a0001",
-			"order-type": "buy-limit"
+func TestWsMyTrades(t *testing.T) {
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
+	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
+	require.NoError(t, err, "AddSubscriptions must not error")
+	h.SetSaveTradeDataStatus(true)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyTrades.json", h.wsHandleData)
+	close(h.Websocket.DataHandler)
+	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
+	m := <-h.Websocket.DataHandler
+	exp := &order.Detail{
+		Exchange:      h.Name,
+		Pair:          btcusdtPair,
+		Side:          order.Buy,
+		Status:        order.PartiallyFilled,
+		ClientOrderID: "a001",
+		OrderID:       "99998888",
+		AssetType:     asset.Spot,
+		Date:          time.Unix(1583853365586000, 0),
+		LastUpdated:   time.Unix(1583853365996000, 0),
+		Price:         10000,
+		Amount:        1,
+		Trades: []order.TradeHistory{
+			{
+				Price:     9999.99,
+				Amount:    0.96,
+				Fee:       19.88,
+				Exchange:  h.Name,
+				TID:       "919219323232",
+				Side:      order.Buy,
+				IsMaker:   false,
+				Timestamp: time.Unix(1583853365996000, 0),
+			},
+		},
 	}
-	}`)
-	err := h.wsHandleData(pressXToJSON)
-	require.NoError(t, err)
+	require.IsType(t, &order.Detail{}, m, "Must get the correct type from DataHandler")
+	d, _ := m.(*order.Detail)
+	require.NotNil(t, d)
+	assert.Equal(t, exp, d, "Order Detail should match")
 }
 
 func TestStringToOrderStatus(t *testing.T) {
@@ -1702,12 +1625,12 @@ func TestFormatFuturesPair(t *testing.T) {
 	r, err = h.formatFuturesPair(btcFutureDatedPair.Lower(), false)
 	require.NoError(t, err)
 	assert.Len(t, r, 9, "Should be an 9 character string")
-	assert.Equal(t, "BTC2", r[0:4], "Should start with btc and a date this millenium")
+	assert.Equal(t, "BTC2", r[0:4], "Should start with btc and a date this millennium")
 
 	r, err = h.formatFuturesPair(btccwPair, true)
 	require.NoError(t, err)
 	assert.Len(t, r, 9, "Should be an 9 character string")
-	assert.Equal(t, "BTC2", r[0:4], "Should start with btc and a date this millenium")
+	assert.Equal(t, "BTC2", r[0:4], "Should start with btc and a date this millennium")
 
 	r, err = h.formatFuturesPair(currency.NewPair(currency.BTC, currency.USDT), false)
 	require.NoError(t, err)
@@ -1756,9 +1679,9 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = h.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
-	require.ErrorIs(t, err, nil)
+	require.NoError(t, err)
 	_, err = h.GetFuturesContractDetails(context.Background(), asset.Futures)
-	require.ErrorIs(t, err, nil)
+	require.NoError(t, err)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -1954,13 +1877,18 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	h := new(HUOBI)
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := h.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
 	for _, s := range h.Features.Subscriptions {
-		if s.Authenticated && !h.Websocket.CanUseAuthenticatedEndpoints() {
+		if s.Asset == asset.Empty {
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.QualifiedChannel = channelName(s)
+			exp = append(exp, s)
 			continue
 		}
 		for _, a := range h.GetAssetTypes(true) {
@@ -1972,6 +1900,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: false, Delimiter: ""})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
+			if isWildcardChannel(s) {
+				s.Pairs = pairs
+				s.QualifiedChannel = channelName(s)
+				exp = append(exp, s)
+				continue
+			}
 			for i, p := range pairs {
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				s.QualifiedChannel = channelName(s, p)
@@ -1989,10 +1923,28 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
+func wsFixture(tb testing.TB, msg []byte, w *websocket.Conn) error {
+	tb.Helper()
+	action, _ := jsonparser.GetString(msg, "action")
+	ch, _ := jsonparser.GetString(msg, "ch")
+	if action == "req" && ch == "auth" {
+		return w.WriteMessage(websocket.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
+	}
+	if action == "sub" {
+		return w.WriteMessage(websocket.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
+	}
+	id, _ := jsonparser.GetString(msg, "id")
+	sub, _ := jsonparser.GetString(msg, "sub")
+	if id != "" && sub != "" {
+		return w.WriteMessage(websocket.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
+	}
+	return fmt.Errorf("%w: %s", errors.New("Unhandled mock websocket message"), msg)
+}
+
 // TestSubscribe exercises live public subscriptions
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI)
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
 	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -2000,17 +1952,52 @@ func TestSubscribe(t *testing.T) {
 	err = h.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	got := h.Websocket.GetSubscriptions()
-	require.Equal(t, 4, len(got), "Must get correct number of subscriptions")
+	require.Equal(t, 8, len(got), "Must get correct number of subscriptions")
+	for _, s := range got {
+		assert.Equal(t, subscription.SubscribedState, s.State())
+	}
+}
+
+// TestAuthSubscribe exercises mock subscriptions including private
+func TestAuthSubscribe(t *testing.T) {
+	t.Parallel()
+	subCfg := h.Features.Subscriptions
+	h := testexch.MockWsInstance[HUOBI](t, mockws.CurryWsMockUpgrader(t, wsFixture)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := subCfg.ExpandTemplates(h)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	err = h.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+	got := h.Websocket.GetSubscriptions()
+	require.Equal(t, 11, len(got), "Must get correct number of subscriptions")
 	for _, s := range got {
 		assert.Equal(t, subscription.SubscribedState, s.State())
 	}
 }
 
 func TestChannelName(t *testing.T) {
-	p := currency.NewPair(currency.BTC, currency.USD)
-	assert.Equal(t, "market.BTCUSD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, p))
-	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, p) })
-	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: subscription.MyAccountChannel}, p) }, "Should panic on V2 endpoints until implemented")
+	assert.Equal(t, "market.BTC-USD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, btcusdPair))
+	assert.Equal(t, "trade.clearing#*#1", channelName(&subscription.Subscription{Channel: subscription.MyTradesChannel}, btcusdPair))
+	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, btcusdPair) })
+}
+
+func TestIsWildcardChannel(t *testing.T) {
+	assert.False(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.CandlesChannel}))
+	assert.True(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
+	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}) })
+}
+
+func TestGetErrResp(t *testing.T) {
+	err := getErrResp([]byte(`{"status":"error","err-code":"bad-request","err-msg":"invalid topic promiscuous.drop🐻s.nearby"}`))
+	assert.ErrorContains(t, err, "invalid topic promiscuous.drop🐻s.nearby (bad-request)", "V1 errors should return correctly")
+	err = getErrResp([]byte(`{"status":"ok","subbed":"market.btcusdt.trade.detail"}`))
+	assert.NoError(t, err, "V1 success should not error")
+
+	err = getErrResp([]byte(`{"action":"sub","code":2001,"ch":"naughty.drop🐻s.locally","message":"invalid.ch"}`))
+	assert.ErrorContains(t, err, "invalid.ch (2001)", "V2 errors should return correctly")
+
+	err = getErrResp([]byte(`{"action":"sub","code":200,"ch":"orders#btcusdt","data":{}}`))
+	assert.NoError(t, err, "V2 success should not error")
 }
 
 func TestBootstrap(t *testing.T) {
