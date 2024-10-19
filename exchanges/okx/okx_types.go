@@ -68,9 +68,18 @@ const (
 )
 
 var (
-	errNo24HrTradeVolumeFound                 = errors.New("no trade record found in the 24 trade volume")
-	errOracleInformationNotFound              = errors.New("oracle information not found")
-	errExchangeInfoNotFound                   = errors.New("exchange information not found")
+	// maxWSUpdateBuffer defines max websocket updates to apply when an
+	// orderbook is initially fetched
+	maxWSUpdateBuffer = 150
+	// maxWSOrderbookJobs defines max websocket orderbook jobs in queue to fetch
+	// an orderbook snapshot via REST
+	maxWSOrderbookJobs = 2000
+	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
+	// jobs from the job channel
+	maxWSOrderbookWorkers = 10
+)
+
+var (
 	errIndexComponentNotFound                 = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100              = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                    = errors.New("missing instrument id")
@@ -166,6 +175,7 @@ var (
 	errLendingTermIsRequired                  = errors.New("lending term is required")
 	errLendingRateRequired                    = errors.New("lending rate is required")
 	errQuarterValueRequired                   = errors.New("quarter is required")
+	errYearRequired                           = errors.New("year is required")
 	errLengthMismatch                         = errors.New("mismatch in length")
 )
 

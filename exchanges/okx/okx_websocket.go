@@ -1650,7 +1650,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
 		return nil, common.ErrNilPointer
 	}
-	err := ok.validatePlaceOrderParams(arg)
+	err := ok.validatePlaceOrderParams(asset.Empty, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1699,7 +1699,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 	var err error
 	for x := range args {
 		arg := args[x]
-		err = ok.validatePlaceOrderParams(&arg)
+		err = ok.validatePlaceOrderParams(asset.Empty, &arg)
 		if err != nil {
 			return nil, err
 		}

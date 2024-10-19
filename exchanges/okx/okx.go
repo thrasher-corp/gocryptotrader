@@ -58,53 +58,31 @@ const (
 
 /************************************ MarketData Endpoints *************************************************/
 
+var orderTypeFromStringMap = map[string]order.Type{OkxOrderMarket: order.Market, OkxOrderLimit: order.Limit, OkxOrderPostOnly: order.PostOnly, OkxOrderFOK: order.FillOrKill, OkxOrderIOC: order.ImmediateOrCancel, OkxOrderOptimalLimitIOC: order.OptimalLimitIOC}
+
 // OrderTypeFromString returns order.Type instance from string
 func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
-	switch strings.ToLower(orderType) {
-	case OkxOrderMarket:
-		return order.Market, nil
-	case OkxOrderLimit:
-		return order.Limit, nil
-	case OkxOrderPostOnly:
-		return order.PostOnly, nil
-	case OkxOrderFOK:
-		return order.FillOrKill, nil
-	case OkxOrderIOC:
-		return order.ImmediateOrCancel, nil
-	case OkxOrderOptimalLimitIOC:
-		return order.OptimalLimitIOC, nil
-	default:
+	orderTypeValue, okay := orderTypeFromStringMap[strings.ToLower(orderType)]
+	if !okay {
 		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
+	return orderTypeValue, nil
 }
+
+var orderTypesToStringMap = map[order.Type]string{order.Market: OkxOrderMarket, order.Limit: OkxOrderLimit, order.PostOnly: OkxOrderPostOnly, order.FillOrKill: OkxOrderFOK, order.IOS: OkxOrderIOC, order.OptimalLimitIOC: OkxOrderOptimalLimitIOC}
 
 // OrderTypeString returns a string representation of order.Type instance
 func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
-	switch orderType {
-	case order.Market:
-		return OkxOrderMarket, nil
-	case order.Limit:
-		return OkxOrderLimit, nil
-	case order.PostOnly:
-		return OkxOrderPostOnly, nil
-	case order.FillOrKill:
-		return OkxOrderFOK, nil
-	case order.IOS:
-		return OkxOrderIOC, nil
-	case order.OptimalLimitIOC:
-		return OkxOrderOptimalLimitIOC, nil
-	default:
+	orderTypeString, okay := orderTypesToStringMap[orderType]
+	if !okay {
 		return "", fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
+	return orderTypeString, nil
 }
 
 // PlaceOrder place an order only if you have sufficient funds.
 func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a asset.Item) (*OrderData, error) {
-	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
-		return nil, common.ErrNilPointer
-	}
-	arg.AssetType = a
-	err := ok.validatePlaceOrderParams(arg)
+	err := ok.validatePlaceOrderParams(a, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +90,11 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, true)
 }
 
-func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
-	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
+func (ok *Okx) validatePlaceOrderParams(a asset.Item, arg *PlaceOrderRequestParam) error {
+	if *arg == (PlaceOrderRequestParam{}) {
 		return common.ErrNilPointer
 	}
+	arg.AssetType = a
 	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
 	}
@@ -123,35 +102,27 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 	}
-	if arg.TradeMode != "" &&
-		arg.TradeMode != TradeModeCross &&
-		arg.TradeMode != TradeModeIsolated &&
-		arg.TradeMode != TradeModeCash {
+	switch arg.TradeMode {
+	case "", TradeModeCross, TradeModeIsolated, TradeModeCash:
+	default:
 		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
 	}
-	if arg.PositionSide != "" {
-		if (arg.PositionSide == positionSideLong || arg.PositionSide == positionSideShort) &&
-			(arg.AssetType != asset.Futures && arg.AssetType != asset.PerpetualSwap) {
-			return errInvalidPositionMode
-		}
+	if arg.PositionSide == "" {
+		return fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
-	if arg.OrderType == order.OptimalLimitIOC.Lower() &&
-		(arg.AssetType != asset.Futures && arg.AssetType != asset.PerpetualSwap) {
-		return errors.New("\"optimal_limit_ioc\": market order with immediate-or-cancel order (applicable only to Futures and Perpetual swap)")
-	}
-	if arg.OrderType != OkxOrderMarket &&
-		arg.OrderType != OkxOrderLimit &&
-		arg.OrderType != OkxOrderPostOnly &&
-		arg.OrderType != OkxOrderFOK &&
-		arg.OrderType != OkxOrderIOC &&
-		arg.OrderType != OkxOrderOptimalLimitIOC {
+	switch arg.OrderType {
+	case OkxOrderMarket, OkxOrderLimit, OkxOrderPostOnly,
+		OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC:
+	default:
 		return fmt.Errorf("%w %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.Amount <= 0 {
 		return order.ErrAmountBelowMin
 	}
-	if arg.QuantityType != "" && arg.QuantityType != "base_ccy" && arg.QuantityType != "quote_ccy" {
+	switch arg.QuantityType {
+	case "", "base_ccy", "quote_ccy":
+	default:
 		return errors.New("only base_ccy and quote_ccy quantity types are supported")
 	}
 	return nil
@@ -164,7 +135,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 	}
 	var err error
 	for x := range args {
-		err = ok.validatePlaceOrderParams(&args[x])
+		err = ok.validatePlaceOrderParams(asset.Empty, &args[x])
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +157,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 
 // CancelSingleOrder cancel an incomplete order.
 func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
-	if arg == nil || *arg == (CancelOrderRequestParam{}) {
+	if *arg == (CancelOrderRequestParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
@@ -212,6 +183,9 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
 func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
+	if len(args) == 0 {
+		return nil, common.ErrNilPointer
+	}
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -241,13 +215,16 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 
 // AmendOrder an incomplete order.
 func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
-	if arg.NewQuantity < 0 && arg.NewPrice < 0 {
+	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	var resp *OrderData
@@ -256,6 +233,9 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array.
 func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
+	if len(args) == 0 {
+		return nil, common.ErrNilPointer
+	}
 	for x := range args {
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -263,7 +243,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, errMissingClientOrderIDOrOrderID
 		}
-		if args[x].NewQuantity < 0 && args[x].NewPrice < 0 {
+		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
@@ -273,7 +253,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 
 // ClosePositions close all positions of an instrument via a market order.
 func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestParams) (*ClosePositionResponse, error) {
-	if arg == nil || *arg == (ClosePositionsRequestParams{}) {
+	if *arg == (ClosePositionsRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
@@ -290,14 +270,13 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 
 // GetOrderDetail retrieves order details given instrument id and order identification
 func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam) (*OrderDetail, error) {
-	if arg == nil || *arg == (OrderDetailRequestParam{}) {
+	if *arg == (OrderDetailRequestParam{}) {
 		return nil, common.ErrNilPointer
 	}
-	params := url.Values{}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	params.Set("instId", arg.InstrumentID)
+	params := url.Values{}
 	switch {
 	case arg.OrderID == "" && arg.ClientOrderID == "":
 		return nil, errMissingClientOrderIDOrOrderID
@@ -306,13 +285,14 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 	default:
 		params.Set("clOrdId", arg.ClientOrderID)
 	}
+	params.Set("instId", arg.InstrumentID)
 	var resp *OrderDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues("trade/order", params), nil, &resp, true)
 }
 
 // GetOrderList retrieves all incomplete orders under the current account.
 func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]OrderDetail, error) {
-	if arg == nil || *arg == (OrderListRequestParams{}) {
+	if *arg == (OrderListRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	params := url.Values{}
@@ -356,7 +336,7 @@ func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryReque
 
 // getOrderHistory retrieves the order history of the past limited times
 func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams, route string, rateLimit request.EndpointLimit) ([]OrderDetail, error) {
-	if arg == nil || *arg == (OrderHistoryRequestParams{}) {
+	if *arg == (OrderHistoryRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentType == "" {
@@ -411,7 +391,7 @@ func (ok *Okx) GetTransactionDetailsLast3Months(ctx context.Context, arg *Transa
 // SetTransactionDetailIntervalFor2Years to apply for recently-filled transaction details in the past 2 years except for last 3 months.
 // returns download link generation time
 func (ok *Okx) SetTransactionDetailIntervalFor2Years(ctx context.Context, arg *FillArchiveParam) (time.Time, error) {
-	if arg == nil || *arg == (FillArchiveParam{}) {
+	if *arg == (FillArchiveParam{}) {
 		return time.Time{}, common.ErrNilPointer
 	}
 	resp := &struct {
@@ -423,7 +403,7 @@ func (ok *Okx) SetTransactionDetailIntervalFor2Years(ctx context.Context, arg *F
 // GetTransactionDetailsLast2Year retrieve recently-filled transaction details in the past 2 years except for last 3 months.
 func (ok *Okx) GetTransactionDetailsLast2Year(ctx context.Context, year int64, quarter string) ([]ArchiveReference, error) {
 	if year == 0 {
-		return nil, errors.New("year is required")
+		return nil, errYearRequired
 	}
 	if quarter == "" {
 		return nil, fmt.Errorf("%w; possible values are Q1, Q2, Q3, and Q4", errQuarterValueRequired)
@@ -437,7 +417,7 @@ func (ok *Okx) GetTransactionDetailsLast2Year(ctx context.Context, year int64, q
 
 // GetTransactionDetails retrieves recently-filled transaction details.
 func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetailRequestParams, route string, rateLimit request.EndpointLimit) ([]TransactionDetail, error) {
-	if arg == nil || *arg == (TransactionDetailRequestParams{}) {
+	if *arg == (TransactionDetailRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
@@ -476,7 +456,7 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 
 // PlaceAlgoOrder order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
 func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if arg == nil || *arg == (AlgoOrderParams{}) {
+	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
@@ -503,7 +483,7 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 
 // PlaceStopOrder to place stop order
 func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if arg == nil || *arg == (AlgoOrderParams{}) {
+	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderType != "conditional" {
@@ -520,7 +500,7 @@ func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 
 // PlaceTrailingStopOrder to place trailing stop order
 func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if arg == nil || *arg == (AlgoOrderParams{}) {
+	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderType != "move_order_stop" {
@@ -534,7 +514,7 @@ func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *AlgoOrderParams)
 
 // PlaceIcebergOrder to place iceburg algo order
 func (ok *Okx) PlaceIcebergOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if arg == nil || *arg == (AlgoOrderParams{}) {
+	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderType != "iceberg" {
@@ -551,7 +531,7 @@ func (ok *Okx) PlaceIcebergOrder(ctx context.Context, arg *AlgoOrderParams) (*Al
 
 // PlaceTWAPOrder to place TWAP algo orders
 func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if arg == nil || *arg == (AlgoOrderParams{}) {
+	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderType != "twap" {
@@ -571,7 +551,7 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 
 // TriggerAlgoOrder fetches algo trigger orders for SWAP market types.
 func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if arg == nil || *arg == (AlgoOrderParams{}) {
+	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderType != "trigger" {
@@ -629,7 +609,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 // AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
 // Only applicable to Futures and Perpetual swap.
 func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*AmendAlgoResponse, error) {
-	if arg == nil || *arg == (AmendAlgoOrderParam{}) {
+	if *arg == (AmendAlgoOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
@@ -1011,7 +991,7 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
 
 // GetRfqs retrieves details of Rfqs that the user is a counterparty to (either as the creator or the receiver of the Rfq).
 func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqResponse, error) {
-	if arg == nil || *arg == (RfqRequestParams{}) {
+	if *arg == (RfqRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	params := url.Values{}
@@ -1039,7 +1019,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqRespons
 
 // GetQuotes retrieves all Quotes that the user is a counterparty to (either as the creator or the receiver).
 func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteResponse, error) {
-	if arg == nil || *arg == (QuoteRequestParams{}) {
+	if *arg == (QuoteRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	params := url.Values{}
@@ -1073,7 +1053,7 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 
 // GetRfqTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
 func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([]RfqTradeResponse, error) {
-	if arg == nil || *arg == (RfqTradesRequestParams{}) {
+	if *arg == (RfqTradesRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	params := url.Values{}
@@ -1169,7 +1149,7 @@ func (ok *Okx) GetAccountAssetValuation(ctx context.Context, ccy currency.Code) 
 // FundingTransfer transfer of funds between your funding account and trading account,
 // and from the master account to sub-accounts.
 func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestInput) ([]FundingTransferResponse, error) {
-	if arg == nil || *arg == (FundingTransferRequestInput{}) {
+	if *arg == (FundingTransferRequestInput{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Amount <= 0 {
@@ -1427,7 +1407,7 @@ func (ok *Okx) GetSavingBalance(ctx context.Context, ccy currency.Code) ([]Savin
 
 // SavingsPurchaseOrRedemption creates a purchase or redemption instance
 func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurchaseRedemptionInput) (*SavingsPurchaseRedemptionResponse, error) {
-	if arg == nil || *arg == (SavingsPurchaseRedemptionInput{}) {
+	if *arg == (SavingsPurchaseRedemptionInput{}) {
 		return nil, common.ErrNilPointer
 	}
 	arg.ActionType = strings.ToLower(arg.ActionType)
@@ -1529,7 +1509,7 @@ func (ok *Okx) GetConvertCurrencyPair(ctx context.Context, fromCcy, toCcy curren
 
 // EstimateQuote retrieves quote estimation detail result given the base and quote currency.
 func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput) (*EstimateQuoteResponse, error) {
-	if arg == nil || *arg == (EstimateQuoteRequestInput{}) {
+	if *arg == (EstimateQuoteRequestInput{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.BaseCurrency.IsEmpty() {
@@ -1554,7 +1534,7 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 
 // ConvertTrade converts a base currency to quote currency.
 func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*ConvertTradeResponse, error) {
-	if arg == nil || *arg == (ConvertTradeInput{}) {
+	if *arg == (ConvertTradeInput{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.BaseCurrency == "" {
@@ -1718,7 +1698,7 @@ func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg *BillsDetailQueryP
 
 // GetBillsDetail retrieves the bills of the account.
 func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParameter, route string, epl request.EndpointLimit) ([]BillsDetailResponse, error) {
-	if arg == nil || *arg == (BillsDetailQueryParameter{}) {
+	if *arg == (BillsDetailQueryParameter{}) {
 		return nil, common.ErrNilPointer
 	}
 	params := url.Values{}
@@ -2338,7 +2318,7 @@ func (ok *Okx) ResetMMPStatus(ctx context.Context, instrumentType, instrumentFam
 // SetMMP set MMP configure
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
 func (ok *Okx) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, error) {
-	if arg == nil || *arg == (MMPConfig{}) {
+	if *arg == (MMPConfig{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentFamily == "" {
@@ -2595,7 +2575,7 @@ func (ok *Okx) GetSubAccountBorrowInterestAndLimit(ctx context.Context, subAccou
 
 // PlaceGridAlgoOrder place spot grid algo order.
 func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*GridAlgoOrderIDResponse, error) {
-	if arg == nil || *arg == (GridAlgoOrder{}) {
+	if *arg == (GridAlgoOrder{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
@@ -2698,7 +2678,7 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 
 // ClosePositionForContractrid close position when the contract grid stop type is 'keep position'.
 func (ok *Okx) ClosePositionForContractrid(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
-	if arg == nil || *arg == (ClosePositionParams{}) {
+	if *arg == (ClosePositionParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.AlgoID == "" {
@@ -2716,7 +2696,7 @@ func (ok *Okx) ClosePositionForContractrid(ctx context.Context, arg *ClosePositi
 
 // CancelClosePositionOrderForContractGrid cancels close position order for contract grid
 func (ok *Okx) CancelClosePositionOrderForContractGrid(ctx context.Context, arg *CancelClosePositionOrder) (*ClosePositionContractGridResponse, error) {
-	if arg == nil || *arg == (CancelClosePositionOrder{}) {
+	if *arg == (CancelClosePositionOrder{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.AlgoID == "" {
@@ -3273,7 +3253,7 @@ func (ok *Okx) GetLeadingPositionsHistory(ctx context.Context, instrumentType, i
 
 // PlaceLeadingStopOrder holds leading trader sets TP/SL for the current leading position that are not closed.
 func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (*PositionIDInfo, error) {
-	if arg == nil || *arg == (TPSLOrderParam{}) {
+	if *arg == (TPSLOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.SubPositionID == "" {
@@ -3285,7 +3265,7 @@ func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (
 
 // CloseLeadingPosition close a leading position once a time.
 func (ok *Okx) CloseLeadingPosition(ctx context.Context, arg *CloseLeadingPositionParam) (*PositionIDInfo, error) {
-	if arg == nil || *arg == (CloseLeadingPositionParam{}) {
+	if *arg == (CloseLeadingPositionParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.SubPositionID == "" {
@@ -3383,7 +3363,7 @@ func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*
 }
 
 func validateFirstCopySettings(arg *FirstCopySettings) error {
-	if arg == nil || *arg == (FirstCopySettings{}) {
+	if *arg == (FirstCopySettings{}) {
 		return common.ErrNilPointer
 	}
 	if arg.UniqueCode == "" {
@@ -3403,7 +3383,7 @@ func validateFirstCopySettings(arg *FirstCopySettings) error {
 
 // StopCopying need to use this endpoint for amending copy settings
 func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*ResponseSuccess, error) {
-	if arg == nil || *arg == (StopCopyingParameter{}) {
+	if *arg == (StopCopyingParameter{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.UniqueCode == "" {
@@ -3450,7 +3430,7 @@ func (ok *Okx) GetMultipleLeverages(ctx context.Context, marginMode, uniqueCode,
 
 // SetMultipleLeverages set Multiple leverages
 func (ok *Okx) SetMultipleLeverages(ctx context.Context, arg *SetLeveragesParam) (*SetMultipleLeverageResponse, error) {
-	if arg == nil || *arg == (SetLeveragesParam{}) {
+	if *arg == (SetLeveragesParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.MarginMode == "" {
@@ -4171,7 +4151,7 @@ func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumeIn24HR, err
 	if len(resp) == 1 {
 		return &resp[0], nil
 	}
-	return nil, errNo24HrTradeVolumeFound
+	return nil, common.ErrNoResponse
 }
 
 // GetOracle Get the crypto price of signing using Open Oracle smart contract.
@@ -4184,7 +4164,7 @@ func (ok *Okx) GetOracle(ctx context.Context) (*OracleSmartContractResponse, err
 	if len(resp) == 1 {
 		return &resp[0], nil
 	}
-	return nil, errOracleInformationNotFound
+	return nil, common.ErrNoResponse
 }
 
 // GetExchangeRate this interface provides the average exchange rate data for 2 weeks
@@ -4198,7 +4178,7 @@ func (ok *Okx) GetExchangeRate(ctx context.Context) (*UsdCnyExchangeRate, error)
 	if len(resp) == 1 {
 		return &resp[0], nil
 	}
-	return nil, errExchangeInfoNotFound
+	return nil, common.ErrNoResponse
 }
 
 // GetIndexComponents returns the index component information data on the market
@@ -4269,7 +4249,7 @@ func (ok *Okx) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*Sp
 }
 
 func (ok *Okx) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
-	if arg == nil || *arg == (SpreadOrderParam{}) {
+	if *arg == (SpreadOrderParam{}) {
 		return common.ErrNilPointer
 	}
 	if arg.SpreadID == "" {
@@ -4323,7 +4303,7 @@ func (ok *Okx) CancelAllSpreadOrders(ctx context.Context, spreadID string) (bool
 
 // AmendSpreadOrder amends incomplete spread order
 func (ok *Okx) AmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
-	if arg == nil || *arg == (AmendSpreadOrderParam{}) {
+	if *arg == (AmendSpreadOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
@@ -4785,7 +4765,7 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 
 // GetInsuranceFundInformation returns insurance fund balance information.
 func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
-	if arg == nil || *arg == (InsuranceFundInformationRequestParams{}) {
+	if *arg == (InsuranceFundInformationRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.InstrumentType == "" {
@@ -5447,7 +5427,7 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 
 // PlaceLendingOrder places a lending order
 func (ok *Okx) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam) (*LendingOrderResponse, error) {
-	if arg == nil || *arg == (LendingOrderParam{}) {
+	if *arg == (LendingOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
