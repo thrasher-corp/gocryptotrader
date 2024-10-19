@@ -2020,75 +2020,59 @@ func TestMigrateConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		setup   func(t *testing.T)
-		cleanup func(t *testing.T)
 		args    args
 		want    string
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "nonexisting",
 			args: args{
 				configFile: "not-exists.json",
 			},
-			wantErr: true,
+			wantErr: os.ErrNotExist,
 		},
 		{
 			name: "source present, no target dir",
 			setup: func(t *testing.T) {
 				t.Helper()
-				test, err := os.Create("test.json")
-				if err != nil {
-					t.Fatal(err)
-				}
-				test.Close()
-			},
-			cleanup: func(t *testing.T) {
-				t.Helper()
-				os.Remove("test.json")
+				test, err := os.Create(filepath.Join(dir, "test.json"))
+				require.NoError(t, err, "os.Create must not error")
+				require.NoError(t, test.Close(), "file Close must not error")
 			},
 			args: args{
-				configFile: "test.json",
+				configFile: filepath.Join(dir, "test.json"),
 				targetDir:  filepath.Join(dir, "new"),
 			},
-			want:    filepath.Join(dir, "new", File),
-			wantErr: false,
+			want: filepath.Join(dir, "new", File),
 		},
 		{
 			name: "source same as target",
 			setup: func(t *testing.T) {
 				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 			},
 			args: args{
 				configFile: filepath.Join(dir, File),
 				targetDir:  dir,
 			},
-			want:    filepath.Join(dir, File),
-			wantErr: false,
+			want: filepath.Join(dir, File),
 		},
 		{
 			name: "source and target present",
 			setup: func(t *testing.T) {
 				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 				err = file.Write(filepath.Join(dir, "src", EncryptedFile), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 			},
 			args: args{
 				configFile: filepath.Join(dir, "src", EncryptedFile),
 				targetDir:  dir,
 			},
-			want: filepath.Join(dir, "src", EncryptedFile),
-			// We only expect warning
-			wantErr: false,
+			want:    filepath.Join(dir, "src", EncryptedFile),
+			wantErr: nil, // We only expect warning
 		},
 	}
 
@@ -2097,19 +2081,13 @@ func TestMigrateConfig(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(t)
 			}
-			if tt.cleanup != nil {
-				defer tt.cleanup(t)
-			}
 			got, err := migrateConfig(tt.args.configFile, tt.args.targetDir)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("migrateConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("migrateConfig() = %v, want %v", got, tt.want)
-			}
-			if err == nil && !file.Exists(got) {
-				t.Errorf("migrateConfig: %v should exist", got)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr, "migrateConfig must error correctly")
+			} else {
+				require.NoError(t, err, "migrateConfig must not error")
+				require.Equal(t, tt.want, got, "migrateConfig must return the correct file")
+				require.Truef(t, file.Exists(got), "migrateConfig return file `%s` must exist", got)
 			}
 		})
 	}
