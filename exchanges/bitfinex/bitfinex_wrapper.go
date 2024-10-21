@@ -159,6 +159,7 @@ func (b *Bitfinex) SetDefaults() {
 				GlobalResultLimit: 10000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	b.Requester, err = request.New(b.Name,
@@ -208,7 +209,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
@@ -218,7 +219,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  publicBitfinexWebsocketEndpoint,
@@ -227,7 +228,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,

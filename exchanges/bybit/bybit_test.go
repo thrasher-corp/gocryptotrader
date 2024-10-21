@@ -3226,7 +3226,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 6780.866843, v.Volume, "Volume should be correct")
 				assert.Equal(t, "BTC_USDT", v.Pair.String(), "Pair should be correct")
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType should be correct")
-				assert.Equal(t, int64(233366401000), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			case 2: // Option
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, 3565.00, v.Last, "Last should be correct")
@@ -3306,7 +3306,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61942.85, v.IndexPrice, "IndexPrice should be correct")
 				assert.Equal(t, 526.806, v.OpenInterest, "OpenInterest should be correct")
 				assert.Equal(t, asset.USDCMarginedFutures, v.AssetType, "AssetType should be correct")
-				assert.Equal(t, int64(171575661221), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+				assert.Equal(t, int64(1715756612210), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			case 7: // CoinMargined snapshot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USD, v.Pair.Quote, "Pair quote should be correct")
