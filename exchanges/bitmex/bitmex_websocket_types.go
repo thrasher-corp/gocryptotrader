@@ -1,11 +1,13 @@
 package bitmex
 
-import "time"
+import (
+	"time"
+)
 
 // WebsocketRequest is the main request type
 type WebsocketRequest struct {
-	Command   string        `json:"op"`
-	Arguments []interface{} `json:"args"`
+	Command   string `json:"op"`
+	Arguments []any  `json:"args"`
 }
 
 // WebsocketErrorResponse main error response
