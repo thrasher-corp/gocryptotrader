@@ -27,16 +27,16 @@ const (
 	bitgetAPIURL = "https://api.bitget.com/api/v2/"
 
 	// Public endpoints
-	bitgetPublic            = "public/"
-	bitgetAnnouncements     = "annoucements" // sic
-	bitgetTime              = "time"
-	bitgetMarket            = "market/"
-	bitgetWhaleNetFlow      = "whale-net-flow"
-	bitgetTakerBuySell      = "taker-buy-sell"
-	bitgetPositionLongShort = "position-long-short"
-	// bitgetLongShortRatio    = "long-short-ratio"
-	// bitgetLoanGrowth          = "loan-growth"
-	// bitgetIsolatedBorrowRate  = "isolated-borrow-rate"
+	bitgetPublic              = "public/"
+	bitgetAnnouncements       = "annoucements" // sic
+	bitgetTime                = "time"
+	bitgetMarket              = "market/"
+	bitgetWhaleNetFlow        = "whale-net-flow"
+	bitgetTakerBuySell        = "taker-buy-sell"
+	bitgetPositionLongShort   = "position-long-short"
+	bitgetLongShortRatio      = "long-short-ratio"
+	bitgetLoanGrowth          = "loan-growth"
+	bitgetIsolatedBorrowRate  = "isolated-borrow-rate"
 	bitgetLongShort           = "long-short"
 	bitgetFundFlow            = "fund-flow"
 	bitgetSupportSymbols      = "support-symbols"
@@ -104,6 +104,8 @@ const (
 	bitgetConvertCoinList          = "bgb-convert-coin-list"
 	bitgetBGBConvertRecords        = "bgb-convert-records"
 	bitgetPlaceOrder               = "/place-order"
+	bitgetCancelReplaceOrder       = "/cancel-replace-order"
+	bitgetBatchCancelReplaceOrder  = "/batch-cancel-replace-order"
 	bitgetCancelOrder              = "/cancel-order"
 	bitgetBatchOrders              = "/batch-orders"
 	bitgetBatchCancel              = "/batch-cancel-order"
@@ -487,7 +489,7 @@ func (bi *Bitget) GetMerchantP2POrders(ctx context.Context, startTime, endTime t
 }
 
 // GetMerchantAdvertisementList returns information on a variety of merchant advertisements
-func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, payMethodID int64, status, side, cryptoCurrency, fiatCurrency, orderBy, sourceType string) ([]P2PAdListResp, error) {
+func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, payMethodID int64, status, side, cryptoCurrency, fiatCurrency, orderBy, sourceType string) (*P2PAdListResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, false, true)
@@ -511,11 +513,9 @@ func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, e
 	params.Values.Set("orderBy", orderBy)
 	params.Values.Set("sourceType", sourceType)
 	var resp struct {
-		Data struct {
-			AdList []P2PAdListResp `json:"advList"`
-		} `json:"data"`
+		Data P2PAdListResp `json:"data"`
 	}
-	return resp.Data.AdList, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, bitgetP2P+bitgetAdvList, params.Values, nil, &resp)
+	return &resp.Data, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, bitgetP2P+bitgetAdvList, params.Values, nil, &resp)
 }
 
 // GetSpotWhaleNetFlow returns the amount whales have been trading in a specified pair recently
@@ -562,50 +562,52 @@ func (bi *Bitget) GetFuturesPositionRatios(ctx context.Context, pair, period str
 	return resp.PosRatFutureResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
 
-// When queried, the exchange claims that this endpoint doesn't exist, despite having a documentation page
-// // GetMarginPositionRatios returns the ratio of long to short positions for a specified pair in margin accounts
-// func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair, period, currency string) (*PosRatMarginResp, error) {
-// 	if pair == "" {
-// 		return nil, errPairEmpty
-// 	}
-// 	vals := url.Values{}
-// 	vals.Set("symbol", pair)
-// 	vals.Set("period", period)
-// 	vals.Set("coin", currency)
-// 	path := bitgetMix + bitgetMarket + bitgetLongShortRatio
-// 	var resp *PosRatMarginResp
-// 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
-// }
+// GetMarginPositionRatios returns the ratio of long to short positions for a specified pair in margin accounts
+func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair, period, currency string) ([]PosRatMarginResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("period", period)
+	vals.Set("coin", currency)
+	path := bitgetMargin + bitgetMarket + bitgetLongShortRatio
+	var resp struct {
+		PosRatMarginResp []PosRatMarginResp `json:"data"`
+	}
+	return resp.PosRatMarginResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
 
-// When queried, the exchange claims that this endpoint doesn't exist, despite having a documentation page
-// // GetMarginLoanGrowth returns the growth rate of borrowed funds for a specified pair in margin accounts
-// func (bi *Bitget) GetMarginLoanGrowth(ctx context.Context, pair, period, currency string) (*LoanGrowthResp, error) {
-// 	if pair == "" {
-// 		return nil, errPairEmpty
-// 	}
-// 	vals := url.Values{}
-// 	vals.Set("symbol", pair)
-// 	vals.Set("period", period)
-// 	vals.Set("coin", currency)
-// 	path := bitgetMix + bitgetMarket + bitgetLoanGrowth
-// 	var resp *LoanGrowthResp
-// 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
-// }
+// GetMarginLoanGrowth returns the growth rate of borrowed funds for a specified pair in margin accounts
+func (bi *Bitget) GetMarginLoanGrowth(ctx context.Context, pair, period, currency string) ([]LoanGrowthResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("period", period)
+	vals.Set("coin", currency)
+	path := bitgetMargin + bitgetMarket + bitgetLoanGrowth
+	var resp struct {
+		LoanGrowthResp []LoanGrowthResp `json:"data"`
+	}
+	return resp.LoanGrowthResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
 
-// When queried, the exchange claims that this endpoint doesn't exist, despite having a documentation page
-// // GetIsolatedBorrowingRatio returns the ratio of borrowed funds between base and quote currencies, after
-// // converting to USDT, within isolated margin accounts
-// func (bi *Bitget) GetIsolatedBorrowingRatio(ctx context.Context, pair, period string) (*BorrowRatioResp, error) {
-// 	if pair == "" {
-// 		return nil, errPairEmpty
-// 	}
-// 	vals := url.Values{}
-// 	vals.Set("symbol", pair)
-// 	vals.Set("period", period)
-// 	path := bitgetMix + bitgetMarket + bitgetIsolatedBorrowRate
-// 	var resp *BorrowRatioResp
-// 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
-// }
+// GetIsolatedBorrowingRatio returns the ratio of borrowed funds between base and quote currencies, after converting to USDT, within isolated margin accounts
+func (bi *Bitget) GetIsolatedBorrowingRatio(ctx context.Context, pair, period string) ([]BorrowRatioResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("period", period)
+	path := bitgetMargin + bitgetMarket + bitgetIsolatedBorrowRate
+	var resp struct {
+		BorrowRatioResp []BorrowRatioResp `json:"data"`
+	}
+	return resp.BorrowRatioResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
+}
 
 // GetFuturesRatios returns the ratio of long to short positions for a specified pair
 func (bi *Bitget) GetFuturesRatios(ctx context.Context, pair, period string) ([]RatioResp, error) {
@@ -787,13 +789,14 @@ func (bi *Bitget) ModifyAPIKey(ctx context.Context, subaccountID, passphrase, la
 		return nil, errSubaccountEmpty
 	}
 	path := bitgetUser + bitgetModify + bitgetVirtualSubaccount + "-" + bitgetAPIKey
-	req := make(map[string]any)
-	req["subAccountUid"] = subaccountID
-	req["passphrase"] = passphrase
-	req["label"] = label
-	req["subAccountApiKey"] = apiKey
-	req["ipList"] = whiteList
-	req["permList"] = permList
+	req := map[string]any{
+		"subAccountUid":    subaccountID,
+		"passphrase":       passphrase,
+		"label":            label,
+		"subAccountApiKey": apiKey,
+		"ipList":           whiteList,
+		"permList":         permList,
+	}
 	var resp struct {
 		AlterAPIKeyResp `json:"data"`
 	}
@@ -1112,7 +1115,7 @@ func (bi *Bitget) GetSpotMarketTrades(ctx context.Context, pair string, startTim
 }
 
 // PlaceSpotOrder places a spot order on the exchange
-func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair, side, orderType, strategy, clientOrderID string, price, amount float64, isCopyTradeLeader bool) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair, side, orderType, strategy, clientOrderID, stpMode string, price, amount, triggerPrice, presetTPPrice, executeTPPrice, presetSLPrice, executeSLPrice float64, isCopyTradeLeader bool, acceptableDelay time.Duration) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1132,26 +1135,101 @@ func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair, side, orderType, str
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair,
-		"side":      side,
-		"orderType": orderType,
-		"force":     strategy,
-		"price":     strconv.FormatFloat(price, 'f', -1, 64),
-		"size":      strconv.FormatFloat(amount, 'f', -1, 64),
-		"clientOid": clientOrderID,
+		"symbol":      pair,
+		"side":        side,
+		"orderType":   orderType,
+		"force":       strategy,
+		"price":       strconv.FormatFloat(price, 'f', -1, 64),
+		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
+		"stpMode":     stpMode,
+		"requestTime": strconv.FormatInt(time.Now().UnixMilli(), 10),
+	}
+	if triggerPrice != 0 {
+		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', -1, 64)
+		req["tpslType"] = "tpsl"
+	} else {
+		req["clientOid"] = clientOrderID
+	}
+	if acceptableDelay != 0 {
+		req["receiveWindow"] = acceptableDelay.Milliseconds()
+	}
+	if presetTPPrice != 0 {
+		req["presetTakeProfitPrice"] = strconv.FormatFloat(presetTPPrice, 'f', -1, 64)
+		req["executeTakeProfitPrice"] = strconv.FormatFloat(executeTPPrice, 'f', -1, 64)
+	}
+	if presetSLPrice != 0 {
+		req["presetStopLossPrice"] = strconv.FormatFloat(presetSLPrice, 'f', -1, 64)
+		req["executeStopLossPrice"] = strconv.FormatFloat(executeSLPrice, 'f', -1, 64)
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlaceOrder
-	var resp *OrderIDResp
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
 	// I suspect the two rate limits have to do with distinguishing ordinary traders, and traders who are also copy trade leaders. Since this isn't detectable, it'll be handled in the relevant functions through a bool
 	rLim := Rate10
 	if isCopyTradeLeader {
 		rLim = Rate1
 	}
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+}
+
+// CancelAndPlaceSpotOrder cancels an order and places a new one on the exchange
+func (bi *Bitget) CancelAndPlaceSpotOrder(ctx context.Context, pair, oldClientOrderID, newClientOrderID string, price, amount, presetTPPrice, executeTPPrice, presetSLPrice, executeSLPrice float64, orderID int64) (*CancelAndPlaceResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if oldClientOrderID == "" && orderID == 0 {
+		return nil, errOrderClientEmpty
+	}
+	if price == 0 {
+		return nil, errPriceEmpty
+	}
+	req := map[string]any{
+		"symbol": pair,
+		"price":  strconv.FormatFloat(price, 'f', -1, 64),
+		"size":   strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if oldClientOrderID != "" {
+		req["clientOid"] = oldClientOrderID
+	}
+	if orderID != 0 {
+		req["orderId"] = strconv.FormatInt(orderID, 10)
+	}
+	if newClientOrderID != "" {
+		req["newClientOid"] = newClientOrderID
+	}
+	if presetTPPrice != 0 {
+		req["presetTakeProfitPrice"] = strconv.FormatFloat(presetTPPrice, 'f', -1, 64)
+		req["executeTakeProfitPrice"] = strconv.FormatFloat(executeTPPrice, 'f', -1, 64)
+	}
+	if presetSLPrice != 0 {
+		req["presetStopLossPrice"] = strconv.FormatFloat(presetSLPrice, 'f', -1, 64)
+		req["executeStopLossPrice"] = strconv.FormatFloat(executeSLPrice, 'f', -1, 64)
+	}
+	path := bitgetSpot + bitgetTrade + bitgetCancelReplaceOrder
+	var resp struct {
+		CancelAndPlaceResp `json:"data"`
+	}
+	return &resp.CancelAndPlaceResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
+}
+
+// BatchCancelAndPlaceSpotOrders cancels and places up to fifty orders on the exchange
+func (bi *Bitget) BatchCancelAndPlaceSpotOrders(ctx context.Context, orders []ReplaceSpotOrderStruct) ([]CancelAndPlaceResp, error) {
+	if len(orders) == 0 {
+		return nil, errOrdersEmpty
+	}
+	req := map[string]any{
+		"orderList": orders,
+	}
+	path := bitgetSpot + bitgetTrade + bitgetBatchCancelReplaceOrder
+	var resp struct {
+		Data []CancelAndPlaceResp `json:"data"`
+	}
+	return resp.Data, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // CancelSpotOrderByID cancels an order on the exchange
-func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderIDResp, error) {
+func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair, tpslType, clientOrderID string, orderID int64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1159,7 +1237,8 @@ func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair, clientOrderID s
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]any{
-		"symbol": pair,
+		"symbol":   pair,
+		"tpslType": tpslType,
 	}
 	if orderID != 0 {
 		req["orderId"] = strconv.FormatInt(orderID, 10)
@@ -1168,13 +1247,15 @@ func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair, clientOrderID s
 		req["clientOid"] = clientOrderID
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCancelOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchPlaceSpotOrders places up to fifty orders on the exchange
-func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair string, orders []PlaceSpotOrderStruct, isCopyTradeLeader bool) (*BatchOrderResp, error) {
-	if pair == "" {
+func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair string, multiCurrencyMode, isCopyTradeLeader bool, orders []PlaceSpotOrderStruct) (*BatchOrderResp, error) {
+	if pair == "" && !multiCurrencyMode {
 		return nil, errPairEmpty
 	}
 	if len(orders) == 0 {
@@ -1183,6 +1264,9 @@ func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair string, orders 
 	req := map[string]any{
 		"symbol":    pair,
 		"orderList": orders,
+	}
+	if multiCurrencyMode {
+		req["batchMode"] = "multiple"
 	}
 	path := bitgetSpot + bitgetTrade + bitgetBatchOrders
 	var resp struct {
@@ -1196,8 +1280,8 @@ func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair string, orders 
 }
 
 // BatchCancelOrders cancels up to fifty orders on the exchange
-func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, orderIDs []OrderIDStruct) (*BatchOrderResp, error) {
-	if pair == "" {
+func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, multiCurrencyMode bool, orderIDs []CancelSpotOrderStruct) (*BatchOrderResp, error) {
+	if pair == "" && !multiCurrencyMode {
 		return nil, errPairEmpty
 	}
 	if len(orderIDs) == 0 {
@@ -1206,6 +1290,9 @@ func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, orderIDs [
 	req := map[string]any{
 		"symbol":    pair,
 		"orderList": orderIDs,
+	}
+	if multiCurrencyMode {
+		req["batchMode"] = "multiple"
 	}
 	path := bitgetSpot + bitgetTrade + bitgetBatchCancel
 	var resp *BatchOrderResp
@@ -1230,7 +1317,7 @@ func (bi *Bitget) CancelOrdersBySymbol(ctx context.Context, pair string) (string
 }
 
 // GetSpotOrderDetails returns information on a single order
-func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, clientOrderID string) ([]SpotOrderDetailData, error) {
+func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, clientOrderID string, acceptableDelay time.Duration) ([]SpotOrderDetailData, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -1242,7 +1329,7 @@ func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, client
 		vals.Set("clientOid", clientOrderID)
 	}
 	vals.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	vals.Set("receiveWindow", "60000")
+	vals.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
 	path := bitgetSpot + bitgetTrade + bitgetOrderInfo
 	return bi.spotOrderHelper(ctx, path, vals)
 }
@@ -1317,7 +1404,7 @@ func (bi *Bitget) GetSpotFills(ctx context.Context, pair string, startTime, endT
 }
 
 // PlacePlanSpotOrder sets up an order to be placed after certain conditions are met
-func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair, side, orderType, planType, triggerType, clientOrderID, strategy string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair, side, orderType, planType, triggerType, clientOrderID, strategy string, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1354,12 +1441,14 @@ func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair, side, orderType,
 		req["clientOid"] = clientOrderID
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlacePlanOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
 }
 
 // ModifyPlanSpotOrder alters the price, trigger price, amount, or order type of a plan order
-func (bi *Bitget) ModifyPlanSpotOrder(ctx context.Context, orderID int64, clientOrderID, orderType string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+func (bi *Bitget) ModifyPlanSpotOrder(ctx context.Context, orderID int64, clientOrderID, orderType string, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -1388,8 +1477,10 @@ func (bi *Bitget) ModifyPlanSpotOrder(ctx context.Context, orderID int64, client
 		req["orderId"] = strconv.FormatInt(orderID, 10)
 	}
 	path := bitgetSpot + bitgetTrade + bitgetModifyPlanOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
 }
 
 // CancelPlanSpotOrder cancels a plan order
@@ -1652,7 +1743,7 @@ func (bi *Bitget) SubaccountTransfer(ctx context.Context, fromType, toType, curr
 }
 
 // WithdrawFunds withdraws funds from the user's account
-func (bi *Bitget) WithdrawFunds(ctx context.Context, currency, transferType, address, chain, innerAddressType, areaCode, tag, note, clientOrderID string, amount float64) (*OrderIDResp, error) {
+func (bi *Bitget) WithdrawFunds(ctx context.Context, currency, transferType, address, chain, innerAddressType, areaCode, tag, note, clientOrderID string, amount float64) (*OrderIDStruct, error) {
 	if currency == "" {
 		return nil, errCurrencyEmpty
 	}
@@ -1680,8 +1771,10 @@ func (bi *Bitget) WithdrawFunds(ctx context.Context, currency, transferType, add
 		req["clientOid"] = clientOrderID
 	}
 	path := bitgetSpot + bitgetWallet + bitgetWithdrawal
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetSubaccountTransferRecord returns the user's sub-account transfer history
@@ -2477,7 +2570,7 @@ func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair, productType 
 }
 
 // PlaceFuturesOrder places a futures order on the exchange
-func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair, productType, marginMode, marginCoin, side, tradeSide, orderType, strategy, clientOID string, stopSurplusPrice, stopLossPrice, amount, price float64, reduceOnly, isCopyTradeLeader bool) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair, productType, marginMode, marginCoin, side, tradeSide, orderType, strategy, clientOID string, stopSurplusPrice, stopLossPrice, amount, price float64, reduceOnly, isCopyTradeLeader bool) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -2531,12 +2624,14 @@ func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair, productType, marg
 	if isCopyTradeLeader {
 		rLim = Rate1
 	}
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
 }
 
 // PlaceReversal attempts to close a position, in part or in whole, and opens a position of corresponding size on the opposite side. This operation may only be done in part under certain margin levels, market conditions, or other unspecified factors. If a reversal is attempted for an amount greater than the current outstanding position, that position will be closed, and a new position will be opened for the amount of the closed position; not the amount specified in the request. The side specified in the parameter should correspond to the side of the position you're attempting to close; if the original is open_long, use close_long; if the original is open_short, use close_short; if the original is sell_single, use buy_single. If the position is sell_single or buy_single, the amount parameter will be ignored, and the entire position will be closed, with a corresponding amount opened on the opposite side.
-func (bi *Bitget) PlaceReversal(ctx context.Context, pair, marginCoin, productType, side, tradeSide, clientOID string, amount float64, isCopyTradeLeader bool) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceReversal(ctx context.Context, pair, marginCoin, productType, side, tradeSide, clientOID string, amount float64, isCopyTradeLeader bool) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -2566,8 +2661,10 @@ func (bi *Bitget) PlaceReversal(ctx context.Context, pair, marginCoin, productTy
 	if isCopyTradeLeader {
 		rLim = Rate1
 	}
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchPlaceFuturesOrders places multiple orders at once. Can also be used to modify the take-profit and stop-loss of an open position.
@@ -2604,7 +2701,7 @@ func (bi *Bitget) BatchPlaceFuturesOrders(ctx context.Context, pair, productType
 }
 
 // ModifyFuturesOrder can change the size, price, take-profit, and stop-loss of an order. Size and price have to be modified at the same time, or the request will fail. If size and price are altered, the old order will be cancelled, and a new one will be created asynchronously. Due to the asynchronous creation of a new order, a new ClientOrderID must be supplied so it can be tracked.
-func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientOrderID, pair, productType, newClientOrderID string, newAmount, newPrice, newTakeProfit, newStopLoss float64) (*OrderIDResp, error) {
+func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientOrderID, pair, productType, newClientOrderID string, newAmount, newPrice, newTakeProfit, newStopLoss float64) (*OrderIDStruct, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -2637,12 +2734,14 @@ func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientO
 		req["newPrice"] = strconv.FormatFloat(newPrice, 'f', -1, 64)
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // CancelFuturesOrder cancels an order on the exchange
-func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair, productType, marginCoin, clientOrderID string, orderID int64) (*OrderIDResp, error) {
+func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair, productType, marginCoin, clientOrderID string, orderID int64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -2666,8 +2765,10 @@ func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair, productType, mar
 		req["marginCoin"] = marginCoin
 	}
 	path := bitgetMix + bitgetOrder + bitgetCancelOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchCancelFuturesOrders cancels multiple orders at once
@@ -2885,7 +2986,7 @@ func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, prod
 }
 
 // PlaceTPSLFuturesOrder places a take-profit or stop-loss futures order
-func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin, productType, pair, planType, triggerType, holdSide, rangeRate, clientOrderID string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin, productType, pair, planType, triggerType, holdSide, rangeRate, clientOrderID string, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
 	if marginCoin == "" {
 		return nil, errMarginCoinEmpty
 	}
@@ -2921,12 +3022,14 @@ func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin, product
 		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlaceTPSLOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // PlaceTriggerFuturesOrder places a trigger futures order
-func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, pair, productType, marginMode, marginCoin, triggerType, side, tradeSide, orderType, clientOrderID, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64, reduceOnly bool) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, pair, productType, marginMode, marginCoin, triggerType, side, tradeSide, orderType, clientOrderID, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64, reduceOnly bool) (*OrderIDStruct, error) {
 	if planType == "" {
 		return nil, errPlanTypeEmpty
 	}
@@ -2998,12 +3101,14 @@ func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, pair, 
 		req["stopLossTriggerType"] = stopLossTriggerType
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlacePlanOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // ModifyTPSLFuturesOrder modifies a take-profit or stop-loss futures order
-func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, clientOrderID, marginCoin, productType, pair, triggerType string, triggerPrice, executePrice, amount, rangeRate float64) (*OrderIDResp, error) {
+func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, clientOrderID, marginCoin, productType, pair, triggerType string, triggerPrice, executePrice, amount, rangeRate float64) (*OrderIDStruct, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -3037,12 +3142,14 @@ func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, cli
 		req["rangeRate"] = strconv.FormatFloat(rangeRate, 'f', -1, 64)
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyTPSLOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // ModifyTriggerFuturesOrder modifies a trigger futures order
-func (bi *Bitget) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, triggerType, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) (*OrderIDResp, error) {
+func (bi *Bitget) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, triggerType, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) (*OrderIDStruct, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -3076,8 +3183,10 @@ func (bi *Bitget) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, 
 		req["newStopLossExecutePrice"] = strconv.FormatFloat(stopLossExecutePrice, 'f', -1, 64)
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyPlanOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetPendingTriggerFuturesOrders returns information on pending trigger orders
@@ -3446,7 +3555,7 @@ func (bi *Bitget) GetCrossFlashRepayResult(ctx context.Context, idList []int64) 
 }
 
 // PlaceCrossOrder places an order using cross margin
-func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair, orderType, loanType, strategy, clientOrderID, side string, price, baseAmount, quoteAmount float64) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair, orderType, loanType, strategy, clientOrderID, side string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -3481,8 +3590,10 @@ func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair, orderType, loanType
 		req["quoteSize"] = strconv.FormatFloat(quoteAmount, 'f', -1, 64)
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetPlaceOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchPlaceCrossOrders places multiple orders using cross margin
@@ -3503,7 +3614,7 @@ func (bi *Bitget) BatchPlaceCrossOrders(ctx context.Context, pair string, orders
 }
 
 // CancelCrossOrder cancels an order using cross margin
-func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderIDResp, error) {
+func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -3520,8 +3631,10 @@ func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair, clientOrderID stri
 		req["orderId"] = orderID
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetCancelOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchCancelCrossOrders cancels multiple orders using cross margin
@@ -3957,7 +4070,7 @@ func (bi *Bitget) GetIsolatedFlashRepayResult(ctx context.Context, idList []int6
 }
 
 // PlaceIsolatedOrder places an order using isolated margin
-func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair, orderType, loanType, strategy, clientOrderID, side string, price, baseAmount, quoteAmount float64) (*OrderIDResp, error) {
+func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair, orderType, loanType, strategy, clientOrderID, side string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -3992,8 +4105,10 @@ func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair, orderType, loanT
 		req["quoteSize"] = strconv.FormatFloat(quoteAmount, 'f', -1, 64)
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetPlaceOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchPlaceIsolatedOrders places multiple orders using isolated margin
@@ -4014,7 +4129,7 @@ func (bi *Bitget) BatchPlaceIsolatedOrders(ctx context.Context, pair string, ord
 }
 
 // CancelIsolatedOrder cancels an order using isolated margin
-func (bi *Bitget) CancelIsolatedOrder(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderIDResp, error) {
+func (bi *Bitget) CancelIsolatedOrder(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderIDStruct, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -4031,8 +4146,10 @@ func (bi *Bitget) CancelIsolatedOrder(ctx context.Context, pair, clientOrderID s
 		req["orderId"] = orderID
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetCancelOrder
-	var resp *OrderIDResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	var resp struct {
+		OrderIDStruct `json:"data"`
+	}
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // BatchCancelIsolatedOrders cancels multiple orders using isolated margin

@@ -741,7 +741,7 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
-	var IDs *OrderIDResp
+	var IDs *OrderIDStruct
 	strat, err := strategyTruthTable(s.ImmediateOrCancel, s.FillOrKill, s.PostOnly)
 	if err != nil {
 		return nil, err
@@ -752,7 +752,7 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch s.AssetType {
 	case asset.Spot:
-		IDs, err = bi.PlaceSpotOrder(ctx, s.Pair.String(), s.Side.String(), s.Type.Lower(), strat, cID.String(), s.Price, s.Amount, false)
+		IDs, err = bi.PlaceSpotOrder(ctx, s.Pair.String(), s.Side.String(), s.Type.Lower(), strat, cID.String(), "", s.Price, s.Amount, s.TriggerPrice, 0, 0, 0, 0, false, 0)
 	case asset.Futures:
 		IDs, err = bi.PlaceFuturesOrder(ctx, s.Pair.String(), getProductType(s.Pair), marginStringer(s.MarginType), s.Pair.Quote.String(), sideEncoder(s.Side, false), "", s.Type.Lower(), strat, cID.String(), 0, 0, s.Amount, s.Price, s.ReduceOnly, false)
 	case asset.Margin, asset.CrossMargin:
@@ -771,11 +771,11 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
-	resp, err := s.DeriveSubmitResponse(strconv.FormatInt(int64(IDs.Data.OrderID), 10))
+	resp, err := s.DeriveSubmitResponse(strconv.FormatInt(int64(IDs.OrderID), 10))
 	if err != nil {
 		return nil, err
 	}
-	resp.ClientOrderID = IDs.Data.ClientOrderID
+	resp.ClientOrderID = IDs.ClientOrderID
 	return resp, nil
 }
 
@@ -786,7 +786,7 @@ func (bi *Bitget) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	if err != nil {
 		return nil, err
 	}
-	var IDs *OrderIDResp
+	var IDs *OrderIDStruct
 	originalID, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
 		return nil, err
@@ -812,8 +812,8 @@ func (bi *Bitget) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	if err != nil {
 		return nil, err
 	}
-	resp.OrderID = strconv.FormatInt(int64(IDs.Data.OrderID), 10)
-	resp.ClientOrderID = IDs.Data.ClientOrderID
+	resp.OrderID = strconv.FormatInt(int64(IDs.OrderID), 10)
+	resp.ClientOrderID = IDs.ClientOrderID
 	return resp, nil
 }
 
@@ -829,7 +829,7 @@ func (bi *Bitget) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	switch ord.AssetType {
 	case asset.Spot:
-		_, err = bi.CancelSpotOrderByID(ctx, ord.Pair.String(), ord.ClientOrderID, originalID)
+		_, err = bi.CancelSpotOrderByID(ctx, ord.Pair.String(), ord.ClientOrderID, "", originalID)
 	case asset.Futures:
 		_, err = bi.CancelFuturesOrder(ctx, ord.Pair.String(), getProductType(ord.Pair), ord.Pair.Quote.String(), ord.ClientOrderID, originalID)
 	case asset.Margin:
@@ -862,7 +862,15 @@ func (bi *Bitget) CancelBatchOrders(ctx context.Context, orders []order.Cancel) 
 		for pair, batch := range batchByPair {
 			switch assetType {
 			case asset.Spot:
-				status, err = bi.BatchCancelOrders(ctx, pair.String(), batch)
+				// This no longer needs to be batched by pair, refactor if many others get similar changes
+				batchConv := make([]CancelSpotOrderStruct, len(batch))
+				for i := range batch {
+					batchConv[i] = CancelSpotOrderStruct{
+						OrderID:       int64(batch[i].OrderID),
+						ClientOrderID: batch[i].ClientOrderID,
+					}
+				}
+				status, err = bi.BatchCancelOrders(ctx, pair.String(), false, batchConv)
 			case asset.Futures:
 				status, err = bi.BatchCancelFuturesOrders(ctx, batch, pair.String(), getProductType(pair), pair.Quote.String())
 			case asset.Margin:
@@ -929,7 +937,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	}
 	switch assetType {
 	case asset.Spot:
-		ordInfo, err := bi.GetSpotOrderDetails(ctx, ordID, "")
+		ordInfo, err := bi.GetSpotOrderDetails(ctx, ordID, "", time.Minute)
 		if err != nil {
 			return nil, err
 		}
@@ -1092,7 +1100,7 @@ func (bi *Bitget) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 		return nil, err
 	}
 	ret := &withdraw.ExchangeResponse{
-		ID: strconv.FormatInt(int64(resp.Data.OrderID), 10),
+		ID: strconv.FormatInt(int64(resp.OrderID), 10),
 	}
 	return ret, nil
 }

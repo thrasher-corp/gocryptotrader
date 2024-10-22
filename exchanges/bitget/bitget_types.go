@@ -207,8 +207,8 @@ type MerchantCertifiedList struct {
 	Desc     string `json:"desc"`
 }
 
-// P2PAdListResp holds information on P2P advertisements
-type P2PAdListResp struct {
+// AdvertisementList is a sub-struct holding information on P2P advertisements
+type AdvertisementList struct {
 	AdID                  int64                   `json:"adId,string"`
 	AdvNum                int64                   `json:"advNo,string"`
 	Side                  string                  `json:"side"`
@@ -235,6 +235,12 @@ type P2PAdListResp struct {
 	MerchantCertifiedList []MerchantCertifiedList `json:"merchantCertifiedList"`
 }
 
+// P2PAdListResp holds information on P2P advertisements
+type P2PAdListResp struct {
+	AdvertisementList  []AdvertisementList `json:"advList"`
+	MinAdvertisementID int64               `json:"minAdvId,string"`
+}
+
 // WhaleNetFlowResp holds information on whale trading volumes
 type WhaleNetFlowResp struct {
 	Volume float64       `json:"volume,string"`
@@ -256,32 +262,23 @@ type PosRatFutureResp struct {
 	Timestamp              UnixTimestamp `json:"ts"`
 }
 
-// Type for an endpoint which doesn't work
-// // PosRatMarginResp holds information on position ratios in margin trading
-// type PosRatMarginResp struct {
-// 	Data []struct {
-// 		Timestamp      UnixTimestamp `json:"ts"`
-// 		LongShortRatio float64       `json:"longShortRatio,string"`
-// 	} `json:"data"`
-// }
+// PosRatMarginResp holds information on position ratios in margin trading
+type PosRatMarginResp struct {
+	Timestamp      UnixTimestamp `json:"ts"`
+	LongShortRatio float64       `json:"longShortRatio,string"`
+}
 
-// Type for an endpoint which doesn't work
-// // LoanGrowthResp holds information on loan growth
-// type LoanGrowthResp struct {
-// 	Data []struct {
-// 		Timestamp  UnixTimestamp `json:"ts"`
-// 		GrowthRate float64       `json:"growthRate,string"`
-// 	} `json:"data"`
-// }
+// LoanGrowthResp holds information on loan growth
+type LoanGrowthResp struct {
+	Timestamp  UnixTimestamp `json:"ts"`
+	GrowthRate float64       `json:"growthRate,string"`
+}
 
-// Type for an endpoint which doesn't work
-// // BorrowRatioResp holds information on borrowing ratios
-// type BorrowRatioResp struct {
-// 	Data []struct {
-// 		Timestamp  UnixTimestamp `json:"ts"`
-// 		BorrowRate float64       `json:"borrowRate,string"`
-// 	} `json:"data"`
-// }
+// BorrowRatioResp holds information on borrowing ratios
+type BorrowRatioResp struct {
+	Timestamp  UnixTimestamp `json:"ts"`
+	BorrowRate float64       `json:"borrowRate,string"`
+}
 
 // RatioResp holds information on ratios
 type RatioResp struct {
@@ -514,19 +511,21 @@ type BGBConvHistResp struct {
 
 // ChainInfo is a sub-struct containing information on supported chains for a currency
 type ChainInfo struct {
-	Chain             string  `json:"chain"`
-	NeedTag           bool    `json:"needTag,string"`
-	Withdrawable      bool    `json:"withdrawable,string"`
-	Rechargeable      bool    `json:"rechargeable,string"`
-	WithdrawFee       float64 `json:"withdrawFee,string"`
-	ExtraWithdrawFee  float64 `json:"extraWithdrawFee,string"`
-	DepositConfirm    uint16  `json:"depositConfirm,string"`
-	WithdrawConfirm   uint16  `json:"withdrawConfirm,string"`
-	MinDepositAmount  float64 `json:"minDepositAmount,string"`
-	MinWithdrawAmount float64 `json:"minWithdrawAmount,string"`
-	BrowserURL        string  `json:"browserUrl"`
-	ContractAddress   string  `json:"contractAddress"`
-	WithdrawStep      uint8   `json:"withdrawStep,string"`
+	Chain                string  `json:"chain"`
+	NeedTag              bool    `json:"needTag,string"`
+	Withdrawable         bool    `json:"withdrawable,string"`
+	Rechargeable         bool    `json:"rechargeable,string"`
+	WithdrawFee          float64 `json:"withdrawFee,string"`
+	ExtraWithdrawFee     float64 `json:"extraWithdrawFee,string"`
+	DepositConfirm       uint16  `json:"depositConfirm,string"`
+	WithdrawConfirm      uint16  `json:"withdrawConfirm,string"`
+	MinDepositAmount     float64 `json:"minDepositAmount,string"`
+	MinWithdrawAmount    float64 `json:"minWithdrawAmount,string"`
+	BrowserURL           string  `json:"browserUrl"`
+	ContractAddress      string  `json:"contractAddress"`
+	WithdrawStep         uint8   `json:"withdrawStep,string"`
+	WithdrawMinimumScale uint8   `json:"withdrawMinimumScale,string"`
+	Congestion           string  `json:"congestion"`
 }
 
 // CoinInfoResp contains information on supported spot currencies
@@ -650,12 +649,25 @@ type MarketFillsResp struct {
 
 // PlaceOrderStruct contains information on an order to be placed
 type PlaceSpotOrderStruct struct {
-	Side          string  `json:"side"`
-	OrderType     string  `json:"orderType"`
-	Strategy      string  `json:"force"`
-	Price         float64 `json:"price,string"`
-	Size          float64 `json:"size,string"`
-	ClientOrderID string  `json:"clientOId"`
+	Pair                   string  `json:"symbol"`
+	Side                   string  `json:"side"`
+	OrderType              string  `json:"orderType"`
+	Strategy               string  `json:"force"`
+	Price                  float64 `json:"price,string"`
+	Size                   float64 `json:"size,string"`
+	ClientOrderID          string  `json:"clientOId,omitempty"`
+	STPMode                string  `json:"stpMode"`
+	PresetTakeProfitPrice  float64 `json:"presetTakeProfitPrice,string,omitempty"`
+	ExecuteTakeProfitPrice float64 `json:"executeTakeProfitPrice,string,omitempty"`
+	PresetStopLossPrice    float64 `json:"presetStopLossPrice,string,omitempty"`
+	ExecuteStopLossPrice   float64 `json:"executeStopLossPrice,string,omitempty"`
+}
+
+// CancelSpotOrderStruct contains information on an order to be cancelled
+type CancelSpotOrderStruct struct {
+	Pair          string `json:"symbol"`
+	OrderID       int64  `json:"orderId,string,omitempty"`
+	ClientOrderID string `json:"clientOId,omitempty"`
 }
 
 // EmptyInt is a type used to unmarshal empty string into 0, and numbers encoded as strings into int64
@@ -783,9 +795,26 @@ type SpotFillsResp struct {
 	UpdateTime   UnixTimestamp     `json:"uTime"`
 }
 
-// OrderIDResp contains order IDs in the format returned by the exchange
-type OrderIDResp struct {
-	Data OrderIDStruct `json:"data"`
+// CancelAndPlaceResp contains information on the success or failure of a replaced order
+type CancelAndPlaceResp struct {
+	OrderID       EmptyInt    `json:"orderId"`
+	ClientOrderID string      `json:"clientOid"`
+	Success       SuccessBool `json:"success"`
+	Message       string      `json:"msg"`
+}
+
+// ReplaceSpotOrderStruct contains information on an order to be replaced
+type ReplaceSpotOrderStruct struct {
+	Pair                   string  `json:"symbol"`
+	Price                  float64 `json:"price,string"`
+	Amount                 float64 `json:"size,string"`
+	OldClientOrderID       string  `json:"clientOid,omitempty"`
+	OrderID                int64   `json:"orderId,string,omitempty"`
+	NewClientOrderID       string  `json:"newClientOid,omitempty"`
+	PresetTakeProfitPrice  float64 `json:"presetTakeProfitPrice,string,omitempty"`
+	ExecuteTakeProfitPrice float64 `json:"executeTakeProfitPrice,string,omitempty"`
+	PresetStopLossPrice    float64 `json:"presetStopLossPrice,string,omitempty"`
+	ExecuteStopLossPrice   float64 `json:"executeStopLossPrice,string,omitempty"`
 }
 
 // PlanSpotOrder is a sub-struct that contains information on a planned order

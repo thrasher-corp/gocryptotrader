@@ -76,13 +76,13 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
-	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
+	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
@@ -945,9 +945,12 @@ func (bi *Bitget) orderbookDataHandler(wsResponse WsResponse) error {
 			Asset:      itemDecoder(wsResponse.Arg.InstrumentType),
 			Checksum:   uint32(ob[0].Checksum),
 		}
-		err = bi.Websocket.Orderbook.Update(&update)
-		if err != nil {
-			return err
+		// Sometimes the exchange returns updates with no new asks or bids, just a checksum and timestamp
+		if len(update.Bids) != 0 || len(update.Asks) != 0 {
+			err = bi.Websocket.Orderbook.Update(&update)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
