@@ -20,6 +20,8 @@ var (
 	errRequestedDataTypesRequired      = errors.New("requested data types are required")
 	errQuoteIDRequired                 = errors.New("missing quote ID")
 	errAddressRequired                 = errors.New("address is required")
+	errInvalidRate                     = errors.New("invalid rate")
+	errInvalidSlippageToleraceBPs      = errors.New("invalid slippage tolerance base points")
 )
 
 // Instrument represents an details.
@@ -490,6 +492,13 @@ type TransactionItem struct {
 	InstrumentName      string     `json:"instrument_name"`
 }
 
+// InstrumentFeeRate represents instruments fee rate detail
+type InstrumentFeeRate struct {
+	InstrumentName        string       `json:"instrument_name"`
+	EffectiveMakerRateBps types.Number `json:"effective_maker_rate_bps"`
+	EffectiveTakerRateBps types.Number `json:"effective_taker_rate_bps"`
+}
+
 // OTCTrade represents an OTC trade.
 type OTCTrade struct {
 	AccountUUID         string     `json:"account_uuid"`
@@ -749,4 +758,121 @@ type WSRespData struct {
 // InstrumentList represents a list of instruments detail items.
 type InstrumentList struct {
 	Instruments []Instrument `json:"instruments"`
+}
+
+// StakingConversionRate represents staked token and liquid staking token
+type StakingConversionRate struct {
+	InstrumentName string       `json:"instrument_name"`
+	ConversionRate types.Number `json:"conversion_rate"`
+}
+
+// StakingResp represents a staking order response
+type StakingResp struct {
+	StakingID               string       `json:"staking_id"`
+	InstrumentName          string       `json:"instrument_name"`
+	Status                  string       `json:"status"`
+	UnderlyingInstName      string       `json:"underlying_inst_name"`
+	PreStakeChargeRateInBps string       `json:"pre_stake_charge_rate_in_bps"`
+	Quantity                types.Number `json:"quantity"`
+	PreStakeCharge          types.Number `json:"pre_stake_charge"`
+	Reason                  string       `json:"reason"`
+}
+
+// StakingPosition represents a staking position for a user/token
+type StakingPosition struct {
+	Data []struct {
+		InstrumentName          string       `json:"instrument_name"`
+		UnderlyingInstName      string       `json:"underlying_inst_name"`
+		StakedQuantity          types.Number `json:"staked_quantity"`
+		PendingStakedQuantity   types.Number `json:"pending_staked_quantity"`
+		PendingUnstakedQuantity types.Number `json:"pending_unstaked_quantity"`
+		RewardEligibleQuantity  types.Number `json:"reward_eligible_quantity"`
+	} `json:"data"`
+}
+
+// StakingInstrumentsResponse represents a list of staking instruments list
+type StakingInstrumentsResponse struct {
+	Data []StakingInstrumentDetail `json:"data"`
+}
+
+// StakingInstrumentDetail represents a staking instrument
+type StakingInstrumentDetail struct {
+	InstrumentName          string       `json:"instrument_name"`
+	UnderlyingInstName      string       `json:"underlying_inst_name"`
+	RewardInstName          string       `json:"reward_inst_name"`
+	OutOfStock              bool         `json:"out_of_stock"`
+	BlockUnstake            bool         `json:"block_unstake"`
+	EstRewards              string       `json:"est_rewards"`
+	AprY                    string       `json:"apr_y"`
+	MinStakeAmt             types.Number `json:"min_stake_amt"`
+	RewardFrequency         string       `json:"reward_frequency"`
+	LockUpPeriod            string       `json:"lock_up_period"`
+	IsCompoundReward        bool         `json:"is_compound_reward"`
+	PreStakeChargeEnable    bool         `json:"pre_stake_charge_enable"`
+	PreStakeChargeRateInBps string       `json:"pre_stake_charge_rate_in_bps"`
+	IsRestaked              bool         `json:"is_restaked"`
+	AdditionalRewards       []any        `json:"additional_rewards"`
+}
+
+// StakingRequestsResponse represents a stake/unstake requests list
+type StakingRequestsResponse struct {
+	Data []StakingDetail `json:"data"`
+}
+
+// StakingDetail represents a stake/unstake request detail
+type StakingDetail struct {
+	InstrumentName     string `json:"instrument_name"`
+	UnderlyingInstName string `json:"underlying_inst_name"`
+	CycleID            string `json:"cycle_id"`
+	StakingID          string `json:"staking_id"`
+	Status             string `json:"status"`
+	Account            string `json:"account"`
+	Quantity           string `json:"quantity"`
+	Side               string `json:"side"`
+	CreateTimestampMs  string `json:"create_timestamp_ms"`
+}
+
+// StakingRewardHistory represents a staking reward history
+type StakingRewardHistory struct {
+	Data []StakingRewardDetail `json:"data"`
+}
+
+// StakingRewardDetail represents a staking reward detail information.
+type StakingRewardDetail struct {
+	StakingInstName    string       `json:"staking_inst_name"`
+	UnderlyingInstName string       `json:"underlying_inst_name"`
+	RewardInstName     string       `json:"reward_inst_name"`
+	RewardQuantity     types.Number `json:"reward_quantity"`
+	StakedBalance      types.Number `json:"staked_balance"`
+	EventTimestampMs   types.Time   `json:"event_timestamp_ms"`
+}
+
+// StakingTokenConversionResponse represents a staking token conversion response detail
+type StakingTokenConversionResponse struct {
+	FromInstrumentName   string       `json:"from_instrument_name"`
+	ToInstrumentName     string       `json:"to_instrument_name"`
+	ExpectedRate         types.Number `json:"expected_rate"`
+	FromQuantity         types.Number `json:"from_quantity"`
+	SlippageToleranceBps types.Number `json:"slippage_tolerance_bps"`
+	ConvertID            int64        `json:"convert_id"`
+	Reason               string       `json:"reason"`
+}
+
+// StakingConvertsHistory represents a list of open staking requests
+type StakingConvertsHistory struct {
+	Data []StakingConvertRequestDetail `json:"data"`
+}
+
+// StakingConvertRequestDetail represents an open staking request detail
+type StakingConvertRequestDetail struct {
+	FromInstrumentName   string       `json:"from_instrument_name"`
+	ToInstrumentName     string       `json:"to_instrument_name"`
+	ExpectedRate         types.Number `json:"expected_rate"`
+	FromQuantity         types.Number `json:"from_quantity"`
+	SlippageToleranceBps string       `json:"slippage_tolerance_bps"`
+	ActualRate           types.Number `json:"actual_rate"`
+	ToQuantity           types.Number `json:"to_quantity"`
+	ConvertID            int64        `json:"convert_id"`
+	Status               string       `json:"status"`
+	CreateTimestampMs    types.Time   `json:"create_timestamp_ms"`
 }

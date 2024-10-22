@@ -432,6 +432,20 @@ func (cr *Cryptodotcom) GetTransactions(ctx context.Context, symbol, journalType
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetTransactionsRate, privateGetTransactions, params, &resp)
 }
 
+// GetUserAccountFeeRate get fee rates for user’s account.
+// func (cr *Cryptodotcom) GetUserAccountFeeRate(ctx context.Context, spotTier, derivTier, )
+
+// GetInstrumentFeeRate get the instrument fee rate.
+func (cr *Cryptodotcom) GetInstrumentFeeRate(ctx context.Context, symbol string) (*InstrumentFeeRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = symbol
+	var resp *InstrumentFeeRate
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/get-instrument-fee-rate", params, &resp)
+}
+
 // CreateSubAccountTransfer transfer between subaccounts (and master account).
 func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
 	if from == "" {
@@ -688,6 +702,183 @@ func stringToInterval(interval string) (kline.Interval, error) {
 		return 0, fmt.Errorf("%w %s", kline.ErrInvalidInterval, interval)
 	}
 	return klineInterval, nil
+}
+
+// -------- Staking Endpoints ------------------------------------------------------------------------
+
+// CreateStaking create a request to earn token rewards by staking on-chain in the Exchange.
+func (cr *Cryptodotcom) CreateStaking(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = symbol
+	params["quantity"] = quantity
+	var resp *StakingResp
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/stake", params, &resp)
+}
+
+//
+
+// Unstake create a request to unlock staked token.
+func (cr *Cryptodotcom) Unstake(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = symbol
+	params["quantity"] = quantity
+	var resp *StakingResp
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/unstake", params, &resp)
+}
+
+// GetStakingPosition get the total staking position for a user/token
+func (cr *Cryptodotcom) GetStakingPosition(ctx context.Context, symbol string) (*StakingPosition, error) {
+	params := make(map[string]interface{})
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
+	var resp *StakingPosition
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-staking-position", params, &resp)
+}
+
+// GetStakingInstruments get staking instruments information
+func (cr *Cryptodotcom) GetStakingInstruments(ctx context.Context) (*StakingInstrumentsResponse, error) {
+	var resp *StakingInstrumentsResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-staking-instruments", nil, &resp)
+}
+
+// GetOpenStakeUnStakeRequests get stake/unstake requests that status is not in final state.
+func (cr *Cryptodotcom) GetOpenStakeUnStakeRequests(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
+	params := make(map[string]interface{})
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
+	if !startTime.IsZero() {
+		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
+		params["end_time"] = endTime.UnixMilli()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *StakingRequestsResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-open-stake", params, &resp)
+}
+
+// GetStakingHistory get stake/unstake request history
+func (cr *Cryptodotcom) GetStakingHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
+	params := make(map[string]interface{})
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
+	if !startTime.IsZero() {
+		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
+		params["end_time"] = endTime.UnixMilli()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *StakingRequestsResponse
+	return resp, cr.SendAuthHTTPRequest(context.Background(), exchange.RestSpot, request.UnAuth, "private/staking/get-stake-history", params, &resp)
+}
+
+// GetStakingRewardHistory get stake/unstake request history
+func (cr *Cryptodotcom) GetStakingRewardHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRewardHistory, error) {
+	params := make(map[string]interface{})
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
+	if !startTime.IsZero() {
+		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
+		params["end_time"] = endTime.UnixMilli()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *StakingRewardHistory
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-reward-history", params, &resp)
+}
+
+// ConvertStakedToken create a request to convert between staked token with liquid staking token.
+func (cr *Cryptodotcom) ConvertStakedToken(ctx context.Context, fromSymbol, toSymbol string, expectedRate, fromQuantity, slippageToleranceBasisPoints float64) (*StakingTokenConversionResponse, error) {
+	if fromSymbol == "" {
+		return nil, fmt.Errorf("%w, fromSymbol is empty", currency.ErrSymbolStringEmpty)
+	}
+	if toSymbol == "" {
+		return nil, fmt.Errorf("%w, toSymbol is empty", currency.ErrSymbolStringEmpty)
+	}
+	if expectedRate <= 0 {
+		return nil, errInvalidRate
+	}
+	if fromQuantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if slippageToleranceBasisPoints <= 0 {
+		return nil, errInvalidSlippageToleraceBPs
+	}
+	params := make(map[string]interface{})
+	params["from_instrument_name"] = fromSymbol
+	params["to_instrument_name"] = toSymbol
+	params["expected_rate"] = expectedRate
+	params["from_quantity"] = fromQuantity
+	params["slippage_tolerance_bps"] = slippageToleranceBasisPoints
+	var resp *StakingTokenConversionResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/convert", params, &resp)
+}
+
+// GetOpenStakingConverts get convert request that status is not in final state.
+func (cr *Cryptodotcom) GetOpenStakingConverts(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
+	params := make(map[string]interface{})
+	if !startTime.IsZero() {
+		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
+		params["end_time"] = endTime.UnixMilli()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *StakingConvertsHistory
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-open-convert", params, &resp)
+}
+
+// GetStakingConvertHistory get convert request history
+func (cr *Cryptodotcom) GetStakingConvertHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
+	params := make(map[string]interface{})
+	if !startTime.IsZero() {
+		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
+		params["end_time"] = endTime.UnixMilli()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *StakingConvertsHistory
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-convert-history", params, &resp)
+}
+
+// StakingConversionRate get conversion rate between staked token and liquid staking token
+func (cr *Cryptodotcom) StakingConversionRate(ctx context.Context, symbol string) (*StakingConversionRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = symbol
+	var resp *StakingConversionRate
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "public/staking/get-conversion-rate", params, &resp)
 }
 
 // SendHTTPRequest send requests for un-authenticated market endpoints.

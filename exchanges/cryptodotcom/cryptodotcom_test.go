@@ -523,6 +523,17 @@ func TestGetTransactions(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetFeeRateForUserAccount(t *testing.T) {
+	t.Parallel()
+	_, err := cr.GetInstrumentFeeRate(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetInstrumentFeeRate(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestCreateSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	err := cr.CreateSubAccountTransfer(context.Background(), "", core.BitcoinDonationAddress, currency.USDT, 1232)
@@ -1024,5 +1035,117 @@ func TestWsRetriveTrades(t *testing.T) {
 
 	result, err := cr.WsRetriveTrades("BTC_USDT")
 	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateStaking(t *testing.T) {
+	t.Parallel()
+	_, err := cr.CreateStaking(context.Background(), "", 123.45)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = cr.CreateStaking(context.Background(), "BTC_USDT", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
+	result, err := cr.CreateStaking(context.Background(), "BTC_USDT", 123.45)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUnstake(t *testing.T) {
+	t.Parallel()
+	_, err := cr.Unstake(context.Background(), "", 123.45)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = cr.Unstake(context.Background(), "BTC_USDT", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
+	result, err := cr.Unstake(context.Background(), "BTC_USDT", 123.45)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStakingPosition(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetStakingPosition(context.Background(), "BTC_USDT")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStakingInstruments(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetStakingInstruments(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenStakeUnStakeRequests(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetOpenStakeUnStakeRequests(context.Background(), "BTC_USDT", time.Now().Add(-time.Hour*25*30), time.Now(), 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStakingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetStakingHistory(context.Background(), "BTC_USDT", time.Now().Add(-time.Hour*25*30), time.Now(), 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStakingReqardHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetStakingRewardHistory(context.Background(), "BTC_USDT", time.Now().Add(-time.Hour*25*30), time.Now(), 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestConvertStakedToken(t *testing.T) {
+	t.Parallel()
+	_, err := cr.ConvertStakedToken(context.Background(), "", "ETH_USDT", .5, 12.34, 3)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = cr.ConvertStakedToken(context.Background(), "BTC_USDT", "", .5, 12.34, 3)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = cr.ConvertStakedToken(context.Background(), "BTC_USDT", "ETH_USDT", 0, 12.34, 3)
+	require.ErrorIs(t, err, errInvalidRate)
+	_, err = cr.ConvertStakedToken(context.Background(), "BTC_USDT", "ETH_USDT", .5, 0, 3)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = cr.ConvertStakedToken(context.Background(), "BTC_USDT", "ETH_USDT", .5, 12.34, 0)
+	require.ErrorIs(t, err, errInvalidSlippageToleraceBPs)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
+	result, err := cr.ConvertStakedToken(context.Background(), "BTC_USDT", "ETH_USDT", .5, 12.34, 3)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenStakingConverts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetOpenStakingConverts(context.Background(), time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStakingConvertHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetStakingConvertHistory(context.Background(), time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestStakingConversionRate(t *testing.T) {
+	t.Parallel()
+	_, err := cr.StakingConversionRate(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.StakingConversionRate(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
