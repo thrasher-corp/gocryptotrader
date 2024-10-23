@@ -84,7 +84,7 @@ type ConnectionSetup struct {
 	// handle the authentication process and return an error if the
 	// authentication fails.
 	Authenticate func(ctx context.Context, conn Connection) error
-	// WrapperDefinedConnectionSignature is any type that will match to a specfic connection. This could be an asset
+	// WrapperDefinedConnectionSignature is any type that will match to a specific connection. This could be an asset
 	// type `asset.Spot`, a string type denoting the individual URL, an authenticated or unauthenticated string or a
 	// mixture of these.
 	WrapperDefinedConnectionSignature any
