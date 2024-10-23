@@ -315,7 +315,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 	}
 
 	start := time.Now()
-	if err := w.SendRawMessage(ctx, epl, websocket.TextMessage, outbound); err != nil {
+	if err = w.SendRawMessage(ctx, epl, websocket.TextMessage, outbound); err != nil {
 		return nil, err
 	}
 
