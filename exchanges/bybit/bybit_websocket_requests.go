@@ -48,7 +48,7 @@ func (by *Bybit) CancelOrderThroughWebsocket(ctx context.Context, arg *CancelOrd
 
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
 func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument, ret any) error {
-	conn, err := by.Websocket.GetOutboundConnection(OutboundTradeConnection)
+	conn, err := by.Websocket.GetConnection(OutboundTradeConnection)
 	if err != nil {
 		return err
 	}

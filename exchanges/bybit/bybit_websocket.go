@@ -609,7 +609,6 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
 	var tickResp TickerItem
 	if err := json.Unmarshal(resp.Data, &tickResp); err != nil {
-		fmt.Println("MEOW")
 		return err
 	}
 
@@ -619,7 +618,8 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	}
 
 	tick := &ticker.Price{Pair: p, ExchangeName: by.Name, AssetType: assetType}
-	if snapshot, err := ticker.GetTicker(by.Name, p, assetType); err == nil && resp.Type != "snapshot" {
+	snapshot, err := ticker.GetTicker(by.Name, p, assetType)
+	if err == nil && resp.Type != "snapshot" {
 		// ticker updates may be partial, so we need to update the current ticker
 		tick = snapshot
 	}

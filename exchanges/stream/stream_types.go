@@ -85,11 +85,10 @@ type ConnectionSetup struct {
 	// handle the authentication process and return an error if the
 	// authentication fails.
 	Authenticate func(ctx context.Context, conn Connection) error
-	// OutboundRequestSignature is any type that will match outbound
-	// requests to this specific connection. This could be an asset type
-	// `asset.Spot`, a string type denoting the individual URL, an
-	// authenticated or unauthenticated string or a mixture of these.
-	OutboundRequestSignature any
+	// WrapperDefinedConnectionSignature is any type that will match to a specific connection. This could be an asset
+	// type `asset.Spot`, a string type denoting the individual URL, an authenticated or unauthenticated string or a
+	// mixture of these.
+	WrapperDefinedConnectionSignature any
 	// ConnectionDoesNotRequireSubscriptions is for when this is a dedicated connection for only outbound requests.
 	// Subscription generation and handling is not required. Please use dummy functions `SubscriberNotRequired` &
 	// `SubscriptionGenerationNotRequired` for fields.

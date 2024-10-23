@@ -281,8 +281,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		OutboundRequestSignature: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		BespokeGenerateMessageID:          by.bespokeWebsocketRequestID,
+		WrapperDefinedConnectionSignature: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -302,8 +302,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		OutboundRequestSignature: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		BespokeGenerateMessageID:          by.bespokeWebsocketRequestID,
+		WrapperDefinedConnectionSignature: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -328,18 +328,19 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	// Trade - Dedicated trade connection for all outbound trading requests.
 	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      websocketTrade,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    stream.SubscriptionGenerationNotRequired,
-		Subscriber:               stream.SubscriberNotRequired,
-		Unsubscriber:             stream.SubscriberNotRequired,
-		Handler:                  by.wsHandleTradeData,
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		Authenticate:             by.WebsocketAuthenticateTradeConnection,
-		OutboundRequestSignature: OutboundTradeConnection,
+		URL:                                   websocketTrade,
+		ResponseCheckTimeout:                  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                      exch.WebsocketResponseMaxLimit,
+		RateLimit:                             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:                             by.WsConnect,
+		GenerateSubscriptions:                 stream.SubscriptionGenerationNotRequired,
+		Subscriber:                            stream.SubscriberNotRequired,
+		Unsubscriber:                          stream.SubscriberNotRequired,
+		Handler:                               by.wsHandleTradeData,
+		BespokeGenerateMessageID:              by.bespokeWebsocketRequestID,
+		Authenticate:                          by.WebsocketAuthenticateTradeConnection,
+		WrapperDefinedConnectionSignature:     OutboundTradeConnection,
+		ConnectionDoesNotRequireSubscriptions: true,
 	}); err != nil {
 		return err
 	}

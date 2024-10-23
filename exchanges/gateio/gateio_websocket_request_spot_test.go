@@ -29,7 +29,7 @@ func TestWebsocketLogin(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	demonstrationConn, err := g.Websocket.GetOutboundConnection(asset.Spot)
+	demonstrationConn, err := g.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 
 	got, err := g.WebsocketLogin(context.Background(), demonstrationConn, "spot.login")

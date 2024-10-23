@@ -329,13 +329,6 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 	}
 
-	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
-	if request.IsVerbose(ctx, false) {
-		for i := range resps {
-			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", w.ExchangeName, removeURLQueryString(w.URL), i+1, len(resps), string(resps[i]))
-		}
-	}
-
 	return resps, err
 }
 
@@ -362,6 +355,14 @@ func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature an
 			return nil, ctx.Err()
 		}
 	}
+
+	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
+	if request.IsVerbose(ctx, false) {
+		for i := range resps {
+			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", w.ExchangeName, removeURLQueryString(w.URL), i+1, len(resps), string(resps[i]))
+		}
+	}
+
 	return resps, nil
 }
 
