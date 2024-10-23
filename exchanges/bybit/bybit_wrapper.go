@@ -279,8 +279,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		OutboundRequestSignature: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		BespokeGenerateMessageID:          by.bespokeWebsocketRequestID,
+		WrapperDefinedConnectionSignature: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -300,8 +300,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		OutboundRequestSignature: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		BespokeGenerateMessageID:          by.bespokeWebsocketRequestID,
+		WrapperDefinedConnectionSignature: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
