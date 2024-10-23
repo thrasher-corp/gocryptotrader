@@ -86,6 +86,12 @@ const (
 	privateGetAccountSummary = "private/get-account-summary"
 )
 
+// GetRiskParameters provides information on risk parameter settings for Smart Cross Margin.
+func (cr *Cryptodotcom) GetRiskParameters(ctx context.Context) (*SmartCrossMarginRiskParameter, error) {
+	var resp *SmartCrossMarginRiskParameter
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "public/get-risk-parameters", request.UnAuth, &resp)
+}
+
 // GetInstruments provides information on all supported instruments
 func (cr *Cryptodotcom) GetInstruments(ctx context.Context) (*InstrumentList, error) {
 	var resp *InstrumentList
@@ -433,7 +439,10 @@ func (cr *Cryptodotcom) GetTransactions(ctx context.Context, symbol, journalType
 }
 
 // GetUserAccountFeeRate get fee rates for user’s account.
-// func (cr *Cryptodotcom) GetUserAccountFeeRate(ctx context.Context, spotTier, derivTier, )
+func (cr *Cryptodotcom) GetUserAccountFeeRate(ctx context.Context) (*FeeRate, error) {
+	var resp *FeeRate
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/get-fee-rate", nil, &resp)
+}
 
 // GetInstrumentFeeRate get the instrument fee rate.
 func (cr *Cryptodotcom) GetInstrumentFeeRate(ctx context.Context, symbol string) (*InstrumentFeeRate, error) {

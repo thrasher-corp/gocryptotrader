@@ -84,6 +84,13 @@ func initTradablePair() error {
 	return nil
 }
 
+func TestGetRiskParameters(t *testing.T) {
+	t.Parallel()
+	result, err := cr.GetRiskParameters(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	result, err := cr.GetInstruments(context.Background())
@@ -519,6 +526,14 @@ func TestGetTransactions(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	result, err := cr.GetTransactions(context.Background(), "BTCUSD-PERP", "", time.Time{}, time.Time{}, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserAccountFeeRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetUserAccountFeeRate(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -876,3 +876,32 @@ type StakingConvertRequestDetail struct {
 	Status               string       `json:"status"`
 	CreateTimestampMs    types.Time   `json:"create_timestamp_ms"`
 }
+
+// FeeRate holds fee rate information for spot and derivatives maker and taker rates.
+type FeeRate struct {
+	SpotTier                   string       `json:"spot_tier"`
+	DerivTier                  string       `json:"deriv_tier"`
+	EffectiveSpotMakerRateBps  types.Number `json:"effective_spot_maker_rate_bps"`
+	EffectiveSpotTakerRateBps  types.Number `json:"effective_spot_taker_rate_bps"`
+	EffectiveDerivMakerRateBps types.Number `json:"effective_deriv_maker_rate_bps"`
+	EffectiveDerivTakerRateBps types.Number `json:"effective_deriv_taker_rate_bps"`
+}
+
+// SmartCrossMarginRiskParameter holds risk parameter settings for smart cross margin
+type SmartCrossMarginRiskParameter struct {
+	DefaultMaxProductLeverageForSpot    types.Number `json:"default_max_product_leverage_for_spot"`
+	DefaultMaxProductLeverageForPerps   types.Number `json:"default_max_product_leverage_for_perps"`
+	DefaultMaxProductLeverageForFutures types.Number `json:"default_max_product_leverage_for_futures"`
+	DefaultUnitMarginRate               types.Number `json:"default_unit_margin_rate"`
+	DefaultCollateralCap                types.Number `json:"default_collateral_cap"`
+	UpdateTimestampMs                   int64        `json:"update_timestamp_ms"`
+	BaseCurrencyConfig                  []struct {
+		InstrumentName            string       `json:"instrument_name"`
+		MinimumHaircut            string       `json:"minimum_haircut,omitempty"`
+		UnitMarginRate            types.Number `json:"unit_margin_rate,omitempty"`
+		OrderLimit                types.Number `json:"order_limit"`
+		CollateralCapNotional     string       `json:"collateral_cap_notional,omitempty"`
+		MaxProductLeverageForSpot string       `json:"max_product_leverage_for_spot,omitempty"`
+		MaxShortSellLimit         types.Number `json:"max_short_sell_limit,omitempty"`
+	} `json:"base_currency_config"`
+}
