@@ -237,7 +237,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		return err
 	}
 
-	conn, err := g.Websocket.GetOutboundConnection(connSignature)
+	conn, err := g.Websocket.GetConnection(connSignature)
 	if err != nil {
 		return err
 	}

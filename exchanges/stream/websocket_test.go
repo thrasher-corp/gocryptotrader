@@ -467,7 +467,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.connections = map[Connection]*ConnectionWrapper{
+	multi.connectionToWrapper = map[Connection]*ConnectionWrapper{
 		amazingConn: multi.connectionManager[0],
 	}
 
@@ -979,7 +979,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.connections = map[Connection]*ConnectionWrapper{
+	w.connectionToWrapper = map[Connection]*ConnectionWrapper{
 		sweetConn: {Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
 	}
 
@@ -992,7 +992,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	err := w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	err := w.connectionToWrapper[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
 	require.NoError(t, err)
 
 	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
@@ -1489,42 +1489,39 @@ func TestMonitorTraffic(t *testing.T) {
 	require.False(t, innerShell())
 }
 
-func TestGetOutboundConnection(t *testing.T) {
+func TestGetConnection(t *testing.T) {
 	t.Parallel()
 	var ws *Websocket
-	_, err := ws.GetOutboundConnection("")
+	_, err := ws.GetConnection(nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	ws = &Websocket{}
-	_, err = ws.GetOutboundConnection("")
-	require.ErrorIs(t, err, ErrRequestRouteNotSet)
 
-	_, err = ws.GetOutboundConnection("testURL")
+	_, err = ws.GetConnection(nil)
+	require.ErrorIs(t, err, errConnectionSignatureNotSet)
+
+	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	ws.setState(connectedState)
-	_, err = ws.GetOutboundConnection("testURL")
+	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
 
 	ws.useMultiConnectionManagement = true
-	_, err = ws.GetOutboundConnection("testURL")
+	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
 	ws.connectionManager = []*ConnectionWrapper{{
-		Setup: &ConnectionSetup{URL: "testURL"},
+		Setup: &ConnectionSetup{WrapperDefinedConnectionSignature: "testURL", URL: "testURL"},
 	}}
 
-	ws.outbound = map[any]*ConnectionWrapper{
-		"testURL": ws.connectionManager[0],
-	}
-
-	_, err = ws.GetOutboundConnection("testURL")
+	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &WebsocketConnection{}
 	ws.connectionManager[0].Connection = expected
 
-	conn, err := ws.GetOutboundConnection("testURL")
+	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
 }
