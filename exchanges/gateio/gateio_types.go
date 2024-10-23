@@ -708,6 +708,7 @@ type FuturesCandlestick struct {
 	HighestPrice types.Number `json:"h"`
 	LowestPrice  types.Number `json:"l"`
 	OpenPrice    types.Number `json:"o"`
+	Sum          types.Number `json:"sum"` // Trading volume (unit: Quote currency)
 
 	// Added for websocket push data
 	Name string `json:"n,omitempty"`
@@ -1822,8 +1823,8 @@ type OrderCreateParams struct {
 	Iceberg       int64         `json:"iceberg"`
 	Price         string        `json:"price"` // NOTE: Market orders require string "0"
 	TimeInForce   string        `json:"tif"`
-	Text          string        `json:"text"`
-	ClosePosition bool          `json:"close,omitempty"`
+	Text          string        `json:"text,omitempty"`  // Omitempty required as payload sent as `text:""` will return error message: Text content not starting with `t-`"
+	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
 	AutoSize      string        `json:"auto_size,omitempty"`
 	Settle        string        `json:"-"` // Used in URL.
