@@ -230,15 +230,19 @@ type API struct {
 
 // Base stores the individual exchange information
 type Base struct {
-	Name                          string
-	Enabled                       bool
-	Verbose                       bool
-	LoadedByConfig                bool
-	SkipAuthCheck                 bool
-	API                           API
-	BaseCurrencies                currency.Currencies
-	CurrencyPairs                 currency.PairsManager
-	Features                      Features
+	Name           string
+	Enabled        bool
+	Verbose        bool
+	LoadedByConfig bool
+	SkipAuthCheck  bool
+	API            API
+	BaseCurrencies currency.Currencies
+	CurrencyPairs  currency.PairsManager
+	Features       Features
+	// ProtocolCapabilities is a map of supported features for each asset type
+	// and protocol type. This is mapped in the preflight check to determine
+	// if the method is functional and ready for that asset type.
+	ProtocolCapabilities          protocol.FeatureSet
 	HTTPTimeout                   time.Duration
 	HTTPRecording                 bool
 	HTTPDebugging                 bool

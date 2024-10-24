@@ -846,7 +846,14 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	return exchange.Bootstrap(context.TODO(), exch)
+	err = exchange.Bootstrap(context.TODO(), exch)
+	if err != nil {
+		return err
+	}
+
+	// Update prototocol capabilities with dynamic pre flight check.
+	exch.GetBase().ProtocolCapabilities = exchange.AutomaticPreFlightCheck(exch)
+	return nil
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {

@@ -117,6 +117,75 @@ if err != nil {
 	// supplied then
 ```
 
+## Trading Methods Supported
+
+### Protocol: REST
+
+#### Asset: cross_margin
+
+Supported Methods:
+- GetOrder
+- GetOrders
+- CancelOrders
+- CancelOrder
+- SubmitOrder
+- UserTradeHistory
+
+#### Asset: delivery
+
+Supported Methods:
+- GetOrder
+- GetOrders
+- CancelOrders
+- CancelOrder
+- SubmitOrder
+- UserTradeHistory
+
+#### Asset: futures
+
+Supported Methods:
+- GetOrder
+- GetOrders
+- CancelOrders
+- CancelOrder
+- SubmitOrder
+- UserTradeHistory
+
+#### Asset: margin
+
+Supported Methods:
+- GetOrder
+- GetOrders
+- CancelOrders
+- CancelOrder
+- SubmitOrder
+- UserTradeHistory
+
+#### Asset: options
+
+Supported Methods:
+- GetOrder
+- GetOrders
+- CancelOrders
+- CancelOrder
+- SubmitOrder
+- UserTradeHistory
+
+#### Asset: spot
+
+Supported Methods:
+- GetOrder
+- GetOrders
+- CancelOrders
+- CancelOrder
+- SubmitOrder
+- UserTradeHistory
+
+
+
+
+
+
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
 ## Contribution
