@@ -105,7 +105,7 @@ func (p *Poloniex) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
 // GetMarketPrice retrieves latest trade price for all symbols.
 func (p *Poloniex) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarketPrice
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/price", &resp)
@@ -129,7 +129,7 @@ func (p *Poloniex) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 // MarkPriceComponents retrieves components of the mark price for a given symbol.
 func (p *Poloniex) MarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponent, error) {
 	if symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPriceComponent
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPriceComponents", &resp)

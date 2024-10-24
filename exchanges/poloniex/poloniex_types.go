@@ -1563,16 +1563,19 @@ type FuturesLeverageResp struct {
 
 // FuturesFundingHistory represents a futures funding history list.
 type FuturesFundingHistory struct {
-	DataList []struct {
-		ID             int64   `json:"id"`
-		Symbol         string  `json:"symbol"`
-		TimePoint      int64   `json:"timePoint"`
-		FundingRate    float64 `json:"fundingRate"`
-		MarkPrice      float64 `json:"markPrice"`
-		PositionQty    float64 `json:"positionQty"`
-		PositionCost   float64 `json:"positionCost"`
-		Funding        float64 `json:"funding"`
-		SettleCurrency string  `json:"settleCurrency"`
-	} `json:"dataList"`
-	HasMore bool `json:"hasMore"`
+	DataList []FuturesFundingItem `json:"dataList"`
+	HasMore  bool                 `json:"hasMore"`
+}
+
+// FuturesFundingItem represents a futures account funding item information.
+type FuturesFundingItem struct {
+	ID             int64   `json:"id"`
+	Symbol         string  `json:"symbol"`
+	TimePoint      int64   `json:"timePoint"`
+	FundingRate    float64 `json:"fundingRate"`
+	MarkPrice      float64 `json:"markPrice"`
+	PositionQty    float64 `json:"positionQty"`
+	PositionCost   float64 `json:"positionCost"`
+	Funding        float64 `json:"funding"`
+	SettleCurrency string  `json:"settleCurrency"`
 }

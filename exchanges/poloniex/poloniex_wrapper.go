@@ -1870,7 +1870,7 @@ func (p *Poloniex) GetFuturesContractDetails(ctx context.Context, assetType asse
 			SettlementCurrencies: currency.Currencies{settleCurr},
 			MarginCurrency:       settleCurr,
 			Asset:                assetType,
-			StartDate:            contracts.Data[i].FirstOpenDate.Time(),
+			StartDate:            time.UnixMilli(contracts.Data[i].CreatedAt),
 			IsActive:             !strings.EqualFold(contracts.Data[i].Status, "closed"),
 			Status:               contracts.Data[i].Status,
 			Multiplier:           contracts.Data[i].Multiplier,
