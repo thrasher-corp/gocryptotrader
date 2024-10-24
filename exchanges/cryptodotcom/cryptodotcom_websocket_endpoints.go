@@ -14,23 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// WsGetInstruments retrieves information on all supported instruments through the public websocket connection.
-func (cr *Cryptodotcom) WsGetInstruments() (*InstrumentList, error) {
-	var resp *InstrumentList
-	return resp, cr.SendWebsocketRequest(publicInstruments, nil, &resp, false)
-}
-
-// WsRetriveTrades fetches the public trades for a particular instrument through the websocket stream.
-func (cr *Cryptodotcom) WsRetriveTrades(symbol string) (*TradesResponse, error) {
-	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
-	}
-	params := make(map[string]interface{})
-	params["instrument_name"] = symbol
-	var resp *TradesResponse
-	return resp, cr.SendWebsocketRequest(publicTrades, params, &resp, false)
-}
-
 // WsSetCancelOnDisconnect cancel on Disconnect is an optional feature that will cancel all open orders created by the connection upon loss of connectivity between client or server.
 func (cr *Cryptodotcom) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconnectScope, error) {
 	if scope != "ACCOUNT" && scope != "CONNECTION" {

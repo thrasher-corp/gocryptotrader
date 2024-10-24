@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
@@ -417,36 +416,16 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	}
 	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Data[0].Bids))
 	for x := range orderbookNew.Data[0].Bids {
-		var price float64
-		var amount float64
-		price, err = strconv.ParseFloat(orderbookNew.Data[0].Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err = strconv.ParseFloat(orderbookNew.Data[0].Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
 		book.Bids[x] = orderbook.Tranche{
-			Amount: amount,
-			Price:  price,
+			Amount: orderbookNew.Data[0].Bids[x][1].Float64(),
+			Price:  orderbookNew.Data[0].Bids[x][0].Float64(),
 		}
 	}
 	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Data[0].Asks))
 	for x := range orderbookNew.Data[0].Asks {
-		var price float64
-		var amount float64
-		price, err = strconv.ParseFloat(orderbookNew.Data[0].Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err = strconv.ParseFloat(orderbookNew.Data[0].Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
 		book.Asks[x] = orderbook.Tranche{
-			Amount: amount,
-			Price:  price,
+			Amount: orderbookNew.Data[0].Asks[x][1].Float64(),
+			Price:  orderbookNew.Data[0].Asks[x][0].Float64(),
 		}
 	}
 	err = book.Process()

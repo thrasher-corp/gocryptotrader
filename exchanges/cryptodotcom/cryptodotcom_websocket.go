@@ -526,25 +526,13 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 		}
 		book.Asks = make([]orderbook.Tranche, len(data[x].Asks))
 		for i := range data[x].Asks {
-			book.Asks[i].Price, err = strconv.ParseFloat(data[x].Asks[i][0], 64)
-			if err != nil {
-				return err
-			}
-			book.Asks[i].Amount, err = strconv.ParseFloat(data[x].Asks[i][1], 64)
-			if err != nil {
-				return err
-			}
+			book.Asks[i].Price = data[x].Asks[i][0].Float64()
+			book.Asks[i].Amount = data[x].Asks[i][1].Float64()
 		}
 		book.Bids = make([]orderbook.Tranche, len(data[x].Bids))
 		for i := range data[x].Bids {
-			book.Bids[i].Price, err = strconv.ParseFloat(data[x].Bids[i][0], 64)
-			if err != nil {
-				return err
-			}
-			book.Bids[i].Amount, err = strconv.ParseFloat(data[x].Bids[i][1], 64)
-			if err != nil {
-				return err
-			}
+			book.Bids[i].Price = data[x].Bids[i][0].Float64()
+			book.Bids[i].Amount = data[x].Bids[i][1].Float64()
 		}
 		book.Asks.SortAsks()
 		book.Bids.SortBids()

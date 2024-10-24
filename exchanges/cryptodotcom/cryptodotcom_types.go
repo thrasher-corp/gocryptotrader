@@ -47,8 +47,8 @@ type Instrument struct {
 type OrderbookDetail struct {
 	Depth int64 `json:"depth"`
 	Data  []struct {
-		Asks [][3]string `json:"asks"`
-		Bids [][3]string `json:"bids"`
+		Asks [][3]types.Number `json:"asks"`
+		Bids [][3]types.Number `json:"bids"`
 	} `json:"data"`
 	InstrumentName string `json:"instrument_name"`
 }
@@ -149,7 +149,7 @@ type PrivateRequestParam struct {
 
 // CurrencyNetworkResponse retrieves the symbol network mapping.
 type CurrencyNetworkResponse struct {
-	UpdateTime  int64 `json:"update_time"`
+	UpdateTime  types.Time `json:"update_time"`
 	CurrencyMap map[string]struct {
 		FullName       string              `json:"full_name"`
 		DefaultNetwork string              `json:"default_network"`
@@ -281,15 +281,15 @@ type PersonalTradeItem struct {
 // OrderDetail represents an order detail.
 type OrderDetail struct {
 	TradeList []struct {
-		Side           string  `json:"side"`
-		InstrumentName string  `json:"instrument_name"`
-		Fee            float64 `json:"fee"`
-		TradeID        string  `json:"trade_id"`
-		CreateTime     int64   `json:"create_time"`
-		TradedPrice    float64 `json:"traded_price"`
-		TradedQuantity float64 `json:"traded_quantity"`
-		FeeCurrency    string  `json:"fee_currency"`
-		OrderID        string  `json:"order_id"`
+		Side           string     `json:"side"`
+		InstrumentName string     `json:"instrument_name"`
+		Fee            float64    `json:"fee"`
+		TradeID        string     `json:"trade_id"`
+		CreateTime     types.Time `json:"create_time"`
+		TradedPrice    float64    `json:"traded_price"`
+		TradedQuantity float64    `json:"traded_quantity"`
+		FeeCurrency    string     `json:"fee_currency"`
+		OrderID        string     `json:"order_id"`
 	} `json:"trade_list"`
 	OrderInfo OrderItem `json:"order_info"`
 }
@@ -715,12 +715,12 @@ type UserBalance struct {
 
 // WsOrderbook represents an orderbook websocket push data.
 type WsOrderbook struct {
-	Asks                [][3]string `json:"asks"`
-	Bids                [][3]string `json:"bids"`
-	PushTime            types.Time  `json:"t"`
-	OrderbookUpdateTime types.Time  `json:"tt"`
-	UpdateSequence      int64       `json:"u"`
-	Cs                  int64       `json:"cs"`
+	Asks                [][3]types.Number `json:"asks"`
+	Bids                [][3]types.Number `json:"bids"`
+	PushTime            types.Time        `json:"t"`
+	OrderbookUpdateTime types.Time        `json:"tt"`
+	UpdateSequence      int64             `json:"u"`
+	Cs                  int64             `json:"cs"`
 }
 
 // WsRequestPayload represents authentication and request sending payload

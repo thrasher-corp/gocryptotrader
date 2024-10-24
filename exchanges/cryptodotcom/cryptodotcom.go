@@ -798,7 +798,7 @@ func (cr *Cryptodotcom) GetStakingHistory(ctx context.Context, symbol string, st
 		params["limit"] = limit
 	}
 	var resp *StakingRequestsResponse
-	return resp, cr.SendAuthHTTPRequest(context.Background(), exchange.RestSpot, request.UnAuth, "private/staking/get-stake-history", params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-stake-history", params, &resp)
 }
 
 // GetStakingRewardHistory get stake/unstake request history
