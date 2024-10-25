@@ -839,6 +839,20 @@ func TestSetTransactionDetailIntervalFor2Years(t *testing.T) {
 
 func TestStopOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.PlaceStopOrder(contextGenerate(), &AlgoOrderParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	arg := &AlgoOrderParams{
+		ReduceOnly: true,
+	}
+	_, err = ok.PlaceStopOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	arg.OrderType = "conditional"
+	_, err = ok.PlaceStopOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingTakeProfitTriggerPrice)
+	arg.TakeProfitTriggerPrice = 123
+	_, err = ok.PlaceStopOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingTakeProfitOrderPrice)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceStopOrder(contextGenerate(), &AlgoOrderParams{
 		TakeProfitTriggerPriceType: "index",
@@ -1582,6 +1596,11 @@ func TestGetLeverageRate(t *testing.T) {
 
 func TestGetMaximumLoanOfInstrument(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetMaximumLoanOfInstrument(contextGenerate(), "", "isolated", currency.ZRX)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+	_, err = ok.GetMaximumLoanOfInstrument(contextGenerate(), "ZRX-BTC", "", currency.ZRX)
+	require.ErrorIs(t, err, errMissingMarginMode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetMaximumLoanOfInstrument(contextGenerate(), "ZRX-BTC", "isolated", currency.ZRX)
 	assert.NoError(t, err)
@@ -1590,6 +1609,9 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetTradeFee(contextGenerate(), "", "", "")
+	require.ErrorIs(t, err, errInstrumentTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetTradeFee(contextGenerate(), "SPOT", "", "")
 	assert.NoError(t, err)
@@ -1622,6 +1644,11 @@ func TestSetGreeks(t *testing.T) {
 
 func TestIsolatedMarginTradingSettings(t *testing.T) {
 	t.Parallel()
+	_, err := ok.IsolatedMarginTradingSettings(contextGenerate(), IsolatedMode{IsoMode: "", InstrumentType: "MARGIN"})
+	require.ErrorIs(t, err, errMissingIsolatedMarginTradingSetting)
+	_, err = ok.IsolatedMarginTradingSettings(contextGenerate(), IsolatedMode{IsoMode: "autonomy", InstrumentType: ""})
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.IsolatedMarginTradingSettings(contextGenerate(), IsolatedMode{
 		IsoMode:        "autonomy",
@@ -3589,6 +3616,11 @@ func TestRSIBackTesting(t *testing.T) {
 
 func TestSignalBotTrading(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetSignalBotOrderDetail(context.Background(), "", "623833708424069120")
+	require.ErrorIs(t, err, errInvalidAlgoOrderType)
+	_, err = ok.GetSignalBotOrderDetail(context.Background(), "contract", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.GetSignalBotOrderDetail(context.Background(), "contract", "623833708424069120")
 	assert.NoError(t, err)

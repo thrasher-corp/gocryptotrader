@@ -486,13 +486,14 @@ func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
-	if arg.OrderType != "conditional" {
+	if arg.OrderType == "" {
+		// currently expected value is 'conditional'
 		return nil, order.ErrTypeIsInvalid
 	}
-	if arg.TakeProfitTriggerPrice == 0 {
+	if arg.TakeProfitTriggerPrice <= 0 {
 		return nil, errMissingTakeProfitTriggerPrice
 	}
-	if arg.TakeProfitTriggerPriceType == "" {
+	if arg.TakeProfitTriggerPriceType <= "" {
 		return nil, errMissingTakeProfitOrderPrice
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
@@ -564,7 +565,7 @@ func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*Alg
 		arg.TriggerPriceType != "last" &&
 		arg.TriggerPriceType != "index" &&
 		arg.TriggerPriceType != "mark" {
-		return nil, errors.New("only last, index and mark trigger price types are allowed")
+		return nil, fmt.Errorf("%w, only last, index and mark trigger price types are allowed", order.ErrUnknownPriceType)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
@@ -592,7 +593,7 @@ func (ok *Okx) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 // cancelAlgoOrder to cancel unfilled algo orders.
 func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) ([]AlgoOrder, error) {
 	if len(args) == 0 {
-		return nil, errors.New("no parameter")
+		return nil, common.ErrNilPointer
 	}
 	for x := range args {
 		arg := args[x]
@@ -1417,7 +1418,7 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	case arg.Amount <= 0:
 		return nil, errUnacceptableAmount
 	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
-		return nil, fmt.Errorf("%w, side has to be either \"redempt\" or \"purchase\"", order.ErrSideIsInvalid)
+		return nil, fmt.Errorf("%w, side has to be either 'redempt' or 'purchase'", order.ErrSideIsInvalid)
 	case arg.ActionType == "purchase" && (arg.Rate < 0.01 || arg.Rate > 3.65):
 		return nil, errors.New("the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
@@ -1826,7 +1827,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecrease
 		return nil, fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
 	}
 	if arg.Type != "add" && arg.Type != "reduce" {
-		return nil, errors.New("missing valid 'type', 'add': add margin 'reduce': reduce margin are allowed")
+		return nil, fmt.Errorf("%w, missing valid 'type', 'add': add margin 'reduce': reduce margin are allowed", order.ErrTypeIsInvalid)
 	}
 	if arg.Amount <= 0 {
 		return nil, order.ErrAmountBelowMin

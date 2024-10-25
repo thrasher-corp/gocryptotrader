@@ -4268,7 +4268,7 @@ type RecurringBuyOrder struct {
 		Ratio        types.Number `json:"ratio"`
 		TotalAmount  types.Number `json:"totalAmt"`
 	} `json:"recurringList"`
-	RecurringTime types.Time `json:"recurringTime"`
+	RecurringTime string     `json:"recurringTime"`
 	State         string     `json:"state"`
 	StrategyName  string     `json:"stgyName"`
 	Tag           string     `json:"tag"`
