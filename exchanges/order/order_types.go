@@ -87,6 +87,8 @@ type Submit struct {
 	RetrieveFeeDelay    time.Duration
 	RiskManagementModes RiskManagementModes
 
+	// ExpirationTime some exchanges require time for the placed order to expire after
+	ExpirationTime time.Time
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
 

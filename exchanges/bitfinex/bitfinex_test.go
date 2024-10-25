@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 
 	if apiKey != "" {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 	}
 
 	if !b.Enabled || len(b.BaseCurrencies) < 1 {

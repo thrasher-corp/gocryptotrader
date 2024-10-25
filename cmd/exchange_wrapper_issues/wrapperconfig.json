@@ -106,6 +106,12 @@
     "secret": "Secret",
     "otpSecret": "-"
    },
+   "dydx": {
+    "key": "Key",
+    "secret": "Secret",
+    "otpSecret": "-",
+    "privateKey": "-"
+   },
   "exmo": {
    "key": "Key",
    "secret": "Secret",
