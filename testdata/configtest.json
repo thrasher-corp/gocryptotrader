@@ -874,6 +874,18 @@
       "configFormat": {
        "uppercase": true
       }
+     },
+     "index": {
+      "assetEnabled": true,
+      "enabled": "-BWBTC",
+      "available": "-BWBTC",
+      "requestFormat": {
+       "uppercase": true
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
      }
     }
    },
