@@ -341,7 +341,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	result, err := p.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	result, err = p.UpdateTicker(context.Background(), futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
@@ -601,7 +601,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTicker(context.Background(), spotTradablePair)
+	_, err := p.GetTicker(context.Background(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	result, err := p.GetTicker(context.Background(), spotTradablePair)
@@ -1807,7 +1807,7 @@ func TestGetFuturesSingleOrderDetail(t *testing.T) {
 func TestGetFuturesSingleOrderDetailByClientOrderID(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetFuturesSingleOrderDetailByClientOrderID(context.Background(), "")
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetFuturesSingleOrderDetailByClientOrderID(context.Background(), "5cdfc138b21023a909e5ad55")
@@ -1952,7 +1952,30 @@ func TestGetCurrencyInformation(t *testing.T) {
 	_, err := p.GetCurrencyInformation(context.Background(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
+	p.Verbose = true
 	result, err := p.GetCurrencyInformation(context.Background(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func populateTradablePairs() error {
+	err := p.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err := p.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	spotTradablePair = tradablePairs[0]
+	tradablePairs, err = p.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	futuresTradablePair = tradablePairs[0]
+	return nil
 }

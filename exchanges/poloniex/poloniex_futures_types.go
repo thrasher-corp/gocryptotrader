@@ -19,14 +19,14 @@ type Contracts struct {
 type ContractItem struct {
 	Symbol                  string     `json:"symbol"`
 	TakerFixFee             float64    `json:"takerFixFee"`
-	NextFundingRateTime     types.Time `json:"nextFundingRateTime"`
+	NextFundingRateTime     int64      `json:"nextFundingRateTime"`
 	MakerFixFee             float64    `json:"makerFixFee"`
 	ContractType            string     `json:"type"`
 	PredictedFundingFeeRate float64    `json:"predictedFundingFeeRate"`
 	TurnoverOf24H           float64    `json:"turnoverOf24h"`
 	InitialMargin           float64    `json:"initialMargin"`
 	IsDeleverage            bool       `json:"isDeleverage"`
-	CreatedAt               int64      `json:"createdAt"`
+	CreatedAt               types.Time `json:"createdAt"`
 	FundingBaseSymbol       string     `json:"fundingBaseSymbol"`
 	LowPriceOf24H           float64    `json:"lowPriceOf24h"`
 	LastTradePrice          float64    `json:"lastTradePrice"`
@@ -34,7 +34,7 @@ type ContractItem struct {
 	FairMethod              string     `json:"fairMethod"`
 	TakerFeeRate            float64    `json:"takerFeeRate"`
 	Order                   int64      `json:"order"`
-	UpdatedAt               int64      `json:"updatedAt"`
+	UpdatedAt               types.Time `json:"updatedAt"`
 	DisplaySettleCurrency   string     `json:"displaySettleCurrency"`
 	IndexPrice              float64    `json:"indexPrice"`
 	Multiplier              float64    `json:"multiplier"`

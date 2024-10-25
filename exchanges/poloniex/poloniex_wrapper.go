@@ -1870,7 +1870,7 @@ func (p *Poloniex) GetFuturesContractDetails(ctx context.Context, assetType asse
 			SettlementCurrencies: currency.Currencies{settleCurr},
 			MarginCurrency:       settleCurr,
 			Asset:                assetType,
-			StartDate:            time.UnixMilli(contracts.Data[i].CreatedAt),
+			StartDate:            contracts.Data[i].CreatedAt.Time(),
 			IsActive:             !strings.EqualFold(contracts.Data[i].Status, "closed"),
 			Status:               contracts.Data[i].Status,
 			Multiplier:           contracts.Data[i].Multiplier,
@@ -1878,7 +1878,6 @@ func (p *Poloniex) GetFuturesContractDetails(ctx context.Context, assetType asse
 			SettlementType:       contractSettlementType,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(contracts.Data[i].FundingFeeRate),
-				Time: contracts.Data[i].NextFundingRateTime.Time(),
 			},
 			Type: ct,
 		}
@@ -1927,10 +1926,10 @@ func (p *Poloniex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Asset:    r.Asset,
 				Pair:     cp,
 				LatestRate: fundingrate.Rate{
-					Time: contracts.Data[i].NextFundingRateTime.Time().Add(-fri),
+					Time: contracts.Data[i].UpdatedAt.Time(),
 					Rate: decimal.NewFromFloat(contracts.Data[i].FundingFeeRate),
 				},
-				TimeOfNextRate: contracts.Data[i].NextFundingRateTime.Time(),
+				TimeOfNextRate: time.Unix(contracts.Data[i].NextFundingRateTime*100, 0),
 				TimeChecked:    timeChecked,
 			}
 			if r.IncludePredictedRate {
@@ -1939,7 +1938,7 @@ func (p *Poloniex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 					return nil, err
 				}
 				rate.PredictedUpcomingRate = fundingrate.Rate{
-					Time: contracts.Data[i].NextFundingRateTime.Time(),
+					Time: time.Unix(contracts.Data[i].NextFundingRateTime, 0),
 					Rate: decimal.NewFromFloat(fr.PredictedValue),
 				}
 			}
