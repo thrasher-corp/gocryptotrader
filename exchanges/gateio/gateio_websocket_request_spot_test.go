@@ -93,11 +93,11 @@ func TestWebsocketOrderCancelSpot(t *testing.T) {
 
 func TestWebsocketOrderCancelAllByIDsSpot(t *testing.T) {
 	t.Parallel()
-	out := WebsocketOrderCancelRequest{}
-	_, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderCancelRequest{out})
+	out := WebsocketOrderBatchRequest{}
+	_, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	out.OrderID = "1337"
-	_, err = g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderCancelRequest{out})
+	_, err = g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	out.Pair, err = currency.NewPairFromString("BTC_USDT")
@@ -109,7 +109,7 @@ func TestWebsocketOrderCancelAllByIDsSpot(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	out.OrderID = "644913101755"
-	got, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderCancelRequest{out})
+	got, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

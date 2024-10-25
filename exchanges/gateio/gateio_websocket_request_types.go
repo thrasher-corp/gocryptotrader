@@ -112,11 +112,18 @@ type WebsocketOrderResponse struct {
 	STPAct             string        `json:"stp_act"`
 }
 
-// WebsocketOrderCancelRequest defines a websocket order cancel request
-type WebsocketOrderCancelRequest struct {
+// WebsocketOrderBatchRequest defines a websocket order batch request
+type WebsocketOrderBatchRequest struct {
 	OrderID string        `json:"id"` // This require id tag not order_id
 	Pair    currency.Pair `json:"currency_pair"`
 	Account string        `json:"account,omitempty"`
+}
+
+// WebsocketOrderRequest defines a websocket order request
+type WebsocketOrderRequest struct {
+	OrderID string `json:"order_id"` // This requires order_id tag
+	Pair    string `json:"pair"`
+	Account string `json:"account,omitempty"`
 }
 
 // WebsocketCancellAllResponse defines a websocket order cancel response

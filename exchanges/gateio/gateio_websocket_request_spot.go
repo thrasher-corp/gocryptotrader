@@ -129,15 +129,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	params := &struct {
-		OrderID string `json:"order_id"` // This requires order_id tag
-		Pair    string `json:"pair"`
-		Account string `json:"account,omitempty"`
-	}{
-		OrderID: orderID,
-		Pair:    pair.String(),
-		Account: account,
-	}
+	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
 	err := g.SendWebsocketRequest(ctx, "spot.order_cancel", asset.Spot, params, &resp, 1)
@@ -145,7 +137,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 }
 
 // WebsocketOrderCancelAllByIDsSpot cancels multiple orders via the websocket
-func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []WebsocketOrderCancelRequest) ([]WebsocketCancellAllResponse, error) {
+func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []WebsocketOrderBatchRequest) ([]WebsocketCancellAllResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
 	}
@@ -216,15 +208,7 @@ func (g *Gateio) WebsocketGetOrderStatusSpot(ctx context.Context, orderID string
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	params := &struct {
-		OrderID string `json:"order_id"` // This requires order_id tag
-		Pair    string `json:"pair"`
-		Account string `json:"account,omitempty"`
-	}{
-		OrderID: orderID,
-		Pair:    pair.String(),
-		Account: account,
-	}
+	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
 	return &resp, g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
