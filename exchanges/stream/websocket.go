@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -211,6 +212,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	return nil
 }
 
+var errWrapperDefinedConnectionSignatureNotComparable = errors.New("wrapper defined connection signature is not comparable")
+
 // SetupNewConnection sets up an auth or unauth streaming connection
 func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if w == nil {
@@ -262,6 +265,10 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		}
 		if c.Handler == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
+		}
+
+		if c.WrapperDefinedConnectionSignature != nil && !reflect.TypeOf(c.WrapperDefinedConnectionSignature).Comparable() {
+			return errWrapperDefinedConnectionSignatureNotComparable
 		}
 
 		for x := range w.connectionManager {
