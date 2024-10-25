@@ -49,16 +49,17 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
+// Public Errors
 var (
-	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
-	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+)
 
+var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
-	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
-	errBatchSizeZero                     = errors.New("batch size cannot be 0")
 )
 
 // SetRequester sets the instance of the requester
@@ -172,12 +173,7 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
 	}
-	b.Features.Subscriptions = subscription.List{}
-	for _, s := range b.Config.Features.Subscriptions {
-		if s.Enabled {
-			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
-		}
-	}
+	b.Features.Subscriptions = b.Config.Features.Subscriptions.Enabled()
 	if b.Verbose {
 		names := make([]string, 0, len(b.Features.Subscriptions))
 		for _, s := range b.Features.Subscriptions {
@@ -253,7 +249,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -1131,7 +1127,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(channels)
+	return b.Websocket.SubscribeToChannels(b.Websocket.Conn, channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
@@ -1140,7 +1136,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error 
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.UnsubscribeChannels(channels)
+	return b.Websocket.UnsubscribeChannels(b.Websocket.Conn, channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions
@@ -1819,9 +1815,6 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
-	if batchSize == 0 {
-		return errBatchSizeZero
-	}
 
 	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)

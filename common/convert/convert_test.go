@@ -1,12 +1,12 @@
 package convert
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFloatFromString(t *testing.T) {
@@ -98,18 +98,17 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 }
 
 func TestTimeFromUnixTimestampDecimal(t *testing.T) {
-	r := TimeFromUnixTimestampDecimal(1590633982.5714)
-	if r.Year() != 2020 ||
-		r.Month().String() != "May" ||
-		r.Day() != 28 {
-		t.Error("unexpected result")
-	}
-
-	r = TimeFromUnixTimestampDecimal(1560516023.070651)
-	if r.Year() != 2019 ||
-		r.Month().String() != "June" ||
-		r.Day() != 14 {
-		t.Error("unexpected result")
+	for in, exp := range map[float64]time.Time{
+		1590633982.5714:   time.Date(2020, 5, 28, 2, 46, 22, 571400000, time.UTC),
+		1560516023.070651: time.Date(2019, 6, 14, 12, 40, 23, 70651000, time.UTC),
+		// Examples from Kraken
+		1373750306.9819:   time.Date(2013, 7, 13, 21, 18, 26, 981900000, time.UTC),
+		1534614098.345543: time.Date(2018, 8, 18, 17, 41, 38, 345543000, time.UTC),
+	} {
+		got := TimeFromUnixTimestampDecimal(in)
+		z, _ := got.Zone()
+		assert.Equal(t, "UTC", z, "TimeFromUnixTimestampDecimal should return a UTC time")
+		assert.WithinRangef(t, got, exp.Add(-time.Microsecond), exp.Add(time.Microsecond), "TimeFromUnixTimestampDecimal(%f) should parse a unix timestamp correctly", in)
 	}
 }
 
@@ -314,88 +313,5 @@ func TestInterfaceToStringOrZeroValue(t *testing.T) {
 	x = string("meow")
 	if r := InterfaceToStringOrZeroValue(x); r != "meow" {
 		t.Errorf("expected meow, got: %v", x)
-	}
-}
-
-func TestExchangeTimeUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	unmarshaledResult := &struct {
-		Timestamp ExchangeTime `json:"ts"`
-	}{}
-	data1 := `{"ts":""}`
-	result := time.Time{}
-	err := json.Unmarshal([]byte(data1), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data2 := `{"ts":"1685564775371"}`
-	result = time.UnixMilli(1685564775371)
-	err = json.Unmarshal([]byte(data2), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data3 := `{"ts":1685564775371}`
-	err = json.Unmarshal([]byte(data3), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data4 := `{"ts":"1685564775"}`
-	result = time.Unix(1685564775, 0)
-	err = json.Unmarshal([]byte(data4), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data5 := `{"ts":1685564775}`
-	err = json.Unmarshal([]byte(data5), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data6 := `{"ts":"1685564775371320000"}`
-	result = time.Unix(int64(1685564775371320000)/1e9, int64(1685564775371320000)%1e9)
-	err = json.Unmarshal([]byte(data6), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data7 := `{"ts":"abcdefg"}`
-	err = json.Unmarshal([]byte(data7), &unmarshaledResult)
-	if err == nil {
-		t.Fatal("expecting error but found nil")
-	}
-	data8 := `{"ts":0}`
-	result = time.Time{}
-	err = json.Unmarshal([]byte(data8), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-}
-
-// 2239239               516.1 ns/op           424 B/op          9 allocs/op
-func BenchmarkExchangeTimeUnmarshaling(b *testing.B) {
-	unmarshaledResult := &struct {
-		Timestamp ExchangeTime `json:"ts"`
-	}{}
-	data5 := `{"ts":1685564775}`
-	result := time.Unix(1685564775, 0)
-	var err error
-	for i := 0; i < b.N; i++ {
-		if err = json.Unmarshal([]byte(data5), &unmarshaledResult); err != nil {
-			b.Fatal(err)
-		} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-			b.Fatalf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-		}
 	}
 }

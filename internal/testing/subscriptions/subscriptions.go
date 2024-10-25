@@ -1,4 +1,4 @@
-package subscriptionstest
+package subscription
 
 import (
 	"maps"
