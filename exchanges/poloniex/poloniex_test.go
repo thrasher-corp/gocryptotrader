@@ -561,6 +561,9 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
+	_, err := p.UpdateOrderbook(context.Background(), currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	result, err := p.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -1348,7 +1351,7 @@ func TestGetOpenContractList(t *testing.T) {
 
 func TestGetOrderInfoOfTheContract(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetOrderInfoOfTheContract(context.Background(), futuresTradablePair.String())
+	_, err := p.GetOrderInfoOfTheContract(context.Background(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
@@ -1359,6 +1362,9 @@ func TestGetOrderInfoOfTheContract(t *testing.T) {
 
 func TestGetRealTimeTicker(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetRealTimeTicker(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	result, err := p.GetRealTimeTicker(context.Background(), futuresTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1383,7 +1389,7 @@ func TestGetFullOrderbookLevel2(t *testing.T) {
 
 func TestGetPartialOrderbookLevel2(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetPartialOrderbookLevel2(context.Background(), "require.ErrorIs(t, err, nil)require.ErrorIs(t, err, nil)", "depth20")
+	_, err := p.GetPartialOrderbookLevel2(context.Background(), "", "depth20")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = p.GetPartialOrderbookLevel2(context.Background(), futuresTradablePair.String(), "")
