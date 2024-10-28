@@ -522,7 +522,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 		Pair:         cp,
 		ExchangeName: by.Name,
 		AssetType:    assetType,
-		LastUpdated:  resp.Timestamp.Time(),
+		LastUpdated:  resp.PushTimestamp.Time(),
 	}
 	return nil
 }
@@ -623,7 +623,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		// ticker updates may be partial, so we need to update the current ticker
 		tick = snapshot
 	}
-	tick.LastUpdated = resp.Timestamp.Time()
+	tick.LastUpdated = resp.PushTimestamp.Time()
 	updateTicker(tick, &tickResp)
 	if err = ticker.ProcessTicker(tick); err == nil {
 		by.Websocket.DataHandler <- tick
@@ -756,25 +756,27 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	}
 	if resp.Type == "snapshot" || result.UpdateID == 1 {
 		err = by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:         cp,
-			Exchange:     by.Name,
-			Asset:        assetType,
-			LastUpdated:  resp.Timestamp.Time(),
-			LastUpdateID: result.Sequence,
-			Asks:         asks,
-			Bids:         bids,
+			Pair:           cp,
+			Exchange:       by.Name,
+			Asset:          assetType,
+			LastUpdated:    resp.OrderbookLastUpdated.Time(),
+			UpdatePushedAt: resp.PushTimestamp.Time(),
+			LastUpdateID:   result.UpdateID,
+			Asks:           asks,
+			Bids:           bids,
 		})
 		if err != nil {
 			return err
 		}
 	} else {
 		err = by.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
-			Asks:       asks,
-			Bids:       bids,
-			Asset:      assetType,
-			UpdateID:   result.Sequence,
-			UpdateTime: resp.Timestamp.Time(),
+			Pair:           cp,
+			Asks:           asks,
+			Bids:           bids,
+			Asset:          assetType,
+			UpdateID:       result.UpdateID,
+			UpdateTime:     resp.OrderbookLastUpdated.Time(),
+			UpdatePushedAt: resp.PushTimestamp.Time(),
 		})
 		if err != nil {
 			return err

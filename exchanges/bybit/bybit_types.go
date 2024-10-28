@@ -1907,7 +1907,7 @@ type SubscriptionResponse struct {
 type WebsocketResponse struct {
 	Topic         string          `json:"topic"`
 	Type          string          `json:"type"`
-	Timestamp     types.Time      `json:"ts"`
+	PushTimestamp types.Time      `json:"ts"` // The timestamp (ms) that the system generates the data
 	Data          json.RawMessage `json:"data"`
 	CrossSequence int64           `json:"cs"`
 
@@ -1916,6 +1916,9 @@ type WebsocketResponse struct {
 
 	// for subscription response checks.
 	RequestID string `json:"req_id"`
+
+	// The timestamp from the match engine when orderbook data is produced. It can be correlated with T from public trade channel
+	OrderbookLastUpdated types.Time `json:"cts"`
 }
 
 // WebsocketPublicTrades represents
