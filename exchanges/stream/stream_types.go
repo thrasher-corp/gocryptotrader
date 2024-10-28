@@ -102,7 +102,7 @@ func SubscriberNotRequired(context.Context, Connection, subscription.List) error
 }
 
 // SubscriptionGenerationNotRequired is a default subscription generation function that can be used when a connection
-// does not require subscription functionality. This returns a single dummy subscription to spawn a connection.
+// does not require subscription functionality.
 func SubscriptionGenerationNotRequired() (subscription.List, error) {
 	return nil, nil
 }
