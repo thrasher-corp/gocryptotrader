@@ -35,6 +35,10 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// MatchReturnResponses sets up a channel to listen for an expected number of responses. This is used for when a
+	// request is sent and a response is expected in a different connection. Please see implementation in
+	// websocket_connection.go
+	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
 
 // Inspector is a hook that allows for custom message inspection

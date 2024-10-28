@@ -366,6 +366,32 @@ func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature an
 	return resps, nil
 }
 
+// MatchedResponse encapsulates the matched responses along with any errors encountered.
+type MatchedResponse struct {
+	Responses [][]byte
+	Err       error
+}
+
+// MatchReturnResponses sets up a channel to listen for an expected number of responses. These responses may not
+// originate from the same connection as the request, but can come from an alternative connection. It returns a channel
+// that will receive a MatchedResponse containing the collected responses or an error.
+func (w *WebsocketConnection) MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error) {
+	connectionListen, err := w.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't leak
+
+	go func() {
+		resps, err := w.waitForResponses(ctx, signature, connectionListen, expected)
+		out <- MatchedResponse{Responses: resps, Err: err}
+		close(out)
+	}()
+
+	return out, nil
+}
+
 func removeURLQueryString(url string) string {
 	if index := strings.Index(url, "?"); index != -1 {
 		return url[:index]
