@@ -89,7 +89,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 		return nil, errPairNotSet
 	}
 	if !a.IsValid() {
-		return nil, errAssetTypeNotSet
+		return nil, ErrAssetTypeNotSet
 	}
 	mapKey := key.PairAsset{
 		Base:  p.Base.Item,
@@ -308,7 +308,7 @@ func (b *Base) Process() error {
 	}
 
 	if b.Asset.String() == "" {
-		return errAssetTypeNotSet
+		return ErrAssetTypeNotSet
 	}
 
 	if b.LastUpdated.IsZero() {

@@ -23,7 +23,7 @@ const (
 var (
 	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
 	errPairNotSet           = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
+	ErrAssetTypeNotSet      = errors.New("orderbook asset type not set")
 	errCannotFindOrderbook  = errors.New("cannot find orderbook(s)")
 	errPriceNotSet          = errors.New("price cannot be zero")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")

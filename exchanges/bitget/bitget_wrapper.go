@@ -1138,7 +1138,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		case asset.Spot:
 			var pagination int64
 			for {
-				genOrds, err := bi.GetUnfilledOrders(ctx, pairs[x], time.Time{}, time.Time{}, 100, pagination, 0)
+				genOrds, err := bi.GetUnfilledOrders(ctx, pairs[x], "", time.Time{}, time.Time{}, 100, pagination, 0, time.Minute)
 				if err != nil {
 					return nil, err
 				}
@@ -1803,8 +1803,7 @@ func (bi *Bitget) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		return nil, err
 	}
 	if len(resp) != 1 {
-		// I'm not sure that it should actually return one data point in this case, replace this with a properly
-		// formatted error message once certain (i.e. once you can test GetSinglePosition properly)
+		// I'm not sure that it should actually return one data point in this case, replace this with a properly formatted error message once certain (i.e. once you can test GetSinglePosition properly)
 		return nil, fmt.Errorf("expected 1 position, received %v", len(resp))
 	}
 	summary := &futures.PositionSummary{

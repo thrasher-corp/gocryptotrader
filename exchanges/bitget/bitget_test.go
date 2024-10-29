@@ -2,8 +2,10 @@ package bitget
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -25,7 +28,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -83,30 +89,16 @@ var bi = &Bitget{}
 
 func TestMain(m *testing.M) {
 	bi.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	err := exchangeBaseHelper(bi)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	exchCfg, err := cfg.GetExchangeConfig("Bitget")
+	var dialer websocket.Dialer
+	err = bi.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = clientID
-
-	err = bi.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bi.Verbose = true
-
+	go bi.wsReadData(bi.Websocket.Conn)
 	os.Exit(m.Run())
 }
 
@@ -116,6 +108,35 @@ func TestInterface(t *testing.T) {
 	e = new(Bitget)
 	_, ok := e.(exchange.IBotExchange)
 	assert.True(t, ok)
+}
+
+func TestSetup(t *testing.T) {
+	cfg, err := bi.GetStandardConfig()
+	assert.NoError(t, err)
+	exch := &Bitget{}
+	exch.SetDefaults()
+	err = exchangeBaseHelper(exch)
+	require.NoError(t, err)
+	cfg.ProxyAddress = string(rune(0x7f))
+	err = exch.Setup(cfg)
+	assert.ErrorIs(t, err, exchange.ErrSettingProxyAddress)
+}
+
+func TestWsConnect(t *testing.T) {
+	exch := &Bitget{}
+	exch.Websocket = sharedtestvalues.NewTestWebsocket()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	err := exch.Websocket.Disable()
+	assert.ErrorIs(t, err, stream.ErrAlreadyDisabled)
+	err = exch.WsConnect()
+	assert.ErrorIs(t, err, stream.ErrWebsocketNotEnabled)
+	exch.SetDefaults()
+	exch.Verbose = true
+	err = exchangeBaseHelper(exch)
+	require.NoError(t, err)
+	exch.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	err = exch.Websocket.Enable()
+	assert.NoError(t, err)
 }
 
 func TestQueryAnnouncements(t *testing.T) {
@@ -207,7 +228,6 @@ func TestGetMerchantP2POrders(t *testing.T) {
 
 func TestGetMerchantAdvertisementList(t *testing.T) {
 	t.Parallel()
-	bi.Verbose = true
 	_, err := bi.GetMerchantAdvertisementList(context.Background(), time.Time{}, time.Time{}, 0, 0, 0, 0, "", "", "", "", "", "")
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -567,7 +587,7 @@ func TestCancelAndPlaceSpotOrder(t *testing.T) {
 	_, err = bi.CancelAndPlaceSpotOrder(context.Background(), testPair.String(), "meow", "", 0, 0, 0, 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -583,7 +603,7 @@ func TestBatchCancelAndPlaceSpotOrders(t *testing.T) {
 	_, err := bi.BatchCancelAndPlaceSpotOrders(context.Background(), req)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -606,7 +626,7 @@ func TestCancelSpotOrderByID(t *testing.T) {
 	_, err = bi.CancelSpotOrderByID(context.Background(), testPair.String(), "", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -644,7 +664,7 @@ func TestBatchCancelOrders(t *testing.T) {
 	_, err = bi.BatchCancelOrders(context.Background(), "meow", false, req)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -676,10 +696,10 @@ func TestGetSpotOrderDetails(t *testing.T) {
 
 func TestGetUnfilledOrders(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetUnfilledOrders(context.Background(), "", time.Now().Add(time.Hour), time.Time{}, 0, 0, 0)
+	_, err := bi.GetUnfilledOrders(context.Background(), "", "", time.Now().Add(time.Hour), time.Time{}, 0, 0, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetUnfilledOrders(context.Background(), "", time.Time{}, time.Time{}, 5, 1<<62, 0)
+	_, err = bi.GetUnfilledOrders(context.Background(), "", "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	assert.NoError(t, err)
 }
 
@@ -1423,7 +1443,8 @@ func TestPlaceTPSLFuturesOrder(t *testing.T) {
 	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "quack", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.PlaceTPSLFuturesOrder(context.Background(), testFiat2.String(), testFiat2.String()+"-FUTURES", testPair2.String(), "profit_plan", "", "short", "", "", testPrice2+2, 0, testAmount2)
+	cID := clientIDGenerator()
+	resp, err := bi.PlaceTPSLFuturesOrder(context.Background(), testFiat2.String(), testFiat2.String()+"-FUTURES", testPair2.String(), "profit_plan", "", "short", "", cID, testPrice2+2, 0, testAmount2)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -2528,7 +2549,7 @@ func TestGetOrderInfo(t *testing.T) {
 		_, err = bi.GetOrderInfo(context.Background(), strconv.FormatInt(int64(oID.OrderID), 10), testPair2, asset.CrossMargin)
 		assert.NoError(t, err)
 	}
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) != 0 {
 		_, err = bi.GetOrderInfo(context.Background(), strconv.FormatInt(int64(resp[0].OrderID), 10), testPair, asset.Spot)
@@ -3039,7 +3060,7 @@ func TestCancelOrder(t *testing.T) {
 	err = bi.CancelOrder(context.Background(), ord)
 	assert.ErrorIs(t, err, errPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -3118,7 +3139,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	orders = nil
-	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62, 0)
+	resp, err := bi.GetUnfilledOrders(context.Background(), testPair.String(), "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
 	if len(resp) != 0 {
 		orders = append(orders, order.Cancel{
@@ -3181,6 +3202,194 @@ func TestBatchCancelIsolatedOrders(t *testing.T) {
 	oID := getIsoOrdIDHelper(t, true)
 	_, err = bi.BatchCancelIsolatedOrders(context.Background(), testPair2.String(), []OrderIDStruct{*oID})
 	assert.NoError(t, err)
+}
+
+func TestWsAuth(t *testing.T) {
+	t.Parallel()
+	if bi.Websocket.IsEnabled() && !bi.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(bi) {
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+	}
+	var dialer websocket.Dialer
+	err := bi.WsAuth(context.TODO(), &dialer)
+	require.NoError(t, err)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-bi.Websocket.DataHandler:
+		fmt.Printf("%+v\n%T\n", resp, resp)
+	case <-timer.C:
+	}
+	timer.Stop()
+}
+
+func TestWsReadData(t *testing.T) {
+	// wsTest := testexch.MockWsInstance[Bitget](t, mockws.wsmock)
+	// Implement internal/testing/websocket mockws stuff after merging
+	// See: https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/kraken/kraken_test.go#L1169
+}
+
+func TestWsHandleData(t *testing.T) {
+	go func() {
+		for range bi.Websocket.DataHandler {
+			continue
+		}
+	}()
+	oldVerbose := bi.Verbose
+	bi.Verbose = true
+	mockJSON := []byte(`pong`)
+	err := bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`notjson`)
+	err = bi.wsHandleData(mockJSON)
+	var targetErr *json.SyntaxError
+	assert.ErrorAs(t, err, &targetErr)
+	mockJSON = []byte(`{"event":"subscribe"}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"error"}`)
+	err = bi.wsHandleData(mockJSON)
+	expectedErr := fmt.Sprintf(errWebsocketGeneric, "Bitget", 0, "")
+	assert.EqualError(t, err, expectedErr)
+	mockJSON = []byte(`{"event":"login","code":0}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"login","code":1}`)
+	err = bi.wsHandleData(mockJSON)
+	expectedErr = fmt.Sprintf(errWebsocketLoginFailed, "Bitget", "")
+	assert.EqualError(t, err, expectedErr)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"ticker"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	var targetErr2 *json.UnmarshalTypeError
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"ticker"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"ticker"},"data":[{"InstId":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D"},"data":[["1","2","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["a","2","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","a","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","a","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","a","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","4","a","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","4","5","a","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"trade"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"trade","instId":"BTCUSD"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"trade","instId":"BTCUSD"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"books"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errReturnEmpty)
+	mockJSON = []byte(`{"action":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[{"bids":[["a","1"]]}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"action":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[{"asks":[["1","a"]]}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"action":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, orderbook.ErrAssetTypeNotSet)
+	mockJSON = []byte(`{"action":"update","arg":{"channel":"books","instId":"BTCUSD"},"data":[{"asks":[["1","2"]]}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, buffer.ErrDepthNotFound)
+	mockJSON = []byte(`{"action":"update","arg":{"channel":"books","instId":"BTCUSD"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"spot"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"spot"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"futures"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"futures"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"spot"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"spot"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"spot"},"data":[{"symbol":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"futures"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"futures"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"futures"},"data":[{"symbol":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"spot"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"spot"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"spot"},"data":[{"instId":"BTCUSD","side":"buy","orderType":"limit","feeDetail":[{}]}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"spot"},"data":[{"instId":"BTCUSD","side":"sell"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[{"instId":"BTCUSD","side":"buy","orderType":"limit","feeDetail":[{}]}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[{"instId":"BTCUSD","side":"sell"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	bi.Verbose = oldVerbose
 }
 
 type getNoArgsResp interface {
@@ -3368,6 +3577,31 @@ func getIsoOrdIDHelper(t *testing.T, skip bool) *OrderIDStruct {
 		OrderID:       0,
 		ClientOrderID: ordersNotFound,
 	}
+}
+
+func exchangeBaseHelper(bi *Bitget) error {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		return err
+	}
+	exchCfg, err := cfg.GetExchangeConfig("Bitget")
+	if err != nil {
+		return err
+	}
+	if apiKey != "" {
+		exchCfg.API.Credentials.Key = apiKey
+		exchCfg.API.Credentials.Secret = apiSecret
+		exchCfg.API.Credentials.ClientID = clientID
+		exchCfg.API.AuthenticatedSupport = true
+		exchCfg.API.AuthenticatedWebsocketSupport = true
+	}
+	bi.Websocket = sharedtestvalues.NewTestWebsocket()
+	err = bi.Setup(exchCfg)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func aBenchmarkHelper(a, pag int64) {

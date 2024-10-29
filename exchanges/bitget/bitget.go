@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -222,6 +223,8 @@ const (
 
 	errIntervalNotSupported           = "interval not supported"
 	errAuthenticatedWebsocketDisabled = "%v AuthenticatedWebsocketAPISupport not enabled"
+	errWebsocketGeneric               = "%v - Websocket error, code: %v message: %v"
+	errWebsocketLoginFailed           = "%v - Websocket login failed: %v"
 )
 
 var (
@@ -709,9 +712,11 @@ func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, new
 		"permList":      newPerms,
 	}
 	var resp struct {
-		SuccessBool `json:"data"`
+		Data struct {
+			SuccessBool `json:"result"`
+		} `json:"data"`
 	}
-	return &resp.SuccessBool, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
+	return &resp.Data.SuccessBool, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // CreateSubaccountAndAPIKey creates a subaccounts and an API key. Every account can have up to 20 sub-accounts, and every API key can have up to 10 API keys. The name of the sub-account must be exactly 8 English letters. The passphrase of the API key must be 8-32 letters and/or numbers. The label must be 20 or fewer characters. A maximum of 30 IPs can be a part of the whitelist.
@@ -1335,7 +1340,7 @@ func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, client
 }
 
 // GetUnfilledOrders returns information on the user's unfilled orders
-func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) ([]UnfilledOrdersResp, error) {
+func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair, tpslType string, startTime, endTime time.Time, limit, pagination, orderID int64, acceptableDelay time.Duration) ([]UnfilledOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true, true)
@@ -1343,6 +1348,7 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime,
 		return nil, err
 	}
 	params.Values.Set("symbol", pair)
+	params.Values.Set("tpslType", tpslType)
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -1350,6 +1356,8 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime,
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Values.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	params.Values.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
 	path := bitgetSpot + bitgetTrade + bitgetUnfilledOrders
 	var resp struct {
 		UnfilledOrdersResp []UnfilledOrdersResp `json:"data"`
@@ -1497,9 +1505,11 @@ func (bi *Bitget) CancelPlanSpotOrder(ctx context.Context, orderID int64, client
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCancelPlanOrder
 	var resp struct {
-		SuccessBool `json:"success"`
+		Data struct {
+			SuccessBool `json:"result"`
+		} `json:"data"`
 	}
-	return &resp.SuccessBool, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
+	return &resp.Data.SuccessBool, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetCurrentSpotPlanOrders returns the user's current plan orders
@@ -3016,10 +3026,12 @@ func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin, product
 		"triggerType":  triggerType,
 		"holdSide":     holdSide,
 		"rangeRate":    rangeRate,
-		"clientOid":    clientOrderID,
 		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
 		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
 		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlaceTPSLOrder
 	var resp struct {
@@ -3465,7 +3477,7 @@ func (bi *Bitget) GetCrossRiskRate(ctx context.Context) (float64, error) {
 	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetRiskRate
 	var resp struct {
 		Data struct {
-			RiskRateRatio float64 `json:"riskRateRatio"`
+			RiskRateRatio float64 `json:"riskRateRatio,string"`
 		} `json:"data"`
 	}
 	return resp.Data.RiskRateRatio, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
@@ -5012,7 +5024,15 @@ func (y YesNoBool) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals the JSON input into a SuccessBool type
 func (s *SuccessBool) UnmarshalJSON(b []byte) error {
 	var success string
-	err := json.Unmarshal(b, &success)
+	_, typ, _, err := jsonparser.Get(b)
+	if err != nil {
+		return err
+	}
+	if typ == jsonparser.String {
+		err = json.Unmarshal(b, &success)
+	} else {
+		success, err = jsonparser.GetString(b, "data")
+	}
 	if err != nil {
 		return err
 	}
@@ -5042,6 +5062,14 @@ func (e *EmptyInt) UnmarshalJSON(b []byte) error {
 	}
 	*e = EmptyInt(i)
 	return nil
+}
+
+// MarshalJSON marshals the EmptyInt type into a JSON string
+func (e *EmptyInt) MarshalJSON() ([]byte, error) {
+	if *e == 0 {
+		return json.Marshal("")
+	}
+	return json.Marshal(strconv.FormatInt(int64(*e), 10))
 }
 
 // CandlestickHelper pulls out common candlestick functionality to avoid repetition

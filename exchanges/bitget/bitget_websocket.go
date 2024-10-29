@@ -72,23 +72,23 @@ var subscriptionNames = map[asset.Item]map[string]string{
 var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
+	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
-	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Margin},
+	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Margin},
 	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: false, Channel: "positions", Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: "positionsHistory", Authenticated: true, Asset: asset.Futures},
@@ -171,7 +171,7 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	// Without this, the exchange will sometimes process a subscription message before it finishes processing the login message. Might be able to reduce the duration
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 	return nil
 }
 
@@ -203,8 +203,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	// Under the assumption that the exchange only ever sends one of these. If both can be sent, this will need to
-	// be made more complicated
+	// Under the assumption that the exchange only ever sends one of these. If both can be sent, this will need to be made more complicated
 	toCheck := wsResponse.Event + wsResponse.Action
 	switch toCheck {
 	case "subscribe":
@@ -212,10 +211,10 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			log.Debugf(log.ExchangeSys, "%v - Websocket %v succeeded for %v\n", bi.Name, wsResponse.Event, wsResponse.Arg)
 		}
 	case "error":
-		return fmt.Errorf("%v - Websocket error, code: %v message: %v", bi.Name, wsResponse.Code, wsResponse.Message)
+		return fmt.Errorf(errWebsocketGeneric, bi.Name, wsResponse.Code, wsResponse.Message)
 	case "login":
 		if wsResponse.Code != 0 {
-			return fmt.Errorf("%v - Websocket login failed: %v", bi.Name, wsResponse.Message)
+			return fmt.Errorf(errWebsocketLoginFailed, bi.Name, wsResponse.Message)
 		}
 		if bi.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket login succeeded\n", bi.Name)

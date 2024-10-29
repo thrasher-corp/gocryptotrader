@@ -689,7 +689,7 @@ type BatchOrderResp struct {
 
 // OrderIDStruct contains order IDs
 type OrderIDStruct struct {
-	OrderID       EmptyInt `json:"orderId,string,omitempty"`
+	OrderID       EmptyInt `json:"orderId,omitempty"`
 	ClientOrderID string   `json:"clientOid,omitempty"`
 }
 
@@ -1903,11 +1903,11 @@ type MaxBorrowIso struct {
 
 // MaxTransferIso contains information on the maximum amount that can be transferred out of isolated margin
 type MaxTransferIso struct {
-	BaseCoin                      string  `json:"baseCoin"`
-	Symbol                        string  `json:"symbol"`
-	BaseCoinMaxTransferOutAmount  float64 `json:"baseCoinMaxTransferOutAmount,string"`
-	QuoteCoin                     string  `json:"quoteCoin"`
-	QuoteCoinMaxTransferOutAmount float64 `json:"quoteCoinMaxTransferOutAmount,string"`
+	BaseCoin                      string       `json:"baseCoin"`
+	Symbol                        string       `json:"symbol"`
+	BaseCoinMaxTransferOutAmount  types.Number `json:"baseCoinMaxTransferOutAmount"`
+	QuoteCoin                     string       `json:"quoteCoin"`
+	QuoteCoinMaxTransferOutAmount types.Number `json:"quoteCoinMaxTransferOutAmount"`
 }
 
 // FlashRepayIso contains information on a flash repayment for isolated margin
