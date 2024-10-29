@@ -483,7 +483,6 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 			}
 		}
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
-
 		pairs, err := ok.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
@@ -973,6 +972,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		ClientOrderID: s.ClientOrderID,
 		Price:         s.Price,
 		QuantityType:  targetCurrency,
+		AssetType:     s.AssetType,
 	}
 	switch s.Type.Lower() {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
@@ -996,7 +996,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			return nil, err
 		}
 	} else {
-		placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+		placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -1396,7 +1396,7 @@ func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, _, chain 
 			Chain:   response[x].Chain,
 		}, nil
 	}
-	return nil, errDepositAddressNotFound
+	return nil, deposit.ErrAddressNotFound
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
@@ -1778,12 +1778,12 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   candles[x].OpenTime,
-			Open:   candles[x].OpenPrice,
-			High:   candles[x].HighestPrice,
-			Low:    candles[x].LowestPrice,
-			Close:  candles[x].ClosePrice,
-			Volume: candles[x].Volume,
+			Time:   candles[x].OpenTime.Time(),
+			Open:   candles[x].OpenPrice.Float64(),
+			High:   candles[x].HighestPrice.Float64(),
+			Low:    candles[x].LowestPrice.Float64(),
+			Close:  candles[x].ClosePrice.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1819,12 +1819,12 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 		}
 		for x := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[x].OpenTime,
-				Open:   candles[x].OpenPrice,
-				High:   candles[x].HighestPrice,
-				Low:    candles[x].LowestPrice,
-				Close:  candles[x].ClosePrice,
-				Volume: candles[x].Volume,
+				Time:   candles[x].OpenTime.Time(),
+				Open:   candles[x].OpenPrice.Float64(),
+				High:   candles[x].HighestPrice.Float64(),
+				Low:    candles[x].LowestPrice.Float64(),
+				Close:  candles[x].ClosePrice.Float64(),
+				Volume: candles[x].Volume.Float64(),
 			})
 		}
 	}

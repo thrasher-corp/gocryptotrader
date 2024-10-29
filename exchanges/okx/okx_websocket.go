@@ -836,6 +836,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 		return err
 	}
 
+	orderDetails := make([]order.Detail, len(resp.Data))
 	for x := range resp.Data {
 		oSide, err := order.StringToOrderSide(resp.Data[x].Side)
 		if err != nil {
@@ -849,7 +850,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		d := &order.Detail{
+		orderDetails[x] = order.Detail{
 			Amount:               resp.Data[x].Size.Float64(),
 			AverageExecutedPrice: resp.Data[x].AvgPrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
@@ -866,8 +867,8 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 			Type:                 oType,
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
 		}
-		ok.Websocket.DataHandler <- d
 	}
+	ok.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
@@ -921,7 +922,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 func (ok *Okx) wsProcessPublicSpreadTicker(respRaw []byte) error {
 	var resp WsSpreadPushData
 	data := []WsSpreadPublicTicker{}
-	resp.Data = data
+	resp.Data = &data
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -1650,7 +1651,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
 		return nil, common.ErrNilPointer
 	}
-	err := ok.validatePlaceOrderParams(asset.Empty, arg)
+	err := ok.validatePlaceOrderParams(arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1699,7 +1700,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 	var err error
 	for x := range args {
 		arg := args[x]
-		err = ok.validatePlaceOrderParams(asset.Empty, &arg)
+		err = ok.validatePlaceOrderParams(&arg)
 		if err != nil {
 			return nil, err
 		}
@@ -1775,7 +1776,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, errMissingClientOrderIDOrOrderID
+		return nil, order.ErrOrderIDNotSet
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, errWebsocketStreamNotAuthenticated
@@ -1825,7 +1826,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, errMissingClientOrderIDOrOrderID
+			return nil, order.ErrOrderIDNotSet
 		}
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
@@ -1902,7 +1903,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		return nil, errMissingInstrumentID
 	}
 	if arg.ClientOrderID == "" && arg.OrderID == "" {
-		return nil, errMissingClientOrderIDOrOrderID
+		return nil, order.ErrOrderIDNotSet
 	}
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
@@ -1954,7 +1955,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 			return nil, errMissingInstrumentID
 		}
 		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
-			return nil, errMissingClientOrderIDOrOrderID
+			return nil, order.ErrOrderIDNotSet
 		}
 		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
@@ -2030,7 +2031,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 func (ok *Okx) WsMassCancelOrders(args []CancelMassReqParam) (bool, error) {
 	for x := range args {
 		if args[x].InstrumentType == "" {
-			return false, errInstrumentTypeRequired
+			return false, fmt.Errorf("%w, instrument type can not be empty", errInvalidInstrumentType)
 		}
 		if args[x].InstrumentFamily == "" {
 			return false, errInstrumentFamilyRequired
@@ -2531,7 +2532,7 @@ func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderRespo
 		return nil, common.ErrNilPointer
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, errMissingClientOrderIDOrOrderID
+		return nil, order.ErrOrderIDNotSet
 	}
 	if arg.NewPrice == 0 && arg.NewSize == 0 {
 		return nil, errSizeOrPriceIsRequired
@@ -2579,7 +2580,7 @@ func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderRespo
 // WsCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
 func (ok *Okx) WsCancelSpreadOrder(orderID, clientOrderID string) (*SpreadOrderResponse, error) {
 	if orderID == "" && clientOrderID == "" {
-		return nil, errMissingClientOrderIDOrOrderID
+		return nil, order.ErrOrderIDNotSet
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, errWebsocketStreamNotAuthenticated

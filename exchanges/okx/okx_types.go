@@ -68,115 +68,88 @@ const (
 )
 
 var (
-	// maxWSUpdateBuffer defines max websocket updates to apply when an
-	// orderbook is initially fetched
-	maxWSUpdateBuffer = 150
-	// maxWSOrderbookJobs defines max websocket orderbook jobs in queue to fetch
-	// an orderbook snapshot via REST
-	maxWSOrderbookJobs = 2000
-	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
-	// jobs from the job channel
-	maxWSOrderbookWorkers = 10
-)
-
-var (
-	errIndexComponentNotFound                 = errors.New("unable to fetch index components")
-	errLimitValueExceedsMaxOf100              = errors.New("limit value exceeds the maximum value 100")
-	errMissingInstrumentID                    = errors.New("missing instrument id")
-	errFundingRateHistoryNotFound             = errors.New("funding rate history not found")
-	errMissingRequiredUnderlying              = errors.New("error missing required parameter underlying")
-	errMissingRequiredParamInstID             = errors.New("missing required parameter instrument id")
-	errLiquidationOrderResponseNotFound       = errors.New("liquidation order not found")
-	errEitherInstIDOrCcyIsRequired            = errors.New("either parameter instId or ccy is required")
-	errIncorrectRequiredParameterTradeMode    = errors.New("unacceptable required argument, trade mode")
-	errInterestRateAndLoanQuotaNotFound       = errors.New("interest rate and loan quota not found")
-	errInsuranceFundInformationNotFound       = errors.New("insurance fund information not found")
-	errMissingExpiryTimeParameter             = errors.New("missing expiry date parameter")
-	errInvalidTradeModeValue                  = errors.New("invalid trade mode value")
-	errMissingClientOrderIDOrOrderID          = errors.New("client order id or order id is missing")
-	errWebsocketStreamNotAuthenticated        = errors.New("websocket stream not authenticated")
-	errInvalidNewSizeOrPriceInformation       = errors.New("invalid the new size or price information")
-	errSizeOrPriceIsRequired                  = errors.New("either size or price is required")
-	errMissingNewSize                         = errors.New("missing the order size information")
-	errMissingMarginMode                      = errors.New("missing required param margin mode 'mgnMode'")
-	errInvalidTriggerPrice                    = errors.New("invalid trigger price value")
-	errInvalidPriceLimit                      = errors.New("invalid price limit value")
-	errMissingIntervalValue                   = errors.New("missing interval value")
-	errMissingTakeProfitTriggerPrice          = errors.New("missing take profit trigger price")
-	errMissingTakeProfitOrderPrice            = errors.New("missing take profit order price")
-	errMissingSizeLimit                       = errors.New("missing required parameter 'szLimit'")
-	errMissingEitherAlgoIDOrState             = errors.New("either algo id or order state is required")
-	errUnacceptableAmount                     = errors.New("amount must be greater than 0")
-	errMissingValidWithdrawalID               = errors.New("missing valid withdrawal id")
-	errInstrumentFamilyRequired               = errors.New("instrument family is required")
-	errCountdownTimeoutRequired               = errors.New("countdown timeout is required")
-	errInstrumentIDorFamilyRequired           = errors.New("either instrumen id or instrument family is required")
-	errInvalidQuantityLimit                   = errors.New("invalid quantity limit")
-	errInstrumentTypeRequired                 = errors.New("instrument type required")
-	errInvalidInstrumentType                  = errors.New("invalid instrument type")
-	errMissingValidGreeksType                 = errors.New("missing valid greeks type")
-	errMissingIsolatedMarginTradingSetting    = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
-	errInvalidCounterParties                  = errors.New("missing counter parties")
-	errMissingRfqIDAndClientRfqID             = errors.New("missing rfq id or client rfq id")
-	errMissingRfqIDOrQuoteID                  = errors.New("either Rfq ID or Quote ID is missing")
-	errMissingRfqID                           = errors.New("error missing rfq id")
-	errMissingLegs                            = errors.New("missing legs")
-	errMissingSizeOfQuote                     = errors.New("missing size of quote leg")
-	errMossingLegsQuotePrice                  = errors.New("error missing quote price")
-	errMissingQuoteIDOrClientQuoteID          = errors.New("missing quote id or client quote id")
-	errMissingEitherQuoteIDAOrClientQuoteIDs  = errors.New("missing either quote ids or client quote ids")
-	errMissingRequiredParameterSubaccountName = errors.New("missing required parameter subaccount name")
-	errInvalidLoanAllocationValue             = errors.New("invalid loan allocation value, must be between 0 to 100")
-	errInvalidSubaccount                      = errors.New("invalid account type")
-	errMissingDestinationSubaccountName       = errors.New("missing destination subaccount name")
-	errMissingInitialSubaccountName           = errors.New("missing initial subaccount name")
-	errMissingAlgoOrderType                   = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
-	errInvalidMaximumPrice                    = errors.New("invalid maximum price")
-	errInvalidMinimumPrice                    = errors.New("invalid minimum price")
-	errInvalidGridQuantity                    = errors.New("invalid grid quantity (grid number)")
-	errMissingRequiredArgumentDirection       = errors.New("missing required argument, direction")
-	errRequiredParameterMissingLeverage       = errors.New("missing required parameter, leverage")
-	errMissingValidStopType                   = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
-	errMissingSubOrderType                    = errors.New("missing sub order type")
-	errMissingQuantity                        = errors.New("invalid quantity to buy or sell")
-	errDepositAddressNotFound                 = errors.New("deposit address with the specified currency code and chain not found")
-	errAddressRequired                        = errors.New("address is required")
-	errInvalidWebsocketEvent                  = errors.New("invalid websocket event")
-	errMissingValidChannelInformation         = errors.New("missing channel information")
-	errMaxRfqOrdersToCancel                   = errors.New("no more than 100 Rfq cancel order parameter is allowed")
-	errMalformedData                          = errors.New("malformed data")
-	errInvalidUnderlying                      = errors.New("invalid underlying")
-	errInstrumentFamilyOrUnderlyingRequired   = errors.New("either underlying or instrument family is required")
-	errMissingRequiredParameter               = errors.New("missing required parameter")
-	errMissingMakerInstrumentSettings         = errors.New("missing maker instrument settings")
-	errInvalidSubAccountName                  = errors.New("invalid sub-account name")
-	errInvalidAPIKey                          = errors.New("invalid api key")
-	errInvalidMarginTypeAdjust                = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
-	errInvalidAlgoOrderType                   = errors.New("invalid algo order type")
-	errInvalidIPAddress                       = errors.New("invalid ip address")
-	errInvalidAPIKeyPermission                = errors.New("invalid API Key permission")
-	errInvalidResponseParam                   = errors.New("invalid response parameter, response must be non-nil pointer")
-	errTooManyArgument                        = errors.New("too many cancel request params")
-	errInvalidDuration                        = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
-	errInvalidProtocolType                    = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
-	errExceedLimit                            = errors.New("limit exceeded")
-	errOnlyThreeMonthsSupported               = errors.New("only three months of trade data retrieval supported")
-	errOnlyOneResponseExpected                = errors.New("one response item expected")
-	errNoInstrumentFound                      = errors.New("no instrument found")
-	errStrategyNameRequired                   = errors.New("strategy name required")
-	errSubPositionIDRequired                  = errors.New("sub position id is required")
-	errUserIDRequired                         = errors.New("uid is required")
-	errSubPositionCloseTypeRequired           = errors.New("sub position close type")
-	errUniqueCodeRequired                     = errors.New("unique code is required")
-	errLastDaysRequired                       = errors.New("last days required")
-	errCopyInstrumentIDTypeRequired           = errors.New("copy instrument ID type is required")
-	errInvalidChecksum                        = errors.New("invalid checksum")
-	errInvalidPositionMode                    = errors.New("invalid position mode")
-	errLendingTermIsRequired                  = errors.New("lending term is required")
-	errLendingRateRequired                    = errors.New("lending rate is required")
-	errQuarterValueRequired                   = errors.New("quarter is required")
-	errYearRequired                           = errors.New("year is required")
-	errLengthMismatch                         = errors.New("mismatch in length")
+	errIndexComponentNotFound                = errors.New("unable to fetch index components")
+	errLimitValueExceedsMaxOf100             = errors.New("limit value exceeds the maximum value 100")
+	errMissingInstrumentID                   = errors.New("missing instrument ID")
+	errFundingRateHistoryNotFound            = errors.New("funding rate history not found")
+	errLiquidationOrderResponseNotFound      = errors.New("liquidation order not found")
+	errEitherInstIDOrCcyIsRequired           = errors.New("either parameter instId or ccy is required")
+	errIncorrectRequiredParameterTradeMode   = errors.New("unacceptable required argument, trade mode")
+	errInterestRateAndLoanQuotaNotFound      = errors.New("interest rate and loan quota not found")
+	errInsuranceFundInformationNotFound      = errors.New("insurance fund information not found")
+	errMissingExpiryTimeParameter            = errors.New("missing expiry date parameter")
+	errInvalidTradeModeValue                 = errors.New("invalid trade mode value")
+	errWebsocketStreamNotAuthenticated       = errors.New("websocket stream not authenticated")
+	errInvalidNewSizeOrPriceInformation      = errors.New("invalid the new size or price information")
+	errSizeOrPriceIsRequired                 = errors.New("either size or price is required")
+	errMissingNewSize                        = errors.New("missing the order size information")
+	errInvalidPriceLimit                     = errors.New("invalid price limit value")
+	errMissingIntervalValue                  = errors.New("missing interval value")
+	errMissingSizeLimit                      = errors.New("missing required parameter 'szLimit'")
+	errMissingEitherAlgoIDOrState            = errors.New("either algo ID or order state is required")
+	errMissingValidWithdrawalID              = errors.New("missing valid withdrawal ID")
+	errInstrumentFamilyRequired              = errors.New("instrument family is required")
+	errCountdownTimeoutRequired              = errors.New("countdown timeout is required")
+	errInstrumentIDorFamilyRequired          = errors.New("either instrumen ID or instrument family is required")
+	errInvalidQuantityLimit                  = errors.New("invalid quantity limit")
+	errInvalidInstrumentType                 = errors.New("invalid instrument type")
+	errMissingValidGreeksType                = errors.New("missing valid greeks type")
+	errMissingIsolatedMarginTradingSetting   = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
+	errInvalidCounterParties                 = errors.New("missing counter parties")
+	errMissingRfqIDAndClientRfqID            = errors.New("missing rfq ID or client rfq ID")
+	errMissingRfqIDOrQuoteID                 = errors.New("either Rfq ID or Quote ID is missing")
+	errMissingRfqID                          = errors.New("error missing rfq ID")
+	errMissingLegs                           = errors.New("missing legs")
+	errMissingSizeOfQuote                    = errors.New("missing size of quote leg")
+	errMissingLegsQuotePrice                 = errors.New("error missing quote price")
+	errMissingQuoteIDOrClientQuoteID         = errors.New("missing quote ID or client quote ID")
+	errMissingEitherQuoteIDAOrClientQuoteIDs = errors.New("missing either quote ids or client quote ids")
+	errInvalidLoanAllocationValue            = errors.New("invalid loan allocation value, must be between 0 to 100")
+	errInvalidSubaccount                     = errors.New("invalid sub-account type")
+	errMissingAlgoOrderType                  = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
+	errInvalidGridQuantity                   = errors.New("invalid grid quantity (grid number)")
+	errMissingRequiredArgumentDirection      = errors.New("missing required argument, direction")
+	errInvalidLeverage                       = errors.New("invalid leverage value")
+	errMissingValidStopType                  = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
+	errMissingSubOrderType                   = errors.New("missing sub order type")
+	errMissingQuantity                       = errors.New("invalid quantity to buy or sell")
+	errAddressRequired                       = errors.New("address is required")
+	errInvalidWebsocketEvent                 = errors.New("invalid websocket event")
+	errMissingValidChannelInformation        = errors.New("missing channel information")
+	errMaxRfqOrdersToCancel                  = errors.New("no more than 100 Rfq cancel order parameter is allowed")
+	errMalformedData                         = errors.New("malformed data")
+	errInvalidUnderlying                     = errors.New("invalid underlying")
+	errInstrumentFamilyOrUnderlyingRequired  = errors.New("either underlying or instrument family is required")
+	errMissingRequiredParameter              = errors.New("missing required parameter")
+	errMissingMakerInstrumentSettings        = errors.New("missing maker instrument settings")
+	errInvalidSubAccountName                 = errors.New("invalid sub-account name")
+	errInvalidAPIKey                         = errors.New("invalid api key")
+	errInvalidMarginTypeAdjust               = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
+	errInvalidAlgoOrderType                  = errors.New("invalid algo order type")
+	errInvalidIPAddress                      = errors.New("invalid ip address")
+	errInvalidAPIKeyPermission               = errors.New("invalid API Key permission")
+	errInvalidResponseParam                  = errors.New("invalid response parameter, response must be non-nil pointer")
+	errTooManyArgument                       = errors.New("too many cancel request params")
+	errInvalidDuration                       = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
+	errInvalidProtocolType                   = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
+	errExceedLimit                           = errors.New("limit exceeded")
+	errOnlyThreeMonthsSupported              = errors.New("only three months of trade data retrieval supported")
+	errOnlyOneResponseExpected               = errors.New("one response item expected")
+	errNoInstrumentFound                     = errors.New("no instrument found")
+	errStrategyNameRequired                  = errors.New("strategy name required")
+	errSubPositionIDRequired                 = errors.New("sub position ID is required")
+	errUserIDRequired                        = errors.New("uid is required")
+	errSubPositionCloseTypeRequired          = errors.New("sub position close type")
+	errUniqueCodeRequired                    = errors.New("unique code is required")
+	errLastDaysRequired                      = errors.New("last days required")
+	errCopyInstrumentIDTypeRequired          = errors.New("copy instrument ID type is required")
+	errInvalidChecksum                       = errors.New("invalid checksum")
+	errInvalidPositionMode                   = errors.New("invalid position mode")
+	errLendingTermIsRequired                 = errors.New("lending term is required")
+	errLendingRateRequired                   = errors.New("lending rate is required")
+	errQuarterValueRequired                  = errors.New("quarter is required")
+	errYearRequired                          = errors.New("year is required")
+	errLengthMismatch                        = errors.New("mismatch in length")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -311,13 +284,19 @@ func (a IndexCandlestickSlices) ExtractIndexCandlestick() ([]CandlestickHistoryI
 
 // CandleStick  holds candlestick price data
 type CandleStick struct {
-	OpenTime         time.Time
-	OpenPrice        float64
-	HighestPrice     float64
-	LowestPrice      float64
-	ClosePrice       float64
-	Volume           float64
-	QuoteAssetVolume float64
+	OpenTime         types.Time
+	OpenPrice        types.Number
+	HighestPrice     types.Number
+	LowestPrice      types.Number
+	ClosePrice       types.Number
+	Volume           types.Number
+	QuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON deserializes slice of data into Candlestick structure
+func (c *CandleStick) UnmarshalJSON(data []byte) error {
+	target := [7]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume}
+	return json.Unmarshal(data, &target)
 }
 
 // CandlestickHistoryItem retrieve the candlestick charts of the index/mark price from recent years.
@@ -450,7 +429,7 @@ type Instrument struct {
 	MaxStopSize                     types.Number `json:"maxStopSz"`
 }
 
-// DeliveryHistoryDetail holds instrument id and delivery price information detail
+// DeliveryHistoryDetail holds instrument ID and delivery price information detail
 type DeliveryHistoryDetail struct {
 	Type          string       `json:"type"`
 	InstrumentID  string       `json:"insId"`
@@ -659,35 +638,65 @@ type SupportedCoinsData struct {
 
 // TakerVolume represents taker volume information with creation timestamp
 type TakerVolume struct {
-	Timestamp  time.Time `json:"ts"`
-	SellVolume float64
-	BuyVolume  float64
+	Timestamp  types.Time
+	SellVolume types.Number
+	BuyVolume  types.Number
+}
+
+// UnmarshalJSON deserializes a slice of data into TakerVolume
+func (t *TakerVolume) UnmarshalJSON(data []byte) error {
+	deploy := [3]any{&t.Timestamp, &t.SellVolume, &t.BuyVolume}
+	return json.Unmarshal(data, &deploy)
 }
 
 // MarginLendRatioItem represents margin lend ration information and creation timestamp
 type MarginLendRatioItem struct {
-	Timestamp       time.Time `json:"ts"`
-	MarginLendRatio float64   `json:"ratio"`
+	Timestamp       types.Time   `json:"ts"`
+	MarginLendRatio types.Number `json:"ratio"`
+}
+
+// UnmarshalJSON deserializes a slice of data into MarginLendRatio
+func (m *MarginLendRatioItem) UnmarshalJSON(data []byte) error {
+	target := [2]any{&m.Timestamp, &m.MarginLendRatio}
+	return json.Unmarshal(data, &target)
 }
 
 // LongShortRatio represents the ratio of users with net long vs net short positions for futures and perpetual swaps.
 type LongShortRatio struct {
-	Timestamp       time.Time `json:"ts"`
-	MarginLendRatio float64   `json:"ratio"`
+	Timestamp       types.Time   `json:"ts"`
+	MarginLendRatio types.Number `json:"ratio"`
+}
+
+// UnmarshalJSON deserializes a slice of data into LongShortRatio
+func (l *LongShortRatio) UnmarshalJSON(data []byte) error {
+	target := [2]any{&l.Timestamp, &l.MarginLendRatio}
+	return json.Unmarshal(data, &target)
 }
 
 // OpenInterestVolume represents open interest and trading volume item for currencies of futures and perpetual swaps.
 type OpenInterestVolume struct {
-	Timestamp    time.Time `json:"ts"`
-	OpenInterest float64   `json:"oi"`
-	Volume       float64   `json:"vol"`
+	Timestamp    types.Time   `json:"ts"`
+	OpenInterest types.Number `json:"oi"`
+	Volume       types.Number `json:"vol"`
+}
+
+// UnmarshalJSON deserializes json data into OpenInterestVolume struct
+func (p *OpenInterestVolume) UnmarshalJSON(data []byte) error {
+	deploy := [3]any{&p.Timestamp, &p.OpenInterest, &p.Volume}
+	return json.Unmarshal(data, &deploy)
 }
 
 // OpenInterestVolumeRatio represents open interest and trading volume ratio for currencies of futures and perpetual swaps.
 type OpenInterestVolumeRatio struct {
-	Timestamp         time.Time `json:"ts"`
-	OpenInterestRatio float64   `json:"oiRatio"`
-	VolumeRatio       float64   `json:"volRatio"`
+	Timestamp         types.Time   `json:"ts"`
+	OpenInterestRatio types.Number `json:"oiRatio"`
+	VolumeRatio       types.Number `json:"volRatio"`
+}
+
+// UnmarshalJSON deserializes json data into OpenInterestVolumeRatio
+func (o *OpenInterestVolumeRatio) UnmarshalJSON(data []byte) error {
+	deploy := [3]any{&o.Timestamp, &o.OpenInterestRatio, &o.VolumeRatio}
+	return json.Unmarshal(data, &deploy)
 }
 
 // ExpiryOpenInterestAndVolume represents  open interest and trading volume of calls and puts for each upcoming expiration.
@@ -702,23 +711,35 @@ type ExpiryOpenInterestAndVolume struct {
 
 // StrikeOpenInterestAndVolume represents open interest and volume for both buyers and sellers of calls and puts.
 type StrikeOpenInterestAndVolume struct {
-	Timestamp        time.Time
-	Strike           int64
+	Timestamp        types.Time
+	Strike           float64
 	CallOpenInterest float64
 	PutOpenInterest  float64
 	CallVolume       float64
 	PutVolume        float64
 }
 
+// UnmarshalJSON deserializes slice of byte data into StrikeOpenInterestAndVolume
+func (s *StrikeOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
+	target := [6]any{&s.Timestamp, &s.Strike, &s.CallOpenInterest, &s.PutOpenInterest, &s.CallVolume, &s.PutVolume}
+	return json.Unmarshal(data, &target)
+}
+
 // CurrencyTakerFlow holds the taker volume information for a single currency.
 type CurrencyTakerFlow struct {
-	Timestamp       time.Time
-	CallBuyVolume   float64
-	CallSellVolume  float64
-	PutBuyVolume    float64
-	PutSellVolume   float64
-	CallBlockVolume float64
-	PutBlockVolume  float64
+	Timestamp       types.Time
+	CallBuyVolume   types.Number
+	CallSellVolume  types.Number
+	PutBuyVolume    types.Number
+	PutSellVolume   types.Number
+	CallBlockVolume types.Number
+	PutBlockVolume  types.Number
+}
+
+// UnmarshalJSON deserializes a slice of byte data into CurrencyTakerFlow
+func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
+	target := [7]any{&c.Timestamp, &c.CallBuyVolume, &c.CallSellVolume, &c.PutBuyVolume, &c.PutSellVolume, &c.CallBlockVolume, &c.PutBlockVolume}
+	return json.Unmarshal(data, &target)
 }
 
 // PlaceOrderRequestParam requesting parameter for placing an order.
@@ -1767,7 +1788,7 @@ type IncreaseDecreaseMargin struct {
 	Type         string       `json:"type"`
 }
 
-// LeverageResponse instrument id leverage response.
+// LeverageResponse instrument ID leverage response.
 type LeverageResponse struct {
 	InstrumentID string       `json:"instId"`
 	MarginMode   string       `json:"mgnMode"`
@@ -2441,7 +2462,7 @@ type GridAlgoOrder struct {
 	BasePosition bool    `json:"basePos"` // Whether or not open a position when strategy actives Default is false Neutral contract grid should omit the parameter
 	Size         float64 `json:"sz,string"`
 	Direction    string  `json:"direction"`
-	Lever        string  `json:"lever"`
+	Leverage     string  `json:"lever"`
 }
 
 // GridAlgoOrderIDResponse represents grid algo order
@@ -3565,7 +3586,7 @@ type ComputeMarginBalance struct {
 	MaximumAmount types.Number `json:"maxAmt"`
 }
 
-// AdjustMarginBalanceResponse represents algo id for response for margin balance adjust request.
+// AdjustMarginBalanceResponse represents algo ID for response for margin balance adjust request.
 type AdjustMarginBalanceResponse struct {
 	AlgoID string `json:"algoId"`
 }
@@ -4634,53 +4655,41 @@ type SpreadOrderCancellationResponse struct {
 
 // ContractTakerVolume represents a contract taker sell and buy volume.
 type ContractTakerVolume struct {
-	Timestamp       time.Time
-	TakerSellVolume float64
-	TakerBuyVolume  float64
+	Timestamp       types.Time
+	TakerSellVolume types.Number
+	TakerBuyVolume  types.Number
+}
+
+// UnmarshalJSON deserializes a slice data into ContractTakerVolume
+func (c *ContractTakerVolume) UnmarshalJSON(data []byte) error {
+	target := [3]any{&c.Timestamp, &c.TakerSellVolume, &c.TakerBuyVolume}
+	return json.Unmarshal(data, &target)
 }
 
 // ContractOpenInterestHistoryItem represents an open interest information for contract.
 type ContractOpenInterestHistoryItem struct {
-	Timestamp              time.Time
-	OpenInterestInContract float64
-	OpenInterestInCurrency float64
-	OpenInterestInUSD      float64
+	Timestamp              types.Time
+	OpenInterestInContract types.Number
+	OpenInterestInCurrency types.Number
+	OpenInterestInUSD      types.Number
 }
 
-func extractTakerVolumesFromSlice(takerVolumesSlice [][3]types.Number) []ContractTakerVolume {
-	contractTakerVolumes := make([]ContractTakerVolume, len(takerVolumesSlice))
-	for a := range takerVolumesSlice {
-		contractTakerVolumes[a].Timestamp = time.UnixMilli(takerVolumesSlice[a][0].Int64())
-		contractTakerVolumes[a].TakerSellVolume = takerVolumesSlice[a][1].Float64()
-		contractTakerVolumes[a].TakerBuyVolume = takerVolumesSlice[a][2].Float64()
-	}
-	return contractTakerVolumes
-}
-
-func extractOpenInterestHistoryFromSlice(openInterestsSlice [][4]types.Number) []ContractOpenInterestHistoryItem {
-	openInterestsHist := make([]ContractOpenInterestHistoryItem, len(openInterestsSlice))
-	for a := range openInterestsSlice {
-		openInterestsHist[a].Timestamp = time.UnixMilli(openInterestsSlice[a][0].Int64())
-		openInterestsHist[a].OpenInterestInContract = openInterestsSlice[a][1].Float64()
-		openInterestsHist[a].OpenInterestInCurrency = openInterestsSlice[a][2].Float64()
-		openInterestsHist[a].OpenInterestInUSD = openInterestsSlice[a][3].Float64()
-	}
-	return openInterestsHist
+// UnmarshalJSON deserializes slice data into ContractOpenInterestHistoryItem instance
+func (c *ContractOpenInterestHistoryItem) UnmarshalJSON(data []byte) error {
+	target := [4]any{&c.Timestamp, &c.OpenInterestInContract, &c.OpenInterestInCurrency, &c.OpenInterestInUSD}
+	return json.Unmarshal(data, &target)
 }
 
 // TopTraderContractsLongShortRatio represents the timestamp and ratio information of top traders long and short accounts/positions.
 type TopTraderContractsLongShortRatio struct {
-	Timestamp time.Time
-	Ratio     float64
+	Timestamp types.Time
+	Ratio     types.Number
 }
 
-func extractLongShortRatio(longShortRatiosSlice [][2]types.Number) []TopTraderContractsLongShortRatio {
-	topTradersLongShortRatios := make([]TopTraderContractsLongShortRatio, len(longShortRatiosSlice))
-	for a := range longShortRatiosSlice {
-		topTradersLongShortRatios[a].Timestamp = time.UnixMilli(longShortRatiosSlice[a][0].Int64())
-		topTradersLongShortRatios[a].Ratio = longShortRatiosSlice[a][1].Float64()
-	}
-	return topTradersLongShortRatios
+// UnmarshalJSON deserializes slice data into TopTraderContractsLongShortRatio instance
+func (t *TopTraderContractsLongShortRatio) UnmarshalJSON(data []byte) error {
+	target := [2]any{&t.Timestamp, &t.Ratio}
+	return json.Unmarshal(data, &target)
 }
 
 // AccountInstrument represents an account instrument.
