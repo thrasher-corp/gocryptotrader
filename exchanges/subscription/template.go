@@ -104,9 +104,8 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	subs := List{}
 
-	// We deliberately do not check Availability of sub Pairs because users have edge cases to subscribe to
-	// non-existent pairs
 	if len(s.Pairs) != 0 {
+		// We deliberately do not check Availability of sub Pairs because users have edge cases to subscribe to non-existent pairs
 		for a := range ap {
 			ap[a] = s.Pairs
 		}

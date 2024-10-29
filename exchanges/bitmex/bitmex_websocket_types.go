@@ -1,11 +1,13 @@
 package bitmex
 
-import "time"
+import (
+	"time"
+)
 
 // WebsocketRequest is the main request type
 type WebsocketRequest struct {
-	Command   string        `json:"op"`
-	Arguments []interface{} `json:"args"`
+	Command   string `json:"op"`
+	Arguments []any  `json:"args"`
 }
 
 // WebsocketErrorResponse main error response
@@ -64,8 +66,8 @@ type OrderBookData struct {
 
 // TradeData contains trade resp data with action to be taken
 type TradeData struct {
-	Data   []Trade `json:"data"`
-	Action string  `json:"action"`
+	Data   []*Trade `json:"data"`
+	Action string   `json:"action"`
 }
 
 // AnnouncementData contains announcement resp data with action to be taken

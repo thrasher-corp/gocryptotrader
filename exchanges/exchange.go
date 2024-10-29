@@ -49,20 +49,22 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
+// Public Errors
 var (
 	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
 	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
 	// ErrSettingProxyAddress is returned when setting a proxy address fails
 	ErrSettingProxyAddress = errors.New("setting proxy address error")
 	// ErrEndpointPathNotFound is returned when an endpoint path is not found for a particular key
-	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
+	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+)
 
+var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
-	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
-	errBatchSizeZero                     = errors.New("batch size cannot be 0")
 )
 
 // SetRequester sets the instance of the requester
@@ -251,7 +253,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -1815,9 +1817,6 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
-	if batchSize == 0 {
-		return errBatchSizeZero
-	}
 
 	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)
