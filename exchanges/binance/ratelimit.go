@@ -14,18 +14,16 @@ const (
 	spotRequestRate = 6000
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
-	spotOrderInterval              = 10 * time.Second
-	spotOrderRequestRate           = 100
-	cFuturesInterval               = time.Minute
-	cFuturesRequestRate            = 2400
-	cFuturesOrderInterval          = time.Minute
-	cFuturesOrderRequestRate       = 1200
-	uFuturesInterval               = time.Minute
-	uFuturesRequestRate            = 2400
-	uFuturesOrderInterval          = time.Second * 10
-	uFuturesOrderRequestRate       = 300
-	uFuturesFundingRequestRate     = 500
-	uFuturesFundingRequestInterval = time.Minute * 5
+	spotOrderInterval        = 10 * time.Second
+	spotOrderRequestRate     = 100
+	cFuturesInterval         = time.Minute
+	cFuturesRequestRate      = 2400
+	cFuturesOrderInterval    = time.Minute
+	cFuturesOrderRequestRate = 1200
+	uFuturesInterval         = time.Minute
+	uFuturesRequestRate      = 2400
+	uFuturesOrderInterval    = time.Second * 10
+	uFuturesOrderRequestRate = 300
 )
 
 // Binance Spot rate limits
