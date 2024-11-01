@@ -1292,6 +1292,13 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		if err != nil {
 			return nil, err
 		}
+		cp, err := currency.NewPairFromString(resp.InstrumentID)
+		if err != nil {
+			return nil, err
+		}
+		if !pair.IsEmpty() && !cp.Equal(pair) {
+			return nil, fmt.Errorf("%w, unexpected instrument ID %v for order ID %s", order.ErrOrderNotFound, pair, orderID)
+		}
 		return &order.Detail{
 			Amount:               resp.Size.Float64(),
 			Exchange:             ok.Name,
@@ -1299,7 +1306,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 			ClientOrderID:        resp.ClientOrderID,
 			Side:                 oSide,
 			Type:                 oType,
-			Pair:                 pair,
+			Pair:                 cp,
 			Cost:                 resp.Price.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
@@ -1602,7 +1609,11 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		spreadOrders, err := ok.GetCompletedSpreadOrdersLast7Days(ctx, "", req.Type.Lower(), "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
+		oType, err := ok.OrderTypeString(req.Type)
+		if err != nil {
+			return nil, err
+		}
+		spreadOrders, err := ok.GetCompletedSpreadOrdersLast7Days(ctx, "", oType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
 		if err != nil {
 			return nil, err
 		}

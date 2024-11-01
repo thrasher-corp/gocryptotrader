@@ -2297,8 +2297,8 @@ func TestSubmitOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SubmitOrder(contextGenerate(), orderSubmission)
-	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 
 	cp, err := currency.NewPairFromString("BTC-USDT-230630")
 	require.NoError(t, err)
@@ -2314,6 +2314,23 @@ func TestSubmitOrder(t *testing.T) {
 		MarginType: margin.Multi,
 	}
 	result, err = ok.SubmitOrder(contextGenerate(), orderSubmission)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	pair, err := currency.NewPairFromString("BTC-USDT-SWAP_BTC-USDT-250328")
+	require.NoError(t, err)
+
+	result, err = ok.SubmitOrder(contextGenerate(), &order.Submit{
+		Pair:       pair,
+		Exchange:   ok.Name,
+		Side:       order.Buy,
+		Type:       order.Limit,
+		Price:      1234,
+		Amount:     1,
+		ClientID:   "hellomoto",
+		AssetType:  asset.Spread,
+		MarginType: margin.Multi,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2375,6 +2392,17 @@ func TestModifyOrder(t *testing.T) {
 			Price:     123456.44,
 			Amount:    123,
 		})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = ok.ModifyOrder(contextGenerate(),
+		&order.Modify{
+			AssetType: asset.Spread,
+			Pair:      currency.NewPair(currency.LTC, currency.BTC),
+			OrderID:   "1234",
+			Price:     123456.44,
+			Amount:    123,
+		})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2386,8 +2414,12 @@ func TestGetOrderInfo(t *testing.T) {
 	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetOrderInfo(contextGenerate(), "123", enabled[0], asset.Futures)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = ok.GetOrderInfo(contextGenerate(), "123", enabled[0], asset.Spread)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2464,11 +2496,15 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
-	getOrdersRequest.Pairs = []currency.Pair{
-		currency.NewPair(currency.LTC,
-			currency.BTC)}
+	getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	getOrdersRequest.AssetType = asset.Spread
+	getOrdersRequest.Type = order.Market
+	result, err = ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
