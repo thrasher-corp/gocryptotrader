@@ -11,7 +11,7 @@ const (
 	// Global dictates the max rate limit for general request items which is
 	// 1200 requests per minute
 	spotInterval    = time.Minute
-	spotRequestRate = 600
+	spotRequestRate = 6000
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
 	spotOrderInterval              = 10 * time.Second

@@ -536,7 +536,7 @@ func (b *Binance) GetTickers(ctx context.Context, symbols ...currency.Pair) ([]P
 		}
 		symbolValues[i] = symbolValue
 	}
-	if len(symbolValues) > 0 {
+	if symbolLength > 0 {
 		// this is just easier to format it to  ["x","y"...] than manually
 		symbolsJSON, err := json.Marshal(symbolValues)
 		if err != nil {
