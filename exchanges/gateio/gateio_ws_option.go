@@ -163,6 +163,7 @@ getEnabledPairs:
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
+				Asset:   asset.Options,
 			})
 		}
 	}
