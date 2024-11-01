@@ -11,19 +11,21 @@ const (
 	// Global dictates the max rate limit for general request items which is
 	// 1200 requests per minute
 	spotInterval    = time.Minute
-	spotRequestRate = 1200
+	spotRequestRate = 600
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
-	spotOrderInterval        = 10 * time.Second
-	spotOrderRequestRate     = 100
-	cFuturesInterval         = time.Minute
-	cFuturesRequestRate      = 6000
-	cFuturesOrderInterval    = time.Minute
-	cFuturesOrderRequestRate = 1200
-	uFuturesInterval         = time.Minute
-	uFuturesRequestRate      = 2400
-	uFuturesOrderInterval    = time.Minute
-	uFuturesOrderRequestRate = 1200
+	spotOrderInterval              = 10 * time.Second
+	spotOrderRequestRate           = 100
+	cFuturesInterval               = time.Minute
+	cFuturesRequestRate            = 2400
+	cFuturesOrderInterval          = time.Minute
+	cFuturesOrderRequestRate       = 1200
+	uFuturesInterval               = time.Minute
+	uFuturesRequestRate            = 2400
+	uFuturesOrderInterval          = time.Second * 10
+	uFuturesOrderRequestRate       = 300
+	uFuturesFundingRequestRate     = 500
+	uFuturesFundingRequestInterval = time.Minute * 5
 )
 
 // Binance Spot rate limits
@@ -32,11 +34,14 @@ const (
 	spotExchangeInfo
 	spotHistoricalTradesRate
 	spotOrderbookDepth500Rate
+	spotOrderbookDepth100Rate
 	spotOrderbookDepth1000Rate
 	spotOrderbookDepth5000Rate
 	spotOrderbookTickerAllRate
-	spotPriceChangeAllRate
-	spotSymbolPriceAllRate
+	spotTicker1Rate
+	spotTicker20Rate
+	spotTicker100Rate
+	spotTickerAllRate
 	spotOpenOrdersAllRate
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -104,14 +109,17 @@ func GetRateLimits() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		spotDefaultRate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 1),
 		spotOrderbookTickerAllRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
-		spotSymbolPriceAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
 		spotHistoricalTradesRate:        request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
-		spotOrderbookDepth500Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
-		spotOrderbookDepth1000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
+		spotOrderbookDepth100Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
+		spotOrderbookDepth500Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 25),
+		spotOrderbookDepth1000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 50),
+		spotOrderbookDepth5000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 250),
 		spotAccountInformationRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
 		spotExchangeInfo:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
-		spotPriceChangeAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 40),
-		spotOrderbookDepth5000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 50),
+		spotTicker1Rate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
+		spotTicker20Rate:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
+		spotTicker100Rate:               request.GetRateLimiterWithWeight(spotDefaultLimiter, 40),
+		spotTickerAllRate:               request.GetRateLimiterWithWeight(spotDefaultLimiter, 80),
 		spotOrderRate:                   request.GetRateLimiterWithWeight(spotOrderLimiter, 1),
 		spotOrderQueryRate:              request.GetRateLimiterWithWeight(spotOrderLimiter, 2),
 		spotOpenOrdersSpecificRate:      request.GetRateLimiterWithWeight(spotOrderLimiter, 3),
@@ -120,14 +128,14 @@ func GetRateLimits() request.RateLimitDefinitions {
 		uFuturesDefaultRate:             request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
 		uFuturesKline100Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
 		uFuturesOrderbook50Rate:         request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
+		uFuturesOrderbook100Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
+		uFuturesOrderbook500Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 10),
+		uFuturesOrderbook1000Rate:       request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 20),
 		uFuturesKline500Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
 		uFuturesOrderbookTickerAllRate:  request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
-		uFuturesOrderbook100Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
 		uFuturesKline1000Rate:           request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
 		uFuturesAccountInformationRate:  request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),
-		uFuturesOrderbook500Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 10),
 		uFuturesKlineMaxRate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 10),
-		uFuturesOrderbook1000Rate:       request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 20),
 		uFuturesHistoricalTradesRate:    request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 20),
 		uFuturesTickerPriceHistoryRate:  request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 40),
 		uFuturesOrdersDefaultRate:       request.GetRateLimiterWithWeight(usdMarginedFuturesOrdersLimiter, 1),
@@ -178,7 +186,7 @@ func openOrdersLimit(symbol string) request.EndpointLimit {
 func orderbookLimit(depth int) request.EndpointLimit {
 	switch {
 	case depth <= 100:
-		return spotDefaultRate
+		return spotOrderbookDepth100Rate
 	case depth <= 500:
 		return spotOrderbookDepth500Rate
 	case depth <= 1000:

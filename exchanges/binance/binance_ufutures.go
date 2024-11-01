@@ -94,6 +94,10 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
+	if limit == 0 {
+		// default to help select rate limits when no limit is provided
+		limit = 500
+	}
 	strLimit := strconv.FormatInt(limit, 10)
 	if strLimit != "" {
 		if !slices.Contains(uValidOBLimits, strLimit) {
@@ -102,7 +106,7 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 		params.Set("limit", strLimit)
 	}
 
-	rateBudget := uFuturesDefaultRate
+	rateBudget := uFuturesOrderbook1000Rate
 	switch {
 	case limit == 5, limit == 10, limit == 20, limit == 50:
 		rateBudget = uFuturesOrderbook50Rate
@@ -110,8 +114,6 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 		rateBudget = uFuturesOrderbook100Rate
 	case limit >= 500 && limit < 1000:
 		rateBudget = uFuturesOrderbook500Rate
-	case limit == 1000:
-		rateBudget = uFuturesOrderbook1000Rate
 	}
 
 	var data OrderbookData
