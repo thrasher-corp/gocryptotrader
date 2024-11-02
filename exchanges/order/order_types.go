@@ -359,8 +359,10 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
-	OCO             // One-cancels-the-other order
-	ConditionalStop // One-way stop order
+	OCO                              // One-cancels-the-other order
+	ConditionalStop                  // One-way stop order
+	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
+	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
 )
 
 // Side enforces a standard for order sides across the code base

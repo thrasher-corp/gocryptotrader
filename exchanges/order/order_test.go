@@ -949,6 +949,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"tRiGgEr", Trigger, nil},
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
+		{"mMp", MarketMakerProtection, nil},
+		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 	}
 	for i := range cases {

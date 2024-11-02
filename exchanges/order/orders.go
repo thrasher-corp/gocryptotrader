@@ -705,6 +705,10 @@ func (t Type) String() string {
 		return "STOP"
 	case ConditionalStop:
 		return "CONDITIONAL"
+	case MarketMakerProtection:
+		return "MMP"
+	case MarketMakerProtectionAndPostOnly:
+		return "MMP_AND_POST_ONLY"
 	case StopLimit:
 		return "STOP LIMIT"
 	case StopMarket:
@@ -1150,6 +1154,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return OCO, nil
 	case ConditionalStop.String():
 		return ConditionalStop, nil
+	case MarketMakerProtection.String():
+		return MarketMakerProtection, nil
+	case MarketMakerProtectionAndPostOnly.String():
+		return MarketMakerProtectionAndPostOnly, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}

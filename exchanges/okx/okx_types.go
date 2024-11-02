@@ -82,7 +82,6 @@ var (
 	errWebsocketStreamNotAuthenticated       = errors.New("websocket stream not authenticated")
 	errInvalidNewSizeOrPriceInformation      = errors.New("invalid the new size or price information")
 	errSizeOrPriceIsRequired                 = errors.New("either size or price is required")
-	errMissingNewSize                        = errors.New("missing the order size information")
 	errInvalidPriceLimit                     = errors.New("invalid price limit value")
 	errMissingIntervalValue                  = errors.New("missing interval value")
 	errMissingSizeLimit                      = errors.New("missing required parameter 'szLimit'")
@@ -712,11 +711,11 @@ type ExpiryOpenInterestAndVolume struct {
 // StrikeOpenInterestAndVolume represents open interest and volume for both buyers and sellers of calls and puts.
 type StrikeOpenInterestAndVolume struct {
 	Timestamp        types.Time
-	Strike           float64
-	CallOpenInterest float64
-	PutOpenInterest  float64
-	CallVolume       float64
-	PutVolume        float64
+	Strike           types.Number
+	CallOpenInterest types.Number
+	PutOpenInterest  types.Number
+	CallVolume       types.Number
+	PutVolume        types.Number
 }
 
 // UnmarshalJSON deserializes slice of byte data into StrikeOpenInterestAndVolume
@@ -1022,6 +1021,8 @@ type AlgoOrderParams struct {
 	ReduceOnly   bool       `json:"reduceOnly,omitempty"`
 	OrderTag     string     `json:"tag,omitempty"`
 	QuantityType string     `json:"tgtCcy,omitempty"`
+	AlgoID       string     `json:"algoId,omitempty"`
+	AlgoClOrdID  string     `json:"algoClOrdId,omitempty"`
 
 	// Place Stop Order params
 	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
@@ -1828,12 +1829,12 @@ type TradeFeeRate struct {
 	InstrumentType   asset.Item   `json:"instType"`
 	FeeRateLevel     string       `json:"level"`
 	FeeRateMaker     types.Number `json:"maker"`
-	FeeRateMakerUSDT types.Number `json:"makerU"`
-	FeeRateMakerUSDC types.Number `json:"makerUSDC"`
 	FeeRateTaker     types.Number `json:"taker"`
-	FeeRateTakerUSDT types.Number `json:"takerU"`
-	FeeRateTakerUSDC types.Number `json:"takerUSDC"`
 	Timestamp        types.Time   `json:"ts"`
+	FeeRateMakerUSDT types.Number `json:"makerU"`
+	FeeRateTakerUSDT types.Number `json:"takerU"`
+	FeeRateMakerUSDC types.Number `json:"makerUSDC"`
+	FeeRateTakerUSDC types.Number `json:"takerUSDC"`
 }
 
 // InterestAccruedData represents interest rate accrued response
