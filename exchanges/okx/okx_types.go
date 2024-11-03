@@ -820,7 +820,7 @@ type AmendOrderRequestParams struct {
 	// When modifying options orders, users can only fill in one of the following: newPx, newPxUsd, or newPxVol.
 	NewPriceInUSD float64 `json:"newPxUsd"`
 
-	NewPriceVolatility float64       // Modify options orders based on implied volatility, where 1 represents 100%. Only applicable to options.
+	NewPriceVolatility float64       `json:"newPxVol,omitempty"` // Modify options orders based on implied volatility, where 1 represents 100%. Only applicable to options.
 	AttachAlgoOrders   []AlgoOrdInfo `json:"attachAlgoOrds,omitempty"`
 }
 
@@ -1743,6 +1743,8 @@ type SetLeverageInput struct {
 	InstrumentID string        `json:"instId,omitempty"` // Optional:
 	Currency     currency.Code `json:"ccy,omitempty"`    // Optional:
 	PositionSide string        `json:"posSide,omitempty"`
+
+	AssetType asset.Item `json:"-"`
 }
 
 // SetLeverageResponse represents set leverage response
@@ -1770,13 +1772,11 @@ type MaximumTradableAmount struct {
 
 // IncreaseDecreaseMarginInput represents increase or decrease the margin of the isolated position.
 type IncreaseDecreaseMarginInput struct {
-	InstrumentID     string  `json:"instId"`
-	PositionSide     string  `json:"posSide"`
-	Type             string  `json:"type"`
-	Amount           float64 `json:"amt,string"`
-	Currency         string  `json:"ccy"`
-	AutoLoadTransfer bool    `json:"auto"`
-	LoadTransfer     bool    `json:"loanTrans"`
+	InstrumentID string  `json:"instId"`
+	PositionSide string  `json:"posSide"`
+	Type         string  `json:"type"`
+	Amount       float64 `json:"amt,string"`
+	Currency     string  `json:"ccy"`
 }
 
 // IncreaseDecreaseMargin represents increase or decrease the margin of the isolated position response
@@ -3881,13 +3881,18 @@ type PositionInfo struct {
 
 // TPSLOrderParam holds Take profit and stop loss order parameters.
 type TPSLOrderParam struct {
-	InstrumentType            string  `json:"instType"`
-	SubPositionID             string  `json:"subPosId"`
-	TakeProfitTriggerPrice    float64 `json:"tpTriggerPx,omitempty,string"`
-	StopLossTriggerPrice      float64 `json:"slTriggerPx,omitempty,string"`
-	TakePofitTriggerPriceType string  `json:"tpTriggerPriceType"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
-	StopLossTriggerPriceType  string  `jsonL:"slTriggerPxType"`   // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
-	Tag                       string  `json:"tag"`
+	InstrumentType         string  `json:"instType"`
+	SubPositionID          string  `json:"subPosId"`
+	TakeProfitTriggerPrice float64 `json:"tpTriggerPx,omitempty,string"`
+	StopLossTriggerPrice   float64 `json:"slTriggerPx,omitempty,string"`
+
+	TakeProfitOrderPrice float64 `json:"tpOrdPx,omitempty,string"`
+	StopLossOrderPrice   float64 `json:"slOrdPx,omitempty,string"`
+
+	TakePofitTriggerPriceType string `json:"tpTriggerPriceType,omitempty,string"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
+	StopLossTriggerPriceType  string `jsonL:"slTriggerPxType,omitempty,string"`   // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
+	SubPositionType           string `json:"subPosType,omitempty,string"`         // 'lead': lead trading, the default value 'copy': copy trading
+	Tag                       string `json:"tag,omitempty,string"`
 }
 
 // PositionIDInfo holds place positions information
@@ -4342,22 +4347,22 @@ type ADLWarning struct {
 
 // EconomicCalendar represents macro-economic calendar data
 type EconomicCalendar struct {
-	Actual      types.Number `json:"actual"`
-	CalendarID  string       `json:"calendarId"`
-	Date        types.Time   `json:"date"`
-	Region      string       `json:"region"`
-	Category    string       `json:"category"`
-	Event       string       `json:"event"`
-	RefDate     types.Time   `json:"refDate"`
-	Previous    types.Number `json:"previous"`
-	Forecast    types.Number `json:"forecast"`
-	Importance  string       `json:"importance"`
-	PrevInitial string       `json:"prevInitial"`
-	Currency    string       `json:"ccy"`
-	Unit        string       `json:"unit"`
-	Timestamp   types.Time   `json:"ts"`
-	DateSpan    string       `json:"dateSpan"`
-	UpdateTime  types.Time   `json:"uTime"`
+	Actual      string     `json:"actual"`
+	CalendarID  string     `json:"calendarId"`
+	Date        types.Time `json:"date"`
+	Region      string     `json:"region"`
+	Category    string     `json:"category"`
+	Event       string     `json:"event"`
+	RefDate     types.Time `json:"refDate"`
+	Previous    string     `json:"previous"`
+	Forecast    string     `json:"forecast"`
+	Importance  string     `json:"importance"`
+	PrevInitial string     `json:"prevInitial"`
+	Currency    string     `json:"ccy"`
+	Unit        string     `json:"unit"`
+	Timestamp   types.Time `json:"ts"`
+	DateSpan    string     `json:"dateSpan"`
+	UpdateTime  types.Time `json:"uTime"`
 }
 
 // EconomicCalendarResponse represents response for economic calendar

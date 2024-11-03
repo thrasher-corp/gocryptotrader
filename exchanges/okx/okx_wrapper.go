@@ -1011,11 +1011,11 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 func (ok *Okx) marginTypeToString(m margin.Type) string {
 	switch m {
 	case margin.Isolated:
-		return "isolated"
+		return TradeModeIsolated
 	case margin.Multi:
-		return "cross"
+		return TradeModeCross
 	default:
-		return "cash"
+		return TradeModeCash
 	}
 }
 
@@ -2125,7 +2125,7 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 		}
 		fallthrough
 	case 2:
-		return collateral.SingleMode, nil
+		return collateral.SpotFuturesMode, nil
 	case 3:
 		return collateral.MultiMode, nil
 	case 4:
@@ -2240,7 +2240,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		return nil, fmt.Errorf("%w, received '%v', no positions found", errOnlyOneResponseExpected, len(positionSummaries))
 	}
 	marginMode := margin.Isolated
-	if positionSummary.MarginMode == "cross" {
+	if positionSummary.MarginMode == TradeModeCross {
 		marginMode = margin.Multi
 	}
 
@@ -2472,7 +2472,7 @@ func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.P
 		}
 
 		marginMode := ok.marginTypeToString(marginType)
-		_, err = ok.SetLeverageRate(ctx, SetLeverageInput{
+		_, err = ok.SetLeverageRate(ctx, &SetLeverageInput{
 			Leverage:     amount,
 			MarginMode:   marginMode,
 			InstrumentID: instrumentID,

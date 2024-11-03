@@ -85,6 +85,9 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 
 // PlaceOrder place an order only if you have sufficient funds.
 func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
+	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
+		return nil, common.ErrNilPointer
+	}
 	err := ok.validatePlaceOrderParams(arg)
 	if err != nil {
 		return nil, err
@@ -1734,9 +1737,15 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (*Posit
 }
 
 // SetLeverageRate sets a leverage setting for instrument id.
-func (ok *Okx) SetLeverageRate(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
+func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*SetLeverageResponse, error) {
 	if arg.InstrumentID == "" && arg.Currency.IsEmpty() {
 		return nil, errEitherInstIDOrCcyIsRequired
+	}
+	switch arg.AssetType {
+	case asset.Futures, asset.PerpetualSwap:
+		if arg.PositionSide == "" && arg.MarginMode == "isolated" {
+			return nil, fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
+		}
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
 	var resp *SetLeverageResponse
@@ -2203,14 +2212,6 @@ func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int64, cc
 	}
 	var resp []BorrowInterestAndLimitResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// PositionBuilder calculates portfolio margin information for simulated position or current position of the user. You can add up to 200 simulated positions in one request.
-// Instrument type SWAP  FUTURES, and OPTION are supported
-func (ok *Okx) PositionBuilder(ctx context.Context, arg PositionBuilderInput) ([]PositionBuilderResponse, error) {
-	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
-	var resp []PositionBuilderResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, positionBuilderEPL, http.MethodPost, "account/simulated_margin", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetGreeks retrieves a greeks list of all assets in the account.
@@ -3235,7 +3236,7 @@ func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (
 		return nil, errSubPositionIDRequired
 	}
 	var resp *PositionIDInfo
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLeadingStopOrderEPL, http.MethodGet, "copytrading/algo-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLeadingStopOrderEPL, http.MethodPost, "copytrading/algo-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // CloseLeadingPosition close a leading position once a time.

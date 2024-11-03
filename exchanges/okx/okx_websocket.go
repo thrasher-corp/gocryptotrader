@@ -1695,8 +1695,11 @@ func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 	}
 }
 
-// WsPlaceMultipleOrder creates an order through the websocket stream.
-func (ok *Okx) WsPlaceMultipleOrder(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
+// WsPlaceMultipleOrders creates an order through the websocket stream.
+func (ok *Okx) WsPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
+	if len(args) == 0 {
+		return nil, order.ErrSubmissionIsNil
+	}
 	var err error
 	for x := range args {
 		arg := args[x]
