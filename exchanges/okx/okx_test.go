@@ -1584,7 +1584,7 @@ func TestGetPositions(t *testing.T) {
 func TestGetPositionsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetPositionsHistory(contextGenerate(), "", "", "", 0, 1, time.Time{}, time.Time{})
+	result, err := ok.GetPositionsHistory(contextGenerate(), "", "", "", "1234213123", 0, 1, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1603,6 +1603,33 @@ func TestGetBillsDetail(t *testing.T) {
 	result, err := ok.GetBillsDetailLast7Days(contextGenerate(), &BillsDetailQueryParameter{
 		Limit: 3,
 	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestApplyBillDetails(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ApplyBillDetails(context.Background(), "", "Q2")
+	require.ErrorIs(t, err, errYearRequired)
+	_, err = ok.ApplyBillDetails(context.Background(), "2023", "")
+	require.ErrorIs(t, err, errQuarterValueRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	ok.Verbose = true
+	result, err := ok.ApplyBillDetails(context.Background(), "2023", "Q2")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBillsHistoryArchive(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetBillsHistoryArchive(context.Background(), "", "Q2")
+	require.ErrorIs(t, err, errYearRequired)
+	_, err = ok.GetBillsHistoryArchive(context.Background(), "2023", "")
+	require.ErrorIs(t, err, errQuarterValueRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetBillsHistoryArchive(context.Background(), "2023", "Q2")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1647,7 +1674,7 @@ func TestSetLeverageRate(t *testing.T) {
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, "BTC-USDT", "cross", "", 5)
+	result, err := ok.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, "BTC-USDT", "cross", "", 5, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1692,8 +1719,13 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 
 func TestGetLeverageRate(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetLeverageRate(contextGenerate(), "", "cross", currency.EMPTYCODE)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+	_, err = ok.GetLeverageRate(contextGenerate(), "BTC-USDT", "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetLeverageRate(contextGenerate(), "BTC-USDT", "cross")
+	result, err := ok.GetLeverageRate(contextGenerate(), "BTC-USDT", "cross", currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1748,13 +1780,13 @@ func TestSetGreeks(t *testing.T) {
 
 func TestIsolatedMarginTradingSettings(t *testing.T) {
 	t.Parallel()
-	_, err := ok.IsolatedMarginTradingSettings(contextGenerate(), IsolatedMode{IsoMode: "", InstrumentType: "MARGIN"})
+	_, err := ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{IsoMode: "", InstrumentType: "MARGIN"})
 	require.ErrorIs(t, err, errMissingIsolatedMarginTradingSetting)
-	_, err = ok.IsolatedMarginTradingSettings(contextGenerate(), IsolatedMode{IsoMode: "autonomy", InstrumentType: ""})
+	_, err = ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{IsoMode: "autonomy", InstrumentType: ""})
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.IsolatedMarginTradingSettings(contextGenerate(), IsolatedMode{
+	result, err := ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{
 		IsoMode:        "autonomy",
 		InstrumentType: "MARGIN",
 	})
@@ -4647,21 +4679,21 @@ func TestGetTopTradersFuturesContractLongShortPositionRatio(t *testing.T) {
 
 func TestGetAccountInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetAccountInstruments(context.Background(), "", "", "", spotTP.String())
+	_, err := ok.GetAccountInstruments(context.Background(), asset.Empty, "", "", spotTP.String())
 	require.ErrorIs(t, err, errInvalidInstrumentType)
-	_, err = ok.GetAccountInstruments(context.Background(), "FUTURES", "", "", spotTP.String())
+	_, err = ok.GetAccountInstruments(context.Background(), asset.Futures, "", "", spotTP.String())
 	require.ErrorIs(t, err, errInvalidUnderlying)
-	_, err = ok.GetAccountInstruments(context.Background(), "OPTION", "", "", spotTP.String())
+	_, err = ok.GetAccountInstruments(context.Background(), asset.Options, "", "", spotTP.String())
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetAccountInstruments(context.Background(), "SPOT", "", "", spotTP.String())
+	result, err := ok.GetAccountInstruments(context.Background(), asset.Spot, "", "", spotTP.String())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	result, err = ok.GetAccountInstruments(context.Background(), "OPTION", "", "BTC-USD", optionsTP.String())
+	result, err = ok.GetAccountInstruments(context.Background(), asset.Options, "", "BTC-USD", optionsTP.String())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	result, err = ok.GetAccountInstruments(context.Background(), "FUTURES", "BTC-USD", "", optionsTP.String())
+	result, err = ok.GetAccountInstruments(context.Background(), asset.Futures, "BTC-USD", "", optionsTP.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4707,4 +4739,13 @@ func TestGetHistoricIndexCandlesticksHistory(t *testing.T) {
 	result, err := ok.GetHistoricIndexCandlesticksHistory(context.Background(), spotTP.String(), time.Time{}, time.Time{}, kline.FiveMin, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestAssetTypeString(t *testing.T) {
+	t.Parallel()
+	assetTypes := ok.GetAssetTypes(false)
+	for a := range assetTypes {
+		_, err := AssetTypeString(assetTypes[a])
+		assert.NoError(t, err)
+	}
 }

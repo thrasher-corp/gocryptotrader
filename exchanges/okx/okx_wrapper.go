@@ -2119,16 +2119,16 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 		return 0, err
 	}
 	switch cfg[0].AccountLevel {
-	case 1:
+	case "1":
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 		}
 		fallthrough
-	case 2:
+	case "2":
 		return collateral.SpotFuturesMode, nil
-	case 3:
+	case "3":
 		return collateral.MultiMode, nil
-	case 4:
+	case "4":
 		return collateral.PortfolioMode, nil
 	default:
 		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
@@ -2506,7 +2506,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 			return -1, err
 		}
 		marginMode := ok.marginTypeToString(marginType)
-		lev, err := ok.GetLeverageRate(ctx, instrumentID, marginMode)
+		lev, err := ok.GetLeverageRate(ctx, instrumentID, marginMode, currency.EMPTYCODE)
 		if err != nil {
 			return -1, err
 		}

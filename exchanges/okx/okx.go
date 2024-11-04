@@ -1561,19 +1561,41 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 
 /********************************** Account endpoints ***************************************************/
 
+// AssetTypeString returns a string representation of asset type
+func AssetTypeString(assetType asset.Item) (string, error) {
+	switch assetType {
+	case asset.Spot:
+		return "SPOT", nil
+	case asset.Margin:
+		return "MARGIN", nil
+	case asset.Futures:
+		return "FUTURES", nil
+	case asset.Options:
+		return "OPTION", nil
+	case asset.PerpetualSwap:
+		return "SWAP", nil
+	case asset.Spread:
+		return "SPREAD", nil
+	case asset.LinearContract:
+		return "CONTRACTS", nil
+	default:
+		return "", asset.ErrNotSupported
+	}
+}
+
 // GetAccountInstruments retrieve available instruments info of current account.
-func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType, underlying, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
-	if instrumentType == "" {
+func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType asset.Item, underlying, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
+	if instrumentType == asset.Empty {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
 	params := url.Values{}
 	switch instrumentType {
-	case "MARGIN", "SWAP", "FUTURES":
+	case asset.Margin, asset.PerpetualSwap, asset.Futures:
 		if underlying == "" {
 			return nil, fmt.Errorf("%w, underlying is required", errInvalidUnderlying)
 		}
 		params.Set("uly", underlying)
-	case "OPTION":
+	case asset.Options:
 		if underlying == "" && instrumentFamily == "" {
 			return nil, errInstrumentFamilyOrUnderlyingRequired
 		}
@@ -1584,7 +1606,11 @@ func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType, underl
 			params.Set("instFamily", instrumentFamily)
 		}
 	}
-	params.Set("instType", instrumentType)
+	instTypeString, err := AssetTypeString(instrumentType)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("instType", instTypeString)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
@@ -1607,7 +1633,6 @@ func (ok *Okx) AccountBalance(ctx context.Context, ccy currency.Code) ([]Account
 func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, positionID string) ([]AccountPosition, error) {
 	params := url.Values{}
 	if instrumentType != "" {
-		instrumentType = strings.ToUpper(instrumentType)
 		params.Set("instType", instrumentType)
 	}
 	if instrumentID != "" {
@@ -1621,9 +1646,8 @@ func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, p
 }
 
 // GetPositionsHistory retrieves the updated position data for the last 3 months.
-func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrumentID, marginMode string, closePositionType, limit int64, after, before time.Time) ([]AccountPositionHistory, error) {
+func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrumentID, marginMode, positionID string, closePositionType, limit int64, after, before time.Time) ([]AccountPositionHistory, error) {
 	params := url.Values{}
-	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
 	}
@@ -1638,6 +1662,9 @@ func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrume
 	// It is the latest type if there are several types for the same position.
 	if closePositionType > 0 {
 		params.Set("type", strconv.FormatInt(closePositionType, 10))
+	}
+	if positionID != "" {
+		params.Set("posId", positionID)
 	}
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
@@ -1675,6 +1702,34 @@ func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg *BillsDetailQueryP
 	return ok.GetBillsDetail(ctx, arg, "account/bills-archive", getBillsDetailArchiveEPL)
 }
 
+// ApplyBillDetails apply for bill data since 1 February, 2021 except for the current quarter.
+// Quarter, valid value is Q1, Q2, Q3, Q4
+func (ok *Okx) ApplyBillDetails(ctx context.Context, year, quarter string) ([]BillsDetailResp, error) {
+	if year == "" {
+		return nil, errYearRequired
+	}
+	if quarter == "" {
+		return nil, errQuarterValueRequired
+	}
+	var resp []BillsDetailResp
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest, true)
+}
+
+// GetBillsHistoryArchive retrieves bill data archive
+func (ok *Okx) GetBillsHistoryArchive(ctx context.Context, year, quarter string) ([]BillsArchiveInfo, error) {
+	if year == "" {
+		return nil, errYearRequired
+	}
+	if quarter == "" {
+		return nil, errQuarterValueRequired
+	}
+	params := url.Values{}
+	params.Set("year", year)
+	params.Set("quarter", quarter)
+	var resp []BillsArchiveInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest, true)
+}
+
 // GetBillsDetail retrieves the bills of the account.
 func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParameter, route string, epl request.EndpointLimit) ([]BillsDetailResponse, error) {
 	if arg == nil || *arg == (BillsDetailQueryParameter{}) {
@@ -1683,6 +1738,9 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 	params := url.Values{}
 	if arg.InstrumentType != "" {
 		params.Set("instType", strings.ToUpper(arg.InstrumentType))
+	}
+	if arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
 	}
 	if !arg.Currency.IsEmpty() {
 		params.Set("ccy", arg.Currency.Upper().String())
@@ -1721,19 +1779,19 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 // GetAccountConfiguration retrieves current account configuration.
 func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurationResponse, error) {
 	var resp []AccountConfigurationResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest, true)
 }
 
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
+// Position mode 'long_short_mode': long/short, only applicable to  FUTURES/SWAP'net_mode': net
 func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (*PositionMode, error) {
 	if positionMode != "long_short_mode" && positionMode != "net_mode" {
 		return nil, errInvalidPositionMode
 	}
-	input := &PositionMode{
-		PositionMode: positionMode,
-	}
 	var resp *PositionMode
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", input, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
+		PositionMode: positionMode,
+	}, &resp, request.AuthenticatedRequest)
 }
 
 // SetLeverageRate sets a leverage setting for instrument id.
@@ -1753,7 +1811,7 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*Set
 }
 
 // GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for a specific instrument id
-func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, leverage string, price float64) ([]MaximumBuyAndSell, error) {
+func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, leverage string, price float64, unSpotOffset bool) ([]MaximumBuyAndSell, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -1771,6 +1829,9 @@ func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy curr
 	}
 	if leverage != "" {
 		params.Set("leverage", leverage)
+	}
+	if unSpotOffset {
+		params.Set("unSpotOffset", "true")
 	}
 	var resp []MaximumBuyAndSell
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumBuyOrSellAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-size", params), nil, &resp, request.AuthenticatedRequest)
@@ -1795,7 +1856,9 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, ccy curren
 		params.Set("reduceOnly", "true")
 	}
 	params.Set("tdMode", tradeMode)
-	params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))
+	if price != 0 {
+		params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))
+	}
 	var resp []MaximumTradableAmount
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumAvailableTradableAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-avail-size", params), nil, &resp, request.AuthenticatedRequest)
 }
@@ -1821,7 +1884,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecrease
 }
 
 // GetLeverageRate retrieves leverage data for different instrument id or margin mode.
-func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
+func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode string, ccy currency.Code) ([]LeverageResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -1831,6 +1894,9 @@ func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode str
 	params := url.Values{}
 	params.Set("instId", instrumentID)
 	params.Set("mgnMode", marginMode)
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
 	var resp []LeverageResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverageEPL, http.MethodGet, common.EncodeURLValues("account/leverage-info", params), nil, &resp, request.AuthenticatedRequest)
 }
@@ -1929,7 +1995,6 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
 	params := url.Values{}
-	instrumentType = strings.ToUpper(instrumentType)
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -1993,13 +2058,12 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 }
 
 // IsolatedMarginTradingSettings to set the currency margin and futures/perpetual Isolated margin trading mode.
-func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMode) (*IsolatedMode, error) {
+func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg *IsolatedMode) (*IsolatedMode, error) {
 	arg.IsoMode = strings.ToLower(arg.IsoMode)
 	if arg.IsoMode != "automatic" &&
 		arg.IsoMode != "autonomy" {
 		return nil, errMissingIsolatedMarginTradingSetting
 	}
-	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType != okxInstTypeMargin &&
 		arg.InstrumentType != okxInstTypeContract {
 		return nil, fmt.Errorf("%w, received '%v' only margin and contract instrument types are allowed", errInvalidInstrumentType, arg.InstrumentType)
@@ -2057,7 +2121,7 @@ func (ok *Okx) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, in
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumWithdrawals retrieves the maximum transferable amount from trading account to funding account.
+// GetMaximumWithdrawals retrieves the maximum transferable amount from trading account to fuccount/quick-margin-borrow-repaynding account.
 func (ok *Okx) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {

@@ -102,6 +102,8 @@ const (
 	getAccountAndPositionRiskEPL
 	getBillsDetailsEPL
 	getBillsDetailArchiveEPL
+	billHistoryArchiveEPL
+	getBillHistoryArchiveEPL
 	getAccountConfigurationEPL
 	setPositionModeEPL
 	setLeverageEPL
@@ -387,6 +389,8 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getAccountAndPositionRiskEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getBillsDetailsEPL:                   request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
 		getBillsDetailArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		billHistoryArchiveEPL:                request.NewRateLimitWithWeight(time.Hour*24, 12, 1),
+		getBillHistoryArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getAccountConfigurationEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		setPositionModeEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		setLeverageEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
