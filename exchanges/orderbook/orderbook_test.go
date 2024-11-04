@@ -333,8 +333,8 @@ func TestDeployDepth(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errPairNotSet, err)
 	}
 	_, err = DeployDepth("test", c, asset.Empty)
-	if !errors.Is(err, errAssetTypeNotSet) {
-		t.Fatalf("expecting %s error but received %v", errAssetTypeNotSet, err)
+	if !errors.Is(err, ErrAssetTypeNotSet) {
+		t.Fatalf("expecting %s error but received %v", ErrAssetTypeNotSet, err)
 	}
 	d, err := DeployDepth("test", c, asset.Spot)
 	if err != nil {

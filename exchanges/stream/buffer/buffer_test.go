@@ -540,8 +540,8 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-	if !errors.Is(err, errDepthNotFound) {
-		t.Fatalf("expected %v but received %v", errDepthNotFound, err)
+	if !errors.Is(err, ErrDepthNotFound) {
+		t.Fatalf("expected %v but received %v", ErrDepthNotFound, err)
 	}
 }
 
@@ -1199,8 +1199,8 @@ func TestFlushOrderbook(t *testing.T) {
 	}
 
 	_, err = w.GetOrderbook(cp, asset.Spot)
-	if !errors.Is(err, errDepthNotFound) {
-		t.Fatalf("expected: %v but received: %v", errDepthNotFound, err)
+	if !errors.Is(err, ErrDepthNotFound) {
+		t.Fatalf("expected: %v but received: %v", ErrDepthNotFound, err)
 	}
 
 	err = w.LoadSnapshot(&snapShot1)
