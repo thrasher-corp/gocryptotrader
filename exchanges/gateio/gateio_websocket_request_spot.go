@@ -27,8 +27,8 @@ var (
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
-// WebsocketLogin authenticates the websocket connection
-func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
+// websocketLogin authenticates the websocket connection
+func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}

@@ -97,9 +97,9 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	return nil
 }
 
-// AuthenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) AuthenticateSpot(ctx context.Context, conn stream.Connection) error {
-	_, err := g.WebsocketLogin(ctx, conn, "spot.login")
+// authenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
+	_, err := g.websocketLogin(ctx, conn, "spot.login")
 	return err
 }
 

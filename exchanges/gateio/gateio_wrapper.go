@@ -218,7 +218,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:                      g.Unsubscribe,
 		GenerateSubscriptions:             g.generateSubscriptionsSpot,
 		Connector:                         g.WsConnectSpot,
-		Authenticate:                      g.AuthenticateSpot,
+		Authenticate:                      g.authenticateSpot,
 		WrapperDefinedConnectionSignature: asset.Spot,
 		BespokeGenerateMessageID:          g.GenerateWebsocketMessageID,
 	})
