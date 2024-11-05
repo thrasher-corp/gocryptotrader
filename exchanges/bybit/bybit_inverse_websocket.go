@@ -66,7 +66,7 @@ func (by *Bybit) InverseUnsubscribe(channelSubscriptions subscription.List) erro
 }
 
 func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions subscription.List) error {
-	payloads, err := by.handleSubscriptions(asset.CoinMarginedFutures, operation, channelSubscriptions)
+	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}
