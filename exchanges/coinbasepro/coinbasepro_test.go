@@ -1526,10 +1526,11 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
 	p := currency.Pairs{testPair}
-	for _, a := range c.GetAssetTypes(true) {
-		require.NoError(t, c.CurrencyPairs.StorePairs(a, p, false))
-		require.NoError(t, c.CurrencyPairs.StorePairs(a, p, true))
-	}
+	// This for loop will prevent an error if the template.go file isn't patched
+	// for _, a := range c.GetAssetTypes(true) {
+	// 	require.NoError(t, c.CurrencyPairs.StorePairs(a, p, false))
+	// 	require.NoError(t, c.CurrencyPairs.StorePairs(a, p, true))
+	// }
 	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}

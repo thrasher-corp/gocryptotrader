@@ -54,11 +54,11 @@ var defaultSubscriptions = subscription.List{
 	// Subscriptions to status return an "authentication failure" error, despite the endpoint not being authenticated
 	// and other authenticated channels working fine.
 	{Enabled: false, Channel: "status"},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
-	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.CandlesChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.Spot, Channel: "ticker_batch"},
 	/* Not Implemented:
 	{Enabled: false, Asset: asset.Spot, Channel: "futures_balance_summary", Authenticated: true},
@@ -523,7 +523,7 @@ func base64URLEncode(b []byte) string {
 func (c *CoinbasePro) checkSubscriptions() {
 	for _, s := range c.Config.Features.Subscriptions {
 		switch s.Channel {
-		case "heartbeat", "level2_batch", "matches":
+		case "level2_batch", "matches":
 			c.Config.Features.Subscriptions = defaultSubscriptions.Clone()
 			c.Features.Subscriptions = c.Config.Features.Subscriptions.Enabled()
 			return
