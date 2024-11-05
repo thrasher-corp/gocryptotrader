@@ -811,7 +811,7 @@ func channelName(s *subscription.Subscription, p currency.Pair) string {
 	if s.Authenticated {
 		panic(fmt.Errorf("%w: Private endpoints not currently supported", common.ErrNotYetImplemented))
 	}
-	panic(subscription.ErrPrivateChannelName)
+	panic(subscription.ErrUseConstChannelName)
 }
 
 const subTplText = `
