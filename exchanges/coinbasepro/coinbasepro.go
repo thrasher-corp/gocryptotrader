@@ -101,16 +101,13 @@ const (
 	manyOrds  = 2147483647
 )
 
-// Constants defining whether a transfer is a deposit or withdrawal, used to simplify
-// interactions with a few endpoints
+// Constants defining whether a transfer is a deposit or withdrawal, used to simplify interactions with a few endpoints
 const (
 	FiatDeposit    FiatTransferType = false
 	FiatWithdrawal FiatTransferType = true
 )
 
-// While the exchange's fee pages say the worst taker/maker fees are lower than the ones listed
-// here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst
-// case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
+// While the exchange's fee pages say the worst taker/maker fees are lower than the ones listed here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
 const (
 	WorstCaseTakerFee           = 0.012
 	WorstCaseMakerFee           = 0.006
@@ -121,40 +118,43 @@ const (
 )
 
 var (
-	errAccountIDEmpty         = errors.New("account id cannot be empty")
-	errClientOrderIDEmpty     = errors.New("client order id cannot be empty")
-	errProductIDEmpty         = errors.New("product id cannot be empty")
-	errOrderIDEmpty           = errors.New("order ids cannot be empty")
-	errCancelLimitExceeded    = errors.New("100 order cancel limit exceeded")
-	errOpenPairWithOtherTypes = errors.New("cannot pair open orders with other order types")
-	errSizeAndPriceZero       = errors.New("size and price cannot both be 0")
-	errCurrWalletConflict     = errors.New("exactly one of walletID and currency must be specified")
-	errWalletIDEmpty          = errors.New("wallet id cannot be empty")
-	errAddressIDEmpty         = errors.New("address id cannot be empty")
-	errTransactionTypeEmpty   = errors.New("transaction type cannot be empty")
-	errToEmpty                = errors.New("to cannot be empty")
-	errTransactionIDEmpty     = errors.New("transaction id cannot be empty")
-	errPaymentMethodEmpty     = errors.New("payment method cannot be empty")
-	errDepositIDEmpty         = errors.New("deposit id cannot be empty")
-	errInvalidPriceType       = errors.New("price type must be spot, buy, or sell")
-	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
-	errEndTimeInPast          = errors.New("end time cannot be in the past")
-	errNoMatchingWallets      = errors.New("no matching wallets returned")
-	errOrderModFailNoRet      = errors.New("order modification failed but no error returned")
-	errNameEmpty              = errors.New("name cannot be empty")
-	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
-	errFeeTypeNotSupported    = errors.New("fee type not supported")
-	errCantDecodePrivKey      = errors.New("cannot decode private key")
-	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
-	errChannelNameUnknown     = errors.New("unknown channel name")
-	errNoWalletsReturned      = errors.New("no wallets returned")
-	errPayMethodNotFound      = errors.New("payment method not found")
-	errUnknownL2DataType      = errors.New("unknown l2update data type")
-	errOrderFailedToCancel    = errors.New("failed to cancel order")
-	errUnrecognisedStatusType = errors.New("unrecognised status type")
-	errStringConvert          = errors.New("unable to convert into string value")
-	errFloatConvert           = errors.New("unable to convert into float64 value")
-	errWrappedAssetEmpty      = errors.New("wrapped asset cannot be empty")
+	errAccountIDEmpty           = errors.New("account id cannot be empty")
+	errClientOrderIDEmpty       = errors.New("client order id cannot be empty")
+	errProductIDEmpty           = errors.New("product id cannot be empty")
+	errOrderIDEmpty             = errors.New("order ids cannot be empty")
+	errCancelLimitExceeded      = errors.New("100 order cancel limit exceeded")
+	errOpenPairWithOtherTypes   = errors.New("cannot pair open orders with other order types")
+	errSizeAndPriceZero         = errors.New("size and price cannot both be 0")
+	errCurrWalletConflict       = errors.New("exactly one of walletID and currency must be specified")
+	errWalletIDEmpty            = errors.New("wallet id cannot be empty")
+	errAddressIDEmpty           = errors.New("address id cannot be empty")
+	errTransactionTypeEmpty     = errors.New("transaction type cannot be empty")
+	errToEmpty                  = errors.New("to cannot be empty")
+	errTransactionIDEmpty       = errors.New("transaction id cannot be empty")
+	errPaymentMethodEmpty       = errors.New("payment method cannot be empty")
+	errDepositIDEmpty           = errors.New("deposit id cannot be empty")
+	errInvalidPriceType         = errors.New("price type must be spot, buy, or sell")
+	errInvalidOrderType         = errors.New("order type must be market, limit, or stop")
+	errEndTimeInPast            = errors.New("end time cannot be in the past")
+	errNoMatchingWallets        = errors.New("no matching wallets returned")
+	errOrderModFailNoRet        = errors.New("order modification failed but no error returned")
+	errNameEmpty                = errors.New("name cannot be empty")
+	errPortfolioIDEmpty         = errors.New("portfolio id cannot be empty")
+	errFeeTypeNotSupported      = errors.New("fee type not supported")
+	errCantDecodePrivKey        = errors.New("cannot decode private key")
+	errNoWalletForCurrency      = errors.New("no wallet found for currency, address creation impossible")
+	errChannelNameUnknown       = errors.New("unknown channel name")
+	errNoWalletsReturned        = errors.New("no wallets returned")
+	errPayMethodNotFound        = errors.New("payment method not found")
+	errUnknownL2DataType        = errors.New("unknown l2update data type")
+	errOrderFailedToCancel      = errors.New("failed to cancel order")
+	errUnrecognisedStatusType   = errors.New("unrecognised status type")
+	errStringConvert            = errors.New("unable to convert into string value")
+	errFloatConvert             = errors.New("unable to convert into float64 value")
+	errWrappedAssetEmpty        = errors.New("wrapped asset cannot be empty")
+	errUnrecognisedOrderType    = errors.New("unrecognised order type")
+	errUnrecognisedAssetType    = errors.New("unrecognised asset type")
+	errUnrecognisedStrategyType = errors.New("unrecognised strategy type")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -186,8 +186,7 @@ func (c *CoinbasePro) GetAccountByID(ctx context.Context, accountID string) (*Ac
 	return &resp.Account, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp, nil)
 }
 
-// GetBestBidAsk returns the best bid/ask for all products. Can be filtered to certain products
-// by passing through additional strings
+// GetBestBidAsk returns the best bid/ask for all products. Can be filtered to certain products by passing through additional strings
 func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) ([]ProductBook, error) {
 	vals := url.Values{}
 	for x := range products {
@@ -260,9 +259,7 @@ func (c *CoinbasePro) GetProductByID(ctx context.Context, productID string, auth
 	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
-// GetHistoricRates returns historic rates for a product. Rates are returned in
-// grouped buckets based on requested granularity. Requests that return more than
-// 300 data points are rejected
+// GetHistoricRates returns historic rates for a product. Rates are returned in grouped buckets based on requested granularity. Requests that return more than 300 data points are rejected
 func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]CandleStruct, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
@@ -286,8 +283,7 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 	return resp.Candles, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
-// GetTicker returns snapshot information about the last trades (ticks) and best bid/ask.
-// Contrary to documentation, this does not tell you the 24h volume
+// GetTicker returns snapshot information about the last trades (ticks) and best bid/ask. Contrary to documentation, this does not tell you the 24h volume
 func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uint16, startDate, endDate time.Time, authenticated bool) (*Ticker, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
@@ -354,8 +350,7 @@ func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]Or
 	return resp.Results, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp, nil)
 }
 
-// EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time
-// in force can be edited
+// EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time in force can be edited
 func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
 	if orderID == "" {
 		return false, errOrderIDEmpty
@@ -374,8 +369,7 @@ func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price
 	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp, nil)
 }
 
-// EditOrderPreview simulates an edit order request, to preview the result. Only limit orders with a
-// good-till-cancelled time in force can be edited.
+// EditOrderPreview simulates an edit order request, to preview the result. Only limit orders with a good-till-cancelled time in force can be edited.
 func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size, price float64) (*EditOrderPreviewResp, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
@@ -599,8 +593,7 @@ func (c *CoinbasePro) EditPortfolio(ctx context.Context, portfolioID, name strin
 	return &resp.Portfolio, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, req, true, &resp, nil)
 }
 
-// GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets
-// futures trading
+// GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets futures trading
 func (c *CoinbasePro) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBalanceSummary, error) {
 	resp := struct {
 		BalanceSummary FuturesBalanceSummary `json:"balance_summary"`
@@ -628,11 +621,7 @@ func (c *CoinbasePro) GetFuturesPositionByID(ctx context.Context, productID stri
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp, nil)
 }
 
-// ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a
-// Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following
-// business day, requests submitted after are processed in 2 business days. Only one
-// sweep request can be pending at a time. Funds transferred depend on the excess available
-// in the futures account. An amount of 0 will sweep all available excess funds
+// ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following business day, requests submitted after are processed in 2 business days. Only one sweep request can be pending at a time. Funds transferred depend on the excess available in the futures account. An amount of 0 will sweep all available excess funds
 func (c *CoinbasePro) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps + "/" + coinbaseSchedule
 	var req map[string]any
@@ -721,8 +710,7 @@ func (c *CoinbasePro) GetPerpetualsPositionByID(ctx context.Context, portfolioID
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp, nil)
 }
 
-// GetTransactionSummary returns a summary of transactions with fee tiers, total volume,
-// and fees
+// GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
 func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, userNativeCurrency, productType, contractExpiryType string) (*TransactionSummary, error) {
 	var params Params
 	params.Values = url.Values{}
@@ -743,8 +731,7 @@ func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endD
 	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseTransactionSummary, params.Values, nil, true, &resp, nil)
 }
 
-// CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned
-// can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
+// CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
 func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userIncentiveID, codeVal string, amount float64) (*ConvertResponse, error) {
 	if from == "" || to == "" {
 		return nil, errAccountIDEmpty
@@ -767,8 +754,7 @@ func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userInce
 	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp, nil)
 }
 
-// CommitConvertTrade commits a conversion between two currencies, using the trade_id returned
-// from CreateConvertQuote
+// CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
 func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
 	if tradeID == "" {
 		return nil, errTransactionIDEmpty
@@ -820,8 +806,7 @@ func (c *CoinbasePro) GetAllPaymentMethods(ctx context.Context) ([]PaymentMethod
 	return resp.PaymentMethods, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp, nil)
 }
 
-// GetPaymentMethodByID returns information on a single payment method associated with the user's
-// account
+// GetPaymentMethodByID returns information on a single payment method associated with the user's account
 func (c *CoinbasePro) GetPaymentMethodByID(ctx context.Context, paymentMethodID string) (*PaymentMethodData, error) {
 	if paymentMethodID == "" {
 		return nil, errPaymentMethodEmpty
@@ -850,8 +835,7 @@ func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*Ge
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp, nil)
 }
 
-// GetWalletByID returns information about a single wallet. In lieu of a wallet ID,
-// a currency can be provided to get the primary account for that currency
+// GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
 func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID, currency string) (*WalletData, error) {
 	if (walletID == "" && currency == "") || (walletID != "" && currency != "") {
 		return nil, errCurrWalletConflict
@@ -926,12 +910,7 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp, nil)
 }
 
-// SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"),
-// or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase
-// may delay or cancel the transaction at their discretion. The "idem" parameter is an optional
-// string for idempotency; a token with a max length of 100 characters, if a previous
-// transaction included the same token as a parameter, the new transaction won't be processed,
-// and information on the previous transaction will be returned instead
+// SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
 func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, financialInstitutionWebsite, destinationTag string, amount float64, skipNotifications, toFinancialInstitution bool) (*TransactionData, error) {
 	if traType == "" {
 		return nil, errTransactionTypeEmpty
@@ -979,8 +958,7 @@ func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, p
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp, nil)
 }
 
-// GetTransactionByID returns information on a single transaction associated with the
-// specified wallet
+// GetTransactionByID returns information on a single transaction associated with the specified wallet
 func (c *CoinbasePro) GetTransactionByID(ctx context.Context, walletID, transactionID string) (*TransactionData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
@@ -995,9 +973,7 @@ func (c *CoinbasePro) GetTransactionByID(ctx context.Context, walletID, transact
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp, nil)
 }
 
-// FiatTransfer prepares and optionally processes a transfer of funds between the exchange and a
-// fiat payment method. "Deposit" signifies funds going from exchange to bank, "withdraw"
-// signifies funds going from bank to exchange
+// FiatTransfer prepares and optionally processes a transfer of funds between the exchange and a fiat payment method. "Deposit" signifies funds going from exchange to bank, "withdraw" signifies funds going from bank to exchange
 func (c *CoinbasePro) FiatTransfer(ctx context.Context, walletID, cur, paymentMethod string, amount float64, commit bool, transferType FiatTransferType) (*DeposWithdrData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
@@ -1029,8 +1005,7 @@ func (c *CoinbasePro) FiatTransfer(ctx context.Context, walletID, cur, paymentMe
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp, nil)
 }
 
-// CommitTransfer processes a deposit/withdrawal that was created with the "commit" parameter set
-// to false
+// CommitTransfer processes a deposit/withdrawal that was created with the "commit" parameter set to false
 func (c *CoinbasePro) CommitTransfer(ctx context.Context, walletID, depositID string, transferType FiatTransferType) (*DeposWithdrData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
@@ -1051,8 +1026,7 @@ func (c *CoinbasePro) CommitTransfer(ctx context.Context, walletID, depositID st
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, nil, false, &resp, nil)
 }
 
-// GetAllFiatTransfers returns a list of transfers either to or from fiat payment methods and
-// the specified wallet
+// GetAllFiatTransfers returns a list of transfers either to or from fiat payment methods and the specified wallet
 func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, pag PaginationInp, transferType FiatTransferType) (*ManyDeposWithdrResp, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
@@ -1116,8 +1090,7 @@ func (c *CoinbasePro) GetCryptocurrencies(ctx context.Context) ([]CryptoData, er
 	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
-// GetExchangeRates returns exchange rates for the specified currency. If none is specified,
-// it defaults to USD
+// GetExchangeRates returns exchange rates for the specified currency. If none is specified, it defaults to USD
 func (c *CoinbasePro) GetExchangeRates(ctx context.Context, currency string) (*GetExchangeRatesResp, error) {
 	resp := struct {
 		Data GetExchangeRatesResp `json:"data"`
@@ -1127,8 +1100,7 @@ func (c *CoinbasePro) GetExchangeRates(ctx context.Context, currency string) (*G
 	return &resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseExchangeRates, vals, &resp)
 }
 
-// GetPrice returns the price the spot/buy/sell price for the specified currency pair,
-// including the standard Coinbase fee of 1%, but excluding any other fees
+// GetPrice returns the price the spot/buy/sell price for the specified currency pair, including the standard Coinbase fee of 1%, but excluding any other fees
 func (c *CoinbasePro) GetPrice(ctx context.Context, currencyPair, priceType string) (*GetPriceResp, error) {
 	var path string
 	switch priceType {
@@ -1194,9 +1166,7 @@ func (c *CoinbasePro) GetPairDetails(ctx context.Context, pair string) (*PairDat
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
-// GetProductBookV1 returns the order book for the specified currency pair. Level 1 only returns the best bids and asks,
-// Level 2 returns the full order book with orders at the same price aggregated, Level 3 returns the full
-// non-aggregated order book.
+// GetProductBookV1 returns the order book for the specified currency pair. Level 1 only returns the best bids and asks, Level 2 returns the full order book with orders at the same price aggregated, Level 3 returns the full non-aggregated order book.
 func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level uint8) (*OrderBook, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty

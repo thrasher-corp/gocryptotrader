@@ -203,8 +203,7 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := c.GetAssetTypes(false)
 	for i := range assets {
@@ -220,8 +219,7 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	return c.EnsureOnePairEnabled()
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// coinbasepro exchange
+// UpdateAccountInfo retrieves balances for all enabled currencies for the coinbasepro exchange
 func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var (
 		response       account.Holdings
@@ -383,8 +381,7 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	return orderbook.Get(c.Name, p, assetType)
 }
 
-// GetAccountFundingHistory returns funding history, deposits and
-// withdrawals
+// GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (c *CoinbasePro) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	wallIDs, err := c.GetAllWallets(ctx, PaginationInp{})
 	if err != nil {
@@ -533,8 +530,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 	return subResp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (c *CoinbasePro) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if m == nil {
 		return nil, common.ErrNilPointer
@@ -689,8 +685,7 @@ func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency curr
 	}, nil
 }
 
-// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
@@ -706,8 +701,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	return &withdraw.ExchangeResponse{Name: resp.Network.Name, ID: resp.ID, Status: resp.Status}, nil
 }
 
-// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
@@ -740,8 +734,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 	}, nil
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
-// withdrawal is submitted
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return c.WithdrawFiatFunds(ctx, withdrawRequest)
 }
@@ -788,8 +781,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 	return req.Filter(c.Name, orders), nil
 }
 
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
+// GetOrderHistory retrieves account order information. Can Limit response to specific order status
 func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
@@ -825,8 +817,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 	return req.Filter(c.Name, orders), nil
 }
 
-// GetHistoricCandles returns a set of candle between two time periods for a
-// designated time period
+// GetHistoricCandles returns a set of candle between two time periods for a designated time period
 func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := c.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
@@ -864,8 +855,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 	return req.ProcessResponse(timeSeries)
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (c *CoinbasePro) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
@@ -1006,9 +996,7 @@ func (c *CoinbasePro) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp cu
 	return tradeBaseURL + cp.Upper().String(), nil
 }
 
-// fetchFutures is a helper function for FetchTradablePairs, GetLatestFundingRates, GetFuturesContractDetails,
-// and UpdateOrderExecutionLimits that calls the List Products endpoint twice, to get both
-// expiring futures and perpetual futures
+// fetchFutures is a helper function for FetchTradablePairs, GetLatestFundingRates, GetFuturesContractDetails, and UpdateOrderExecutionLimits that calls the List Products endpoint twice, to get both expiring futures and perpetual futures
 func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProducts, int, error) {
 	products, err := c.GetAllProducts(ctx, 0, 0, "FUTURE", "", "", nil, verified)
 	if err != nil {
@@ -1029,8 +1017,7 @@ func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProd
 	return products, perpStart, nil
 }
 
-// processFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory,
-// transforming the data returned by the Coinbase API into a format suitable for the exchange package
+// processFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory, transforming the data returned by the Coinbase API into a format suitable for the exchange package
 func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHistory []TransactionData) []exchange.FundingHistory {
 	fundingData := make([]exchange.FundingHistory, len(accHistory)+len(cryptoHistory))
 	for i := range accHistory {
@@ -1068,8 +1055,7 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 	return fundingData
 }
 
-// iterativeGetAllOrders is a helper function used in GetActiveOrders and GetOrderHistory
-// to repeatedly call GetAllOrders until all orders have been retrieved
+// iterativeGetAllOrders is a helper function used in GetActiveOrders and GetOrderHistory to repeatedly call GetAllOrders until all orders have been retrieved
 func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orderType, orderSide, productType string, orderStatus []string, limit int32, startDate, endDate time.Time) ([]GetOrderResponse, error) {
 	hasNext := true
 	var resp []GetOrderResponse
@@ -1095,8 +1081,7 @@ func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orde
 	return resp, nil
 }
 
-// FormatExchangeKlineIntervalV3 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended
-// to convert kline.Interval to the string format used by V3 of Coinbase's API
+// FormatExchangeKlineIntervalV3 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended to convert kline.Interval to the string format used by V3 of Coinbase's API
 func FormatExchangeKlineIntervalV3(interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
@@ -1119,8 +1104,7 @@ func FormatExchangeKlineIntervalV3(interval kline.Interval) string {
 	return errIntervalNotSupported
 }
 
-// getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory
-// to convert data returned by the Coinbase API into a format suitable for the exchange package
+// getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory to convert data returned by the Coinbase API into a format suitable for the exchange package
 func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, pair currency.Pair, assetItem asset.Item) *order.Detail {
 	var amount float64
 	var quoteAmount float64

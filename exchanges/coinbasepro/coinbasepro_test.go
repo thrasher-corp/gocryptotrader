@@ -1524,13 +1524,8 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	p := currency.Pairs{testPair}
-	// This for loop will prevent an error if the template.go file isn't patched
-	// for _, a := range c.GetAssetTypes(true) {
-	// 	require.NoError(t, c.CurrencyPairs.StorePairs(a, p, false))
-	// 	require.NoError(t, c.CurrencyPairs.StorePairs(a, p, true))
-	// }
 	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
@@ -1555,33 +1550,19 @@ func TestWsAuth(t *testing.T) {
 	timer.Stop()
 }
 
-func TestStatusToStandardStatus(t *testing.T) {
-	t.Parallel()
-	type TestCases struct {
-		Case   string
-		Result order.Status
-	}
-	testCases := []TestCases{
-		{Case: "received", Result: order.New},
-		{Case: "open", Result: order.Active},
-		{Case: "done", Result: order.Filled},
-		{Case: "match", Result: order.PartiallyFilled},
-		{Case: "change", Result: order.Active},
-		{Case: "activate", Result: order.Active},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for i := range testCases {
-		result, _ := statusToStandardStatus(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
-	}
-}
-
 func TestWsHandleData(t *testing.T) {
+	done := make(chan struct{})
+	t.Cleanup(func() {
+		close(done)
+	})
 	go func() {
-		for range c.Websocket.DataHandler {
-			continue
+		for {
+			select {
+			case <-c.Websocket.DataHandler:
+				continue
+			case <-done:
+				return
+			}
 		}
 	}()
 	mockJSON := []byte(`{"type": "error"}`)
@@ -1650,16 +1631,7 @@ func TestWsHandleData(t *testing.T) {
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorAs(t, err, &targetErr)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc"}]}]}`)
-	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc", "order_side": "buy"}]}]}`)
-	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorIs(t, err, errUnrecognisedStatusType)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc", "order_side": "buy", "status": "done"}]}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1"}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": ["type": ""}]}`)
@@ -1688,14 +1660,26 @@ func TestGenerateSubscriptions(t *testing.T) {
 		log.Fatal(err)
 	}
 	c.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	p, err := c.GetEnabledPairs(asset.Spot)
+	p1, err := c.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err)
+	p2, err := c.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
 	exp := subscription.List{}
 	for _, baseSub := range defaultSubscriptions.Enabled() {
 		s := baseSub.Clone()
 		s.QualifiedChannel = subscriptionNames[s.Channel]
-		if s.Asset != asset.Empty {
-			s.Pairs = p
+		switch s.Asset {
+		case asset.Spot:
+			s.Pairs = p1
+		case asset.Futures:
+			s.Pairs = p2
+		case asset.All:
+			s2 := s.Clone()
+			s2.Asset = asset.Futures
+			s2.Pairs = p2
+			exp = append(exp, s2)
+			s.Asset = asset.Spot
+			s.Pairs = p1
 		}
 		exp = append(exp, s)
 	}

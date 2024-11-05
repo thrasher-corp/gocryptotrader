@@ -104,12 +104,12 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	subs := List{}
 
-	// if len(s.Pairs) != 0 {
-	// 	// We deliberately do not check Availability of sub Pairs because users have edge cases to subscribe to non-existent pairs
-	// 	for a := range ap {
-	// 		ap[a] = s.Pairs
-	// 	}
-	// }
+	if len(s.Pairs) != 0 {
+		// We deliberately do not check Availability of sub Pairs because users have edge cases to subscribe to non-existent pairs
+		for a := range ap {
+			ap[a] = s.Pairs
+		}
+	}
 
 	switch s.Asset {
 	case asset.All:
@@ -122,15 +122,6 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		assets = asset.Items{s.Asset}
 		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
 			return List{}, nil // Nothing is enabled for this sub asset
-		}
-	}
-
-	if len(s.Pairs) != 0 {
-		for a, pairs := range subCtx.AssetPairs {
-			if err := pairs.ContainsAll(s.Pairs, true); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
-				return nil, err
-			}
-			subCtx.AssetPairs[a] = s.Pairs
 		}
 	}
 

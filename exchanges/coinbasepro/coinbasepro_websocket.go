@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -51,13 +52,12 @@ var subscriptionNames = map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.HeartbeatChannel},
-	// Subscriptions to status return an "authentication failure" error, despite the endpoint not being authenticated
-	// and other authenticated channels working fine.
+	// Subscriptions to status return an "authentication failure" error, despite the endpoint not being authenticated and other authenticated channels working fine.
 	{Enabled: false, Channel: "status"},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.TickerChannel},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.CandlesChannel},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.Spot, Channel: "ticker_batch"},
 	/* Not Implemented:
@@ -258,35 +258,112 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		for i := range wsUser {
 			for j := range wsUser[i].Orders {
 				var oType order.Type
-				oType, err = order.StringToOrderType(wsUser[i].Orders[j].OrderType)
+				oType, err = stringToStandardType(wsUser[i].Orders[j].OrderType)
 				if err != nil {
-					return warnString, err
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
 				}
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide)
 				if err != nil {
-					return warnString, err
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
 				}
 				var oStatus order.Status
 				oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status)
 				if err != nil {
-					return warnString, err
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
+				}
+				price := wsUser[i].Orders[j].AveragePrice
+				if wsUser[i].Orders[j].LimitPrice != 0 {
+					price = wsUser[i].Orders[j].LimitPrice
+				}
+				var asset asset.Item
+				asset, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType)
+				if err != nil {
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
+				}
+				var ioc, fok bool
+				ioc, fok, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce)
+				if err != nil {
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
 				}
 				sliToSend = append(sliToSend, order.Detail{
-					Price:           wsUser[i].Orders[j].AveragePrice,
-					Amount:          wsUser[i].Orders[j].CumulativeQuantity + wsUser[i].Orders[j].LeavesQuantity,
-					ExecutedAmount:  wsUser[i].Orders[j].CumulativeQuantity,
-					RemainingAmount: wsUser[i].Orders[j].LeavesQuantity,
-					Fee:             wsUser[i].Orders[j].TotalFees,
-					Exchange:        c.Name,
-					OrderID:         wsUser[i].Orders[j].OrderID,
-					ClientOrderID:   wsUser[i].Orders[j].ClientOrderID,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       asset.Spot,
-					Date:            wsUser[i].Orders[j].CreationTime,
-					Pair:            wsUser[i].Orders[j].ProductID,
+					Price:             price,
+					ClientOrderID:     wsUser[i].Orders[j].ClientOrderID,
+					ExecutedAmount:    wsUser[i].Orders[j].CumulativeQuantity,
+					RemainingAmount:   wsUser[i].Orders[j].LeavesQuantity,
+					Amount:            wsUser[i].Orders[j].CumulativeQuantity + wsUser[i].Orders[j].LeavesQuantity,
+					OrderID:           wsUser[i].Orders[j].OrderID,
+					Side:              oSide,
+					Type:              oType,
+					PostOnly:          wsUser[i].Orders[j].PostOnly,
+					Pair:              wsUser[i].Orders[j].ProductID,
+					AssetType:         asset,
+					Status:            oStatus,
+					TriggerPrice:      wsUser[i].Orders[j].StopPrice,
+					ImmediateOrCancel: ioc,
+					FillOrKill:        fok,
+					Fee:               wsUser[i].Orders[j].TotalFees,
+					Date:              wsUser[i].Orders[j].CreationTime,
+					CloseTime:         wsUser[i].Orders[j].EndTime,
+					Exchange:          c.Name,
+				})
+			}
+			for j := range wsUser[i].Positions.PerpetualFuturesPositions {
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(wsUser[i].Positions.PerpetualFuturesPositions[j].PositionSide)
+				if err != nil {
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
+				}
+				var mType margin.Type
+				mType, err = margin.StringToMarginType(wsUser[i].Positions.PerpetualFuturesPositions[j].MarginType)
+				if err != nil {
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
+				}
+				sliToSend = append(sliToSend, order.Detail{
+					Pair:       wsUser[i].Positions.PerpetualFuturesPositions[j].ProductID,
+					Side:       oSide,
+					MarginType: mType,
+					Amount:     wsUser[i].Positions.PerpetualFuturesPositions[j].NetSize,
+					Leverage:   wsUser[i].Positions.PerpetualFuturesPositions[j].Leverage,
+					AssetType:  asset.Futures,
+					Exchange:   c.Name,
+				})
+			}
+			for j := range wsUser[i].Positions.ExpiringFuturesPositions {
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(wsUser[i].Positions.ExpiringFuturesPositions[j].Side)
+				if err != nil {
+					c.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: c.Name,
+						Err:      err,
+					}
+				}
+				sliToSend = append(sliToSend, order.Detail{
+					Pair:           wsUser[i].Positions.ExpiringFuturesPositions[j].ProductID,
+					Side:           oSide,
+					ContractAmount: wsUser[i].Positions.ExpiringFuturesPositions[j].NumberOfContracts,
+					Price:          wsUser[i].Positions.ExpiringFuturesPositions[j].EntryPrice,
 				})
 			}
 		}
@@ -405,9 +482,7 @@ func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
 	return nil
 }
 
-// GetJWT checks if the current JWT is valid, returns it if it is, generates a new one if it isn't
-// Also suitable for use in REST requests, by checking for the presence of a URI, and always generating
-// a new JWT if one is provided
+// GetJWT checks if the current JWT is valid, returns it if it is, generates a new one if it isn't. Also suitable for use in REST requests, by checking for the presence of a URI, and always generating a new JWT if one is provided
 func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if c.jwtLastRegen.Add(time.Minute*2).After(time.Now()) && uri == "" {
 		return c.jwt, nil
@@ -454,8 +529,7 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	return headEncode + "." + bodyEncode + "." + sigEncode, nil
 }
 
-// getTimestamp is a helper function which pulls a RFC3339-formatted timestamp from a byte slice
-// of JSON data
+// getTimestamp is a helper function which pulls a RFC3339-formatted timestamp from a byte slice of JSON data
 func getTimestamp(rawData []byte) (time.Time, error) {
 	data, _, _, err := jsonparser.Get(rawData, "timestamp")
 	if err != nil {
@@ -468,8 +542,7 @@ func getTimestamp(rawData []byte) (time.Time, error) {
 	return timestamp, nil
 }
 
-// processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
-// of bids and asks
+// processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
 func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks orderbook.Tranches, err error) {
 	bids = make(orderbook.Tranches, 0, len(data.Changes))
 	asks = make(orderbook.Tranches, 0, len(data.Changes))
@@ -489,27 +562,67 @@ func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks orderboo
 	return bids, asks, nil
 }
 
-// statusToStandardStatus is a helper function that converts a Coinbase Pro status string to a
-// standardised order.Status type
+// statusToStandardStatus is a helper function that converts a Coinbase Pro status string to a standardised order.Status type
 func statusToStandardStatus(stat string) (order.Status, error) {
 	switch stat {
-	case "received":
+	case "PENDING":
 		return order.New, nil
-	case "open":
+	case "OPEN":
 		return order.Active, nil
-	case "done":
+	case "FILLED":
 		return order.Filled, nil
-	case "match":
-		return order.PartiallyFilled, nil
-	case "change", "activate":
-		return order.Active, nil
+	case "CANCELLED":
+		return order.Cancelled, nil
+	case "EXPIRED":
+		return order.Expired, nil
+	case "FAILED":
+		return order.Rejected, nil
 	default:
 		return order.UnknownStatus, fmt.Errorf("%w %v", errUnrecognisedStatusType, stat)
 	}
 }
 
-// Base64URLEncode is a helper function that does some tweaks to standard Base64 encoding, in a way
-// which JWT requires
+// stringToStandardType is a helper function that converts a Coinbase Pro side string to a standardised order.Type type
+func stringToStandardType(str string) (order.Type, error) {
+	switch str {
+	case "LIMIT_ORDER_TYPE":
+		return order.Limit, nil
+	case "MARKET_ORDER_TYPE":
+		return order.Market, nil
+	case "STOP_LIMIT_ORDER_TYPE":
+		return order.StopLimit, nil
+	default:
+		return order.UnknownType, fmt.Errorf("%w %v", errUnrecognisedOrderType, str)
+	}
+}
+
+// stringToStandardAsset is a helper function that converts a Coinbase Pro asset string to a standardised asset.Item type
+func stringToStandardAsset(str string) (asset.Item, error) {
+	switch str {
+	case "SPOT":
+		return asset.Spot, nil
+	case "FUTURE":
+		return asset.Futures, nil
+	default:
+		return asset.Empty, fmt.Errorf("%w %v", errUnrecognisedAssetType, str)
+	}
+}
+
+// strategyDecoder is a helper function that converts a Coinbase Pro time in force string to a few standardised bools
+func strategyDecoder(str string) (bool, bool, error) {
+	switch str {
+	case "IMMEDIATE_OR_CANCEL":
+		return true, false, nil
+	case "FILL_OR_KILL":
+		return false, true, nil
+	case "GOOD_UNTIL_CANCELLED", "GOOD_UNTIL_DATE_TIME":
+		return false, false, nil
+	default:
+		return false, false, fmt.Errorf("%w %v", errUnrecognisedStrategyType, str)
+	}
+}
+
+// Base64URLEncode is a helper function that does some tweaks to standard Base64 encoding, in a way which JWT requires
 func base64URLEncode(b []byte) string {
 	s := crypto.Base64Encode(b)
 	s = strings.Split(s, "=")[0]

@@ -1256,23 +1256,79 @@ type WebsocketOrderbookDataHolder struct {
 
 // WebsocketOrderData defines a websocket order response, used in WebsocketOrderDataHolder
 type WebsocketOrderData struct {
-	OrderID            string        `json:"order_id"`
-	ClientOrderID      string        `json:"client_order_id"`
-	CumulativeQuantity float64       `json:"cumulative_quantity,string"`
-	LeavesQuantity     float64       `json:"leaves_quantity,string"`
-	AveragePrice       float64       `json:"avg_price,string"`
-	TotalFees          float64       `json:"total_fees,string"`
-	Status             string        `json:"status"`
-	ProductID          currency.Pair `json:"product_id"`
-	CreationTime       time.Time     `json:"creation_time"`
-	OrderSide          string        `json:"order_side"`
-	OrderType          string        `json:"order_type"`
+	AveragePrice          float64       `json:"avg_price,string"`
+	CancelReason          string        `json:"cancel_reason"`
+	ClientOrderID         string        `json:"client_order_id"`
+	CompletionPercentage  float64       `json:"completion_percentage,string"`
+	ContractExpiryType    string        `json:"contract_expiry_type"`
+	CumulativeQuantity    float64       `json:"cumulative_quantity,string"`
+	FilledValue           float64       `json:"filled_value,string"`
+	LeavesQuantity        float64       `json:"leaves_quantity,string"`
+	LimitPrice            float64       `json:"limit_price,string"`
+	NumberOfFills         int64         `json:"number_of_fills"`
+	OrderID               string        `json:"order_id"`
+	OrderSide             string        `json:"order_side"`
+	OrderType             string        `json:"order_type"`
+	OutstandingHoldAmount float64       `json:"outstanding_hold_amount,string"`
+	PostOnly              bool          `json:"post_only"`
+	ProductID             currency.Pair `json:"product_id"`
+	ProductType           string        `json:"product_type"`
+	RejectReason          string        `json:"reject_reason"`
+	RetailPortfolioID     string        `json:"retail_portfolio_id"`
+	RiskManagedBy         string        `json:"risk_managed_by"`
+	Status                string        `json:"status"`
+	StopPrice             float64       `json:"stop_price,string"`
+	TimeInForce           string        `json:"time_in_force"`
+	TotalFees             float64       `json:"total_fees,string"`
+	TotalValueAfterFees   float64       `json:"total_value_after_fees,string"`
+	TriggerStatus         string        `json:"trigger_status"`
+	CreationTime          time.Time     `json:"creation_time"`
+	EndTime               time.Time     `json:"end_time"`
+	StartTime             time.Time     `json:"start_time"`
+}
+
+// WebsocketPerpData defines a websocket perpetual position response, used in WebsocketPositionStruct
+type WebsocketPerpData struct {
+	ProductID        currency.Pair `json:"product_id"`
+	PortfolioUUID    string        `json:"portfolio_uuid"`
+	VWAP             float64       `json:"vwap,string"`
+	EntryVWAP        float64       `json:"entry_vwap,string"`
+	PositionSide     string        `json:"position_side"`
+	MarginType       string        `json:"margin_type"`
+	NetSize          float64       `json:"net_size,string"`
+	BuyOrderSize     float64       `json:"buy_order_size,string"`
+	SellOrderSize    float64       `json:"sell_order_size,string"`
+	Leverage         float64       `json:"leverage,string"`
+	MarkPrice        float64       `json:"mark_price,string"`
+	LiquidationPrice float64       `json:"liquidation_price,string"`
+	IMNotional       float64       `json:"im_notional,string"`
+	MMNotional       float64       `json:"mm_notional,string"`
+	PositionNotional float64       `json:"position_notional,string"`
+	UnrealizedPNL    float64       `json:"unrealized_pnl,string"`
+	AggregatedPNL    float64       `json:"aggregated_pnl,string"`
+}
+
+// WebsocketExpData defines a websocket expiring position response, used in WebsocketPositionStruct
+type WebsocketExpData struct {
+	ProductID         currency.Pair `json:"product_id"`
+	Side              string        `json:"side"`
+	NumberOfContracts float64       `json:"number_of_contracts,string"`
+	RealizedPNL       float64       `json:"realized_pnl,string"`
+	UnrealizedPNL     float64       `json:"unrealized_pnl,string"`
+	EntryPrice        float64       `json:"entry_price,string"`
+}
+
+// WebsocketPositionStruct holds position data, used in WebsocketOrderDataHolder
+type WebsocketPositionStruct struct {
+	PerpetualFuturesPositions []WebsocketPerpData `json:"perpetual_futures_positions"`
+	ExpiringFuturesPositions  []WebsocketExpData  `json:"expiring_futures_positions"`
 }
 
 // WebsocketOrderDataHolder holds a variety of order responses, used when wsHandleData processes orders
 type WebsocketOrderDataHolder struct {
-	Type   string               `json:"type"`
-	Orders []WebsocketOrderData `json:"orders"`
+	Type      string                  `json:"type"`
+	Orders    []WebsocketOrderData    `json:"orders"`
+	Positions WebsocketPositionStruct `json:"positions"`
 }
 
 // Details is a sub-struct used in CurrencyData
