@@ -125,7 +125,6 @@ func TestSetup(t *testing.T) {
 func TestWsConnect(t *testing.T) {
 	exch := &Bitget{}
 	exch.Websocket = sharedtestvalues.NewTestWebsocket()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	err := exch.Websocket.Disable()
 	assert.ErrorIs(t, err, stream.ErrAlreadyDisabled)
 	err = exch.WsConnect()
@@ -134,7 +133,7 @@ func TestWsConnect(t *testing.T) {
 	exch.Verbose = true
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
-	exch.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	err = exch.Websocket.Enable()
 	assert.NoError(t, err)
 }
@@ -3228,9 +3227,18 @@ func TestWsReadData(t *testing.T) {
 }
 
 func TestWsHandleData(t *testing.T) {
+	done := make(chan struct{})
+	t.Cleanup(func() {
+		close(done)
+	})
 	go func() {
-		for range bi.Websocket.DataHandler {
-			continue
+		for {
+			select {
+			case <-bi.Websocket.DataHandler:
+				continue
+			case <-done:
+				return
+			}
 		}
 	}()
 	oldVerbose := bi.Verbose
@@ -3389,7 +3397,165 @@ func TestWsHandleData(t *testing.T) {
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[{"instId":"BTCUSD","side":"sell"}]}`)
 	err = bi.wsHandleData(mockJSON)
 	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"spot"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"spot"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"spot"},"data":[{"instId":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"futures"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"futures"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"futures"},"data":[{"instId":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"positions"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"positions"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"positions"},"data":[{"instId":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"positions-history"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"positions-history"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"positions-history"},"data":[{"instId":"BTCUSD"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"index-price"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"index-price","instType":"spot"},"data":[{"symbol":"BTCUSDT"},{"symbol":"USDT/USDT"}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account-crossed"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account-crossed"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-crossed"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-crossed"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-isolated","instId":"BTCUSD"},"data":[{"feeDetail":[{}]}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-crossed","instId":"BTCUSD"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account-isolated"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account-isolated"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fakeChannelNotReal"}}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D"},"data":[["1","2","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["a","2","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","a","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","a","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","a","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","4","a","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","4","5","a","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"candle1D","instId":"BTCUSD"},"data":[["1","2","3","4","5","6","",""]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"trade"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorIs(t, err, errUnknownPairQuote)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"trade","instId":"BTCUSD"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account"},"data":[]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"futures"},"data":[[]]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.ErrorAs(t, err, &targetErr2)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"futures"},"data":[{}]}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"fakeChannelNotReal"}}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
+	mockJSON = []byte(`{"event":"fakeEventNotReal"}`)
+	err = bi.wsHandleData(mockJSON)
+	assert.NoError(t, err)
 	bi.Verbose = oldVerbose
+}
+
+func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
+	t.Parallel()
+	ord := orderbook.Base{
+		Asks: orderbook.Tranches{
+			{
+				StrPrice:  "3",
+				StrAmount: "1",
+			},
+		},
+		Bids: orderbook.Tranches{
+			{
+				StrPrice:  "4",
+				StrAmount: "1",
+			},
+		},
+	}
+	err := bi.CalculateUpdateOrderbookChecksum(&ord, 0)
+	assert.ErrorIs(t, err, errInvalidChecksum)
+	err = bi.CalculateUpdateOrderbookChecksum(&ord, 892106381)
+	assert.NoError(t, err)
+	ord.Asks = make(orderbook.Tranches, 26)
+	data := "3141592653589793238462643383279502884197169399375105"
+	for i := range ord.Asks {
+		ord.Asks[i] = orderbook.Tranche{
+			StrPrice:  string(data[i*2]),
+			StrAmount: string(data[i*2+1]),
+		}
+	}
+	err = bi.CalculateUpdateOrderbookChecksum(&ord, 2945115267)
+	assert.NoError(t, err)
 }
 
 type getNoArgsResp interface {
