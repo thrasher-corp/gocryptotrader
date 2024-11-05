@@ -347,10 +347,10 @@ func TestCreateSubaccountAndAPIKey(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	ipL = append(ipL, testIP)
 	pL := []string{"read"}
-	// Fails with error "subAccountList not empty" and I'm not sure why. The account I'm testing with is far off
-	// hitting the limit of 20 sub-accounts.
+	// Fails with error "subAccountList not empty" and I'm not sure why. The account I'm testing with is far off hitting the limit of 20 sub-accounts.
 	// Now it's saying that parameter req cannot be empty, still no clue what that means
-	_, err = bi.CreateSubaccountAndAPIKey(context.Background(), "MEOWMEOW", "woofwoof", "neighneighneighneighneigh", ipL, pL)
+	// Now it's saying that parameter verification failed
+	_, err = bi.CreateSubaccountAndAPIKey(context.Background(), "MEOWMEOW", "woofwoof123", "neighneighneighneighneigh", ipL, pL)
 	assert.NoError(t, err)
 }
 
@@ -758,10 +758,10 @@ func TestGetCurrentSpotPlanOrders(t *testing.T) {
 
 func TestSpotGetPlanSubOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	var ordIDs *OrderIDStruct
-	if sharedtestvalues.AreAPICredentialsSet(bi) {
-		ordIDs = getPlanOrdIDHelper(t, true)
-	}
+	ordIDs = getPlanOrdIDHelper(t, true)
+	require.NotNil(t, ordIDs)
 	// This gets the error "the current plan order does not exist or has not been triggered" even when using
 	// a plan order that definitely exists and has definitely been triggered. Re-investigate later
 	testGetOneArg(t, bi.GetSpotPlanSubOrder, "", strconv.FormatInt(int64(ordIDs.OrderID), 10), errOrderIDEmpty, true, true, true)
@@ -1173,8 +1173,7 @@ func TestAdjustMargin(t *testing.T) {
 	err = bi.AdjustMargin(context.Background(), "meow", "woof", "neigh", "", 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	// This is getting the error "verification exception margin mode == FIXED", and I can't find a way to
-	// skirt around that
+	// This is getting the error "verification exception margin mode == FIXED", and I can't find a way to skirt around that
 	err = bi.AdjustMargin(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES", testFiat2.String(), "long", -testAmount)
 	assert.NoError(t, err)
 }
@@ -1477,9 +1476,7 @@ func TestPlaceTriggerFuturesOrder(t *testing.T) {
 	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa", "moo", "", "cluck", "", "", "", 1, 1, 0, 1, 0, 0, 1, 0, false)
 	assert.ErrorIs(t, err, errStopLossParamsInconsistency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	// This returns the error "The parameter does not meet the specification d delegateType is error". The
-	// documentation doesn't mention that parameter anywhere, nothing seems similar to it, and attempts to send
-	// that parameter with various values, or to tweak other parameters, yielded no difference
+	// This returns the error "The parameter does not meet the specification d delegateType is error". The documentation doesn't mention that parameter anywhere, nothing seems similar to it, and attempts to send that parameter with various values, or to tweak other parameters, yielded no difference
 	resp, err := bi.PlaceTriggerFuturesOrder(context.Background(), "normal_plan", testPair2.String(), testFiat2.String()+"-FUTURES", "isolated", testFiat2.String(), "mark_price", "Sell", "", "limit", clientIDGenerator(), "", "", testAmount2*1000, testPrice2+2, 0, testPrice2+1, 0, 0, 0, 0, false)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
@@ -2364,7 +2361,9 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := bi.UpdateTicker(context.Background(), fakePair, asset.Spot)
+	_, err := bi.UpdateTicker(context.Background(), currency.Pair{}, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = bi.UpdateTicker(context.Background(), fakePair, asset.Spot)
 	assert.Error(t, err)
 	_, err = bi.UpdateTicker(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
@@ -2405,7 +2404,9 @@ func TestFetchOrderbook(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := bi.UpdateOrderbook(context.Background(), fakePair, asset.Spot)
+	_, err := bi.UpdateOrderbook(context.Background(), currency.Pair{}, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = bi.UpdateOrderbook(context.Background(), fakePair, asset.Spot)
 	assert.Error(t, err)
 	_, err = bi.UpdateOrderbook(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
@@ -2419,6 +2420,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	_, err := bi.UpdateAccountInfo(context.Background(), asset.Spot)
 	assert.NoError(t, err)
 	_, err = bi.UpdateAccountInfo(context.Background(), asset.Futures)
@@ -2433,6 +2435,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 func TestFetchAccountInfo(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err := bi.FetchAccountInfo(context.Background(), asset.Futures)
 	assert.NoError(t, err)
 	_, err = bi.FetchAccountInfo(context.Background(), asset.Futures)
@@ -2454,7 +2457,9 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetRecentTrades(context.Background(), fakePair, asset.Spot)
+	_, err := bi.GetRecentTrades(context.Background(), currency.Pair{}, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = bi.GetRecentTrades(context.Background(), fakePair, asset.Spot)
 	assert.Error(t, err)
 	_, err = bi.GetRecentTrades(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
@@ -2560,6 +2565,7 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetDepositAddress(context.Background(), currency.NewCode(""), "", "")
 	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetDepositAddress(context.Background(), testCrypto, "", "")
 	assert.NoError(t, err)
 }
@@ -2569,6 +2575,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	var req *withdraw.Request
 	_, err := bi.WithdrawCryptocurrencyFunds(context.Background(), req)
 	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	req = &withdraw.Request{
 		Crypto: withdraw.CryptoRequest{
 			Address: testAddress,
@@ -2713,11 +2720,12 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	req1 := new(fundingrate.LatestRateRequest)
-	req1.Pair = currency.Pair{}
-	req2 := new(fundingrate.LatestRateRequest)
+	var nilReq *fundingrate.LatestRateRequest
+	_, err := bi.GetLatestFundingRates(context.Background(), nilReq)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	req1, req2 := new(fundingrate.LatestRateRequest), new(fundingrate.LatestRateRequest)
 	req2.Pair = testPair
-	testGetOneArg(t, bi.GetLatestFundingRates, req1, req2, errPairEmpty, false, false, true)
+	testGetOneArg(t, bi.GetLatestFundingRates, req1, req2, currency.ErrCurrencyPairEmpty, false, false, true)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -2817,6 +2825,7 @@ func TestSetMarginType(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	err = bi.SetMarginType(context.Background(), asset.Futures, currency.Pair{}, margin.Isolated)
 	assert.ErrorIs(t, err, errPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	err = bi.SetMarginType(context.Background(), asset.Futures, testPair, margin.Multi)
 	assert.NoError(t, err)
 }
@@ -2832,6 +2841,7 @@ func TestSetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	err = bi.SetLeverage(context.Background(), asset.Futures, currency.Pair{}, 0, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	err = bi.SetLeverage(context.Background(), asset.Futures, testPair, 0, 1, order.Long)
 	assert.NoError(t, err)
 }
@@ -2842,6 +2852,7 @@ func TestGetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = bi.GetLeverage(context.Background(), asset.Futures, currency.Pair{}, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, 0, 0)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 	_, err = bi.GetLeverage(context.Background(), asset.Futures, testPair, margin.Isolated, 0)

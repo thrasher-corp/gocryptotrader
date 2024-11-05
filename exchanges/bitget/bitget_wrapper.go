@@ -271,6 +271,10 @@ func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 // UpdateTicker updates and returns the ticker for a currency pair
 func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
+	p, err := bi.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		tick, err := bi.GetSpotTickerInformation(ctx, p.String())
@@ -311,7 +315,7 @@ func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	tickerPrice.Pair = p
 	tickerPrice.ExchangeName = bi.Name
 	tickerPrice.AssetType = assetType
-	err := ticker.ProcessTicker(tickerPrice)
+	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -413,6 +417,10 @@ func (bi *Bitget) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		VerifyOrderbook: bi.CanVerifyOrderbook,
 		MaxDepth:        150,
 	}
+	pair, err := bi.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		orderbookNew, err := bi.GetOrderbookDepth(ctx, pair.String(), "", 150)
@@ -447,7 +455,7 @@ func (bi *Bitget) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	default:
 		return book, asset.ErrNotSupported
 	}
-	err := book.Process()
+	err = book.Process()
 	if err != nil {
 		return book, err
 	}
@@ -640,6 +648,10 @@ func (bi *Bitget) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (bi *Bitget) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	p, err := bi.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		resp, err := bi.GetRecentSpotFills(ctx, p.String(), 500)
@@ -1612,18 +1624,22 @@ func (bi *Bitget) GetLatestFundingRates(ctx context.Context, req *fundingrate.La
 	if req == nil {
 		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
 	}
-	curRate, err := bi.GetFundingCurrent(ctx, req.Pair.String(), getProductType(req.Pair))
+	fPair, err := bi.FormatExchangeCurrency(req.Pair, req.Asset)
 	if err != nil {
 		return nil, err
 	}
-	nextTime, err := bi.GetNextFundingTime(ctx, req.Pair.String(), getProductType(req.Pair))
+	curRate, err := bi.GetFundingCurrent(ctx, fPair.String(), getProductType(fPair))
+	if err != nil {
+		return nil, err
+	}
+	nextTime, err := bi.GetNextFundingTime(ctx, fPair.String(), getProductType(fPair))
 	if err != nil {
 		return nil, err
 	}
 	resp := []fundingrate.LatestRateResponse{
 		{
 			Exchange:       bi.Name,
-			Pair:           req.Pair,
+			Pair:           fPair,
 			TimeOfNextRate: nextTime[0].NextFundingTime.Time(),
 			TimeChecked:    time.Now(),
 		},
