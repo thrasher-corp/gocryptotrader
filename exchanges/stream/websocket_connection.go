@@ -303,7 +303,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, isFinalMessage ...Inspector) ([][]byte, error) {
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector ...Inspector) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -320,7 +320,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		return nil, err
 	}
 
-	resps, err := w.waitForResponses(ctx, signature, ch, expected, isFinalMessage...)
+	resps, err := w.waitForResponses(ctx, signature, ch, expected, messageInspector...)
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +333,7 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 }
 
 // waitForResponses waits for N responses from a channel
-func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, isFinalMessage ...Inspector) ([][]byte, error) {
+func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector ...Inspector) ([][]byte, error) {
 	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
 	defer timeout.Stop()
 
@@ -343,7 +343,7 @@ func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature an
 		case resp := <-ch:
 			resps = append(resps, resp)
 			// Checks recently received message to determine if this is in fact the final message in a sequence of messages.
-			if len(isFinalMessage) == 1 && isFinalMessage[0](resp) {
+			if len(messageInspector) == 1 && messageInspector[0](resp) {
 				w.Match.RemoveSignature(signature)
 				return resps, nil
 			}

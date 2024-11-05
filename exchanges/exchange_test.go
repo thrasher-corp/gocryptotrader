@@ -2145,13 +2145,13 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	if !errors.Is(err, errSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	if !errors.Is(err, ErrSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
 	}
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	if !errors.Is(err, errSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	if !errors.Is(err, ErrSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
 	}
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
