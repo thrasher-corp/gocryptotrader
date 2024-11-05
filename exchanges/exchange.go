@@ -49,13 +49,15 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
+// Public Errors
 var (
-	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
-	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+)
 
+var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
-	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 )
@@ -247,7 +249,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
