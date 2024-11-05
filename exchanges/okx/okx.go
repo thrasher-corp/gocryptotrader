@@ -1838,26 +1838,31 @@ func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy curr
 }
 
 // GetMaximumAvailableTradableAmount retrieves the maximum tradable amount for specific instrument id, and/or currency
-func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode string, reduceOnly bool, price float64) ([]MaximumTradableAmount, error) {
+func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, quickMarginType string, reduceOnly, upSpotOffset bool, price float64) ([]MaximumTradableAmount, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if tradeMode != TradeModeIsolated &&
-		tradeMode != TradeModeCross &&
-		tradeMode != TradeModeCash {
-		return nil, errInvalidTradeModeValue
+	if tradeMode == "" {
+		// Supported tradeMode values are 'cross', 'isolated', 'cash', and 'spot_isolated'
+		return nil, fmt.Errorf("%w, possible values are 'cross', 'isolated', 'cash', and 'spot_isolated'", errInvalidTradeModeValue)
 	}
 	params := url.Values{}
 	params.Set("instId", instrumentID)
+	params.Set("tdMode", tradeMode)
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
 	if reduceOnly {
 		params.Set("reduceOnly", "true")
 	}
-	params.Set("tdMode", tradeMode)
 	if price != 0 {
 		params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))
+	}
+	if quickMarginType != "" {
+		params.Set("quickMgnType", quickMarginType)
+	}
+	if upSpotOffset {
+		params.Set("upSpotOffset", "true")
 	}
 	var resp []MaximumTradableAmount
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumAvailableTradableAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-avail-size", params), nil, &resp, request.AuthenticatedRequest)
@@ -1901,9 +1906,9 @@ func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode str
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverageEPL, http.MethodGet, common.EncodeURLValues("account/leverage-info", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetLeverateEstimatedInfo retrieves leverage estimated information.
+// GetLeverageEstimatedInfo retrieves leverage estimated information.
 // Instrument type: possible values are MARGIN, SWAP, FUTURES
-func (ok *Okx) GetLeverateEstimatedInfo(ctx context.Context, instrumentType, marginMode, leverage, positionSide, instrumentID string, ccy currency.Code) ([]LeverageEstimatedInfo, error) {
+func (ok *Okx) GetLeverageEstimatedInfo(ctx context.Context, instrumentType, marginMode, leverage, positionSide, instrumentID string, ccy currency.Code) ([]LeverageEstimatedInfo, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
@@ -1960,7 +1965,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 		if err != nil {
 			return 0, err
 		}
-		responses, err := ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
+		responses, err := ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "", "", "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
@@ -1990,7 +1995,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 }
 
 // GetTradeFee query trade fee rate of various instrument types and instrument ids.
-func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]TradeFeeRate, error) {
+func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying, instrumentFamily, ruleType string) ([]TradeFeeRate, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
@@ -2001,6 +2006,12 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 	}
 	if underlying != "" {
 		params.Set("uly", underlying)
+	}
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
+	}
+	if ruleType != "" {
+		params.Set("ruleType", ruleType)
 	}
 	var resp []TradeFeeRate
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues("account/trade-fee", params), nil, &resp, request.AuthenticatedRequest)
@@ -2276,6 +2287,277 @@ func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int64, cc
 	}
 	var resp []BorrowInterestAndLimitResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// GetFixedLoanBorrowLimit retrieves a fixed loadn borrow limit information
+func (ok *Okx) GetFixedLoanBorrowLimit(ctx context.Context) (*FixedLoanBorrowLimitInformation, error) {
+	var resp *FixedLoanBorrowLimitInformation
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowLimitEPL, http.MethodGet, "account/fixed-loan/borrowing-limit", nil, &resp, request.AuthenticatedRequest)
+}
+
+// GetFixedLoanBorrowQuote retrieves a fixed loan borrow quote information
+func (ok *Okx) GetFixedLoanBorrowQuote(ctx context.Context, borrowingCurrency currency.Code, borrowType, term, orderID string, amount, maxRate float64) (*FixedLoanBorrowQuote, error) {
+	if borrowType == "" {
+		return nil, errBorrowTypeRequired
+	}
+	if borrowType == "normal" {
+		if borrowingCurrency.IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		if amount <= 0 {
+			return nil, order.ErrAmountBelowMin
+		}
+		if maxRate <= 0 {
+			return nil, errMaxRateRequired
+		}
+		if term == "" {
+			return nil, errLendingTermIsRequired
+		}
+	} else if borrowType == "reborrow" {
+		if orderID == "" {
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+	params := url.Values{}
+	params.Set("type", borrowType)
+	if !borrowingCurrency.IsEmpty() {
+		params.Set("ccy", borrowingCurrency.String())
+	}
+	if amount > 0 {
+		params.Set("amt", strconv.FormatFloat(amount, 'f', -1, 64))
+	}
+	if maxRate > 0 {
+		params.Set("maxRate", strconv.FormatFloat(maxRate, 'f', -1, 64))
+	}
+	if term != "" {
+		params.Set("term", term)
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	var resp *FixedLoanBorrowQuote
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowQuoteEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-quote", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// PlaceFixedLoanBorrowingOrder for new borrowing orders, they belong to the IOC (immediately close and cancel the remaining) type. For renewal orders, they belong to the FOK (Fill-or-kill) type.
+func (ok *Okx) PlaceFixedLoanBorrowingOrder(ctx context.Context, ccy currency.Code, amount, maxRate, reborrowRate float64, term string, reborrow bool) (*OrderIDResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if maxRate <= 0 {
+		return nil, errMaxRateRequired
+	}
+	if term == "" {
+		return nil, errLendingTermIsRequired
+	}
+	arg := &struct {
+		Currency     string  `json:"ccy"`
+		Amount       float64 `json:"amt,string"`
+		MaxRate      float64 `jsons:"maxRate,string"`
+		Term         string  `json:"term"`
+		Reborrow     bool    `json:"reborrow,omitempty"`
+		ReborrowRate float64 `json:"reborrowRate,string,omitempty"`
+	}{
+		Currency:     ccy.String(),
+		Amount:       amount,
+		MaxRate:      maxRate,
+		Term:         term,
+		Reborrow:     reborrow,
+		ReborrowRate: reborrowRate,
+	}
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/borrowing-order", arg, &resp, request.AuthenticatedRequest)
+}
+
+// AmendFixedLoanBorrowingOrder amends a fixed loan borrowing order
+func (ok *Okx) AmendFixedLoanBorrowingOrder(ctx context.Context, orderID string, reborrow bool, renewMaxRate float64) (*OrderIDResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	arg := &struct {
+		OrderID      string  `json:"ordId"`
+		Reborrow     bool    `json:"reborrow,omitempty"`
+		RenewMaxRate float64 `json:"renewMaxRate,omitempty,string"`
+	}{
+		OrderID:      orderID,
+		Reborrow:     reborrow,
+		RenewMaxRate: renewMaxRate,
+	}
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendFixedLaonBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/amend-borrowing-order", arg, &resp, request.AuthenticatedRequest)
+}
+
+// ManualRenewFixedLoanBorrowingOrder manual renew fixed loan borrowing order
+func (ok *Okx) ManualRenewFixedLoanBorrowingOrder(ctx context.Context, orderID string, maxRate float64) (*OrderIDResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if maxRate <= 0 {
+		return nil, errMaxRateRequired
+	}
+	arg := &struct {
+		OrderID string  `json:"ordId"`
+		MaxRate float64 `json:"maxRate,string"`
+	}{
+		OrderID: orderID,
+		MaxRate: maxRate,
+	}
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, manualRenewFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/manual-reborrow", arg, &resp, request.AuthenticatedRequest)
+}
+
+// RepayFixedLoanBorrowingOrder repays fiexed loan borrowing order
+func (ok *Okx) RepayFixedLoanBorrowingOrder(ctx context.Context, orderID string) (*OrderIDResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, repayFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/repay-borrowing-order", map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
+}
+
+// ConvertFixedLoanToMarketLoan converts fixed loan to market loan
+func (ok *Okx) ConvertFixedLoanToMarketLoan(ctx context.Context, orderID string) (*OrderIDResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, convertFixedLoanToMarketLoanEPL, http.MethodPost, "account/fixed-loan/convert-to-market-loan", nil, &resp, request.AuthenticatedRequest)
+}
+
+// ReduceLiabilitiesForFixedLoan provide the function of "setting pending repay state / canceling pending repay state" for fixed loan order.
+func (ok *Okx) ReduceLiabilitiesForFixedLoan(ctx context.Context, orderID string, pendingRepay bool) (*ReduceLiabilities, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	arg := &struct {
+		OrderID          string `json:"ordId"`
+		PendingRepayment bool   `json:"pendingRepay,string"`
+	}{
+		OrderID:          orderID,
+		PendingRepayment: pendingRepay,
+	}
+	var resp *ReduceLiabilities
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, reduceLiabilitiesForFixedLoanEPL, http.MethodPost, "account/fixed-loan/reduce-liabilities", arg, &resp, request.AuthenticatedRequest)
+}
+
+// GetFixedLoanBorrowOrderList retrieves fixed loan borrow order list
+// State '1': Borrowing '2': Borrowed '3': Settled (Repaid) '4': Borrow failed '5': Overdue '6': Settling '7': Reborrowing '8': Pending repay
+func (ok *Okx) GetFixedLoanBorrowOrderList(ctx context.Context, ccy currency.Code, orderID, state, term string, after, before time.Time, limit int64) ([]FixedLoanBorrowOrderDetail, error) {
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if term != "" {
+		params.Set("term", term)
+	}
+	if !after.IsZero() && !before.IsZero() {
+		err := common.StartEndTimeCheck(after, before)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FixedLoanBorrowOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowOrderListEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-orders-list", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// ManualBorrowOrRepay borrow or repay assets. only applicable to Spot mode (enabled borrowing)
+func (ok *Okx) ManualBorrowOrRepay(ctx context.Context, ccy currency.Code, side string, amount float64) (*BorrowOrRepay, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if side == "" {
+		return nil, errLendingSideRequired
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	arg := &struct {
+		Currency string  `json:"ccy"`
+		Side     string  `json:"side"`
+		Amount   float64 `json:"amt"`
+	}{
+		Currency: ccy.String(),
+		Side:     side,
+		Amount:   amount,
+	}
+	var resp *BorrowOrRepay
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowOrRepayEPL, http.MethodPost, "account/spot-manual-borrow-repay", arg, &resp, request.AuthenticatedRequest)
+}
+
+// SetAutoRepay represents an auto-repay. Only applicable to Spot mode (enabled borrowing)
+func (ok *Okx) SetAutoRepay(ctx context.Context, autoRepay bool) (bool, error) {
+	arg := AutoRepay{
+		AutoRepay: autoRepay,
+	}
+	var resp *AutoRepay
+	return resp.AutoRepay, ok.SendHTTPRequest(ctx, exchange.RestSpot, setAutoRepayEPL, http.MethodPost, "account/set-auto-repay", arg, &resp, request.AuthenticatedRequest)
+}
+
+// GetBorrowRepayHistory retrieve the borrow/repay history under Spot mode
+func (ok *Okx) GetBorrowRepayHistory(ctx context.Context, ccy currency.Code, eventType string, after, before time.Time, limit int64) ([]BorrowRepayItem, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if eventType != "" {
+		params.Set("type", eventType)
+	}
+	if !after.IsZero() && !before.IsZero() {
+		err := common.StartEndTimeCheck(after, before)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BorrowRepayItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/spot-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// NewPositionBuilder calculates portfolio margin information for virtual position/assets or current position of the user.
+// You can add up to 200 virtual positions and 200 virtual assets in one request.
+func (ok *Okx) NewPositionBuilder(ctx context.Context, arg *PositionBuilderParam) (*PositionBuilderDetail, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	var resp *PositionBuilderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, newPositionBuilderEPL, http.MethodPost, "account/position-builder", arg, &resp, request.AuthenticatedRequest)
+}
+
+// SetRiskOffsetAmount set risk offset amount. This does not represent the actual spot risk offset amount. Only applicable to Portfolio Margin Mode.
+func (ok *Okx) SetRiskOffsetAmount(ctx context.Context, ccy currency.Code, clientSpotInUseAmount float64) (*RiskOffsetAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if clientSpotInUseAmount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	arg := &struct {
+		Currency              string  `json:"ccy"`
+		ClientSpotInUseAmount float64 `json:"clSpotInUseAmt,string"`
+	}{
+		Currency:              ccy.String(),
+		ClientSpotInUseAmount: clientSpotInUseAmount,
+	}
+	var resp *RiskOffsetAmount
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetAmountEPL, http.MethodPost, "account/set-riskOffset-amt", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetGreeks retrieves a greeks list of all assets in the account.

@@ -36,9 +36,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "703985fb-0bd8-4ca1-bf36-41924e377bcc"
+	apiSecret               = "D6988765C8E5CDEC3DC00CDBBE765643"
+	passphrase              = "0631Okx!"
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -1682,7 +1682,7 @@ func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, "BTC-USDT", "cross", true, 123)
+	result, err := ok.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, "BTC-USDT", "cross", "", true, false, 123)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1745,11 +1745,11 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetTradeFee(contextGenerate(), "", "", "")
+	_, err := ok.GetTradeFee(contextGenerate(), "", "", "", "", "")
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetTradeFee(contextGenerate(), "SPOT", "", "")
+	result, err := ok.GetTradeFee(contextGenerate(), "SPOT", "", "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1812,6 +1812,13 @@ func TestGetAccountRiskState(t *testing.T) {
 
 func TestVIPLoansBorrowAndRepay(t *testing.T) {
 	t.Parallel()
+	_, err := ok.VIPLoansBorrowAndRepay(contextGenerate(), LoanBorrowAndReplayInput{Currency: currency.EMPTYCODE, Side: "borrow", Amount: 12})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.VIPLoansBorrowAndRepay(contextGenerate(), LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "", Amount: 12})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = ok.VIPLoansBorrowAndRepay(contextGenerate(), LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "borrow", Amount: 0})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.VIPLoansBorrowAndRepay(contextGenerate(), LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "borrow", Amount: 12})
 	require.NoError(t, err)
@@ -1830,6 +1837,193 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetBorrowInterestAndLimit(contextGenerate(), 1, currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFixedLoanBorrowLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFixedLoanBorrowLimit(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFixedLoanBorrowQuote(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "", "30D", "123423423", 1, .4)
+	require.ErrorIs(t, err, errBorrowTypeRequired)
+	_, err = ok.GetFixedLoanBorrowQuote(context.Background(), currency.EMPTYCODE, "normal", "30D", "123423423", 1, .4)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "normal", "30D", "", 0, .4)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "normal", "30D", "123423423", 1, 0)
+	require.ErrorIs(t, err, errMaxRateRequired)
+	_, err = ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "normal", "", "123423423", 1, .4)
+	require.ErrorIs(t, err, errLendingTermIsRequired)
+	_, err = ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "reborrow", "30D", "", 1, .4)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	ok.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "normal", "30D", "123423423", 1, .4)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceFixedLoanBorrowingOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.PlaceFixedLoanBorrowingOrder(context.Background(), currency.EMPTYCODE, 1, .3, .2, "30D", false)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.PlaceFixedLoanBorrowingOrder(context.Background(), currency.USDT, 0, .3, .2, "30D", false)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = ok.PlaceFixedLoanBorrowingOrder(context.Background(), currency.USDT, 1, 0, .2, "30D", false)
+	require.ErrorIs(t, err, errMaxRateRequired)
+	_, err = ok.PlaceFixedLoanBorrowingOrder(context.Background(), currency.USDT, 1, .3, .2, "", false)
+	require.ErrorIs(t, err, errLendingTermIsRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.PlaceFixedLoanBorrowingOrder(context.Background(), currency.USDT, 1, .3, .2, "30D", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAmendFixedLoanBorrowingOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.AmendFixedLoanBorrowingOrder(context.Background(), "", false, .4)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.AmendFixedLoanBorrowingOrder(context.Background(), "12312312", false, .4)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestManualRenewFixedLoanBorrowingOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ManualRenewFixedLoanBorrowingOrder(context.Background(), "", .3)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ok.ManualRenewFixedLoanBorrowingOrder(context.Background(), "12312312", 0)
+	require.ErrorIs(t, err, errMaxRateRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.ManualRenewFixedLoanBorrowingOrder(context.Background(), "12312312", .3)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRepayFixedLoanBorrowingOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.RepayFixedLoanBorrowingOrder(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.RepayFixedLoanBorrowingOrder(context.Background(), "12321")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestConvertFixedLoanToMarketLoan(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ConvertFixedLoanToMarketLoan(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.ConvertFixedLoanToMarketLoan(context.Background(), "12321")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestReduceLiabilitiesForFixedLoan(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ReduceLiabilitiesForFixedLoan(context.Background(), "", false)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.ReduceLiabilitiesForFixedLoan(context.Background(), "123123", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFixedLoanBorrowOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFixedLoanBorrowOrderList(context.Background(), currency.USDT, "1231231", "8", "30D", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestManualBorrowOrRepay(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ManualBorrowOrRepay(context.Background(), currency.EMPTYCODE, "borrow", 1)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.ManualBorrowOrRepay(context.Background(), currency.USDT, "", 1)
+	require.ErrorIs(t, err, errLendingSideRequired)
+	_, err = ok.ManualBorrowOrRepay(context.Background(), currency.USDT, "borrow", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.ManualBorrowOrRepay(context.Background(), currency.USDT, "borrow", 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetAutoRepay(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.SetAutoRepay(context.Background(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBorrowRepayHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetBorrowRepayHistory(context.Background(), currency.ETH, "auto_borrow", time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewPositionBuilder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.NewPositionBuilder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.NewPositionBuilder(context.Background(), &PositionBuilderParam{
+		InclRealPosAndEq: false,
+		SimPos: []SimulatedPosition{
+			{
+				Position:     "-10",
+				InstrumentID: "BTC-USDT-SWAP",
+			},
+			{
+				Position:     "10",
+				InstrumentID: "LTC-USDT-SWAP",
+			},
+		},
+		SimAsset: []SimulatedAsset{
+			{
+				Currency: "USDT",
+				Amount:   100,
+			},
+		},
+		SpotOffsetType: "1",
+		GreeksType:     "CASH",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetRiskOffsetAmount(t *testing.T) {
+	t.Parallel()
+	_, err := ok.SetRiskOffsetAmount(context.Background(), currency.EMPTYCODE, 123)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.SetRiskOffsetAmount(context.Background(), currency.USDT, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.SetRiskOffsetAmount(context.Background(), currency.USDT, 123)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3648,35 +3842,69 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// func TestWsProcessOrderbook5(t *testing.T) {
-// 	t.Parallel()
-// 	var ob5payload = []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
-// 	err := ok.wsProcessOrderbook5(ob5payload)
-// 	require.NoError(t, err)
+func TestWsProcessOrderbook5(t *testing.T) {
+	t.Parallel()
+	var ob5payload = []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
+	err := ok.wsProcessOrderbook5(ob5payload)
+	require.NoError(t, err)
 
-// 	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
-// 	got, err := orderbook.Get("okx", required, asset.Spot)
-// 	require.NoError(t, err)
+	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
+	got, err := orderbook.Get("okx", required, asset.Spot)
+	require.NoError(t, err)
 
-// 	require.Len(t, got.Asks, 5)
-// 	require.Len(t, got.Bids, 5)
-// 	// Book replicated to margin
-// 	got, err = orderbook.Get("okx", required, asset.Margin)
-// 	require.NoError(t, err)
-// 	require.Len(t, got.Asks, 5)
-// 	assert.Len(t, got.Bids, 5)
-// }
+	require.Len(t, got.Asks, 5)
+	require.Len(t, got.Bids, 5)
+	// Book replicated to margin
+	got, err = orderbook.Get("okx", required, asset.Margin)
+	require.NoError(t, err)
+	require.Len(t, got.Asks, 5)
+	assert.Len(t, got.Bids, 5)
+}
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetLeverageEstimatedInfo(context.Background(), "", "cross", "1", "", "BTC-USDT", currency.BTC)
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+	_, err = ok.GetLeverageEstimatedInfo(context.Background(), "MARGIN", "", "1", "", "BTC-USDT", currency.BTC)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	_, err = ok.GetLeverageEstimatedInfo(context.Background(), "MARGIN", "cross", "", "", "BTC-USDT", currency.BTC)
+	require.ErrorIs(t, err, errInvalidLeverage)
+	_, err = ok.GetLeverageEstimatedInfo(context.Background(), "MARGIN", "cross", "1", "", "BTC-USDT", currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetLeverateEstimatedInfo(context.Background(), "MARGIN", "cross", "1", "", "BTC-USDT", currency.BTC)
+	result, err := ok.GetLeverageEstimatedInfo(context.Background(), "MARGIN", "cross", "1", "", "BTC-USDT", currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 	t.Parallel()
+	_, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
+		InstrumentID: "BTC-USDT",
+		LoanCcy:      currency.USDT,
+		Side:         "borrow",
+	})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
+		Amount:       1,
+		InstrumentID: "BTC-USDT",
+		Side:         "borrow",
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
+		Amount:       1,
+		InstrumentID: "BTC-USDT",
+		LoanCcy:      currency.USDT,
+	})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
+		Amount:  1,
+		LoanCcy: currency.USDT,
+		Side:    "borrow",
+	})
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
 		Amount:       1,

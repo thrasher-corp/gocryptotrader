@@ -54,13 +54,13 @@ const (
 
 	// Instrument Types ( Asset Types )
 
-	okxInstTypeFutures  = "FUTURES"  // Okx Instrument Type "futures"
-	okxInstTypeANY      = "ANY"      // Okx Instrument Type ""
-	okxInstTypeSpot     = "SPOT"     // Okx Instrument Type "spot"
-	okxInstTypeSwap     = "SWAP"     // Okx Instrument Type "swap"
-	okxInstTypeOption   = "OPTION"   // Okx Instrument Type "option"
-	okxInstTypeMargin   = "MARGIN"   // Okx Instrument Type "margin"
-	okxInstTypeContract = "CONTRACT" // Okx Instrument Type "contract"
+	okxInstTypeFutures  = "FUTURES"   // Okx Instrument Type "futures"
+	okxInstTypeANY      = "ANY"       // Okx Instrument Type ""
+	okxInstTypeSpot     = "SPOT"      // Okx Instrument Type "spot"
+	okxInstTypeSwap     = "SWAP"      // Okx Instrument Type "swap"
+	okxInstTypeOption   = "OPTION"    // Okx Instrument Type "option"
+	okxInstTypeMargin   = "MARGIN"    // Okx Instrument Type "margin"
+	okxInstTypeContract = "CONTRACTS" // Okx Instrument Type "contract"
 
 	operationSubscribe   = "subscribe"
 	operationUnsubscribe = "unsubscribe"
@@ -149,6 +149,9 @@ var (
 	errQuarterValueRequired                  = errors.New("quarter is required")
 	errYearRequired                          = errors.New("year is required")
 	errLengthMismatch                        = errors.New("mismatch in length")
+	errBorrowTypeRequired                    = errors.New("borrow type is required")
+	errMaxRateRequired                       = errors.New("max rate is required")
+	errLendingSideRequired                   = errors.New("lending side is required")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1905,6 +1908,7 @@ type LeverageResponse struct {
 	MarginMode   string       `json:"mgnMode"`
 	PositionSide string       `json:"posSide"`
 	Leverage     types.Number `json:"lever"`
+	Currency     string       `json:"ccy"`
 }
 
 // LeverageEstimatedInfo leverage estimated info response.
@@ -2040,14 +2044,16 @@ type BorrowRepayHistoryItem struct {
 
 // MaximumWithdrawal represents maximum withdrawal amount query response.
 type MaximumWithdrawal struct {
-	Currency            string `json:"ccy"`
-	MaximumWithdrawal   string `json:"maxWd"`   // Max withdrawal (not allowing borrowed crypto transfer out under Multi-currency margin)
-	MaximumWithdrawalEx string `json:"maxWdEx"` // Max withdrawal (allowing borrowed crypto transfer out under Multi-currency margin)
+	Currency                string       `json:"ccy"`
+	MaximumWithdrawal       types.Number `json:"maxWd"`   // Max withdrawal (not allowing borrowed crypto transfer out under Multi-currency margin)
+	MaximumWithdrawalEx     types.Number `json:"maxWdEx"` // Max withdrawal (allowing borrowed crypto transfer out under Multi-currency margin)
+	SpotOffsetMaxWithdrawal types.Number `json:"spotOffsetMaxWd"`
+	SpotOffsetMaxWdEx       types.Number `json:"spotOffsetMaxWdEx"`
 }
 
 // AccountRiskState represents account risk state.
 type AccountRiskState struct {
-	IsTheAccountAtRisk bool          `json:"atRisk"`
+	IsTheAccountAtRisk string        `json:"atRisk"`
 	AtRiskIdx          []interface{} `json:"atRiskIdx"` // derivatives risk unit list
 	AtRiskMgn          []interface{} `json:"atRiskMgn"` // margin risk unit list
 	Timestamp          types.Time    `json:"ts"`
@@ -2082,21 +2088,59 @@ type BorrowRepayHistory struct {
 
 // BorrowInterestAndLimitResponse represents borrow interest and limit rate for different loan type.
 type BorrowInterestAndLimitResponse struct {
-	Debt             string     `json:"debt"`
-	Interest         string     `json:"interest"`
-	NextDiscountTime types.Time `json:"nextDiscountTime"`
-	NextInterestTime types.Time `json:"nextInterestTime"`
+	Debt             string       `json:"debt"`
+	Interest         string       `json:"interest"`
+	NextDiscountTime types.Time   `json:"nextDiscountTime"`
+	NextInterestTime types.Time   `json:"nextInterestTime"`
+	LoanAllocation   types.Number `json:"loanAlloc"`
 	Records          []struct {
-		AvailLoan  string       `json:"availLoan"`
-		Currency   string       `json:"ccy"`
-		Interest   string       `json:"interest"`
-		LoanQuota  string       `json:"loanQuota"`
-		PosLoan    string       `json:"posLoan"` // Frozen amount for current account Only applicable to VIP loans
-		Rate       types.Number `json:"rate"`
-		SurplusLmt string       `json:"surplusLmt"`
-		UsedLmt    types.Number `json:"usedLmt"`
-		UsedLoan   string       `json:"usedLoan"`
+		AvailLoan           string             `json:"availLoan"`
+		Currency            string             `json:"ccy"`
+		Interest            string             `json:"interest"`
+		LoanQuota           string             `json:"loanQuota"`
+		PosLoan             string             `json:"posLoan"` // Frozen amount for current account Only applicable to VIP loans
+		Rate                types.Number       `json:"rate"`
+		SurplusLimit        string             `json:"surplusLmt"`
+		SurplusLimitDetails SurplusLimitDetail `json:"surplusLmtDetails"`
+		UsedLmt             types.Number       `json:"usedLmt"`
+		UsedLoan            string             `json:"usedLoan"`
 	} `json:"records"`
+}
+
+// SurplusLimitDetail represents details of available amount across all sub-accounts. The value of surplusLmt is the minimum value within this array.
+type SurplusLimitDetail struct {
+	AllAcctRemainingQuota string `json:"allAcctRemainingQuota"`
+	CurAcctRemainingQuota string `json:"curAcctRemainingQuota"`
+	PlatRemainingQuota    string `json:"platRemainingQuota"`
+}
+
+// FixedLoanBorrowLimitInformation represents a fixed loan borrow information.
+type FixedLoanBorrowLimitInformation struct {
+	TotalBorrowLimit     types.Number `json:"totalBorrowLmt"`
+	TotalAvailableBorrow types.Number `json:"totalAvailBorrow"`
+	Borrowed             types.Number `json:"borrowed"`
+	UsedAmount           types.Number `json:"used"`
+	AvailRepay           string       `json:"availRepay"`
+	Details              []struct {
+		Borrowed    types.Number `json:"borrowed"`
+		AvailBorrow types.Number `json:"availBorrow"`
+		Ccy         string       `json:"ccy"`
+		MinBorrow   types.Number `json:"minBorrow"`
+		Used        types.Number `json:"used"`
+		Term        string       `json:"term"`
+	} `json:"details"`
+	Timestamp types.Time `json:"ts"`
+}
+
+// FixedLoanBorrowQuote represents a fixed loan quote details
+type FixedLoanBorrowQuote struct {
+	Currency        string       `json:"ccy"`
+	Term            string       `json:"term"`
+	EstAvailBorrow  types.Number `json:"estAvailBorrow"`
+	EstRate         types.Number `json:"estRate"`
+	EstInterest     types.Number `json:"estInterest"`
+	PenaltyInterest types.Number `json:"penaltyInterest"`
+	Timestamp       types.Time   `json:"ts"`
 }
 
 // PositionItem represents current position of the user.
@@ -4849,4 +4893,142 @@ type AccountInstrument struct {
 	TickSize       types.Number `json:"tickSz"`
 	Underlying     string       `json:"uly"`
 	RuleType       string       `json:"ruleType"`
+}
+
+// ReduceLiabilities represents a response after reducing liabilities
+type ReduceLiabilities struct {
+	OrderID      string `json:"ordId"`
+	PendingRepay bool   `json:"pendingRepay"`
+}
+
+// FixedLoanBorrowOrderDetail represents a borrow order detail
+type FixedLoanBorrowOrderDetail struct {
+	OrderID                   string       `json:"ordId"`
+	AccruedInterest           string       `json:"accruedInterest"`
+	ActualBorrowAmount        types.Number `json:"actualBorrowAmt"`
+	CreateTime                types.Time   `json:"cTime"`
+	Currency                  string       `json:"ccy"`
+	CurRate                   types.Number `json:"curRate"`
+	DeadlinePenaltyInterest   types.Number `json:"deadlinePenaltyInterest"`
+	EarlyRepayPenaltyInterest types.Number `json:"earlyRepayPenaltyInterest"`
+	ExpiryTime                types.Time   `json:"expiryTime"`
+	FailedReason              string       `json:"failedReason"`
+	ForceRepayTime            types.Time   `json:"forceRepayTime"`
+	OverduePenaltyInterest    types.Number `json:"overduePenaltyInterest"`
+	PotentialPenaltyInterest  types.Number `json:"potentialPenaltyInterest"`
+	Reborrow                  bool         `json:"reborrow"`
+	ReborrowRate              types.Number `json:"reborrowRate"`
+	ReqBorrowAmount           types.Number `json:"reqBorrowAmt"`
+	SettleReason              string       `json:"settleReason"`
+	State                     string       `json:"state"`
+	Term                      string       `json:"term"`
+	UpdateTime                types.Time   `json:"uTime"`
+}
+
+// BorrowOrRepay represents a borrow and repay operation response
+type BorrowOrRepay struct {
+	Currency string       `json:"ccy"`
+	Side     string       `json:"side"`
+	Amount   types.Number `json:"amt"`
+}
+
+// AutoRepay represents an auto-repay request and response.
+type AutoRepay struct {
+	AutoRepay bool `json:"autoRepay"`
+}
+
+// BorrowRepayItem represents a borrow/repay history
+type BorrowRepayItem struct {
+	AccBorrowed string       `json:"accBorrowed"`
+	Amount      types.Number `json:"amt"`
+	Currency    string       `json:"ccy"`
+	Timestamp   types.Time   `json:"ts"`
+	EventType   string       `json:"type"`
+}
+
+// PositionBuilderParam represents a position builder parameters
+type PositionBuilderParam struct {
+	InclRealPosAndEq bool                `json:"inclRealPosAndEq"`
+	SimPos           []SimulatedPosition `json:"simPos"`
+	SimAsset         []SimulatedAsset    `json:"simAsset"`
+	SpotOffsetType   string              `json:"spotOffsetType"`
+	GreeksType       string              `json:"greeksType"`
+}
+
+// SimulatedPosition represents a simulated position detail of a new position builder
+type SimulatedPosition struct {
+	Position     string `json:"pos"`
+	InstrumentID string `json:"instId"`
+}
+
+// SimulatedAsset represents a simulated asset detail
+type SimulatedAsset struct {
+	Currency string       `json:"ccy"`
+	Amount   types.Number `json:"amt"`
+}
+
+// PositionBuilderDetail represents details of portfolio margin information for virtual position/assets or current position of the user.
+type PositionBuilderDetail struct {
+	Assets []struct {
+		AvailEq   types.Number `json:"availEq"`
+		BorrowIMR types.Number `json:"borrowImr"`
+		BorrowMMR types.Number `json:"borrowMmr"`
+		Currency  string       `json:"ccy"`
+		SpotInUse string       `json:"spotInUse"`
+	} `json:"assets"`
+	BorrowMMR    string       `json:"borrowMmr"`
+	DerivMMR     string       `json:"derivMmr"`
+	Equity       string       `json:"eq"`
+	MarginRatio  types.Number `json:"marginRatio"`
+	RiskUnitData []struct {
+		Delta          string `json:"delta"`
+		Gamma          string `json:"gamma"`
+		IMR            string `json:"imr"`
+		IndexUsd       string `json:"indexUsd"`
+		Mmr            string `json:"mmr"`
+		Mr1            string `json:"mr1"`
+		Mr1FinalResult struct {
+			PNL       types.Number `json:"pnl"`
+			SpotShock string       `json:"spotShock"`
+			VolShock  string       `json:"volShock"`
+		} `json:"mr1FinalResult"`
+		Mr1Scenarios struct {
+			VolSame      map[string]string `json:"volSame"`
+			VolShockDown map[string]string `json:"volShockDown"`
+			VolShockUp   map[string]string `json:"volShockUp"`
+		} `json:"mr1Scenarios"`
+		Mr2            string `json:"mr2"`
+		Mr3            string `json:"mr3"`
+		Mr4            string `json:"mr4"`
+		Mr5            string `json:"mr5"`
+		Mr6            string `json:"mr6"`
+		Mr6FinalResult struct {
+			PNL       types.Number `json:"pnl"`
+			SpotShock string       `json:"spotShock"`
+		} `json:"mr6FinalResult"`
+		Mr7        string `json:"mr7"`
+		Portfolios []struct {
+			Amount         types.Number `json:"amt"`
+			Delta          types.Number `json:"delta"`
+			Gamma          types.Number `json:"gamma"`
+			InstrumentID   string       `json:"instId"`
+			InstrumentType string       `json:"instType"`
+			IsRealPos      bool         `json:"isRealPos"`
+			NotionalUsd    string       `json:"notionalUsd"`
+			Theta          string       `json:"theta"`
+			Vega           string       `json:"vega"`
+		} `json:"portfolios"`
+		RiskUnit string `json:"riskUnit"`
+		Theta    string `json:"theta"`
+		Vega     string `json:"vega"`
+	} `json:"riskUnitData"`
+	TotalImr  types.Number `json:"totalImr"`
+	TotalMmr  types.Number `json:"totalMmr"`
+	Timestamp types.Time   `json:"ts"`
+}
+
+// RiskOffsetAmount represents risk offset amount
+type RiskOffsetAmount struct {
+	Currency              string       `json:"ccy"`
+	ClientSpotInUseAmount types.Number `json:"clSpotInUseAmt"`
 }

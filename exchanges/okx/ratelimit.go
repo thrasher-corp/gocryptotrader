@@ -129,6 +129,20 @@ const (
 	getVIPLoanOrderListEPL
 	getVIPLoanOrderDetailEPL
 	getBorrowInterestAndLimitEPL
+	getFixedLoanBorrowLimitEPL
+	getFixedLoanBorrowQuoteEPL
+	placeFixedLoanBorrowingOrderEPL
+	amendFixedLaonBorrowingOrderEPL
+	manualRenewFixedLoanBorrowingOrderEPL
+	repayFixedLoanBorrowingOrderEPL
+	convertFixedLoanToMarketLoanEPL
+	reduceLiabilitiesForFixedLoanEPL
+	getFixedLoanBorrowOrderListEPL
+	manualBorrowOrRepayEPL
+	setAutoRepayEPL
+	getBorrowRepayHistoryEPL
+	newPositionBuilderEPL
+	setRiskOffsetAmountEPL
 	positionBuilderEPL
 	getGreeksEPL
 	getPMLimitationEPL
@@ -383,46 +397,60 @@ func GetRateLimit() request.RateLimitDefinitions {
 		convertTradeEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
 		getConvertHistoryEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		// Account
-		getAccountBalanceEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPositionsEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPositionsHistoryEPL:               request.NewRateLimitWithWeight(tenSecondsInterval, 1, 1),
-		getAccountAndPositionRiskEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getBillsDetailsEPL:                   request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
-		getBillsDetailArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		billHistoryArchiveEPL:                request.NewRateLimitWithWeight(time.Hour*24, 12, 1),
-		getBillHistoryArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getAccountConfigurationEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setPositionModeEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setLeverageEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getMaximumBuyOrSellAmountEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getMaximumAvailableTradableAmountEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		increaseOrDecreaseMarginEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getLeverageEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getLeverateEstimatedInfoEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getTheMaximumLoanOfInstrumentEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getFeeRatesEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getInterestAccruedDataEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getInterestRateEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setGreeksEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		isolatedMarginTradingSettingsEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getMaximumWithdrawalsEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAccountRiskStateEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		manualBorrowAndRepayEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getBorrowAndRepayHistoryEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		vipLoansBorrowAnsRepayEPL:            request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		getBorrowAnsRepayHistoryHistoryEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPInterestAccruedDataEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPInterestDeductedDataEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPLoanOrderListEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPLoanOrderDetailEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getBorrowInterestAndLimitEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		positionBuilderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getGreeksEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPMLimitationEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		setRiskOffsetLimiterEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		activateOptionEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setAutoLoanEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setAccountLevelEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getAccountBalanceEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPositionsEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPositionsHistoryEPL:                request.NewRateLimitWithWeight(tenSecondsInterval, 1, 1),
+		getAccountAndPositionRiskEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getBillsDetailsEPL:                    request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
+		getBillsDetailArchiveEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		billHistoryArchiveEPL:                 request.NewRateLimitWithWeight(time.Hour*24, 12, 1),
+		getBillHistoryArchiveEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getAccountConfigurationEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setPositionModeEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setLeverageEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMaximumBuyOrSellAmountEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMaximumAvailableTradableAmountEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		increaseOrDecreaseMarginEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getLeverageEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getLeverateEstimatedInfoEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getTheMaximumLoanOfInstrumentEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getFeeRatesEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getInterestAccruedDataEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getInterestRateEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setGreeksEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		isolatedMarginTradingSettingsEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getMaximumWithdrawalsEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAccountRiskStateEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		manualBorrowAndRepayEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getBorrowAndRepayHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		vipLoansBorrowAnsRepayEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getBorrowAnsRepayHistoryHistoryEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getVIPInterestAccruedDataEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getVIPInterestDeductedDataEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getVIPLoanOrderListEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getVIPLoanOrderDetailEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getBorrowInterestAndLimitEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFixedLoanBorrowLimitEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFixedLoanBorrowQuoteEPL:            request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		placeFixedLoanBorrowingOrderEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		amendFixedLaonBorrowingOrderEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		manualRenewFixedLoanBorrowingOrderEPL: request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		repayFixedLoanBorrowingOrderEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		convertFixedLoanToMarketLoanEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		reduceLiabilitiesForFixedLoanEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		getFixedLoanBorrowOrderListEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		manualBorrowOrRepayEPL:                request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		setAutoRepayEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getBorrowRepayHistoryEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		newPositionBuilderEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		setRiskOffsetAmountEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		positionBuilderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getGreeksEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPMLimitationEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		setRiskOffsetLimiterEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		activateOptionEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setAutoLoanEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setAccountLevelEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Sub Account Endpoints
 
