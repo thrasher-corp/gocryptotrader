@@ -973,6 +973,7 @@ type TransactionDetailRequestParams struct {
 	InstrumentID   string    `json:"instId"`
 	OrderID        string    `json:"ordId"`
 	OrderType      string    `json:"orderType"`
+	SubType        string    `json:"subType,omitempty"`
 	After          string    `json:"after"`  // after billid
 	Before         string    `json:"before"` // before billid
 	Begin          time.Time `json:"begin"`
@@ -995,21 +996,30 @@ type ArchiveReference struct {
 
 // TransactionDetail holds ecently-filled transaction detail data.
 type TransactionDetail struct {
-	InstrumentType string       `json:"instType"`
-	InstrumentID   string       `json:"instId"`
-	TradeID        string       `json:"tradeId"`
-	OrderID        string       `json:"ordId"`
-	ClientOrderID  string       `json:"clOrdId"`
-	BillID         string       `json:"billId"`
-	Tag            string       `json:"tag"`
-	FillPrice      types.Number `json:"fillPx"`
-	FillSize       types.Number `json:"fillSz"`
-	Side           order.Side   `json:"side"`
-	PositionSide   string       `json:"posSide"`
-	ExecType       string       `json:"execType"`
-	FeeCurrency    string       `json:"feeCcy"`
-	Fee            types.Number `json:"fee"`
-	Timestamp      types.Time   `json:"ts"`
+	InstrumentType           string       `json:"instType"`
+	InstrumentID             string       `json:"instId"`
+	TradeID                  string       `json:"tradeId"`
+	OrderID                  string       `json:"ordId"`
+	ClientOrderID            string       `json:"clOrdId"`
+	TransactionType          string       `json:"subType"`
+	BillID                   string       `json:"billId"`
+	Tag                      string       `json:"tag"`
+	FillPrice                types.Number `json:"fillPx"`
+	FillSize                 types.Number `json:"fillSz"`
+	FillIndexPrice           types.Number `json:"fillIdxPx"`
+	FillProfitAndLoss        types.Number `json:"fillPnl"`
+	FillPriceVolatility      types.Number `json:"fillPxVol"`
+	FillPriceUSD             types.Number `json:"fillPxUsd"`
+	MarkVolatilityWhenFilled string       `json:"fillMarkVol"`
+	ForwardPriceWhenFilled   string       `json:"fillFwdPx"`
+	MarkPriceWhenFilled      string       `json:"fillMarkPx"`
+	Side                     order.Side   `json:"side"`
+	PositionSide             string       `json:"posSide"`
+	ExecType                 string       `json:"execType"`
+	FeeCurrency              string       `json:"feeCcy"`
+	Fee                      types.Number `json:"fee"`
+	FillTime                 types.Time   `json:"fillTime"`
+	Timestamp                types.Time   `json:"ts"`
 }
 
 // AlgoOrderParams holds algo order information.
@@ -3621,9 +3631,10 @@ type PublicBlockTrades struct {
 
 // PMLimitationResponse represents portfolio margin mode limitation for specific underlying
 type PMLimitationResponse struct {
-	MaximumSize  types.Number `json:"maxSz"`
-	PositionType string       `json:"postType"`
-	Underlying   string       `json:"uly"`
+	MaximumSize      types.Number `json:"maxSz"`
+	PositionType     string       `json:"postType"`
+	Underlying       string       `json:"uly"`
+	InstrumentFamily string       `json:"instFamily"`
 }
 
 // RiskOffsetType represents risk offset type value
@@ -3657,6 +3668,7 @@ type EasyConvertFromData struct {
 type PlaceEasyConvertParam struct {
 	FromCurrency []string `json:"fromCcy"`
 	ToCurrency   string   `json:"toCcy"`
+	Source       string   `json:"source,omitempty"`
 }
 
 // EasyConvertItem represents easy convert place order response.
@@ -3667,6 +3679,7 @@ type EasyConvertItem struct {
 	Status       string       `json:"status"`
 	ToCurrency   string       `json:"toCcy"`
 	UpdateTime   types.Time   `json:"uTime"`
+	Account      string       `json:"acct"`
 }
 
 // TradeOneClickRepayParam represents click one repay param
@@ -3680,6 +3693,7 @@ type CurrencyOneClickRepay struct {
 	DebtCurrency  string       `json:"debtCcy"`
 	FillFromSize  types.Number `json:"fillFromSz"`
 	FillRepaySize types.Number `json:"fillRepaySz"`
+	FillDebtSize  types.Number `json:"fillDebtSz"`
 	FillToSize    types.Number `json:"fillToSz"`
 	RepayCurrency string       `json:"repayCcy"`
 	Status        string       `json:"status"`
@@ -3694,7 +3708,8 @@ type CancelMMPResponse struct {
 // CancelMMPAfterCountdownResponse returns list of
 type CancelMMPAfterCountdownResponse struct {
 	TriggerTime types.Time `json:"triggerTime"` // The time the cancellation is triggered. triggerTime=0 means Cancel All After is disabled.
-	Timestamp   types.Time `json:"ts"`          // The time the request is sent.
+	Tag         string     `json:"tag"`
+	Timestamp   types.Time `json:"ts"` // The time the request is sent.
 }
 
 // SetQuoteProductParam represents set quote product request param
@@ -5031,4 +5046,64 @@ type PositionBuilderDetail struct {
 type RiskOffsetAmount struct {
 	Currency              string       `json:"ccy"`
 	ClientSpotInUseAmount types.Number `json:"clSpotInUseAmt"`
+}
+
+// AccountRateLimit represents an account rate limit details.
+type AccountRateLimit struct {
+	AccRateLimit     types.Number `json:"accRateLimit"`
+	FillRatio        types.Number `json:"fillRatio"`
+	MainFillRatio    types.Number `json:"mainFillRatio"`
+	NextAccRateLimit types.Number `json:"nextAccRateLimit"`
+	Timestamp        types.Time   `json:"ts"`
+}
+
+// OrderPreCheckParams represents an order pre-check parameters
+type OrderPreCheckParams struct {
+	InstrumentID     string          `json:"instId"`
+	TradeMode        string          `json:"tdMode"`
+	ClientOrderID    string          `json:"clOrdId"`
+	Side             string          `json:"side"`
+	PositionSide     string          `json:"posSide"`
+	OrderType        string          `json:"ordType"`
+	Size             float64         `json:"sz,omitempty"`
+	Price            float64         `json:"px,omitempty"`
+	ReduceOnly       bool            `json:"reduceOnly,omitempty"`
+	TargetCurrency   string          `json:"tgtCcy,omitempty"`
+	AttachAlgoOrders []AlgoOrderInfo `json:"attachAlgoOrds,omitempty"`
+}
+
+// AlgoOrderInfo represents an algo order info
+type AlgoOrderInfo struct {
+	AttachAlgoClientOrdID    string       `json:"attachAlgoClOrdId,omitempty"`
+	TPTriggerPrice           types.Number `json:"tpTriggerPx,omitempty"`
+	TPOrderPrice             types.Number `json:"tpOrdPx,omitempty"`
+	TPOrderKind              string       `json:"tpOrdKind,omitempty"`
+	StopLossTriggerPrice     types.Number `json:"slTriggerPx,omitempty"`
+	StopLossOrderPrice       types.Number `json:"slOrdPx,omitempty"`
+	TPTriggerPriceType       string       `json:"tpTriggerPxType,omitempty"`
+	StopLossTriggerPriceType string       `json:"slTriggerPxType,omitempty"`
+	Size                     types.Number `json:"sz,omitempty"`
+}
+
+// OrderPreCheckResponse represents an order pre-checks response of account information for placing orders
+type OrderPreCheckResponse struct {
+	AdjEq          types.Number `json:"adjEq"`
+	AdjEqChg       types.Number `json:"adjEqChg"`
+	AvailBal       types.Number `json:"availBal"`
+	AvailBalChg    types.Number `json:"availBalChg"`
+	Imr            types.Number `json:"imr"`
+	ImrChg         types.Number `json:"imrChg"`
+	Liab           types.Number `json:"liab"`
+	LiabChg        types.Number `json:"liabChg"`
+	LiabChgCcy     string       `json:"liabChgCcy"`
+	LiqPrice       types.Number `json:"liqPx"`
+	LiqPxDiff      string       `json:"liqPxDiff"`
+	LiqPxDiffRatio types.Number `json:"liqPxDiffRatio"`
+	MgnRatio       types.Number `json:"mgnRatio"`
+	MgnRatioChg    types.Number `json:"mgnRatioChg"`
+	Mmr            types.Number `json:"mmr"`
+	MmrChg         types.Number `json:"mmrChg"`
+	PosBal         types.Number `json:"posBal"`
+	PosBalChg      types.Number `json:"posBalChg"`
+	Type           string       `json:"type"`
 }

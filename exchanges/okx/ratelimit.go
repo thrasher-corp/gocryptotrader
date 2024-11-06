@@ -32,6 +32,8 @@ const (
 	setTransactionDetail2YearIntervalEPL
 	getTransactionDetailLast2YearsEPL
 	cancelAllAfterCountdownEPL
+	getTradeAccountRateLimitEPL
+	orderPreCheckEPL
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
 	amendAlgoOrderEPL
@@ -326,6 +328,8 @@ func GetRateLimit() request.RateLimitDefinitions {
 		setTransactionDetail2YearIntervalEPL: request.NewRateLimitWithWeight(time.Hour*24, 5, 1),
 		getTransactionDetailLast2YearsEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		cancelAllAfterCountdownEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getTradeAccountRateLimitEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		orderPreCheckEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		placeAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		cancelAlgoOrderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		amendAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),

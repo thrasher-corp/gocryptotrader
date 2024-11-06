@@ -692,10 +692,14 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 }
 
 // GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10.
-func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context) (*EasyConvertDetail, error) {
+func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context, source string) (*EasyConvertDetail, error) {
+	params := url.Values{}
+	if source != "" {
+		params.Set("source", source)
+	}
 	var resp *EasyConvertDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertCurrencyListEPL, http.MethodGet,
-		"trade/easy-convert-currency-list", nil, &resp, request.AuthenticatedRequest)
+		common.EncodeURLValues("trade/easy-convert-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10.
@@ -723,7 +727,8 @@ func (ok *Okx) GetEasyConvertHistory(ctx context.Context, after, before time.Tim
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EasyConvertItem
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertHistoryEPL, http.MethodGet, "trade/easy-convert-history", nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertHistoryEPL, http.MethodGet,
+		common.EncodeURLValues("trade/easy-convert-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetOneClickRepayCurrencyList retrieves list of debt currency data and repay currencies. Debt currencies include both cross and isolated debts.
@@ -734,7 +739,8 @@ func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string
 		params.Set("debtType", debtType)
 	}
 	var resp []CurrencyOneClickRepay
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, oneClickRepayCurrencyListEPL, http.MethodGet, common.EncodeURLValues("trade/one-click-repay-currency-list", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, oneClickRepayCurrencyListEPL, http.MethodGet,
+		common.EncodeURLValues("trade/one-click-repay-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // TradeOneClickRepay trade one-click repay to repay cross debts. Isolated debts are not applicable. The maximum repayment amount is based on the remaining available balance of funding and trading accounts.
@@ -767,19 +773,24 @@ func (ok *Okx) GetOneClickRepayHistory(ctx context.Context, after, before time.T
 
 // MassCancelOrder cancel all the MMP pending orders of an instrument family.
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFamily string) (*CancelMMPResponse, error) {
+func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFamily string, lockInterval int64) (*CancelMMPResponse, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
 	if instrumentFamily == "" {
 		return nil, errInstrumentFamilyRequired
 	}
+	if lockInterval < 0 || lockInterval > 10000 {
+		return nil, fmt.Errorf("%w, lockInterval value range should be [0, 10 000]", errMissingIntervalValue)
+	}
 	arg := &struct {
 		InstrumentType   string `json:"instType,omitempty"`
 		InstrumentFamily string `json:"instFamily,omitempty"`
+		LockInterval     int64  `json:"lockInterval,omitempty"`
 	}{
 		InstrumentType:   instrumentType,
 		InstrumentFamily: instrumentFamily,
+		LockInterval:     lockInterval,
 	}
 	var resp *CancelMMPResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, "trade/mass-cancel", arg, &resp, request.AuthenticatedRequest)
@@ -800,6 +811,38 @@ func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int
 	}
 	var resp *CancelMMPAfterCountdownResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodPost, "trade/cancel-all-after", arg, &resp, request.AuthenticatedRequest)
+}
+
+// GetTradeAccountRateLimit get account rate limit related information.
+// Only new order requests and amendment order requests will be counted towards this limit. For batch order requests consisting of multiple orders, each order will be counted individually.
+func (ok *Okx) GetTradeAccountRateLimit(ctx context.Context) (*AccountRateLimit, error) {
+	var resp *AccountRateLimit
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradeAccountRateLimitEPL, http.MethodGet, "trade/account-rate-limit", nil, &resp, request.AuthenticatedRequest)
+}
+
+// OrderPreCheck precheck the account information before and after placing the order.
+// Only applicable to Multi-currency margin mode, and Portfolio margin mode.
+func (ok *Okx) OrderPreCheck(ctx context.Context, arg *OrderPreCheckParams) (*OrderPreCheckResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if arg.TradeMode == "" {
+		return nil, errInvalidTradeModeValue
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.Size <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp *OrderPreCheckResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, orderPreCheckEPL, http.MethodPost, "trade/order-precheck", arg, &resp, request.AuthenticatedRequest)
 }
 
 /*************************************** Block trading ********************************/
@@ -2571,16 +2614,21 @@ func (ok *Okx) GetGreeks(ctx context.Context, ccy currency.Code) ([]GreeksItem, 
 }
 
 // GetPMPositionLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode.
-func (ok *Okx) GetPMPositionLimitation(ctx context.Context, instrumentType, underlying string) ([]PMLimitationResponse, error) {
+func (ok *Okx) GetPMPositionLimitation(ctx context.Context, instrumentType, underlying, instrumentFamily string) ([]PMLimitationResponse, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if underlying == "" {
-		return nil, errInvalidUnderlying
+	if underlying == "" && instrumentFamily == "" {
+		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
-	params.Set("uly", underlying)
+	if underlying != "" {
+		params.Set("uly", underlying)
+	}
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
+	}
 	var resp []PMLimitationResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues("account/position-tiers", params), nil, &resp, request.AuthenticatedRequest)
 }
@@ -2599,11 +2647,11 @@ func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*R
 }
 
 // ActivateOption activates option
-func (ok *Okx) ActivateOption(ctx context.Context) (time.Time, error) {
+func (ok *Okx) ActivateOption(ctx context.Context) (types.Time, error) {
 	resp := &struct {
 		Timestamp types.Time `json:"ts"`
 	}{}
-	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, request.AuthenticatedRequest)
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetAutoLoan only applicable to Multi-currency margin and Portfolio margin
@@ -2656,11 +2704,12 @@ func (ok *Okx) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, error) {
 // GetMMPConfig retrieves MMP configure information
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
 func (ok *Okx) GetMMPConfig(ctx context.Context, instrumentFamily string) ([]MMPConfigDetail, error) {
-	if instrumentFamily == "" {
-		return nil, errInstrumentFamilyRequired
+	params := url.Values{}
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
 	}
 	var resp []MMPConfigDetail
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMMPConfigEPL, http.MethodGet, "account/mmp-config?instFamily="+instrumentFamily, nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMMPConfigEPL, http.MethodGet, common.EncodeURLValues("account/mmp-config", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 /********************************** Subaccount Endpoints ***************************************************/

@@ -36,9 +36,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "703985fb-0bd8-4ca1-bf36-41924e377bcc"
-	apiSecret               = "D6988765C8E5CDEC3DC00CDBBE765643"
-	passphrase              = "0631Okx!"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -1015,7 +1015,7 @@ func TestGetAlgoOrderHistory(t *testing.T) {
 func TestGetEasyConvertCurrencyList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetEasyConvertCurrencyList(contextGenerate())
+	result, err := ok.GetEasyConvertCurrencyList(contextGenerate(), "1")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2038,7 +2038,7 @@ func TestGetGreeks(t *testing.T) {
 func TestGetPMLimitation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetPMPositionLimitation(contextGenerate(), "SWAP", "BTC-USDT")
+	result, err := ok.GetPMPositionLimitation(contextGenerate(), "SWAP", "BTC-USDT", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4017,8 +4017,15 @@ func TestGetMMPConfig(t *testing.T) {
 
 func TestMassCancelOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.MassCancelOrder(context.Background(), "", "BTC-USD", 2000)
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+	_, err = ok.MassCancelOrder(context.Background(), "OPTION", "", 2000)
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+	_, err = ok.MassCancelOrder(context.Background(), "OPTION", "BTC-USD", -1)
+	require.ErrorIs(t, err, errMissingIntervalValue)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.MassCancelOrder(context.Background(), "OPTION", "BTC-USD")
+	result, err := ok.MassCancelOrder(context.Background(), "OPTION", "BTC-USD", 2000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4030,6 +4037,54 @@ func TestCancelAllMMPOrdersAfterCountdown(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelAllMMPOrdersAfterCountdown(context.Background(), 60, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTradeAccountRateLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetTradeAccountRateLimit(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestOrderPreCheck(t *testing.T) {
+	t.Parallel()
+	_, err := ok.OrderPreCheck(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	arg := &OrderPreCheckParams{
+		ClientOrderID: "b15",
+	}
+	_, err = ok.OrderPreCheck(context.Background(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.InstrumentID = "BTC-USDT"
+	_, err = ok.OrderPreCheck(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidTradeModeValue)
+
+	arg.TradeMode = "cash"
+	_, err = ok.OrderPreCheck(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = "buy"
+	_, err = ok.OrderPreCheck(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = "limit"
+	_, err = ok.OrderPreCheck(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.OrderPreCheck(context.Background(), &OrderPreCheckParams{
+		InstrumentID:  "BTC-USDT",
+		TradeMode:     "cash",
+		ClientOrderID: "b15",
+		Side:          "buy",
+		OrderType:     "limit",
+		Price:         2.15,
+		Size:          2,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
