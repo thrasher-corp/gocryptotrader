@@ -3006,6 +3006,8 @@ func TestUnlockSubAccount(t *testing.T) {
 
 func TestGetSettlementFromCurrency(t *testing.T) {
 	t.Parallel()
+	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
 		availPairs, err := g.GetAvailablePairs(assetType)
 		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
