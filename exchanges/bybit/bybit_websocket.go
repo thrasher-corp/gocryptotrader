@@ -3,14 +3,15 @@ package bybit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -54,7 +55,30 @@ const (
 
 	// Main-net private
 	websocketPrivate = "wss://stream.bybit.com/v5/private"
+
+	privateConnection = "private"
 )
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 50},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneHour},
+	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
+	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
+	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyTradesChannel},
+	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanPositions},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    chanPublicTicker,
+	subscription.OrderbookChannel: chanOrderbook,
+	subscription.AllTradesChannel: chanPublicTrade,
+	// subscription.MyOrdersChannel:  chanOrder,
+	// subscription.MyTradesChannel:  chanExecution,
+	// subscription.MyWalletChannel:  chanWallet,
+	subscription.CandlesChannel: chanKline,
+}
 
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect(ctx context.Context, conn stream.Connection) error {
@@ -102,98 +126,53 @@ func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn strea
 
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(ctx context.Context, conn stream.Connection, channelsToSubscribe subscription.List) error {
-	return by.handleSubscription(ctx, conn, asset.Spot, "subscribe", channelsToSubscribe)
+	return by.handleSpotSubscription(ctx, conn, "subscribe", channelsToSubscribe)
 }
 
-func (by *Bybit) handleSubscriptions(conn stream.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
-	var args []SubscriptionArgument
-	arg := SubscriptionArgument{
-		Operation: operation,
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
-		Arguments: []string{},
-	}
-	authArg := SubscriptionArgument{
-		auth:      true,
-		Operation: operation,
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
-		Arguments: []string{},
-	}
-
-	var selectedChannels, positions, execution, order, wallet, greeks, dCP = 0, 1, 2, 3, 4, 5, 6
-	chanMap := map[string]int{
-		chanPositions: positions,
-		chanExecution: execution,
-		chanOrder:     order,
-		chanWallet:    wallet,
-		chanGreeks:    greeks,
-		chanDCP:       dCP}
-
-	pairFormat, err := by.GetPairFormat(assetType, true)
+func (by *Bybit) handleSubscriptions(conn stream.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
+	subs, err = subs.ExpandTemplates(by)
 	if err != nil {
-		return nil, err
+		fmt.Println("expandy silly", conn.GetURL())
+		return
 	}
-	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) != 1 {
-			return nil, subscription.ErrNotSinglePair
-		}
-		pair := channelsToSubscribe[i].Pairs[0]
-		switch channelsToSubscribe[i].Channel {
-		case chanOrderbook:
-			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, pair.Format(pairFormat).String()))
-		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+pair.Format(pairFormat).String())
-		case chanKline, chanLeverageTokenKline:
-			interval, err := intervalToString(kline.FiveMin)
-			if err != nil {
-				return nil, err
-			}
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+pair.Format(pairFormat).String())
-		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
-			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
-				continue
-			}
-			authArg.Arguments = append(authArg.Arguments, channelsToSubscribe[i].Channel)
-			// adding the channel to selected channels so that we will not visit it again.
-			selectedChannels |= chanMap[channelsToSubscribe[i].Channel]
-		}
-		if len(arg.Arguments) >= 10 {
-			args = append(args, arg)
-			arg = SubscriptionArgument{
-				Operation: operation,
-				RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
-				Arguments: []string{},
-			}
+	chans := []string{}
+	authChans := []string{}
+	for _, s := range subs {
+		if s.Authenticated {
+			authChans = append(authChans, s.QualifiedChannel)
+		} else {
+			chans = append(chans, s.QualifiedChannel)
 		}
 	}
-	if len(arg.Arguments) != 0 {
-		args = append(args, arg)
+	for _, b := range common.Batch(chans, 10) {
+		args = append(args, SubscriptionArgument{
+			Operation: operation,
+			RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			Arguments: b,
+		})
 	}
-	if len(authArg.Arguments) != 0 {
-		args = append(args, authArg)
+	if len(authChans) != 0 {
+		args = append(args, SubscriptionArgument{
+			auth:      true,
+			Operation: operation,
+			RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			Arguments: authChans,
+		})
 	}
-	return args, nil
+	return
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) Unsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
-	return by.handleSubscription(ctx, conn, asset.Spot, "unsubscribe", channelsToUnsubscribe)
+	return by.handleSpotSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSubscription(ctx context.Context, conn stream.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := by.handleSubscriptions(conn, a, operation, channelsToSubscribe)
+func (by *Bybit) handleSpotSubscription(ctx context.Context, conn stream.Connection, operation string, channelsToSubscribe subscription.List) error {
+	payloads, err := by.handleSubscriptions(conn, operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	for _, payload := range payloads {
-		if a == asset.Options {
-			// The options connection does not send the subscription request id back with the subscription notification payload
-			// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-			err = conn.SendJSONMessage(ctx, request.Unset, payload)
-			if err != nil {
-				return err
-			}
-			continue
-		}
 		var response []byte
 		response, err = conn.SendMessageReturnResponse(ctx, request.Unset, payload.RequestID, payload)
 		if err != nil {
@@ -211,44 +190,18 @@ func (by *Bybit) handleSubscription(ctx context.Context, conn stream.Connection,
 	return nil
 }
 
-// GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions(auth bool) (subscription.List, error) {
-	pairs, err := by.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		if errors.Is(err, asset.ErrNotEnabled) {
-			return nil, nil
-		}
-		return nil, err
-	}
+// generateSubscriptions generates default subscription
+func (by *Bybit) generateSubscriptions() (subscription.List, error) {
+	return by.Features.Subscriptions.ExpandTemplates(by)
+}
 
-	var channels []string
-	if !auth {
-		channels = []string{chanPublicTicker, chanOrderbook, chanPublicTrade}
-	}
-	if by.Websocket.CanUseAuthenticatedEndpoints() && auth {
-		channels = append(channels, []string{chanPositions, chanExecution, chanOrder, chanWallet}...)
-	}
-
-	var subscriptions subscription.List
-	for x := range channels {
-		switch channels[x] {
-		case chanPositions, chanExecution, chanOrder, chanDCP, chanWallet:
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[x],
-				Pairs:   currency.Pairs{currency.EMPTYPAIR}, // This is a placeholder, the actual pair is not required for these channels
-				Asset:   asset.Spot,
-			})
-		default:
-			for z := range pairs {
-				subscriptions = append(subscriptions, &subscription.Subscription{
-					Channel: channels[x],
-					Pairs:   currency.Pairs{pairs[z]},
-					Asset:   asset.Spot,
-				})
-			}
-		}
-	}
-	return subscriptions, nil
+// GetSubscriptionTemplate returns a subscription channel template
+func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName":      channelName,
+		"isSymbolChannel":  isSymbolChannel,
+		"intervalToString": intervalToString,
+	}).Parse(subTplText)
 }
 
 func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset.Item) error {
@@ -714,4 +667,171 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 		}
 	}
 	return nil
+}
+
+// channelName converts global channel names to exchange specific names
+func channelName(s *subscription.Subscription) string {
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
+	}
+	return s.Channel
+}
+
+// isSymbolChannel returns whether the channel accepts a symbol parameter
+func isSymbolChannel(name string) bool {
+	switch name {
+	case chanPositions, chanExecution, chanOrder, chanDCP, chanWallet:
+		return false
+	}
+	return true
+}
+
+const subTplText = `
+{{ with $name := channelName $.S }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- if isSymbolChannel $name }}
+			{{- range $p := $pairs }}
+				{{- $name -}} .
+				{{- if eq $name "orderbook" -}} {{- $.S.Levels -}} . {{- end }}
+				{{- if eq $name "kline" -}} {{- intervalToString $.S.Interval -}} . {{- end }}
+				{{- $p }}
+				{{- $.PairSeparator }}
+			{{- end }}
+		{{- else }}
+			{{- $name }}
+		{{- end }}
+	{{- end }}
+	{{- $.AssetSeparator }}
+{{- end }}
+`
+
+// TODO: Remove this function when template expansion is across all assets
+func (by *Bybit) handleSubscriptionNonTemplate(ctx context.Context, conn stream.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
+	payloads, err := by.handleSubscriptionsNonTemplate(conn, a, operation, channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+	for _, payload := range payloads {
+		if a == asset.Options {
+			// The options connection does not send the subscription request id back with the subscription notification payload
+			// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
+			err = conn.SendJSONMessage(ctx, request.Unset, payload)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		var response []byte
+		response, err = conn.SendMessageReturnResponse(ctx, request.Unset, payload.RequestID, payload)
+		if err != nil {
+			return err
+		}
+		var resp SubscriptionResponse
+		err = json.Unmarshal(response, &resp)
+		if err != nil {
+			return err
+		}
+		if !resp.Success {
+			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
+		}
+	}
+	return nil
+}
+
+// TODO: Remove this function when template expansion is across all assets
+func (by *Bybit) handleSubscriptionsNonTemplate(conn stream.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
+	var args []SubscriptionArgument
+	arg := SubscriptionArgument{
+		Operation: operation,
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		Arguments: []string{},
+	}
+	authArg := SubscriptionArgument{
+		auth:      true,
+		Operation: operation,
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		Arguments: []string{},
+	}
+
+	var selectedChannels, positions, execution, order, wallet, greeks, dCP = 0, 1, 2, 3, 4, 5, 6
+	chanMap := map[string]int{
+		chanPositions: positions,
+		chanExecution: execution,
+		chanOrder:     order,
+		chanWallet:    wallet,
+		chanGreeks:    greeks,
+		chanDCP:       dCP}
+
+	pairFormat, err := by.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	for i := range channelsToSubscribe {
+		if len(channelsToSubscribe[i].Pairs) != 1 {
+			return nil, subscription.ErrNotSinglePair
+		}
+		pair := channelsToSubscribe[i].Pairs[0]
+		switch channelsToSubscribe[i].Channel {
+		case chanOrderbook:
+			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, pair.Format(pairFormat).String()))
+		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
+			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+pair.Format(pairFormat).String())
+		case chanKline, chanLeverageTokenKline:
+			interval, err := intervalToString(kline.FiveMin)
+			if err != nil {
+				return nil, err
+			}
+			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+pair.Format(pairFormat).String())
+		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
+			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
+				continue
+			}
+			authArg.Arguments = append(authArg.Arguments, channelsToSubscribe[i].Channel)
+			// adding the channel to selected channels so that we will not visit it again.
+			selectedChannels |= chanMap[channelsToSubscribe[i].Channel]
+		}
+		if len(arg.Arguments) >= 10 {
+			args = append(args, arg)
+			arg = SubscriptionArgument{
+				Operation: operation,
+				RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+				Arguments: []string{},
+			}
+		}
+	}
+	if len(arg.Arguments) != 0 {
+		args = append(args, arg)
+	}
+	if len(authArg.Arguments) != 0 {
+		args = append(args, authArg)
+	}
+	return args, nil
+}
+
+// generateAuthSubscriptions generates default subscription for the dedicated auth websocket connection. These are
+// are agnostic to the asset type and pair as all account level data will be routed through this connection.
+// TODO: Remove this function when template expansion is across all assets
+func (by *Bybit) generateAuthSubscriptions() (subscription.List, error) {
+	if !by.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, nil
+	}
+	var subscriptions subscription.List
+	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: channel,
+			Pairs:   currency.Pairs{currency.EMPTYPAIR}, // This is a placeholder, the actual pair is not required for these channels
+			Asset:   asset.All,
+		})
+	}
+	return subscriptions, nil
+}
+
+// LinearSubscribe sends a subscription message to linear public channels.
+func (by *Bybit) authSubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
+	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
+}
+
+// LinearUnsubscribe sends an unsubscription messages through linear public channels.
+func (by *Bybit) authUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
+	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }

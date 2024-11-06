@@ -66,8 +66,8 @@ type OrderBookData struct {
 
 // TradeData contains trade resp data with action to be taken
 type TradeData struct {
-	Data   []Trade `json:"data"`
-	Action string  `json:"action"`
+	Data   []*Trade `json:"data"`
+	Action string   `json:"action"`
 }
 
 // AnnouncementData contains announcement resp data with action to be taken

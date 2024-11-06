@@ -220,7 +220,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:                      g.Unsubscribe,
 		GenerateSubscriptions:             g.generateSubscriptionsSpot,
 		Connector:                         g.WsConnectSpot,
-		Authenticate:                      g.AuthenticateSpot,
+		Authenticate:                      g.authenticateSpot,
 		WrapperDefinedConnectionSignature: asset.Spot,
 		BespokeGenerateMessageID:          g.GenerateWebsocketMessageID,
 	})
@@ -240,7 +240,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:                      g.FuturesUnsubscribe,
 		GenerateSubscriptions:             func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
 		Connector:                         g.WsFuturesConnect,
-		Authenticate:                      g.AuthenticateFutures,
+		Authenticate:                      g.authenticateFutures,
 		WrapperDefinedConnectionSignature: asset.USDTMarginedFutures,
 		BespokeGenerateMessageID:          g.GenerateWebsocketMessageID,
 	})

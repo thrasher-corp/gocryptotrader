@@ -18,10 +18,10 @@ import (
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketLogin(context.Background(), nil, "")
+	_, err := g.websocketLogin(context.Background(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = g.WebsocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
+	_, err = g.websocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
 	require.ErrorIs(t, err, errChannelEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -32,7 +32,7 @@ func TestWebsocketLogin(t *testing.T) {
 	demonstrationConn, err := g.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 
-	got, err := g.WebsocketLogin(context.Background(), demonstrationConn, "spot.login")
+	got, err := g.websocketLogin(context.Background(), demonstrationConn, "spot.login")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -95,11 +95,11 @@ func TestWebsocketOrderCancelSpot(t *testing.T) {
 
 func TestWebsocketOrderCancelAllByIDsSpot(t *testing.T) {
 	t.Parallel()
-	out := WebsocketOrderCancelRequest{}
-	_, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderCancelRequest{out})
+	out := WebsocketOrderBatchRequest{}
+	_, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	out.OrderID = "1337"
-	_, err = g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderCancelRequest{out})
+	_, err = g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	out.Pair, err = currency.NewPairFromString("BTC_USDT")
@@ -111,7 +111,7 @@ func TestWebsocketOrderCancelAllByIDsSpot(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	out.OrderID = "644913101755"
-	got, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderCancelRequest{out})
+	got, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

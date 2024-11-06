@@ -27,14 +27,14 @@ var (
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
-// AuthenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) AuthenticateSpot(ctx context.Context, conn stream.Connection) error {
-	_, err := g.WebsocketLogin(ctx, conn, "spot.login")
+// authenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
+	_, err := g.websocketLogin(ctx, conn, "spot.login")
 	return err
 }
 
-// WebsocketLogin authenticates the websocket connection
-func (g *Gateio) WebsocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
+// websocketLogin authenticates the websocket connection
+func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}
@@ -135,15 +135,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	params := &struct {
-		OrderID string `json:"order_id"` // This requires order_id tag
-		Pair    string `json:"pair"`
-		Account string `json:"account,omitempty"`
-	}{
-		OrderID: orderID,
-		Pair:    pair.String(),
-		Account: account,
-	}
+	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
 	err := g.SendWebsocketRequest(ctx, "spot.order_cancel", asset.Spot, params, &resp, 1)
@@ -151,7 +143,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 }
 
 // WebsocketOrderCancelAllByIDsSpot cancels multiple orders via the websocket
-func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []WebsocketOrderCancelRequest) ([]WebsocketCancellAllResponse, error) {
+func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []WebsocketOrderBatchRequest) ([]WebsocketCancellAllResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
 	}
@@ -222,15 +214,7 @@ func (g *Gateio) WebsocketGetOrderStatusSpot(ctx context.Context, orderID string
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	params := &struct {
-		OrderID string `json:"order_id"` // This requires order_id tag
-		Pair    string `json:"pair"`
-		Account string `json:"account,omitempty"`
-	}{
-		OrderID: orderID,
-		Pair:    pair.String(),
-		Account: account,
-	}
+	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
 	return &resp, g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
