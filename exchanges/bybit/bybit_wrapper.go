@@ -183,6 +183,7 @@ func (by *Bybit) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	by.API.Endpoints = by.NewEndpoints()
@@ -241,7 +242,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			Connector:             by.WsConnect,
 			Subscriber:            by.Subscribe,
 			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+			GenerateSubscriptions: by.generateSubscriptions,
 			Features:              &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
@@ -679,6 +680,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 				Fee:             withdrawals.Rows[i].WithdrawFee.Float64(),
 				CryptoToAddress: withdrawals.Rows[i].ToAddress,
 				CryptoTxID:      withdrawals.Rows[i].TransactionID,
+				CryptoChain:     withdrawals.Rows[i].Chain,
 				Timestamp:       withdrawals.Rows[i].UpdateTime.Time(),
 			}
 		}
