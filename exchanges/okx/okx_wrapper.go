@@ -354,7 +354,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			return err
 		}
 		if len(insts) == 0 {
-			return errNoInstrumentFound
+			return common.ErrNoResponse
 		}
 		limits := make([]order.MinMaxLevel, len(insts))
 		for x := range insts {
@@ -376,7 +376,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			return err
 		}
 		if len(insts) == 0 {
-			return errNoInstrumentFound
+			return common.ErrNoResponse
 		}
 		limits := make([]order.MinMaxLevel, len(insts))
 		for x := range insts {

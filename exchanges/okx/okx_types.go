@@ -68,90 +68,86 @@ const (
 )
 
 var (
-	errIndexComponentNotFound                = errors.New("unable to fetch index components")
-	errLimitValueExceedsMaxOf100             = errors.New("limit value exceeds the maximum value 100")
-	errMissingInstrumentID                   = errors.New("missing instrument ID")
-	errFundingRateHistoryNotFound            = errors.New("funding rate history not found")
-	errLiquidationOrderResponseNotFound      = errors.New("liquidation order not found")
-	errEitherInstIDOrCcyIsRequired           = errors.New("either parameter instId or ccy is required")
-	errIncorrectRequiredParameterTradeMode   = errors.New("unacceptable required argument, trade mode")
-	errInterestRateAndLoanQuotaNotFound      = errors.New("interest rate and loan quota not found")
-	errInsuranceFundInformationNotFound      = errors.New("insurance fund information not found")
-	errMissingExpiryTimeParameter            = errors.New("missing expiry date parameter")
-	errInvalidTradeModeValue                 = errors.New("invalid trade mode value")
-	errWebsocketStreamNotAuthenticated       = errors.New("websocket stream not authenticated")
-	errInvalidNewSizeOrPriceInformation      = errors.New("invalid the new size or price information")
-	errSizeOrPriceIsRequired                 = errors.New("either size or price is required")
-	errInvalidPriceLimit                     = errors.New("invalid price limit value")
-	errMissingIntervalValue                  = errors.New("missing interval value")
-	errMissingSizeLimit                      = errors.New("missing required parameter 'szLimit'")
-	errMissingEitherAlgoIDOrState            = errors.New("either algo ID or order state is required")
-	errMissingValidWithdrawalID              = errors.New("missing valid withdrawal ID")
-	errInstrumentFamilyRequired              = errors.New("instrument family is required")
-	errCountdownTimeoutRequired              = errors.New("countdown timeout is required")
-	errInstrumentIDorFamilyRequired          = errors.New("either instrumen ID or instrument family is required")
-	errInvalidQuantityLimit                  = errors.New("invalid quantity limit")
-	errInvalidInstrumentType                 = errors.New("invalid instrument type")
-	errMissingValidGreeksType                = errors.New("missing valid greeks type")
-	errMissingIsolatedMarginTradingSetting   = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
-	errInvalidCounterParties                 = errors.New("missing counter parties")
-	errMissingRfqIDAndClientRfqID            = errors.New("missing rfq ID or client rfq ID")
-	errMissingRfqIDOrQuoteID                 = errors.New("either Rfq ID or Quote ID is missing")
-	errMissingRfqID                          = errors.New("error missing rfq ID")
-	errMissingLegs                           = errors.New("missing legs")
-	errMissingSizeOfQuote                    = errors.New("missing size of quote leg")
-	errMissingLegsQuotePrice                 = errors.New("error missing quote price")
-	errMissingQuoteIDOrClientQuoteID         = errors.New("missing quote ID or client quote ID")
-	errMissingEitherQuoteIDAOrClientQuoteIDs = errors.New("missing either quote ids or client quote ids")
-	errInvalidLoanAllocationValue            = errors.New("invalid loan allocation value, must be between 0 to 100")
-	errInvalidSubaccount                     = errors.New("invalid sub-account type")
-	errMissingAlgoOrderType                  = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
-	errInvalidGridQuantity                   = errors.New("invalid grid quantity (grid number)")
-	errMissingRequiredArgumentDirection      = errors.New("missing required argument, direction")
-	errInvalidLeverage                       = errors.New("invalid leverage value")
-	errMissingValidStopType                  = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
-	errMissingSubOrderType                   = errors.New("missing sub order type")
-	errMissingQuantity                       = errors.New("invalid quantity to buy or sell")
-	errAddressRequired                       = errors.New("address is required")
-	errInvalidWebsocketEvent                 = errors.New("invalid websocket event")
-	errMissingValidChannelInformation        = errors.New("missing channel information")
-	errMaxRfqOrdersToCancel                  = errors.New("no more than 100 Rfq cancel order parameter is allowed")
-	errMalformedData                         = errors.New("malformed data")
-	errInvalidUnderlying                     = errors.New("invalid underlying")
-	errInstrumentFamilyOrUnderlyingRequired  = errors.New("either underlying or instrument family is required")
-	errMissingRequiredParameter              = errors.New("missing required parameter")
-	errMissingMakerInstrumentSettings        = errors.New("missing maker instrument settings")
-	errInvalidSubAccountName                 = errors.New("invalid sub-account name")
-	errInvalidAPIKey                         = errors.New("invalid api key")
-	errInvalidMarginTypeAdjust               = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
-	errInvalidAlgoOrderType                  = errors.New("invalid algo order type")
-	errInvalidIPAddress                      = errors.New("invalid ip address")
-	errInvalidAPIKeyPermission               = errors.New("invalid API Key permission")
-	errInvalidResponseParam                  = errors.New("invalid response parameter, response must be non-nil pointer")
-	errTooManyArgument                       = errors.New("too many cancel request params")
-	errInvalidDuration                       = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
-	errInvalidProtocolType                   = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
-	errExceedLimit                           = errors.New("limit exceeded")
-	errOnlyThreeMonthsSupported              = errors.New("only three months of trade data retrieval supported")
-	errOnlyOneResponseExpected               = errors.New("one response item expected")
-	errNoInstrumentFound                     = errors.New("no instrument found")
-	errStrategyNameRequired                  = errors.New("strategy name required")
-	errSubPositionIDRequired                 = errors.New("sub position ID is required")
-	errUserIDRequired                        = errors.New("uid is required")
-	errSubPositionCloseTypeRequired          = errors.New("sub position close type")
-	errUniqueCodeRequired                    = errors.New("unique code is required")
-	errLastDaysRequired                      = errors.New("last days required")
-	errCopyInstrumentIDTypeRequired          = errors.New("copy instrument ID type is required")
-	errInvalidChecksum                       = errors.New("invalid checksum")
-	errInvalidPositionMode                   = errors.New("invalid position mode")
-	errLendingTermIsRequired                 = errors.New("lending term is required")
-	errLendingRateRequired                   = errors.New("lending rate is required")
-	errQuarterValueRequired                  = errors.New("quarter is required")
-	errYearRequired                          = errors.New("year is required")
-	errLengthMismatch                        = errors.New("mismatch in length")
-	errBorrowTypeRequired                    = errors.New("borrow type is required")
-	errMaxRateRequired                       = errors.New("max rate is required")
-	errLendingSideRequired                   = errors.New("lending side is required")
+	errIndexComponentNotFound               = errors.New("unable to fetch index components")
+	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
+	errMissingInstrumentID                  = errors.New("missing instrument ID")
+	errFundingRateHistoryNotFound           = errors.New("funding rate history not found")
+	errLiquidationOrderResponseNotFound     = errors.New("liquidation order not found")
+	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
+	errIncorrectRequiredParameterTradeMode  = errors.New("unacceptable required argument, trade mode")
+	errInterestRateAndLoanQuotaNotFound     = errors.New("interest rate and loan quota not found")
+	errInsuranceFundInformationNotFound     = errors.New("insurance fund information not found")
+	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
+	errInvalidTradeModeValue                = errors.New("invalid trade mode value")
+	errWebsocketStreamNotAuthenticated      = errors.New("websocket stream not authenticated")
+	errInvalidNewSizeOrPriceInformation     = errors.New("invalid the new size or price information")
+	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
+	errInvalidPriceLimit                    = errors.New("invalid price limit value")
+	errMissingIntervalValue                 = errors.New("missing interval value")
+	errMissingSizeLimit                     = errors.New("missing required parameter 'szLimit'")
+	errMissingEitherAlgoIDOrState           = errors.New("either algo ID or order state is required")
+	errMissingValidWithdrawalID             = errors.New("missing valid withdrawal ID")
+	errInstrumentFamilyRequired             = errors.New("instrument family is required")
+	errCountdownTimeoutRequired             = errors.New("countdown timeout is required")
+	errInstrumentIDorFamilyRequired         = errors.New("either instrumen ID or instrument family is required")
+	errInvalidQuantityLimit                 = errors.New("invalid quantity limit")
+	errInvalidInstrumentType                = errors.New("invalid instrument type")
+	errMissingValidGreeksType               = errors.New("missing valid greeks type")
+	errMissingIsolatedMarginTradingSetting  = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
+	errInvalidCounterParties                = errors.New("missing counter parties")
+	errMissingOrderIDAndClientSuppliedID    = errors.New("order ID or client supplied ID is required")
+	errMissingRfqIDOrQuoteID                = errors.New("either Rfq ID or Quote ID is missing")
+	errMissingRfqID                         = errors.New("error missing rfq ID")
+	errMissingLegs                          = errors.New("missing legs")
+	errMissingSizeOfQuote                   = errors.New("missing size of quote leg")
+	errMissingLegsQuotePrice                = errors.New("error missing quote price")
+	errInvalidLoanAllocationValue           = errors.New("invalid loan allocation value, must be between 0 to 100")
+	errInvalidSubaccount                    = errors.New("invalid sub-account type")
+	errMissingAlgoOrderType                 = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
+	errInvalidGridQuantity                  = errors.New("invalid grid quantity (grid number)")
+	errMissingRequiredArgumentDirection     = errors.New("missing required argument, direction")
+	errInvalidLeverage                      = errors.New("invalid leverage value")
+	errMissingValidStopType                 = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
+	errMissingSubOrderType                  = errors.New("missing sub order type")
+	errMissingQuantity                      = errors.New("invalid quantity to buy or sell")
+	errAddressRequired                      = errors.New("address is required")
+	errInvalidWebsocketEvent                = errors.New("invalid websocket event")
+	errMissingValidChannelInformation       = errors.New("missing channel information")
+	errMaxRfqOrdersToCancel                 = errors.New("no more than 100 Rfq cancel order parameter is allowed")
+	errInvalidUnderlying                    = errors.New("invalid underlying")
+	errInstrumentFamilyOrUnderlyingRequired = errors.New("either underlying or instrument family is required")
+	errMissingRequiredParameter             = errors.New("missing required parameter")
+	errMissingMakerInstrumentSettings       = errors.New("missing maker instrument settings")
+	errInvalidSubAccountName                = errors.New("invalid sub-account name")
+	errInvalidAPIKey                        = errors.New("invalid api key")
+	errInvalidMarginTypeAdjust              = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
+	errInvalidAlgoOrderType                 = errors.New("invalid algo order type")
+	errInvalidIPAddress                     = errors.New("invalid ip address")
+	errInvalidAPIKeyPermission              = errors.New("invalid API Key permission")
+	errInvalidResponseParam                 = errors.New("invalid response parameter, response must be non-nil pointer")
+	errInvalidDuration                      = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
+	errInvalidProtocolType                  = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
+	errExceedLimit                          = errors.New("limit exceeded")
+	errOnlyThreeMonthsSupported             = errors.New("only three months of trade data retrieval supported")
+	errOnlyOneResponseExpected              = errors.New("one response item expected")
+	// errNoInstrumentFound                    = errors.New("no instrument found")
+	errStrategyNameRequired         = errors.New("strategy name required")
+	errSubPositionIDRequired        = errors.New("sub position ID is required")
+	errUserIDRequired               = errors.New("uid is required")
+	errSubPositionCloseTypeRequired = errors.New("sub position close type")
+	errUniqueCodeRequired           = errors.New("unique code is required")
+	errLastDaysRequired             = errors.New("last days required")
+	errCopyInstrumentIDTypeRequired = errors.New("copy instrument ID type is required")
+	errInvalidChecksum              = errors.New("invalid checksum")
+	errInvalidPositionMode          = errors.New("invalid position mode")
+	errLendingTermIsRequired        = errors.New("lending term is required")
+	errLendingRateRequired          = errors.New("lending rate is required")
+	errQuarterValueRequired         = errors.New("quarter is required")
+	errYearRequired                 = errors.New("year is required")
+	errLengthMismatch               = errors.New("mismatch in length")
+	errBorrowTypeRequired           = errors.New("borrow type is required")
+	errMaxRateRequired              = errors.New("max rate is required")
+	errLendingSideRequired          = errors.New("lending side is required")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1034,7 +1030,6 @@ type AlgoOrderParams struct {
 	ReduceOnly   bool       `json:"reduceOnly,omitempty"`
 	OrderTag     string     `json:"tag,omitempty"`
 	QuantityType string     `json:"tgtCcy,omitempty"`
-	AlgoID       string     `json:"algoId,omitempty"`
 	AlgoClOrdID  string     `json:"algoClOrdId,omitempty"`
 
 	// Place Stop Order params
@@ -1067,9 +1062,12 @@ type AlgoOrderParams struct {
 
 // AlgoOrder algo order requests response.
 type AlgoOrder struct {
-	AlgoID     string `json:"algoId"`
-	StatusCode string `json:"sCode"`
-	StatusMsg  string `json:"sMsg"`
+	AlgoID            string `json:"algoId"`
+	StatusCode        string `json:"sCode"`
+	StatusMsg         string `json:"sMsg"`
+	ClientOrderID     string `json:"clOrdId"`
+	AlgoClientOrderID string `json:"algoClOrdId"`
+	Tag               string `json:"tag"`
 }
 
 // AmendAlgoOrderParam request parameter to amend an algo order.
@@ -1417,7 +1415,7 @@ type SavingBalanceResponse struct {
 type SavingsPurchaseRedemptionInput struct {
 	Currency   currency.Code `json:"ccy"`         // REQUIRED:
 	Amount     float64       `json:"amt,string"`  // REQUIRED: purchase or redemption amount
-	ActionType string        `json:"side"`        // REQUIRED: action type \"purchase\" or \"redemption\"
+	ActionType string        `json:"side"`        // REQUIRED: action type 'purchase' or 'redemption'
 	Rate       float64       `json:"rate,string"` // REQUIRED:
 }
 
@@ -2500,6 +2498,10 @@ type SubaccountBalanceDetail struct {
 	UpdateTime                     types.Time   `json:"uTime"`
 	UnrealizedProfitAndLoss        types.Number `json:"upl"`
 	UnrealizedProfitAndLiabilities string       `json:"uplLiab"`
+	FixedBalance                   types.Number `json:"fixedBal"`
+	BorrowFroz                     types.Number `json:"borrowFroz"`
+	SpotISOBalance                 types.Number `json:"spotIsoBal"`
+	SMTSyncEquity                  types.Number `json:"smtSyncEq"`
 }
 
 // SubaccountBalanceResponse represents subaccount balance response
@@ -2510,10 +2512,12 @@ type SubaccountBalanceResponse struct {
 	IsolatedMarginEquity         string                    `json:"isoEq"`
 	MarginRatio                  types.Number              `json:"mgnRatio"`
 	MaintenanceMarginRequirement string                    `json:"mmr"`
-	NotionalUsd                  string                    `json:"notionalUsd"`
+	NotionalUSD                  string                    `json:"notionalUsd"`
 	OrdFroz                      string                    `json:"ordFroz"`
 	TotalEq                      string                    `json:"totalEq"`
 	UpdateTime                   types.Time                `json:"uTime"`
+	BorrowFroz                   types.Number              `json:"borrowFroz"`
+	UPL                          types.Number              `json:"upl"`
 }
 
 // FundingBalance holds function balance.
@@ -2792,6 +2796,9 @@ type SystemStatusResponse struct {
 	ServiceType         string     `json:"serviceType"`
 	System              string     `json:"system"`
 	ScheduleDescription string     `json:"scheDesc"`
+	PreOpenBegin        string     `json:"preOpenBegin"`
+	MaintenanceType     string     `json:"maintType"`
+	Environment         string     `json:"env"` // Environment '1': Production Trading '2': Demo Trading
 
 	// PushTime timestamp information when the data is pushed
 	PushTime types.Time `json:"ts"`
@@ -4111,19 +4118,21 @@ type TotalProfitSharing struct {
 
 // Offer represents an investment offer information for different 'staking' and 'defi' protocols
 type Offer struct {
-	Currency     string            `json:"ccy"`
-	ProductID    string            `json:"productId"`
-	Protocol     string            `json:"protocol"`
-	ProtocolType string            `json:"protocolType"`
-	EarningCcy   []string          `json:"earningCcy"`
-	Term         string            `json:"term"`
-	Apy          types.Number      `json:"apy"`
-	EarlyRedeem  bool              `json:"earlyRedeem"`
-	InvestData   []OfferInvestData `json:"investData"`
-	EarningData  []struct {
+	Currency        string            `json:"ccy"`
+	ProductID       string            `json:"productId"`
+	Protocol        string            `json:"protocol"`
+	ProtocolType    string            `json:"protocolType"`
+	EarningCurrency []string          `json:"earningCcy"`
+	Term            string            `json:"term"`
+	Apy             types.Number      `json:"apy"`
+	EarlyRedeem     bool              `json:"earlyRedeem"`
+	InvestData      []OfferInvestData `json:"investData"`
+	EarningData     []struct {
 		Currency    string `json:"ccy"`
 		EarningType string `json:"earningType"`
 	} `json:"earningData"`
+	State                    string       `json:"state"`
+	FastRedemptionDailyLimit types.Number `json:"fastRedemptionDailyLimit"`
 }
 
 // OfferInvestData represents currencies invest data information for an offer
@@ -4150,6 +4159,14 @@ type PurchaseInvestDataItem struct {
 // OrderIDResponse represents purchase order ID
 type OrderIDResponse struct {
 	OrderID string `json:"orderId"`
+
+	Tag string `json:"tag"` // Optional to most ID responses
+}
+
+// CancelPurchaseOrRedemptionResponse represents a response for canceling a purchase or redemption
+type CancelPurchaseOrRedemptionResponse struct {
+	OrderIDResponse
+	Tag string `json:"tag"`
 }
 
 // RedeemRequestParam represents redeem request input param
@@ -4163,6 +4180,11 @@ type RedeemRequestParam struct {
 type CancelFundingParam struct {
 	OrderID      string `json:"ordId"`
 	ProtocolType string `json:"protocolType"`
+}
+
+// ProductInfo represents ETH staking information
+type ProductInfo struct {
+	FastRedemptionDailyLimit types.Number `json:"fastRedemptionDailyLimit"`
 }
 
 // ActiveFundingOrder represents active purchase orders
@@ -4183,7 +4205,14 @@ type ActiveFundingOrder struct {
 		EarningType string       `json:"earningType"`
 		Earnings    types.Number `json:"earnings"`
 	} `json:"earningData"`
-	PurchasedTime types.Time `json:"purchasedTime"`
+	PurchasedTime      types.Time `json:"purchasedTime"`
+	FastRedemptionData []struct {
+		Currency        string       `json:"ccy"`
+		RedeemingAmount types.Number `json:"redeemingAmt"`
+	} `json:"fastRedemptionData"`
+	EstimatedRedemptionSettlementTime types.Time `json:"estSettlementTime"`
+	CancelRedemptionDeadline          types.Time `json:"cancelRedemptionDeadline"`
+	Tag                               string     `json:"tag"`
 }
 
 // BETHAssetsBalance balance is a snapshot summarized all BETH assets
@@ -4390,10 +4419,18 @@ type WsSpreadOrderbookData struct {
 
 // AffilateInviteesDetail represents affiliate invitee's detail.
 type AffilateInviteesDetail struct {
-	InviteeLv         types.Number `json:"inviteeLv"`
-	JoinTime          types.Time   `json:"joinTime"`
-	InviteeRebateRate types.Number `json:"inviteeRebateRate"`
-	TotalCommission   types.Number `json:"totalCommission"`
+	InviteeLevel             types.Number `json:"inviteeLv"`
+	JoinTime                 types.Time   `json:"joinTime"`
+	InviteeRebateRate        types.Number `json:"inviteeRebateRate"`
+	TotalCommission          types.Number `json:"totalCommission"`
+	FirstTradeTime           types.Time   `json:"firstTradeTime"`
+	Level                    string       `json:"level"`
+	DepositAmount            types.Number `json:"depAmt"`
+	AccumulatedTradingVolume types.Number `json:"volMonth"`
+	AccumulatedFee           types.Number `json:"accFee"`
+	KYCTime                  types.Time   `json:"kycTime"`
+	Region                   string       `json:"region"`
+	AffiliateCode            string       `json:"affiliateCode"`
 }
 
 // AffilateRebateInfo represents rebate information.
@@ -4770,27 +4807,26 @@ type LendingOrderResponse []struct {
 
 // LendingOrderDetail represents a lending order detail.
 type LendingOrderDetail struct {
+	OrderID       string       `json:"ordId"`
 	Amount        types.Number `json:"amt"`
 	AutoRenewal   bool         `json:"autoRenewal"`
-	CreationTime  types.Time   `json:"cTime"`
 	Currency      string       `json:"ccy"`
-	EarningAmt    types.Number `json:"earningAmt"`
-	OrderID       string       `json:"ordId"`
-	PendingAmt    types.Number `json:"pendingAmt"`
+	EarningAmount types.Number `json:"earningAmt"`
+	PendingAmount types.Number `json:"pendingAmt"`
 	Rate          types.Number `json:"rate"`
-	SettledTime   types.Time   `json:"settledTime"`
-	StartTime     types.Time   `json:"startTime"`
 	State         string       `json:"state"`
 	Term          string       `json:"term"`
 	TotalInterest string       `json:"totalInterest"`
-	UTime         types.Time   `json:"uTime"`
+	CreationTime  types.Time   `json:"cTime"`
+	UpdateTime    types.Time   `json:"uTime"`
+	SettledTime   types.Time   `json:"settledTime"`
+	StartTime     types.Time   `json:"startTime"`
 }
 
 // LendingSubOrder represents a lending sub-order detail.
 type LendingSubOrder struct {
 	AccruedInterest        string       `json:"accruedInterest"`
 	Amount                 types.Number `json:"amt"`
-	CTime                  types.Time   `json:"cTime"`
 	Ccy                    string       `json:"ccy"`
 	EarlyTerminatedPenalty string       `json:"earlyTerminatedPenalty"`
 	ExpiryTime             types.Time   `json:"expiryTime"`
@@ -4803,16 +4839,17 @@ type LendingSubOrder struct {
 	SubOrdID               string       `json:"subOrdId"`
 	Term                   string       `json:"term"`
 	TotalInterest          string       `json:"totalInterest"`
+	CreationTime           types.Time   `json:"cTime"`
 	UpdateTime             types.Time   `json:"uTime"`
 }
 
 // PublicLendingOffer represents a lending offer detail.
 type PublicLendingOffer struct {
-	Currency  string       `json:"ccy"`
-	LendQuota string       `json:"lendQuota"`
-	MinLend   string       `json:"minLend"`
-	Rate      types.Number `json:"rate"`
-	Term      string       `json:"term"`
+	Currency         string       `json:"ccy"`
+	LendQuota        string       `json:"lendQuota"`
+	MinLendingAmount types.Number `json:"minLend"`
+	Rate             types.Number `json:"rate"`
+	Term             string       `json:"term"`
 }
 
 // LendingAPIHistoryItem represents a lending API history item.
@@ -5106,4 +5143,36 @@ type OrderPreCheckResponse struct {
 	PosBal         types.Number `json:"posBal"`
 	PosBalChg      types.Number `json:"posBalChg"`
 	Type           string       `json:"type"`
+}
+
+// AnnouncementDetail represents an exchange's announcement detail
+type AnnouncementDetail struct {
+	Details []struct {
+		AnnouncementType string     `json:"annType"`
+		PTime            types.Time `json:"pTime"`
+		Title            string     `json:"title"`
+		URL              string     `json:"url"`
+	} `json:"details"`
+	TotalPage types.Number `json:"totalPage"`
+}
+
+// AnnouncementTypeInfo represents an announcement type sample and it's description
+type AnnouncementTypeInfo struct {
+	AnnouncementType     string `json:"annType"`
+	AnnouncementTypeDesc string `json:"annTypeDesc"`
+}
+
+// DepositAddressDetail represents a deposit address detail
+type DepositAddressDetail struct {
+	CreatTime       types.Time   `json:"cTime"`
+	UpdateTime      types.Time   `json:"uTime"`
+	OrdID           string       `json:"ordId"`
+	PaymentMethod   string       `json:"paymentMethod"`
+	PaymentAcctID   string       `json:"paymentAcctId"`
+	Amount          types.Number `json:"amt"`
+	Fee             types.Number `json:"fee"`
+	Currency        string       `json:"ccy"`
+	State           string       `json:"state"`
+	ClientID        string       `json:"clientId"`
+	PaymentMethodID string       `json:"paymentMethodId,omitempty"`
 }

@@ -220,6 +220,7 @@ const (
 	cancelPurchaseOrRedemptionEPL
 	getEarnActiveOrdersEPL
 	getFundingOrderHistoryEPL
+	getProductInfoEPL
 
 	purchaseETHStakingEPL
 	redeemETHStakingEPL
@@ -306,6 +307,11 @@ const (
 	rubikTopTradersContractLongShortRatioEPL
 
 	getAccountInstrumentsEPL
+	getAnnouncementsEPL
+	getAnnouncementTypeEPL
+
+	getDepositOrderDetailEPL
+	getDepositOrderHistoryEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -533,6 +539,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		cancelPurchaseOrRedemptionEPL: request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
 		getEarnActiveOrdersEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getFundingOrderHistoryEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getProductInfoEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 
 		// ETH Staking
 		purchaseETHStakingEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
@@ -630,6 +637,10 @@ func GetRateLimit() request.RateLimitDefinitions {
 		rubikContractTakerVolumeEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		rubikTopTradersContractLongShortRatioEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
-		getAccountInstrumentsEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAccountInstrumentsEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAnnouncementsEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getAnnouncementTypeEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getDepositOrderDetailEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getDepositOrderHistoryEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 	}
 }
