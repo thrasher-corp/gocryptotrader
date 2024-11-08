@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -3195,11 +3196,13 @@ var pushDataMap = map[string]string{
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
-	for x := range pushDataMap {
-		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[x]))
-		if err != nil {
-			t.Errorf("%s: %v", x, err)
-		}
+
+	keys := slices.Collect(maps.Keys(pushDataMap))
+	slices.Sort(keys)
+
+	for x := range keys {
+		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]]))
+		assert.NoError(t, err, "wsHandleData should not error")
 	}
 }
 
