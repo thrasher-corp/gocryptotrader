@@ -3,7 +3,7 @@ package buffer
 import (
 	"errors"
 	"math/rand"
-	"strings"
+	"slices"
 	"testing"
 	"time"
 
@@ -929,251 +929,132 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	holder := orderbookHolder{}
 
 	asks := deploySliceOrdered(100)
-	//nolint: gocritic
-	bids := append(asks[:0:0], asks...)
+	bids := slices.Clone(asks)
 	bids.Reverse()
 
 	book, err := orderbook.DeployDepth("test", cp, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = book.LoadSnapshot(slices.Clone(bids), slices.Clone(asks), 0, time.Now(), time.Now(), true)
+	require.NoError(t, err)
 
 	ob, err := book.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = ob.Verify()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	holder.ob = book
 
 	err = holder.updateByIDAndAction(&orderbook.Update{})
-	if !errors.Is(err, errInvalidAction) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAction)
-	}
+	require.ErrorIs(t, err, errInvalidAction)
 
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Amend,
-		Bids: []orderbook.Tranche{
-			{
-				Price: 100,
-				ID:    6969,
-			},
-		},
+		Bids:   []orderbook.Tranche{{Price: 100, ID: 6969}},
 	})
-	if !strings.Contains(err.Error(), errAmendFailure.Error()) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
-	}
+	require.ErrorIs(t, err, errAmendFailure)
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = book.LoadSnapshot(slices.Clone(bids), slices.Clone(asks), 0, time.Now(), time.Now(), true)
+	require.NoError(t, err)
+
 	// append to slice
 	err = holder.updateByIDAndAction(&orderbook.Update{
-		Action: orderbook.UpdateInsert,
-		Bids: []orderbook.Tranche{
-			{
-				Price:  0,
-				ID:     1337,
-				Amount: 1,
-			},
-		},
-		Asks: []orderbook.Tranche{
-			{
-				Price:  100,
-				ID:     1337,
-				Amount: 1,
-			},
-		},
+		Action:     orderbook.UpdateInsert,
+		Bids:       []orderbook.Tranche{{Price: 0, ID: 1337, Amount: 1}},
+		Asks:       []orderbook.Tranche{{Price: 100, ID: 1337, Amount: 1}},
 		UpdateTime: time.Now(),
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	cpy, err := book.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if cpy.Bids[len(cpy.Bids)-1].Price != 0 {
-		t.Fatal("did not append bid item")
-	}
-	if cpy.Asks[len(cpy.Asks)-1].Price != 100 {
-		t.Fatal("did not append ask item")
-	}
+	require.NoError(t, err)
+	require.Equal(t, 0., cpy.Bids[len(cpy.Bids)-1].Price)
+	require.Equal(t, 100., cpy.Asks[len(cpy.Asks)-1].Price)
 
 	// Change amount
 	err = holder.updateByIDAndAction(&orderbook.Update{
-		Action: orderbook.UpdateInsert,
-		Bids: []orderbook.Tranche{
-			{
-				Price:  0,
-				ID:     1337,
-				Amount: 100,
-			},
-		},
-		Asks: []orderbook.Tranche{
-			{
-				Price:  100,
-				ID:     1337,
-				Amount: 100,
-			},
-		},
+		Action:     orderbook.UpdateInsert,
+		Bids:       []orderbook.Tranche{{Price: 0, ID: 1337, Amount: 100}},
+		Asks:       []orderbook.Tranche{{Price: 100, ID: 1337, Amount: 100}},
 		UpdateTime: time.Now(),
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	cpy, err = book.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if cpy.Bids[len(cpy.Bids)-1].Amount != 100 {
-		t.Fatal("did not update bid amount", cpy.Bids[len(cpy.Bids)-1].Amount)
-	}
-
-	if cpy.Asks[len(cpy.Asks)-1].Amount != 100 {
-		t.Fatal("did not update ask amount")
-	}
+	require.NoError(t, err)
+	require.Equal(t, 100., cpy.Bids[len(cpy.Bids)-1].Amount)
+	require.Equal(t, 100., cpy.Asks[len(cpy.Asks)-1].Amount)
 
 	// Change price level
 	err = holder.updateByIDAndAction(&orderbook.Update{
-		Action: orderbook.UpdateInsert,
-		Bids: []orderbook.Tranche{
-			{
-				Price:  100,
-				ID:     1337,
-				Amount: 99,
-			},
-		},
-		Asks: []orderbook.Tranche{
-			{
-				Price:  0,
-				ID:     1337,
-				Amount: 99,
-			},
-		},
+		Action:     orderbook.UpdateInsert,
+		Bids:       []orderbook.Tranche{{Price: 100, ID: 1337, Amount: 99}},
+		Asks:       []orderbook.Tranche{{Price: 0, ID: 1337, Amount: 99}},
 		UpdateTime: time.Now(),
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	cpy, err = book.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
-	if cpy.Bids[0].Amount != 99 && cpy.Bids[0].Price != 100 {
-		t.Fatal("did not adjust bid item placement and details")
-	}
+	require.Equal(t, 99., cpy.Bids[0].Amount)
+	require.Equal(t, 100., cpy.Bids[0].Price)
+	require.Equal(t, 99., cpy.Asks[0].Amount)
+	require.Equal(t, 0., cpy.Asks[0].Price)
 
-	if cpy.Asks[0].Amount != 99 && cpy.Asks[0].Amount != 0 {
-		t.Fatal("did not adjust ask item placement and details")
-	}
-
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true) //nolint:gocritic
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = book.LoadSnapshot(slices.Clone(bids), slices.Clone(asks), 0, time.Now(), time.Now(), true)
+	require.NoError(t, err)
 	// Delete - not found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,
-		Asks: []orderbook.Tranche{
-			{
-				Price:  0,
-				ID:     1337,
-				Amount: 99,
-			},
-		},
+		Asks:   []orderbook.Tranche{{Price: 0, ID: 1337, Amount: 99}},
 	})
-	if !strings.Contains(err.Error(), errDeleteFailure.Error()) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
-	}
+	require.ErrorIs(t, err, errDeleteFailure)
 
-	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), time.Now(), true) //nolint:gocritic
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = book.LoadSnapshot(slices.Clone(bids), slices.Clone(asks), 0, time.Now(), time.Now(), true)
+	require.NoError(t, err)
+
 	// Delete - found
 	err = holder.updateByIDAndAction(&orderbook.Update{
-		Action: orderbook.Delete,
-		Asks: []orderbook.Tranche{
-			asks[0],
-		},
+		Action:     orderbook.Delete,
+		Asks:       []orderbook.Tranche{asks[0]},
 		UpdateTime: time.Now(),
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	askLen, err := book.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 99 {
-		t.Fatal("element not deleted")
-	}
+	require.NoError(t, err)
+	require.Equal(t, 99, askLen)
 
 	// Apply update
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Amend,
-		Asks: []orderbook.Tranche{
-			{ID: 123456},
-		},
+		Asks:   []orderbook.Tranche{{ID: 123456}},
 	})
-	if !strings.Contains(err.Error(), errAmendFailure.Error()) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
-	}
+	require.ErrorIs(t, err, errAmendFailure)
 
 	err = book.LoadSnapshot(bids, bids, 0, time.Now(), time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	ob, err = book.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if len(ob.Asks) == 0 || len(ob.Bids) == 0 {
-		t.Fatal("expected a valid orderbook")
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, ob.Asks)
+	require.NotEmpty(t, ob.Bids)
 
 	update := ob.Asks[0]
 	update.Amount = 1337
 
 	err = holder.updateByIDAndAction(&orderbook.Update{
-		Action: orderbook.Amend,
-		Asks: []orderbook.Tranche{
-			update,
-		},
+		Action:     orderbook.Amend,
+		Asks:       []orderbook.Tranche{update},
 		UpdateTime: time.Now(),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	ob, err = book.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if ob.Asks[0].Amount != 1337 {
-		t.Fatal("element not updated")
-	}
+	require.NoError(t, err)
+	require.Equal(t, 1337., ob.Asks[0].Amount)
 }
 
 func TestFlushOrderbook(t *testing.T) {

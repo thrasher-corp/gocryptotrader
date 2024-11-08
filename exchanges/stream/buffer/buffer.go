@@ -274,24 +274,24 @@ func (o *orderbookHolder) updateByIDAndAction(updts *orderbook.Update) error {
 	case orderbook.Amend:
 		err := o.ob.UpdateBidAskByID(updts)
 		if err != nil {
-			return fmt.Errorf("%v %w", errAmendFailure, err)
+			return fmt.Errorf("%w %w", errAmendFailure, err)
 		}
 	case orderbook.Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
 		err := o.ob.DeleteBidAskByID(updts, bypassErr)
 		if err != nil {
-			return fmt.Errorf("%v %w", errDeleteFailure, err)
+			return fmt.Errorf("%w %w", errDeleteFailure, err)
 		}
 	case orderbook.Insert:
 		err := o.ob.InsertBidAskByID(updts)
 		if err != nil {
-			return fmt.Errorf("%v %w", errInsertFailure, err)
+			return fmt.Errorf("%w %w", errInsertFailure, err)
 		}
 	case orderbook.UpdateInsert:
 		err := o.ob.UpdateInsertByID(updts)
 		if err != nil {
-			return fmt.Errorf("%v %w", errUpdateInsertFailure, err)
+			return fmt.Errorf("%w %w", errUpdateInsertFailure, err)
 		}
 	default:
 		return fmt.Errorf("%w [%d]", errInvalidAction, updts.Action)
