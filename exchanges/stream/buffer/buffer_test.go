@@ -379,9 +379,7 @@ func TestInsertWithIDs(t *testing.T) {
 		Asks:       []orderbook.Tranche{{Price: 999999}},
 		Pair:       cp,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 // TestSortIDs logic test
