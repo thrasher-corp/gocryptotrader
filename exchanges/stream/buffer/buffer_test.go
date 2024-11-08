@@ -1032,7 +1032,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errAmendFailure)
 
-	err = book.LoadSnapshot(bids, bids, 0, time.Now(), time.Now(), true)
+	err = book.LoadSnapshot(slices.Clone(bids), slices.Clone(bids), 0, time.Now(), time.Now(), true)
 	require.NoError(t, err)
 
 	ob, err = book.Retrieve()
