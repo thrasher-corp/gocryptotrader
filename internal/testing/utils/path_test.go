@@ -27,6 +27,10 @@ func TestRootPathFromCWD(t *testing.T) {
 		w, _ := filepath.Split(p)
 		w = filepath.Clean(w)
 		if w == r {
+			switch d.Name() {
+			case "vendor", "web":
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if d.Type().IsRegular() && d.Name() == "LICENSE" {

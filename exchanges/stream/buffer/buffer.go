@@ -171,7 +171,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	}
 
 	var ret *orderbook.Base
-	if book.ob.VerifyOrderbook {
+	if book.ob.VerifyOrderbook() {
 		// This is used here so as to not retrieve book if verification is off.
 		// On every update, this will retrieve and verify orderbook depth.
 		ret, err = book.ob.Retrieve()
@@ -333,17 +333,12 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	holder.updateID = book.LastUpdateID
 
-	err = holder.ob.LoadSnapshot(book.Bids,
-		book.Asks,
-		book.LastUpdateID,
-		book.LastUpdated,
-		book.UpdatePushedAt,
-		false)
+	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.UpdatePushedAt, false)
 	if err != nil {
 		return err
 	}
 
-	if holder.ob.VerifyOrderbook {
+	if holder.ob.VerifyOrderbook() {
 		// This is used here so as to not retrieve book if verification is off.
 		// Checks to see if orderbook snapshot that was deployed has not been
 		// altered in any way
