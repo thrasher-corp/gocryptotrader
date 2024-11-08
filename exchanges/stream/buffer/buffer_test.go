@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -31,7 +32,7 @@ const (
 	exchangeName = "exchangeTest"
 )
 
-func createSnapshot() (holder *Orderbook, asks, bids orderbook.Tranches, err error) {
+func createSnapshot(bookVerifiy ...bool) (holder *Orderbook, asks, bids orderbook.Tranches, err error) {
 	asks = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 	bids = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 
@@ -43,6 +44,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Tranches, err err
 		Pair:             cp,
 		PriceDuplication: true,
 		LastUpdated:      time.Now(),
+		VerifyOrderbook:  len(bookVerifiy) > 0 && bookVerifiy[0],
 	}
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
@@ -365,6 +367,20 @@ func TestInsertWithIDs(t *testing.T) {
 	}
 	if bidLen != 6 {
 		t.Errorf("expected 6 entries, received: %v", bidLen)
+	}
+
+	holder, _, _, err = createSnapshot(true)
+	require.NoError(t, err)
+	holder.checksum = nil
+	holder.updateIDProgression = false
+	err = holder.Update(&orderbook.Update{
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+		Asks:       []orderbook.Tranche{{Price: 999999}},
+		Pair:       cp,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

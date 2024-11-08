@@ -226,14 +226,17 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *orderbook.Update)
 	return true, nil
 }
 
-// processObUpdate processes updates either by its corresponding id or by
-// price level
+// processObUpdate processes updates either by its corresponding id or by price level
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) error {
+	// Both update methods require post processing to ensure the orderbook is in a valid state.
 	if w.updateEntriesByID {
-		return o.updateByIDAndAction(u)
-	}
-	if err := o.updateByPrice(u); err != nil {
-		return err
+		if err := o.updateByIDAndAction(u); err != nil {
+			return err
+		}
+	} else {
+		if err := o.updateByPrice(u); err != nil {
+			return err
+		}
 	}
 	if w.checksum != nil {
 		compare, err := o.ob.Retrieve()
