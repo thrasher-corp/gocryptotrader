@@ -245,7 +245,7 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 			return o.ob.Invalidate(err)
 		}
 		o.updateID = u.UpdateID
-	} else if o.ob.VerifyOrderbook {
+	} else if o.ob.VerifyOrderbook() {
 		compare, err := o.ob.Retrieve()
 		if err != nil {
 			return err
@@ -327,12 +327,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	holder.updateID = book.LastUpdateID
 
-	err = holder.ob.LoadSnapshot(book.Bids,
-		book.Asks,
-		book.LastUpdateID,
-		book.LastUpdated,
-		book.UpdatePushedAt,
-		false)
+	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.UpdatePushedAt, false)
 	if err != nil {
 		return err
 	}
