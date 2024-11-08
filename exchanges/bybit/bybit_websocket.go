@@ -363,7 +363,7 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
 			return err
 		}
@@ -404,7 +404,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
 			return err
 		}
@@ -455,7 +455,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 	if err != nil {
 		return err
 	}
-	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, true)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	if err != nil {
 		return err
 	}
-	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, true)
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -521,7 +521,7 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 	if err != nil {
 		return err
 	}
-	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, true)
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -556,7 +556,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		return err
 	}
 
-	p, err := by.MatchSymbolWithAvailablePairs(tickResp.Symbol, assetType, true)
+	p, err := by.MatchSymbolWithAvailablePairs(tickResp.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -657,7 +657,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 	}
 	tradeDatas := make([]trade.Data, len(result))
 	for x := range result {
-		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, true)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
 			return err
 		}
@@ -685,7 +685,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, true)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -772,3 +772,8 @@ const subTplText = `
 	{{- $.AssetSeparator }}
 {{- end }}
 `
+
+// hasPotentialDelimiter returns if the asset has a potential delimiter on the pairs being returned.
+func hasPotentialDelimiter(a asset.Item) bool {
+	return a == asset.Options || a == asset.USDCMarginedFutures
+}
