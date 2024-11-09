@@ -130,24 +130,25 @@ var (
 	errExceedLimit                          = errors.New("limit exceeded")
 	errOnlyThreeMonthsSupported             = errors.New("only three months of trade data retrieval supported")
 	errOnlyOneResponseExpected              = errors.New("one response item expected")
-	// errNoInstrumentFound                    = errors.New("no instrument found")
-	errStrategyNameRequired         = errors.New("strategy name required")
-	errSubPositionIDRequired        = errors.New("sub position ID is required")
-	errUserIDRequired               = errors.New("uid is required")
-	errSubPositionCloseTypeRequired = errors.New("sub position close type")
-	errUniqueCodeRequired           = errors.New("unique code is required")
-	errLastDaysRequired             = errors.New("last days required")
-	errCopyInstrumentIDTypeRequired = errors.New("copy instrument ID type is required")
-	errInvalidChecksum              = errors.New("invalid checksum")
-	errInvalidPositionMode          = errors.New("invalid position mode")
-	errLendingTermIsRequired        = errors.New("lending term is required")
-	errLendingRateRequired          = errors.New("lending rate is required")
-	errQuarterValueRequired         = errors.New("quarter is required")
-	errYearRequired                 = errors.New("year is required")
-	errLengthMismatch               = errors.New("mismatch in length")
-	errBorrowTypeRequired           = errors.New("borrow type is required")
-	errMaxRateRequired              = errors.New("max rate is required")
-	errLendingSideRequired          = errors.New("lending side is required")
+	errStrategyNameRequired                 = errors.New("strategy name required")
+	errSubPositionIDRequired                = errors.New("sub position ID is required")
+	errUserIDRequired                       = errors.New("uid is required")
+	errSubPositionCloseTypeRequired         = errors.New("sub position close type")
+	errUniqueCodeRequired                   = errors.New("unique code is required")
+	errLastDaysRequired                     = errors.New("last days required")
+	errCopyInstrumentIDTypeRequired         = errors.New("copy instrument ID type is required")
+	errInvalidChecksum                      = errors.New("invalid checksum")
+	errInvalidPositionMode                  = errors.New("invalid position mode")
+	errLendingTermIsRequired                = errors.New("lending term is required")
+	errLendingRateRequired                  = errors.New("lending rate is required")
+	errQuarterValueRequired                 = errors.New("quarter is required")
+	errYearRequired                         = errors.New("year is required")
+	errLengthMismatch                       = errors.New("mismatch in length")
+	errBorrowTypeRequired                   = errors.New("borrow type is required")
+	errMaxRateRequired                      = errors.New("max rate is required")
+	errLendingSideRequired                  = errors.New("lending side is required")
+	errPaymentMethodRequired                = errors.New("payment method required")
+	errIDNotSet                             = errors.New("ID is not set")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1532,21 +1533,24 @@ type ConvertTradeResponse struct {
 	Side          order.Side   `json:"side"`
 	State         string       `json:"state"`
 	TradeID       string       `json:"tradeId"`
+	Size          types.Number `json:"sz"`
+	SizeCurrency  string       `json:"szCcy"`
 	Timestamp     types.Time   `json:"ts"`
 }
 
 // ConvertHistory holds convert trade history response
 type ConvertHistory struct {
-	InstrumentID  string       `json:"instId"`
-	Side          order.Side   `json:"side"`
-	FillPrice     types.Number `json:"fillPx"`
-	BaseCurrency  string       `json:"baseCcy"`
-	QuoteCurrency string       `json:"quoteCcy"`
-	FillBaseSize  types.Number `json:"fillBaseSz"`
-	State         string       `json:"state"`
-	TradeID       string       `json:"tradeId"`
-	FillQuoteSize types.Number `json:"fillQuoteSz"`
-	Timestamp     types.Time   `json:"ts"`
+	InstrumentID    string       `json:"instId"`
+	Side            order.Side   `json:"side"`
+	FillPrice       types.Number `json:"fillPx"`
+	BaseCurrency    string       `json:"baseCcy"`
+	QuoteCurrency   string       `json:"quoteCcy"`
+	FillBaseSize    types.Number `json:"fillBaseSz"`
+	State           string       `json:"state"`
+	TradeID         string       `json:"tradeId"`
+	FillQuoteSize   types.Number `json:"fillQuoteSz"`
+	ClientRequestID string       `json:"clTReqId"`
+	Timestamp       types.Time   `json:"ts"`
 }
 
 // Account holds currency account balance and related information
@@ -5162,8 +5166,8 @@ type AnnouncementTypeInfo struct {
 	AnnouncementTypeDesc string `json:"annTypeDesc"`
 }
 
-// DepositAddressDetail represents a deposit address detail
-type DepositAddressDetail struct {
+// FiatOrderDetail represents a fiat deposit/withdrawal order detail
+type FiatOrderDetail struct {
 	CreatTime       types.Time   `json:"cTime"`
 	UpdateTime      types.Time   `json:"uTime"`
 	OrdID           string       `json:"ordId"`
@@ -5175,4 +5179,37 @@ type DepositAddressDetail struct {
 	State           string       `json:"state"`
 	ClientID        string       `json:"clientId"`
 	PaymentMethodID string       `json:"paymentMethodId,omitempty"`
+}
+
+// OrderIDAndState represents an orderID and state information
+type OrderIDAndState struct {
+	OrderID string `json:"ordId"`
+	State   string `json:"state"`
+}
+
+// FiatWithdrawalPaymentMethods represents a detailed information about fiat asset withdrawal payment methods and accounts
+type FiatWithdrawalPaymentMethods struct {
+	Currency      string       `json:"ccy"`
+	PaymentMethod string       `json:"paymentMethod"`
+	FeeRate       types.Number `json:"feeRate"`
+	MinFee        types.Number `json:"minFee"`
+	Limits        struct {
+		DailyLimit            types.Number `json:"dailyLimit"`
+		DailyLimitRemaining   types.Number `json:"dailyLimitRemaining"`
+		WeeklyLimit           types.Number `json:"weeklyLimit"`
+		WeeklyLimitRemaining  types.Number `json:"weeklyLimitRemaining"`
+		MonthlyLimit          types.Number `json:"monthlyLimit"`
+		MonthlyLimitRemaining types.Number `json:"monthlyLimitRemaining"`
+		MaxAmt                types.Number `json:"maxAmt"`
+		MinAmt                types.Number `json:"minAmt"`
+		LifetimeLimit         types.Number `json:"lifetimeLimit"`
+	} `json:"limits"`
+	Accounts []struct {
+		PaymentAcctID string `json:"paymentAcctId"`
+		AccountNumber string `json:"acctNum"`
+		RecipientName string `json:"recipientName"`
+		BankName      string `json:"bankName"`
+		BankCode      string `json:"bankCode"`
+		State         string `json:"state"`
+	} `json:"accounts"`
 }

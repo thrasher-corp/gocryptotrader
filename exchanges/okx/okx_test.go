@@ -5091,3 +5091,72 @@ func TestGetDepositOrderDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetFiatDepositOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFiatDepositOrderHistory(context.Background(), currency.USDT, "SEPA", "failed", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWithdrawalOrderDetail(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetWithdrawalOrderDetail(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	ok.Verbose = true
+	result, err := ok.GetWithdrawalOrderDetail(context.Background(), "024041201450544699")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatWithdrawalOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFiatWithdrawalOrderHistory(context.Background(), currency.USDT, "SEPA", "failed", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelWithdrawalOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.CancelWithdrawalOrder(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.CancelWithdrawalOrder(context.Background(), "124041201450544699")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateWithdrawalOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.CreateWithdrawalOrder(context.Background(), currency.BTC, "", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
+	require.ErrorIs(t, err, errIDNotSet)
+	_, err = ok.CreateWithdrawalOrder(context.Background(), currency.EMPTYCODE, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = ok.CreateWithdrawalOrder(context.Background(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = ok.CreateWithdrawalOrder(context.Background(), currency.BTC, "1231312312", "", "194a6975e98246538faeb0fab0d502df", 1000)
+	require.ErrorIs(t, err, errPaymentMethodRequired)
+	_, err = ok.CreateWithdrawalOrder(context.Background(), currency.BTC, "1231312312", "SEPA", "", 1000)
+	require.ErrorIs(t, err, errIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.CreateWithdrawalOrder(context.Background(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatWithdrawalPaymentMethods(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFiatWithdrawalPaymentMethods(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFiatWithdrawalPaymentMethods(context.Background(), currency.TRY)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

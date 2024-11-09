@@ -312,6 +312,11 @@ const (
 
 	getDepositOrderDetailEPL
 	getDepositOrderHistoryEPL
+	getWithdrawalOrderDetailEPL
+	getFiatWithdrawalOrderHistoryEPL
+	cancelWithdrawalOrderEPL
+	createWithdrawalOrderEPL
+	getWithdrawalPaymentMethodsEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -637,10 +642,15 @@ func GetRateLimit() request.RateLimitDefinitions {
 		rubikContractTakerVolumeEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		rubikTopTradersContractLongShortRatioEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
-		getAccountInstrumentsEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAnnouncementsEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getAnnouncementTypeEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		getDepositOrderDetailEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
-		getDepositOrderHistoryEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getAccountInstrumentsEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAnnouncementsEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getAnnouncementTypeEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getDepositOrderDetailEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getDepositOrderHistoryEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getWithdrawalOrderDetailEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getFiatWithdrawalOrderHistoryEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		cancelWithdrawalOrderEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		createWithdrawalOrderEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getWithdrawalPaymentMethodsEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 	}
 }

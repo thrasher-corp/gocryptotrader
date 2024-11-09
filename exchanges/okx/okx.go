@@ -5989,23 +5989,134 @@ func (ok *Okx) GetAnnouncementTypes(ctx context.Context) ([]AnnouncementTypeInfo
 
 // Fiat endpoints
 
-// GetDepositOrderHistory retrieves  fiat deposit order history
-func (ok *Okx) GetDepositOrderHistory(ctx context.Context, ccy currency.Code, paymentMethod, state string, after, before time.Time, limit int64) (*DepositAddressDetail, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-
-	var resp *DepositAddressDetail
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderHistoryEPL, http.MethodGet, "fiat/deposit", nil, &resp, request.UnauthenticatedRequest)
-}
-
 // GetDepositOrderDetail retrieves fiat deposit order detail
-func (ok *Okx) GetDepositOrderDetail(ctx context.Context, orderID string) (*DepositAddressDetail, error) {
+func (ok *Okx) GetDepositOrderDetail(ctx context.Context, orderID string) (*FiatOrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("ordID", orderID)
-	var resp *DepositAddressDetail
+	var resp *FiatOrderDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderDetailEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// GetFiatDepositOrderHistory retrieves fiat deposit order history
+func (ok *Okx) GetFiatDepositOrderHistory(ctx context.Context, ccy currency.Code, paymentMethod, state string, after, before time.Time, limit int64) ([]FiatOrderDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if paymentMethod != "" {
+		params.Set("paymentMethod", paymentMethod)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if !after.IsZero() && !before.IsZero() {
+		err := common.StartEndTimeCheck(after, before)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FiatOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit-order-history", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// GetWithdrawalOrderDetail retrieves fiat withdrawal order detail
+func (ok *Okx) GetWithdrawalOrderDetail(ctx context.Context, orderID string) (*FiatOrderDetail, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("ordId", orderID)
+	var resp *FiatOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalOrderDetailEPL, http.MethodGet,
+		common.EncodeURLValues("fiat/withdrawal", params), &map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
+}
+
+// GetFiatWithdrawalOrderHistory retrieves fiat withdrawal order history
+func (ok *Okx) GetFiatWithdrawalOrderHistory(ctx context.Context, ccy currency.Code, paymentMethod, state string, after, before time.Time, limit int64) ([]FiatOrderDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if paymentMethod != "" {
+		params.Set("paymentMethod", paymentMethod)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if !after.IsZero() && !before.IsZero() {
+		err := common.StartEndTimeCheck(after, before)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FiatOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFiatWithdrawalOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("fiat/withdrawal-order-history", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// CancelWithdrawalOrder cancel a pending fiat withdrawal order, currently only applicable to TRY
+func (ok *Okx) CancelWithdrawalOrder(ctx context.Context, orderID string) (*OrderIDAndState, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *OrderIDAndState
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalOrderEPL, http.MethodPost, "fiat/cancel-withdrawal", &map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
+}
+
+// CreateWithdrawalOrder initiate a fiat withdrawal request (Authenticated endpoint, Only for API keys with "Withdrawal" access)
+func (ok *Okx) CreateWithdrawalOrder(ctx context.Context, ccy currency.Code, paymentAccountID, paymentMethod, clientID string, amount float64) (*FiatOrderDetail, error) {
+	if paymentAccountID == "" {
+		return nil, fmt.Errorf("%w, payment account ID is required", errIDNotSet)
+	}
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if paymentMethod == "" {
+		return nil, errPaymentMethodRequired
+	}
+	if clientID == "" {
+		return nil, fmt.Errorf("%w, client ID is required", errIDNotSet)
+	}
+	arg := &struct {
+		PaymentMethod string  `json:"paymentMethod"`
+		PaymentAcctID string  `json:"paymentAcctId"`
+		ClientID      string  `json:"clientId"`
+		Amount        float64 `json:"amt,string"`
+		Currency      string  `json:"ccy"`
+	}{
+		PaymentMethod: paymentMethod,
+		PaymentAcctID: paymentAccountID,
+		ClientID:      clientID,
+		Amount:        amount,
+		Currency:      ccy.String(),
+	}
+	var resp *FiatOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createWithdrawalOrderEPL, http.MethodPost, "fiat/create-withdrawal", arg, &resp, request.AuthenticatedRequest)
+}
+
+// GetFiatWithdrawalPaymentMethods to display all the available fiat withdrawal payment methods
+func (ok *Okx) GetFiatWithdrawalPaymentMethods(ctx context.Context, ccy currency.Code) (*FiatWithdrawalPaymentMethods, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("ccy", ccy.String())
+	var resp *FiatWithdrawalPaymentMethods
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalPaymentMethodsEPL, http.MethodGet,
+		common.EncodeURLValues("fiat/withdrawal-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
 }
