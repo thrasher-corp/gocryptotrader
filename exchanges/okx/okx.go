@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1143,7 +1142,8 @@ func (ok *Okx) GetFundingCurrencies(ctx context.Context, ccy currency.Code) ([]C
 		params.Set("ccy", ccy.String())
 	}
 	var resp []CurrencyResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet, common.EncodeURLValues("asset/currencies", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet,
+		common.EncodeURLValues("asset/currencies", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold.
@@ -1217,12 +1217,11 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundsTransferStateEPL, http.MethodGet, common.EncodeURLValues("asset/transfer-state", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-var possibleBillTypeValues = []int64{1, 2, 13, 20, 21, 28, 47, 48, 49, 50, 51, 52, 53, 54, 61, 68, 69, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 141, 142, 143, 144, 145, 146, 147, 150, 151, 152, 153, 154, 155, 156, 157, 160, 161, 162, 163, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 193, 194, 195, 196, 197, 198, 199, 200, 211}
-
 // GetAssetBillsDetails query the billing record, you can get the latest 1 month historical data
+// Bills type possible values are listed here: https://www.okx.com/docs-v5/en/#funding-account-rest-api-asset-bills-details
 func (ok *Okx) GetAssetBillsDetails(ctx context.Context, ccy currency.Code, clientID string, after, before time.Time, billType, limit int64) ([]AssetBillDetail, error) {
 	params := url.Values{}
-	if slices.Contains(possibleBillTypeValues, billType) {
+	if billType > 0 {
 		params.Set("type", strconv.FormatInt(billType, 10))
 	}
 	if !ccy.IsEmpty() {
@@ -1263,7 +1262,7 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, ccy currency.Code, amou
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-lightning", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCurrencyDepositAddress returns the deposit address and related information for the provided currency information.
+// GetCurrencyDepositAddress retrieve the deposit addresses of currencies, including previously-used addresses.
 func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, ccy currency.Code) ([]CurrencyDepositResponseItem, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1275,7 +1274,8 @@ func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, ccy currency.Code)
 }
 
 // GetCurrencyDepositHistory retrieves deposit records and withdrawal status information depending on the currency, timestamp, and chronological order.
-func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, ccy currency.Code, depositID, transactionID string, after, before time.Time, state, limit int64) ([]DepositHistoryResponseItem, error) {
+// Possible deposit 'type' are Deposit Type '3': internal transfer '4': deposit from chain
+func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, ccy currency.Code, depositID, transactionID, fromWithdrawalID, depositType string, after, before time.Time, state, limit int64) ([]DepositHistoryResponseItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -1283,8 +1283,14 @@ func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, ccy currency.Code,
 	if depositID != "" {
 		params.Set("depId", depositID)
 	}
+	if fromWithdrawalID != "" {
+		params.Set("fromWdId", fromWithdrawalID)
+	}
 	if transactionID != "" {
 		params.Set("txId", transactionID)
+	}
+	if depositType != "" {
+		params.Set("type", depositType)
 	}
 	params.Set("state", strconv.FormatInt(state, 10))
 	if !after.IsZero() {
@@ -1337,7 +1343,7 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg *LightningWithdrawal
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelWithdrawal You can cancel normal withdrawal, but can not cancel the withdrawal on Lightning.
+// CancelWithdrawal you can cancel normal withdrawal, but can not cancel the withdrawal on Lightning.
 func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
 	if withdrawalID == "" {
 		return "", errMissingValidWithdrawalID
@@ -1515,6 +1521,31 @@ func (ok *Okx) GetPublicBorrowHistory(ctx context.Context, ccy currency.Code, be
 }
 
 /***********************************Convert Endpoints | Authenticated s*****************************************/
+
+// ApplyForMonthlyStatement apply for monthly statement in the past year.
+func (ok *Okx) ApplyForMonthlyStatement(ctx context.Context, month string) (types.Time, error) {
+	if month == "" {
+		return types.Time{}, errMonthNameRequired
+	}
+	resp := &struct {
+		Timestamp types.Time `json:"ts"`
+	}{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, applyForMonthlyStatementEPL,
+		http.MethodPost, "asset/monthly-statement", &map[string]string{"month": month}, &resp, request.AuthenticatedRequest)
+}
+
+// GetMonthlyStatement retrieve monthly statement in the past year.
+// Month, valid value is Jan, Feb, Mar, Apr,May, Jun, Jul,Aug, Sep,Oct,Nov,Dec
+func (ok *Okx) GetMonthlyStatement(ctx context.Context, month string) ([]MonthlyStatement, error) {
+	if month == "" {
+		return nil, errMonthNameRequired
+	}
+	params := url.Values{}
+	params.Set("month", month)
+	var resp []MonthlyStatement
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMonthlyStatementEPL, http.MethodGet,
+		common.EncodeURLValues("asset/monthly-statement", params), nil, &resp, request.AuthenticatedRequest)
+}
 
 // GetConvertCurrencies retrieves the currency conversion information.
 func (ok *Okx) GetConvertCurrencies(ctx context.Context) ([]ConvertCurrency, error) {
@@ -5891,7 +5922,8 @@ func (ok *Okx) GetFuturesContractsOpenInterestHistory(ctx context.Context, instr
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []ContractOpenInterestHistoryItem
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rubikGetContractOpenInterestHistoryEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/contracts/open-interest-history", params), nil, &resp, request.UnauthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rubikGetContractOpenInterestHistoryEPL, http.MethodGet,
+		common.EncodeURLValues("rubik/stat/contracts/open-interest-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetFuturesContractTakerVolume retrieve the contract taker volume for both buyers and sellers. This endpoint returns a maximum of 1440 records.
@@ -6119,4 +6151,16 @@ func (ok *Okx) GetFiatWithdrawalPaymentMethods(ctx context.Context, ccy currency
 	var resp *FiatWithdrawalPaymentMethods
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalPaymentMethodsEPL, http.MethodGet,
 		common.EncodeURLValues("fiat/withdrawal-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// GetFiatDepositPaymentMethods to display all the available fiat deposit payment methods
+func (ok *Okx) GetFiatDepositPaymentMethods(ctx context.Context, ccy currency.Code) (*FiatDepositPaymentMethods, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("ccy", ccy.String())
+	var resp *FiatDepositPaymentMethods
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFiatDepositPaymentMethodsEPL, http.MethodGet,
+		common.EncodeURLValues("fiat/deposit-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
 }

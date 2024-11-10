@@ -149,6 +149,7 @@ var (
 	errLendingSideRequired                  = errors.New("lending side is required")
 	errPaymentMethodRequired                = errors.New("payment method required")
 	errIDNotSet                             = errors.New("ID is not set")
+	errMonthNameRequired                    = errors.New("month name is required")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1219,18 +1220,20 @@ type AssetBalance struct {
 
 // NonTradableAsset holds non-tradable asset detail.
 type NonTradableAsset struct {
-	Balance    types.Number `json:"bal"`
-	CanWd      bool         `json:"canWd"`
-	Currency   string       `json:"ccy"`
-	Chain      string       `json:"chain"`
-	CtAddr     string       `json:"ctAddr"`
-	Fee        types.Number `json:"fee"`
-	LogoLink   string       `json:"logoLink"`
-	MinWd      string       `json:"minWd"`
-	Name       string       `json:"name"`
-	NeedTag    bool         `json:"needTag"`
-	WdAll      bool         `json:"wdAll"`
-	WdTickSize types.Number `json:"wdTickSz"`
+	Balance          types.Number `json:"bal"`
+	CanWithdraw      bool         `json:"canWd"`
+	Currency         string       `json:"ccy"`
+	Chain            string       `json:"chain"`
+	CtAddr           string       `json:"ctAddr"`
+	Fee              types.Number `json:"fee"`
+	LogoLink         string       `json:"logoLink"`
+	MinWithdrawal    string       `json:"minWd"`
+	Name             string       `json:"name"`
+	NeedTag          bool         `json:"needTag"`
+	WithdrawAll      bool         `json:"wdAll"`
+	WithdrawTickSize types.Number `json:"wdTickSz"`
+	FeeCurrency      string       `json:"feeCcy"`
+	BurningFeeRate   types.Number `json:"burningFeeRate"`
 }
 
 // AccountAssetValuation represents view account asset valuation data
@@ -1254,6 +1257,7 @@ type FundingTransferRequestInput struct {
 	FundingReceipentAddress string        `json:"to"`
 	SubAccount              string        `json:"subAcct"`
 	LoanTransfer            bool          `json:"loanTrans,string"`
+	OmitPositionRisk        bool          `json:"omitPosRisk,omitempty,string"`
 	ClientID                string        `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
 }
 
@@ -1311,30 +1315,48 @@ type CurrencyDepositResponseItem struct {
 	Memo                     string            `json:"memo"`
 	DepositAddressAttachment map[string]string `json:"addrEx"`
 	PaymentID                string            `json:"pmtId"`
+	VerifiedName             string            `json:"verifiedName"`
 }
 
 // DepositHistoryResponseItem deposit history response item.
 type DepositHistoryResponseItem struct {
-	Amount           types.Number `json:"amt"`
-	TransactionID    string       `json:"txId"` // Hash record of the deposit
-	Currency         string       `json:"ccy"`
-	Chain            string       `json:"chain"`
-	From             string       `json:"from"`
-	ToDepositAddress string       `json:"to"`
-	Timestamp        types.Time   `json:"ts"`
-	State            types.Number `json:"state"`
-	DepositID        string       `json:"depId"`
+	Amount              types.Number `json:"amt"`
+	TransactionID       string       `json:"txId"` // Hash record of the deposit
+	Currency            string       `json:"ccy"`
+	Chain               string       `json:"chain"`
+	From                string       `json:"from"`
+	ToDepositAddress    string       `json:"to"`
+	Timestamp           types.Time   `json:"ts"`
+	State               types.Number `json:"state"`
+	DepositID           string       `json:"depId"`
+	AreaCodeFrom        string       `json:"areaCodeFrom"`
+	FromWithdrawalID    string       `json:"fromWdId"`
+	ActualDepBlkConfirm string       `json:"actualDepBlkConfirm"`
 }
 
 // WithdrawalInput represents request parameters for cryptocurrency withdrawal
 type WithdrawalInput struct {
-	Amount                float64       `json:"amt,string"`
-	TransactionFee        float64       `json:"fee,string"`
-	WithdrawalDestination string        `json:"dest"`
-	Currency              currency.Code `json:"ccy"`
-	ChainName             string        `json:"chain"`
-	ToAddress             string        `json:"toAddr"`
-	ClientID              string        `json:"clientId"`
+	Currency              currency.Code                   `json:"ccy"`
+	Amount                float64                         `json:"amt,string"`
+	TransactionFee        float64                         `json:"fee,string"`
+	WithdrawalDestination string                          `json:"dest"`
+	ChainName             string                          `json:"chain"`
+	ToAddress             string                          `json:"toAddr"`
+	ClientID              string                          `json:"clientId"`
+	AreaCode              string                          `json:"areaCode,omitempty"`
+	RecipientInformation  *WithdrawalRecipientInformation `json:"rcvrInfo,omitempty"`
+}
+
+// WithdrawalRecipientInformation represents a recipient information for withdrawal
+type WithdrawalRecipientInformation struct {
+	WalletType                 string `json:"walletType,omitempty"`
+	ExchangeID                 string `json:"exchId,omitempty"`
+	ReceiverFirstName          string `json:"rcvrFirstName,omitempty"`
+	ReceiverLastName           string `json:"rcvrLastName,omitempty"`
+	ReceiverCountry            string `json:"rcvrCountry,omitempty"`
+	ReceiverCountrySubDivision string `json:"rcvrCountrySubDivision,omitempty"`
+	ReceiverTownName           string `json:"rcvrTownName,omitempty"`
+	ReceiverStreetName         string `json:"rcvrStreetName,omitempty"`
 }
 
 // WithdrawalResponse cryptocurrency withdrawal response
@@ -1361,19 +1383,25 @@ type LightningWithdrawalResponse struct {
 
 // WithdrawalHistoryResponse represents the withdrawal response history.
 type WithdrawalHistoryResponse struct {
-	ChainName            string       `json:"chain"`
-	WithdrawalFee        types.Number `json:"fee"`
 	Currency             string       `json:"ccy"`
-	ClientID             string       `json:"clientId"`
+	ChainName            string       `json:"chain"`
+	NonTradableAsset     bool         `json:"nonTradableAsset"`
 	Amount               types.Number `json:"amt"`
-	TransactionID        string       `json:"txId"` // Hash record of the withdrawal. This parameter will not be returned for internal transfers.
+	Timestamp            types.Time   `json:"ts"`
 	FromRemittingAddress string       `json:"from"`
 	ToReceivingAddress   string       `json:"to"`
-	StateOfWithdrawal    string       `json:"state"`
-	Timestamp            types.Time   `json:"ts"`
-	WithdrawalID         string       `json:"wdId"`
-	PaymentID            string       `json:"pmtId,omitempty"`
+	AreaCodeFrom         string       `json:"areaCodeFrom"`
+	AreaCodeTo           string       `json:"areaCodeTo"`
+	Tag                  string       `json:"tag"`
+	WithdrawalFee        types.Number `json:"fee"`
+	FeeCurrency          string       `json:"feeCcy"`
 	Memo                 string       `json:"memo"`
+	AddrEx               string       `json:"addrEx"`
+	ClientID             string       `json:"clientId"`
+	TransactionID        string       `json:"txId"` // Hash record of the withdrawal. This parameter will not be returned for internal transfers.
+	StateOfWithdrawal    string       `json:"state"`
+	WithdrawalID         string       `json:"wdId"`
+	PaymentID            string       `json:"pmtId"`
 }
 
 // DepositWithdrawStatus holds deposit withdraw status info.
@@ -1516,8 +1544,8 @@ type ConvertTradeInput struct {
 	Size          float64       `json:"sz,string"`
 	SizeCurrency  currency.Code `json:"szCcy"`
 	QuoteID       string        `json:"quoteId"`
-	ClientOrderID string        `json:"clTReqId"`
-	Tag           string        `json:"tag"`
+	ClientOrderID string        `json:"clTReqId,omitempty"`
+	Tag           string        `json:"tag,omitempty"`
 }
 
 // ConvertTradeResponse represents convert trade response
@@ -5212,4 +5240,38 @@ type FiatWithdrawalPaymentMethods struct {
 		BankCode      string `json:"bankCode"`
 		State         string `json:"state"`
 	} `json:"accounts"`
+}
+
+// FiatDepositPaymentMethods represents a fiat deposit payment methods
+type FiatDepositPaymentMethods struct {
+	Currency      string       `json:"ccy"`
+	PaymentMethod string       `json:"paymentMethod"`
+	FeeRate       types.Number `json:"feeRate"`
+	MinFee        types.Number `json:"minFee"`
+	Limits        struct {
+		DailyLimit            types.Number `json:"dailyLimit"`
+		DailyLimitRemaining   types.Number `json:"dailyLimitRemaining"`
+		WeeklyLimit           types.Number `json:"weeklyLimit"`
+		WeeklyLimitRemaining  types.Number `json:"weeklyLimitRemaining"`
+		MonthlyLimit          types.Number `json:"monthlyLimit"`
+		MonthlyLimitRemaining types.Number `json:"monthlyLimitRemaining"`
+		MaxAmount             types.Number `json:"maxAmt"`
+		MinAmount             types.Number `json:"minAmt"`
+		LifetimeLimit         types.Number `json:"lifetimeLimit"`
+	} `json:"limits"`
+	Accounts []struct {
+		PaymentAcctID  string `json:"paymentAcctId"`
+		AcctountNumber string `json:"acctNum"`
+		RecipientName  string `json:"recipientName"`
+		BankName       string `json:"bankName"`
+		BankCode       string `json:"bankCode"`
+		State          string `json:"state"`
+	} `json:"accounts"`
+}
+
+// MonthlyStatement represents a monthly statement document information and link
+type MonthlyStatement struct {
+	FileHref  string     `json:"fileHref"`
+	State     string     `json:"state"`
+	Timestamp types.Time `json:"ts"`
 }

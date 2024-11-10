@@ -711,10 +711,11 @@ func (ok *Okx) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, currency.EMPTYCODE, "", "", time.Time{}, time.Time{}, -1, 0)
+	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, currency.EMPTYCODE, "", "", "", "", time.Time{}, time.Time{}, -1, 0)
 	if err != nil {
 		return nil, err
 	}
+
 	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", "", "", "", time.Time{}, time.Time{}, -5)
 	if err != nil {
 		return nil, err

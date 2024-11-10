@@ -1381,7 +1381,7 @@ func TestGetCurrencyDepositAddress(t *testing.T) {
 func TestGetCurrencyDepositHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetCurrencyDepositHistory(contextGenerate(), currency.BTC, "", "", time.Time{}, time.Time{}, 0, 1)
+	result, err := ok.GetCurrencyDepositHistory(contextGenerate(), currency.BTC, "", "", "", "271", time.Time{}, time.Time{}, 0, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1390,6 +1390,23 @@ func TestWithdrawal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = ok.Withdrawal(contextGenerate(), &WithdrawalInput{
+		Amount:                0.1,
+		WithdrawalDestination: "4",
+		TransactionFee:        0.00005,
+		Currency:              currency.BTC,
+		ChainName:             "BTC-Bitcoin",
+		ToAddress:             core.BitcoinDonationAddress,
+		RecipientInformation: &WithdrawalRecipientInformation{
+			WalletType:        "exchange",
+			ExchangeID:        "did:ethr:0xfeb4f99829a9acdf52979abee87e83addf22a7e1",
+			ReceiverFirstName: "Bruce",
+			ReceiverLastName:  "Wayne",
+		},
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1489,6 +1506,28 @@ func TestGetPublicBorrowInfo(t *testing.T) {
 func TestGetPublicBorrowHistory(t *testing.T) {
 	t.Parallel()
 	result, err := ok.GetPublicBorrowHistory(context.Background(), currency.USDT, time.Time{}, time.Time{}, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMonthlyStatement(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetMonthlyStatement(context.Background(), "")
+	require.ErrorIs(t, err, errMonthNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetMonthlyStatement(context.Background(), "Jan")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestApplyForMonthlyStatement(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ApplyForMonthlyStatement(context.Background(), "")
+	require.ErrorIs(t, err, errMonthNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.ApplyForMonthlyStatement(context.Background(), "Jan")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1628,7 +1667,6 @@ func TestApplyBillDetails(t *testing.T) {
 	require.ErrorIs(t, err, errQuarterValueRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	ok.Verbose = true
 	result, err := ok.ApplyBillDetails(context.Background(), "2023", "Q2")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1877,7 +1915,6 @@ func TestGetFixedLoanBorrowQuote(t *testing.T) {
 	_, err = ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "reborrow", "30D", "", 1, .4)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	ok.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetFixedLoanBorrowQuote(context.Background(), currency.USDT, "normal", "30D", "123423423", 1, .4)
 	require.NoError(t, err)
@@ -5067,7 +5104,6 @@ func TestAssetTypeString(t *testing.T) {
 
 func TestGetAnnouncements(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	result, err := ok.GetAnnouncements(context.Background(), "", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5075,7 +5111,6 @@ func TestGetAnnouncements(t *testing.T) {
 
 func TestGetAnnouncementTypes(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	results, err := ok.GetAnnouncementTypes(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, results)
@@ -5106,7 +5141,6 @@ func TestGetWithdrawalOrderDetail(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	ok.Verbose = true
 	result, err := ok.GetWithdrawalOrderDetail(context.Background(), "024041201450544699")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5157,6 +5191,17 @@ func TestGetFiatWithdrawalPaymentMethods(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetFiatWithdrawalPaymentMethods(context.Background(), currency.TRY)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatDepositPaymentMethods(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFiatDepositPaymentMethods(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetFiatDepositPaymentMethods(context.Background(), currency.TRY)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

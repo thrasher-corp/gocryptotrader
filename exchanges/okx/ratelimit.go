@@ -94,6 +94,8 @@ const (
 	getPublicBorrowInfoEPL
 	getPublicBorrowHistoryEPL
 	getConvertCurrenciesEPL
+	getMonthlyStatementEPL
+	applyForMonthlyStatementEPL
 	getConvertCurrencyPairEPL
 	estimateQuoteEPL
 	convertTradeEPL
@@ -317,6 +319,7 @@ const (
 	cancelWithdrawalOrderEPL
 	createWithdrawalOrderEPL
 	getWithdrawalPaymentMethodsEPL
+	getFiatDepositPaymentMethodsEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -406,11 +409,13 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getPublicBorrowInfoEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowHistoryEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		// Convert
-		getConvertCurrenciesEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		getConvertCurrencyPairEPL: request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		estimateQuoteEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
-		convertTradeEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
-		getConvertHistoryEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getMonthlyStatementEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		applyForMonthlyStatementEPL: request.NewRateLimitWithWeight(time.Hour*24*30, 20, 1),
+		getConvertCurrenciesEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getConvertCurrencyPairEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		estimateQuoteEPL:            request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
+		convertTradeEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
+		getConvertHistoryEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		// Account
 		getAccountBalanceEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getPositionsEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
@@ -652,5 +657,6 @@ func GetRateLimit() request.RateLimitDefinitions {
 		cancelWithdrawalOrderEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		createWithdrawalOrderEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getWithdrawalPaymentMethodsEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getFiatDepositPaymentMethodsEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 	}
 }
