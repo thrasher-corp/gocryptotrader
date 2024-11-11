@@ -35,7 +35,7 @@ type CurrenciesChainData struct {
 	Currency   string `json:"currency"`
 	AssetType  uint8  `json:"assetType"`
 	InstStatus string `json:"instStatus"`
-	ChainData  []struct {
+	ChainData  []*struct {
 		Chain                     string  `json:"chain"`
 		DisplayName               string  `json:"displayName"`
 		BaseChain                 string  `json:"baseChain"`

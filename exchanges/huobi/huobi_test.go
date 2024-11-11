@@ -2625,13 +2625,9 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	r, err := h.GetAvailableTransferChains(context.Background(), currency.USDT)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(r) < 2 {
-		t.Error("expected more than one result")
-	}
+	c, err := h.GetAvailableTransferChains(context.Background(), currency.USDT)
+	require.NoError(t, err)
+	require.Greater(t, len(c), 2, "Must get more than 2 chains")
 }
 
 func TestFormatFuturesPair(t *testing.T) {
