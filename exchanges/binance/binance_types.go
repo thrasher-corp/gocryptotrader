@@ -300,8 +300,8 @@ type IndexMarkPrice struct {
 	IndexPrice           types.Number `json:"indexPrice"`
 	EstimatedSettlePrice types.Number `json:"estimatedSettlePrice"`
 	LastFundingRate      types.Number `json:"lastFundingRate"`
-	NextFundingTime      int64        `json:"nextFundingTime"`
-	Time                 int64        `json:"time"`
+	NextFundingTime      types.Time   `json:"nextFundingTime"`
+	Time                 types.Time   `json:"time"`
 }
 
 // CandleStick holds kline data
