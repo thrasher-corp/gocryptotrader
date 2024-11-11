@@ -1,6 +1,6 @@
 package json
 
-import "encoding/json"
+import "encoding/json" //nolint:depguard // This is a wrapper package
 
 type (
 	// RawMessage is a raw encoded JSON value.

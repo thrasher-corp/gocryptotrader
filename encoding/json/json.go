@@ -2,7 +2,7 @@
 
 package json
 
-import "encoding/json"
+import "encoding/json" //nolint:depguard // This is a wrapper package
 
 var (
 	// Marshal returns the JSON encoding of v. See the "encoding/json" documentation for Marshal

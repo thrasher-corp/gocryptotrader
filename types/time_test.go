@@ -1,13 +1,13 @@
 package types
 
 import (
-	"encoding/json"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestUnmarshalJSON(t *testing.T) {
