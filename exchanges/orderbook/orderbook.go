@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,8 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
-
-var errBookAlreadyDeployed = errors.New("orderbook already deployed")
 
 // Get checks and returns the orderbook given an exchange name and currency pair
 func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
