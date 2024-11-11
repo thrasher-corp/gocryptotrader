@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var errBookAlreadyDeployed = errors.New("orderbook already deployed")
 
 // Get checks and returns the orderbook given an exchange name and currency pair
 func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
@@ -111,14 +114,15 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 		}
 		s.books[strings.ToLower(exchange)] = m1
 	}
-	book, ok := m1.m[mapKey]
-	if !ok {
-		book = NewDepth(m1.ID)
-		book.exchange = exchange
-		book.pair = p
-		book.asset = a
-		m1.m[mapKey] = book
+	_, ok = m1.m[mapKey]
+	if ok {
+		return nil, errBookAlreadyDeployed
 	}
+	book := NewDepth(m1.ID)
+	book.exchange = exchange
+	book.pair = p
+	book.asset = a
+	m1.m[mapKey] = book
 	return book, nil
 }
 
