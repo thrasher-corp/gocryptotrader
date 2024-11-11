@@ -4287,14 +4287,17 @@ func (ok *Okx) GetAPYHistory(ctx context.Context, days int64) ([]APYItem, error)
 }
 
 // GetTickers retrieves the latest price snapshots best bid/ ask price, and trading volume in the last 24 hours.
-func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]TickerResponse, error) {
+func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instFamily string) ([]TickerResponse, error) {
 	if instType == "" {
 		return nil, errInvalidInstrumentType
 	}
 	params := url.Values{}
 	params.Set("instType", instType)
-	if instID != "" {
-		params.Set("instId", instID)
+	if instFamily != "" {
+		params.Set("instFamily", instFamily)
+	}
+	if uly != "" {
+		params.Set("uly", uly)
 	}
 	var response []TickerResponse
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues("market/tickers", params), nil, &response, request.UnauthenticatedRequest)
@@ -4973,11 +4976,9 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 	if arg.InstrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	switch arg.InstrumentType {
-	case okxInstTypeOption:
-		if arg.InstrumentFamily == "" && arg.Underlying == "" {
-			return nil, errInstrumentFamilyOrUnderlyingRequired
-		}
+	if arg.InstrumentType == okxInstTypeOption &&
+		arg.InstrumentFamily == "" && arg.Underlying == "" {
+		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
 	params := url.Values{}
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)

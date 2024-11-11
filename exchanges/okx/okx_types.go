@@ -302,47 +302,6 @@ func (c *CandleStick) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &target)
 }
 
-// UnmarshalJSON deserializes slice of data into ExpiryOpenInterestAndVolume structure
-func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
-	var expiryTimeString string
-	target := [6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume}
-	err := json.Unmarshal(data, &target)
-	if err != nil {
-		return err
-	}
-	if expiryTimeString != "" && len(expiryTimeString) == 8 {
-		year, err := strconv.ParseInt(expiryTimeString[0:4], 10, 64)
-		if err != nil {
-			return err
-		}
-		month, err := strconv.ParseInt(expiryTimeString[4:6], 10, 64)
-		if err != nil {
-			return err
-		}
-		var months string
-		var days string
-		if month <= 9 {
-			months = "0" + strconv.FormatInt(month, 10)
-		} else {
-			months = strconv.FormatInt(month, 10)
-		}
-		day, err := strconv.ParseInt(expiryTimeString[6:], 10, 64)
-		if err != nil {
-			return err
-		}
-		if day <= 9 {
-			days = "0" + strconv.FormatInt(day, 10)
-		} else {
-			days = strconv.FormatInt(day, 10)
-		}
-		e.ExpiryTime, err = time.Parse("2006-01-02", strconv.FormatInt(year, 10)+"-"+months+"-"+days)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // CandlestickHistoryItem retrieve the candlestick charts of the index/mark price from recent years.
 type CandlestickHistoryItem struct {
 	Timestamp    time.Time
@@ -775,6 +734,47 @@ type ExpiryOpenInterestAndVolume struct {
 	PutOpenInterest  types.Number
 	CallVolume       types.Number
 	PutVolume        types.Number
+}
+
+// UnmarshalJSON deserializes slice of data into ExpiryOpenInterestAndVolume structure
+func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
+	var expiryTimeString string
+	target := [6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume}
+	err := json.Unmarshal(data, &target)
+	if err != nil {
+		return err
+	}
+	if expiryTimeString != "" && len(expiryTimeString) == 8 {
+		year, err := strconv.ParseInt(expiryTimeString[0:4], 10, 64)
+		if err != nil {
+			return err
+		}
+		month, err := strconv.ParseInt(expiryTimeString[4:6], 10, 64)
+		if err != nil {
+			return err
+		}
+		var months string
+		var days string
+		if month <= 9 {
+			months = "0" + strconv.FormatInt(month, 10)
+		} else {
+			months = strconv.FormatInt(month, 10)
+		}
+		day, err := strconv.ParseInt(expiryTimeString[6:], 10, 64)
+		if err != nil {
+			return err
+		}
+		if day <= 9 {
+			days = "0" + strconv.FormatInt(day, 10)
+		} else {
+			days = strconv.FormatInt(day, 10)
+		}
+		e.ExpiryTime, err = time.Parse("2006-01-02", strconv.FormatInt(year, 10)+"-"+months+"-"+days)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // StrikeOpenInterestAndVolume represents open interest and volume for both buyers and sellers of calls and puts.

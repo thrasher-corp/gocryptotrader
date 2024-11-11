@@ -164,10 +164,13 @@ func contextGenerate() context.Context {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetTickers(contextGenerate(), "", "", optionsTP.String())
+	instFamily, err := ok.instrumentFamilyFromInstID(okxInstTypeOption, optionsTP.String())
+	require.NoError(t, err)
+
+	_, err = ok.GetTickers(contextGenerate(), "", "", instFamily)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	result, err := ok.GetTickers(contextGenerate(), okxInstTypeOption, "", optionsTP.String())
+	result, err := ok.GetTickers(contextGenerate(), okxInstTypeOption, "", instFamily)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -603,7 +606,6 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
 		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
-
 }
 
 func TestCurrencyUnitConvert(t *testing.T) {
