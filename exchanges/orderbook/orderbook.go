@@ -82,8 +82,7 @@ func (s *Service) Update(b *Base) error {
 	return s.Mux.Publish(book, m1.ID)
 }
 
-// DeployDepth used for subsystem deployment creates a depth item in the struct
-// then returns a ptr to that Depth item
+// DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
 		return nil, errExchangeNameUnset
@@ -114,11 +113,12 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 		}
 		s.books[strings.ToLower(exchange)] = m1
 	}
-	_, ok = m1.m[mapKey]
+	book, ok := m1.m[mapKey]
 	if ok {
-		return nil, errBookAlreadyDeployed
+		// Maybe in future we should return an error here and be more strict.
+		return book, nil
 	}
-	book := NewDepth(m1.ID)
+	book = NewDepth(m1.ID)
 	book.exchange = exchange
 	book.pair = p
 	book.asset = a

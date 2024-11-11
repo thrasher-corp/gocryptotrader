@@ -333,7 +333,7 @@ func TestDeployDepth(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 	_, err = DeployDepth("test", c, asset.Spot)
-	require.ErrorIs(t, err, errBookAlreadyDeployed)
+	require.NoError(t, err)
 }
 
 func TestCreateNewOrderbook(t *testing.T) {
