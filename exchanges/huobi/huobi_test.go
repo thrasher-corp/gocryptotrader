@@ -25,8 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2926,4 +2928,66 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			assert.NotEmpty(t, resp)
 		}
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	subs, err := h.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	for _, s := range h.Features.Subscriptions {
+		if s.Authenticated && !h.Websocket.CanUseAuthenticatedEndpoints() {
+			continue
+		}
+		for _, a := range h.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := h.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: false, Delimiter: ""})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			for i, p := range pairs {
+				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+				s.QualifiedChannel = channelName(s, p)
+				switch s.Channel {
+				case subscription.OrderbookChannel:
+					s.QualifiedChannel += ".step0"
+				case subscription.CandlesChannel:
+					s.QualifiedChannel += ".1min"
+				}
+				s.Pairs = pairs[i : i+1]
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+// TestSubscribe exercises live public subscriptions
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	testexch.SetupWs(t, h)
+	err = h.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+	got := h.Websocket.GetSubscriptions()
+	require.Equal(t, 4, len(got), "Must get correct number of subscriptions")
+	for _, s := range got {
+		assert.Equal(t, subscription.SubscribedState, s.State())
+	}
+}
+
+func TestChannelName(t *testing.T) {
+	p := currency.NewPair(currency.BTC, currency.USD)
+	assert.Equal(t, "market.BTCUSD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, p))
+	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, p) })
+	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: subscription.MyAccountChannel}, p) }, "Should panic on V2 endpoints until implemented")
 }

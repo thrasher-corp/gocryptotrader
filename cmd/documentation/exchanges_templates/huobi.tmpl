@@ -92,12 +92,24 @@ if err != nil {
 }
 ```
 
-### How to do Websocket public/private calls
+### Subscriptions
 
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
+All subscriptions are for spot only.
+
+Default Public Subscriptions:
+- Ticker
+- Candles ( Interval: 1min )
+- Orderbook ( Level: 0 - No aggregation )
+  - Configure Level: 1-5 for depth aggregation, for example:
+```json
+ {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
+- Trades
+
+Default Authenticated Subscriptions:
+- Account Trades
+- Account Orders
+- Account Updates
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}
