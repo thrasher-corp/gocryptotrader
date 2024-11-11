@@ -242,6 +242,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 }
 
 func TestUpdates(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -274,6 +275,7 @@ func TestUpdates(t *testing.T) {
 
 // TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -307,6 +309,7 @@ func TestHittingTheBuffer(t *testing.T) {
 
 // TestInsertWithIDs logic test
 func TestInsertWithIDs(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -361,6 +364,7 @@ func TestInsertWithIDs(t *testing.T) {
 
 // TestSortIDs logic test
 func TestSortIDs(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -396,6 +400,7 @@ func TestSortIDs(t *testing.T) {
 
 // TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -427,6 +432,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 }
 
 func TestOrderbookLastUpdateID(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -561,6 +567,7 @@ func TestLoadSnapshot(t *testing.T) {
 
 // TestFlushBuffer logic test
 func TestFlushBuffer(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
@@ -714,6 +721,7 @@ func TestInsertingSnapShots(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
