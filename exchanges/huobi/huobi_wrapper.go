@@ -187,6 +187,17 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
+// Bootstrap ensures that future contract expiry codes are loaded if AutoPairUpdates is not enabled
+func (h *HUOBI) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+	continueBootstrap = true
+
+	if !h.GetEnabledFeatures().AutoPairUpdates && h.SupportsAsset(asset.Futures) {
+		_, err = h.FetchTradablePairs(context.Background(), asset.Futures)
+	}
+
+	return
+}
+
 // Setup sets user configuration
 func (h *HUOBI) Setup(exch *config.Exchange) error {
 	err := exch.Validate()

@@ -2991,3 +2991,19 @@ func TestChannelName(t *testing.T) {
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, p) })
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: subscription.MyAccountChannel}, p) }, "Should panic on V2 endpoints until implemented")
 }
+
+func TestBootstrap(t *testing.T) {
+	t.Parallel()
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
+
+	c, err := h.Bootstrap(context.Background())
+	require.NoError(t, err)
+	assert.True(t, c, "Bootstrap should return true to continue")
+
+	h.futureContractCodes = nil
+	h.Features.Enabled.AutoPairUpdates = false
+	_, err = h.Bootstrap(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, h.futureContractCodes)
+}
