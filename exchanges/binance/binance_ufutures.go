@@ -104,13 +104,11 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 
 	rateBudget := uFuturesOrderbook1000Rate
 	switch {
-	case limit == 0:
-		rateBudget = uFuturesOrderbook500Rate
 	case limit == 5, limit == 10, limit == 20, limit == 50:
 		rateBudget = uFuturesOrderbook50Rate
 	case limit >= 100 && limit < 500:
 		rateBudget = uFuturesOrderbook100Rate
-	case limit >= 500 && limit < 1000:
+	case limit == 0, limit >= 500 && limit < 1000:
 		rateBudget = uFuturesOrderbook500Rate
 	}
 

@@ -92,9 +92,6 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 	params.Set("symbol", symbolValue)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else {
-		// default to help select rate limits when no limit is provided
-		limit = 500
 	}
 
 	rateBudget := cFuturesOrderbook1000Rate
@@ -103,7 +100,7 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 		rateBudget = cFuturesOrderbook50Rate
 	case limit >= 100 && limit < 500:
 		rateBudget = cFuturesOrderbook100Rate
-	case limit >= 500 && limit < 1000:
+	case limit == 0, limit >= 500 && limit < 1000:
 		rateBudget = cFuturesOrderbook500Rate
 	}
 
