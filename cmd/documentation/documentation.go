@@ -204,11 +204,6 @@ func main() {
 				Contributions: 2,
 			},
 			{
-				Login:         "herenow",
-				URL:           "https://github.com/herenow",
-				Contributions: 2,
-			},
-			{
 				Login:         "if1live",
 				URL:           "https://github.com/if1live",
 				Contributions: 2,
@@ -221,21 +216,6 @@ func main() {
 			{
 				Login:         "MarkDzulko",
 				URL:           "https://github.com/MarkDzulko",
-				Contributions: 2,
-			},
-			{
-				Login:         "mshogin",
-				URL:           "https://github.com/mshogin",
-				Contributions: 2,
-			},
-			{
-				Login:         "soxipy",
-				URL:           "https://github.com/soxipy",
-				Contributions: 2,
-			},
-			{
-				Login:         "tk42",
-				URL:           "https://github.com/tk42",
 				Contributions: 2,
 			},
 			{

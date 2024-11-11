@@ -202,41 +202,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case bitmexWSTrade:
-		if !b.IsSaveTradeDataEnabled() {
-			return nil
-		}
-		var tradeHolder TradeData
-		if err := json.Unmarshal(msg, &tradeHolder); err != nil {
-			return err
-		}
-		var trades []trade.Data
-		for i := range tradeHolder.Data {
-			if tradeHolder.Data[i].Price == 0 {
-				// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
-				// These have a size of 0 and are used only to indicate a changing price.
-				continue
-			}
-			p, a, err := b.GetPairAndAssetTypeRequestFormatted(tradeHolder.Data[i].Symbol)
-			if err != nil {
-				return err
-			}
-			oSide, err := order.StringToOrderSide(tradeHolder.Data[i].Side)
-			if err != nil {
-				return err
-			}
-
-			trades = append(trades, trade.Data{
-				TID:          tradeHolder.Data[i].TrdMatchID,
-				Exchange:     b.Name,
-				CurrencyPair: p,
-				AssetType:    a,
-				Side:         oSide,
-				Price:        tradeHolder.Data[i].Price,
-				Amount:       float64(tradeHolder.Data[i].Size),
-				Timestamp:    tradeHolder.Data[i].Timestamp,
-			})
-		}
-		return b.AddTradesToBuffer(trades...)
+		return b.handleWsTrades(msg)
 	case bitmexWSAnnouncement:
 		var announcement AnnouncementData
 		if err := json.Unmarshal(msg, &announcement); err != nil {
@@ -515,6 +481,44 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		}
 	}
 	return nil
+}
+
+func (b *Bitmex) handleWsTrades(msg []byte) error {
+	if !b.IsSaveTradeDataEnabled() {
+		return nil
+	}
+	var tradeHolder TradeData
+	if err := json.Unmarshal(msg, &tradeHolder); err != nil {
+		return err
+	}
+	trades := make([]trade.Data, 0, len(tradeHolder.Data))
+	for _, t := range tradeHolder.Data {
+		if t.Size == 0 {
+			// Indices (symbols starting with .) post trades at intervals to the trade feed
+			// These have a size of 0 and are used only to indicate a changing price
+			continue
+		}
+		p, a, err := b.GetPairAndAssetTypeRequestFormatted(t.Symbol)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(t.Side)
+		if err != nil {
+			return err
+		}
+
+		trades = append(trades, trade.Data{
+			TID:          t.TrdMatchID,
+			Exchange:     b.Name,
+			CurrencyPair: p,
+			AssetType:    a,
+			Side:         oSide,
+			Price:        t.Price,
+			Amount:       float64(t.Size),
+			Timestamp:    t.Timestamp,
+		})
+	}
+	return b.AddTradesToBuffer(trades...)
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
