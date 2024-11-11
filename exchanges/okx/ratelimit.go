@@ -232,6 +232,7 @@ const (
 
 	getTickersEPL
 	getTickerEPL
+	getPremiumHistoryEPL
 	getIndexTickersEPL
 	getOrderBookEPL
 	getOrderBookLiteEPL
@@ -561,6 +562,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		// Market Data
 		getTickersEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getTickerEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getPremiumHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getIndexTickersEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getOrderBookEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
 		getOrderBookLiteEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 6, 1),

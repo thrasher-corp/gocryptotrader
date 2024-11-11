@@ -51,6 +51,9 @@ func (ok *Okx) SetDefaults() {
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
 
+	ok.instrumentTypesUnderlyings = make(map[string][]string)
+	ok.instrumentsInfoMap = make(map[string][]Instrument)
+
 	cpf := &currency.PairFormat{
 		Delimiter: currency.DashDelimiter,
 		Uppercase: true,
@@ -330,7 +333,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := ok.GetAssetTypes(false)
+	assetTypes := ok.GetAssetTypes(true)
 	for i := range assetTypes {
 		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
@@ -1897,10 +1900,17 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
 
+	var instruments []Instrument
 	var instType string
+	var err error
 	switch a {
 	case asset.Options:
-		return ok.getInstrumentsForOptions(ctx)
+		instruments, err = ok.getInstrumentsForOptions(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ok.instrumentsInfoMap[okxInstTypeOption] = instruments
+		return instruments, nil
 	case asset.Spot:
 		instType = okxInstTypeSpot
 	case asset.Futures:
@@ -1911,9 +1921,14 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 		instType = okxInstTypeMargin
 	}
 
-	return ok.GetInstruments(ctx, &InstrumentsFetchParams{
+	instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 		InstrumentType: instType,
 	})
+	if err != nil {
+		return nil, err
+	}
+	ok.instrumentsInfoMap[instType] = instruments
+	return instruments, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
@@ -2015,7 +2030,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 			}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 				Time: frh[i].FundingTime.Time(),
-				Rate: frh[i].RealisedRate.Decimal(),
+				Rate: frh[i].FundingRate.Decimal(),
 			})
 		}
 		if len(frh) < requestLimit {
@@ -2607,7 +2622,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			"FUTURES": asset.Futures,
 		}
 		for instType, v := range instTypes {
-			oid, err := ok.GetOpenInterestData(ctx, instType, "", "")
+			oid, err := ok.GetOpenInterestData(ctx, instType, "", "", "")
 			if err != nil {
 				return nil, err
 			}
@@ -2651,7 +2666,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	if err != nil {
 		return nil, err
 	}
-	oid, err := ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
+	oid, err := ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
 	if err != nil {
 		return nil, err
 	}
