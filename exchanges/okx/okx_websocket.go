@@ -1683,7 +1683,14 @@ func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 		case data := <-wsResponse:
 			if data.Operation == okxOpOrder && data.ID == input.ID {
 				var dataHolder *OrderData
-				return dataHolder, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return nil, err
+				}
+				if data.Code == "1" {
+					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder, nil
 			}
 			continue
 		case <-timer.C:
@@ -1812,7 +1819,14 @@ func (ok *Okx) WsCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 		case data := <-wsResponse:
 			if data.Operation == okxOpCancelOrder && data.ID == input.ID {
 				var dataHolder *OrderData
-				return dataHolder, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return nil, err
+				}
+				if data.Code == "1" {
+					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder, nil
 			}
 			continue
 		case <-timer.C:
@@ -1942,7 +1956,14 @@ func (ok *Okx) WsAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 		case data := <-wsResponse:
 			if data.Operation == okxOpAmendOrder && data.ID == input.ID {
 				var dataHolder *OrderData
-				return dataHolder, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return nil, err
+				}
+				if data.Code == "1" {
+					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder, nil
 			}
 			continue
 		case <-timer.C:
@@ -2082,6 +2103,8 @@ func (ok *Okx) WsMassCancelOrders(ctx context.Context, args []CancelMassReqParam
 						return false, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
 					}
 					return resp[0].Result, nil
+				} else {
+					return false, fmt.Errorf("error code:%s message: %v", data.Code, data.Message)
 				}
 			}
 			continue
@@ -2465,18 +2488,14 @@ func (ok *Okx) PublicBlockTradesSubscription(ctx context.Context, operation stri
 // Websocket Spread Trade methods
 
 // handleIncomingData extracts the incoming data to the dataHolder interface after few checks and return nil or return error message otherwise
-func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder StatusCodeHolder) error {
-	sliceDataHolder := []StatusCodeHolder{dataHolder}
+func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder any) error {
 	if data.Code == "0" || data.Code == "1" {
-		err := data.copyResponseToInterface(&sliceDataHolder)
+		err := data.copyResponseToInterface(dataHolder)
 		if err != nil {
 			return err
 		}
 		if dataHolder == nil {
 			return fmt.Errorf("%w, invalid incoming data", common.ErrNoResponse)
-		}
-		if data.Code == "1" {
-			return fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
 		}
 		return nil
 	}
@@ -2520,7 +2539,14 @@ func (ok *Okx) WsPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadOrder && data.ID == input.ID {
 				var dataHolder *SpreadOrderResponse
-				return dataHolder, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return nil, err
+				}
+				if data.Code == "1" {
+					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder, nil
 			}
 			continue
 		case <-timer.C:
@@ -2571,7 +2597,14 @@ func (ok *Okx) WsAmandSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadAmendOrder && data.ID == input.ID {
 				var dataHolder *SpreadOrderResponse
-				return dataHolder, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return nil, err
+				}
+				if data.Code == "1" {
+					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder, nil
 			}
 			continue
 		case <-timer.C:
@@ -2623,7 +2656,14 @@ func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID s
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadCancelOrder && data.ID == input.ID {
 				var dataHolder *SpreadOrderResponse
-				return dataHolder, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return nil, err
+				}
+				if data.Code == "1" {
+					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder, nil
 			}
 			continue
 		case <-timer.C:
@@ -2669,7 +2709,14 @@ func (ok *Okx) WsCancelAllSpreadOrders(ctx context.Context, spreadID string) (bo
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadCancelAllOrders && data.ID == input.ID {
 				dataHolder := &ResponseSuccess{}
-				return dataHolder.Result, ok.handleIncomingData(data, dataHolder)
+				err = ok.handleIncomingData(data, &dataHolder)
+				if err != nil {
+					return false, err
+				}
+				if data.Code == "1" {
+					return false, fmt.Errorf("error code:%s message: %s", dataHolder.GetSCode(), dataHolder.GetSMsg())
+				}
+				return dataHolder.Result, nil
 			}
 			continue
 		case <-timer.C:

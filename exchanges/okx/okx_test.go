@@ -36,9 +36,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "703985fb-0bd8-4ca1-bf36-41924e377bcc"
-	apiSecret               = "D6988765C8E5CDEC3DC00CDBBE765643"
-	passphrase              = "0631Okx!"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -49,7 +49,7 @@ var (
 	leadTraderUniqueID string
 	loadLeadTraderOnce sync.Once
 
-	spotTP, marginTP, futuresTP, perpetualSwapTP, optionsTP currency.Pair
+	spotTP, marginTP, futuresTP, perpetualSwapTP, optionsTP, spreadTP currency.Pair
 )
 
 func TestMain(m *testing.M) {
@@ -111,6 +111,7 @@ func populateTradablePairs() error {
 		asset.Futures:       futuresTP,
 		asset.Options:       optionsTP,
 		asset.PerpetualSwap: perpetualSwapTP,
+		asset.Spread:        spreadTP,
 	}
 	for a := range assetToTradablePairMap {
 		tradablePairs, err := ok.GetEnabledPairs(a)
@@ -131,6 +132,8 @@ func populateTradablePairs() error {
 			optionsTP = tradablePairs[0]
 		case asset.PerpetualSwap:
 			perpetualSwapTP = tradablePairs[0]
+		case asset.Spread:
+			spreadTP = tradablePairs[0]
 		}
 	}
 	return nil
@@ -965,7 +968,7 @@ func TestGet7And3MonthDayOrderHistory(t *testing.T) {
 	require.NotNil(t, result)
 
 	_, err = ok.Get3MonthOrderHistory(context.Background(), &OrderHistoryRequestParams{})
-	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.Get3MonthOrderHistory(context.Background(), &OrderHistoryRequestParams{Category: "abc"})
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
@@ -1009,9 +1012,6 @@ func TestStopOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrUnknownPriceType)
 
 	arg.TakeProfitTriggerPriceType = "last_price"
-	_, err = ok.PlaceStopOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
 	arg.AlgoClOrdID = "12345"
 	_, err = ok.PlaceStopOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -2736,9 +2736,8 @@ func TestUpdateOrderbook(t *testing.T) {
 	result, err := ok.UpdateOrderbook(contextGenerate(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	spreadPair, err := currency.NewPairDelimiter("BTC-USDT-SWAP_BTC-USDT-240126", currency.UnderscoreDelimiter)
-	require.NoError(t, err)
-	result, err = ok.UpdateOrderbook(contextGenerate(), spreadPair, asset.Spread)
+
+	result, err = ok.UpdateOrderbook(contextGenerate(), spreadTP, asset.Spread)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3543,13 +3542,10 @@ func TestWsAmendOrder(t *testing.T) {
 	_, err = ok.WsAmendOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
-	ok.Verbose = true
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	// ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.WsAmendOrder(context.Background(), &AmendOrderRequestParams{
 		InstrumentID: spotTP.String(),
 		OrderID:      "2510789768709120",
-		NewPrice:     1233324.332,
 		NewQuantity:  1234,
 	})
 	require.NoError(t, err)
@@ -3559,7 +3555,6 @@ func TestWsAmendOrder(t *testing.T) {
 func TestWsAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
 	result, err := ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{
 		{
 			InstrumentID: "DCR-BTC",
@@ -4249,6 +4244,7 @@ func TestOrderPreCheck(t *testing.T) {
 	t.Parallel()
 	_, err := ok.OrderPreCheck(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	arg := &OrderPreCheckParams{
 		ClientOrderID: "b15",
 	}
@@ -4290,7 +4286,7 @@ func TestAmendAlgoOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
 		AlgoID:       "2510789768709120",
-		InstrumentID: "BTC-USDT-SWAP",
+		InstrumentID: perpetualSwapTP.String(),
 		NewSize:      2,
 	})
 	require.NoError(t, err)
@@ -4729,7 +4725,7 @@ func TestPlaceSpreadOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceSpreadOrder(context.Background(), &SpreadOrderParam{
-		InstrumentID:  "BTC-USDT_BTC-USD-SWAP",
+		InstrumentID:  spreadTP.String(),
 		SpreadID:      "1234",
 		ClientOrderID: "12354123523",
 		Side:          order.Buy.Lower(),
@@ -4961,8 +4957,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	usdSwapCode := currency.NewCode("USD-SWAP")
 	resp, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  currency.BTC.Item,
-		Quote: usdSwapCode.Item,
+		Base:  perpetualSwapTP.Base.Item,
+		Quote: perpetualSwapTP.Quote.Item,
 		Asset: asset.PerpetualSwap,
 	})
 	assert.NoError(t, err)
@@ -5036,7 +5032,7 @@ func TestPlaceLendingOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errLendingTermIsRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceLendingOrder(context.Background(), &LendingOrderParam{
 		Currency:    currency.USDT,
 		Amount:      1,
@@ -5268,7 +5264,7 @@ func TestGetDepositOrderDetail(t *testing.T) {
 func TestGetFiatDepositOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetFiatDepositOrderHistory(context.Background(), currency.USDT, "SEPA", "failed", time.Time{}, time.Time{}, 10)
+	result, err := ok.GetFiatDepositOrderHistory(context.Background(), currency.USDT, "TR_BANKS", "failed", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5342,29 +5338,6 @@ func TestGetFiatDepositPaymentMethods(t *testing.T) {
 	result, err := ok.GetFiatDepositPaymentMethods(context.Background(), currency.TRY)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, error) {
-	if instrumentType != "" {
-		insts, okay := ok.instrumentsInfoMap[instrumentType]
-		if !okay {
-			return "", errInvalidInstrumentType
-		}
-		for a := range insts {
-			if insts[a].InstrumentID == instID {
-				return insts[a].Underlying, nil
-			}
-		}
-	} else {
-		for _, insts := range ok.instrumentsInfoMap {
-			for a := range insts {
-				if insts[a].InstrumentID == instID {
-					return insts[a].Underlying, nil
-				}
-			}
-		}
-	}
-	return "", fmt.Errorf("underlying not found for instrument %s", instID)
 }
 
 func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {

@@ -881,13 +881,13 @@ type AmendOrderRequestParams struct {
 	OrderID         string  `json:"ordId,omitempty"`
 	ClientOrderID   string  `json:"clOrdId,omitempty"`
 	ClientRequestID string  `json:"reqId,omitempty"`
-	NewQuantity     float64 `json:"newSz,string,omitempty"`
-	NewPrice        float64 `json:"newPx,string,omitempty"`
+	NewQuantity     float64 `json:"newSz,omitempty,string"`
+	NewPrice        float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.
 	// When modifying options orders, users can only fill in one of the following: newPx, newPxUsd, or newPxVol.
-	NewPriceInUSD float64 `json:"newPxUsd"`
+	NewPriceInUSD float64 `json:"newPxUsd,omitempty,string"`
 
 	NewPriceVolatility float64       `json:"newPxVol,omitempty"` // Modify options orders based on implied volatility, where 1 represents 100%. Only applicable to options.
 	AttachAlgoOrders   []AlgoOrdInfo `json:"attachAlgoOrds,omitempty"`
@@ -3111,7 +3111,7 @@ type WebsocketLoginData struct {
 
 // SubscriptionInfo holds the channel and instrument IDs.
 type SubscriptionInfo struct {
-	Channel          string `json:"channel"`
+	Channel          string `json:"channel,omitempty"`
 	InstrumentID     string `json:"instId,omitempty"`
 	InstrumentFamily string `json:"instFamily,omitempty"`
 	InstrumentType   string `json:"instType,omitempty"`
@@ -3209,8 +3209,7 @@ func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
 	if len(w.Data) == 0 {
 		return common.ErrNoResponse
 	}
-	var spreadOrderResps []SpreadOrderInfo
-	return json.Unmarshal(w.Data, &spreadOrderResps)
+	return json.Unmarshal(w.Data, &[]any{dataHolder})
 }
 
 // WSInstrumentResponse represents websocket instruments push message.

@@ -117,6 +117,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	arg.Side = strings.ToLower(arg.Side)
 	switch arg.Side {
 	case order.Buy.Lower(), order.Sell.Lower():
+	default:
 		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 	}
 	switch arg.TradeMode {
@@ -1619,6 +1620,7 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 	switch arg.Side {
 	case order.Buy.Lower(),
 		order.Sell.Lower():
+	default:
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Size <= 0 {
@@ -4962,7 +4964,7 @@ func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]Sp
 // CancelAllSpreadOrdersAfterCountdown cancel all pending orders after the countdown timeout. Only applicable to spread trading.
 func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutDuration int64) (*SpreadOrderCancellationResponse, error) {
 	if (timeoutDuration != 0) && (timeoutDuration < 10 || timeoutDuration > 120) {
-		return nil, fmt.Errorf("%w, Range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
+		return nil, fmt.Errorf("%w, range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
 	}
 	arg := &struct {
 		TimeOut int64 `json:"timeOut,string"`
@@ -5041,7 +5043,7 @@ func (ok *Okx) GetOpenInterestData(ctx context.Context, instType, uly, instrumen
 	if instType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if uly == "" && instrumentFamily == "" {
+	if instType == okxInstTypeOption && uly == "" && instrumentFamily == "" {
 		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
 	params := url.Values{}

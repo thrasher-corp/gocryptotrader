@@ -59,29 +59,33 @@ func (ok *Okx) SetDefaults() {
 		Uppercase: true,
 	}
 
-	pairStore := currency.PairStore{RequestFormat: cpf, ConfigFormat: cpf}
-	err := ok.StoreAssetPairFormat(asset.Spot, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ok.StoreAssetPairFormat(asset.Futures, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ok.StoreAssetPairFormat(asset.PerpetualSwap, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ok.StoreAssetPairFormat(asset.Options, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ok.StoreAssetPairFormat(asset.Margin, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	spf := currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err = ok.StoreAssetPairFormat(asset.Spread, currency.PairStore{RequestFormat: &spf, ConfigFormat: &spf})
+	// pairStore := currency.PairStore{RequestFormat: cpf, ConfigFormat: cpf}
+	// err := ok.StoreAssetPairFormat(asset.Spot, pairStore)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = ok.StoreAssetPairFormat(asset.Futures, pairStore)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = ok.StoreAssetPairFormat(asset.PerpetualSwap, pairStore)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = ok.StoreAssetPairFormat(asset.Options, pairStore)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = ok.StoreAssetPairFormat(asset.Margin, pairStore)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = ok.StoreAssetPairFormat(asset.Spread, pairStore)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+
+	err := ok.SetGlobalPairsManager(cpf, cpf, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin, asset.Spread)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -2609,7 +2613,9 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
-		if k[i].Asset != asset.Futures && k[i].Asset != asset.PerpetualSwap {
+		switch k[i].Asset {
+		case asset.Futures, asset.PerpetualSwap, asset.Options:
+		default:
 			// avoid API calls or returning errors after a successful retrieval
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
@@ -2618,13 +2624,33 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		var resp []futures.OpenInterest
 		// TODO: Options support
 		instTypes := map[string]asset.Item{
-			"SWAP":    asset.PerpetualSwap,
-			"FUTURES": asset.Futures,
+			okxInstTypeSwap:    asset.PerpetualSwap,
+			okxInstTypeFutures: asset.Futures,
+			okxInstTypeOption:  asset.Options,
 		}
 		for instType, v := range instTypes {
-			oid, err := ok.GetOpenInterestData(ctx, instType, "", "", "")
-			if err != nil {
-				return nil, err
+			var oid []OpenInterest
+			var err error
+			switch instType {
+			case okxInstTypeOption:
+				underlyings, err := ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+				if err != nil {
+					return nil, err
+				}
+				for u := range underlyings {
+					var incOID []OpenInterest
+					incOID, err = ok.GetOpenInterestData(ctx, instType, underlyings[u], "", "")
+					if err != nil {
+						return nil, err
+					}
+					oid = append(oid, incOID...)
+				}
+			case okxInstTypeSwap,
+				okxInstTypeFutures:
+				oid, err = ok.GetOpenInterestData(ctx, instType, "", "", "")
+				if err != nil {
+					return nil, err
+				}
 			}
 			for j := range oid {
 				p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
@@ -2666,9 +2692,26 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	if err != nil {
 		return nil, err
 	}
-	oid, err := ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
-	if err != nil {
-		return nil, err
+	var oid []OpenInterest
+	switch instTypes[k[0].Asset] {
+	case okxInstTypeOption:
+		underlyings, err := ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+		if err != nil {
+			return nil, err
+		}
+		for u := range underlyings {
+			var incOID []OpenInterest
+			incOID, err = ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], underlyings[u], "", "")
+			if err != nil {
+				return nil, err
+			}
+			oid = append(oid, incOID...)
+		}
+	case okxInstTypeSwap, okxInstTypeFutures:
+		oid, err = ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
+		if err != nil {
+			return nil, err
+		}
 	}
 	for i := range oid {
 		p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[i].InstrumentID, k[0].Asset, true)
@@ -2743,4 +2786,27 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, error) {
+	if instrumentType != "" {
+		insts, okay := ok.instrumentsInfoMap[instrumentType]
+		if !okay {
+			return "", errInvalidInstrumentType
+		}
+		for a := range insts {
+			if insts[a].InstrumentID == instID {
+				return insts[a].Underlying, nil
+			}
+		}
+	} else {
+		for _, insts := range ok.instrumentsInfoMap {
+			for a := range insts {
+				if insts[a].InstrumentID == instID {
+					return insts[a].Underlying, nil
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("underlying not found for instrument %s", instID)
 }
