@@ -115,7 +115,8 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return errMissingInstrumentID
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+	switch arg.Side {
+	case order.Buy.Lower(), order.Sell.Lower():
 		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 	}
 	switch arg.TradeMode {
@@ -1589,7 +1590,8 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, fmt.Errorf("%w, quote currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+	switch arg.Side {
+	case order.Buy.Lower(), order.Sell.Lower():
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.RFQAmount <= 0 {
@@ -1614,8 +1616,9 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		return nil, fmt.Errorf("%w, quote currency required", currency.ErrCurrencyCodeEmpty)
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != order.Buy.Lower() &&
-		arg.Side != order.Sell.Lower() {
+	switch arg.Side {
+	case order.Buy.Lower(),
+		order.Sell.Lower():
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Size <= 0 {
@@ -1904,7 +1907,7 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*Set
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, "account/set-leverage", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumBuySellAmountOROpenAmount retrieves the maximumorder.Buy.Lower()or sell amount for a order.Sell.Lower()id
+// GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for a sell id
 func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, leverage string, price float64, unSpotOffset bool) ([]MaximumBuyAndSell, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -3518,9 +3521,9 @@ func (ok *Okx) GetSignalBotEventHistory(ctx context.Context, algoID string, afte
 
 // ****************************************** Recurring Buy *****************************************
 
-// PlaceRecurringBuyOrder recurringorder.Buy.Lower()is a strategy for investing a fixed amount in crypto at order.Sell.Lower()s.
-// An appropriate recurring approach in volatile markets allows you toorder.Buy.Lower()crypto at lower costs. order.Sell.Lower()re
-// The API endpoints of Recurringorder.Buy.Lower()order.Sell.Lower()n.
+// PlaceRecurringBuyOrder recurring buy is a strategy for investing a fixed amount in crypto at fixed intervals.
+// An appropriate recurring approach in volatile markets allows you to buy crypto at lower costs. Learn more
+// The API endpoints of Recurring buy require authentication.
 func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBuyOrderParam) (*RecurringOrderResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -3540,7 +3543,7 @@ func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBu
 		return nil, errors.New("recurring day is required")
 	}
 	if arg.RecurringTime > 23 || arg.RecurringTime < 0 {
-		return nil, errors.New("recurringorder.Buy.Lower()time, the value range is an integer with value between 0 order.Sell.Lower()")
+		return nil, errors.New("recurring buy time, the value range is an integer with value between 0 and 23")
 	}
 	if arg.TradeMode == "" {
 		return nil, errInvalidTradeModeValue
@@ -3564,7 +3567,7 @@ func (ok *Okx) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurringOr
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
-// StopRecurringBuyOrder stops recurringorder.Buy.Lower()order. A maximum of 10 orders can be stopped order.Sell.Lower()t.
+// StopRecurringBuyOrder stops recurring buy order. A maximum of 10 orders can be stopped per request.
 func (ok *Okx) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurringBuyOrder) ([]RecurringOrderResponse, error) {
 	if len(arg) == 0 {
 		return nil, common.ErrEmptyParams
@@ -3578,7 +3581,7 @@ func (ok *Okx) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurringBuy
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopRecurringBuyOrderEPL, http.MethodGet, "tradingBot/recurring/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringBuyOrderList retrieves recurringorder.Buy.Lower()order.Sell.Lower()t.
+// GetRecurringBuyOrderList retrieves recurring buy order list.
 func (ok *Okx) GetRecurringBuyOrderList(ctx context.Context, algoID, algoOrderState string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
 	params := url.Values{}
 	if algoOrderState != "" {
@@ -3600,7 +3603,7 @@ func (ok *Okx) GetRecurringBuyOrderList(ctx context.Context, algoID, algoOrderSt
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderListEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringBuyOrderHistory retrieves recurringorder.Buy.Lower()order.Sell.Lower()y.
+// GetRecurringBuyOrderHistory retrieves recurring buy order history.
 func (ok *Okx) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
 	params := url.Values{}
 	if algoID != "" {
@@ -3633,7 +3636,7 @@ func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrderSt
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringSubOrders retrieves recurringorder.Buy.Lower()order.Sell.Lower()s.
+// GetRecurringSubOrders retrieves recurring buy sub orders.
 func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string, after, before time.Time, limit int64) ([]RecurringBuySubOrder, error) {
 	if algoID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -4747,7 +4750,8 @@ func (ok *Okx) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 		return order.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+	switch arg.Side {
+	case order.Buy.Lower(), order.Sell.Lower():
 		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 	}
 	return nil
@@ -5087,7 +5091,7 @@ func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, b
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingRateHistoryEPL, http.MethodGet, common.EncodeURLValues("public/funding-rate-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetLimitPrice retrieves the highestorder.Buy.Lower()limit and lowest sell limit of order.Sell.Lower()t.
+// GetLimitPrice retrieves the highest buy limit and lowest sell limit of the instrument.
 func (ok *Okx) GetLimitPrice(ctx context.Context, instrumentID string) (*LimitPriceResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5532,7 +5536,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume-strike", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetTakerFlow shows the relativeorder.Buy.Lower()sell volume for calls order.Sell.Lower()s.
+// GetTakerFlow shows the relative buy/sell volume for calls and puts.
 // It shows whether traders are bullish or bearish on price and volatility
 func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline.Interval) (*CurrencyTakerFlow, error) {
 	params := url.Values{}
@@ -5947,7 +5951,7 @@ func (ok *Okx) GetFuturesContractsOpenInterestHistory(ctx context.Context, instr
 }
 
 // GetFuturesContractTakerVolume retrieve the contract taker volume for both buyers and sellers. This endpoint returns a maximum of 1440 records.
-// The unit oforder.Buy.Lower()sell volume, the default is 1. '0': Crypto '1': Contracts 'order.Sell.Lower() U
+// The unit of buy/sell volume, the default is 1. '0': Crypto '1': Contracts '2': U
 func (ok *Okx) GetFuturesContractTakerVolume(ctx context.Context, instrumentID string, period kline.Interval, unit, limit int64, startAt, endAt time.Time) ([]ContractTakerVolume, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID

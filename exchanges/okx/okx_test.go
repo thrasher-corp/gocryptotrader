@@ -36,9 +36,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "703985fb-0bd8-4ca1-bf36-41924e377bcc"
+	apiSecret               = "D6988765C8E5CDEC3DC00CDBBE765643"
+	passphrase              = "0631Okx!"
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -3543,7 +3543,9 @@ func TestWsAmendOrder(t *testing.T) {
 	_, err = ok.WsAmendOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	ok.Verbose = true
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	// ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	result, err := ok.WsAmendOrder(context.Background(), &AmendOrderRequestParams{
 		InstrumentID: spotTP.String(),
 		OrderID:      "2510789768709120",
