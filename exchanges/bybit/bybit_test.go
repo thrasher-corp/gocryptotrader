@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -3745,4 +3746,17 @@ func TestAuthSubscribe(t *testing.T) {
 
 	require.NoError(t, b.authSubscribe(context.Background(), &DummyConnection{}, authsubs))
 	require.NoError(t, b.authUnsubscribe(context.Background(), &DummyConnection{}, authsubs))
+}
+
+func TestWebsocketAuthenticateConnection(t *testing.T) {
+	t.Parallel()
+
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b))
+	b.API.AuthenticatedSupport = true
+	b.API.AuthenticatedWebsocketSupport = true
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "dummy", Secret: "dummy"})
+	err := b.WebsocketAuthenticateConnection(ctx, &DummyConnection{})
+	require.NoError(t, err)
 }

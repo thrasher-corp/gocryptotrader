@@ -392,7 +392,7 @@ func (by *Bybit) wsLeverageTokenNav(resp *WebsocketResponse) error {
 }
 
 func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *WebsocketResponse) error {
-	var result TickerItem
+	var result TickerWebsocket
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
 		return err
@@ -493,7 +493,7 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 }
 
 func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
-	var tickResp TickerItem
+	var tickResp TickerWebsocket
 	if err := json.Unmarshal(resp.Data, &tickResp); err != nil {
 		return err
 	}
@@ -519,7 +519,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	return err
 }
 
-func updateTicker(tick *ticker.Price, resp *TickerItem) {
+func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
 	if resp.LastPrice.Float64() != 0 {
 		tick.Last = resp.LastPrice.Float64()
 	}
