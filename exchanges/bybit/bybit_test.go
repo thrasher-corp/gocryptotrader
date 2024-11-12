@@ -32,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	testws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -3730,32 +3729,20 @@ func TestSubscribe(t *testing.T) {
 
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
+
 	b := new(Bybit)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	require.NoError(t, testexch.Setup(b))
+	require.NoError(t, b.authSubscribe(context.Background(), &DummyConnection{}, subscription.List{}))
+
+	authsubs, err := b.generateAuthSubscriptions()
+	require.NoError(t, err)
+	require.Empty(t, authsubs)
+
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	b.Features.Subscriptions = subscription.List{}
-	success := true
-	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
-		tb.Helper()
-		var req SubscriptionArgument
-		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
-		require.Equal(tb, "subscribe", req.Operation)
-		msg, err = json.Marshal(SubscriptionResponse{
-			Success:   success,
-			RetMsg:    "Mock Resp Error",
-			RequestID: req.RequestID,
-			Operation: req.Operation,
-		})
-		require.NoError(tb, err, "Marshal must not error")
-		return w.WriteMessage(websocket.TextMessage, msg)
-	}
-	b = testexch.MockWsInstance[Bybit](t, testws.CurryWsMockUpgrader(t, mock))
-	b.Websocket.AuthConn = b.Websocket.Conn
-	err = b.Subscribe(context.Background(), nil, subs)
-	require.NoError(t, err, "Subscribe must not error")
-	success = false
-	err = b.Subscribe(context.Background(), nil, subs)
-	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
+	authsubs, err = b.generateAuthSubscriptions()
+	require.NoError(t, err)
+	require.NotEmpty(t, authsubs)
+
+	require.NoError(t, b.authSubscribe(context.Background(), &DummyConnection{}, authsubs))
+	require.NoError(t, b.authUnsubscribe(context.Background(), &DummyConnection{}, authsubs))
 }

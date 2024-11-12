@@ -754,15 +754,7 @@ func (by *Bybit) handleSubscriptionsNonTemplate(conn stream.Connection, assetTyp
 		Arguments: []string{},
 	}
 
-	var selectedChannels, positions, execution, order, wallet, greeks, dCP = 0, 1, 2, 3, 4, 5, 6
-	chanMap := map[string]int{
-		chanPositions: positions,
-		chanExecution: execution,
-		chanOrder:     order,
-		chanWallet:    wallet,
-		chanGreeks:    greeks,
-		chanDCP:       dCP}
-
+	chanMap := map[string]bool{}
 	pairFormat, err := by.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
@@ -784,12 +776,12 @@ func (by *Bybit) handleSubscriptionsNonTemplate(conn stream.Connection, assetTyp
 			}
 			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+pair.Format(pairFormat).String())
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
-			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
+			if chanMap[channelsToSubscribe[i].Channel] {
 				continue
 			}
 			authArg.Arguments = append(authArg.Arguments, channelsToSubscribe[i].Channel)
 			// adding the channel to selected channels so that we will not visit it again.
-			selectedChannels |= chanMap[channelsToSubscribe[i].Channel]
+			chanMap[channelsToSubscribe[i].Channel] = true
 		}
 		if len(arg.Arguments) >= 10 {
 			args = append(args, arg)
