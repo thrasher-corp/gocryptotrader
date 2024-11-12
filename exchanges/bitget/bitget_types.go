@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -805,16 +806,16 @@ type CancelAndPlaceResp struct {
 
 // ReplaceSpotOrderStruct contains information on an order to be replaced
 type ReplaceSpotOrderStruct struct {
-	Pair                   string  `json:"symbol"`
-	Price                  float64 `json:"price,string"`
-	Amount                 float64 `json:"size,string"`
-	OldClientOrderID       string  `json:"clientOid,omitempty"`
-	OrderID                int64   `json:"orderId,string,omitempty"`
-	NewClientOrderID       string  `json:"newClientOid,omitempty"`
-	PresetTakeProfitPrice  float64 `json:"presetTakeProfitPrice,string,omitempty"`
-	ExecuteTakeProfitPrice float64 `json:"executeTakeProfitPrice,string,omitempty"`
-	PresetStopLossPrice    float64 `json:"presetStopLossPrice,string,omitempty"`
-	ExecuteStopLossPrice   float64 `json:"executeStopLossPrice,string,omitempty"`
+	Pair                   currency.Pair `json:"symbol"`
+	Price                  float64       `json:"price,string"`
+	Amount                 float64       `json:"size,string"`
+	OldClientOrderID       string        `json:"clientOid,omitempty"`
+	OrderID                int64         `json:"orderId,string,omitempty"`
+	NewClientOrderID       string        `json:"newClientOid,omitempty"`
+	PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,string,omitempty"`
+	ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,string,omitempty"`
+	PresetStopLossPrice    float64       `json:"presetStopLossPrice,string,omitempty"`
+	ExecuteStopLossPrice   float64       `json:"executeStopLossPrice,string,omitempty"`
 }
 
 // PlanSpotOrder is a sub-struct that contains information on a planned order
