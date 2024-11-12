@@ -20,8 +20,8 @@ var (
 )
 
 // AuthenticateFutures sends an authentication message to the websocket connection
-func (g *Gateio) AuthenticateFutures(ctx context.Context, conn stream.Connection) error {
-	_, err := g.WebsocketLogin(ctx, conn, "futures.login")
+func (g *Gateio) authenticateFutures(ctx context.Context, conn stream.Connection) error {
+	_, err := g.websocketLogin(ctx, conn, "futures.login")
 	return err
 }
 

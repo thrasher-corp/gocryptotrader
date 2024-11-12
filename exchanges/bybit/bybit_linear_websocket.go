@@ -35,10 +35,10 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions(a asset.Item) (subscription.
 
 // LinearSubscribe sends a subscription message to linear public channels.
 func (by *Bybit) LinearSubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscription(ctx, conn, asset.USDTMarginedFutures, "subscribe", channelSubscriptions)
+	return by.handleSubscriptionNonTemplate(ctx, conn, asset.USDTMarginedFutures, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
 func (by *Bybit) LinearUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscription(ctx, conn, asset.USDTMarginedFutures, "unsubscribe", channelSubscriptions)
+	return by.handleSubscriptionNonTemplate(ctx, conn, asset.USDTMarginedFutures, "unsubscribe", channelSubscriptions)
 }

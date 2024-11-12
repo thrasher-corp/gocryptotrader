@@ -11,20 +11,13 @@ import (
 )
 
 const (
-	// Settles
-	settleBTC  = "btc"
-	settleUSD  = "usd"
-	settleUSDT = "usdt"
-
-	// types.Time time in force variables
-
+	// Order time in force variables
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
 	pocTIF = "poc"
 	fokTIF = "fok" // fill-or-kill
 
-	// frequently used order Status
-
+	// Frequently used order Status
 	statusOpen     = "open"
 	statusLoaned   = "loaned"
 	statusFinished = "finished"
@@ -33,6 +26,8 @@ const (
 	sideLend   = "lend"
 	sideBorrow = "borrow"
 )
+
+var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
@@ -1829,7 +1824,7 @@ type OrderCreateParams struct {
 	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
 	AutoSize      string        `json:"auto_size,omitempty"` // either close_long or close_short, size needs to be zero.
-	Settle        string        `json:"-"`                   // Used in URL. REST Calls only.
+	Settle        currency.Code `json:"-"`                   // Used in URL. REST Calls only.
 	StpAct        string        `json:"stp_act,omitempty"`
 }
 

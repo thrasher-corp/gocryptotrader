@@ -181,6 +181,7 @@ func (by *Bybit) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	by.API.Endpoints = by.NewEndpoints()
@@ -241,7 +242,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:                by.WsConnect,
-		GenerateSubscriptions:    func() (subscription.List, error) { return by.GenerateDefaultSubscriptions(false) },
+		GenerateSubscriptions:    func() (subscription.List, error) { return by.generateSubscriptions() },
 		Subscriber:               by.Subscribe,
 		Unsubscriber:             by.Unsubscribe,
 		Handler:                  func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
@@ -352,9 +353,9 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:             by.WsConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return by.GenerateDefaultSubscriptions(true) },
-		Subscriber:            by.Subscribe,
-		Unsubscriber:          by.Unsubscribe,
+		GenerateSubscriptions: by.generateAuthSubscriptions,
+		Subscriber:            by.authSubscribe,
+		Unsubscriber:          by.authUnsubscribe,
 		// Private websocket data is handled by the same function as the public data. Intentionally set asset as asset.All.
 		// As all asset type order execution, wallet and other data is centralised through the private websocket connection.
 		// TODO: Handle private websocket data to be asset specific.

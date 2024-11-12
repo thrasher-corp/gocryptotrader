@@ -35,10 +35,10 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 
 // OptionSubscribe sends a subscription message to options public channels.
 func (by *Bybit) OptionSubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscription(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
+	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
 func (by *Bybit) OptionUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscription(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
+	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
 }

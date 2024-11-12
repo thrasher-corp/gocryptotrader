@@ -1233,6 +1233,11 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.WrapperDefinedConnectionSignature = []string{"slices are super naughty and not comparable"}
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWrapperDefinedConnectionSignatureNotComparable)
+
+	connSetup.WrapperDefinedConnectionSignature = "comparable string signature"
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 

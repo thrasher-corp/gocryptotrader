@@ -166,11 +166,23 @@ func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`
-	List     []TickerItem `json:"list"`
+	List     []TickerREST `json:"list"`
 }
 
-// TickerItem represents a ticker item detail
-type TickerItem struct {
+// TickerREST for REST API
+type TickerREST struct {
+	TickerCommon
+	DeliveryTime types.Time `json:"deliveryTime"`
+}
+
+// TickerWebsocket for websocket API
+type TickerWebsocket struct {
+	TickerCommon
+	DeliveryTime time.Time `json:"deliveryTime"` // "2025-03-28T08:00:00Z"
+}
+
+// TickerCommon common ticker fields
+type TickerCommon struct {
 	Symbol                 string       `json:"symbol"`
 	TickDirection          string       `json:"tickDirection"`
 	LastPrice              types.Number `json:"lastPrice"`

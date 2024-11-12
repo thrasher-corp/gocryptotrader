@@ -118,11 +118,18 @@ type WebsocketFuturesOrderResponse struct {
 	Succeeded   *bool         `json:"succeeded"` // Nil if not present in returned response.
 }
 
-// WebsocketOrderCancelRequest defines a websocket order cancel request
-type WebsocketOrderCancelRequest struct {
-	OrderID string        `json:"id"` // This require id tag not order_id
+// WebsocketOrderBatchRequest defines a websocket order batch request
+type WebsocketOrderBatchRequest struct {
+	OrderID string        `json:"id"` // This requires id tag not order_id
 	Pair    currency.Pair `json:"currency_pair"`
 	Account string        `json:"account,omitempty"`
+}
+
+// WebsocketOrderRequest defines a websocket order request
+type WebsocketOrderRequest struct {
+	OrderID string `json:"order_id"` // This requires order_id tag
+	Pair    string `json:"pair"`
+	Account string `json:"account,omitempty"`
 }
 
 // WebsocketCancellAllResponse defines a websocket order cancel response
