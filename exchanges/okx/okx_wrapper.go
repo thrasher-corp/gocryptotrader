@@ -185,6 +185,7 @@ func (ok *Okx) SetDefaults() {
 				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	ok.Requester, err = request.New(ok.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -240,7 +241,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Connector:                              ok.WsConnect,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,
-		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+		GenerateSubscriptions:                  ok.generateSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
 		OrderbookBufferConfig: buffer.Config{

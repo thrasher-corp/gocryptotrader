@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -27,20 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
-)
-
-var (
-	// defaultSubscribedChannels list of channels which are subscribed by default
-	defaultSubscribedChannels = []string{
-		okxChannelTrades,
-		okxChannelOrderBooks,
-		okxChannelTickers,
-	}
-	// defaultAuthChannels list of channels which are subscribed when authenticated
-	defaultAuthChannels = []string{
-		okxChannelAccount,
-		okxChannelOrders,
-	}
 )
 
 var (
@@ -246,6 +233,22 @@ const (
 	okxCopyTrading = "copytrading-notification"
 )
 
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.AllTradesChannel: okxChannelTrades,
+	subscription.OrderbookChannel: okxChannelOrderBooks,
+	subscription.TickerChannel:    okxChannelTickers,
+	subscription.MyAccountChannel: okxChannelAccount,
+	subscription.MyOrdersChannel:  okxChannelOrders,
+}
+
 // WsConnect initiates a websocket connection
 func (ok *Okx) WsConnect() error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
@@ -391,141 +394,25 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleSubscription(operation string, subscriptions subscription.List) error {
+func (ok *Okx) handleSubscription(operation string, subs subscription.List) error {
 	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels subscription.List
 	var authChannels subscription.List
-	for i := 0; i < len(subscriptions); i++ {
-		s := subscriptions[i]
-		var (
-			instrumentIDs, underlyings []string
-			instrumentType,
-			instrumentFamily, algoID, uid string
-			authSubscription bool
-		)
-
-		switch s.Channel {
-		case okxChannelAccount,
-			okxChannelPositions,
-			okxChannelBalanceAndPosition,
-			okxChannelOrders,
-			okxChannelAlgoOrders,
-			okxChannelAlgoAdvance,
-			okxChannelLiquidationWarning,
-			okxChannelAccountGreeks,
-			okxChannelRfqs,
-			okxChannelQuotes,
-			okxChannelStructureBlockTrades,
-			okxChannelSpotGridOrder,
-			okxChannelGridOrdersContract,
-			okxChannelMoonGridAlgoOrders,
-			okxChannelGridPositions,
-			okxChannelGridSubOrders,
-			okxRecurringBuyChannel,
-			okxDepositInfo,
-			okxLiquidationOrders,
-			okxADLWarning,
-			okxWithdrawalInfo,
-			okxEconomicCalendar,
-			okxCopyTrading:
-			authSubscription = true
+	var errs error
+	for i := 0; i < len(subs); i++ {
+		s := subs[i]
+		var arg SubscriptionInfo
+		if err := json.Unmarshal([]byte(s.QualifiedChannel), &arg); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
 		}
 
-		switch s.Channel {
-		case okxChannelGridPositions,
-			okxRecurringBuyChannel:
-			algoID, _ = subscriptions[i].Params["algoId"].(string)
-		}
-
-		switch s.Channel {
-		case okxChannelGridSubOrders,
-			okxChannelGridPositions:
-			uid, _ = subscriptions[i].Params["uid"].(string)
-		}
-
-		if strings.HasPrefix(s.Channel, "candle") ||
-			s.Channel == okxChannelTickers ||
-			s.Channel == okxChannelOrderBooks ||
-			s.Channel == okxChannelOrderBooks5 ||
-			s.Channel == okxChannelOrderBooks50TBT ||
-			s.Channel == okxChannelOrderBooksTBT ||
-			s.Channel == okxChannelFundingRate ||
-			s.Channel == okxChannelAllTrades ||
-			s.Channel == okxChannelTrades ||
-			s.Channel == okxChannelOptionTrades ||
-			s.Channel == okxCopyTrading {
-			if len(s.Pairs) == 0 {
-				return fmt.Errorf("%w, for channel %q for asset: %s", currency.ErrCurrencyPairsEmpty, s.Channel, s.Asset.String())
-			}
-			format, err := ok.GetPairFormat(s.Asset, false)
-			if err != nil {
-				return err
-			}
-			instrumentIDs = make([]string, len(s.Pairs))
-			for p := range s.Pairs {
-				if s.Pairs[p].Base.String() == "" || s.Pairs[p].Quote.String() == "" {
-					return fmt.Errorf("%w, for channel %q for asset: %s", currency.ErrCurrencyPairsEmpty, s.Channel, s.Asset.String())
-				}
-				instrumentIDs[p] = format.Format(s.Pairs[p])
-			}
-		}
-		switch s.Channel {
-		case okxChannelInstruments, okxChannelPositions, okxChannelOrders, okxChannelAlgoOrders,
-			okxChannelAlgoAdvance, okxChannelLiquidationWarning, okxChannelSpotGridOrder,
-			okxChannelGridOrdersContract, okxChannelMoonGridAlgoOrders, okxChannelEstimatedPrice,
-			okxADLWarning, okxLiquidationOrders, okxRecurringBuyChannel, okxCopyTrading:
-			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
-		}
-		switch s.Channel {
-		case okxChannelOptionTrades, okxADLWarning:
-			instrumentFamily, _ = subscriptions[i].Params["instFamily"].(string)
-		}
-
-		switch s.Channel {
-		case okxChannelPositions, okxChannelOrders, okxChannelAlgoOrders,
-			okxChannelEstimatedPrice, okxChannelOptSummary:
-			var underlying string
-			for p := range s.Pairs {
-				underlying, _ = ok.GetUnderlying(s.Pairs[p], subscriptions[i].Asset)
-				underlyings = append(underlyings, underlying)
-			}
-		}
-		args := []SubscriptionInfo{}
-		if len(instrumentIDs) > 0 {
-			for iid := range instrumentIDs {
-				args = append(args, SubscriptionInfo{
-					Channel:          s.Channel,
-					InstrumentType:   instrumentType,
-					UID:              uid,
-					AlgoID:           algoID,
-					InstrumentID:     instrumentIDs[iid],
-					InstrumentFamily: instrumentFamily,
-				})
-			}
-			if len(underlyings) > 0 {
-				if len(underlyings) != len(instrumentIDs) {
-					return fmt.Errorf("%w, instrument IDs and underlyings length is not equal", errLengthMismatch)
-				}
-				for uliID := range underlyings {
-					args[uliID].Underlying = underlyings[uliID]
-				}
-			}
-		} else {
-			args = append(args, SubscriptionInfo{
-				Channel:          s.Channel,
-				InstrumentType:   instrumentType,
-				UID:              uid,
-				AlgoID:           algoID,
-				InstrumentFamily: instrumentFamily,
-			})
-		}
-
-		if authSubscription {
+		if s.Authenticated {
 			authChannels = append(authChannels, s)
-			authRequests.Arguments = append(authRequests.Arguments, args...)
+			authRequests.Arguments = append(authRequests.Arguments, arg)
 			authChunk, err := json.Marshal(authRequests)
 			if err != nil {
 				return err
@@ -550,7 +437,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 		} else {
 			channels = append(channels, s)
-			reqs.Arguments = append(reqs.Arguments, args...)
+			reqs.Arguments = append(reqs.Arguments, arg)
 			chunk, err := json.Marshal(reqs)
 			if err != nil {
 				return err
@@ -1525,82 +1412,19 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions returns a list of default subscription message.
-func (ok *Okx) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var subscriptions subscription.List
-	assets := ok.GetAssetTypes(true)
-	if assets.Contains(asset.Spread) {
-		for a := range assets {
-			if assets[a] == asset.Spread {
-				if a == len(assets)-1 {
-					assets = assets[:len(assets)-1]
-				} else {
-					assets = append(assets[:a], assets[a+1:]...)
-				}
-				break
-			}
-		}
-	}
-	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultAuthChannels))
-	subs = append(subs, defaultSubscribedChannels...)
-	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		subs = append(subs, defaultAuthChannels...)
-	}
-	for c := range subs {
-		switch subs[c] {
-		case okxChannelOrders:
-			for x := range assets {
-				enabledPairs, err := ok.GetEnabledPairs(assets[x])
-				if err != nil {
-					return nil, err
-				}
-				subscriptions = append(subscriptions, &subscription.Subscription{
-					Channel: subs[c],
-					Asset:   assets[x],
-					Pairs:   enabledPairs,
-				})
-			}
-		case okxChannelCandle5m, okxChannelTickers, okxChannelOrderBooks,
-			okxChannelFundingRate, okxChannelOrderBooks5, okxChannelOrderBooks50TBT,
-			okxChannelOrderBooksTBT, okxChannelTrades:
-			for x := range assets {
-				enabledPairs, err := ok.GetEnabledPairs(assets[x])
-				if err != nil {
-					return nil, err
-				}
-				subscriptions = append(subscriptions, &subscription.Subscription{
-					Channel: subs[c],
-					Asset:   assets[x],
-					Pairs:   enabledPairs,
-				})
-			}
-		case okxChannelOptionTrades:
-			enabledPairs, err := ok.GetEnabledPairs(asset.Options)
-			if err != nil {
-				return nil, err
-			}
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: subs[c],
-				Asset:   asset.Options,
-				Pairs:   enabledPairs,
-			})
-		case okxCopyTrading:
-			enabledPairs, err := ok.GetEnabledPairs(asset.PerpetualSwap)
-			if err != nil {
-				return nil, err
-			}
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: subs[c],
-				Asset:   asset.PerpetualSwap,
-				Pairs:   enabledPairs,
-			})
-		default:
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: subs[c],
-			})
-		}
-	}
-	return subscriptions, nil
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (ok *Okx) generateSubscriptions() (subscription.List, error) {
+	return ok.Features.Subscriptions.ExpandTemplates(ok)
+}
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (ok *Okx) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName":     channelName,
+		"isSymbolChannel": isSymbolChannel,
+		"isAssetChannel":  isAssetChannel,
+		"instType":        ok.GetInstrumentTypeFromAssetItem,
+	}).Parse(subTplText)
 }
 
 // wsProcessBlockPublicTrades handles the recent block trades data by individual legs.
@@ -2727,3 +2551,45 @@ func (ok *Okx) WsCancelAllSpreadOrders(ctx context.Context, spreadID string) (bo
 		}
 	}
 }
+
+// channelName converts global subscription channel names to exchange specific names
+func channelName(s *subscription.Subscription) string {
+	if s, ok := subscriptionNames[s.Channel]; ok {
+		return s
+	}
+	return s.Channel
+}
+
+// isAssetChannel returns if the channel expects one Asset per subscription
+func isAssetChannel(s *subscription.Subscription) bool {
+	return s.Channel == subscription.MyOrdersChannel
+}
+
+// isSymbolChannel returns if the channel expects one Symbol per subscription
+func isSymbolChannel(s *subscription.Subscription) bool {
+	switch s.Channel {
+	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, okxChannelFundingRate:
+		return true
+	}
+	return false
+}
+
+const subTplText = `
+{{- with $name := channelName $.S }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- if isAssetChannel $.S -}}
+			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
+		{{- else if isSymbolChannel $.S }}
+			{{- range $p := $pairs -}}
+				{"channel":"{{ $name }}","instID":"{{ $p }}"}
+				{{ $.PairSeparator }}
+			{{- end -}}
+		{{- else }}
+			{"channel":"{{ $name }}"
+			{{- with $algoId := index $.S.Params "algoId" -}} ,"algoId":"{{ $algoId }}" {{- end -}}
+			}
+		{{- end }}
+	{{- $.AssetSeparator }}
+	{{- end }}
+{{- end }}
+`
