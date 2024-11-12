@@ -120,7 +120,7 @@ type FutureProductDetails struct {
 	ContractExpiryType     string           `json:"contract_expiry_type"`
 	PerpetualDetails       PerpetualDetails `json:"perpetual_details"`
 	ContractDisplayName    string           `json:"contract_display_name"`
-	TimeToExpiryMS         time.Duration    `json:"time_to_expiry_ms,string"`
+	TimeToExpiry           time.Duration    `json:"time_to_expiry_ms,string"`
 	NonCrypto              bool             `json:"non_crypto"`
 	ContractExpiryName     string           `json:"contract_expiry_name"`
 }
