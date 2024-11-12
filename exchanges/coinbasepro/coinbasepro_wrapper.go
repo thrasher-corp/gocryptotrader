@@ -346,32 +346,32 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		Asset:           assetType,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	var orderbookNew *ProductBook
+	var orderbookNew *ProductBookResp
 	if verified {
-		orderbookNew, err = c.GetProductBookV3(ctx, p.String(), 1000, true)
+		orderbookNew, err = c.GetProductBookV3(ctx, p, 1000, 0, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, warnAuth, err)
 			verified = false
 		}
 	}
 	if !verified {
-		orderbookNew, err = c.GetProductBookV3(ctx, p.String(), 1000, false)
+		orderbookNew, err = c.GetProductBookV3(ctx, p, 1000, 0, false)
 		if err != nil {
 			return book, err
 		}
 	}
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Pricebook.Bids))
+	for x := range orderbookNew.Pricebook.Bids {
 		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[x].Size,
-			Price:  orderbookNew.Bids[x].Price,
+			Amount: orderbookNew.Pricebook.Bids[x].Size,
+			Price:  orderbookNew.Pricebook.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Pricebook.Asks))
+	for x := range orderbookNew.Pricebook.Asks {
 		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[x].Size,
-			Price:  orderbookNew.Asks[x].Price,
+			Amount: orderbookNew.Pricebook.Asks[x].Size,
+			Price:  orderbookNew.Pricebook.Asks[x].Price,
 		}
 	}
 	err = book.Process()
@@ -1082,26 +1082,26 @@ func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orde
 }
 
 // FormatExchangeKlineIntervalV3 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended to convert kline.Interval to the string format used by V3 of Coinbase's API
-func FormatExchangeKlineIntervalV3(interval kline.Interval) string {
+func FormatExchangeKlineIntervalV3(interval kline.Interval) (string, error) {
 	switch interval {
 	case kline.OneMin:
-		return granOneMin
+		return granOneMin, nil
 	case kline.FiveMin:
-		return granFiveMin
+		return granFiveMin, nil
 	case kline.FifteenMin:
-		return granFifteenMin
+		return granFifteenMin, nil
 	case kline.ThirtyMin:
-		return granThirtyMin
+		return granThirtyMin, nil
 	case kline.OneHour:
-		return granOneHour
+		return granOneHour, nil
 	case kline.TwoHour:
-		return granTwoHour
+		return granTwoHour, nil
 	case kline.SixHour:
-		return granSixHour
+		return granSixHour, nil
 	case kline.OneDay:
-		return granOneDay
+		return granOneDay, nil
 	}
-	return errIntervalNotSupported
+	return "", errIntervalNotSupported
 }
 
 // getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory to convert data returned by the Coinbase API into a format suitable for the exchange package
@@ -1245,7 +1245,11 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 
 // CandleHelper handles calling the candle function, and doing preliminary work on the data
 func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time, verified bool) ([]kline.Candle, error) {
-	history, err := c.GetHistoricRates(ctx, pair, FormatExchangeKlineIntervalV3(granularity), start, end, verified)
+	granString, err := FormatExchangeKlineIntervalV3(granularity)
+	if err != nil {
+		return nil, err
+	}
+	history, err := c.GetHistoricRates(ctx, pair, granString, start, end, verified)
 	if err != nil {
 		if verified {
 			return c.candleHelper(ctx, pair, granularity, start, end, false)

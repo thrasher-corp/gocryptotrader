@@ -170,13 +170,13 @@ func TestGetBestBidAsk(t *testing.T) {
 
 func TestGetProductBookV3(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetProductBookV3(context.Background(), "", 0, false)
+	_, err := c.GetProductBookV3(context.Background(), currency.Pair{}, 0, 0, false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	resp, err := c.GetProductBookV3(context.Background(), testPair.String(), 2, false)
+	resp, err := c.GetProductBookV3(context.Background(), testPair, 4, -1, false)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err = c.GetProductBookV3(context.Background(), testPair.String(), 2, true)
+	resp, err = c.GetProductBookV3(context.Background(), testPair, 4, -1, true)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -970,7 +970,7 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", nil, nil, false, nil, nil)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound)
 	ch := make(chan struct{})
-	body := map[string]interface{}{"Unmarshalable": ch}
+	body := map[string]any{"Unmarshalable": ch}
 	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", nil, body, false, nil, nil)
 	var targetErr *json.UnsupportedTypeError
 	assert.ErrorAs(t, err, &targetErr)
@@ -1072,6 +1072,8 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
+	_, err := c.FetchTicker(context.Background(), currency.Pair{}, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := c.FetchTicker(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1079,6 +1081,8 @@ func TestFetchTicker(t *testing.T) {
 
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
+	_, err := c.FetchOrderbook(context.Background(), currency.Pair{}, asset.Empty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := c.FetchOrderbook(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1427,29 +1431,6 @@ func TestFiatTransferTypeString(t *testing.T) {
 	}
 }
 
-func TestUnixTimestampUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	var u UnixTimestamp
-	err := u.UnmarshalJSON([]byte("0"))
-	var targetErr *json.UnmarshalTypeError
-	assert.ErrorAs(t, err, &targetErr)
-	err = u.UnmarshalJSON([]byte("\"922337203685477580700\""))
-	assert.ErrorIs(t, err, strconv.ErrRange)
-	err = u.UnmarshalJSON([]byte("\"1234\""))
-	assert.NoError(t, err)
-}
-
-func TestUnixTimestampString(t *testing.T) {
-	t.Parallel()
-	var u UnixTimestamp
-	err := u.UnmarshalJSON([]byte("\"1234\""))
-	assert.NoError(t, err)
-	s := u.String()
-	if s != expectedTimestamp {
-		t.Errorf(errExpectMismatch, s, expectedTimestamp)
-	}
-}
-
 func TestFormatExchangeKlineIntervalV3(t *testing.T) {
 	t.Parallel()
 	testSequence := map[kline.Interval]string{
@@ -1460,11 +1441,14 @@ func TestFormatExchangeKlineIntervalV3(t *testing.T) {
 		kline.TwoHour:    granTwoHour,
 		kline.SixHour:    granSixHour,
 		kline.OneDay:     granOneDay,
-		kline.OneWeek:    errIntervalNotSupported}
+		kline.OneWeek:    ""}
 	for k := range testSequence {
-		resp := FormatExchangeKlineIntervalV3(k)
+		resp, err := FormatExchangeKlineIntervalV3(k)
 		if resp != testSequence[k] {
 			t.Errorf(errExpectMismatch, resp, testSequence[k])
+		}
+		if resp == "" {
+			assert.ErrorIs(t, err, errIntervalNotSupported)
 		}
 	}
 }
@@ -1524,7 +1508,6 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
-	// t.Parallel()
 	p := currency.Pairs{testPair}
 	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())

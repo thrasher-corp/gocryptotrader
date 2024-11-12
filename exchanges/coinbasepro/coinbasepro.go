@@ -93,9 +93,8 @@ const (
 	startDateString = "start_date"
 	endDateString   = "end_date"
 
-	errIntervalNotSupported = "interval not supported"
-	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
-	warnAuth                = "%v authenticated request failed, attempting unauthenticated"
+	warnSequenceIssue = "Out of order sequence number. Received %v, expected %v"
+	warnAuth          = "%v authenticated request failed, attempting unauthenticated"
 
 	manyFills = 65535
 	manyOrds  = 2147483647
@@ -155,6 +154,7 @@ var (
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedAssetType    = errors.New("unrecognised asset type")
 	errUnrecognisedStrategyType = errors.New("unrecognised strategy type")
+	errIntervalNotSupported     = errors.New("interval not supported")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -199,23 +199,24 @@ func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) ([]P
 }
 
 // GetProductBookV3 returns a list of bids/asks for a single product
-func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID string, limit uint16, authenticated bool) (*ProductBook, error) {
-	if productID == "" {
+func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID currency.Pair, limit uint16, aggregationIncrement float64, authenticated bool) (*ProductBookResp, error) {
+	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
 	vals := url.Values{}
-	vals.Set("product_id", productID)
+	vals.Set("product_id", productID.String())
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	}
-	resp := struct {
-		Pricebook ProductBook `json:"pricebook"`
-	}{}
+	if aggregationIncrement != 0 {
+		vals.Set("aggregation_price_increment", strconv.FormatFloat(aggregationIncrement, 'f', -1, 64))
+	}
+	var resp *ProductBookResp
 	if authenticated {
-		return &resp.Pricebook, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook, vals, nil, true, &resp, nil)
+		return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook, vals, nil, true, &resp, nil)
 	}
 	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProductBook
-	return &resp.Pricebook, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
@@ -1658,54 +1659,4 @@ func (f FiatTransferType) String() string {
 		return "withdrawal"
 	}
 	return "deposit"
-}
-
-// UnmarshalJSON unmarshals the JSON input into a UnixTimestamp type
-func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
-	var timestampStr string
-	err := json.Unmarshal(b, &timestampStr)
-	if err != nil {
-		return err
-	}
-	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
-	if err != nil {
-		return err
-	}
-	*t = UnixTimestamp(time.Unix(timestamp, 0).UTC())
-	return nil
-}
-
-// String implements the stringer interface
-func (t *UnixTimestamp) String() string {
-	return t.Time().String()
-}
-
-// Time returns the time.Time representation of the UnixTimestamp
-func (t *UnixTimestamp) Time() time.Time {
-	return time.Time(*t)
-}
-
-// UnmarshalJSON unmarshals the JSON input into a UnixTimestamp type
-func (t *UnixTimestampMilli) UnmarshalJSON(b []byte) error {
-	var timestampStr string
-	err := json.Unmarshal(b, &timestampStr)
-	if err != nil {
-		return err
-	}
-	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
-	if err != nil {
-		return err
-	}
-	*t = UnixTimestampMilli(time.UnixMilli(timestamp).UTC())
-	return nil
-}
-
-// String implements the stringer interface
-func (t *UnixTimestampMilli) String() string {
-	return t.Time().String()
-}
-
-// Time returns the time.Time representation of the UnixTimestamp
-func (t *UnixTimestampMilli) Time() time.Time {
-	return time.Time(*t)
 }

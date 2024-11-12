@@ -535,11 +535,7 @@ func getTimestamp(rawData []byte) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	timestamp, err := time.Parse(time.RFC3339, string(data))
-	if err != nil {
-		return time.Time{}, err
-	}
-	return timestamp, nil
+	return time.Parse(time.RFC3339, string(data))
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
@@ -609,7 +605,7 @@ func stringToStandardAsset(str string) (asset.Item, error) {
 }
 
 // strategyDecoder is a helper function that converts a Coinbase Pro time in force string to a few standardised bools
-func strategyDecoder(str string) (bool, bool, error) {
+func strategyDecoder(str string) (ioc, fok bool, err error) {
 	switch str {
 	case "IMMEDIATE_OR_CANCEL":
 		return true, false, nil

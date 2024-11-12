@@ -26,10 +26,10 @@ type Version bool
 // endpoints under version 2 of the API
 type FiatTransferType bool
 
-// ValCur is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse,
+// ValueWithCurrency is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse,
 // FuturesBalanceSummary, ListFuturesSweepsResponse, PerpetualsPortfolioSummary, PerpPositionDetail,
 // FeeStruct, AmScale, and ConvertResponse
-type ValCur struct {
+type ValueWithCurrency struct {
 	Value    float64 `json:"value,string"`
 	Currency string  `json:"currency"`
 }
@@ -37,18 +37,18 @@ type ValCur struct {
 // Account holds details for a trading account, returned by GetAccountByID and used as
 // a sub-struct in the type AllAccountsResponse
 type Account struct {
-	UUID             string    `json:"uuid"`
-	Name             string    `json:"name"`
-	Currency         string    `json:"currency"`
-	AvailableBalance ValCur    `json:"available_balance"`
-	Default          bool      `json:"default"`
-	Active           bool      `json:"active"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	DeletedAt        time.Time `json:"deleted_at"`
-	Type             string    `json:"type"`
-	Ready            bool      `json:"ready"`
-	Hold             ValCur    `json:"hold"`
+	UUID             string            `json:"uuid"`
+	Name             string            `json:"name"`
+	Currency         string            `json:"currency"`
+	AvailableBalance ValueWithCurrency `json:"available_balance"`
+	Default          bool              `json:"default"`
+	Active           bool              `json:"active"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+	DeletedAt        time.Time         `json:"deleted_at"`
+	Type             string            `json:"type"`
+	Ready            bool              `json:"ready"`
+	Hold             ValueWithCurrency `json:"hold"`
 }
 
 // AllAccountsResponse holds many Account structs, as well as pagination information,
@@ -71,12 +71,21 @@ type PriceSize struct {
 	Size  float64 `json:"size,string"`
 }
 
-// ProductBook holds bid and ask prices for a particular product, returned by GetProductBookV3
+// ProductBook holds bid and ask prices for a particular product, returned by GetBestBidAsk and used in ProductBookResp
 type ProductBook struct {
 	ProductID currency.Pair `json:"product_id"`
 	Bids      []PriceSize   `json:"bids"`
 	Asks      []PriceSize   `json:"asks"`
 	Time      time.Time     `json:"time"`
+}
+
+// ProductBookResp holds a ProductBook struct, and associated information, returned by GetProductBookV3
+type ProductBookResp struct {
+	Pricebook      ProductBook `json:"pricebook"`
+	Last           float64     `json:"last,string"`
+	MidMarket      float64     `json:"mid_market,string"`
+	SpreadBPs      float64     `json:"spread_bps,string"`
+	SpreadAbsolute float64     `json:"spread_absolute,string"`
 }
 
 // FCMTradingSessionDetails is a sub-struct used in the type Product
@@ -111,7 +120,7 @@ type FutureProductDetails struct {
 	ContractExpiryType     string           `json:"contract_expiry_type"`
 	PerpetualDetails       PerpetualDetails `json:"perpetual_details"`
 	ContractDisplayName    string           `json:"contract_display_name"`
-	TimeToExpiryMS         uint64           `json:"time_to_expiry_ms,string"`
+	TimeToExpiryMS         time.Duration    `json:"time_to_expiry_ms,string"`
 	NonCrypto              bool             `json:"non_crypto"`
 	ContractExpiryName     string           `json:"contract_expiry_name"`
 }
@@ -165,18 +174,14 @@ type AllProducts struct {
 	NumProducts int32     `json:"num_products"`
 }
 
-// UnixTimestamp is a type used to unmarshal unix timestamps returned from
-// the exchange, used in the types History and WebsocketCandle
-type UnixTimestamp time.Time
-
 // CandleStruct holds historic trade information, returned by GetHistoricRates
 type CandleStruct struct {
-	Start  UnixTimestamp `json:"start"`
-	Low    float64       `json:"low,string"`
-	High   float64       `json:"high,string"`
-	Open   float64       `json:"open,string"`
-	Close  float64       `json:"close,string"`
-	Volume float64       `json:"volume,string"`
+	Start  types.Time `json:"start"`
+	Low    float64    `json:"low,string"`
+	High   float64    `json:"high,string"`
+	Open   float64    `json:"open,string"`
+	Close  float64    `json:"close,string"`
+	Volume float64    `json:"volume,string"`
 }
 
 // Trades is a sub-struct used in the type Ticker
@@ -396,32 +401,32 @@ type FundsData struct {
 
 // NativeAndRaw is a sub-struct used in the type DetailedPortfolioResponse
 type NativeAndRaw struct {
-	UserNativeCurrency ValCur `json:"userNativeCurrency"`
-	RawCurrency        ValCur `json:"rawCurrency"`
+	UserNativeCurrency ValueWithCurrency `json:"userNativeCurrency"`
+	RawCurrency        ValueWithCurrency `json:"rawCurrency"`
 }
 
 // PortfolioBalances is a sub-struct used in the type DetailedPortfolioResponse
 type PortfolioBalances struct {
-	TotalBalance               ValCur `json:"total_balance"`
-	TotalFuturesBalance        ValCur `json:"total_futures_balance"`
-	TotalCashEquivalentBalance ValCur `json:"total_cash_equivalent_balance"`
-	TotalCryptoBalance         ValCur `json:"total_crypto_balance"`
-	FuturesUnrealizedPNL       ValCur `json:"futures_unrealized_pnl"`
-	PerpUnrealizedPNL          ValCur `json:"perp_unrealized_pnl"`
+	TotalBalance               ValueWithCurrency `json:"total_balance"`
+	TotalFuturesBalance        ValueWithCurrency `json:"total_futures_balance"`
+	TotalCashEquivalentBalance ValueWithCurrency `json:"total_cash_equivalent_balance"`
+	TotalCryptoBalance         ValueWithCurrency `json:"total_crypto_balance"`
+	FuturesUnrealizedPNL       ValueWithCurrency `json:"futures_unrealized_pnl"`
+	PerpUnrealizedPNL          ValueWithCurrency `json:"perp_unrealized_pnl"`
 }
 
 // SpotPositions is a sub-struct used in the type DetailedPortfolioResponse
 type SpotPositions struct {
-	Asset                 string  `json:"asset"`
-	AccountUUID           string  `json:"account_uuid"`
-	TotalBalanceFiat      float64 `json:"total_balance_fiat"`
-	TotalBalanceCrypto    float64 `json:"total_balance_crypto"`
-	AvailableToTreadeFiat float64 `json:"available_to_trade_fiat"`
-	Allocation            float64 `json:"allocation"`
-	OneDayChange          float64 `json:"one_day_change"`
-	CostBasis             ValCur  `json:"cost_basis"`
-	AssetImgURL           string  `json:"asset_img_url"`
-	IsCash                bool    `json:"is_cash"`
+	Asset                 string            `json:"asset"`
+	AccountUUID           string            `json:"account_uuid"`
+	TotalBalanceFiat      float64           `json:"total_balance_fiat"`
+	TotalBalanceCrypto    float64           `json:"total_balance_crypto"`
+	AvailableToTreadeFiat float64           `json:"available_to_trade_fiat"`
+	Allocation            float64           `json:"allocation"`
+	OneDayChange          float64           `json:"one_day_change"`
+	CostBasis             ValueWithCurrency `json:"cost_basis"`
+	AssetImgURL           string            `json:"asset_img_url"`
+	IsCash                bool              `json:"is_cash"`
 }
 
 // PerpPositions is a sub-struct used in the type DetailedPortfolioResponse
@@ -478,18 +483,18 @@ type DetailedPortfolioResponse struct {
 // FuturesBalanceSummary contains information on futures balances, returned by
 // GetFuturesBalanceSummary
 type FuturesBalanceSummary struct {
-	FuturesBuyingPower          ValCur  `json:"futures_buying_power"`
-	TotalUSDBalance             ValCur  `json:"total_usd_balance"`
-	CBIUSDBalance               ValCur  `json:"cbi_usd_balance"`
-	CFMUSDBalance               ValCur  `json:"cfm_usd_balance"`
-	TotalOpenOrdersHoldAmount   ValCur  `json:"total_open_orders_hold_amount"`
-	UnrealizedPNL               ValCur  `json:"unrealized_pnl"`
-	DailyRealizedPNL            ValCur  `json:"daily_realized_pnl"`
-	InitialMargin               ValCur  `json:"initial_margin"`
-	AvailableMargin             ValCur  `json:"available_margin"`
-	LiquidationThreshold        ValCur  `json:"liquidation_threshold"`
-	LiquidationBufferAmount     ValCur  `json:"liquidation_buffer_amount"`
-	LiquidationBufferPercentage float64 `json:"liquidation_buffer_percentage,string"`
+	FuturesBuyingPower          ValueWithCurrency `json:"futures_buying_power"`
+	TotalUSDBalance             ValueWithCurrency `json:"total_usd_balance"`
+	CBIUSDBalance               ValueWithCurrency `json:"cbi_usd_balance"`
+	CFMUSDBalance               ValueWithCurrency `json:"cfm_usd_balance"`
+	TotalOpenOrdersHoldAmount   ValueWithCurrency `json:"total_open_orders_hold_amount"`
+	UnrealizedPNL               ValueWithCurrency `json:"unrealized_pnl"`
+	DailyRealizedPNL            ValueWithCurrency `json:"daily_realized_pnl"`
+	InitialMargin               ValueWithCurrency `json:"initial_margin"`
+	AvailableMargin             ValueWithCurrency `json:"available_margin"`
+	LiquidationThreshold        ValueWithCurrency `json:"liquidation_threshold"`
+	LiquidationBufferAmount     ValueWithCurrency `json:"liquidation_buffer_amount"`
+	LiquidationBufferPercentage float64           `json:"liquidation_buffer_percentage,string"`
 }
 
 // FuturesPosition contains information on a single futures position, returned by
@@ -509,38 +514,38 @@ type FuturesPosition struct {
 
 // SweepData contains information on pending and processing sweep requests, returned by ListFuturesSweeps
 type SweepData struct {
-	ID              string    `json:"id"`
-	RequestedAmount ValCur    `json:"requested_amount"`
-	ShouldSweepAll  bool      `json:"should_sweep_all"`
-	Status          string    `json:"status"`
-	ScheduledTime   time.Time `json:"scheduled_time"`
+	ID              string            `json:"id"`
+	RequestedAmount ValueWithCurrency `json:"requested_amount"`
+	ShouldSweepAll  bool              `json:"should_sweep_all"`
+	Status          string            `json:"status"`
+	ScheduledTime   time.Time         `json:"scheduled_time"`
 }
 
 // PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as
 // a sub-struct in the types PerpPositionDetail, AllPerpPosResponse, and
 // OnePerpPosResponse
 type PerpetualsPortfolioSummary struct {
-	PortfolioUUID              string  `json:"portfolio_uuid"`
-	Collateral                 float64 `json:"collateral,string"`
-	PositionNotional           float64 `json:"position_notional,string"`
-	OpenPositionNotional       float64 `json:"open_position_notional,string"`
-	PendingFees                float64 `json:"pending_fees,string"`
-	Borrow                     float64 `json:"borrow,string"`
-	AccruedInterest            float64 `json:"accrued_interest,string"`
-	RollingDebt                float64 `json:"rolling_debt,string"`
-	PortfolioInitialMargin     float64 `json:"portfolio_initial_margin,string"`
-	PortfolioIMNotional        ValCur  `json:"portfolio_im_notional"`
-	PortfolioMaintenanceMargin float64 `json:"portfolio_maintenance_margin,string"`
-	PortfolioMMNotional        ValCur  `json:"portfolio_mm_notional"`
-	LiquidationPercentage      float64 `json:"liquidation_percentage,string"`
-	LiquidationBuffer          float64 `json:"liquidation_buffer,string"`
-	MarginType                 string  `json:"margin_type"`
-	MarginFlags                string  `json:"margin_flags"`
-	LiquidationStatus          string  `json:"liquidation_status"`
-	UnrealizedPNL              ValCur  `json:"unrealized_pnl"`
-	BuyingPower                ValCur  `json:"buying_power"`
-	TotalBalance               ValCur  `json:"total_balance"`
-	MaxWithDrawal              ValCur  `json:"max_withdrawal"`
+	PortfolioUUID              string            `json:"portfolio_uuid"`
+	Collateral                 float64           `json:"collateral,string"`
+	PositionNotional           float64           `json:"position_notional,string"`
+	OpenPositionNotional       float64           `json:"open_position_notional,string"`
+	PendingFees                float64           `json:"pending_fees,string"`
+	Borrow                     float64           `json:"borrow,string"`
+	AccruedInterest            float64           `json:"accrued_interest,string"`
+	RollingDebt                float64           `json:"rolling_debt,string"`
+	PortfolioInitialMargin     float64           `json:"portfolio_initial_margin,string"`
+	PortfolioIMNotional        ValueWithCurrency `json:"portfolio_im_notional"`
+	PortfolioMaintenanceMargin float64           `json:"portfolio_maintenance_margin,string"`
+	PortfolioMMNotional        ValueWithCurrency `json:"portfolio_mm_notional"`
+	LiquidationPercentage      float64           `json:"liquidation_percentage,string"`
+	LiquidationBuffer          float64           `json:"liquidation_buffer,string"`
+	MarginType                 string            `json:"margin_type"`
+	MarginFlags                string            `json:"margin_flags"`
+	LiquidationStatus          string            `json:"liquidation_status"`
+	UnrealizedPNL              ValueWithCurrency `json:"unrealized_pnl"`
+	BuyingPower                ValueWithCurrency `json:"buying_power"`
+	TotalBalance               ValueWithCurrency `json:"total_balance"`
+	MaxWithDrawal              ValueWithCurrency `json:"max_withdrawal"`
 }
 
 // PerpPositionDetail contains information on a single perpetuals position, used as a sub-struct
@@ -549,19 +554,19 @@ type PerpPositionDetail struct {
 	ProductID             currency.Pair              `json:"product_id"`
 	ProductUUID           string                     `json:"product_uuid"`
 	Symbol                string                     `json:"symbol"`
-	VWAP                  ValCur                     `json:"vwap"`
+	VWAP                  ValueWithCurrency          `json:"vwap"`
 	PositionSide          string                     `json:"position_side"`
 	NetSize               float64                    `json:"net_size,string"`
 	BuyOrderSize          float64                    `json:"buy_order_size,string"`
 	SellOrderSize         float64                    `json:"sell_order_size,string"`
 	IMContribution        float64                    `json:"im_contribution,string"`
-	UnrealizedPNL         ValCur                     `json:"unrealized_pnl"`
-	MarkPrice             ValCur                     `json:"mark_price"`
-	LiquidationPrice      ValCur                     `json:"liquidation_price"`
+	UnrealizedPNL         ValueWithCurrency          `json:"unrealized_pnl"`
+	MarkPrice             ValueWithCurrency          `json:"mark_price"`
+	LiquidationPrice      ValueWithCurrency          `json:"liquidation_price"`
 	Leverage              float64                    `json:"leverage,string"`
-	IMNotional            ValCur                     `json:"im_notional"`
-	MMNotional            ValCur                     `json:"mm_notional"`
-	PositionNotional      ValCur                     `json:"position_notional"`
+	IMNotional            ValueWithCurrency          `json:"im_notional"`
+	MMNotional            ValueWithCurrency          `json:"mm_notional"`
+	PositionNotional      ValueWithCurrency          `json:"position_notional"`
 	MarginType            string                     `json:"margin_type"`
 	LiquidationBuffer     float64                    `json:"liquidation_buffer,string"`
 	LiquidationPercentage float64                    `json:"liquidation_percentage,string"`
@@ -644,11 +649,11 @@ type Disclosure struct {
 
 // FeeStruct is a sub-struct storing information on fees, used in ConvertResponse
 type FeeStruct struct {
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Amount      ValCur     `json:"amount"`
-	Label       string     `json:"label"`
-	Disclosure  Disclosure `json:"disclosure"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Amount      ValueWithCurrency `json:"amount"`
+	Label       string            `json:"label"`
+	Disclosure  Disclosure        `json:"disclosure"`
 }
 
 // Owner is a sub-struct, used in LedgerAccount
@@ -675,8 +680,8 @@ type AccountStruct struct {
 
 // AmScale is a sub-struct storing information on amounts and scales, used in ConvertResponse
 type AmScale struct {
-	Amount ValCur `json:"amount"`
-	Scale  int32  `json:"scale"`
+	Amount ValueWithCurrency `json:"amount"`
+	Scale  int32             `json:"scale"`
 }
 
 // UnitPrice is a sub-struct used in ConvertResponse
@@ -712,18 +717,18 @@ type CancellationReason struct {
 
 // TaxDetails is a sub-struct used in ConvertResponse
 type TaxDetails struct {
-	Name   string `json:"name"`
-	Amount ValCur `json:"amount"`
+	Name   string            `json:"name"`
+	Amount ValueWithCurrency `json:"amount"`
 }
 
 // TradeIncentiveInfo is a sub-struct used in ConvertResponse
 type TradeIncentiveInfo struct {
-	AppliedIncentive    bool      `json:"applied_incentive"`
-	UserIncentiveID     string    `json:"user_incentive_id"`
-	CodeVal             string    `json:"code_val"`
-	EndsAt              time.Time `json:"ends_at"`
-	FeeWithoutIncentive ValCur    `json:"fee_without_incentive"`
-	Redeemed            bool      `json:"redeemed"`
+	AppliedIncentive    bool              `json:"applied_incentive"`
+	UserIncentiveID     string            `json:"user_incentive_id"`
+	CodeVal             string            `json:"code_val"`
+	EndsAt              time.Time         `json:"ends_at"`
+	FeeWithoutIncentive ValueWithCurrency `json:"fee_without_incentive"`
+	Redeemed            bool              `json:"redeemed"`
 }
 
 // ConvertResponse contains information on a convert trade, returned by CreateConvertQuote,
@@ -731,10 +736,10 @@ type TradeIncentiveInfo struct {
 type ConvertResponse struct {
 	ID                 string             `json:"id"`
 	Status             string             `json:"status"`
-	UserEnteredAmount  ValCur             `json:"user_entered_amount"`
-	Amount             ValCur             `json:"amount"`
-	Subtotal           ValCur             `json:"subtotal"`
-	Total              ValCur             `json:"total"`
+	UserEnteredAmount  ValueWithCurrency  `json:"user_entered_amount"`
+	Amount             ValueWithCurrency  `json:"amount"`
+	Subtotal           ValueWithCurrency  `json:"subtotal"`
+	Total              ValueWithCurrency  `json:"total"`
 	Fees               []FeeStruct        `json:"fees"`
 	TotalFee           FeeStruct          `json:"total_fee"`
 	Source             AccountStruct      `json:"source"`
@@ -747,22 +752,18 @@ type ConvertResponse struct {
 	CancellationReason CancellationReason `json:"cancellation_reason"`
 	SourceID           string             `json:"source_id"`
 	TargetID           string             `json:"target_id"`
-	ExchangeRate       ValCur             `json:"exchange_rate"`
+	ExchangeRate       ValueWithCurrency  `json:"exchange_rate"`
 	TaxDetails         []TaxDetails       `json:"tax_details"`
 	TradeIncentiveInfo TradeIncentiveInfo `json:"trade_incentive_info"`
 	TotalFeeWithoutTax FeeStruct          `json:"total_fee_without_tax"`
-	FiatDenotedTotal   ValCur             `json:"fiat_denoted_total"`
+	FiatDenotedTotal   ValueWithCurrency  `json:"fiat_denoted_total"`
 }
-
-// UnixTimestampMilli is a type used to unmarshal unix millisecond timestamps returned from
-// the exchange, used in the type ServerTimeV3
-type UnixTimestampMilli time.Time
 
 // ServerTimeV3 holds information on the server's time, returned by GetV3Time
 type ServerTimeV3 struct {
-	Iso               time.Time          `json:"iso"`
-	EpochSeconds      UnixTimestamp      `json:"epochSeconds"`
-	EpochMilliseconds UnixTimestampMilli `json:"epochMillis"`
+	Iso               time.Time  `json:"iso"`
+	EpochSeconds      types.Time `json:"epochSeconds"`
+	EpochMilliseconds types.Time `json:"epochMillis"`
 }
 
 // PaymentMethodData is a sub-type that holds information on a payment method
@@ -803,9 +804,7 @@ type PaginationResp struct {
 	NextURI              string `json:"next_uri"`
 }
 
-// PaginationInp holds information needed to engage in pagination with Sign in With
-// Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses, GetAddressTransactions,
-// GetAllTransactions, GetAllFiatTransfers, GetAllPaymentMethods, and preparePagination
+// PaginationInp holds information needed to engage in pagination with Sign in With Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses, GetAddressTransactions, GetAllTransactions, GetAllFiatTransfers, GetAllPaymentMethods, and preparePagination
 type PaginationInp struct {
 	Limit         uint8
 	OrderAscend   bool
@@ -813,45 +812,44 @@ type PaginationInp struct {
 	EndingBefore  string
 }
 
-// AmCur is a sub-struct used in ListNotificationsSubData, WalletData, TransactionData,
-// DeposWithdrData, and PaymentMethodData
-type AmCur struct {
+// AmountWithCurrency is a sub-struct used in ListNotificationsSubData, WalletData, TransactionData, DeposWithdrData, and PaymentMethodData
+type AmountWithCurrency struct {
 	Amount   float64 `json:"amount,string"`
 	Currency string  `json:"currency"`
 }
 
 // Fees is a sub-struct used in ListNotificationsSubData
 type Fees []struct {
-	Type   string `json:"type"`
-	Amount AmCur  `json:"amount"`
+	Type   string             `json:"type"`
+	Amount AmountWithCurrency `json:"amount"`
 }
 
 // ListNotificationsSubData is a sub-struct used in ListNotificationsData
 type ListNotificationsSubData struct {
-	ID            string     `json:"id"`
-	Address       string     `json:"address"`
-	Name          string     `json:"name"`
-	Status        string     `json:"status"`
-	PaymentMethod IDResource `json:"payment_method"`
-	Transaction   IDResource `json:"transaction"`
-	Amount        AmCur      `json:"amount"`
-	Total         AmCur      `json:"total"`
-	Subtotal      AmCur      `json:"subtotal"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	Resource      string     `json:"resource"`
-	ResourcePath  string     `json:"resource_path"`
-	Committed     bool       `json:"committed"`
-	Instant       bool       `json:"instant"`
-	Fee           AmCur      `json:"fee"`
-	Fees          []Fees     `json:"fees"`
-	PayoutAt      time.Time  `json:"payout_at"`
+	ID            string             `json:"id"`
+	Address       string             `json:"address"`
+	Name          string             `json:"name"`
+	Status        string             `json:"status"`
+	PaymentMethod IDResource         `json:"payment_method"`
+	Transaction   IDResource         `json:"transaction"`
+	Amount        AmountWithCurrency `json:"amount"`
+	Total         AmountWithCurrency `json:"total"`
+	Subtotal      AmountWithCurrency `json:"subtotal"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+	Resource      string             `json:"resource"`
+	ResourcePath  string             `json:"resource_path"`
+	Committed     bool               `json:"committed"`
+	Instant       bool               `json:"instant"`
+	Fee           AmountWithCurrency `json:"fee"`
+	Fees          []Fees             `json:"fees"`
+	PayoutAt      time.Time          `json:"payout_at"`
 }
 
 // AdditionalData is a sub-struct used in ListNotificationsData
 type AdditionalData struct {
-	Hash   string `json:"hash"`
-	Amount AmCur  `json:"amount"`
+	Hash   string             `json:"hash"`
+	Amount AmountWithCurrency `json:"amount"`
 }
 
 // ListNotificationsData is a sub-struct used in ListNotificationsResponse
@@ -958,18 +956,18 @@ type Currency struct {
 
 // WalletData is a sub-struct holding wallet information, used in GetAllWalletsResponse
 type WalletData struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	Primary          bool      `json:"primary"`
-	Type             string    `json:"type"`
-	Currency         Currency  `json:"currency"`
-	Balance          AmCur     `json:"balance"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	Resource         string    `json:"resource"`
-	ResourcePath     string    `json:"resource_path"`
-	AllowDeposits    bool      `json:"allow_deposits"`
-	AllowWithdrawals bool      `json:"allow_withdrawals"`
+	ID               string             `json:"id"`
+	Name             string             `json:"name"`
+	Primary          bool               `json:"primary"`
+	Type             string             `json:"type"`
+	Currency         Currency           `json:"currency"`
+	Balance          AmountWithCurrency `json:"balance"`
+	CreatedAt        time.Time          `json:"created_at"`
+	UpdatedAt        time.Time          `json:"updated_at"`
+	Resource         string             `json:"resource"`
+	ResourcePath     string             `json:"resource_path"`
+	AllowDeposits    bool               `json:"allow_deposits"`
+	AllowWithdrawals bool               `json:"allow_withdrawals"`
 }
 
 // GetAllWalletsResponse holds information on many wallets, returned by GetAllWallets
@@ -1067,20 +1065,20 @@ type Network struct {
 // TransactionData is a sub-type that holds information on a transaction. Used in
 // ManyTransactionsResp
 type TransactionData struct {
-	ID           string        `json:"id"`
-	Type         string        `json:"type"`
-	Status       string        `json:"status"`
-	Amount       AmCur         `json:"amount"`
-	NativeAmount AmCur         `json:"native_amount"`
-	Description  string        `json:"description"`
-	CreatedAt    time.Time     `json:"created_at"`
-	UpdatedAt    time.Time     `json:"updated_at"`
-	Resource     string        `json:"resource"`
-	ResourcePath string        `json:"resource_path"`
-	Details      TitleSubtitle `json:"details"`
-	Network      Network       `json:"network"`
-	To           IDResource    `json:"to"`
-	From         IDResource    `json:"from"`
+	ID           string             `json:"id"`
+	Type         string             `json:"type"`
+	Status       string             `json:"status"`
+	Amount       AmountWithCurrency `json:"amount"`
+	NativeAmount AmountWithCurrency `json:"native_amount"`
+	Description  string             `json:"description"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+	Resource     string             `json:"resource"`
+	ResourcePath string             `json:"resource_path"`
+	Details      TitleSubtitle      `json:"details"`
+	Network      Network            `json:"network"`
+	To           IDResource         `json:"to"`
+	From         IDResource         `json:"from"`
 }
 
 // ManyTransactionsResp holds information on many transactions. Returned by
@@ -1093,20 +1091,20 @@ type ManyTransactionsResp struct {
 // DeposWithdrData is a sub-type that holds information on a deposit/withdrawal. Used in
 // ManyDeposWithdrResp
 type DeposWithdrData struct {
-	ID            string           `json:"id"`
-	Status        string           `json:"status"`
-	PaymentMethod IDResource       `json:"payment_method"`
-	Transaction   IDResource       `json:"transaction"`
-	Amount        AmCur            `json:"amount"`
-	Subtotal      AmCur            `json:"subtotal"`
-	CreatedAt     time.Time        `json:"created_at"`
-	UpdatedAt     time.Time        `json:"updated_at"`
-	Resource      string           `json:"resource"`
-	ResourcePath  string           `json:"resource_path"`
-	Committed     bool             `json:"committed"`
-	Fee           AmCur            `json:"fee"`
-	PayoutAt      time.Time        `json:"payout_at"`
-	TransferType  FiatTransferType `json:"transfer_type"`
+	ID            string             `json:"id"`
+	Status        string             `json:"status"`
+	PaymentMethod IDResource         `json:"payment_method"`
+	Transaction   IDResource         `json:"transaction"`
+	Amount        AmountWithCurrency `json:"amount"`
+	Subtotal      AmountWithCurrency `json:"subtotal"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+	Resource      string             `json:"resource"`
+	ResourcePath  string             `json:"resource_path"`
+	Committed     bool               `json:"committed"`
+	Fee           AmountWithCurrency `json:"fee"`
+	PayoutAt      time.Time          `json:"payout_at"`
+	TransferType  FiatTransferType   `json:"transfer_type"`
 }
 
 // ManyDeposWithdrResp holds information on many deposits. Returned by GetAllFiatTransfers
@@ -1185,7 +1183,7 @@ type WebsocketTickerHolder struct {
 
 // WebsocketCandle defines a candle websocket response, used in WebsocketCandleHolder
 type WebsocketCandle struct {
-	Start     UnixTimestamp `json:"start"`
+	Start     types.Time    `json:"start"`
 	Low       float64       `json:"low,string"`
 	High      float64       `json:"high,string"`
 	Open      float64       `json:"open,string"`
@@ -1429,12 +1427,12 @@ type Auction struct {
 // OrderBookResp holds information on bids and asks for a particular currency pair, used for unmarshalling in
 // GetProductBookV1
 type OrderBookResp struct {
-	Bids        [][3]interface{} `json:"bids"`
-	Asks        [][3]interface{} `json:"asks"`
-	Sequence    float64          `json:"sequence"`
-	AuctionMode bool             `json:"auction_mode"`
-	Auction     Auction          `json:"auction"`
-	Time        time.Time        `json:"time"`
+	Bids        [][3]any  `json:"bids"`
+	Asks        [][3]any  `json:"asks"`
+	Sequence    float64   `json:"sequence"`
+	AuctionMode bool      `json:"auction_mode"`
+	Auction     Auction   `json:"auction"`
+	Time        time.Time `json:"time"`
 }
 
 // Orders holds information on orders, used as a sub-struct in OrderBook
@@ -1456,7 +1454,7 @@ type OrderBook struct {
 }
 
 // RawCandles holds raw candle data, used in unmarshalling for GetProductCandles
-type RawCandles [6]interface{}
+type RawCandles [6]any
 
 // Candle holds properly formatted candle data, returned by GetProductCandles
 type Candle struct {
