@@ -810,7 +810,7 @@ func (by *Bybit) handleSubscriptionsNonTemplate(conn stream.Connection, assetTyp
 }
 
 // generateAuthSubscriptions generates default subscription for the dedicated auth websocket connection. These are
-// are agnostic to the asset type and pair as all account level data will be routed through this connection.
+// agnostic to the asset type and pair as all account level data will be routed through this connection.
 // TODO: Remove this function when template expansion is across all assets
 func (by *Bybit) generateAuthSubscriptions() (subscription.List, error) {
 	if !by.Websocket.CanUseAuthenticatedEndpoints() {
