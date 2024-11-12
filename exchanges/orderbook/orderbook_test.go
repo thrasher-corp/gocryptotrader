@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -322,28 +323,18 @@ func TestBaseGetDepth(t *testing.T) {
 
 func TestDeployDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = DeployDepth("", c, asset.Spot)
-	if !errors.Is(err, common.ErrExchangeNameUnset) {
-		t.Fatalf("expecting %s error but received %v", common.ErrExchangeNameUnset, err)
-	}
+	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
-	if !errors.Is(err, errPairNotSet) {
-		t.Fatalf("expecting %s error but received %v", errPairNotSet, err)
-	}
+	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", c, asset.Empty)
-	if !errors.Is(err, errAssetTypeNotSet) {
-		t.Fatalf("expecting %s error but received %v", errAssetTypeNotSet, err)
-	}
+	require.ErrorIs(t, err, errAssetTypeNotSet)
 	d, err := DeployDepth("test", c, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d == nil {
-		t.Fatal("depth ptr shall not be nill")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, d)
+	_, err = DeployDepth("test", c, asset.Spot)
+	require.NoError(t, err)
 }
 
 func TestCreateNewOrderbook(t *testing.T) {

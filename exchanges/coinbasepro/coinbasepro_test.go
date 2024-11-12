@@ -1518,7 +1518,7 @@ func TestWsAuth(t *testing.T) {
 	go c.wsReadData()
 	err = c.Subscribe(subscription.List{
 		{
-			Channel: "account",
+			Channel: "myAccount",
 			Asset:   asset.All,
 			Pairs:   p,
 		},
