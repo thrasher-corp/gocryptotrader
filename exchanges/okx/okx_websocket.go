@@ -1927,9 +1927,8 @@ func (ok *Okx) WsMassCancelOrders(ctx context.Context, args []CancelMassReqParam
 						return false, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
 					}
 					return resp[0].Result, nil
-				} else {
-					return false, fmt.Errorf("error code:%s message: %v", data.Code, data.Message)
 				}
+				return false, fmt.Errorf("error code:%s message: %v", data.Code, data.Message)
 			}
 			continue
 		case <-timer.C:

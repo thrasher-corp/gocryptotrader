@@ -59,32 +59,6 @@ func (ok *Okx) SetDefaults() {
 		Uppercase: true,
 	}
 
-	// pairStore := currency.PairStore{RequestFormat: cpf, ConfigFormat: cpf}
-	// err := ok.StoreAssetPairFormat(asset.Spot, pairStore)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-	// err = ok.StoreAssetPairFormat(asset.Futures, pairStore)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-	// err = ok.StoreAssetPairFormat(asset.PerpetualSwap, pairStore)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-	// err = ok.StoreAssetPairFormat(asset.Options, pairStore)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-	// err = ok.StoreAssetPairFormat(asset.Margin, pairStore)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-	// err = ok.StoreAssetPairFormat(asset.Spread, pairStore)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-
 	err := ok.SetGlobalPairsManager(cpf, cpf, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin, asset.Spread)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -286,7 +260,8 @@ func (ok *Okx) Shutdown() error {
 
 // GetServerTime returns the current exchange server time.
 func (ok *Okx) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	return ok.GetSystemTime(ctx)
+	t, err := ok.GetSystemTime(ctx)
+	return t.Time(), err
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -2634,7 +2609,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			var err error
 			switch instType {
 			case okxInstTypeOption:
-				underlyings, err := ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+				var underlyings []string
+				underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
 				if err != nil {
 					return nil, err
 				}
@@ -2654,7 +2630,9 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 				}
 			}
 			for j := range oid {
-				p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
+				var isEnabled bool
+				var p currency.Pair
+				p, isEnabled, err = ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
 				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 					return nil, err
 				}
@@ -2696,7 +2674,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	var oid []OpenInterest
 	switch instTypes[k[0].Asset] {
 	case okxInstTypeOption:
-		underlyings, err := ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+		var underlyings []string
+		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
 		if err != nil {
 			return nil, err
 		}

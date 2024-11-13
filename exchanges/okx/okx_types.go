@@ -141,7 +141,6 @@ var (
 	errLendingRateRequired                  = errors.New("lending rate is required")
 	errQuarterValueRequired                 = errors.New("quarter is required")
 	errYearRequired                         = errors.New("year is required")
-	errLengthMismatch                       = errors.New("mismatch in length")
 	errBorrowTypeRequired                   = errors.New("borrow type is required")
 	errMaxRateRequired                      = errors.New("max rate is required")
 	errLendingSideRequired                  = errors.New("lending side is required")
@@ -258,31 +257,30 @@ func GetItems(data [][4]types.Number) ([]OrderbookItemDetail, error) {
 	return items, nil
 }
 
-// IndexCandlestickSlices represents index candlestick history represented by a slice of string
-type IndexCandlestickSlices [][6]types.Number
+// CandlestickHistoryItem retrieve the candlestick charts of the index/mark price from recent years.
+type CandlestickHistoryItem struct {
+	Timestamp    types.Time
+	OpenPrice    types.Number
+	HighestPrice types.Number
+	LowestPrice  types.Number
+	ClosePrice   types.Number
+	Confirm      candlestickState
+}
 
-// ExtractIndexCandlestick extracts IndexCandlestick instance from slice of string.
-func (a IndexCandlestickSlices) ExtractIndexCandlestick() ([]CandlestickHistoryItem, error) {
-	if len(a) == 0 {
-		return nil, errors.New("nil slice")
+// UnmarshalJSON deserializes slice data into CandlestickHistoryItem instance
+func (c *CandlestickHistoryItem) UnmarshalJSON(data []byte) error {
+	var state string
+	target := []any{&c.Timestamp, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &state}
+	err := json.Unmarshal(data, &target)
+	if err != nil {
+		return err
 	}
-	candles := make([]CandlestickHistoryItem, len(a))
-	for i := range a {
-		timestamp := a[i][0].Int64()
-		candles[i] = CandlestickHistoryItem{
-			Timestamp: time.UnixMilli(timestamp),
-		}
-		candles[i].OpenPrice = a[i][1].Float64()
-		candles[i].HighestPrice = a[i][2].Float64()
-		candles[i].LowestPrice = a[i][3].Float64()
-		candles[i].ClosePrice = a[i][4].Float64()
-		if a[i][5].Int64() == 1 {
-			candles[i].Confirm = StateCompleted
-		} else {
-			candles[i].Confirm = StateUncompleted
-		}
+	if state == "1" {
+		c.Confirm = StateCompleted
+	} else {
+		c.Confirm = StateUncompleted
 	}
-	return candles, nil
+	return nil
 }
 
 // CandleStick  holds candlestick price data
@@ -300,16 +298,6 @@ type CandleStick struct {
 func (c *CandleStick) UnmarshalJSON(data []byte) error {
 	target := [7]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume}
 	return json.Unmarshal(data, &target)
-}
-
-// CandlestickHistoryItem retrieve the candlestick charts of the index/mark price from recent years.
-type CandlestickHistoryItem struct {
-	Timestamp    time.Time
-	OpenPrice    float64
-	HighestPrice float64
-	LowestPrice  float64
-	ClosePrice   float64
-	Confirm      candlestickState
 }
 
 // TradeResponse represents the recent transaction instance.
@@ -970,6 +958,23 @@ type OrderDetail struct {
 	StopLossTriggerPrice       types.Number `json:"slTriggerPx"`
 	UpdateTime                 types.Time   `json:"uTime"`
 	CreationTime               types.Time   `json:"cTime"`
+	AlgoClOrdID                string       `json:"algoClOrdId"`
+	AlgoID                     string       `json:"algoId"`
+	AttachAlgoClOrdID          string       `json:"attachAlgoClOrdId"`
+	AttachAlgoOrds             []any        `json:"attachAlgoOrds"`
+	CancelSource               string       `json:"cancelSource"`
+	CancelSourceReason         string       `json:"cancelSourceReason"`
+	IsTakeProfitLimit          string       `json:"isTpLimit"`
+	LinkedAlgoOrd              struct {
+		AlgoID string `json:"algoId"`
+	} `json:"linkedAlgoOrd"`
+	PriceType               string       `json:"pxType"`
+	PriceVolume             types.Number `json:"pxVol"`
+	PriceUSD                types.Number `json:"pxUsd"`
+	QuickMgnType            string       `json:"quickMgnType"`
+	ReduceOnly              bool         `json:"reduceOnly,string,omitempty"`
+	SelfTradePreventionID   string       `json:"stpId"`
+	SelfTradePreventionMode string       `json:"stpMode"`
 }
 
 // OrderListRequestParams represents order list requesting parameters.
@@ -1090,17 +1095,17 @@ type TransactionDetail struct {
 
 // AlgoOrderParams holds algo order information.
 type AlgoOrderParams struct {
-	InstrumentID string     `json:"instId"` // Required
-	TradeMode    string     `json:"tdMode"` // Required
-	Currency     string     `json:"ccy,omitempty"`
-	Side         order.Side `json:"side"` // Required
-	PositionSide string     `json:"posSide,omitempty"`
-	OrderType    string     `json:"ordType"`   // Required
-	Size         float64    `json:"sz,string"` // Required
-	ReduceOnly   bool       `json:"reduceOnly,omitempty"`
-	OrderTag     string     `json:"tag,omitempty"`
-	QuantityType string     `json:"tgtCcy,omitempty"`
-	AlgoClOrdID  string     `json:"algoClOrdId,omitempty"`
+	InstrumentID string  `json:"instId"` // Required
+	TradeMode    string  `json:"tdMode"` // Required
+	Currency     string  `json:"ccy,omitempty"`
+	Side         string  `json:"side"` // Required
+	PositionSide string  `json:"posSide,omitempty"`
+	OrderType    string  `json:"ordType"`   // Required
+	Size         float64 `json:"sz,string"` // Required
+	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
+	OrderTag     string  `json:"tag,omitempty"`
+	QuantityType string  `json:"tgtCcy,omitempty"`
+	AlgoClOrdID  string  `json:"algoClOrdId,omitempty"`
 
 	// Place Stop Order params
 	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
@@ -1677,37 +1682,37 @@ type AccountDetail struct {
 	AvailableBalance          types.Number  `json:"availBal"`
 	MarginFrozenForOpenOrders types.Number  `json:"ordFrozen"`
 
-	CrossLiab             types.Number   `json:"crossLiab"`
-	EquityUsd             types.Number   `json:"eqUsd"`
-	FrozenBalance         types.Number   `json:"frozenBal"`
-	Interest              types.Number   `json:"interest"`
-	IsolatedLiabilities   types.Number   `json:"isoLiab"`
-	IsoUpl                types.Number   `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
-	LiabilitiesOfCurrency types.Number   `json:"liab"`
-	MaxLoan               types.Number   `json:"maxLoan"`
-	MarginRatio           types.Number   `json:"mgnRatio"`      // Equity of the currency
-	NotionalLever         types.Number   `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
-	Twap                  types.Number   `json:"twap"`
-	UPL                   types.Number   `json:"upl"` // unrealized profit & loss of all margin and derivatives positions of currency.
-	UPLLiabilities        types.Number   `json:"uplLiab"`
-	StrategyEquity        types.Number   `json:"stgyEq"`  // strategy equity
-	TotalEquity           types.Number   `json:"totalEq"` // Total equity in USD level. Appears unused
-	RewardBalance         types.Number   `json:"rewardBal"`
-	InitialMarginRate     types.Number   `json:"imr"`
-	MMR                   types.Number   `json:"mmr"` // ross maintenance margin requirement at the currency level. Applicable to Spot and futures mode and when there is cross position
-	SpotInUseAmount       types.Number   `json:"spotInUseAmt"`
-	ClientSpotInUseAmount types.Number   `json:"clSpotInUseAmt"`
-	MaxSpotInUseAmount    types.Number   `json:"maxSpotInUse"`
-	SpotIsolatedBalance   types.Number   `json:"spotIsoBal"`
-	SmarkSyncEquity       types.Number   `json:"smtSyncEq"`
-	SpotCopyTradingEquity types.Number   `json:"spotCopyTradingEq"`
-	SpotBalance           types.Number   `json:"spotBal"`
-	OpenAvgPrice          []types.Number `json:"openAvgPx"`
-	AccAvgPrice           []types.Number `json:"accAvgPx"`
-	SpotUPL               types.Number   `json:"spotUpl"`
-	SpotUplRatio          types.Number   `json:"spotUplRatio"`
-	TotalPNL              types.Number   `json:"totalPnl"`
-	TotalPNLRatio         types.Number   `json:"totalPnlRatio"`
+	CrossLiab             types.Number `json:"crossLiab"`
+	EquityUsd             types.Number `json:"eqUsd"`
+	FrozenBalance         types.Number `json:"frozenBal"`
+	Interest              types.Number `json:"interest"`
+	IsolatedLiabilities   types.Number `json:"isoLiab"`
+	IsoUpl                types.Number `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
+	LiabilitiesOfCurrency types.Number `json:"liab"`
+	MaxLoan               types.Number `json:"maxLoan"`
+	MarginRatio           types.Number `json:"mgnRatio"`      // Equity of the currency
+	NotionalLever         types.Number `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
+	Twap                  types.Number `json:"twap"`
+	UPL                   types.Number `json:"upl"` // unrealized profit & loss of all margin and derivatives positions of currency.
+	UPLLiabilities        types.Number `json:"uplLiab"`
+	StrategyEquity        types.Number `json:"stgyEq"`  // strategy equity
+	TotalEquity           types.Number `json:"totalEq"` // Total equity in USD level. Appears unused
+	RewardBalance         types.Number `json:"rewardBal"`
+	InitialMarginRate     types.Number `json:"imr"`
+	MMR                   types.Number `json:"mmr"` // ross maintenance margin requirement at the currency level. Applicable to Spot and futures mode and when there is cross position
+	SpotInUseAmount       types.Number `json:"spotInUseAmt"`
+	ClientSpotInUseAmount types.Number `json:"clSpotInUseAmt"`
+	MaxSpotInUseAmount    types.Number `json:"maxSpotInUse"`
+	SpotIsolatedBalance   types.Number `json:"spotIsoBal"`
+	SmarkSyncEquity       types.Number `json:"smtSyncEq"`
+	SpotCopyTradingEquity types.Number `json:"spotCopyTradingEq"`
+	SpotBalance           types.Number `json:"spotBal"`
+	OpenAvgPrice          types.Number `json:"openAvgPx"`
+	AccAvgPrice           types.Number `json:"accAvgPx"`
+	SpotUPL               types.Number `json:"spotUpl"`
+	SpotUplRatio          types.Number `json:"spotUplRatio"`
+	TotalPNL              types.Number `json:"totalPnl"`
+	TotalPNLRatio         types.Number `json:"totalPnlRatio"`
 }
 
 // AccountPosition account position.
