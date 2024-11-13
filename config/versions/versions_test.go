@@ -20,7 +20,8 @@ func TestDeploy(t *testing.T) {
 	_, err = m.Deploy(context.Background(), []byte(``))
 	require.ErrorIs(t, err, errVersionIncompatible)
 
-	m.errors = nil
+	m = manager{}
+
 	m.registerVersion(0, &Version0{})
 	_, err = m.Deploy(context.Background(), []byte(`not an object`))
 	require.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "Must throw the correct error trying to add version to bad json")
@@ -81,18 +82,16 @@ func TestRegisterVersion(t *testing.T) {
 	m := manager{}
 
 	m.registerVersion(0, &Version0{})
-	require.NoError(t, m.errors)
 	assert.NotEmpty(t, m.versions)
 
-	m.errors = nil
-	m.registerVersion(1, &TestVersion1{})
-	require.ErrorIs(t, m.errors, errVersionIncompatible)
-	assert.ErrorContains(t, m.errors, ": 1")
-
-	m.errors = nil
 	m.registerVersion(2, &TestVersion2{})
-	assert.ErrorIs(t, m.errors, errVersionSequence)
-	assert.ErrorContains(t, m.errors, ": 2")
+	require.Equal(t, 3, len(m.versions), "Must allocate a space for missing version 1")
+	require.NotNil(t, m.versions[2], "Must put Version 2 in the correct slot")
+	require.Nil(t, m.versions[1], "Must leave Version 1 alone")
+
+	m.registerVersion(1, &TestVersion1{})
+	require.Equal(t, 3, len(m.versions), "Must leave len alone when registering out-of-sequence")
+	require.NotNil(t, m.versions[1], "Must put Version 1 in the correct slot")
 }
 
 func TestLatest(t *testing.T) {
