@@ -10,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -161,7 +162,6 @@ func (by *Bybit) Subscribe(ctx context.Context, conn stream.Connection, channels
 func (by *Bybit) handleSubscriptions(conn stream.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(by)
 	if err != nil {
-		fmt.Println("expandy silly", conn.GetURL())
 		return
 	}
 	chans := []string{}
@@ -312,6 +312,13 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 	case chanExecution:
 		return by.wsProcessExecution(assetType, &result)
 	case chanOrder:
+		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
+		// so the first element will be used to match the order ID.
+		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderId"); err == nil {
+			if by.Websocket.Match.IncomingWithData(id, respRaw) {
+				return nil // If the data has been routed, return
+			}
+		}
 		return by.wsProcessOrder(assetType, &result)
 	case chanWallet:
 		return by.wsProcessWalletPushData(assetType, respRaw)
@@ -356,7 +363,7 @@ func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) erro
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
 func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) error {
-	var result WsOrders
+	var result []WebsocketOrderDetails
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
 		return err
@@ -371,16 +378,12 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(result[x].Side)
-		if err != nil {
-			return err
-		}
 		execution[x] = order.Detail{
 			Amount:         result[x].Qty.Float64(),
 			Exchange:       by.Name,
 			OrderID:        result[x].OrderID,
 			ClientOrderID:  result[x].OrderLinkID,
-			Side:           side,
+			Side:           result[x].Side,
 			Type:           orderType,
 			Pair:           cp,
 			Cost:           result[x].CumExecQty.Float64() * result[x].AvgPrice.Float64(),

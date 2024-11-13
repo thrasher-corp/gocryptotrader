@@ -66,6 +66,7 @@ func TestCreateOrderThroughWebsocket(t *testing.T) {
 		OrderType:     "Limit",
 		Price:         55000,
 		OrderQuantity: -0.0001, // Replace with a valid quantity
+		TimeInForce:   "FOK",   // Replace with GTC to submit a valid order if outside current trading price range.
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
