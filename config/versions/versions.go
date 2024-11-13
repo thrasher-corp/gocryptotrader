@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -26,7 +27,6 @@ import (
 var (
 	errMissingVersion      = errors.New("missing version")
 	errVersionIncompatible = errors.New("version does not implement ConfigVersion or ExchangeVersion")
-	errVersionSequence     = errors.New("version registered out of sequence")
 	errModifyingExchange   = errors.New("error modifying exchange config")
 	errNoVersions          = errors.New("error retrieving latest config version: No config versions are registered")
 	errApplyingVersion     = errors.New("error applying version")
@@ -49,23 +49,22 @@ type ExchangeVersion interface {
 type manager struct {
 	m        sync.RWMutex
 	versions []any
-	errors   error
 }
 
 // Manager is a public instance of the config version manager
 var Manager = &manager{}
 
 // Deploy upgrades or downgrades the config between versions
-// Will immediately return any errors encountered in registerVersion calls
 func (m *manager) Deploy(ctx context.Context, j []byte) ([]byte, error) {
-	if m.errors != nil {
-		return j, m.errors
+	if err := m.checkVersions(); err != nil {
+		return j, err
 	}
 
 	target, err := m.latest()
 	if err != nil {
 		return j, err
 	}
+
 	m.m.RLock()
 	defer m.m.RUnlock()
 
@@ -162,22 +161,13 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 }
 
 // registerVersion takes instances of config versions and adds them to the registry
-// Versions should be added sequentially without gaps, in import.go init
-// Any errors will also added to the registry for reporting later
 func (m *manager) registerVersion(ver int, v any) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	switch v.(type) {
-	case ExchangeVersion, ConfigVersion:
-	default:
-		m.errors = common.AppendError(m.errors, fmt.Errorf("%w: %v", errVersionIncompatible, ver))
-		return
+	if ver >= len(m.versions) {
+		m.versions = slices.Grow(m.versions, ver+1)[:ver+1]
 	}
-	if len(m.versions) != ver {
-		m.errors = common.AppendError(m.errors, fmt.Errorf("%w: %v", errVersionSequence, ver))
-		return
-	}
-	m.versions = append(m.versions, v)
+	m.versions[ver] = v
 }
 
 // latest returns the highest version number
@@ -188,4 +178,21 @@ func (m *manager) latest() (int, error) {
 		return 0, errNoVersions
 	}
 	return len(m.versions) - 1, nil
+}
+
+// checkVersions ensures that registered versions are consistent
+func (m *manager) checkVersions() error {
+	m.m.RLock()
+	defer m.m.RUnlock()
+	for ver, v := range m.versions {
+		switch v.(type) {
+		case ExchangeVersion, ConfigVersion:
+		default:
+			return fmt.Errorf("%w: %v", errVersionIncompatible, ver)
+		}
+		if v == nil {
+			return fmt.Errorf("%w: v%v", errMissingVersion, ver)
+		}
+	}
+	return nil
 }
