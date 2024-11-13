@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -16,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -266,7 +266,8 @@ func TestExecuteOrder(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	_, err = exch.FetchOrderbook(context.Background(), p, a)
+	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
+	_, err = exch.FetchOrderbook(context.Background(), p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -381,7 +382,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 			},
 		},
 	}
