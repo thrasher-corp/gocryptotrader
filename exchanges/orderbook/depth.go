@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
@@ -791,4 +792,11 @@ func (d *Depth) GetPair() (currency.Pair, error) {
 		return currency.Pair{}, currency.ErrCurrencyPairEmpty
 	}
 	return d.pair, nil
+}
+
+// GetKey returns the key associated with the depth
+func (d *Depth) GetKey() key.PairAsset {
+	d.m.RLock()
+	defer d.m.RUnlock()
+	return key.PairAsset{Base: d.pair.Base.Item, Quote: d.pair.Quote.Item, Asset: d.asset}
 }
