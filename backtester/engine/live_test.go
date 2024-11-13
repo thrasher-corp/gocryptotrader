@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -402,7 +401,7 @@ func TestLoadCandleData(t *testing.T) {
 	eba := exch.CurrencyPairs.Pairs[asset.Spot]
 	eba.Available = eba.Available.Add(cp)
 	eba.Enabled = eba.Enabled.Add(cp)
-	eba.AssetEnabled = convert.BoolPtr(true)
+	eba.AssetEnabled = true
 	l.exchange = exch
 	l.dataType = common.DataCandle
 	l.asset = asset.Spot
@@ -440,16 +439,12 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	dataHandler.started = 1
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
-		currency.PairFormat{
-			Uppercase: true,
-		})
+	cp := currency.NewBTCUSDT()
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
-	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
-	fbA.Enabled = fbA.Enabled.Add(cp)
-	fbA.Available = fbA.Available.Add(cp)
+	err := fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true)
+	require.NoError(t, err, "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
 			exchange:                  f,
@@ -484,7 +479,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		},
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
-	_, err := dataHandler.FetchLatestData()
+	_, err = dataHandler.FetchLatestData()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

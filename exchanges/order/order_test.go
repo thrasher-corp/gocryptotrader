@@ -23,7 +23,7 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-func TestSubmit_Validate(t *testing.T) {
+func TestSubmitValidate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
