@@ -15,7 +15,6 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -322,10 +321,10 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		err := b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
-		// Suppress error when assets are enabled by default and they are being
-		// enabled by config. A check for the inverse
-		// e.g. currency.ErrAssetAlreadyDisabled is not needed.
-		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+		// Suppress error when assets are enabled by default and they are being enabled by config
+		err = common.ExcludeError(err, currency.ErrAssetAlreadyEnabled)
+		err = common.ExcludeError(err, currency.ErrAssetAlreadyDisabled)
+		if err != nil {
 			return err
 		}
 
@@ -335,12 +334,10 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		if b.Config.CurrencyPairs.UseGlobalFormat {
-			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-			if err != nil {
+			if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false); err != nil {
 				return err
 			}
-			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
-			if err != nil {
+			if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true); err != nil {
 				return err
 			}
 			continue
@@ -351,24 +348,20 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		if exchPS.ConfigFormat != nil {
-			err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
-			if err != nil {
+			if err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true); err != nil {
 				return err
 			}
 		}
 		if exchPS.RequestFormat != nil {
-			err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
-			if err != nil {
+			if err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false); err != nil {
 				return err
 			}
 		}
 
-		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-		if err != nil {
+		if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false); err != nil {
 			return err
 		}
-		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
-		if err != nil {
+		if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true); err != nil {
 			return err
 		}
 	}
@@ -531,8 +524,7 @@ func (b *Base) IsEnabled() bool {
 
 // SetupDefaults sets the exchange settings based on the supplied config
 func (b *Base) SetupDefaults(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 
@@ -558,8 +550,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	}
 
-	err = b.SetHTTPClientTimeout(exch.HTTPTimeout)
-	if err != nil {
+	if err := b.SetHTTPClientTimeout(exch.HTTPTimeout); err != nil {
 		return err
 	}
 
@@ -567,8 +558,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.CurrencyPairs = &b.CurrencyPairs
 		a := exch.CurrencyPairs.GetAssetTypes(false)
 		for i := range a {
-			err = exch.CurrencyPairs.SetAssetEnabled(a[i], true)
-			if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+			if err := exch.CurrencyPairs.SetAssetEnabled(a[i], true); err != nil {
 				return err
 			}
 		}
@@ -576,18 +566,15 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.HTTPDebugging = exch.HTTPDebugging
 	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
-	err = b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	if err != nil {
+	if err := b.SetHTTPClientUserAgent(exch.HTTPUserAgent); err != nil {
 		return err
 	}
 
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
+	if err := b.SetCurrencyPairFormat(); err != nil {
 		return err
 	}
 
-	err = b.SetConfigPairs()
-	if err != nil {
+	if err := b.SetConfigPairs(); err != nil {
 		return err
 	}
 
@@ -597,27 +584,26 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		b.API.Endpoints = b.NewEndpoints()
 	}
 
-	err = b.SetAPIURL()
-	if err != nil {
+	if err := b.SetAPIURL(); err != nil {
 		return err
 	}
 
 	b.SetAPICredentialDefaults()
 
-	err = b.SetClientProxyAddress(exch.ProxyAddress)
-	if err != nil {
+	if err := b.SetClientProxyAddress(exch.ProxyAddress); err != nil {
 		return err
 	}
+
 	b.BaseCurrencies = exch.BaseCurrencies
 
 	if exch.Orderbook.VerificationBypass {
-		log.Warnf(log.ExchangeSys,
-			"%s orderbook verification has been bypassed via config.",
-			b.Name)
+		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
+
 	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
-	return err
+
+	return nil
 }
 
 // SetPairs sets the exchange currency pairs for either enabledPairs or
@@ -1013,10 +999,6 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 			b.Name)
 	}
 
-	if f.AssetEnabled == nil {
-		f.AssetEnabled = convert.BoolPtr(true)
-	}
-
 	if f.RequestFormat == nil {
 		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
 			b.Name)
@@ -1078,7 +1060,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
-		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
+		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = true
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
