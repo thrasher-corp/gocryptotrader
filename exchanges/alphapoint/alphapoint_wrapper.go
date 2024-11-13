@@ -138,21 +138,6 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	return response, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies on the
-// Alphapoint exchange
-func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := a.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(a.Name, creds, assetType)
-	if err != nil {
-		return a.UpdateAccountInfo(ctx, assetType)
-	}
-
-	return acc, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (a *Alphapoint) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
@@ -187,15 +172,6 @@ func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetTyp
 	}
 
 	return ticker.GetTicker(a.Name, p, assetType)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (a *Alphapoint) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := ticker.GetTicker(a.Name, p, assetType)
-	if err != nil {
-		return a.UpdateTicker(ctx, p, assetType)
-	}
-	return tick, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -238,15 +214,6 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 	}
 
 	return orderbook.Get(a.Name, p, assetType)
-}
-
-// FetchOrderbook returns the orderbook for a currency pair
-func (a *Alphapoint) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(a.Name, p, assetType)
-	if err != nil {
-		return a.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
