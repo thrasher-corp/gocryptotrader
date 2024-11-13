@@ -932,15 +932,26 @@ func (by *Bybit) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	if err != nil {
 		return nil, err
 	}
-	response, err := by.CreateOrderThroughWebsocket(ctx, arg)
+	orderDetails, err := by.CreateOrderThroughWebsocket(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := s.DeriveSubmitResponse(response.OrderID)
+	resp, err := s.DeriveSubmitResponse(orderDetails.OrderID)
 	if err != nil {
 		return nil, err
 	}
-	resp.Status = order.New
+	resp.Status, err = order.StringToOrderStatus(orderDetails.OrderStatus)
+	if err != nil {
+		return nil, err
+	}
+	resp.ImmediateOrCancel = orderDetails.TimeInForce == "IOC"
+	resp.PostOnly = orderDetails.TimeInForce == "PostOnly"
+	resp.ReduceOnly = orderDetails.ReduceOnly
+	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
+	resp.AverageExecutedPrice = orderDetails.AvgPrice.Float64()
+	resp.ClientOrderID = orderDetails.OrderLinkID
+	resp.Fee = orderDetails.CumExecFee.Float64()
+	resp.Cost = orderDetails.CumExecValue.Float64()
 	return resp, nil
 }
 
@@ -973,6 +984,20 @@ func (by *Bybit) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParams,
 	if s.AssetType == asset.USDCMarginedFutures && !formattedPair.Quote.Equal(currency.PERP) {
 		formattedPair.Delimiter = currency.DashDelimiter
 	}
+
+	timeInForce := "GTC"
+	if s.Type == order.Market {
+		timeInForce = "IOC"
+	} else {
+		if s.FillOrKill {
+			timeInForce = "FOK"
+		} else if s.PostOnly {
+			timeInForce = "PostOnly"
+		} else if s.ImmediateOrCancel {
+			timeInForce = "IOC"
+		}
+	}
+
 	arg := &PlaceOrderParams{
 		Category:        getCategoryName(s.AssetType),
 		Symbol:          formattedPair,
@@ -993,6 +1018,7 @@ func (by *Bybit) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParams,
 			return "Order"
 		}(),
 		TriggerPrice: s.TriggerPrice,
+		TimeInForce:  timeInForce,
 	}
 	if arg.TriggerPrice != 0 {
 		arg.TriggerPriceType = s.TriggerPriceType.String()
@@ -1055,6 +1081,9 @@ func (by *Bybit) WebsocketModifyOrder(ctx context.Context, action *order.Modify)
 		return nil, err
 	}
 	resp.OrderID = result.OrderID
+	resp.ClientOrderID = result.OrderLinkID
+	resp.Amount = result.Qty.Float64()
+	resp.Price = action.Price
 	return resp, nil
 }
 
