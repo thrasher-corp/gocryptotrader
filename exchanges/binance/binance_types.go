@@ -300,8 +300,8 @@ type IndexMarkPrice struct {
 	IndexPrice           types.Number `json:"indexPrice"`
 	EstimatedSettlePrice types.Number `json:"estimatedSettlePrice"`
 	LastFundingRate      types.Number `json:"lastFundingRate"`
-	NextFundingTime      int64        `json:"nextFundingTime"`
-	Time                 int64        `json:"time"`
+	NextFundingTime      types.Time   `json:"nextFundingTime"`
+	Time                 types.Time   `json:"time"`
 }
 
 // CandleStick holds kline data
@@ -327,25 +327,27 @@ type AveragePrice struct {
 
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
-	Symbol             string    `json:"symbol"`
-	PriceChange        float64   `json:"priceChange,string"`
-	PriceChangePercent float64   `json:"priceChangePercent,string"`
-	WeightedAvgPrice   float64   `json:"weightedAvgPrice,string"`
-	PrevClosePrice     float64   `json:"prevClosePrice,string"`
-	LastPrice          float64   `json:"lastPrice,string"`
-	LastQty            float64   `json:"lastQty,string"`
-	BidPrice           float64   `json:"bidPrice,string"`
-	AskPrice           float64   `json:"askPrice,string"`
-	OpenPrice          float64   `json:"openPrice,string"`
-	HighPrice          float64   `json:"highPrice,string"`
-	LowPrice           float64   `json:"lowPrice,string"`
-	Volume             float64   `json:"volume,string"`
-	QuoteVolume        float64   `json:"quoteVolume,string"`
-	OpenTime           time.Time `json:"openTime"`
-	CloseTime          time.Time `json:"closeTime"`
-	FirstID            int64     `json:"firstId"`
-	LastID             int64     `json:"lastId"`
-	Count              int64     `json:"count"`
+	Symbol             string       `json:"symbol"`
+	PriceChange        types.Number `json:"priceChange"`
+	PriceChangePercent types.Number `json:"priceChangePercent"`
+	WeightedAvgPrice   types.Number `json:"weightedAvgPrice"`
+	PrevClosePrice     types.Number `json:"prevClosePrice"`
+	LastPrice          types.Number `json:"lastPrice"`
+	LastQty            types.Number `json:"lastQty"`
+	BidPrice           types.Number `json:"bidPrice"`
+	AskPrice           types.Number `json:"askPrice"`
+	BidQuantity        types.Number `json:"bidQty"`
+	AskQuantity        types.Number `json:"askQty"`
+	OpenPrice          types.Number `json:"openPrice"`
+	HighPrice          types.Number `json:"highPrice"`
+	LowPrice           types.Number `json:"lowPrice"`
+	Volume             types.Number `json:"volume"`
+	QuoteVolume        types.Number `json:"quoteVolume"`
+	OpenTime           time.Time    `json:"openTime"`
+	CloseTime          time.Time    `json:"closeTime"`
+	FirstID            int64        `json:"firstId"`
+	LastID             int64        `json:"lastId"`
+	Count              int64        `json:"count"`
 }
 
 // SymbolPrice holds basic symbol price

@@ -24,12 +24,19 @@ import (
 )
 
 var (
+	// errConnectionFault is a connection fault error which alerts the system that a connection cycle needs to take place.
+	errConnectionFault         = errors.New("connection fault")
 	errWebsocketIsDisconnected = errors.New("websocket connection is disconnected")
 	errRateLimitNotFound       = errors.New("rate limit definition not found")
 )
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
+	return w.DialContext(context.Background(), dialer, headers)
+}
+
+// DialContext sets proxy urls and then connects to the websocket
+func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *websocket.Dialer, headers http.Header) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
@@ -40,15 +47,15 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 
 	var err error
 	var conStatus *http.Response
-
-	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+	w.Connection, conStatus, err = dialer.DialContext(ctx, w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
+			_ = conStatus.Body.Close()
 			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
 		}
 		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
 	}
-	defer conStatus.Body.Close()
+	_ = conStatus.Body.Close()
 
 	if w.Verbose {
 		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
@@ -131,18 +138,18 @@ func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handle
 		return
 	}
 	w.Wg.Add(1)
-	defer w.Wg.Done()
 	go func() {
+		defer w.Wg.Done()
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
-			case <-w.ShutdownC:
+			case <-w.shutdown:
 				ticker.Stop()
 				return
 			case <-ticker.C:
 				err := w.SendRawMessage(context.TODO(), epl, handler.MessageType, handler.Message)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]", w.ExchangeName, handler.Message)
+					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", w.ExchangeName, handler.Message, err)
 					return
 				}
 			}
@@ -168,23 +175,24 @@ func (w *WebsocketConnection) IsConnected() bool {
 func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		if IsDisconnectionError(err) {
-			if w.setConnectedStatus(false) {
-				// NOTE: When w.setConnectedStatus() returns true the underlying
-				// state was changed and this infers that the connection was
-				// externally closed and an error is reported else Shutdown()
-				// method on WebsocketConnection type has been called and can
-				// be skipped.
-				select {
-				case w.readMessageErrors <- err:
-				default:
-					// bypass if there is no receiver, as this stops it returning
-					// when shutdown is called.
-					log.Warnf(log.WebsocketMgr,
-						"%s failed to relay error: %v",
-						w.ExchangeName,
-						err)
-				}
+		// If any error occurs, a Response{Raw: nil, Type: 0} is returned, causing the
+		// reader routine to exit. This leaves the connection without an active reader,
+		// leading to potential buffer issue from the ongoing websocket writes.
+		// Such errors are passed to `w.readMessageErrors` when the connection is active.
+		// The `connectionMonitor` handles these errors by flushing the buffer, reconnecting,
+		// and resubscribing to the websocket to restore the connection.
+		if w.setConnectedStatus(false) {
+			// NOTE: When w.setConnectedStatus() returns true the underlying
+			// state was changed and this infers that the connection was
+			// externally closed and an error is reported else Shutdown()
+			// method on WebsocketConnection type has been called and can
+			// be skipped.
+			select {
+			case w.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			default:
+				// bypass if there is no receiver, as this stops it returning
+				// when shutdown is called.
+				log.Warnf(log.WebsocketMgr, "%s failed to relay error: %v", w.ExchangeName, err)
 			}
 		}
 		return Response{}
@@ -203,7 +211,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", w.ExchangeName, removeURLQueryString(w.URL), err)
-			return Response{}
+			return Response{Raw: []byte(``)} // Non-nil response to avoid the reader returning on this case.
 		}
 	}
 	if w.Verbose {
@@ -264,7 +272,9 @@ func (w *WebsocketConnection) Shutdown() error {
 		return nil
 	}
 	w.setConnectedStatus(false)
-	return w.Connection.UnderlyingConn().Close()
+	w.writeControl.Lock()
+	defer w.writeControl.Unlock()
+	return w.Connection.NetConn().Close()
 }
 
 // SetURL sets connection URL

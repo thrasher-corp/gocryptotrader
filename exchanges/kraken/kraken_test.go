@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1000,7 +1001,7 @@ func TestWsSubscribe(t *testing.T) {
 			Channel: c,
 			Pairs:   currency.Pairs{spotTestPair},
 		}})
-		assert.ErrorIs(t, err, subscription.ErrPrivateChannelName, "Must error when trying to use a private channel name")
+		assert.ErrorIs(t, err, subscription.ErrUseConstChannelName, "Must error when trying to use a private channel name")
 		assert.ErrorContains(t, err, c+" => subscription.CandlesChannel", "Must error when trying to use a private channel name")
 	}
 }
@@ -1029,7 +1030,7 @@ func TestWsResubscribe(t *testing.T) {
 	err = subs[0].SetState(subscription.UnsubscribingState)
 	require.NoError(t, err)
 
-	err = k.Websocket.ResubscribeToChannel(subs[0])
+	err = k.Websocket.ResubscribeToChannel(k.Websocket.Conn, subs[0])
 	require.NoError(t, err, "Resubscribe must not error")
 	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
 }
@@ -1209,7 +1210,7 @@ func TestWsHandleData(t *testing.T) {
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	for _, l := range []int{10, 100} {
-		err := k.Websocket.AddSuccessfulSubscriptions(&subscription.Subscription{
+		err := k.Websocket.AddSuccessfulSubscriptions(k.Websocket.Conn, &subscription.Subscription{
 			Channel: subscription.OrderbookChannel,
 			Pairs:   currency.Pairs{spotTestPair},
 			Asset:   asset.Spot,
@@ -1439,7 +1440,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		currency.NewPairWithDelimiter("GST", "EUR", "/"),
 	}
 	for _, p := range pairs {
-		err := k.Websocket.AddSuccessfulSubscriptions(&subscription.Subscription{
+		err := k.Websocket.AddSuccessfulSubscriptions(k.Websocket.Conn, &subscription.Subscription{
 			Channel: subscription.OrderbookChannel,
 			Pairs:   currency.Pairs{p},
 			Asset:   asset.Spot,
@@ -1569,7 +1570,7 @@ func TestGetOpenInterest(t *testing.T) {
 }
 
 // curryWsMockUpgrader handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
-func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc {
+func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
 	tb.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
@@ -1577,7 +1578,7 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 			assert.NoError(tb, err, "Write should not error")
 			return
 		}
-		testexch.WsMockUpgrader(tb, w, r, h)
+		mockws.WsMockUpgrader(tb, w, r, h)
 	}
 }
 
@@ -1702,6 +1703,6 @@ func TestEnforceStandardChannelNames(t *testing.T) {
 	}
 	for _, n := range []string{krakenWsOrderbook, krakenWsOHLC, krakenWsTrade, krakenWsOwnTrades, krakenWsOpenOrders, krakenWsOrderbook + "-5"} {
 		err := enforceStandardChannelNames(&subscription.Subscription{Channel: n})
-		assert.ErrorIsf(t, err, subscription.ErrPrivateChannelName, "Private channel names should not be allowed for %s", n)
+		assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "Private channel names should not be allowed for %s", n)
 	}
 }
