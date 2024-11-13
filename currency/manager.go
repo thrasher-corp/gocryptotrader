@@ -7,16 +7,15 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Public errors
 var (
-	ErrAssetAlreadyEnabled              = errors.New("asset already enabled")
-	ErrAssetIsNil                       = errors.New("asset is nil")
 	ErrAssetNotFound                    = errors.New("asset type not found in pair store")
+	ErrAssetAlreadyEnabled              = errors.New("asset already enabled")
+	ErrAssetAlreadyDisabled             = errors.New("asset already disabled")
 	ErrPairAlreadyEnabled               = errors.New("pair already enabled")
 	ErrPairFormatIsNil                  = errors.New("pair format is nil")
 	ErrPairManagerNotInitialised        = errors.New("pair manager not initialised")
@@ -38,7 +37,7 @@ func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	defer p.mutex.RUnlock()
 	assetTypes := make(asset.Items, 0, len(p.Pairs))
 	for k, ps := range p.Pairs {
-		if enabled && (ps.AssetEnabled == nil || !*ps.AssetEnabled) {
+		if enabled && !ps.AssetEnabled {
 			continue
 		}
 		assetTypes = append(assetTypes, k)
@@ -246,9 +245,7 @@ func (p *PairsManager) EnsureOnePairEnabled() (Pair, asset.Item, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	for _, v := range p.Pairs {
-		if v.AssetEnabled == nil ||
-			!*v.AssetEnabled ||
-			len(v.Available) == 0 {
+		if !v.AssetEnabled || len(v.Available) == 0 {
 			continue
 		}
 		if len(v.Enabled) > 0 {
@@ -256,9 +253,7 @@ func (p *PairsManager) EnsureOnePairEnabled() (Pair, asset.Item, error) {
 		}
 	}
 	for k, v := range p.Pairs {
-		if v.AssetEnabled == nil ||
-			!*v.AssetEnabled ||
-			len(v.Available) == 0 {
+		if !v.AssetEnabled || len(v.Available) == 0 {
 			continue
 		}
 		rp, err := v.Available.GetRandomPair()
@@ -348,10 +343,7 @@ func (p *PairsManager) IsPairAvailable(pair Pair, a asset.Item) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if pairStore.AssetEnabled == nil {
-		return false, fmt.Errorf("%s %w", a, ErrAssetIsNil)
-	}
-	return *pairStore.AssetEnabled && pairStore.Available.Contains(pair, true), nil
+	return pairStore.AssetEnabled && pairStore.Available.Contains(pair, true), nil
 }
 
 // IsPairEnabled checks if a pair is enabled for an enabled asset type
@@ -371,10 +363,7 @@ func (p *PairsManager) IsPairEnabled(pair Pair, a asset.Item) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if pairStore.AssetEnabled == nil {
-		return false, fmt.Errorf("%s %w", a, ErrAssetIsNil)
-	}
-	return *pairStore.AssetEnabled && pairStore.Enabled.Contains(pair, true), nil
+	return pairStore.AssetEnabled && pairStore.Enabled.Contains(pair, true), nil
 }
 
 // IsAssetEnabled checks to see if an asset is enabled
@@ -391,11 +380,7 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 		return err
 	}
 
-	if pairStore.AssetEnabled == nil {
-		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
-	}
-
-	if !*pairStore.AssetEnabled {
+	if !pairStore.AssetEnabled {
 		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
 	}
 	return nil
@@ -424,18 +409,14 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 		return err
 	}
 
-	if pairStore.AssetEnabled == nil {
-		pairStore.AssetEnabled = convert.BoolPtr(enabled)
-		return nil
-	}
-
-	if !*pairStore.AssetEnabled && !enabled {
-		return errors.New("asset already disabled")
-	} else if *pairStore.AssetEnabled && enabled {
+	if !pairStore.AssetEnabled && !enabled {
+		return ErrAssetAlreadyDisabled
+	} else if pairStore.AssetEnabled && enabled {
 		return ErrAssetAlreadyEnabled
 	}
 
-	*pairStore.AssetEnabled = enabled
+	pairStore.AssetEnabled = enabled
+
 	return nil
 }
 
@@ -547,13 +528,8 @@ func (ps *PairStore) clone() *PairStore {
 		return nil
 	}
 
-	var assetEnabled *bool
-	if ps.AssetEnabled != nil {
-		assetEnabled = convert.BoolPtr(*ps.AssetEnabled)
-	}
-
 	return &PairStore{
-		AssetEnabled:  assetEnabled,
+		AssetEnabled:  ps.AssetEnabled,
 		Enabled:       slices.Clone(ps.Enabled),
 		Available:     slices.Clone(ps.Available),
 		RequestFormat: ps.RequestFormat.clone(),
