@@ -40,35 +40,22 @@ func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
 
-// PercentageChange returns the percentage change between two numbers, v1 is reference value.
-func PercentageChange(v1, v2 float64) float64 {
-	return (v2 - v1) / v1 * 100
+// PercentageChange returns the percentage change between two numbers, x is reference value.
+func PercentageChange(x, y float64) float64 {
+	return (y - x) / x * 100
 }
 
-// PercentageDifference returns the percentage difference between two numbers
-func PercentageDifference(v1, v2 float64) float64 {
-	return (v1 - v2) / ((v1 + v2) / 2) * 100
+// PercentageDifference returns difference between two numbers as a percentage of their average
+func PercentageDifference(x, y float64) float64 {
+	return math.Abs(x-y) / ((x + y) / 2) * 100
 }
 
-// PercentageDifferenceAbs returns the absolute percentage difference between two numbers
-func PercentageDifferenceAbs(v1, v2 float64) float64 {
-	return math.Abs(v1-v2) / ((v1 + v2) / 2) * 100
-}
-
-// PercentageDifferenceDecimal returns the percentage difference between decimal values
-func PercentageDifferenceDecimal(d1, d2 decimal.Decimal) decimal.Decimal {
-	if d1.IsZero() && d2.IsZero() {
+// PercentageDifferenceDecimal returns the difference between two decimal values as a percentage of their average
+func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
+	if x.IsZero() && y.IsZero() {
 		return decimal.Zero
 	}
-	return d1.Sub(d2).Div(d1.Add(d2).Div(two)).Mul(oneHundred)
-}
-
-// PercentageDifferenceDecimalAbs returns the absolute percentage difference between decimal values
-func PercentageDifferenceDecimalAbs(d1, d2 decimal.Decimal) decimal.Decimal {
-	if d1.IsZero() && d2.IsZero() {
-		return decimal.Zero
-	}
-	return d1.Sub(d2).Abs().Div(d1.Add(d2).Div(two)).Mul(oneHundred)
+	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
 }
 
 // CalculateNetProfit returns net profit
