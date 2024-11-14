@@ -2384,7 +2384,7 @@ func (ok *Okx) WsPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*
 // WsAmandSpreadOrder amends incomplete spread order through the websocket channel.
 func (ok *Okx) WsAmandSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
 	if arg == nil || *arg == (AmendSpreadOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet

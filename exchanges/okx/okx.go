@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -39,8 +40,8 @@ type Okx struct {
 	// defer func() { <-ok.WsRequestSemaphore }()
 	WsRequestSemaphore chan int
 
-	instrumentsInfoMap         map[string][]Instrument
-	instrumentTypesUnderlyings map[string][]string
+	instrumentsInfoMapLock sync.Mutex
+	instrumentsInfoMap     map[string][]Instrument
 }
 
 const (
@@ -90,7 +91,7 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 	case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
 		return orderType.Lower(), nil
 	default:
-		return "", fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return "", fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, orderType)
 	}
 }
 
@@ -3143,8 +3144,8 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 	return resp, nil
 }
 
-// ClosePositionForContractrid close position when the contract grid stop type is 'keep position'.
-func (ok *Okx) ClosePositionForContractrid(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
+// ClosePositionForContractrID close position when the contract grid stop type is 'keep position'.
+func (ok *Okx) ClosePositionForContractrID(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
 	if *arg == (ClosePositionParams{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -3375,7 +3376,7 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 	if arg.MaxPrice <= 0 {
 		return nil, fmt.Errorf("%w, maxPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
 	}
-	if arg.MinPrice < 0 {
+	if arg.MinPrice <= 0 {
 		return nil, fmt.Errorf("%w, minPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
 	}
 	if arg.GridNumber == 0 {
@@ -3756,7 +3757,7 @@ func (ok *Okx) GetLeadingInstrument(ctx context.Context, instrumentType string) 
 // All non-leading contracts can't have position or pending orders for the current request when setting non-leading contracts as leading contracts.
 func (ok *Okx) AmendLeadingInstruments(ctx context.Context, instrumentID, instrumentType string) ([]LeadingInstrumentItem, error) {
 	if instrumentID == "" {
-		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
+		return nil, errMissingInstrumentID
 	}
 	var resp []LeadingInstrumentItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadingInstrumentsEPL, http.MethodPost, "copytrading/set-instruments", &struct {
@@ -3903,7 +3904,7 @@ func (ok *Okx) SetMultipleLeverages(ctx context.Context, arg *SetLeveragesParam)
 	if arg.MarginMode == "" {
 		return nil, margin.ErrInvalidMarginType
 	}
-	if arg.Leverage < 0 {
+	if arg.Leverage <= 0 {
 		return nil, errInvalidLeverage
 	}
 	if arg.InstrumentID == "" {
@@ -4062,7 +4063,7 @@ func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentT
 func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID,
 	beforeSubPositionID string, limit int64) ([]LeadTraderCurrentLeadPosition, error) {
 	if instrumentType != "SWAP" {
-		return nil, fmt.Errorf("%w asset: %s", asset.ErrNotSupported, instrumentType)
+		return nil, fmt.Errorf("%w asset: %s", errInvalidInstrumentType, instrumentType)
 	}
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -4088,7 +4089,7 @@ func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrument
 // GetLeadTraderLeadPositionHistory retrieve the lead trader completed leading position of the last 3 months. Returns reverse chronological order with subPosId.
 func (ok *Okx) GetLeadTraderLeadPositionHistory(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID, beforeSubPositionID string, limit int64) ([]LeadPosition, error) {
 	if instrumentType != "SWAP" {
-		return nil, fmt.Errorf("%w asset: %s", asset.ErrNotSupported, instrumentType)
+		return nil, fmt.Errorf("%w asset: %s", errInvalidInstrumentType, instrumentType)
 	}
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -4725,7 +4726,7 @@ func (ok *Okx) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 		return common.ErrEmptyParams
 	}
 	if arg.SpreadID == "" {
-		return fmt.Errorf("%w, spread ID missing", order.ErrOrderIDNotSet)
+		return fmt.Errorf("%w, spread ID missing", errMissingInstrumentID)
 	}
 	if arg.OrderType == "" {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
@@ -4739,6 +4740,7 @@ func (ok *Okx) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 	arg.Side = strings.ToLower(arg.Side)
 	switch arg.Side {
 	case order.Buy.Lower(), order.Sell.Lower():
+	default:
 		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 	}
 	return nil
@@ -4914,7 +4916,7 @@ func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID,
 // GetPublicSpreadOrderBooks retrieve the order book of the spread.
 func (ok *Okx) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, orderbookSize int64) ([]SpreadOrderbook, error) {
 	if spreadID == "" {
-		return nil, fmt.Errorf("%w, spread ID missing", order.ErrOrderIDNotSet)
+		return nil, fmt.Errorf("%w, spread ID missing", errMissingInstrumentID)
 	}
 	params := url.Values{}
 	params.Set("sprdId", spreadID)
@@ -4928,7 +4930,7 @@ func (ok *Okx) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, o
 // GetPublicSpreadTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
 func (ok *Okx) GetPublicSpreadTickers(ctx context.Context, spreadID string) ([]SpreadTicker, error) {
 	if spreadID == "" {
-		return nil, fmt.Errorf("%w, spread ID missing", order.ErrOrderIDNotSet)
+		return nil, fmt.Errorf("%w, spread ID is required", errMissingInstrumentID)
 	}
 	params := url.Values{}
 	params.Set("sprdId", spreadID)
@@ -5636,7 +5638,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 	err = ok.SendPayload(ctx, f, newRequest, requestType)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
 	}
 	if rv.Kind() == reflect.Slice {
 		value, okay := result.([]interface{})

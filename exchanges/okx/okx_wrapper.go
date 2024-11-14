@@ -51,7 +51,6 @@ func (ok *Okx) SetDefaults() {
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
 
-	ok.instrumentTypesUnderlyings = make(map[string][]string)
 	ok.instrumentsInfoMap = make(map[string][]Instrument)
 
 	cpf := &currency.PairFormat{
@@ -1889,7 +1888,9 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 		if err != nil {
 			return nil, err
 		}
+		ok.instrumentsInfoMapLock.Lock()
 		ok.instrumentsInfoMap[okxInstTypeOption] = instruments
+		ok.instrumentsInfoMapLock.Unlock()
 		return instruments, nil
 	case asset.Spot:
 		instType = okxInstTypeSpot
@@ -1907,7 +1908,9 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	if err != nil {
 		return nil, err
 	}
+	ok.instrumentsInfoMapLock.Lock()
 	ok.instrumentsInfoMap[instType] = instruments
+	ok.instrumentsInfoMapLock.Unlock()
 	return instruments, nil
 }
 
@@ -2769,6 +2772,8 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 }
 
 func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, error) {
+	ok.instrumentsInfoMapLock.Lock()
+	defer ok.instrumentsInfoMapLock.Unlock()
 	if instrumentType != "" {
 		insts, okay := ok.instrumentsInfoMap[instrumentType]
 		if !okay {

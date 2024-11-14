@@ -3850,7 +3850,6 @@ func TestGetIntervalEnum(t *testing.T) {
 
 func TestInstrument(t *testing.T) {
 	t.Parallel()
-
 	var i Instrument
 	err := json.Unmarshal([]byte(instrumentJSON), &i)
 	require.NoError(t, err)
@@ -4284,6 +4283,9 @@ func TestSetAccountMode(t *testing.T) {
 
 func TestResetMMPStatus(t *testing.T) {
 	t.Parallel()
+	_, err := ok.ResetMMPStatus(contextGenerate(), okxInstTypeOption, "")
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.ResetMMPStatus(contextGenerate(), okxInstTypeOption, "BTC-USD")
 	require.NoError(t, err)
@@ -4292,6 +4294,17 @@ func TestResetMMPStatus(t *testing.T) {
 
 func TestSetMMP(t *testing.T) {
 	t.Parallel()
+	_, err := ok.SetMMP(context.Background(), &MMPConfig{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.SetMMP(context.Background(), &MMPConfig{
+		TimeInterval: 5000,
+	})
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+	_, err = ok.SetMMP(context.Background(), &MMPConfig{
+		InstrumentFamily: "BTC-USD",
+	})
+	require.ErrorIs(t, err, errInvalidQuantityLimit)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SetMMP(context.Background(), &MMPConfig{
 		InstrumentFamily: "BTC-USD",
@@ -4388,6 +4401,18 @@ func TestOrderPreCheck(t *testing.T) {
 
 func TestAmendAlgoOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
+		NewSize: 2,
+	})
+	require.ErrorIs(t, err, errMissingInstrumentID)
+	_, err = ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
+		InstrumentID: perpetualSwapTP.String(),
+		NewSize:      2,
+	})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
 		AlgoID:       "2510789768709120",
@@ -4400,6 +4425,9 @@ func TestAmendAlgoOrder(t *testing.T) {
 
 func TestGetAlgoOrderDetail(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetAlgoOrderDetail(context.Background(), "", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetAlgoOrderDetail(context.Background(), "1234231231423", "")
 	require.NoError(t, err)
@@ -4408,8 +4436,17 @@ func TestGetAlgoOrderDetail(t *testing.T) {
 
 func TestClosePositionForContractrid(t *testing.T) {
 	t.Parallel()
+	_, err := ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
+	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
+	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.ClosePositionForContractrid(context.Background(), &ClosePositionParams{
+	result, err := ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{
 		AlgoID:                  "448965992920907776",
 		MarketCloseAllPositions: true,
 	})
@@ -4419,6 +4456,13 @@ func TestClosePositionForContractrid(t *testing.T) {
 
 func TestCancelClosePositionOrderForContractGrid(t *testing.T) {
 	t.Parallel()
+	_, err := ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{OrderID: "570627699870375936"})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{AlgoID: "448965992920907776"})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{
 		AlgoID:  "448965992920907776",
@@ -4438,6 +4482,25 @@ func TestInstantTriggerGridAlgoOrder(t *testing.T) {
 
 func TestComputeMinInvestment(t *testing.T) {
 	t.Parallel()
+	arg := &ComputeInvestmentDataParam{
+		RunType: "1",
+	}
+	_, err := ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+	arg.InstrumentID = "ETH-USDT"
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidAlgoOrderType)
+	arg.AlgoOrderType = "grid"
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.MaxPrice = 5000
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	arg.MinPrice = 5000
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidGridQuantity)
+
 	result, err := ok.ComputeMinInvestment(context.Background(), &ComputeInvestmentDataParam{
 		InstrumentID:  "ETH-USDT",
 		AlgoOrderType: "grid",
@@ -4484,6 +4547,11 @@ func TestSignalBotTrading(t *testing.T) {
 
 func TestGetSignalOrderPositions(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetSignalOrderPositions(context.Background(), "", "623833708424069120")
+	require.ErrorIs(t, err, errInvalidAlgoOrderType)
+	_, err = ok.GetSignalOrderPositions(context.Background(), "contract", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalOrderPositions(context.Background(), "contract", "623833708424069120")
 	require.NoError(t, err)
@@ -4492,6 +4560,13 @@ func TestGetSignalOrderPositions(t *testing.T) {
 
 func TestGetSignalBotSubOrders(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetSignalBotSubOrders(context.Background(), "", "contract", "filled", "", "", "", time.Time{}, time.Time{}, 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ok.GetSignalBotSubOrders(context.Background(), "623833708424069120", "", "filled", "", "", "", time.Time{}, time.Time{}, 0)
+	require.ErrorIs(t, err, errInvalidAlgoOrderType)
+	_, err = ok.GetSignalBotSubOrders(context.Background(), "623833708424069120", "contract", "", "", "", "", time.Time{}, time.Time{}, 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalBotSubOrders(context.Background(), "623833708424069120", "contract", "filled", "", "", "", time.Time{}, time.Time{}, 0)
 	require.NoError(t, err)
@@ -4500,6 +4575,9 @@ func TestGetSignalBotSubOrders(t *testing.T) {
 
 func TestGetSignalBotEventHistory(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetSignalBotEventHistory(context.Background(), "", time.Time{}, time.Now(), 50)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalBotEventHistory(context.Background(), "12345", time.Time{}, time.Now(), 50)
 	require.NoError(t, err)
@@ -4535,6 +4613,9 @@ func TestPlaceRecurringBuyOrder(t *testing.T) {
 
 func TestAmendRecurringBuyOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{
 		AlgoID:       "448965992920907776",
@@ -4546,6 +4627,9 @@ func TestAmendRecurringBuyOrder(t *testing.T) {
 
 func TestStopRecurringBuyOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.StopRecurringBuyOrder(context.Background(), []StopRecurringBuyOrder{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.StopRecurringBuyOrder(context.Background(), []StopRecurringBuyOrder{{AlgoID: "1232323434234"}})
 	require.NoError(t, err)
@@ -4570,6 +4654,9 @@ func TestGetRecurringBuyOrderHistory(t *testing.T) {
 
 func TestGetRecurringOrderDetails(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetRecurringOrderDetails(context.Background(), "", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetRecurringOrderDetails(context.Background(), "560473220642766848", "")
 	require.NoError(t, err)
@@ -4578,6 +4665,9 @@ func TestGetRecurringOrderDetails(t *testing.T) {
 
 func TestGetRecurringSubOrders(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetRecurringSubOrders(context.Background(), "", "123422", time.Time{}, time.Now(), 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetRecurringSubOrders(context.Background(), "560473220642766848", "123422", time.Time{}, time.Now(), 0)
 	require.NoError(t, err)
@@ -4623,6 +4713,8 @@ func TestCloseLeadingPosition(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{Tag: "tag-here"})
+	require.ErrorIs(t, err, errSubPositionIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{
@@ -4642,6 +4734,9 @@ func TestGetLeadingInstrument(t *testing.T) {
 
 func TestAmendLeadingInstruments(t *testing.T) {
 	t.Parallel()
+	_, err := ok.AmendLeadingInstruments(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendLeadingInstruments(context.Background(), "BTC-USDT-SWAP", "")
 	require.NoError(t, err)
@@ -4697,6 +4792,24 @@ func TestAmendCopySettings(t *testing.T) {
 	_, err := ok.SetFirstCopySettings(context.Background(), &FirstCopySettings{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
+	arg := &FirstCopySettings{
+		CopyMode: "ratio_copy",
+	}
+	_, err = ok.SetFirstCopySettings(context.Background(), arg)
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+
+	arg.UniqueCode = "25CD5A80241D6FE6"
+	_, err = ok.SetFirstCopySettings(context.Background(), arg)
+	require.ErrorIs(t, err, errCopyInstrumentIDTypeRequired)
+
+	arg.CopyInstrumentIDType = "copy"
+	_, err = ok.SetFirstCopySettings(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.CopyTotalAmount = 500
+	_, err = ok.SetFirstCopySettings(context.Background(), arg)
+	require.ErrorIs(t, err, errSubPositionCloseTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SetFirstCopySettings(context.Background(), &FirstCopySettings{
 		InstrumentType:       "SWAP",
@@ -4717,6 +4830,15 @@ func TestStopCopying(t *testing.T) {
 	_, err := ok.StopCopying(context.Background(), &StopCopyingParameter{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
+	_, err = ok.StopCopying(context.Background(), &StopCopyingParameter{
+		InstrumentType:       "SWAP",
+		SubPositionCloseType: "manual_close",
+	})
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+	_, err = ok.StopCopying(context.Background(), &StopCopyingParameter{InstrumentType: "SWAP",
+		UniqueCode: "25CD5A80241D6FE6"})
+	require.ErrorIs(t, err, errSubPositionCloseTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.StopCopying(context.Background(), &StopCopyingParameter{
 		InstrumentType:       "SWAP",
@@ -4729,6 +4851,9 @@ func TestStopCopying(t *testing.T) {
 
 func TestGetCopySettings(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetCopySettings(context.Background(), "SWAP", "")
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetCopySettings(context.Background(), "SWAP", "213E8C92DC61EFAC")
 	require.NoError(t, err)
@@ -4739,6 +4864,8 @@ func TestGetMultipleLeverages(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetMultipleLeverages(context.Background(), "", "213E8C92DC61EFAC", "")
 	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+	_, err = ok.GetMultipleLeverages(context.Background(), "isolated", "", "")
+	require.ErrorIs(t, err, errUniqueCodeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetMultipleLeverages(context.Background(), "isolated", "213E8C92DC61EFAC", "")
@@ -4748,7 +4875,14 @@ func TestGetMultipleLeverages(t *testing.T) {
 
 func TestSetMultipleLeverages(t *testing.T) {
 	t.Parallel()
-	_, err := ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{
+	_, err := ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{Leverage: 5})
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+	_, err = ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{MarginMode: "cross"})
+	require.ErrorIs(t, err, errInvalidLeverage)
+
+	_, err = ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{
 		MarginMode: "cross",
 		Leverage:   5,
 	})
@@ -4782,6 +4916,9 @@ func TestGetHistoryLeadTraders(t *testing.T) {
 
 func TestGetWeeklyTraderProfitAndLoss(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetWeeklyTraderProfitAndLoss(context.Background(), "", "")
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+
 	mainResult, err := ok.GetWeeklyTraderProfitAndLoss(context.Background(), "", leadTraderUniqueID)
 	require.NoError(t, err)
 	assert.NotNil(t, mainResult)
@@ -4789,6 +4926,11 @@ func TestGetWeeklyTraderProfitAndLoss(t *testing.T) {
 
 func TestGetDailyLeadTraderPNL(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetDailyLeadTraderPNL(context.Background(), "SWAP", "", "2")
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+	_, err = ok.GetDailyLeadTraderPNL(context.Background(), "SWAP", leadTraderUniqueID, "")
+	require.ErrorIs(t, err, errLastDaysRequired)
+
 	mainResult, err := ok.GetDailyLeadTraderPNL(context.Background(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
 	assert.NotNil(t, mainResult)
@@ -4796,6 +4938,11 @@ func TestGetDailyLeadTraderPNL(t *testing.T) {
 
 func TestGetLeadTraderStats(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetLeadTraderStats(context.Background(), "SWAP", "", "2")
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+	_, err = ok.GetLeadTraderStats(context.Background(), "SWAP", leadTraderUniqueID, "")
+	require.ErrorIs(t, err, errLastDaysRequired)
+
 	result, err := ok.GetLeadTraderStats(context.Background(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4803,6 +4950,11 @@ func TestGetLeadTraderStats(t *testing.T) {
 
 func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetLeadTraderCurrencyPreferences(context.Background(), "SWAP", "", "2")
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+	_, err = ok.GetLeadTraderCurrencyPreferences(context.Background(), "SWAP", leadTraderUniqueID, "")
+	require.ErrorIs(t, err, errLastDaysRequired)
+
 	result, err := ok.GetLeadTraderCurrencyPreferences(context.Background(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4811,7 +4963,10 @@ func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), okxInstTypeSpot, leadTraderUniqueID, "", "", 10)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+	_, err = ok.GetLeadTraderCurrentLeadPositions(context.Background(), okxInstTypeSwap, "", "", "", 10)
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+
 	result, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SWAP", leadTraderUniqueID, "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4820,7 +4975,11 @@ func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), okxInstTypeSpot, leadTraderUniqueID, "", "", 10)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+
+	_, err = ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", "", "", "", 10)
+	require.ErrorIs(t, err, errUniqueCodeRequired)
+
 	result, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", leadTraderUniqueID, "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4828,6 +4987,29 @@ func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 
 func TestPlaceSpreadOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.PlaceSpreadOrder(context.Background(), &SpreadOrderParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg := &SpreadOrderParam{Tag: "tag-here"}
+	_, err = ok.PlaceSpreadOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.SpreadID = spreadTP.String()
+	_, err = ok.PlaceSpreadOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = "limit"
+	_, err = ok.PlaceSpreadOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.Size = 1
+	_, err = ok.PlaceSpreadOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.Price = 12345
+	_, err = ok.PlaceSpreadOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceSpreadOrder(context.Background(), &SpreadOrderParam{
 		InstrumentID:  spreadTP.String(),
@@ -4844,6 +5026,9 @@ func TestPlaceSpreadOrder(t *testing.T) {
 
 func TestCancelSpreadOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.CancelSpreadOrder(context.Background(), "", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelSpreadOrder(context.Background(), "12345", "")
 	require.NoError(t, err)
@@ -4852,6 +5037,9 @@ func TestCancelSpreadOrder(t *testing.T) {
 
 func TestWsCancelSpreadOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.WsCancelSpreadOrder(context.Background(), "", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.WsCancelSpreadOrder(context.Background(), "1234", "")
 	require.NoError(t, err)
@@ -4876,6 +5064,13 @@ func TestWsCancelAllSpreadOrders(t *testing.T) {
 
 func TestAmendSpreadOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.AmendSpreadOrder(context.Background(), &AmendSpreadOrderParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.AmendSpreadOrder(context.Background(), &AmendSpreadOrderParam{NewSize: 2})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ok.AmendSpreadOrder(context.Background(), &AmendSpreadOrderParam{OrderID: "2510789768709120"})
+	require.ErrorIs(t, err, errSizeOrPriceIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendSpreadOrder(context.Background(), &AmendSpreadOrderParam{
 		OrderID: "2510789768709120",
@@ -4887,6 +5082,13 @@ func TestAmendSpreadOrder(t *testing.T) {
 
 func TestWsAmandSpreadOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.WsAmandSpreadOrder(context.Background(), &AmendSpreadOrderParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.WsAmandSpreadOrder(context.Background(), &AmendSpreadOrderParam{NewSize: 2})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ok.WsAmandSpreadOrder(context.Background(), &AmendSpreadOrderParam{OrderID: "2510789768709120"})
+	require.ErrorIs(t, err, errSizeOrPriceIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.WsAmandSpreadOrder(context.Background(), &AmendSpreadOrderParam{
 		OrderID: "2510789768709120",
@@ -4898,6 +5100,9 @@ func TestWsAmandSpreadOrder(t *testing.T) {
 
 func TestGetSpreadOrderDetails(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetSpreadOrderDetails(context.Background(), "", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSpreadOrderDetails(context.Background(), "1234567", "")
 	require.NoError(t, err)
@@ -4937,6 +5142,9 @@ func TestGetSpreads(t *testing.T) {
 
 func TestGetSpreadOrderBooks(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetPublicSpreadOrderBooks(context.Background(), "", 0)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	result, err := ok.GetPublicSpreadOrderBooks(context.Background(), "BTC-USDT_BTC-USDT-SWAP", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4944,6 +5152,9 @@ func TestGetSpreadOrderBooks(t *testing.T) {
 
 func TestGetSpreadTickers(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetPublicSpreadTickers(context.Background(), "")
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	result, err := ok.GetPublicSpreadTickers(context.Background(), "BTC-USDT_BTC-USDT-SWAP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4958,6 +5169,9 @@ func TestGetPublicSpreadTrades(t *testing.T) {
 
 func TestGetOptionsTickBands(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetOptionsTickBands(context.Background(), "", "")
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+
 	result, err := ok.GetOptionsTickBands(context.Background(), "OPTION", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4976,6 +5190,9 @@ func TestExtractIndexCandlestick(t *testing.T) {
 
 func TestGetHistoricIndexAndMarkPriceCandlesticks(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetHistoricIndexCandlesticksHistory(context.Background(), "", time.Time{}, time.Time{}, kline.FiveMin, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	result, err := ok.GetHistoricIndexCandlesticksHistory(context.Background(), "BTC-USD", time.Time{}, time.Time{}, kline.FiveMin, 10)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5305,7 +5522,7 @@ func TestOrderTypeString(t *testing.T) {
 		order.OptimalLimitIOC:                  {Expected: OkxOrderOptimalLimitIOC, Error: nil},
 		order.MarketMakerProtection:            {Expected: "mmp", Error: nil},
 		order.MarketMakerProtectionAndPostOnly: {Expected: "mmp_and_post_only", Error: nil},
-		order.OCO:                              {Error: order.ErrTypeIsInvalid},
+		order.OCO:                              {Error: order.ErrUnsupportedOrderType},
 	}
 	for oType, val := range orderTypesToStringMap {
 		orderTypeString, err := ok.OrderTypeString(oType)
@@ -5448,6 +5665,8 @@ func TestGetFiatDepositPaymentMethods(t *testing.T) {
 }
 
 func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {
+	ok.instrumentsInfoMapLock.Lock()
+	defer ok.instrumentsInfoMapLock.Unlock()
 	if instrumentType != "" {
 		insts, okay := ok.instrumentsInfoMap[instrumentType]
 		if !okay {
@@ -5471,7 +5690,6 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 }
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-
 	ok := new(Okx)
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
 
@@ -5516,7 +5734,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestGenerateGridSubscriptions(t *testing.T) {
 	t.Parallel()
-
 	ok := new(Okx)
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
 
