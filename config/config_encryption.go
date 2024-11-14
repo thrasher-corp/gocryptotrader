@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"golang.org/x/crypto/scrypt"
@@ -99,9 +100,14 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	return c.encryptConfigFile(configData)
 }
 
-// encryptConfigFile encrypts configuration data that is parsed in with a key
-// and returns it as a byte array with an error
+// encryptConfigFile encrypts configuration data that is passed in with a key
+// The EncryptConfig field is set to config enabled (1)
 func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
+	configData, err := jsonparser.Set(configData, []byte("1"), "EncryptConfig")
+	if err != nil {
+		return nil, fmt.Errorf("error setting EncryptConfig true during encrypt config file: %w", err)
+	}
+
 	block, err := aes.NewCipher(c.sessionDK)
 	if err != nil {
 		return nil, err
