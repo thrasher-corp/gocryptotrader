@@ -1486,7 +1486,7 @@ func (c *Config) ReadConfigFromFile(path string, dryrun bool) error {
 	}
 	defer f.Close()
 
-	if err := c.readConfig(f, func() ([]byte, error) { return PromptForConfigKey(false) }); err != nil {
+	if err := c.readConfig(f); err != nil {
 		return err
 	}
 
@@ -1497,19 +1497,17 @@ func (c *Config) ReadConfigFromFile(path string, dryrun bool) error {
 	return c.saveWithEncryptPrompt(path)
 }
 
-type keyProvider func() ([]byte, error)
-
 // readConfig loads config from a io.Reader into the config object
 // versions manager will upgrade/downgrade if appropriate
 // If encrypted, prompts for encryption key
-func (c *Config) readConfig(d io.Reader, keyProvider keyProvider) error {
+func (c *Config) readConfig(d io.Reader) error {
 	j, err := io.ReadAll(d)
 	if err != nil {
 		return err
 	}
 
 	if IsEncrypted(j) {
-		if j, err = c.decryptConfig(j, keyProvider); err != nil {
+		if j, err = c.decryptConfig(j); err != nil {
 			return err
 		}
 	}
@@ -1537,14 +1535,17 @@ func (c *Config) saveWithEncryptPrompt(path string) error {
 }
 
 // decryptConfig reads encrypted configuration and requests key from provider
-func (c *Config) decryptConfig(j []byte, keyProvider keyProvider) ([]byte, error) {
+func (c *Config) decryptConfig(j []byte) ([]byte, error) {
 	for range maxAuthFailures {
-		key, err := keyProvider()
+		f := c.EncryptionKeyProvider
+		if f == nil {
+			f = PromptForConfigKey
+		}
+		key, err := f(false)
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
 			continue
 		}
-
 		d, err := c.decryptConfigData(j, key)
 		if err != nil {
 			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
@@ -1575,13 +1576,12 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 			}
 		}
 	}()
-	return c.Save(provider, func() ([]byte, error) { return PromptForConfigKey(true) })
+	return c.Save(provider)
 }
 
-// Save saves your configuration to the writer as a JSON object
-// with encryption, if configured
+// Save saves your configuration to the writer as a JSON object with encryption, if configured
 // If there is an error when preparing the data to store, the writer is never requested
-func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func() ([]byte, error)) error {
+func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 	payload, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return err
@@ -1590,14 +1590,15 @@ func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func
 	if c.EncryptConfig == fileEncryptionEnabled {
 		// Ensure we have the key from session or from user
 		if len(c.sessionDK) == 0 {
-			var key []byte
-			key, err = keyProvider()
-			if err != nil {
+			f := c.EncryptionKeyProvider
+			if f == nil {
+				f = PromptForConfigKey
+			}
+			var key, sessionDK, storedSalt []byte
+			if key, err = f(true); err != nil {
 				return err
 			}
-			var sessionDK, storedSalt []byte
-			sessionDK, storedSalt, err = makeNewSessionDK(key)
-			if err != nil {
+			if sessionDK, storedSalt, err = makeNewSessionDK(key); err != nil {
 				return err
 			}
 			c.sessionDK, c.storedSalt = sessionDK, storedSalt

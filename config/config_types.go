@@ -119,9 +119,13 @@ type Config struct {
 	Cryptocurrencies    *currency.Currencies  `json:"cryptocurrencies,omitempty"`
 	SMS                 *base.SMSGlobalConfig `json:"smsGlobal,omitempty"`
 	// encryption session values
-	storedSalt []byte
-	sessionDK  []byte
+	storedSalt            []byte
+	sessionDK             []byte
+	EncryptionKeyProvider EncryptionKeyProvider `json:"-"`
 }
+
+// EncryptionKeyProvider is a function config can use to prompt the user for an encryption key
+type EncryptionKeyProvider func(confirmKey bool) ([]byte, error)
 
 // OrderManager holds settings used for the order manager
 type OrderManager struct {
