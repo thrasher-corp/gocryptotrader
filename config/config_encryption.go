@@ -14,15 +14,23 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"golang.org/x/crypto/scrypt"
+	"golang.org/x/term"
 )
 
 const (
 	saltRandomLength = 12
 )
 
+// Public errors
+var (
+	ErrSettingEncryptConfig = errors.New("error setting EncryptConfig during encrypt config file")
+)
+
 var (
 	errAESBlockSize = errors.New("config file data is too small for the AES required block size")
 	errNoPrefix     = errors.New("data does not start with Encryption Prefix")
+	errKeyIsEmpty   = errors.New("key is empty")
+	errUserInput    = errors.New("error getting user input")
 
 	// encryptionPrefix is a prefix to tell us the file is encrypted
 	encryptionPrefix = []byte("THORS-HAMMER")
@@ -42,52 +50,52 @@ func promptForConfigEncryption() (bool, error) {
 	return common.YesOrNo(input), nil
 }
 
-// Unencrypted provides the default key provider implementation for unencrypted files
-func Unencrypted() ([]byte, error) {
-	return nil, errors.New("encryption key was requested, no key provided")
-}
-
 // PromptForConfigKey asks for configuration key
-// if initialSetup is true, the password needs to be repeated
-func PromptForConfigKey(initialSetup bool) ([]byte, error) {
-	var cryptoKey []byte
-
-	for {
-		fmt.Println("Please enter in your password: ")
-		pwPrompt := func(i *[]byte) error {
-			_, err := fmt.Scanln(i)
-			return err
-		}
-
-		var p1 []byte
-		err := pwPrompt(&p1)
+func PromptForConfigKey(confirmKey bool) ([]byte, error) {
+	for range 3 {
+		key, err := getSensitiveInput("Please enter encryption key: ")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errUserInput, err)
 		}
 
-		if !initialSetup {
-			cryptoKey = p1
-			break
+		if len(key) == 0 {
+			continue
 		}
 
-		var p2 []byte
-		fmt.Println("Please re-enter your password: ")
-		err = pwPrompt(&p2)
+		if !confirmKey {
+			return key, nil
+		}
+
+		conf, err := getSensitiveInput("Please re-enter key: ")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errUserInput, err)
 		}
 
-		if bytes.Equal(p1, p2) {
-			cryptoKey = p1
-			break
+		if bytes.Equal(key, conf) {
+			return key, nil
 		}
-		fmt.Println("Passwords did not match, please try again.")
+		fmt.Println("Keys did not match, please try again.")
 	}
-	return cryptoKey, nil
+	return nil, fmt.Errorf("%w: %w", errUserInput, io.EOF)
 }
 
-// EncryptConfigFile encrypts configuration data that is parsed in with a key
-// and returns it as a byte array with an error
+// getSensitiveInput reads input from stdin, with echo off if stdin is a terminal
+func getSensitiveInput(prompt string) (resp []byte, err error) {
+	fmt.Print(prompt)
+	defer fmt.Println()
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		return term.ReadPassword(int(os.Stdin.Fd()))
+	}
+	// Can't use bufio.* because it consumes the whole input in one go, even with s.Buffer(1)
+	for buf := make([]byte, 1); err == nil && buf[0] != '\n'; {
+		if _, err = os.Stdin.Read(buf); err == nil {
+			resp = append(resp, buf[0])
+		}
+	}
+	return bytes.TrimRight(resp, "\r\n"), err
+}
+
+// EncryptConfigFile encrypts json config data with a key
 func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	sessionDK, salt, err := makeNewSessionDK(key)
 	if err != nil {
@@ -100,12 +108,12 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	return c.encryptConfigFile(configData)
 }
 
-// encryptConfigFile encrypts configuration data that is passed in with a key
+// encryptConfigFile encrypts json config data with a key
 // The EncryptConfig field is set to config enabled (1)
 func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
-	configData, err := jsonparser.Set(configData, []byte("1"), "EncryptConfig")
+	configData, err := jsonparser.Set(configData, []byte("1"), "encryptConfig")
 	if err != nil {
-		return nil, fmt.Errorf("error setting EncryptConfig true during encrypt config file: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrSettingEncryptConfig, err)
 	}
 
 	block, err := aes.NewCipher(c.sessionDK)
@@ -127,14 +135,12 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	return appendedFile, nil
 }
 
-// DecryptConfigFile decrypts configuration data with the supplied key and
-// returns the un-encrypted data as a byte array with an error
+// DecryptConfigFile decrypts config data with a key
 func DecryptConfigFile(d, key []byte) ([]byte, error) {
 	return (&Config{}).decryptConfigData(d, key)
 }
 
-// decryptConfigData decrypts configuration data with the supplied key and
-// returns the un-encrypted data as a byte array with an error
+// decryptConfigData decrypts config data with a key
 func (c *Config) decryptConfigData(d, key []byte) ([]byte, error) {
 	if !bytes.HasPrefix(d, encryptionPrefix) {
 		return d, errNoPrefix
@@ -200,7 +206,7 @@ func IsFileEncrypted(f string) bool {
 
 func getScryptDK(key, salt []byte) ([]byte, error) {
 	if len(key) == 0 {
-		return nil, errors.New("key is empty")
+		return nil, errKeyIsEmpty
 	}
 	return scrypt.Key(key, salt, 32768, 8, 1, 32)
 }
