@@ -40,36 +40,31 @@ func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
 
-// CalculatePercentageGainOrLoss returns the percentage rise over a certain
-// period
-func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
-	return (priceNow - priceThen) / priceThen * 100
+// PercentageChange returns the percentage change between two numbers, v1 is reference value.
+func PercentageChange(v1, v2 float64) float64 {
+	return (v2 - v1) / v1 * 100
 }
 
-// CalculatePercentageDifference returns the percentage difference between two
-// numbers
-func CalculatePercentageDifference(a, b float64) float64 {
-	return (a - b) / ((a + b) / 2) * 100
+// PercentageDifference returns the percentage difference between two numbers
+func PercentageDifference(v1, v2 float64) float64 {
+	return (v1 - v2) / ((v1 + v2) / 2) * 100
 }
 
-// CalculateAbsPercentageDifference returns the percentage difference between
-// two numbers.
-func CalculateAbsPercentageDifference(a, b float64) float64 {
-	return math.Abs(a-b) / ((a + b) / 2) * 100
+// PercentageDifferenceAbs returns the absolute percentage difference between two numbers
+func PercentageDifferenceAbs(v1, v2 float64) float64 {
+	return math.Abs(v1-v2) / ((v1 + v2) / 2) * 100
 }
 
-// DecimalPercentageDifference returns the percentage difference between
-// decimal values.
-func DecimalPercentageDifference(d1, d2 decimal.Decimal) decimal.Decimal {
+// PercentageDifferenceDecimal returns the percentage difference between decimal values
+func PercentageDifferenceDecimal(d1, d2 decimal.Decimal) decimal.Decimal {
 	if d1.IsZero() && d2.IsZero() {
 		return decimal.Zero
 	}
 	return d1.Sub(d2).Div(d1.Add(d2).Div(two)).Mul(oneHundred)
 }
 
-// DecimalAbsPercentageDifference returns the percentage difference between
-// decimal values.
-func DecimalAbsPercentageDifference(d1, d2 decimal.Decimal) decimal.Decimal {
+// PercentageDifferenceDecimalAbs returns the absolute percentage difference between decimal values
+func PercentageDifferenceDecimalAbs(d1, d2 decimal.Decimal) decimal.Decimal {
 	if d1.IsZero() && d2.IsZero() {
 		return decimal.Zero
 	}
