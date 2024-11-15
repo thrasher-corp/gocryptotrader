@@ -83,7 +83,6 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 
 // WebsocketOrderPlaceSpot places an order via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-// So this can only batch spot orders or futures orders, not both.
 func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []WebsocketOrder) ([]WebsocketOrderResponse, error) {
 	if len(batch) == 0 {
 		return nil, errBatchSliceEmpty
@@ -111,13 +110,10 @@ func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []WebsocketO
 
 	if len(batch) == 1 {
 		var singleResponse WebsocketOrderResponse
-		err := g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch[0], &singleResponse, 2)
-		return []WebsocketOrderResponse{singleResponse}, err
+		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch[0], &singleResponse, 2)
 	}
-
 	var resp []WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch, &resp, 2)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch, &resp, 2)
 }
 
 // WebsocketOrderCancelSpot cancels an order via the websocket connection
@@ -132,8 +128,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_cancel", asset.Spot, params, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, "spot.order_cancel", asset.Spot, params, &resp, 1)
 }
 
 // WebsocketOrderCancelAllByIDsSpot cancels multiple orders via the websocket
@@ -152,8 +147,7 @@ func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []Webso
 	}
 
 	var resp []WebsocketCancellAllResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
 }
 
 // WebsocketOrderCancelAllByPairSpot cancels all orders for a specific pair
@@ -246,7 +240,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 	}
 
 	if len(responses) == 0 {
-		return errors.New("no responses received")
+		return common.ErrNoResponse
 	}
 
 	var inbound WebsocketAPIResponse

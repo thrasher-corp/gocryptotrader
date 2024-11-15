@@ -28,6 +28,7 @@ var (
 	errConnectionFault         = errors.New("connection fault")
 	errWebsocketIsDisconnected = errors.New("websocket connection is disconnected")
 	errRateLimitNotFound       = errors.New("rate limit definition not found")
+	errOnlyOneMessageInspector = errors.New("only one message inspector can be used")
 )
 
 // Dial sets proxy urls and then connects to the websocket
@@ -334,6 +335,10 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 
 // waitForResponses waits for N responses from a channel
 func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector ...Inspector) ([][]byte, error) {
+	if len(messageInspector) > 1 {
+		return nil, errOnlyOneMessageInspector
+	}
+
 	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
 	defer timeout.Stop()
 

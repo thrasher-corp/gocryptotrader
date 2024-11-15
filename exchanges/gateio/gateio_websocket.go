@@ -121,14 +121,14 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 
 	if push.RequestID != "" {
 		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
-			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
+			return fmt.Errorf("%w for requestID %v", stream.ErrNoMessageListener, push.RequestID)
 		}
 		return nil
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
 		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
+			return fmt.Errorf("%w couldn't match subscription message with ID: %d", stream.ErrNoMessageListener, push.ID)
 		}
 		return nil
 	}

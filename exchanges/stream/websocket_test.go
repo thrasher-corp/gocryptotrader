@@ -224,7 +224,6 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 	ws.SetCanUseAuthenticatedEndpoints(true)
-	ws.verbose = true // NOTE: Intentional
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
@@ -765,6 +764,10 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	wc.ResponseMaxLimit = 1
 	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
+
+	inspector := func(b []byte) bool { return false }
+	_, err = wc.SendMessageReturnResponses(context.Background(), request.Unset, "123", req, 1, inspector, inspector)
+	assert.ErrorIs(t, err, errOnlyOneMessageInspector)
 }
 
 type reporter struct {
@@ -1506,13 +1509,15 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, errConnectionSignatureNotSet)
 
 	_, err = ws.GetConnection("testURL")
-	require.ErrorIs(t, err, ErrNotConnected)
-
-	ws.setState(connectedState)
-	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
 
 	ws.useMultiConnectionManagement = true
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	ws.setState(connectedState)
+
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 

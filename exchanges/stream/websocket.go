@@ -1278,15 +1278,14 @@ func (w *Websocket) GetConnection(connSignature any) (Connection, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 
-	if !w.IsConnected() {
-		return nil, ErrNotConnected
-	}
-
 	if !w.useMultiConnectionManagement {
 		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", w.exchangeName, errCannotObtainOutboundConnection)
 	}
 
-	// Opted to range and not have a map, as connection level wrappers will be limited.
+	if !w.IsConnected() {
+		return nil, ErrNotConnected
+	}
+
 	for _, wrapper := range w.connectionManager {
 		if wrapper.Setup.WrapperDefinedConnectionSignature == connSignature {
 			if wrapper.Connection == nil {

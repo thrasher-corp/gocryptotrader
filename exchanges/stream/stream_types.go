@@ -37,7 +37,9 @@ type Connection interface {
 	Shutdown() error
 }
 
-// Inspector is a hook that allows for custom message inspection
+// Inspector is used to verify messages via SendMessageReturnResponse
+// Only one can used
+// It inspects the []bytes websocket message and returns true if it is the appropriate message to action
 type Inspector func([]byte) bool
 
 // Response defines generalised data from the stream connection
