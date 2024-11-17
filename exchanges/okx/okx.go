@@ -5638,7 +5638,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 	err = ok.SendPayload(ctx, f, newRequest, requestType)
 	if err != nil {
-		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 	}
 	if rv.Kind() == reflect.Slice {
 		value, okay := result.([]interface{})
