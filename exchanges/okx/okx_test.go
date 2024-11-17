@@ -4434,19 +4434,19 @@ func TestGetAlgoOrderDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestClosePositionForContractrid(t *testing.T) {
+func TestClosePositionForContractID(t *testing.T) {
 	t.Parallel()
-	_, err := ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{})
+	_, err := ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
+	_, err = ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
+	_, err = ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
-	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
+	_, err = ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{
+	result, err := ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{
 		AlgoID:                  "448965992920907776",
 		MarketCloseAllPositions: true,
 	})
