@@ -3144,8 +3144,8 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 	return resp, nil
 }
 
-// ClosePositionForContractrID close position when the contract grid stop type is 'keep position'.
-func (ok *Okx) ClosePositionForContractrID(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
+// ClosePositionForContractID close position when the contract grid stop type is 'keep position'.
+func (ok *Okx) ClosePositionForContractID context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
 	if *arg == (ClosePositionParams{}) {
 		return nil, common.ErrEmptyParams
 	}
