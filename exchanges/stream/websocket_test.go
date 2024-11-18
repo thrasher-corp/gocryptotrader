@@ -1124,13 +1124,9 @@ func TestFlushChannels(t *testing.T) {
 			return conn.DialContext(ctx, websocket.DefaultDialer, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
-		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
-			return currySimpleSubConn(w)(ctx, c, s)
-		},
-		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
-			return currySimpleUnsubConn(w)(ctx, c, s)
-		},
-		Handler: func(context.Context, []byte) error { return nil },
+		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+		Handler:               func(context.Context, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
