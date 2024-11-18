@@ -600,6 +600,10 @@ func TestErrors(t *testing.T) {
 	assert.ErrorIs(t, err, e3, "Should be an e3")
 	assert.ErrorIs(t, err, e5, "Should be an e5")
 	assert.ErrorContains(t, err, "sausages", "Should know about secret sausages")
+
+	err = AppendError(err, errors.New(""))
+	errString := err.Error()
+	require.NotEqual(t, errString[len(errString)-2:], ", ", "should not end with comma")
 }
 
 func TestParseStartEndDate(t *testing.T) {
