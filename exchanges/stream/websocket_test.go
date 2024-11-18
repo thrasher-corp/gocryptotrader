@@ -248,7 +248,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.connectionManager[0].Setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].Setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -266,7 +266,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.connectionManager[0].Setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].Setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -458,7 +458,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleUnsubConn(multi)(ctx, c, s)
 		},
-		Handler: func(context.Context, []byte) error { return nil },
+		Handler: func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
@@ -1130,7 +1130,7 @@ func TestFlushChannels(t *testing.T) {
 		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleUnsubConn(w)(ctx, c, s)
 		},
-		Handler: func(context.Context, []byte) error { return nil },
+		Handler: func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
@@ -1228,7 +1228,7 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
