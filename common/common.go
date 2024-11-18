@@ -461,8 +461,8 @@ func (e *fmtError) Unwrap() []error {
 func (e *multiError) Error() string {
 	allErrors := make([]string, 0, len(e.errs))
 	for _, err := range e.errs {
-		if err.Error() != "" {
-			allErrors = append(allErrors, err.Error())
+		if val := err.Error(); val != "" {
+			allErrors = append(allErrors, val)
 		}
 	}
 	return strings.Join(allErrors, ", ")
