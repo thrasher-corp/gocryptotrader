@@ -459,9 +459,11 @@ func (e *fmtError) Unwrap() []error {
 
 // Error displays all errors comma separated
 func (e *multiError) Error() string {
-	allErrors := make([]string, len(e.errs))
-	for x := range e.errs {
-		allErrors[x] = e.errs[x].Error()
+	allErrors := make([]string, 0, len(e.errs))
+	for _, err := range e.errs {
+		if err.Error() != "" {
+			allErrors = append(allErrors, err.Error())
+		}
 	}
 	return strings.Join(allErrors, ", ")
 }
