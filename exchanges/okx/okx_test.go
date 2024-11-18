@@ -4494,7 +4494,7 @@ func TestGetAlgoOrderDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestClosePositionForContractrid(t *testing.T) {
+func TestClosePositionForContractID(t *testing.T) {
 	t.Parallel()
 	_, err := ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
