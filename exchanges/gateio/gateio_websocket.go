@@ -786,10 +786,8 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		var resp WsEventResponse
 		if err = json.Unmarshal(result, &resp); err != nil {
 			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-			}
+		} else if resp.Error != nil && resp.Error.Code != 0 {
+			errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 		}
 	}
 	return errs
