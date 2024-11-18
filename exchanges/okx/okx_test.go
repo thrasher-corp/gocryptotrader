@@ -1331,11 +1331,23 @@ func TestResetRFQMMPStatus(t *testing.T) {
 
 func TestCreateQuote(t *testing.T) {
 	t.Parallel()
-	_, err := ok.CreateQuote(contextGenerate(), CreateQuoteParams{})
+	_, err := ok.CreateQuote(contextGenerate(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &CreateQuoteParams{}
+	_, err = ok.CreateQuote(contextGenerate(), arg)
 	require.ErrorIs(t, err, errMissingRfqID)
 
+	arg.RfqID = "123456789"
+	_, err = ok.CreateQuote(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.QuoteSide = "sell"
+	_, err = ok.CreateQuote(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingLegs)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CreateQuote(contextGenerate(), CreateQuoteParams{
+	result, err := ok.CreateQuote(contextGenerate(), &CreateQuoteParams{
 		RfqID:     "12345",
 		QuoteSide: order.Buy.Lower(),
 		Legs: []QuoteLeg{
@@ -1988,17 +2000,17 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 	_, err = ok.IncreaseDecreaseMargin(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.Type = "add"
+	arg.MarginBalanceType = "reduce"
 	_, err = ok.IncreaseDecreaseMargin(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.IncreaseDecreaseMargin(contextGenerate(), &IncreaseDecreaseMarginInput{
-		InstrumentID: "BTC-USDT",
-		PositionSide: "long",
-		Type:         "add",
-		Amount:       1000,
-		Currency:     "USD",
+		InstrumentID:      "BTC-USDT",
+		PositionSide:      "long",
+		MarginBalanceType: "add",
+		Amount:            1000,
+		Currency:          "USD",
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2527,9 +2539,21 @@ const gridOrderAmendAlgo = `{
 
 func TestAmendGridAlgoOrder(t *testing.T) {
 	t.Parallel()
-	var input GridAlgoOrderAmend
+	var input *GridAlgoOrderAmend
 	err := json.Unmarshal([]byte(gridOrderAmendAlgo), &input)
 	require.NoError(t, err)
+
+	arg := &GridAlgoOrderAmend{}
+	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg.TakeProfitTriggerPrice = 1234.5
+	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errAlgoIDRequired)
+
+	arg.AlgoID = "560472804207104000"
+	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendGridAlgoOrder(contextGenerate(), input)
@@ -2545,10 +2569,31 @@ func TestStopGridAlgoOrder(t *testing.T) {
 	err := json.Unmarshal([]byte(stopGridAlgoOrderJSON), &resp)
 	require.NoError(t, err)
 
+	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg := StopGridAlgoOrderRequest{}
+	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg.StopType = 20
+	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
+	require.ErrorIs(t, err, errAlgoIDRequired)
+
+	arg.AlgoID = "algo_id"
+	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.InstrumentID = spotTP.String()
+	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
+	require.ErrorIs(t, err, errMissingAlgoOrderType)
+
+	arg.AlgoOrderType = AlgoOrdTypeGrid
+	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
+	require.ErrorIs(t, err, errMissingValidStopType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{
-		resp,
-	})
+	result, err := ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{resp})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2572,7 +2617,7 @@ func TestGetGridAlgoOrderHistory(t *testing.T) {
 func TestGetGridAlgoOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetGridAlgoOrderDetails(contextGenerate(), "grid", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderDetails(contextGenerate(), "grid", "7878")
@@ -2585,7 +2630,7 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	_, err := ok.GetGridAlgoSubOrders(contextGenerate(), "", "", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingAlgoOrderType)
 	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingSubOrderType)
 
@@ -2605,9 +2650,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "", "")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "448965992920907776")
@@ -2618,7 +2661,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 func TestSpotGridWithdrawProfit(t *testing.T) {
 	t.Parallel()
 	_, err := ok.SpotGridWithdrawProfit(contextGenerate(), "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SpotGridWithdrawProfit(contextGenerate(), "1234")
@@ -2628,16 +2671,16 @@ func TestSpotGridWithdrawProfit(t *testing.T) {
 
 func TestComputeMarginBalance(t *testing.T) {
 	t.Parallel()
-	_, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
-		AlgoID: "123456",
-		Type:   "other",
-	})
+	_, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{AlgoID: "123456", AdjustMarginBalanceType: "other"})
 	require.ErrorIs(t, err, errInvalidMarginTypeAdjust)
+
+	_, err = ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{AdjustMarginBalanceType: "other"})
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
-		AlgoID: "123456",
-		Type:   "add",
+		AlgoID:                  "123456",
+		AdjustMarginBalanceType: "reduce",
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2645,11 +2688,28 @@ func TestComputeMarginBalance(t *testing.T) {
 
 func TestAdjustMarginBalance(t *testing.T) {
 	t.Parallel()
+	arg := &MarginBalanceParam{}
+	_, err := ok.AdjustMarginBalance(contextGenerate(), arg)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg.Amount = 12345
+	_, err = ok.AdjustMarginBalance(contextGenerate(), arg)
+	require.ErrorIs(t, err, errAlgoIDRequired)
+
+	arg.AlgoID = "1234"
+	_, err = ok.AdjustMarginBalance(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidMarginTypeAdjust)
+
+	arg.AdjustMarginBalanceType = "reduce"
+	arg.Amount = 0
+	_, err = ok.AdjustMarginBalance(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.AdjustMarginBalance(contextGenerate(), MarginBalanceParam{
-		AlgoID: "1234",
-		Type:   "add",
-		Amount: 12345,
+	result, err := ok.AdjustMarginBalance(contextGenerate(), &MarginBalanceParam{
+		AlgoID:                  "1234",
+		AdjustMarginBalanceType: "reduce",
+		Amount:                  12345,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4436,17 +4496,17 @@ func TestGetAlgoOrderDetail(t *testing.T) {
 
 func TestClosePositionForContractrid(t *testing.T) {
 	t.Parallel()
-	_, err := ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{})
+	_, err := ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
+	_, err = ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
+	require.ErrorIs(t, err, errAlgoIDRequired)
+	_, err = ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
-	_, err = ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
+	_, err = ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.ClosePositionForContractrID(context.Background(), &ClosePositionParams{
+	result, err := ok.ClosePositionForContractID(context.Background(), &ClosePositionParams{
 		AlgoID:                  "448965992920907776",
 		MarketCloseAllPositions: true,
 	})
@@ -4459,7 +4519,7 @@ func TestCancelClosePositionOrderForContractGrid(t *testing.T) {
 	_, err := ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{OrderID: "570627699870375936"})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 	_, err = ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{AlgoID: "448965992920907776"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -4537,7 +4597,7 @@ func TestSignalBotTrading(t *testing.T) {
 	_, err := ok.GetSignalBotOrderDetail(context.Background(), "", "623833708424069120")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetSignalBotOrderDetail(context.Background(), "contract", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.GetSignalBotOrderDetail(context.Background(), "contract", "623833708424069120")
@@ -4550,7 +4610,7 @@ func TestGetSignalOrderPositions(t *testing.T) {
 	_, err := ok.GetSignalOrderPositions(context.Background(), "", "623833708424069120")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetSignalOrderPositions(context.Background(), "contract", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalOrderPositions(context.Background(), "contract", "623833708424069120")
@@ -4561,7 +4621,7 @@ func TestGetSignalOrderPositions(t *testing.T) {
 func TestGetSignalBotSubOrders(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetSignalBotSubOrders(context.Background(), "", "contract", "filled", "", "", "", time.Time{}, time.Time{}, 0)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 	_, err = ok.GetSignalBotSubOrders(context.Background(), "623833708424069120", "", "filled", "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetSignalBotSubOrders(context.Background(), "623833708424069120", "contract", "", "", "", "", time.Time{}, time.Time{}, 0)
@@ -4576,7 +4636,7 @@ func TestGetSignalBotSubOrders(t *testing.T) {
 func TestGetSignalBotEventHistory(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetSignalBotEventHistory(context.Background(), "", time.Time{}, time.Now(), 50)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalBotEventHistory(context.Background(), "12345", time.Time{}, time.Now(), 50)
@@ -4586,6 +4646,36 @@ func TestGetSignalBotEventHistory(t *testing.T) {
 
 func TestPlaceRecurringBuyOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.PlaceRecurringBuyOrder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &PlaceRecurringBuyOrderParam{
+		TimeZone: "3",
+	}
+	_, err = ok.PlaceRecurringBuyOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errStrategyNameRequired)
+
+	arg.StrategyName = "BTC|ETH recurring buy monthly"
+	_, err = ok.PlaceRecurringBuyOrder(context.Background(), arg)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg.RecurringList = []RecurringListItem{{}}
+	_, err = ok.PlaceRecurringBuyOrder(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.RecurringList = []RecurringListItem{{Currency: currency.BTC}}
+	_, err = ok.PlaceRecurringBuyOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errRecurringDayRequired)
+
+	arg.RecurringDay = "1"
+	arg.RecurringTime = -10
+	_, err = ok.PlaceRecurringBuyOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errRecurringBuyTimeRequired)
+
+	arg.RecurringTime = 2
+	_, err = ok.PlaceRecurringBuyOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidTradeModeValue)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceRecurringBuyOrder(context.Background(), &PlaceRecurringBuyOrderParam{
 		StrategyName: "BTC|ETH recurring buy monthly",
@@ -4615,6 +4705,10 @@ func TestAmendRecurringBuyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{StrategyName: "stg1"})
+	require.ErrorIs(t, err, errAlgoIDRequired)
+	_, err = ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{AlgoID: "448965992920907776"})
+	require.ErrorIs(t, err, errStrategyNameRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{
@@ -4629,6 +4723,8 @@ func TestStopRecurringBuyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := ok.StopRecurringBuyOrder(context.Background(), []StopRecurringBuyOrder{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.StopRecurringBuyOrder(context.Background(), []StopRecurringBuyOrder{{}})
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.StopRecurringBuyOrder(context.Background(), []StopRecurringBuyOrder{{AlgoID: "1232323434234"}})
@@ -4655,7 +4751,7 @@ func TestGetRecurringBuyOrderHistory(t *testing.T) {
 func TestGetRecurringOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetRecurringOrderDetails(context.Background(), "", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetRecurringOrderDetails(context.Background(), "560473220642766848", "")
@@ -4666,7 +4762,7 @@ func TestGetRecurringOrderDetails(t *testing.T) {
 func TestGetRecurringSubOrders(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetRecurringSubOrders(context.Background(), "", "123422", time.Time{}, time.Now(), 0)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetRecurringSubOrders(context.Background(), "560473220642766848", "123422", time.Time{}, time.Now(), 0)
@@ -4881,7 +4977,6 @@ func TestSetMultipleLeverages(t *testing.T) {
 	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
 	_, err = ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{MarginMode: "cross"})
 	require.ErrorIs(t, err, errInvalidLeverage)
-
 	_, err = ok.SetMultipleLeverages(context.Background(), &SetLeveragesParam{
 		MarginMode: "cross",
 		Leverage:   5,

@@ -53,6 +53,10 @@ const (
 	// OkxOrderOptimalLimitIOC OPTIMAL_LIMIT_IOC
 	OkxOrderOptimalLimitIOC = "optimal_limit_ioc"
 
+	// represents a margin balance type
+	marginBalanceReduce = "reduce"
+	marginBalanceAdd    = "add"
+
 	// Instrument Types ( Asset Types )
 
 	okxInstTypeFutures  = "FUTURES"   // Okx Instrument Type "futures"
@@ -72,7 +76,6 @@ var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
-	errLiquidationOrderResponseNotFound     = errors.New("liquidation order not found")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
@@ -84,6 +87,7 @@ var (
 	errMissingIntervalValue                 = errors.New("missing interval value")
 	errMissingSizeLimit                     = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState           = errors.New("either algo ID or order state is required")
+	errAlgoIDRequired                       = errors.New("algo ID is required")
 	errMissingValidWithdrawalID             = errors.New("missing valid withdrawal ID")
 	errInstrumentFamilyRequired             = errors.New("instrument family is required")
 	errCountdownTimeoutRequired             = errors.New("countdown timeout is required")
@@ -129,6 +133,8 @@ var (
 	errOnlyThreeMonthsSupported             = errors.New("only three months of trade data retrieval supported")
 	errOnlyOneResponseExpected              = errors.New("one response item expected")
 	errStrategyNameRequired                 = errors.New("strategy name required")
+	errRecurringDayRequired                 = errors.New("recurring day is required")
+	errRecurringBuyTimeRequired             = errors.New("recurring buy time, the value range is an integer with value between 0 and 23")
 	errSubPositionIDRequired                = errors.New("sub position ID is required")
 	errUserIDRequired                       = errors.New("uid is required")
 	errSubPositionCloseTypeRequired         = errors.New("sub position close type")
@@ -1998,11 +2004,11 @@ type MaximumTradableAmount struct {
 
 // IncreaseDecreaseMarginInput represents increase or decrease the margin of the isolated position.
 type IncreaseDecreaseMarginInput struct {
-	InstrumentID string  `json:"instId"`
-	PositionSide string  `json:"posSide"`
-	Type         string  `json:"type"`
-	Amount       float64 `json:"amt,string"`
-	Currency     string  `json:"ccy"`
+	InstrumentID      string  `json:"instId"`
+	PositionSide      string  `json:"posSide"`
+	MarginBalanceType string  `json:"type"`
+	Amount            float64 `json:"amt,string"`
+	Currency          string  `json:"ccy"`
 }
 
 // IncreaseDecreaseMargin represents increase or decrease the margin of the isolated position response
@@ -2354,11 +2360,6 @@ type CancelRfqResponse struct {
 	ClientRfqID string `json:"clRfqId"`
 	StatusCode  string `json:"sCode"`
 	StatusMsg   string `json:"sMsg"`
-}
-
-// TimestampResponse holds timestamp response only.
-type TimestampResponse struct {
-	Timestamp types.Time `json:"ts"`
 }
 
 // MMPStatusResponse holds MMP reset status response
@@ -3864,10 +3865,10 @@ type SubAccountAPIKeyResponse struct {
 
 // MarginBalanceParam represents compute margin balance request param
 type MarginBalanceParam struct {
-	AlgoID     string  `json:"algoId"`
-	Type       string  `json:"type"`
-	Amount     float64 `json:"amt,string"`               // Adjust margin balance amount Either amt or percent is required.
-	Percentage float64 `json:"percent,string,omitempty"` // Adjust margin balance percentage, used In Adjusting margin balance
+	AlgoID                  string  `json:"algoId"`
+	AdjustMarginBalanceType string  `json:"type"`
+	Amount                  float64 `json:"amt,string"`               // Adjust margin balance amount Either amt or percent is required.
+	Percentage              float64 `json:"percent,string,omitempty"` // Adjust margin balance percentage, used In Adjusting margin balance
 }
 
 // ComputeMarginBalance represents compute margin amount request response

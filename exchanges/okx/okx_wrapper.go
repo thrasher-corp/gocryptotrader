@@ -2166,10 +2166,10 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 		req.MarginSide = "net"
 	}
 	r := &IncreaseDecreaseMarginInput{
-		InstrumentID: fPair.String(),
-		PositionSide: req.MarginSide,
-		Type:         marginType,
-		Amount:       amt,
+		InstrumentID:      fPair.String(),
+		PositionSide:      req.MarginSide,
+		MarginBalanceType: marginType,
+		Amount:            amt,
 	}
 
 	if req.Asset == asset.Margin {

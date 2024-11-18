@@ -195,18 +195,15 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, errMissingOrderIDAndClientSuppliedID
 	}
-	var resp []OrderData
+	var resp *OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if len(resp) != 1 {
-			return nil, err
+		if resp != nil && resp.SMessage != "" {
+			return nil, fmt.Errorf("%w, SCode: %s and SMsg: %s", err, resp.SCode, resp.SMessage)
 		}
-		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMessage)
+		return nil, err
 	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, fmt.Errorf("%w, received invalid response", common.ErrNoResponse)
+	return resp, nil
 }
 
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
@@ -917,9 +914,11 @@ func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg *CancelRfqRequestsPar
 }
 
 // CancelAllRfqs cancels all active Rfqs.
-func (ok *Okx) CancelAllRfqs(ctx context.Context) (time.Time, error) {
-	resp := &TimestampResponse{}
-	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &resp, request.AuthenticatedRequest)
+func (ok *Okx) CancelAllRfqs(ctx context.Context) (types.Time, error) {
+	var resp types.Time
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &struct {
+		Timestamp *types.Time `json:"ts"`
+	}{Timestamp: &resp}, request.AuthenticatedRequest)
 }
 
 // ExecuteQuote executes a Quote. It is only used by the creator of the Rfq
@@ -981,7 +980,10 @@ func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 
 // CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
 // the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
-func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteResponse, error) {
+func (ok *Okx) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*QuoteResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
 	arg.QuoteSide = strings.ToLower(arg.QuoteSide)
 	switch {
 	case arg.RfqID == "":
@@ -1030,16 +1032,12 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 }
 
 // CancelAllQuotes cancels all active Quotes.
-func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
-	var resp *TimestampResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil, &resp, request.AuthenticatedRequest)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if resp == nil {
-		return time.Time{}, common.ErrNoResponse
-	}
-	return resp.Timestamp.Time(), nil
+func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
+	var resp types.Time
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil,
+		&struct {
+			Timestamp *types.Time `json:"ts"`
+		}{Timestamp: &resp}, request.AuthenticatedRequest)
 }
 
 // GetRfqs retrieves details of Rfqs that the user is a counterparty to (either as the creator or the receiver of the Rfq).
@@ -1996,7 +1994,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecrease
 		arg.PositionSide != positionSideNet {
 		return nil, fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
 	}
-	if arg.Type != "add" && arg.Type != "reduce" {
+	if arg.MarginBalanceType != marginBalanceAdd && arg.MarginBalanceType != marginBalanceReduce {
 		return nil, fmt.Errorf("%w, missing valid 'type', 'add': add margin 'reduce': reduce margin are allowed", order.ErrTypeIsInvalid)
 	}
 	if arg.Amount <= 0 {
@@ -3088,25 +3086,25 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 }
 
 // AmendGridAlgoOrder supported contract grid algo order amendment.
-func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg GridAlgoOrderAmend) (*GridAlgoOrderIDResponse, error) {
+func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAmend) (*GridAlgoOrderIDResponse, error) {
+	if *arg == (GridAlgoOrderAmend{}) {
+		return nil, common.ErrEmptyParams
+	}
 	if arg.AlgoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	var resp []GridAlgoOrderIDResponse
+	var resp *GridAlgoOrderIDResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if len(resp) != 1 {
-			return nil, err
+		if resp != nil && resp.SMsg == "" {
+			return nil, fmt.Errorf("%w, SMsg: %s and SCode: %s", err, resp.SMsg, resp.SCode)
 		}
-		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMsg)
+		return nil, err
 	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, fmt.Errorf("%w, received invalid response", common.ErrNoResponse)
+	return resp, nil
 }
 
 // StopGridAlgoOrder stop a batch of grid algo orders.
@@ -3120,7 +3118,7 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 			return nil, common.ErrEmptyParams
 		}
 		if arg[x].AlgoID == "" {
-			return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+			return nil, errAlgoIDRequired
 		}
 		if arg[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -3144,13 +3142,13 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 	return resp, nil
 }
 
-// ClosePositionForContractrID close position when the contract grid stop type is 'keep position'.
-func (ok *Okx) ClosePositionForContractrID(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
+// ClosePositionForContractID close position when the contract grid stop type is 'keep position'.
+func (ok *Okx) ClosePositionForContractID(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
 	if *arg == (ClosePositionParams{}) {
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	if !arg.MarketCloseAllPositions && arg.Size <= 0 {
 		return nil, fmt.Errorf("%w 'size' is required", order.ErrAmountMustBeSet)
@@ -3168,7 +3166,7 @@ func (ok *Okx) CancelClosePositionOrderForContractGrid(ctx context.Context, arg 
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	if arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -3244,7 +3242,7 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 		return nil, errMissingAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
@@ -3260,7 +3258,7 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 		return nil, errMissingAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	if subOrderType != "live" && subOrderType != order.Filled.String() {
 		return nil, errMissingSubOrderType
@@ -3291,7 +3289,7 @@ func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, alg
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
@@ -3303,7 +3301,7 @@ func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, alg
 // SpotGridWithdrawProfit returns the spot grid orders withdrawal profit given an instrument id.
 func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*AlgoOrderWithdrawalProfit, error) {
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	input := &struct {
 		AlgoID string `json:"algoId"`
@@ -3317,9 +3315,9 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 // ComputeMarginBalance computes margin balance with 'add' and 'reduce' balance type
 func (ok *Okx) ComputeMarginBalance(ctx context.Context, arg MarginBalanceParam) (*ComputeMarginBalance, error) {
 	if arg.AlgoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
-	if arg.Type != "add" && arg.Type != "reduce" {
+	if arg.AdjustMarginBalanceType != "add" && arg.AdjustMarginBalanceType != marginBalanceReduce {
 		return nil, errInvalidMarginTypeAdjust
 	}
 	var resp *ComputeMarginBalance
@@ -3327,15 +3325,18 @@ func (ok *Okx) ComputeMarginBalance(ctx context.Context, arg MarginBalanceParam)
 }
 
 // AdjustMarginBalance retrieves adjust margin balance with 'add' and 'reduce' balance type
-func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg MarginBalanceParam) (*AdjustMarginBalanceResponse, error) {
-	if arg.AlgoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg *MarginBalanceParam) (*AdjustMarginBalanceResponse, error) {
+	if *arg == (MarginBalanceParam{}) {
+		return nil, common.ErrEmptyParams
 	}
-	if arg.Type != "add" && arg.Type != "reduce" {
+	if arg.AlgoID == "" {
+		return nil, errAlgoIDRequired
+	}
+	if arg.AdjustMarginBalanceType != "add" && arg.AdjustMarginBalanceType != marginBalanceReduce {
 		return nil, errInvalidMarginTypeAdjust
 	}
-	if arg.Percentage <= 0 && arg.Amount < 0 {
-		return nil, errors.New("either percentage or amount is required")
+	if arg.Percentage <= 0 && arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w, either percentage or amount is required", order.ErrAmountIsInvalid)
 	}
 	var resp *AdjustMarginBalanceResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, adjustMarginBalanceEPL, http.MethodPost, "tradingBot/grid/margin-balance", &arg, &resp, request.AuthenticatedRequest)
@@ -3450,7 +3451,7 @@ func (ok *Okx) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, algoI
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3465,7 +3466,7 @@ func (ok *Okx) GetSignalOrderPositions(ctx context.Context, algoOrderType, algoI
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3477,7 +3478,7 @@ func (ok *Okx) GetSignalOrderPositions(ctx context.Context, algoOrderType, algoI
 // GetSignalBotSubOrders retrieves historical filled sub orders and designated sub orders
 func (ok *Okx) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderType, subOrderType, clientOrderID, afterPaginationID, beforePaginationID string, begin, end time.Time, limit int64) ([]SubOrder, error) {
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	if algoOrderType == "" {
 		return nil, errInvalidAlgoOrderType
@@ -3515,7 +3516,7 @@ func (ok *Okx) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderType,
 // GetSignalBotEventHistory retrieves signal bot event history
 func (ok *Okx) GetSignalBotEventHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]SignalBotEventHistory, error) {
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3545,7 +3546,7 @@ func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBu
 		return nil, errStrategyNameRequired
 	}
 	if len(arg.RecurringList) == 0 {
-		return nil, errors.New("no recurring list is provided")
+		return nil, fmt.Errorf("%w, no recurring list is provided", common.ErrEmptyParams)
 	}
 	for x := range arg.RecurringList {
 		if arg.RecurringList[x].Currency.IsEmpty() {
@@ -3553,10 +3554,10 @@ func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBu
 		}
 	}
 	if arg.RecurringDay == "" {
-		return nil, errors.New("recurring day is required")
+		return nil, errRecurringDayRequired
 	}
 	if arg.RecurringTime > 23 || arg.RecurringTime < 0 {
-		return nil, errors.New("recurring buy time, the value range is an integer with value between 0 and 23")
+		return nil, errRecurringBuyTimeRequired
 	}
 	if arg.TradeMode == "" {
 		return nil, errInvalidTradeModeValue
@@ -3571,7 +3572,7 @@ func (ok *Okx) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurringOr
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	if arg.StrategyName == "" {
 		return nil, errStrategyNameRequired
@@ -3587,11 +3588,11 @@ func (ok *Okx) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurringBuy
 	}
 	for x := range arg {
 		if arg[x].AlgoID == "" {
-			return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+			return nil, errAlgoIDRequired
 		}
 	}
 	var resp []RecurringOrderResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopRecurringBuyOrderEPL, http.MethodGet, "tradingBot/recurring/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetRecurringBuyOrderList retrieves recurring buy order list.
@@ -3638,7 +3639,7 @@ func (ok *Okx) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, a
 // GetRecurringOrderDetails retrieves a single recurring order detail.
 func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrderState string) (*RecurringOrderDeail, error) {
 	if algoID == "" {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3652,7 +3653,7 @@ func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrderSt
 // GetRecurringSubOrders retrieves recurring buy sub orders.
 func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string, after, before time.Time, limit int64) ([]RecurringBuySubOrder, error) {
 	if algoID == "" {
-		return nil, order.ErrOrderIDNotSet
+		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -5761,7 +5762,7 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 			}
 		}
 	}
-	return nil, fmt.Errorf("%w '%v' or currency not enabled '%v'", asset.ErrNotSupported, instType, instrumentID)
+	return nil, fmt.Errorf("%w  '%v' or currency not enabled '%v'", asset.ErrNotSupported, instType, instrumentID)
 }
 
 // -------------------------------------------------------  Lending Orders  ------------------------------------------------------
