@@ -3,6 +3,8 @@ package bitget
 import (
 	"context"
 	"fmt"
+	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -276,38 +278,70 @@ func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 	switch assetType {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
+	case asset.Spot:
 		tick, err := bi.GetSpotTickerInformation(ctx, p)
 		if err != nil {
 			return nil, err
 		}
+		if len(tick) == 0 {
+			return nil, errReturnEmpty
+		}
 		tickerPrice = &ticker.Price{
-			High:        tick[0].High24H,
-			Low:         tick[0].Low24H,
-			Bid:         tick[0].BidPrice,
-			Ask:         tick[0].AskPrice,
-			Volume:      tick[0].BaseVolume,
-			QuoteVolume: tick[0].QuoteVolume,
-			Open:        tick[0].Open,
-			Close:       tick[0].LastPrice,
-			LastUpdated: tick[0].Timestamp.Time(),
+			High:         tick[0].High24H,
+			Low:          tick[0].Low24H,
+			Bid:          tick[0].BidPrice,
+			Ask:          tick[0].AskPrice,
+			Volume:       tick[0].BaseVolume,
+			QuoteVolume:  tick[0].QuoteVolume,
+			Open:         tick[0].Open,
+			Close:        tick[0].LastPrice,
+			LastUpdated:  tick[0].Timestamp.Time(),
+			ExchangeName: bi.Name,
+			AssetType:    assetType,
+			Pair:         p,
 		}
 	case asset.Futures:
 		tick, err := bi.GetFuturesTicker(ctx, p, getProductType(p))
 		if err != nil {
 			return nil, err
 		}
+		if len(tick) == 0 {
+			return nil, errReturnEmpty
+		}
 		tickerPrice = &ticker.Price{
-			High:        tick[0].High24H,
-			Low:         tick[0].Low24H,
-			Bid:         tick[0].BidPrice,
-			Ask:         tick[0].AskPrice,
-			Volume:      tick[0].BaseVolume,
-			QuoteVolume: tick[0].QuoteVolume,
-			Open:        tick[0].Open24H,
-			Close:       tick[0].LastPrice,
-			IndexPrice:  tick[0].IndexPrice,
-			LastUpdated: tick[0].Timestamp.Time(),
+			High:         tick[0].High24H,
+			Low:          tick[0].Low24H,
+			Bid:          tick[0].BidPrice,
+			Ask:          tick[0].AskPrice,
+			Volume:       tick[0].BaseVolume,
+			QuoteVolume:  tick[0].QuoteVolume,
+			Open:         tick[0].Open24H,
+			Close:        tick[0].LastPrice,
+			IndexPrice:   tick[0].IndexPrice,
+			LastUpdated:  tick[0].Timestamp.Time(),
+			ExchangeName: bi.Name,
+			AssetType:    assetType,
+			Pair:         p,
+		}
+	case asset.Margin, asset.CrossMargin:
+		tick, err := bi.GetSpotCandlestickData(ctx, p, formatExchangeKlineIntervalSpot(kline.OneDay), time.Now().Add(-time.Hour*24), time.Now(), 2, false)
+		if err != nil {
+			return nil, err
+		}
+		if len(tick.SpotCandles) == 0 {
+			return nil, errReturnEmpty
+		}
+		tickerPrice = &ticker.Price{
+			High:         tick.SpotCandles[0].High,
+			Low:          tick.SpotCandles[0].Low,
+			Volume:       tick.SpotCandles[0].BaseVolume,
+			QuoteVolume:  tick.SpotCandles[0].QuoteVolume,
+			Open:         tick.SpotCandles[0].Open,
+			Close:        tick.SpotCandles[0].Close,
+			LastUpdated:  tick.SpotCandles[0].Timestamp,
+			ExchangeName: bi.Name,
+			AssetType:    assetType,
+			Pair:         p,
 		}
 	default:
 		return nil, asset.ErrNotSupported
@@ -325,7 +359,7 @@ func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 // UpdateTickers updates all currency pairs of a given asset type
 func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
+	case asset.Spot:
 		tick, err := bi.GetSpotTickerInformation(ctx, currency.Pair{})
 		if err != nil {
 			return err
@@ -382,6 +416,54 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				if err != nil {
 					return err
 				}
+			}
+		}
+	case asset.Margin, asset.CrossMargin:
+		pairs, err := bi.GetSupportedCurrencies(ctx)
+		if err != nil {
+			return err
+		}
+		check, err := bi.GetSymbolInfo(ctx, currency.Pair{})
+		if err != nil {
+			return err
+		}
+		checkSlice := make([]string, len(check))
+		for i := range check {
+			checkSlice[i] = check[i].Symbol
+		}
+		for x := range pairs {
+			if !slices.Contains(checkSlice, pairs[x].Symbol) {
+				continue
+			}
+			p, err := bi.MatchSymbolWithAvailablePairs(pairs[x].Symbol, assetType, false)
+			if err != nil {
+				return err
+			}
+			p, err = bi.FormatExchangeCurrency(p, assetType)
+			if err != nil {
+				return err
+			}
+			resp, err := bi.GetSpotCandlestickData(ctx, p, formatExchangeKlineIntervalSpot(kline.OneDay), time.Now().Add(-time.Hour*24), time.Now(), 2, false)
+			if err != nil {
+				return err
+			}
+			if len(resp.SpotCandles) == 0 {
+				return errReturnEmpty
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         resp.SpotCandles[0].High,
+				Low:          resp.SpotCandles[0].Low,
+				Volume:       resp.SpotCandles[0].BaseVolume,
+				QuoteVolume:  resp.SpotCandles[0].QuoteVolume,
+				Open:         resp.SpotCandles[0].Open,
+				Close:        resp.SpotCandles[0].Close,
+				LastUpdated:  resp.SpotCandles[0].Timestamp,
+				Pair:         p,
+				ExchangeName: bi.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	default:
@@ -698,6 +780,10 @@ func (bi *Bitget) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (bi *Bitget) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	// This exchange only allows requests covering the last 7 days
+	p, err := bi.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		resp, err := bi.GetSpotMarketTrades(ctx, p, timestampStart, timestampEnd, 1000, 0)
@@ -766,7 +852,7 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	case asset.Spot:
 		IDs, err = bi.PlaceSpotOrder(ctx, s.Pair, s.Side.String(), s.Type.Lower(), strat, cID.String(), "", s.Price, s.Amount, s.TriggerPrice, 0, 0, 0, 0, false, 0)
 	case asset.Futures:
-		IDs, err = bi.PlaceFuturesOrder(ctx, s.Pair, getProductType(s.Pair), marginStringer(s.MarginType), s.Pair.Quote.String(), sideEncoder(s.Side, false), s.Type.Lower(), strat, cID.String(), currency.Code{}, 0, 0, s.Amount, s.Price, s.ReduceOnly, false)
+		IDs, err = bi.PlaceFuturesOrder(ctx, s.Pair, getProductType(s.Pair), marginStringer(s.MarginType), sideEncoder(s.Side, false), "", s.Type.Lower(), strat, cID.String(), s.Pair.Quote, 0, 0, s.Amount, s.Price, s.ReduceOnly, false)
 	case asset.Margin, asset.CrossMargin:
 		loanType := "normal"
 		if s.AutoBorrow {
@@ -1037,13 +1123,13 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		var ordInfo *MarginOpenOrds
 		var fillInfo *MarginOrderFills
 		if assetType == asset.Margin {
-			ordInfo, err = bi.GetIsolatedOpenOrders(ctx, pair, "", ordID, 2, 0, time.Time{}, time.Time{})
+			ordInfo, err = bi.GetIsolatedOpenOrders(ctx, pair, "", ordID, 2, 0, time.Now().Add(-time.Hour*24*90), time.Now())
 			if err != nil {
 				return nil, err
 			}
 			fillInfo, err = bi.GetIsolatedOrderFills(ctx, pair, ordID, 0, 500, time.Now().Add(-time.Hour*24*90), time.Now())
 		} else {
-			ordInfo, err = bi.GetCrossOpenOrders(ctx, pair, "", ordID, 2, 0, time.Time{}, time.Time{})
+			ordInfo, err = bi.GetCrossOpenOrders(ctx, pair, "", ordID, 2, 0, time.Now().Add(-time.Hour*24*90), time.Now())
 			if err != nil {
 				return nil, err
 			}
@@ -1134,7 +1220,10 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		return nil, err
 	}
 	for x := range getOrdersRequest.Pairs {
-		getOrdersRequest.Pairs[x], err = bi.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot)
+		getOrdersRequest.Pairs[x], err = bi.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(getOrdersRequest.Pairs) == 0 {
 		getOrdersRequest.Pairs = append(getOrdersRequest.Pairs, currency.Pair{})
@@ -1270,8 +1359,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	return resp, nil
 }
 
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
+// GetOrderHistory retrieves account order information. Can Limit response to specific order status
 func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
@@ -1279,6 +1367,9 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 	}
 	for x := range getOrdersRequest.Pairs {
 		getOrdersRequest.Pairs[x], err = bi.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(getOrdersRequest.Pairs) == 0 {
 		getOrdersRequest.Pairs = append(getOrdersRequest.Pairs, currency.Pair{})
@@ -1657,9 +1748,9 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			limits[i] = order.MinMaxLevel{
 				Asset:                   a,
 				Pair:                    currency.NewPair(currency.NewCode(resp[i].BaseCoin), currency.NewCode(resp[i].QuoteCoin)),
-				PriceStepIncrementSize:  float64(resp[i].PricePrecision),
-				AmountStepIncrementSize: float64(resp[i].QuantityPrecision),
-				QuoteStepIncrementSize:  float64(resp[i].QuotePrecision),
+				PriceStepIncrementSize:  math.Pow10(-int(resp[i].PricePrecision)),
+				AmountStepIncrementSize: math.Pow10(-int(resp[i].QuantityPrecision)),
+				QuoteStepIncrementSize:  math.Pow10(-int(resp[i].QuotePrecision)),
 				MinNotional:             resp[i].MinTradeUSDT,
 				MarketMinQty:            resp[i].MinTradeAmount,
 				MarketMaxQty:            resp[i].MaxTradeAmount,
@@ -1695,8 +1786,8 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				MinNotional:             resp[i].MinTradeUSDT,
 				MarketMinQty:            resp[i].MinTradeAmount,
 				MarketMaxQty:            resp[i].MaxTradeAmount,
-				QuoteStepIncrementSize:  float64(resp[i].PricePrecision),
-				AmountStepIncrementSize: float64(resp[i].QuantityPrecision),
+				QuoteStepIncrementSize:  math.Pow10(-int(resp[i].PricePrecision)),
+				AmountStepIncrementSize: math.Pow10(-int(resp[i].QuantityPrecision)),
 			}
 		}
 	default:
@@ -1736,8 +1827,7 @@ func (bi *Bitget) UpdateCurrencyStates(ctx context.Context, a asset.Item) error 
 	return bi.States.UpdateAll(a, payload)
 }
 
-// GetAvailableTransferChains returns a list of supported transfer chains based
-// on the supplied cryptocurrency
+// GetAvailableTransferChains returns a list of supported transfer chains based on the supplied cryptocurrency
 func (bi *Bitget) GetAvailableTransferChains(ctx context.Context, cur currency.Code) ([]string, error) {
 	if cur.IsEmpty() {
 		return nil, errCurrencyEmpty
@@ -2236,8 +2326,7 @@ func (bi *Bitget) withdrawalHistGrabber(ctx context.Context, currency currency.C
 	return allData, nil
 }
 
-// PairFromStringHelper is a helper function that does some checks to help with common ambiguous cases in this
-// exchange
+// PairFromStringHelper is a helper function that does some checks to help with common ambiguous cases in this exchange
 func pairFromStringHelper(s string) (currency.Pair, error) {
 	pair := currency.Pair{}
 	i := strings.Index(s, "USD")
@@ -2304,8 +2393,7 @@ func marginDecoder(s string) margin.Type {
 	return margin.Unknown
 }
 
-// ActiveFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and
-// GetPendingFuturesTriggerOrders, returning the data formatted appropriately
+// ActiveFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and GetPendingFuturesTriggerOrders, returning the data formatted appropriately
 func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
 	var pagination int64
 	for {
@@ -2398,8 +2486,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 	return resp, nil
 }
 
-// SpotHistoricPlanOrdersHelper is a helper function that repeatedly calls GetHistoricalSpotOrders and returns
-// all data formatted appropriately
+// SpotHistoricPlanOrdersHelper is a helper function that repeatedly calls GetHistoricalSpotOrders and returns all data formatted appropriately
 func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
 	var pagination int64
 	for {
@@ -2440,8 +2527,7 @@ func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan curr
 	return resp, nil
 }
 
-// HistoricalFuturesOrderHelper is a helper function that repeatedly calls GetFuturesFills,
-// GetHistoricalFuturesOrders, and GetHistoricalTriggerFuturesOrders, returning the data formatted appropriately
+// HistoricalFuturesOrderHelper is a helper function that repeatedly calls GetFuturesFills, GetHistoricalFuturesOrders, and GetHistoricalTriggerFuturesOrders, returning the data formatted appropriately
 func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
 	var pagination int64
 	fillMap := make(map[int64][]order.TradeHistory)
@@ -2596,8 +2682,7 @@ func (bi *Bitget) spotFillsHelper(ctx context.Context, pair currency.Pair, fillM
 	return nil
 }
 
-// FormatExchangeKlineIntervalSpot is a helper function used to convert kline.Interval to the string format
-// required by the spot API
+// FormatExchangeKlineIntervalSpot is a helper function used to convert kline.Interval to the string format required by the spot API
 func formatExchangeKlineIntervalSpot(interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
@@ -2628,8 +2713,7 @@ func formatExchangeKlineIntervalSpot(interval kline.Interval) string {
 	return errIntervalNotSupported
 }
 
-// FormatExchangeKlineIntervalFutures is a helper function used to convert kline.Interval to the string format
-// required by the futures API
+// FormatExchangeKlineIntervalFutures is a helper function used to convert kline.Interval to the string format required by the futures API
 func formatExchangeKlineIntervalFutures(interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
@@ -2690,8 +2774,7 @@ func contractTypeDecoder(s string) futures.ContractType {
 	return futures.Unknown
 }
 
-// AllFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and
-// GetPendingFuturesTriggerOrders, returning the data formatted appropriately
+// AllFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and GetPendingFuturesTriggerOrders, returning the data formatted appropriately
 func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string, pairCan currency.Pair, resp []futures.PositionResponse) ([]futures.PositionResponse, error) {
 	var pagination1 int64
 	var pagination2 int64
