@@ -809,7 +809,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		wg.Add(len(batch))
 		for i, payload := range batch {
 			go func() {
-				err := g.managePayload(ctx, conn, event, channelsToSubscribe[k*subscriptionBatchCount+i], payload)
+				err := g.managePayload(ctx, conn, event, channelsToSubscribe[k*subscriptionBatchCount+i], &payload)
 				if err != nil {
 					ch <- fmt.Errorf("%s %s %s: %w", channelsToSubscribe[k].Channel, channelsToSubscribe[k].Asset, channelsToSubscribe[k].Pairs, err)
 				}
@@ -827,13 +827,13 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	return errs
 }
 
-func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload WsInput) error {
+func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
 	result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payload.ID, payload)
 	if err != nil {
 		return err
 	}
 	var resp WsEventResponse
-	if err = json.Unmarshal(result, &resp); err != nil {
+	if err := json.Unmarshal(result, &resp); err != nil {
 		return err
 	}
 	if resp.Error != nil && resp.Error.Code != 0 {

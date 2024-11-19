@@ -21,7 +21,7 @@ var (
 )
 
 // RateLimitNotRequired is used for when an endpoint does not require rate limiting
-var RateLimitNotRequired *RateLimiterWithWeight = nil
+var RateLimitNotRequired *RateLimiterWithWeight
 
 // Const here define individual functionality sub types for rate limiting
 const (
