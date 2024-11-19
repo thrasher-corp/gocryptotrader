@@ -58,7 +58,7 @@ const (
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 20},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -68,8 +68,10 @@ var defaultSubscriptions = subscription.List{
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    spotTickerChannel,
-	subscription.OrderbookChannel: spotOrderbookUpdateChannel,
+	subscription.TickerChannel: spotTickerChannel,
+	// NOTE: Opted for `spot.order_book` as snapshot to ensure long term stability over higher processing cost. Also there
+	// is no latency difference between this and `spot.order_book_update` both being 100ms.
+	subscription.OrderbookChannel: spotOrderbookChannel,
 	subscription.CandlesChannel:   spotCandlesticksChannel,
 	subscription.AllTradesChannel: spotTradesChannel,
 }
