@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -32,8 +33,7 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120 * time.Millisecond
+	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -53,6 +53,9 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
+
+	// subscriptionBatchCount is the number of subscriptions to send in a single batch
+	subscriptionBatchCount = 200
 )
 
 var defaultSubscriptions = subscription.List{
@@ -652,32 +655,50 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 		return errs
 	}
 
-	for _, s := range subs {
-		if err := func() error {
-			msg, err := g.manageSubReq(ctx, event, conn, s)
-			if err != nil {
-				return err
-			}
-			result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
-			if err != nil {
-				return err
-			}
-			var resp WsEventResponse
-			if err := json.Unmarshal(result, &resp); err != nil {
-				return err
-			}
-			if resp.Error != nil && resp.Error.Code != 0 {
-				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
-			}
-			if event == "unsubscribe" {
-				return g.Websocket.RemoveSubscriptions(conn, s)
-			}
-			return g.Websocket.AddSuccessfulSubscriptions(conn, s)
-		}(); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
+	ch := make(chan error, len(subs))
+	var wg sync.WaitGroup
+	for _, batch := range common.Batch(subs, subscriptionBatchCount) {
+		wg.Add(len(batch))
+		for _, s := range batch {
+			go func() {
+				err := g.manageTemplatePayload(ctx, conn, event, s)
+				if err != nil {
+					ch <- fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
+				}
+				wg.Done()
+			}()
 		}
+		wg.Wait()
 	}
+
+	close(ch)
+	for err := range ch {
+		errs = common.AppendError(errs, err)
+	}
+
 	return errs
+}
+
+func (g *Gateio) manageTemplatePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription) error {
+	msg, err := g.manageSubReq(ctx, event, conn, s)
+	if err != nil {
+		return err
+	}
+	result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+	if err != nil {
+		return err
+	}
+	var resp WsEventResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return err
+	}
+	if resp.Error != nil && resp.Error.Code != 0 {
+		return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
+	}
+	if event == "unsubscribe" {
+		return g.Websocket.RemoveSubscriptions(conn, s)
+	}
+	return g.Websocket.AddSuccessfulSubscriptions(conn, s)
 }
 
 // manageSubReq constructs the subscription management message for a subscription
@@ -782,26 +803,44 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		return err
 	}
 	var errs error
-	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
+	var wg sync.WaitGroup
+	ch := make(chan error, len(payloads))
+	for k, batch := range common.Batch(payloads, subscriptionBatchCount) {
+		wg.Add(len(batch))
+		for i, payload := range batch {
+			go func() {
+				err := g.managePayload(ctx, conn, event, channelsToSubscribe[k*subscriptionBatchCount+i], payload)
+				if err != nil {
+					ch <- fmt.Errorf("%s %s %s: %w", channelsToSubscribe[k].Channel, channelsToSubscribe[k].Asset, channelsToSubscribe[k].Pairs, err)
+				}
+				wg.Done()
+			}()
 		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
-			} else {
-				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
-			}
-		}
+		wg.Wait()
 	}
+
+	close(ch)
+	for err := range ch {
+		errs = common.AppendError(errs, err)
+	}
+
 	return errs
+}
+
+func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload WsInput) error {
+	result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payload.ID, payload)
+	if err != nil {
+		return err
+	}
+	var resp WsEventResponse
+	if err = json.Unmarshal(result, &resp); err != nil {
+		return err
+	}
+	if resp.Error != nil && resp.Error.Code != 0 {
+		return fmt.Errorf("error while %s to channel %s error code: %d message: %s", event, payload.Channel, resp.Error.Code, resp.Error.Message)
+	}
+	if event == subscribeEvent {
+		return g.Websocket.AddSuccessfulSubscriptions(conn, s)
+	}
+	return g.Websocket.RemoveSubscriptions(conn, s)
 }

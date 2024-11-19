@@ -20,6 +20,9 @@ var (
 	errSpecificRateLimiterIsNil = errors.New("specific rate limiter is nil")
 )
 
+// RateLimitNotRequired is used for when an endpoint does not require rate limiting
+var RateLimitNotRequired *RateLimiterWithWeight = nil
+
 // Const here define individual functionality sub types for rate limiting
 const (
 	Unset EndpointLimit = iota
