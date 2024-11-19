@@ -418,7 +418,7 @@ func (b *Binance) GetTradingDayTicker(ctx context.Context, symbols currency.Pair
 // symbol: string of currency pair
 func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair, symbols currency.Pairs) (*SymbolPrice, error) {
 	params := url.Values{}
-	rateLimit := spotSymbolPriceAllRate
+	rateLimit := spotTickerAllRate
 	if !symbol.IsEmpty() {
 		rateLimit = spotSymbolPriceRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)

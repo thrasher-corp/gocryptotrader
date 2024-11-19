@@ -3803,7 +3803,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestGetFundingRates(t *testing.T) {
+func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	s, e := getTime()
 	_, err := b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{

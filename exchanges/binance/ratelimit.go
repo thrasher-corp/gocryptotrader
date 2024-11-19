@@ -11,21 +11,21 @@ const (
 	// Global dictates the max rate limit for general request items which is
 	// 1200 requests per minute
 	spotInterval    = time.Minute
-	spotRequestRate = 1200
+	spotRequestRate = 6000
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
 	spotOrderInterval        = 10 * time.Second
 	spotOrderRequestRate     = 100
 	cFuturesInterval         = time.Minute
-	cFuturesRequestRate      = 6000
+	cFuturesRequestRate      = 2400
 	cFuturesOrderInterval    = time.Minute
 	cFuturesOrderRequestRate = 1200
 	uFuturesInterval         = time.Minute
 	uFuturesRequestRate      = 2400
-	uFuturesOrderInterval    = time.Minute
-	uFuturesOrderRequestRate = 1200
 	portfolioMarginRate      = 1200
 	portfolioMarginInterval  = time.Minute
+	uFuturesOrderInterval    = time.Second * 10
+	uFuturesOrderRequestRate = 300
 )
 
 // Binance Spot rate limits
@@ -40,8 +40,8 @@ const (
 	withdrawalHistoryRate
 	spotExchangeInfo
 	spotHistoricalTradesRate
-	spotOrderbookDepth100Rate
 	spotOrderbookDepth500Rate
+	spotOrderbookDepth100Rate
 	spotOrderbookDepth1000Rate
 	spotOrderbookDepth5000Rate
 	getRecentTradesListRate
@@ -58,6 +58,10 @@ const (
 	getTickers100Rate
 	getTickersMoreThan100Rate
 	spotPriceChangeAllRate
+	spotTicker1Rate
+	spotTicker20Rate
+	spotTicker100Rate
+	spotTickerAllRate
 	spotOpenOrdersAllRate
 	allCrossMarginFeeDataRate
 	allIsolatedMarginFeeDataRate

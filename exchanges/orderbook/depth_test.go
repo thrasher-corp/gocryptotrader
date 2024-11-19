@@ -77,7 +77,7 @@ func TestRetrieve(t *testing.T) {
 		lastUpdateID:           1337,
 		priceDuplication:       true,
 		isFundingRate:          true,
-		VerifyOrderbook:        true,
+		verifyOrderbook:        true,
 		restSnapshot:           true,
 		idAligned:              true,
 		maxDepth:               10,
@@ -441,8 +441,8 @@ func TestAssignOptions(t *testing.T) {
 	assert.Equal(t, tn, d.lastUpdated, "lastUpdated should be correct")
 	assert.EqualValues(t, 1337, d.lastUpdateID, "lastUpdatedID should be correct")
 	assert.True(t, d.priceDuplication, "priceDuplication should be correct")
-	assert.True(t, d.isFundingRate, "isFundingRate should be correct")
-	assert.True(t, d.VerifyOrderbook, "VerifyOrderbook should be correct")
+	assert.True(t, d.IsFundingRate(), "IsFundingRate should be correct")
+	assert.True(t, d.VerifyOrderbook(), "VerifyOrderbook should be correct")
 	assert.True(t, d.restSnapshot, "restSnapshot should be correct")
 	assert.True(t, d.idAligned, "idAligned should be correct")
 }

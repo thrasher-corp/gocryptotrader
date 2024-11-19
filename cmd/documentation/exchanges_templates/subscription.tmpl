@@ -43,13 +43,15 @@ Example:
 
 Assets and pairs should be output in the sequence in AssetPairs since text/template range function uses an sorted order for map keys.
 
-Template functions may modify AssetPairs to update the subscription's pairs, e.g. Filtering out margin pairs already in spot subscription
+Template functions may modify AssetPairs to update the subscription's pairs, e.g. Filtering out margin pairs already in spot subscription.
 
 We use separators like this because it allows mono-templates to decide at runtime whether to fan out.
 
-See exchanges/subscription/testdata/subscriptions.tmpl for an example mono-template showcasing various features
+See exchanges/subscription/testdata/subscriptions.tmpl for an example mono-template showcasing various features.
 
 Templates do not need to worry about joining around separators; Trailing separators will be stripped automatically.
+
+Template functions should panic to handle errors. They are caught by text/template and turned into errors for use in `subscription.expandTemplate`.
 
 {{template "contributions"}}
 {{template "donations" .}}
