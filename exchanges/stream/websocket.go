@@ -92,12 +92,12 @@ func NewWebsocket() *Websocket {
 		// after subscriptions are made but before the connectionMonitor has
 		// started. This allows the error to be read and handled in the
 		// connectionMonitor and start a connection cycle again.
-		ReadMessageErrors:   make(chan error, 1),
-		Match:               NewMatch(),
-		subscriptions:       subscription.NewStore(),
-		features:            &protocol.Features{},
-		Orderbook:           buffer.Orderbook{},
-		connectionToWrapper: make(map[Connection]*ConnectionWrapper),
+		ReadMessageErrors: make(chan error, 1),
+		Match:             NewMatch(),
+		subscriptions:     subscription.NewStore(),
+		features:          &protocol.Features{},
+		Orderbook:         buffer.Orderbook{},
+		connections:       make(map[Connection]*ConnectionWrapper),
 	}
 }
 
@@ -435,7 +435,7 @@ func (w *Websocket) connect() error {
 			break
 		}
 
-		w.connectionToWrapper[conn] = w.connectionManager[i]
+		w.connections[conn] = w.connectionManager[i]
 		w.connectionManager[i].Connection = conn
 
 		w.Wg.Add(1)
@@ -476,7 +476,7 @@ func (w *Websocket) connect() error {
 			}
 			w.connectionManager[x].Subscriptions.Clear()
 		}
-		clear(w.connectionToWrapper)
+		clear(w.connections)
 		w.setState(disconnectedState) // Flip from connecting to disconnected.
 
 		// Drain residual error in the single buffered channel, this mitigates
@@ -564,7 +564,7 @@ func (w *Websocket) shutdown() error {
 		}
 	}
 	// Clean map of old connections
-	clear(w.connectionToWrapper)
+	clear(w.connections)
 
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
@@ -655,7 +655,7 @@ func (w *Websocket) FlushChannels() error {
 			}
 			w.Wg.Add(1)
 			go w.Reader(context.TODO(), conn, w.connectionManager[x].Setup.Handler)
-			w.connectionToWrapper[conn] = w.connectionManager[x]
+			w.connections[conn] = w.connectionManager[x]
 			w.connectionManager[x].Connection = conn
 		}
 
@@ -674,7 +674,7 @@ func (w *Websocket) FlushChannels() error {
 
 		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
 		if w.connectionManager[x].Subscriptions.Len() == 0 {
-			delete(w.connectionToWrapper, w.connectionManager[x].Connection) // Remove from lookup map
+			delete(w.connections, w.connectionManager[x].Connection) // Remove from lookup map
 			if err := w.connectionManager[x].Connection.Shutdown(); err != nil {
 				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", w.exchangeName, err)
 			}
@@ -835,7 +835,7 @@ func (w *Websocket) GetName() string {
 // and the new subscription list when pairs are disabled or enabled.
 func (w *Websocket) GetChannelDifference(conn Connection, newSubs subscription.List) (sub, unsub subscription.List) {
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = &wrapper.Subscriptions
 	} else {
 		subscriptionStore = &w.subscriptions
@@ -851,7 +851,7 @@ func (w *Websocket) UnsubscribeChannels(conn Connection, channels subscription.L
 	if len(channels) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		return w.unsubscribe(wrapper.Subscriptions, channels, func(channels subscription.List) error {
 			return wrapper.Setup.Unsubscriber(context.TODO(), conn, channels)
 		})
@@ -897,7 +897,7 @@ func (w *Websocket) SubscribeToChannels(conn Connection, subs subscription.List)
 		return err
 	}
 
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		return wrapper.Setup.Subscriber(context.TODO(), conn, subs)
 	}
 
@@ -918,7 +918,7 @@ func (w *Websocket) AddSubscriptions(conn Connection, subs ...*subscription.Subs
 		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = &wrapper.Subscriptions
 	} else {
 		subscriptionStore = &w.subscriptions
@@ -948,7 +948,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(conn Connection, subs ...*subscri
 	}
 
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = &wrapper.Subscriptions
 	} else {
 		subscriptionStore = &w.subscriptions
@@ -977,7 +977,7 @@ func (w *Websocket) RemoveSubscriptions(conn Connection, subs ...*subscription.S
 	}
 
 	var subscriptionStore *subscription.Store
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = wrapper.Subscriptions
 	} else {
 		subscriptionStore = w.subscriptions
@@ -1064,7 +1064,7 @@ func checkWebsocketURL(s string) error {
 // The subscription state is not considered when counting existing subscriptions
 func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
-	if wrapper, ok := w.connectionToWrapper[conn]; ok && conn != nil {
+	if wrapper, ok := w.connections[conn]; ok && conn != nil {
 		subscriptionStore = wrapper.Subscriptions
 	} else {
 		subscriptionStore = w.subscriptions

@@ -84,10 +84,7 @@ type ConnectionSetup struct {
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
 	BespokeGenerateMessageID func(highPrecision bool) int64
-	// Authenticate is a function that will be called to authenticate the
-	// connection to the exchange's websocket server. This function should
-	// handle the authentication process and return an error if the
-	// authentication fails.
+	// Authenticate will be called to authenticate the connection
 	Authenticate func(ctx context.Context, conn Connection) error
 	// WrapperDefinedConnectionSignature is any type that will match to a specific connection. This could be an asset
 	// type `asset.Spot`, a string type denoting the individual URL, an authenticated or unauthenticated string or a
