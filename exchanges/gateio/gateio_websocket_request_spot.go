@@ -17,45 +17,43 @@ import (
 )
 
 var (
-	errBatchSliceEmpty  = errors.New("batch cannot be empty")
+	errOrdersEmpty      = errors.New("orders cannot be empty")
 	errNoOrdersToCancel = errors.New("no orders to cancel")
-	errEdgeCaseIssue    = errors.New("edge case issue")
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
 // WebsocketOrderPlaceSpot places an order via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []WebsocketOrder) ([]WebsocketOrderResponse, error) {
-	if len(batch) == 0 {
-		return nil, errBatchSliceEmpty
+func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, orders []WebsocketOrder) ([]WebsocketOrderResponse, error) {
+	if len(orders) == 0 {
+		return nil, errOrdersEmpty
 	}
 
-	for i := range batch {
-		if batch[i].Text == "" {
-			// For some reason the API requires a text field, or it will be
-			// rejected in the second response. This is a workaround.
-			batch[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
+	for i := range orders {
+		if orders[i].Text == "" {
+			// API requires Text field, or it will be rejected
+			orders[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
 		}
-		if batch[i].CurrencyPair == "" {
+		if orders[i].CurrencyPair == "" {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if batch[i].Side == "" {
+		if orders[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if batch[i].Amount == "" {
+		if orders[i].Amount == "" {
 			return nil, errInvalidAmount
 		}
-		if batch[i].Type == "limit" && batch[i].Price == "" {
+		if orders[i].Type == "limit" && orders[i].Price == "" {
 			return nil, errInvalidPrice
 		}
 	}
 
-	if len(batch) == 1 {
+	if len(orders) == 1 {
 		var singleResponse WebsocketOrderResponse
-		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch[0], &singleResponse, 2)
+		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
 	}
 	var resp []WebsocketOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch, &resp, 2)
+	return resp, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, orders, &resp, 2)
 }
 
 // WebsocketOrderCancelSpot cancels an order via the websocket connection
@@ -95,7 +93,8 @@ func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []Webso
 // WebsocketOrderCancelAllByPairSpot cancels all orders for a specific pair
 func (g *Gateio) WebsocketOrderCancelAllByPairSpot(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]WebsocketOrderResponse, error) {
 	if !pair.IsEmpty() && side == order.UnknownSide {
-		return nil, fmt.Errorf("%w: side cannot be unknown when pair is set as this will purge *ALL* open orders", errEdgeCaseIssue)
+		// This case will cancel all orders for every pair, this can be introduced later
+		return nil, fmt.Errorf("'%v' %w while pair is set", side, order.ErrSideIsInvalid)
 	}
 
 	sideStr := ""
@@ -150,6 +149,11 @@ func (g *Gateio) WebsocketGetOrderStatusSpot(ctx context.Context, orderID string
 	return &resp, g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
 }
 
+// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
+type funnelResult struct {
+	Result any `json:"result"`
+}
+
 // SendWebsocketRequest sends a websocket request to the exchange
 func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connSignature, params, result any, expectedResponses int) error {
 	paramPayload, err := json.Marshal(params)
@@ -176,7 +180,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		},
 	}
 
-	responses, err := conn.SendMessageReturnResponses(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, InspectPayloadForAck)
+	responses, err := conn.SendMessageReturnResponses(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, inspectPayloadForAck)
 	if err != nil {
 		return err
 	}
@@ -203,18 +207,12 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
-	to := struct {
-		Result any `json:"result"`
-	}{
-		Result: result,
-	}
-
-	return json.Unmarshal(inbound.Data, &to)
+	return json.Unmarshal(inbound.Data, &funnelResult{Result: result})
 }
 
-// InspectPayloadForAck checks the payload for an ack, it returns true if the
+// inspectPayloadForAck checks the payload for an ack, it returns true if the
 // payload does not contain an ack. This will force the cancellation of further
 // waiting for responses.
-func InspectPayloadForAck(data []byte) bool {
+func inspectPayloadForAck(data []byte) bool {
 	return !strings.Contains(string(data), "ack")
 }

@@ -40,7 +40,7 @@ func TestWebsocketLogin(t *testing.T) {
 func TestWebsocketOrderPlaceSpot(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketOrderPlaceSpot(context.Background(), nil)
-	require.ErrorIs(t, err, errBatchSliceEmpty)
+	require.ErrorIs(t, err, errOrdersEmpty)
 	_, err = g.WebsocketOrderPlaceSpot(context.Background(), make([]WebsocketOrder, 1))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	out := WebsocketOrder{CurrencyPair: "BTC_USDT"}
@@ -120,7 +120,7 @@ func TestWebsocketOrderCancelAllByPairSpot(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = g.WebsocketOrderCancelAllByPairSpot(context.Background(), pair, 0, "")
-	require.ErrorIs(t, err, errEdgeCaseIssue)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
