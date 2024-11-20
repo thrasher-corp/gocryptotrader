@@ -167,7 +167,7 @@ func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), a, true); enabled {
+		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.Compact(), a, false); enabled {
 			out = append(out, ticker.Price{
 				ExchangeName: g.Name,
 				Volume:       data.BaseVolume.Float64(),
@@ -204,7 +204,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	}
 
 	for _, a := range standardMarginAssetTypes {
-		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), a, true); enabled {
+		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.Compact(), a, false); enabled {
 			if err := g.Websocket.Trade.Update(saveTradeData, trade.Data{
 				Timestamp:    data.CreateTimeMs.Time(),
 				CurrencyPair: data.CurrencyPair,
@@ -239,7 +239,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 
 	out := make([]stream.KlineData, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if _, enabled, _ := g.MatchSymbolCheckEnabled(currencyPair.String(), a, true); enabled {
+		if _, enabled, _ := g.MatchSymbolCheckEnabled(currencyPair.Compact(), a, false); enabled {
 			out = append(out, stream.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
@@ -286,12 +286,13 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 
 	enabledAssets := make([]asset.Item, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), a, true); enabled {
+		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.Compact(), a, false); enabled {
 			enabledAssets = append(enabledAssets, a)
 		}
 	}
 
-	if !fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] {
+	sPair := data.CurrencyPair.String()
+	if !fetchedCurrencyPairSnapshotOrderbook[sPair] {
 		orderbooks, err := g.FetchOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
 		if err != nil {
 			return err
@@ -305,7 +306,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 				return err
 			}
 		}
-		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] = true
+		fetchedCurrencyPairSnapshotOrderbook[sPair] = true
 	}
 
 	asks := make([]orderbook.Tranche, len(data.Asks))
@@ -353,7 +354,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 	}
 
 	for _, a := range standardMarginAssetTypes {
-		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.String(), a, true); enabled {
+		if _, enabled, _ := g.MatchSymbolCheckEnabled(data.CurrencyPair.Compact(), a, false); enabled {
 			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:       g.Name,
 				Pair:           data.CurrencyPair,
