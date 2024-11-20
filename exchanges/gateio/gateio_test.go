@@ -3011,8 +3011,8 @@ func TestGetSettlementFromCurrency(t *testing.T) {
 	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
 		availPairs, err := g.GetAvailablePairs(assetType)
 		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
-		for x, pair := range availPairs {
-			t.Run(strconv.Itoa(x)+":"+assetType.String(), func(t *testing.T) {
+		for i, pair := range availPairs {
+			t.Run(strconv.Itoa(i)+":"+assetType.String(), func(t *testing.T) {
 				t.Parallel()
 				_, err := getSettlementFromCurrency(pair)
 				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", pair, assetType)
