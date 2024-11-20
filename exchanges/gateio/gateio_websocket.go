@@ -103,6 +103,60 @@ func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) e
 	return err
 }
 
+// websocketLogin authenticates the websocket connection
+func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
+	if conn == nil {
+		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
+	}
+
+	if channel == "" {
+		return nil, errChannelEmpty
+	}
+
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tn := time.Now().Unix()
+	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn, 10)
+	mac := hmac.New(sha512.New, []byte(creds.Secret))
+	if _, err = mac.Write([]byte(msg)); err != nil {
+		return nil, err
+	}
+	signature := hex.EncodeToString(mac.Sum(nil))
+
+	payload := WebsocketPayload{
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		APIKey:    creds.Key,
+		Signature: signature,
+		Timestamp: strconv.FormatInt(tn, 10),
+	}
+
+	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
+
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Payload.RequestID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var inbound WebsocketAPIResponse
+	if err := json.Unmarshal(resp, &inbound); err != nil {
+		return nil, err
+	}
+
+	if inbound.Header.Status != "200" {
+		var wsErr WebsocketErrors
+		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	}
+
+	var result WebsocketLoginResponse
+	return &result, json.Unmarshal(inbound.Data, &result)
+}
+
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
 	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10)
 	mac := hmac.New(sha512.New, []byte(secret))
