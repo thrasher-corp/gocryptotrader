@@ -44,6 +44,5 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	p.HTTPRecording = true
 	os.Exit(m.Run())
 }

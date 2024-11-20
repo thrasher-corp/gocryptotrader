@@ -1089,7 +1089,11 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 		return req, nil
 	}
-	return p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
+	err = p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
+	if err != nil {
+		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction
