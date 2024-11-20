@@ -19,11 +19,6 @@ func (p Pair) String() string {
 	return p.Base.String() + p.Delimiter + p.Quote.String()
 }
 
-// Compact returns a currency pair string without the delimiter
-func (p Pair) Compact() string {
-	return p.Base.String() + p.Quote.String()
-}
-
 // Lower converts the pair object to lowercase
 func (p Pair) Lower() Pair {
 	p.Base = p.Base.Lower()

@@ -1033,14 +1033,3 @@ func TestNewBTCUSDT(t *testing.T) {
 		t.Fatal("expected quote USDT from function NewBTCUSDT")
 	}
 }
-
-func TestCompact(t *testing.T) {
-	t.Parallel()
-	p := NewPair(BTC, USD)
-	require.Equal(t, "BTCUSD", p.Compact())
-	require.Equal(t, "btcusd", p.Lower().Compact())
-	p.Delimiter = "-"
-	require.Equal(t, "BTC-USD", p.String())
-	require.Equal(t, "BTCUSD", p.Compact())
-	require.Equal(t, "btcusd", p.Lower().Compact())
-}
