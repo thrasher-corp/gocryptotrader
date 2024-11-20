@@ -59,7 +59,7 @@ func TestUnmarshalJSON(t *testing.T) {
 
 	// Captures bad syntax when type should be time.Time (RFC3339)
 	require.ErrorIs(t, json.Unmarshal([]byte(`"2025-03-28T08:00:00Z"`), &testTime), strconv.ErrSyntax)
-	require.Error(t, json.Unmarshal([]byte(`"123456"`), &testTime))
+	require.Error(t, json.Unmarshal([]byte(`123456`), &testTime))
 }
 
 // 5030734	       240.1 ns/op	     168 B/op	       2 allocs/op (current)
