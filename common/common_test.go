@@ -603,7 +603,7 @@ func TestErrors(t *testing.T) {
 
 	err = AppendError(err, errors.New(""))
 	errString := err.Error()
-	require.NotEqual(t, errString[len(errString)-2:], ", ", "should not end with comma")
+	require.NotEqual(t, ", ", errString[len(errString)-2:], "should not end with comma")
 }
 
 func TestParseStartEndDate(t *testing.T) {
