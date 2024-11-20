@@ -765,10 +765,13 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 
-	inspector := func(b []byte) bool { return false }
-	_, err = wc.SendMessageReturnResponses(context.Background(), request.Unset, "123", req, 1, inspector, inspector)
-	assert.ErrorIs(t, err, errOnlyOneMessageInspector)
+	_, err = wc.SendMessageReturnResponsesWithInspector(context.Background(), request.Unset, "123", req, 1, inspection{})
+	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
+
+type inspection struct{}
+
+func (i inspection) Inspect([]byte) bool { return false }
 
 type reporter struct {
 	name string

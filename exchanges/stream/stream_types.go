@@ -26,7 +26,9 @@ type Connection interface {
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
 	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
-	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector ...Inspector) ([][]byte, error)
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
+	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
 	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
 	// SendJSONMessage sends a JSON encoded message over the connection
@@ -37,10 +39,11 @@ type Connection interface {
 	Shutdown() error
 }
 
-// Inspector is used to verify messages via SendMessageReturnResponse
-// Only one can used
+// Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
 // It inspects the []bytes websocket message and returns true if it is the appropriate message to action
-type Inspector func([]byte) bool
+type Inspector interface {
+	Inspect([]byte) bool
+}
 
 // Response defines generalised data from the stream connection
 type Response struct {
