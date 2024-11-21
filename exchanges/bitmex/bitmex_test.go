@@ -1127,6 +1127,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := b.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
+
+	for _, a := range b.GetAssetTypes(true) {
+		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+	}
+	_, err = b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error when no assets are enabled")
 }
 
 func TestSubscribe(t *testing.T) {
