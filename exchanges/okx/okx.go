@@ -514,7 +514,7 @@ func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *AlgoOrderParams)
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// PlaceIcebergOrder to place iceburg algo order
+// PlaceIcebergOrder to place iceberg algo order
 func (ok *Okx) PlaceIcebergOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1009,8 +1009,7 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, "rfq/create-quote", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelQuote cancels an existing active quote you have created in response to an Rfq.
-// rfqCancelQuote = "rfq/cancel-quote"
+// CancelQuote cancels an existing active quote you have created in response to an Rfq
 func (ok *Okx) CancelQuote(ctx context.Context, quoteID, clientQuoteID string) (*CancelQuoteResponse, error) {
 	if clientQuoteID == "" && quoteID == "" {
 		return nil, errMissingOrderIDAndClientSuppliedID
@@ -1022,7 +1021,7 @@ func (ok *Okx) CancelQuote(ctx context.Context, quoteID, clientQuoteID string) (
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleQuote cancel multiple active Quotes in a single batch. Maximum 100 quote orders can be canceled at a time.
+// CancelMultipleQuote cancels multiple active quotes in a single batch, with a maximum of 100 quote orders cancellable at once.
 func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestParams) ([]CancelQuoteResponse, error) {
 	if len(arg.QuoteIDs) == 0 && len(arg.ClientQuoteIDs) == 0 {
 		return nil, errMissingOrderIDAndClientSuppliedID
@@ -1031,7 +1030,7 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllQuotes cancels all active Quotes.
+// CancelAllQuotes cancels all active quote orders.
 func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
 	var resp types.Time
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil,
@@ -1040,7 +1039,7 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
 		}{Timestamp: &resp}, request.AuthenticatedRequest)
 }
 
-// GetRfqs retrieves details of Rfqs that the user is a counterparty to (either as the creator or the receiver of the Rfq).
+// GetRfqs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient.
 func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqResponse, error) {
 	if *arg == (RfqRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1068,7 +1067,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqRespons
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRfqsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetQuotes retrieves all Quotes that the user is a counterparty to (either as the creator or the receiver)
+// GetQuotes retrieves all Quotes where the user is a counterparty, either as the creator or the receiver.
 func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteResponse, error) {
 	if *arg == (QuoteRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1102,7 +1101,7 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRfqTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
+// GetRfqTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver.
 func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([]RfqTradeResponse, error) {
 	if *arg == (RfqTradesRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1139,7 +1138,7 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPublicRFQTrades retrieves the recent executed block trades.
+// GetPublicRFQTrades retrieves recent executed block trades.
 func (ok *Okx) GetPublicRFQTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
@@ -1213,7 +1212,7 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 	if arg.FundingSourceAddress != "6" && arg.FundingSourceAddress != "18" {
 		return nil, fmt.Errorf("%w sending address is required", errAddressRequired)
 	}
-	if arg.FundingReceipentAddress == "" {
+	if arg.FundingRecipientAddress == "" {
 		return nil, fmt.Errorf("%w receipent address is required", errAddressRequired)
 	}
 	var resp []FundingTransferResponse
@@ -2104,7 +2103,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 			}
 		}
 		if fee != 0 {
-			fee = -fee // Negative fee rate means commission else rebate.
+			fee = -fee // A negative fee rate indicates a commission charge; a positive rate indicates a rebate.
 		}
 		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.OfflineTradeFee:
@@ -2113,7 +2112,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 	return fee, nil
 }
 
-// GetTradeFee query trade fee rate of various instrument types and instrument ids.
+// GetTradeFee queries the trade fee rates for various instrument types and their respective IDs.
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying, instrumentFamily, ruleType string) ([]TradeFeeRate, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -2136,7 +2135,7 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues("account/trade-fee", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetInterestAccruedData returns accrued interest data
+// GetInterestAccruedData retrieves data on accrued interest.
 func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType, limit int64, ccy currency.Code, instrumentID, marginMode string, after, before time.Time) ([]InterestAccruedData, error) {
 	params := url.Values{}
 	if loanType == 1 || loanType == 2 {
@@ -2187,7 +2186,7 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, "account/set-greeks", input, &resp, request.AuthenticatedRequest)
 }
 
-// IsolatedMarginTradingSettings to set the currency margin and futures/perpetual Isolated margin trading mode.
+// IsolatedMarginTradingSettings configures the currency margin and sets the isolated margin trading mode for futures or perpetual contracts.
 func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg *IsolatedMode) (*IsolatedMode, error) {
 	if *arg == (IsolatedMode{}) {
 		return nil, common.ErrEmptyParams
@@ -2205,7 +2204,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg *IsolatedM
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, "account/set-isolated-mode", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// ManualBorrowAndRepayInQuickMarginMode creates a new manual borrow and repay
+// ManualBorrowAndRepayInQuickMarginMode initiates a new manual borrow and repayment process in Quick Margin mode.
 func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *BorrowAndRepay) (*BorrowAndRepay, error) {
 	if *arg == (BorrowAndRepay{}) {
 		return nil, common.ErrEmptyParams
@@ -2257,7 +2256,7 @@ func (ok *Okx) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, in
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumWithdrawals retrieves the maximum transferable amount from trading account to fuccount/quick-margin-borrow-repaynding account.
+// GetMaximumWithdrawals retrieves the maximum transferable amount from a trading account to a funding account for quick margin borrowing and repayment.
 func (ok *Okx) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2537,7 +2536,7 @@ func (ok *Okx) ManualRenewFixedLoanBorrowingOrder(ctx context.Context, orderID s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, manualRenewFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/manual-reborrow", arg, &resp, request.AuthenticatedRequest)
 }
 
-// RepayFixedLoanBorrowingOrder repays fiexed loan borrowing order
+// RepayFixedLoanBorrowingOrder repays fixed loan borrowing order
 func (ok *Okx) RepayFixedLoanBorrowingOrder(ctx context.Context, orderID string) (*OrderIDResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -3077,7 +3076,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	var resp *GridAlgoOrderIDResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil || resp.SMsg != "" {
+		if resp != nil && resp.SMsg != "" {
 			return nil, fmt.Errorf("%w, SCode %s SMsg %s", err, resp.SCode, resp.SMsg)
 		}
 		return nil, err
@@ -4063,9 +4062,6 @@ func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentT
 // Instrument type "SPOT" "SWAP"
 func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID,
 	beforeSubPositionID string, limit int64) ([]LeadTraderCurrentLeadPosition, error) {
-	if instrumentType != "SWAP" {
-		return nil, fmt.Errorf("%w asset: %s", errInvalidInstrumentType, instrumentType)
-	}
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -4089,9 +4085,6 @@ func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrument
 
 // GetLeadTraderLeadPositionHistory retrieve the lead trader completed leading position of the last 3 months. Returns reverse chronological order with subPosId.
 func (ok *Okx) GetLeadTraderLeadPositionHistory(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID, beforeSubPositionID string, limit int64) ([]LeadPosition, error) {
-	if instrumentType != "SWAP" {
-		return nil, fmt.Errorf("%w asset: %s", errInvalidInstrumentType, instrumentType)
-	}
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -4241,9 +4234,9 @@ func (ok *Okx) GetProductInfo(ctx context.Context) (*ProductInfo, error) {
 		"finance/staking-defi/eth/product-info", nil, &resp, request.AuthenticatedRequest)
 }
 
-// PurcahseETHStaking staking ETH for BETH
+// PurchaseETHStaking staking ETH for BETH
 // Only the assets in the funding account can be used.
-func (ok *Okx) PurcahseETHStaking(ctx context.Context, amount float64) error {
+func (ok *Okx) PurchaseETHStaking(ctx context.Context, amount float64) error {
 	if amount <= 0 {
 		return order.ErrAmountBelowMin
 	}
@@ -4963,7 +4956,7 @@ func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutD
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllSpreadOrdersAfterEPL, http.MethodPost, "sprd/cancel-all-after", arg, &resp, request.AuthenticatedRequest)
 }
 
-/************************************ Public Data Endpoinst *************************************************/
+/************************************ Public Data Endpoints *************************************************/
 
 // GetInstruments retrieve a list of instruments with open contracts.
 func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) ([]Instrument, error) {
@@ -5551,13 +5544,13 @@ func (ok *Okx) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInvi
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetUserAffilateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate.
-func (ok *Okx) GetUserAffilateRebateInformation(ctx context.Context, apiKey string) (*AffilateRebateInfo, error) {
+// GetUserAffiliateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate.
+func (ok *Okx) GetUserAffiliateRebateInformation(ctx context.Context, apiKey string) (*AffilateRebateInfo, error) {
 	if apiKey == "" {
 		return nil, errInvalidAPIKey
 	}
 	var resp *AffilateRebateInfo
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffilateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffiliateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
 }
 
 // SendHTTPRequest sends an authenticated http request to a desired

@@ -265,7 +265,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getEconomicCalendar":                            getEconomicCalendarEPL,
 		"getEstimatedDeliveryPrice":                      getEstimatedDeliveryPriceEPL,
 		"getAffilateInviteesDetail":                      getAffilateInviteesDetailEPL,
-		"getUserAffilateRebateInformation":               getUserAffilateRebateInformationEPL,
+		"getUserAffilateRebateInformation":               getUserAffiliateRebateInformationEPL,
 	}
 
 	rl, err := request.New("RateLimit_Static", http.DefaultClient, request.WithLimiter(GetRateLimit()))

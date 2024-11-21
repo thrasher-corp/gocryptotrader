@@ -766,7 +766,7 @@ func TestPlaceOrder(t *testing.T) {
 const (
 	instrumentJSON                                = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
 	placeOrderArgs                                = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
-	calculateOrderbookChecksumUpdateorderbookJSON = `{"Bids":[{"Amount":56,"Price":0.07014,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":608,"Price":0.07011,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07009,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.07006,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2347,"Price":0.07004,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":279,"Price":0.07003,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":52,"Price":0.07001,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":91,"Price":0.06997,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4242,"Price":0.06996,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":486,"Price":0.06995,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.06992,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.06991,"ID":0,"Period":0,"LiquidationOrders":0,
+	calculateOrderbookChecksumUpdateOrderbookJSON = `{"Bids":[{"Amount":56,"Price":0.07014,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":608,"Price":0.07011,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07009,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.07006,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2347,"Price":0.07004,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":279,"Price":0.07003,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":52,"Price":0.07001,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":91,"Price":0.06997,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4242,"Price":0.06996,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":486,"Price":0.06995,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.06992,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.06991,"ID":0,"Period":0,"LiquidationOrders":0,
 	"OrderCount":0},{"Amount":7518,"Price":0.06988,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.06976,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":71,"Price":0.06975,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1086,"Price":0.06973,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":513,"Price":0.06961,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4603,"Price":0.06959,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.0695,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3043,"Price":0.06946,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":103,"Price":0.06939,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5053,"Price":0.0693,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5039,"Price":0.06909,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5037,"Price":0.06888,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06886,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5008,"Price":0.06867,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5065,"Price":0.06846,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1572,"Price":0.06826,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1565,"Price":0.06801,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":67,"Price":0.06748,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":111,"Price":0.0674,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10038,"Price":0.0672,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.06652,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06625,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10924,"Price":0.06619,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05986,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05387,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04848,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04363,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Asks":[{"Amount":5,"Price":0.07026,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":765,"Price":0.07027,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07028,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.0703,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":280,"Price":0.07034,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2255,"Price":0.07035,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":28,"Price":0.07036,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.07037,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":137,"Price":0.07039,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":48,"Price":0.0704,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":32,"Price":0.07041,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3985,"Price":0.07043,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":257,"Price":0.07057,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":7870,"Price":0.07058,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.07059,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4539,"Price":0.07061,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1438,"Price":0.07068,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3162,"Price":0.07088,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":99,"Price":0.07104,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5018,"Price":0.07108,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1540,"Price":0.07115,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5080,"Price":0.07129,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1512,"Price":0.07145,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5016,"Price":0.0715,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5026,"Price":0.07171,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5062,"Price":0.07192,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1517,"Price":0.07197,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1511,"Price":0.0726,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10376,"Price":0.07314,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.07354,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10277,"Price":0.07466,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07626,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07636,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.0809,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.08899,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.09789,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.10768,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Exchange":"Okx","Pair":"BTC-USDT","Asset":"spot","LastUpdated":"0001-01-01T00:00:00Z","LastUpdateID":0,"PriceDuplication":false,"IsFundingRate":false,"RestSnapshot":false,"IDAlignment":false}`
 	placeMultipleOrderParamsJSON = `[{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b159","side":"buy","ordType":"limit","px":"2.15","sz":"2"},{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b15","side":"buy","ordType":"limit","px":"2.15","sz":"2"}]`
 )
@@ -1401,9 +1401,9 @@ func TestCancelMultipleQuote(t *testing.T) {
 func TestCancelAllQuotes(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	time, err := ok.CancelAllQuotes(contextGenerate())
+	tt, err := ok.CancelAllQuotes(contextGenerate())
 	require.NoError(t, err)
-	assert.NotEmpty(t, time)
+	assert.NotEmpty(t, tt)
 }
 
 func TestGetRfqs(t *testing.T) {
@@ -1481,21 +1481,21 @@ func TestFundingTransfer(t *testing.T) {
 	_, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{})
 	assert.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		FundingReceipentAddress: "6", FundingSourceAddress: "18", Currency: currency.BTC})
+		FundingRecipientAddress: "6", FundingSourceAddress: "18", Currency: currency.BTC})
 	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount: 12.000, FundingReceipentAddress: "6",
+		Amount: 12.000, FundingRecipientAddress: "6",
 		FundingSourceAddress: "18", Currency: currency.EMPTYCODE})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount: 12.000, FundingReceipentAddress: "6",
+		Amount: 12.000, FundingRecipientAddress: "6",
 		FundingSourceAddress: "", Currency: currency.BTC})
 	assert.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
 		Amount:                  12.000,
-		FundingReceipentAddress: "6",
+		FundingRecipientAddress: "6",
 		FundingSourceAddress:    "18",
 		Currency:                currency.BTC,
 	})
@@ -2481,7 +2481,7 @@ func TestGetProductInfo(t *testing.T) {
 func TestPurcahseETHStaking(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	err := ok.PurcahseETHStaking(context.Background(), 100)
+	err := ok.PurchaseETHStaking(context.Background(), 100)
 	assert.NoError(t, err)
 }
 
@@ -3242,7 +3242,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
 	var orderbookBase orderbook.Base
-	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateorderbookJSON), &orderbookBase)
+	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
 	require.NoError(t, err)
 	err = ok.CalculateUpdateOrderbookChecksum(&orderbookBase, 2832680552)
 	assert.NoError(t, err)
@@ -4872,7 +4872,7 @@ func TestSetFirstCopySettings(t *testing.T) {
 	result, err := ok.AmendCopySettings(context.Background(), &FirstCopySettings{
 		InstrumentType:       "SWAP",
 		UniqueCode:           "25CD5A80241D6FE6",
-		CopyMgnMode:          "cross",
+		CopyMarginMode:       "cross",
 		CopyInstrumentIDType: "copy",
 		CopyMode:             "ratio_copy",
 		CopyRatio:            1,
@@ -4910,7 +4910,7 @@ func TestAmendCopySettings(t *testing.T) {
 	result, err := ok.SetFirstCopySettings(context.Background(), &FirstCopySettings{
 		InstrumentType:       "SWAP",
 		UniqueCode:           "25CD5A80241D6FE6",
-		CopyMgnMode:          "cross",
+		CopyMarginMode:       "cross",
 		CopyInstrumentIDType: "copy",
 		CopyMode:             "ratio_copy",
 		CopyRatio:            1,
@@ -5057,9 +5057,7 @@ func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 
 func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), okxInstTypeSpot, leadTraderUniqueID, "", "", 10)
-	require.ErrorIs(t, err, errInvalidInstrumentType)
-	_, err = ok.GetLeadTraderCurrentLeadPositions(context.Background(), okxInstTypeSwap, "", "", "", 10)
+	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), okxInstTypeSwap, "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
 	result, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SWAP", leadTraderUniqueID, "", "", 10)
@@ -5069,10 +5067,7 @@ func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 
 func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), okxInstTypeSpot, leadTraderUniqueID, "", "", 10)
-	require.ErrorIs(t, err, errInvalidInstrumentType)
-
-	_, err = ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", "", "", "", 10)
+	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
 	result, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", leadTraderUniqueID, "", "", 10)
@@ -5356,11 +5351,11 @@ func TestGetInviteesDetail(t *testing.T) {
 
 func TestGetUserAffilateRebateInformation(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetUserAffilateRebateInformation(context.Background(), "")
+	_, err := ok.GetUserAffiliateRebateInformation(context.Background(), "")
 	require.ErrorIs(t, err, errInvalidAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetUserAffilateRebateInformation(context.Background(), "1234")
+	result, err := ok.GetUserAffiliateRebateInformation(context.Background(), "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5785,9 +5780,6 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 }
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	ok := new(Okx)
-	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
-
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := ok.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -5829,9 +5821,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestGenerateGridSubscriptions(t *testing.T) {
 	t.Parallel()
-	ok := new(Okx)
-	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
-
 	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	subs, err := ok.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -5843,4 +5832,42 @@ func TestGenerateGridSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: okxChannelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+const (
+	processSpreadOrderbookJSON      = `{"arg":{"channel":"sprd-books5", "sprdId": "BTC-USDT_BTC-USDT-SWAP" }, "data": [ { "asks": [ ["111.06","55154","2"], ["111.07","53276","2"], ["111.08","72435","2"], ["111.09","70312","2"], ["111.1","67272","2"]], "bids": [ ["111.05","57745","2"], ["111.04","57109","2"], ["111.03","69563","2"], ["111.02","71248","2"], ["111.01","65090","2"]], "ts": "1670324386802"}]}`
+	wsProcessPublicSpreadTradesJSON = `{"arg":{"channel":"sprd-public-trades", "sprdId": "BTC-USDT_BTC-USDT-SWAP" }, "data": [ { "sprdId": "BTC-USDT_BTC-USDT-SWAP", "tradeId": "2499206329160695808", "px": "-10", "sz": "0.001", "side": "sell", "ts": "1726801105519"}]}`
+	okxSpreadPublicTickerJSON       = `{"arg":{"channel":"sprd-tickers", "sprdId": "BTC-USDT_BTC-USDT-SWAP" }, "data": [ { "sprdId": "BTC-USDT_BTC-USDT-SWAP", "last": "4", "lastSz": "0.01", "askPx": "19.7", "askSz": "5.79", "bidPx": "5.9", "bidSz": "5.79", "open24h": "-7", "high24h": "19.6", "low24h": "-7", "vol24h": "9.87", "ts": "1715247061026"}]}`
+	wsProcessSpreadOrdersJSON       = `{"arg":{"channel":"sprd-orders","sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936"}, "data": [{"sprdId": "BTC-USDT_BTC-UST-SWAP", "ordId": "312269865356374016", "clOrdId": "b1", "tag": "", "px": "999", "sz": "3", "ordType": "limit", "side": "buy", "fillSz": "0", "fillPx": "", "tradeId": "", "accFillSz": "0", "pendingFillSz": "2", "pendingSettleSz": "1", "canceledSz": "1", "state": "live", "avgPx": "0", "cancelSource": "", "uTime": "1597026383085", "cTime": "1597026383085", "code": "0", "msg": "", "reqId": "", "amendResult": ""}]}`
+	wsProcessSpreadTradesJSON       = `{"arg":{"channel":"sprd-trades", "sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936" }, "data":[ { "sprdId":"BTC-USDT-SWAP_BTC-USDT-200329", "tradeId":"123", "ordId":"123445", "clOrdId": "b16", "tag":"", "fillPx":"999", "fillSz":"3", "state": "filled", "side":"buy", "execType":"M", "ts":"1597026383085", "legs": [ { "instId": "BTC-USDT-SWAP", "px": "20000", "sz": "3", "szCont": "0.03", "side": "buy", "fee": "", "feeCcy": "", "tradeId": "1232342342" }, { "instId": "BTC-USDT-200329", "px": "21000", "sz": "3", "szCont": "0.03", "side": "sell", "fee": "", "feeCcy": "", "tradeId": "5345646634" } ], "code": "", "msg":""}]}`
+)
+
+func TestWsProcessSpreadOrderbook(t *testing.T) {
+	t.Parallel()
+	err := ok.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON))
+	assert.NoError(t, err)
+}
+
+func TestWsProcessPublicSpreadTrades(t *testing.T) {
+	t.Parallel()
+	err := ok.wsProcessPublicSpreadTrades([]byte(wsProcessPublicSpreadTradesJSON))
+	assert.NoError(t, err)
+}
+
+func TestWsProcessPublicSpreadTicker(t *testing.T) {
+	t.Parallel()
+	err := ok.wsProcessPublicSpreadTicker([]byte(okxSpreadPublicTickerJSON))
+	assert.NoError(t, err)
+}
+
+func TestWsProcessSpreadOrders(t *testing.T) {
+	t.Parallel()
+	err := ok.wsProcessSpreadOrders([]byte(wsProcessSpreadOrdersJSON))
+	assert.NoError(t, err)
+}
+
+func TestWsProcessSpreadTradesJSON(t *testing.T) {
+	t.Parallel()
+	err := ok.wsProcessSpreadTrades([]byte(wsProcessSpreadTradesJSON))
+	assert.NoError(t, err)
 }

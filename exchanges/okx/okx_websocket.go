@@ -102,7 +102,6 @@ const (
 	okxChannelStructureBlockTrades = "struc-block-trades"
 	okxChannelSpotGridOrder        = "grid-orders-spot"
 	okxChannelGridOrdersContract   = "grid-orders-contract"
-	okxChannelMoonGridAlgoOrders   = "grid-orders-moon"
 	okxChannelGridPositions        = "grid-positions"
 	okxChannelGridSubOrders        = "grid-sub-orders"
 	okxRecurringBuyChannel         = "algo-recurring-buy"
@@ -235,7 +234,7 @@ const (
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
@@ -273,12 +272,21 @@ func (ok *Okx) WsConnect() error {
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
+	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		err = ok.WsAuth(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
+	}
+	subscs, err := ok.generateSubscriptions()
+	if err != nil {
+		return err
+	}
+	err = ok.Subscribe(subscs)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -479,7 +487,6 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 	if operation == operationUnsubscribe {
 		return ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
 	}
-
 	return ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
 }
 
@@ -646,7 +653,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		}{}
 		return ok.wsProcessPushData(respRaw, resp)
 	case okxLiquidationOrders:
-		var resp LiquidiationOrder
+		var resp *LiquidationOrder
 		return ok.wsProcessPushData(respRaw, &resp)
 	case okxADLWarning:
 		var resp ADLWarning
@@ -718,7 +725,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 	if len(resp.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
+	pair, err := ok.GetPairFromInstrumentID(resp.Argument.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -739,7 +746,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 		}
 		orderDetails[x] = order.Detail{
 			Amount:               resp.Data[x].Size.Float64(),
-			AverageExecutedPrice: resp.Data[x].AvgPrice.Float64(),
+			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
 			Exchange:             ok.Name,
@@ -2201,7 +2208,7 @@ func (ok *Okx) TickersSubscription(ctx context.Context, operation string, assetT
 	return ok.wsChannelSubscription(ctx, operation, okxChannelTickers, assetType, pair, false, true, false)
 }
 
-// OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will by pushed every 3 seconds.
+// OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will be pushed every 3 seconds.
 func (ok *Okx) OpenInterestSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
 	if assetType != asset.Futures && assetType != asset.Options && assetType != asset.PerpetualSwap {
 		return fmt.Errorf("%w, received '%v' only FUTURES, SWAP and OPTION asset types are supported", errInvalidInstrumentType, assetType)

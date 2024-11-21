@@ -68,7 +68,7 @@ func (ok *Okx) WsConnectBusiness() error {
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	if ok.IsWebsocketAuthenticationSupported() {
+	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		err = ok.WsSpreadAuth(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
