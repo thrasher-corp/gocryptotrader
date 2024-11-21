@@ -234,7 +234,7 @@ const (
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
