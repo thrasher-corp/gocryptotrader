@@ -820,7 +820,7 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 
 // CancelAllMMPOrdersAfterCountdown cancel all MMP pending orders after the countdown timeout.
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int64, orderTag string) (*CancelMMPAfterCountdownResponse, error) {
+func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int64, orderTag string) (*CancelResponse, error) {
 	if (timeout != 0) && (timeout < 10 || timeout > 120) {
 		return nil, fmt.Errorf("%w, Range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
 	}
@@ -831,7 +831,7 @@ func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int
 		TimeOut:  timeout,
 		OrderTag: orderTag,
 	}
-	var resp *CancelMMPAfterCountdownResponse
+	var resp *CancelResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodPost, "trade/cancel-all-after", arg, &resp, request.AuthenticatedRequest)
 }
 
