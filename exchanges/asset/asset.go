@@ -20,10 +20,10 @@ type Item uint32
 // Items stores a list of assets types
 type Items []Item
 
-// Const vars for asset package
+// Supported Assets
 const (
 	Empty Item = 0
-	Spot  Item = 1 << iota
+	Spot  Item = 1 << (iota - 1)
 	Margin
 	CrossMargin
 	MarginFunding
@@ -41,9 +41,11 @@ const (
 	Options
 	OptionCombo
 	FutureCombo
-	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5
-	All
+	LinearContract // Derivatives with a linear Base (e.g. USDT or USDC)
+	All            // Must come immediately after all valid assets
+)
 
+const (
 	optionsFlag   = OptionCombo | Options
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
 	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract | OptionCombo | FutureCombo
@@ -67,6 +69,7 @@ const (
 	options                = "options"
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
+	linearContract         = "linearcontract"
 	all                    = "all"
 )
 
@@ -118,6 +121,8 @@ func (a Item) String() string {
 		return optionCombo
 	case FutureCombo:
 		return futureCombo
+	case LinearContract:
+		return linearContract
 	case All:
 		return all
 	default:
@@ -224,6 +229,8 @@ func New(input string) (Item, error) {
 		return OptionCombo, nil
 	case futureCombo:
 		return FutureCombo, nil
+	case linearContract:
+		return LinearContract, nil
 	case all:
 		return All, nil
 	default:
