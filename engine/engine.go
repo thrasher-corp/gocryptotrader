@@ -795,7 +795,7 @@ func (bot *Engine) LoadExchange(name string) error {
 		if err != nil {
 			gctlog.Errorf(gctlog.ExchangeSys, "error disabling rate limiter for %s: %v", exch.GetName(), err)
 		} else {
-			gctlog.Warnf(gctlog.ExchangeSys, "Loaded exchange %s rate limiting has been turned off\n", exch.GetName())
+			gctlog.Warnf(gctlog.ExchangeSys, "%s rate limiting has been turned off", exch.GetName())
 		}
 	}
 
