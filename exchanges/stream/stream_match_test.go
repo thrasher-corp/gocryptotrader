@@ -51,3 +51,18 @@ func TestRemoveSignature(t *testing.T) {
 		t.Fatal("Should be able to read from a closed channel")
 	}
 }
+
+func TestEnsureMatchWithData(t *testing.T) {
+	t.Parallel()
+	match := NewMatch()
+	err := match.EnsureMatchWithData("hello", []byte("world"))
+	require.ErrorIs(t, err, ErrSignatureNotMatched, "Should error on unmatched signature")
+	assert.Contains(t, err.Error(), "world", "Should contain the data in the error message")
+	assert.Contains(t, err.Error(), "hello", "Should contain the signature in the error message")
+
+	ch, err := match.Set("hello", 1)
+	require.NoError(t, err, "Set must not error")
+	err = match.EnsureMatchWithData("hello", []byte("world"))
+	require.NoError(t, err, "Should not error on matched signature")
+	assert.Equal(t, "world", string(<-ch))
+}

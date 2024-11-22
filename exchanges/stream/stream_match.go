@@ -2,8 +2,11 @@ package stream
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
+
+var ErrSignatureNotMatched = errors.New("websocket response to request signature not matched")
 
 var (
 	errSignatureCollision = errors.New("signature collision")
@@ -45,6 +48,15 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 		delete(m.m, signature)
 	}
 	return true
+}
+
+// EnsureMatchWithData validates that incoming data matches a request's signature.
+// If a match is found, the data is processed; otherwise, it returns an error.
+func (m *Match) EnsureMatchWithData(signature any, data []byte) error {
+	if m.IncomingWithData(signature, data) {
+		return nil
+	}
+	return fmt.Errorf("'%v' %w with data %v", signature, ErrSignatureNotMatched, string(data))
 }
 
 // Set the signature response channel for incoming data
