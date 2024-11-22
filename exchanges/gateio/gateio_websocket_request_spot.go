@@ -180,7 +180,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		},
 	}
 
-	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, g)
+	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
 	if err != nil {
 		return err
 	}
@@ -210,9 +210,10 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 	return json.Unmarshal(inbound.Data, &funnelResult{Result: result})
 }
 
-// Inspect checks the payload for an ack, it returns true if the
-// payload does not contain an ack. This will force the cancellation of further
-// waiting for responses.
-func (g *Gateio) Inspect(data []byte) bool {
+type wsRespAckInspector struct{}
+
+// IsFinal checks the payload for an ack, it returns true if the payload does not contain an ack.
+// This will force the cancellation of further waiting for responses.
+func (wsRespAckInspector) IsFinal(data []byte) bool {
 	return !strings.Contains(string(data), "ack")
 }

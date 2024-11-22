@@ -40,9 +40,9 @@ type Connection interface {
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
-// It inspects the []bytes websocket message and returns true if it is the appropriate message to action
+// It inspects the []bytes websocket message and returns true if the message is the final message in a sequence of expected messages
 type Inspector interface {
-	Inspect([]byte) bool
+	IsFinal([]byte) bool
 }
 
 // Response defines generalised data from the stream connection

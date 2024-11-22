@@ -771,7 +771,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 
 type inspection struct{}
 
-func (i inspection) Inspect([]byte) bool { return false }
+func (inspection) IsFinal([]byte) bool { return false }
 
 type reporter struct {
 	name string

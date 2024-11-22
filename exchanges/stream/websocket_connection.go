@@ -349,7 +349,7 @@ func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature an
 		case resp := <-ch:
 			resps = append(resps, resp)
 			// Checks recently received message to determine if this is in fact the final message in a sequence of messages.
-			if messageInspector != nil && messageInspector.Inspect(resp) {
+			if messageInspector != nil && messageInspector.IsFinal(resp) {
 				w.Match.RemoveSignature(signature)
 				return resps, nil
 			}
