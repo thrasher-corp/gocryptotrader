@@ -1239,11 +1239,11 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, []byte) error { return nil }
-	connSetup.WrapperDefinedConnectionSignature = []string{"slices are super naughty and not comparable"}
+	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errWrapperDefinedConnectionSignatureNotComparable)
+	require.ErrorIs(t, err, errMessageFilterNotComparable)
 
-	connSetup.WrapperDefinedConnectionSignature = "comparable string signature"
+	connSetup.MessageFilter = "comparable string signature"
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
@@ -1525,7 +1525,7 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
 	ws.connectionManager = []*ConnectionWrapper{{
-		Setup: &ConnectionSetup{WrapperDefinedConnectionSignature: "testURL", URL: "testURL"},
+		Setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
 	}}
 
 	_, err = ws.GetConnection("testURL")

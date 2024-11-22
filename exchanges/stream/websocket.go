@@ -36,40 +36,40 @@ var (
 
 // Private websocket errors
 var (
-	errExchangeConfigIsNil                            = errors.New("exchange config is nil")
-	errWebsocketIsNil                                 = errors.New("websocket is nil")
-	errWebsocketSetupIsNil                            = errors.New("websocket setup is nil")
-	errWebsocketAlreadyInitialised                    = errors.New("websocket already initialised")
-	errWebsocketAlreadyEnabled                        = errors.New("websocket already enabled")
-	errWebsocketFeaturesIsUnset                       = errors.New("websocket features is unset")
-	errConfigFeaturesIsNil                            = errors.New("exchange config features is nil")
-	errDefaultURLIsEmpty                              = errors.New("default url is empty")
-	errRunningURLIsEmpty                              = errors.New("running url cannot be empty")
-	errInvalidWebsocketURL                            = errors.New("invalid websocket url")
-	errExchangeConfigNameEmpty                        = errors.New("exchange config name empty")
-	errInvalidTrafficTimeout                          = errors.New("invalid traffic timeout")
-	errTrafficAlertNil                                = errors.New("traffic alert is nil")
-	errWebsocketSubscriberUnset                       = errors.New("websocket subscriber function needs to be set")
-	errWebsocketUnsubscriberUnset                     = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
-	errWebsocketConnectorUnset                        = errors.New("websocket connector function not set")
-	errWebsocketDataHandlerUnset                      = errors.New("websocket data handler not set")
-	errReadMessageErrorsNil                           = errors.New("read message errors is nil")
-	errWebsocketSubscriptionsGeneratorUnset           = errors.New("websocket subscriptions generator function needs to be set")
-	errSubscriptionsExceedsLimit                      = errors.New("subscriptions exceeds limit")
-	errInvalidMaxSubscriptions                        = errors.New("max subscriptions cannot be less than 0")
-	errSameProxyAddress                               = errors.New("cannot set proxy address to the same address")
-	errNoConnectFunc                                  = errors.New("websocket connect func not set")
-	errAlreadyConnected                               = errors.New("websocket already connected")
-	errCannotShutdown                                 = errors.New("websocket cannot shutdown")
-	errAlreadyReconnecting                            = errors.New("websocket in the process of reconnection")
-	errConnSetup                                      = errors.New("error in connection setup")
-	errNoPendingConnections                           = errors.New("no pending connections, call SetupNewConnection first")
-	errConnectionWrapperDuplication                   = errors.New("connection wrapper duplication")
-	errCannotChangeConnectionURL                      = errors.New("cannot change connection URL when using multi connection management")
-	errExchangeConfigEmpty                            = errors.New("exchange config is empty")
-	errCannotObtainOutboundConnection                 = errors.New("cannot obtain outbound connection")
-	errConnectionSignatureNotSet                      = errors.New("connection signature not set")
-	errWrapperDefinedConnectionSignatureNotComparable = errors.New("wrapper defined connection signature is not comparable")
+	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
+	errWebsocketIsNil                       = errors.New("websocket is nil")
+	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
+	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
+	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
+	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
+	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
+	errDefaultURLIsEmpty                    = errors.New("default url is empty")
+	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
+	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
+	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
+	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
+	errTrafficAlertNil                      = errors.New("traffic alert is nil")
+	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
+	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
+	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
+	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
+	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
+	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
+	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
+	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
+	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
+	errNoConnectFunc                        = errors.New("websocket connect func not set")
+	errAlreadyConnected                     = errors.New("websocket already connected")
+	errCannotShutdown                       = errors.New("websocket cannot shutdown")
+	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
+	errConnSetup                            = errors.New("error in connection setup")
+	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
+	errConnectionWrapperDuplication         = errors.New("connection wrapper duplication")
+	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
+	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
+	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
+	errConnectionSignatureNotSet            = errors.New("connection signature not set")
+	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 )
 
 var globalReporter Reporter
@@ -265,15 +265,15 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
 		}
 
-		if c.WrapperDefinedConnectionSignature != nil && !reflect.TypeOf(c.WrapperDefinedConnectionSignature).Comparable() {
-			return errWrapperDefinedConnectionSignatureNotComparable
+		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
+			return errMessageFilterNotComparable
 		}
 
 		for x := range w.connectionManager {
 			// Below allows for multiple connections to the same URL with different outbound request signatures. This
 			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
 			// a spot connection.
-			if w.connectionManager[x].Setup.URL == c.URL && c.WrapperDefinedConnectionSignature == w.connectionManager[x].Setup.WrapperDefinedConnectionSignature {
+			if w.connectionManager[x].Setup.URL == c.URL && c.MessageFilter == w.connectionManager[x].Setup.MessageFilter {
 				return fmt.Errorf("%w: %w", errConnSetup, errConnectionWrapperDuplication)
 			}
 		}
@@ -1286,7 +1286,7 @@ func (w *Websocket) GetConnection(connSignature any) (Connection, error) {
 	}
 
 	for _, wrapper := range w.connectionManager {
-		if wrapper.Setup.WrapperDefinedConnectionSignature == connSignature {
+		if wrapper.Setup.MessageFilter == connSignature {
 			if wrapper.Connection == nil {
 				return nil, fmt.Errorf("%s: %s %w: %v", w.exchangeName, wrapper.Setup.URL, ErrNotConnected, connSignature)
 			}

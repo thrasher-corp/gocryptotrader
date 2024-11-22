@@ -86,10 +86,9 @@ type ConnectionSetup struct {
 	BespokeGenerateMessageID func(highPrecision bool) int64
 	// Authenticate will be called to authenticate the connection
 	Authenticate func(ctx context.Context, conn Connection) error
-	// WrapperDefinedConnectionSignature is any type that will match to a specific connection. This could be an asset
-	// type `asset.Spot`, a string type denoting the individual URL, an authenticated or unauthenticated string or a
-	// mixture of these.
-	WrapperDefinedConnectionSignature any
+	// MessageFilter defines the criteria used to match messages to a specific connection.
+	// The filter enables precise routing and handling of messages for distinct connection contexts.
+	MessageFilter any
 }
 
 // ConnectionWrapper contains the connection setup details to be used when
