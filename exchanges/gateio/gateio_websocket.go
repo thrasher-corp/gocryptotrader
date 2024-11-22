@@ -99,30 +99,29 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 
 // authenticateSpot sends an authentication message to the websocket connection
 func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
-	_, err := g.websocketLogin(ctx, conn, "spot.login")
-	return err
+	return g.websocketLogin(ctx, conn, "spot.login")
 }
 
 // websocketLogin authenticates the websocket connection
-func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
+func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) error {
 	if conn == nil {
-		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
+		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}
 
 	if channel == "" {
-		return nil, errChannelEmpty
+		return errChannelEmpty
 	}
 
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	tn := time.Now().Unix()
 	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn, 10)
 	mac := hmac.New(sha512.New, []byte(creds.Secret))
 	if _, err = mac.Write([]byte(msg)); err != nil {
-		return nil, err
+		return err
 	}
 	signature := hex.EncodeToString(mac.Sum(nil))
 
@@ -137,24 +136,23 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 
 	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Payload.RequestID, req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(resp, &inbound); err != nil {
-		return nil, err
+		return err
 	}
 
 	if inbound.Header.Status != "200" {
 		var wsErr WebsocketErrors
 		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-			return nil, err
+			return err
 		}
-		return nil, fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
-	var result WebsocketLoginResponse
-	return &result, json.Unmarshal(inbound.Data, &result)
+	return nil
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {

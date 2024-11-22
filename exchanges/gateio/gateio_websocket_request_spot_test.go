@@ -18,10 +18,10 @@ import (
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	_, err := g.websocketLogin(context.Background(), nil, "")
+	err := g.websocketLogin(context.Background(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = g.websocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
+	err = g.websocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
 	require.ErrorIs(t, err, errChannelEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -32,9 +32,8 @@ func TestWebsocketLogin(t *testing.T) {
 	demonstrationConn, err := g.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 
-	got, err := g.websocketLogin(context.Background(), demonstrationConn, "spot.login")
+	err = g.websocketLogin(context.Background(), demonstrationConn, "spot.login")
 	require.NoError(t, err)
-	require.NotEmpty(t, got)
 }
 
 func TestWebsocketOrderPlaceSpot(t *testing.T) {
