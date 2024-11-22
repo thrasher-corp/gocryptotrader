@@ -1,7 +1,7 @@
 package binance
 
 import (
-	"time"
+	"encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -63,18 +63,42 @@ type SymbolOrderBookTicker struct {
 
 // FuturesCandleStick holds kline data
 type FuturesCandleStick struct {
-	OpenTime                time.Time
-	Open                    float64
-	High                    float64
-	Low                     float64
-	Close                   float64 // Latest price
-	Volume                  float64
-	CloseTime               time.Time
-	BaseAssetVolume         float64
-	QuoteAssetVolume        float64
-	NumberOfTrades          int64
-	TakerBuyVolume          float64
-	TakerBuyBaseAssetVolume float64
+	OpenTime                types.Time
+	Open                    types.Number
+	High                    types.Number
+	Low                     types.Number
+	Close                   types.Number // Latest price
+	Volume                  types.Number
+	CloseTime               types.Time
+	NumberOfTrades          types.Number
+	TakerBuyVolume          types.Number
+	TakerBuyBaseAssetVolume types.Number
+}
+
+// UFuturesCandleStick holds kline data for USDT/USDC margined futures contracts
+type UFuturesCandleStick struct {
+	FuturesCandleStick
+	QuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON deserializes byte data into a UFuturesCandleStick instance
+func (f *UFuturesCandleStick) UnmarshalJSON(data []byte) error {
+	target := [12]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.QuoteAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume, nil}
+	err := json.Unmarshal(data, &target)
+	return err
+}
+
+// CFuturesCandleStick holds kline data for coin margined futures contracts
+type CFuturesCandleStick struct {
+	FuturesCandleStick
+	BaseAssetVolume types.Number
+}
+
+// UnmarshalJSON deserializes byte data into a CFuturesCandleStick instance
+func (f *CFuturesCandleStick) UnmarshalJSON(data []byte) error {
+	target := [12]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.BaseAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume, nil}
+	err := json.Unmarshal(data, &target)
+	return err
 }
 
 // AllLiquidationOrders gets all liquidation orders

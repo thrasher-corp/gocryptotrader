@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -239,32 +238,8 @@ func (b *Binance) getWsKlines(method string, arg *KlinesRequestParams) ([]Candle
 	if !arg.EndTime.IsZero() {
 		arg.EndTimestamp = arg.EndTime.UnixMilli()
 	}
-	var resp [][]types.Number
-	err := b.SendWsRequest(method, arg, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	klineData := make([]CandleStick, len(resp))
-	for x := range resp {
-		if len(resp[x]) != 12 {
-			return nil, errors.New("unexpected kline data length")
-		}
-		klineData[x] = CandleStick{
-			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
-			Open:                     resp[x][1].Float64(),
-			High:                     resp[x][2].Float64(),
-			Low:                      resp[x][3].Float64(),
-			Close:                    resp[x][4].Float64(),
-			Volume:                   resp[x][5].Float64(),
-			CloseTime:                time.UnixMilli(resp[x][6].Int64()),
-			QuoteAssetVolume:         resp[x][7].Float64(),
-			TradeCount:               resp[x][8].Float64(),
-			TakerBuyAssetVolume:      resp[x][9].Float64(),
-			TakerBuyQuoteAssetVolume: resp[x][10].Float64(),
-		}
-	}
-	return klineData, nil
+	var resp []CandleStick
+	return resp, b.SendWsRequest(method, arg, &resp)
 }
 
 // GetWsCurrenctAveragePrice retrieves current average price for a symbol.
@@ -277,8 +252,8 @@ func (b *Binance) GetWsCurrenctAveragePrice(symbol currency.Pair) (*SymbolAverag
 	}{
 		Symbol: symbol,
 	}
-	var resp SymbolAveragePrice
-	return &resp, b.SendWsRequest("avgPrice", arg, &resp)
+	var resp *SymbolAveragePrice
+	return resp, b.SendWsRequest("avgPrice", arg, &resp)
 }
 
 // GetWs24HourPriceChanges 24-hour rolling window price changes statistics through the websocket stream.

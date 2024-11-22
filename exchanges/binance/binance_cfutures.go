@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -185,7 +184,7 @@ func (b *Binance) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResp
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
-func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, kline.ErrInvalidInterval
 	}
@@ -208,34 +207,13 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Set("interval", interval)
-	var data [][12]types.Number
+	var data []CFuturesCandleStick
 	rateBudget := getKlineRateBudget(limit)
-	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/klines", params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := make([]FuturesCandleStick, len(data))
-	for x := range data {
-		resp[x] = FuturesCandleStick{
-			OpenTime:                time.UnixMilli(data[x][0].Int64()),
-			Open:                    data[x][1].Float64(),
-			High:                    data[x][2].Float64(),
-			Low:                     data[x][3].Float64(),
-			Close:                   data[x][4].Float64(),
-			Volume:                  data[x][5].Float64(),
-			CloseTime:               time.UnixMilli(data[x][6].Int64()),
-			BaseAssetVolume:         data[x][7].Float64(),
-			NumberOfTrades:          data[x][8].Int64(),
-			TakerBuyVolume:          data[x][9].Float64(),
-			TakerBuyBaseAssetVolume: data[x][10].Float64(),
-		}
-	}
-	return resp, nil
+	return data, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/klines", params), rateBudget, &data)
 }
 
 // GetContinuousKlineData gets continuous kline data
-func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	if pair == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -260,32 +238,12 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 	}
 	params.Set("interval", interval)
 	rateBudget := getKlineRateBudget(limit)
-	var data [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/continuousKlines", params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]FuturesCandleStick, len(data))
-	for x := range data {
-		resp[x] = FuturesCandleStick{
-			OpenTime:                time.UnixMilli(data[x][0].Int64()),
-			Open:                    data[x][1].Float64(),
-			High:                    data[x][2].Float64(),
-			Low:                     data[x][3].Float64(),
-			Close:                   data[x][4].Float64(),
-			Volume:                  data[x][5].Float64(),
-			CloseTime:               time.UnixMilli(data[x][6].Int64()),
-			BaseAssetVolume:         data[x][7].Float64(),
-			NumberOfTrades:          data[x][8].Int64(),
-			TakerBuyVolume:          data[x][9].Float64(),
-			TakerBuyBaseAssetVolume: data[x][10].Float64(),
-		}
-	}
-	return resp, nil
+	var data []CFuturesCandleStick
+	return data, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/continuousKlines", params), rateBudget, &data)
 }
 
 // GetIndexPriceKlines gets continuous kline data
-func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit int64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, kline.ErrInvalidInterval
 	}
@@ -303,37 +261,22 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	rateBudget := getKlineRateBudget(limit)
-	var data [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/indexPriceKlines", params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]FuturesCandleStick, len(data))
-	for x := range data {
-		resp[x] = FuturesCandleStick{
-			OpenTime:  time.UnixMilli(data[x][0].Int64()),
-			Open:      data[x][1].Float64(),
-			High:      data[x][2].Float64(),
-			Low:       data[x][3].Float64(),
-			Close:     data[x][4].Float64(),
-			CloseTime: time.UnixMilli(data[x][6].Int64()),
-		}
-	}
-	return resp, nil
+	var data []CFuturesCandleStick
+	return data, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/indexPriceKlines", params), rateBudget, &data)
 }
 
 // GetMarkPriceKline gets mark price kline data
-func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	return b.getKline(ctx, symbol, interval, "/dapi/v1/markPriceKlines", limit, startTime, endTime)
 }
 
 // GetPremiumIndexKlineData premium index kline bars of a symbol.
 // Klines are uniquely identified by their open time.
-func (b *Binance) GetPremiumIndexKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetPremiumIndexKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	return b.getKline(ctx, symbol, interval, "/dapi/v1/premiumIndexKlines", limit, startTime, endTime)
 }
 
-func (b *Binance) getKline(ctx context.Context, symbol currency.Pair, interval, path string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) getKline(ctx context.Context, symbol currency.Pair, interval, path string, limit int64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -355,24 +298,9 @@ func (b *Binance) getKline(ctx context.Context, symbol currency.Pair, interval, 
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var data [][12]types.Number
 	rateBudget := getKlineRateBudget(limit)
-	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues(path, params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]FuturesCandleStick, len(data))
-	for x := range data {
-		resp[x] = FuturesCandleStick{
-			OpenTime:  time.UnixMilli(data[x][0].Int64()),
-			Open:      data[x][1].Float64(),
-			High:      data[x][2].Float64(),
-			Low:       data[x][3].Float64(),
-			Close:     data[x][4].Float64(),
-			CloseTime: time.UnixMilli(data[x][6].Int64()),
-		}
-	}
-	return resp, nil
+	var data []CFuturesCandleStick
+	return data, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues(path, params), rateBudget, &data)
 }
 
 func getKlineRateBudget(limit int64) request.EndpointLimit {

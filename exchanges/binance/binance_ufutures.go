@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -199,7 +198,7 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol, fromID string, 
 }
 
 // UKlineData gets kline data for usdt margined futures
-func (b *Binance) UKlineData(ctx context.Context, symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) UKlineData(ctx context.Context, symbol, interval string, limit int64, startTime, endTime time.Time) ([]UFuturesCandleStick, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -232,29 +231,8 @@ func (b *Binance) UKlineData(ctx context.Context, symbol, interval string, limit
 	case limit > 1000:
 		rateBudget = uFuturesKlineMaxRate
 	}
-
-	var data [][12]types.Number
-	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesKlineData, params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]FuturesCandleStick, len(data))
-	for x := range data {
-		resp[x] = FuturesCandleStick{
-			OpenTime:                time.UnixMilli(data[x][0].Int64()),
-			Open:                    data[x][1].Float64(),
-			High:                    data[x][2].Float64(),
-			Low:                     data[x][3].Float64(),
-			Close:                   data[x][4].Float64(),
-			Volume:                  data[x][5].Float64(),
-			CloseTime:               time.UnixMilli(data[x][6].Int64()),
-			QuoteAssetVolume:        data[x][7].Float64(),
-			NumberOfTrades:          data[x][8].Int64(),
-			TakerBuyVolume:          data[x][9].Float64(),
-			TakerBuyBaseAssetVolume: data[x][10].Float64(),
-		}
-	}
-	return resp, nil
+	var data []UFuturesCandleStick
+	return data, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesKlineData, params), rateBudget, &data)
 }
 
 // GetUFuturesContinuousKlineData kline/candlestick bars for a specific contract type.
@@ -294,33 +272,13 @@ func (b *Binance) GetUFuturesContinuousKlineData(ctx context.Context, pair curre
 	case limit > 1000:
 		rateBudget = uFuturesKlineMaxRate
 	}
-	var resp [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/continuousKlines", params), rateBudget, &resp)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]FuturesCandleStick, len(resp))
-	for x := range resp {
-		result[x] = FuturesCandleStick{
-			OpenTime:                time.UnixMilli(resp[x][0].Int64()),
-			Open:                    resp[x][1].Float64(),
-			High:                    resp[x][2].Float64(),
-			Low:                     resp[x][3].Float64(),
-			Close:                   resp[x][4].Float64(),
-			Volume:                  resp[x][5].Float64(),
-			CloseTime:               time.UnixMilli(resp[x][6].Int64()),
-			QuoteAssetVolume:        resp[x][7].Float64(),
-			NumberOfTrades:          resp[x][8].Int64(),
-			TakerBuyVolume:          resp[x][9].Float64(),
-			TakerBuyBaseAssetVolume: resp[x][10].Float64(),
-		}
-	}
-	return result, nil
+	var resp []UFuturesCandleStick
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/continuousKlines", params), rateBudget, &resp)
 }
 
 // GetIndexOrCandlesticPriceKlineData kline/candlestick bars for the index price of a pair.
 // Klines are uniquely identified by their open time.
-func (b *Binance) GetIndexOrCandlesticPriceKlineData(ctx context.Context, pair currency.Pair, interval string, startTime, endTime time.Time, limit int64) ([]FuturesCandleStick, error) {
+func (b *Binance) GetIndexOrCandlesticPriceKlineData(ctx context.Context, pair currency.Pair, interval string, startTime, endTime time.Time, limit int64) ([]UFuturesCandleStick, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -348,38 +306,23 @@ func (b *Binance) GetIndexOrCandlesticPriceKlineData(ctx context.Context, pair c
 	case limit > 1000:
 		rateBudget = uFuturesKlineMaxRate
 	}
-	var resp [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/indexPriceKlines", params), rateBudget, &resp)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]FuturesCandleStick, len(resp))
-	for x := range resp {
-		result[x] = FuturesCandleStick{
-			OpenTime:  time.UnixMilli(resp[x][0].Int64()),
-			Open:      resp[x][1].Float64(),
-			High:      resp[x][2].Float64(),
-			Low:       resp[x][3].Float64(),
-			Close:     resp[x][4].Float64(),
-			CloseTime: time.UnixMilli(resp[x][6].Int64()),
-		}
-	}
-	return result, nil
+	var resp []UFuturesCandleStick
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/indexPriceKlines", params), rateBudget, &resp)
 }
 
 // GetMarkPriceKlineCandlesticks kline/candlestick bars for the mark price of a symbol.
 // Klines are uniquely identified by their open time.
-func (b *Binance) GetMarkPriceKlineCandlesticks(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]FuturesCandleStick, error) {
+func (b *Binance) GetMarkPriceKlineCandlesticks(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]UFuturesCandleStick, error) {
 	return b.getKlineCandlesticks(ctx, symbol, interval, "/fapi/v1/markPriceKlines", startTime, endTime, limit)
 }
 
 // GetPremiumIndexKlineCandlesticks premium index kline bars of a symbol.
 // Klines are uniquely identified by their open time.
-func (b *Binance) GetPremiumIndexKlineCandlesticks(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]FuturesCandleStick, error) {
+func (b *Binance) GetPremiumIndexKlineCandlesticks(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]UFuturesCandleStick, error) {
 	return b.getKlineCandlesticks(ctx, symbol, interval, "/fapi/v1/premiumIndexKlines", startTime, endTime, limit)
 }
 
-func (b *Binance) getKlineCandlesticks(ctx context.Context, symbol, interval, path string, startTime, endTime time.Time, limit int64) ([]FuturesCandleStick, error) {
+func (b *Binance) getKlineCandlesticks(ctx context.Context, symbol, interval, path string, startTime, endTime time.Time, limit int64) ([]UFuturesCandleStick, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -399,23 +342,8 @@ func (b *Binance) getKlineCandlesticks(ctx context.Context, symbol, interval, pa
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(path, params), uFuturesDefaultRate, &resp)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]FuturesCandleStick, len(resp))
-	for x := range resp {
-		result[x] = FuturesCandleStick{
-			OpenTime:  time.UnixMilli(resp[x][0].Int64()),
-			Open:      resp[x][1].Float64(),
-			High:      resp[x][2].Float64(),
-			Low:       resp[x][3].Float64(),
-			Close:     resp[x][4].Float64(),
-			CloseTime: time.UnixMilli(resp[x][6].Int64()),
-		}
-	}
-	return result, nil
+	var resp []UFuturesCandleStick
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(path, params), uFuturesDefaultRate, &resp)
 }
 
 // UGetMarkPrice gets mark price data for USDTMarginedFutures
@@ -706,7 +634,7 @@ func (b *Binance) GetBasis(ctx context.Context, pair currency.Pair, contractType
 }
 
 // GetHistoricalBLVTNAVCandlesticks retrieves BLVT (Binance Leveraged Tokens) NAV (Net Asset Value) leveraged tokens candlestic data.
-func (b *Binance) GetHistoricalBLVTNAVCandlesticks(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]FuturesCandleStick, error) {
+func (b *Binance) GetHistoricalBLVTNAVCandlesticks(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]UFuturesCandleStick, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -726,23 +654,8 @@ func (b *Binance) GetHistoricalBLVTNAVCandlesticks(ctx context.Context, symbol, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/lvtKlines", params), uFuturesDefaultRate, &resp)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]FuturesCandleStick, len(resp))
-	for x := range resp {
-		result[x] = FuturesCandleStick{
-			OpenTime:  time.UnixMilli(resp[x][0].Int64()),
-			Open:      resp[x][1].Float64(),
-			High:      resp[x][2].Float64(),
-			Low:       resp[x][3].Float64(),
-			Close:     resp[x][4].Float64(),
-			CloseTime: time.UnixMilli(resp[x][6].Int64()),
-		}
-	}
-	return result, nil
+	var resp []UFuturesCandleStick
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/lvtKlines", params), uFuturesDefaultRate, &resp)
 }
 
 // UCompositeIndexInfo stores composite indexs' info for usdt margined futures

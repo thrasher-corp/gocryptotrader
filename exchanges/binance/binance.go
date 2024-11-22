@@ -307,35 +307,12 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", timeString(arg.EndTime))
 	}
-	var resp [][]types.Number
-	err = b.SendHTTPRequest(ctx,
+	var resp []CandleStick
+	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpot,
 		common.EncodeURLValues(urlPath, params),
 		getKlineRate,
 		&resp)
-	if err != nil {
-		return nil, err
-	}
-	klineData := make([]CandleStick, len(resp))
-	for x := range resp {
-		if len(resp[x]) != 12 {
-			return nil, errors.New("unexpected kline data length")
-		}
-		klineData[x] = CandleStick{
-			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
-			Open:                     resp[x][1].Float64(),
-			High:                     resp[x][2].Float64(),
-			Low:                      resp[x][3].Float64(),
-			Close:                    resp[x][4].Float64(),
-			Volume:                   resp[x][5].Float64(),
-			CloseTime:                time.UnixMilli(resp[x][6].Int64()),
-			QuoteAssetVolume:         resp[x][7].Float64(),
-			TradeCount:               resp[x][8].Float64(),
-			TakerBuyAssetVolume:      resp[x][9].Float64(),
-			TakerBuyQuoteAssetVolume: resp[x][10].Float64(),
-		}
-	}
-	return klineData, nil
 }
 
 // GetAveragePrice returns current average price for a symbol.
@@ -1872,7 +1849,6 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	if err != nil {
 		return err
 	}
-
 	if params == nil {
 		params = url.Values{}
 	}

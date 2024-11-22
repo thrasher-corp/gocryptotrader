@@ -574,19 +574,25 @@ type IndexMarkPrice struct {
 	Time                 types.Time   `json:"time"`
 }
 
-// CandleStick holds kline data
+// CandleStick holds kline data for spot instruments
 type CandleStick struct {
-	OpenTime                 time.Time
-	Open                     float64
-	High                     float64
-	Low                      float64
-	Close                    float64
-	Volume                   float64
-	CloseTime                time.Time
-	QuoteAssetVolume         float64
-	TradeCount               float64
-	TakerBuyAssetVolume      float64
-	TakerBuyQuoteAssetVolume float64
+	OpenTime                 types.Time
+	Open                     types.Number
+	High                     types.Number
+	Low                      types.Number
+	Close                    types.Number
+	Volume                   types.Number
+	CloseTime                types.Time
+	QuoteAssetVolume         types.Number
+	TradeCount               types.Number
+	TakerBuyAssetVolume      types.Number
+	TakerBuyQuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON deserializes a byte data into CandleStick instance
+func (c *CandleStick) UnmarshalJSON(data []byte) error {
+	target := [12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.TradeCount, &c.TakerBuyAssetVolume, &c.TakerBuyQuoteAssetVolume, nil}
+	return json.Unmarshal(data, &target)
 }
 
 // AveragePrice holds current average symbol price

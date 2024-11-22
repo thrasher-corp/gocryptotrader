@@ -1496,8 +1496,6 @@ func TestGetTradingDayTicker(t *testing.T) {
 	_, err = b.GetTradingDayTicker(context.Background(), []currency.Pair{currency.EMPTYPAIR}, "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	b.Verbose = true
-	println("spotTradablePair: ", spotTradablePair.String())
 	result, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{spotTradablePair}, "", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4531,9 +4529,7 @@ func TestGetWs24HourPriceChanges(t *testing.T) {
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	result, err := b.GetWs24HourPriceChanges(&PriceChangeRequestParam{
-		Symbols: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
-	})
+	result, err := b.GetWs24HourPriceChanges(&PriceChangeRequestParam{Symbols: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -8226,6 +8222,9 @@ func TestGetSpotRebateHistoryRecords(t *testing.T) {
 
 func TestGetNFTTransactionHistory(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetNFTTransactionHistory(context.Background(), -1, time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10, 40)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetNFTTransactionHistory(context.Background(), 1, time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10, 40)
 	require.NoError(t, err)
@@ -8425,15 +8424,18 @@ func TestKeepListenKeyAlive(t *testing.T) {
 	err := b.KeepSpotListenKeyAlive(context.Background(), "")
 	require.ErrorIs(t, err, errListenKeyIsRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err = b.KeepSpotListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	require.NoError(t, err)
 }
 
 func TestCloseListenKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	err := b.CloseSpotListenKey(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	err := b.CloseSpotListenKey(context.Background(), "")
+	require.ErrorIs(t, err, errListenKeyIsRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err = b.CloseSpotListenKey(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
 	require.NoError(t, err)
 }
 
