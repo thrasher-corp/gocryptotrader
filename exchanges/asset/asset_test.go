@@ -3,17 +3,22 @@ package asset
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	for a := Item(1); a <= All; a <<= 1 {
-		assert.NotEmptyf(t, a.String(), "%s.String should return non-empty", a)
+	for a := range All {
+		if a == 0 {
+			assert.Empty(t, a.String(), "Empty.String should return empty")
+		} else {
+			assert.NotEmptyf(t, a.String(), "%s.String should return empty", a)
+		}
 	}
-	assert.Empty(t, Empty.String(), "Empty.String should return empty")
 }
 
 func TestStrings(t *testing.T) {
@@ -53,12 +58,37 @@ func TestJoinToString(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	t.Parallel()
-	if Item(0).IsValid() {
-		t.Fatal("TestIsValid returned an unexpected result")
+	for a := range All {
+		if a.String() == "" {
+			require.Falsef(t, a.IsValid(), "IsValid must return false with non-asset value %d", a)
+		} else {
+			require.Truef(t, a.IsValid(), "IsValid must return true for %s", a)
+		}
 	}
+	require.False(t, All.IsValid(), "IsValid must return false for All")
+}
 
-	if !Spot.IsValid() {
-		t.Fatal("TestIsValid returned an unexpected result")
+func TestIsFutures(t *testing.T) {
+	t.Parallel()
+	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract}
+	for a := range All {
+		if slices.Contains(valid, a) {
+			require.Truef(t, a.IsFutures(), "IsFutures must return true for %s", a)
+		} else {
+			require.Falsef(t, a.IsFutures(), "IsFutures must return false for non-asset value %d (%s)", a, a)
+		}
+	}
+}
+
+func TestIsOptions(t *testing.T) {
+	t.Parallel()
+	valid := []Item{Options, OptionCombo}
+	for a := range All {
+		if slices.Contains(valid, a) {
+			require.Truef(t, a.IsOptions(), "IsOptions must return true for %s", a)
+		} else {
+			require.Falsef(t, a.IsOptions(), "IsOptions must return false for non-asset value %d (%s)", a, a)
+		}
 	}
 }
 
@@ -114,50 +144,6 @@ func TestSupported(t *testing.T) {
 		if s[i] != supportedList[i] {
 			t.Fatal("TestSupported returned an unexpected result")
 		}
-	}
-}
-
-func TestIsFutures(t *testing.T) {
-	t.Parallel()
-	for _, a := range []Item{Spot, Margin, MarginFunding, Index, Binary} {
-		assert.Falsef(t, a.IsFutures(), "%s should return correctly for IsFutures", a)
-	}
-	for _, a := range []Item{PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo} {
-		assert.Truef(t, a.IsFutures(), "%s should return correctly for IsFutures", a)
-	}
-}
-
-func TestIsOptions(t *testing.T) {
-	t.Parallel()
-	type scenario struct {
-		item      Item
-		isOptions bool
-	}
-	scenarios := []scenario{
-		{
-			item:      Options,
-			isOptions: true,
-		}, {
-			item:      OptionCombo,
-			isOptions: true,
-		},
-		{
-			item:      Futures,
-			isOptions: false,
-		},
-		{
-			item:      Empty,
-			isOptions: false,
-		},
-	}
-	for _, s := range scenarios {
-		testScenario := s
-		t.Run(testScenario.item.String(), func(t *testing.T) {
-			t.Parallel()
-			if testScenario.item.IsOptions() != testScenario.isOptions {
-				t.Errorf("expected %v isOptions to be %v", testScenario.item, testScenario.isOptions)
-			}
-		})
 	}
 }
 
