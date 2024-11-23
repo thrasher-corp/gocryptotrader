@@ -162,15 +162,15 @@ func (b *Binance) GetEOptionsHistoricalExerciseRecords(ctx context.Context, unde
 }
 
 // GetEOptionsOpenInterests retrieves  open interest for specific underlying asset on specific expiration date.
-func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset string, expiration time.Time) ([]OpenInterest, error) {
-	if underlyingAsset == "" {
-		return nil, errUnderlyingIsRequired
+func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset currency.Code, expiration time.Time) ([]OpenInterest, error) {
+	if underlyingAsset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if expiration.IsZero() {
-		return nil, errors.New("expiration time is required")
+		return nil, errExpirationTimeRequired
 	}
 	params := url.Values{}
-	params.Set("underlyingAsset", underlyingAsset)
+	params.Set("underlyingAsset", underlyingAsset.String())
 	params.Set("expiration", expiration.Format("020106"))
 	var resp []OpenInterest
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/openInterest", params), optionsDefaultRate, &resp)
@@ -288,11 +288,11 @@ func (b *Binance) GetSingleEOptionsOrder(ctx context.Context, symbol, clientOrde
 }
 
 // CancelOptionsOrder represents an options order instance
-func (b *Binance) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID string, orderID int64) (*OptionOrder, error) {
+func (b *Binance) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID, orderID string) (*OptionOrder, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if orderID == 0 && clientOrderID == "" {
+	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
@@ -300,8 +300,8 @@ func (b *Binance) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID 
 	if clientOrderID != "" {
 		params.Set("clientOrderId", clientOrderID)
 	}
-	if orderID > 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	var resp *OptionOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/order", params, optionsDefaultOrderRate, nil, &resp)
@@ -489,7 +489,7 @@ func (b *Binance) GetDownloadIDForOptionTransactionHistory(ctx context.Context, 
 // GetOptionTransactionHistoryDownloadLinkByID retrieves an options transaction history download link by ID.
 func (b *Binance) GetOptionTransactionHistoryDownloadLinkByID(ctx context.Context, downloadID string) (*DownloadIDTransactionHistory, error) {
 	if downloadID == "" {
-		return nil, errors.New("download ID is required")
+		return nil, errDownloadIDRequired
 	}
 	params := url.Values{}
 	params.Set("downloadId", downloadID)
@@ -512,6 +512,9 @@ func (b *Binance) GetOptionMarginAccountInformation(ctx context.Context) (*Optio
 // When Market Maker Protection triggers, all the current MMP orders will be canceled, new MMP orders will be rejected.
 // Market maker can use this time to reevaluate market and modify order price.
 func (b *Binance) SetOptionsMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionConfig) (*MarketMakerProtection, error) {
+	if *arg == (MarketMakerProtectionConfig{}) {
+		return nil, errNilArgument
+	}
 	if arg.Underlying == "" {
 		return nil, errUnderlyingIsRequired
 	}

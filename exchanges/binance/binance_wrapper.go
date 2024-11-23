@@ -1432,12 +1432,12 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 	case asset.CoinMarginedFutures:
-		_, err := b.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
+		_, err = b.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
 		if err != nil {
 			return err
 		}
 	case asset.USDTMarginedFutures:
-		_, err := b.UCancelOrder(ctx, o.Pair.String(), o.OrderID, "")
+		_, err = b.UCancelOrder(ctx, o.Pair.String(), o.OrderID, "")
 		if err != nil {
 			return err
 		}
@@ -1446,11 +1446,7 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if !reg.MatchString(o.OrderID) {
 			return fmt.Errorf("%w, invalid orderID", order.ErrOrderIDNotSet)
 		}
-		orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
-		if err != nil {
-			return err
-		}
-		_, err = b.CancelOptionsOrder(ctx, o.Pair.String(), o.ClientOrderID, orderIDInt)
+		_, err = b.CancelOptionsOrder(ctx, o.Pair.String(), o.ClientOrderID, o.OrderID)
 		if err != nil {
 			return err
 		}
@@ -2506,18 +2502,14 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 		resp.Status = order.UnknownStatus
 	}
 	switch orderType {
-	case "MARKET":
-		resp.OrderType = order.Market
-	case "LIMIT":
-		resp.OrderType = order.Limit
-	case "STOP":
-		resp.OrderType = order.Stop
 	case "TAKE_PROFIT":
 		resp.OrderType = order.TakeProfit
-	case "LIQUIDATION":
-		resp.OrderType = order.Liquidation
 	default:
-		resp.OrderType = order.UnknownType
+		var err error
+		resp.OrderType, err = order.StringToOrderType(orderType)
+		if err != nil {
+			resp.OrderType = order.UnknownType
+		}
 	}
 	return resp
 }

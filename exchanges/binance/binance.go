@@ -6073,7 +6073,7 @@ func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrd
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.ExpiredType == "" {
-		return nil, errExpiedTypeRequired
+		return nil, errExpiredTypeRequired
 	}
 	var resp *OrderStatusResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/placeOrder", nil, placeLimitOrderRate, arg, &resp)

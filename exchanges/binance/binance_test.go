@@ -51,9 +51,9 @@ var (
 
 	// enabled and active tradable pairs used to test endpoints.
 	spotTradablePair, usdtmTradablePair, coinmTradablePair, optionsTradablePair currency.Pair
-)
 
-var assetToTradablePairMap map[asset.Item]currency.Pair
+	assetToTradablePairMap map[asset.Item]currency.Pair
+)
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
@@ -515,7 +515,7 @@ func TestUFuturesNewOrder(t *testing.T) {
 		&UFuturesNewOrderRequest{
 			Symbol:      currency.NewPair(currency.BTC, currency.USDT),
 			Side:        "BUY",
-			OrderType:   "LIMIT",
+			OrderType:   order.Limit.String(),
 			TimeInForce: "GTC",
 			Quantity:    1,
 			Price:       1,
@@ -587,7 +587,7 @@ func TestUPlaceBatchOrders(t *testing.T) {
 	var tempData = PlaceBatchOrderData{
 		Symbol:      currency.Pair{Base: currency.BTC, Quote: currency.USDT},
 		Side:        "BUY",
-		OrderType:   "LIMIT",
+		OrderType:   order.Limit.String(),
 		Quantity:    4,
 		Price:       1,
 		TimeInForce: "GTC",
@@ -637,7 +637,7 @@ func TestModifyMultipleOrders(t *testing.T) {
 			OrderID:           1,
 			OrigClientOrderID: "",
 			Side:              "BUY",
-			PriceMatch:        "LIMIT",
+			PriceMatch:        order.Limit.String(),
 			Symbol:            spotTradablePair,
 			Amount:            0.0000001,
 			Price:             123455554,
@@ -1187,7 +1187,7 @@ func TestFuturesNewOrder(t *testing.T) {
 		&FuturesNewOrderRequest{
 			Symbol:      currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 			Side:        "BUY",
-			OrderType:   "LIMIT",
+			OrderType:   order.Limit.String(),
 			TimeInForce: BinanceRequestParamsTimeGTC,
 			Quantity:    1,
 			Price:       1,
@@ -1204,7 +1204,7 @@ func TestFuturesBatchOrder(t *testing.T) {
 		{
 			Symbol:      currency.Pair{Base: currency.BTC, Quote: currency.NewCode("USD_PERP")},
 			Side:        "BUY",
-			OrderType:   "LIMIT",
+			OrderType:   order.Limit.String(),
 			Quantity:    1,
 			Price:       1,
 			TimeInForce: "GTC",
@@ -1496,7 +1496,10 @@ func TestGetTradingDayTicker(t *testing.T) {
 	_, err = b.GetTradingDayTicker(context.Background(), []currency.Pair{currency.EMPTYPAIR}, "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{spotTradablePair}, "", "")
+	cp, err := currency.NewPairFromString("BTCUSDT")
+	require.NoError(t, err)
+
+	result, err := b.GetTradingDayTicker(context.Background(), []currency.Pair{cp}, "", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2301,7 +2304,7 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "LIMIT"
+	arg.OrderType = order.Limit.String()
 	_, err = b.CancelExistingOrderAndSendNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errCancelReplaceModeRequired)
 
@@ -2309,7 +2312,7 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	result, err := b.CancelExistingOrderAndSendNewOrder(context.Background(), &CancelReplaceOrderParams{
 		Symbol:            "BTCUSDT",
 		Side:              "BUY",
-		OrderType:         "LIMIT",
+		OrderType:         order.Limit.String(),
 		CancelReplaceMode: "STOP_ON_FAILURE",
 	})
 	require.NoError(t, err)
@@ -2451,7 +2454,7 @@ func TestNewOrderUsingSOR(t *testing.T) {
 	_, err = b.NewOrderUsingSOR(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "LIMIT"
+	arg.OrderType = order.Limit.String()
 	_, err = b.NewOrderUsingSOR(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
@@ -2459,7 +2462,7 @@ func TestNewOrderUsingSOR(t *testing.T) {
 	result, err := b.NewOrderUsingSOR(context.Background(), &SOROrderRequestParams{
 		Symbol:    currency.Pair{Base: currency.BTC, Quote: currency.LTC},
 		Side:      "Buy",
-		OrderType: "LIMIT",
+		OrderType: order.Limit.String(),
 		Quantity:  0.001,
 	})
 	require.NoError(t, err)
@@ -2475,7 +2478,7 @@ func TestNewOrderUsingSORTest(t *testing.T) {
 	result, err := b.NewOrderUsingSORTest(context.Background(), &SOROrderRequestParams{
 		Symbol:    currency.Pair{Base: currency.BTC, Quote: currency.LTC},
 		Side:      "Buy",
-		OrderType: "LIMIT",
+		OrderType: order.Limit.String(),
 		Quantity:  0.001,
 	})
 	require.NoError(t, err)
@@ -4335,6 +4338,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4613,7 +4617,7 @@ func TestPlaceNewOrder(t *testing.T) {
 	result, err := b.WsPlaceNewOrder(&TradeOrderRequestParam{
 		Symbol:      "BTCUSDT",
 		Side:        order.Sell.String(),
-		OrderType:   "LIMIT",
+		OrderType:   order.Limit.String(),
 		TimeInForce: "GTC",
 		Price:       1234,
 		Quantity:    1,
@@ -4631,7 +4635,7 @@ func TestValidatePlaceNewOrderRequest(t *testing.T) {
 	err := b.ValidatePlaceNewOrderRequest(&TradeOrderRequestParam{
 		Symbol:      "BTCUSDT",
 		Side:        order.Sell.String(),
-		OrderType:   "LIMIT",
+		OrderType:   order.Limit.String(),
 		TimeInForce: "GTC",
 		Price:       1234,
 		Quantity:    1,
@@ -4677,7 +4681,7 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 		CancelReplaceMode:         "ALLOW_FAILURE",
 		CancelOriginClientOrderID: "4d96324ff9d44481926157",
 		Side:                      order.Sell.String(),
-		OrderType:                 "LIMIT",
+		OrderType:                 order.Limit.String(),
 		TimeInForce:               "GTC",
 		Price:                     23416.10000000,
 		Quantity:                  0.00847000,
@@ -4771,7 +4775,7 @@ func TestWsPlaceNewSOROrder(t *testing.T) {
 	result, err := b.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
 		Symbol:      "BTCUSDT",
 		Side:        "BUY",
-		OrderType:   "LIMIT",
+		OrderType:   order.Limit.String(),
 		Quantity:    0.5,
 		TimeInForce: "GTC",
 		Price:       31000,
@@ -4789,7 +4793,7 @@ func TestWsTestNewOrderUsingSOR(t *testing.T) {
 	err := b.WsTestNewOrderUsingSOR(&WsOSRPlaceOrderParams{
 		Symbol:      "BTCUSDT",
 		Side:        "BUY",
-		OrderType:   "LIMIT",
+		OrderType:   order.Limit.String(),
 		Quantity:    0.5,
 		TimeInForce: "GTC",
 		Price:       31000,
@@ -5242,6 +5246,9 @@ func TestCheckEOptionsServerTime(t *testing.T) {
 
 func TestGetEOptionsOrderbook(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetEOptionsOrderbook(context.Background(), "", 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	optionsTradablePairString := "ETH-240927-3800-P"
 	if !mockTests {
 		optionsTradablePairString = optionsTradablePair.String()
@@ -5275,6 +5282,11 @@ func TestGetEOptionsTradeHistory(t *testing.T) {
 
 func TestGetEOptionsCandlesticks(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetEOptionsCandlesticks(context.Background(), "", kline.OneDay, time.Time{}, time.Time{}, 1000)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.GetEOptionsCandlesticks(context.Background(), optionsTradablePair.String(), 0, time.Time{}, time.Time{}, 1000)
+	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+
 	optionsTradablePairString := "ETH-240927-3800-P"
 	if !mockTests {
 		optionsTradablePairString = optionsTradablePair.String()
@@ -5309,6 +5321,9 @@ func TestGetEOptions24hrTickerPriceChangeStatistics(t *testing.T) {
 
 func TestGetEOptionsSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetEOptionsSymbolPriceTicker(context.Background(), "")
+	require.ErrorIs(t, err, errUnderlyingIsRequired)
+
 	result, err := b.GetEOptionsSymbolPriceTicker(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5323,10 +5338,15 @@ func TestGetEOptionsHistoricalExerciseRecords(t *testing.T) {
 
 func TestGetEOptionsOpenInterests(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetEOptionsOpenInterests(context.Background(), currency.ETH, time.Now().Add(time.Hour*24))
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.GetEOptionsOpenInterests(context.Background(), currency.EMPTYCODE, time.Now().Add(time.Hour*24))
+	require.ErrorIs(t, err, errExpirationTimeRequired)
+
 	if mockTests {
 		t.Skip("endpoint has problem")
 	}
-	result, err := b.GetEOptionsOpenInterests(context.Background(), "ETH", time.Now().Add(time.Hour*24))
+	result, err := b.GetEOptionsOpenInterests(context.Background(), currency.ETH, time.Now().Add(time.Hour*24))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5341,11 +5361,31 @@ func TestGetOptionsAccountInformation(t *testing.T) {
 
 func TestNewOptionsOrder(t *testing.T) {
 	t.Parallel()
+	arg := &OptionsOrderParams{}
+	_, err := b.NewOptionsOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errNilArgument)
+
+	arg.PostOnly = true
+	_, err = b.NewOptionsOrder(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.Symbol = currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")}
+	_, err = b.NewOptionsOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell.String()
+	_, err = b.NewOptionsOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = order.Limit.String()
+	_, err = b.NewOptionsOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewOptionsOrder(context.Background(), &OptionsOrderParams{
 		Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
 		Side:                    order.Sell.String(),
-		OrderType:               "LIMIT",
+		OrderType:               order.Limit.String(),
 		Amount:                  0.00001,
 		Price:                   0.00001,
 		ReduceOnly:              false,
@@ -5360,12 +5400,34 @@ func TestNewOptionsOrder(t *testing.T) {
 
 func TestPlaceEOptionsOrder(t *testing.T) {
 	t.Parallel()
+	arg := OptionsOrderParams{}
+	_, err := b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{})
+	require.ErrorIs(t, err, errNilArgument)
+	_, err = b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{arg})
+	require.ErrorIs(t, err, errNilArgument)
+
+	arg.PostOnly = true
+	_, err = b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{arg})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.Symbol = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")}
+	_, err = b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{arg})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell.String()
+	_, err = b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{arg})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = order.Limit.String()
+	_, err = b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{arg})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{
 		{
-			Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
+			Symbol:                  currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
 			Side:                    order.Sell.String(),
-			OrderType:               "LIMIT",
+			OrderType:               order.Limit.String(),
 			Amount:                  0.00001,
 			Price:                   0.00001,
 			ReduceOnly:              false,
@@ -5374,7 +5436,7 @@ func TestPlaceEOptionsOrder(t *testing.T) {
 			ClientOrderID:           "the-client-order-id",
 			IsMarketMakerProtection: true,
 		}, {
-			Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
+			Symbol:                  currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
 			Side:                    "Buy",
 			OrderType:               "Market",
 			Amount:                  0.00001,
@@ -5389,6 +5451,11 @@ func TestPlaceEOptionsOrder(t *testing.T) {
 
 func TestGetSingleEOptionsOrder(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetSingleEOptionsOrder(context.Background(), "", "", 4611875134427365377)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.GetSingleEOptionsOrder(context.Background(), "BTC-200730-9000-C", "", 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetSingleEOptionsOrder(context.Background(), "BTC-200730-9000-C", "", 4611875134427365377)
 	require.NoError(t, err)
@@ -5397,14 +5464,24 @@ func TestGetSingleEOptionsOrder(t *testing.T) {
 
 func TestCancelOptionsOrder(t *testing.T) {
 	t.Parallel()
+	_, err := b.CancelOptionsOrder(context.Background(), "", "213123", "4611875134427365377")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.CancelOptionsOrder(context.Background(), "BTC-200730-9000-C", "", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.CancelOptionsOrder(context.Background(), "BTC-200730-9000-C", "213123", 4611875134427365377)
+	result, err := b.CancelOptionsOrder(context.Background(), "BTC-200730-9000-C", "213123", "4611875134427365377")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestCancelBatchOptionsOrders(t *testing.T) {
 	t.Parallel()
+	_, err := b.CancelBatchOptionsOrders(context.Background(), "", []int64{4611875134427365377}, []string{})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.CancelBatchOptionsOrders(context.Background(), "BTC-200730-9000-C", []int64{}, []string{})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CancelBatchOptionsOrders(context.Background(), "BTC-200730-9000-C", []int64{4611875134427365377}, []string{})
 	require.NoError(t, err)
@@ -5468,6 +5545,9 @@ func TestGetUserOptionsExerciseRecord(t *testing.T) {
 
 func TestGetAccountFundingFlow(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetAccountFundingFlow(context.Background(), currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetAccountFundingFlow(context.Background(), currency.USDT, 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
@@ -5484,6 +5564,9 @@ func TestGetDownloadIDForOptionTransactionHistory(t *testing.T) {
 
 func TestGetOptionTransactionHistoryDownloadLinkByID(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetOptionTransactionHistoryDownloadLinkByID(context.Background(), "")
+	require.ErrorIs(t, err, errDownloadIDRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetOptionTransactionHistoryDownloadLinkByID(context.Background(), "download-id")
 	require.NoError(t, err)
@@ -5500,6 +5583,16 @@ func TestGetOptionMarginAccountInformation(t *testing.T) {
 
 func TestSetMarketMakerProtectionConfig(t *testing.T) {
 	t.Parallel()
+	_, err := b.SetOptionsMarketMakerProtectionConfig(context.Background(), &MarketMakerProtectionConfig{})
+	require.ErrorIs(t, err, errNilArgument)
+	_, err = b.SetOptionsMarketMakerProtectionConfig(context.Background(), &MarketMakerProtectionConfig{
+		WindowTimeInMilliseconds: 3000,
+		FrozenTimeInMilliseconds: 300000,
+		QuantityLimit:            1.5,
+		NetDeltaLimit:            1.5,
+	})
+	require.ErrorIs(t, err, errUnderlyingIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SetOptionsMarketMakerProtectionConfig(context.Background(), &MarketMakerProtectionConfig{
 		Underlying:               "BTCUSDT",
@@ -5514,6 +5607,9 @@ func TestSetMarketMakerProtectionConfig(t *testing.T) {
 
 func TestGetOptionsMarketMakerProtection(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetOptionsMarketMakerProtection(context.Background(), "")
+	require.ErrorIs(t, err, errUnderlyingIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetOptionsMarketMakerProtection(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
@@ -5522,6 +5618,9 @@ func TestGetOptionsMarketMakerProtection(t *testing.T) {
 
 func TestResetMarketMaketProtection(t *testing.T) {
 	t.Parallel()
+	_, err := b.ResetMarketMaketProtection(context.Background(), "")
+	require.ErrorIs(t, err, errUnderlyingIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.ResetMarketMaketProtection(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
@@ -5530,6 +5629,9 @@ func TestResetMarketMaketProtection(t *testing.T) {
 
 func TestSetOptionsAutoCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
+	_, err := b.SetOptionsAutoCancelAllOpenOrders(context.Background(), "", 30000)
+	require.ErrorIs(t, err, errUnderlyingIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.SetOptionsAutoCancelAllOpenOrders(context.Background(), "BTCUSDT", 30000)
 	require.NoError(t, err)
@@ -5611,7 +5713,7 @@ func TestNewCMOrder(t *testing.T) {
 	_, err = b.NewCMOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
-	arg.OrderType = "LIMIT"
+	arg.OrderType = order.Limit.String()
 	_, err = b.NewCMOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errTimeInForceRequired)
 
@@ -5657,7 +5759,7 @@ func TestNewMarginOrder(t *testing.T) {
 	_, err = b.NewMarginOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "LIMIT"
+	arg.OrderType = order.Limit.String()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewMarginOrder(context.Background(), arg)
 	require.NoError(t, err)
@@ -8171,7 +8273,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 	arg.Side = order.Sell.String()
 	arg.ExpiredType = ""
 	_, err = b.PlaceLimitOrder(context.Background(), arg)
-	require.ErrorIs(t, err, errExpiedTypeRequired)
+	require.ErrorIs(t, err, errExpiredTypeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.PlaceLimitOrder(context.Background(), &ConvertPlaceLimitOrderParam{
