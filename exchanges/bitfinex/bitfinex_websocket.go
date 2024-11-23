@@ -534,18 +534,16 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	c.Key = int(chanID)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	if err := b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, c); err != nil {
+	err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, c)
+	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, err, subID)
 	}
 
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Pairs, chanID)
 	}
-	err = b.Websocket.Match.EnsureMatchWithData("subscribe:"+subID, respRaw)
-	if err != nil {
-		return fmt.Errorf("%w: subscribe:%v", err, subID)
-	}
-	return nil
+
+	return b.Websocket.Match.EnsureMatchWithData("subscribe:"+subID, respRaw)
 }
 
 func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, eventType string, d []interface{}) error {

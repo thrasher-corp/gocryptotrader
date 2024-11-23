@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+// ErrSignatureNotMatched is returned when a signature does not match a request
 var ErrSignatureNotMatched = errors.New("websocket response to request signature not matched")
 
 var (
