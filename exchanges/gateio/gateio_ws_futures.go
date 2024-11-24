@@ -103,33 +103,31 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 		return nil, err
 	}
 
+	settlementPairs := make(currency.Pairs, 0, len(pairs))
+	switch {
+	case settlement.Equal(currency.USDT):
+		settlementPairs, err = pairs.GetPairsByQuote(currency.USDT)
+		if err != nil {
+			return nil, err
+		}
+	case settlement.Equal(currency.BTC):
+		for x := range pairs {
+			if pairs[x].Quote.Equal(currency.USDT) {
+				continue // skip USDT pairs
+			}
+			settlementPairs = append(settlementPairs, pairs[x])
+		}
+	default:
+		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
+	}
+
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
-		switch {
-		case settlement.Equal(currency.USDT):
-			pairs, err = pairs.GetPairsByQuote(currency.USDT)
-			if err != nil {
-				return nil, err
-			}
-		case settlement.Equal(currency.BTC):
-			offset := 0
-			for x := range pairs {
-				if pairs[x].Quote.Equal(currency.USDT) {
-					continue // skip USDT pairs
-				}
-				pairs[offset] = pairs[x]
-				offset++
-			}
-			pairs = pairs[:offset]
-		default:
-			return nil, fmt.Errorf("settlement currency %s not supported", settlement)
-		}
-
-		for j := range pairs {
+		for j := range settlementPairs {
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
-				params["limit"] = 100
+				params["limit"] = 20
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
@@ -137,7 +135,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}
-			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
+			fPair, err := g.FormatExchangeCurrency(settlementPairs[j], asset.Futures)
 			if err != nil {
 				return nil, err
 			}
