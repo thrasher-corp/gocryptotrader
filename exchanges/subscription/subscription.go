@@ -31,15 +31,19 @@ const (
 	AllTradesChannel = "allTrades"
 	MyTradesChannel  = "myTrades"
 	MyOrdersChannel  = "myOrders"
+	MyWalletChannel  = "myWallet"
+	MyAccountChannel = "myAccount"
 )
 
 // Public errors
 var (
-	ErrNotFound       = errors.New("subscription not found")
-	ErrNotSinglePair  = errors.New("only single pair subscriptions expected")
-	ErrInStateAlready = errors.New("subscription already in state")
-	ErrInvalidState   = errors.New("invalid subscription state")
-	ErrDuplicate      = errors.New("duplicate subscription")
+	ErrNotFound             = errors.New("subscription not found")
+	ErrNotSinglePair        = errors.New("only single pair subscriptions expected")
+	ErrBatchingNotSupported = errors.New("subscription batching not supported")
+	ErrInStateAlready       = errors.New("subscription already in state")
+	ErrInvalidState         = errors.New("invalid subscription state")
+	ErrDuplicate            = errors.New("duplicate subscription")
+	ErrUseConstChannelName  = errors.New("must use standard channel name constants")
 )
 
 // State tracks the status of a subscription channel
@@ -47,17 +51,18 @@ type State uint8
 
 // Subscription container for streaming subscriptions
 type Subscription struct {
-	Enabled       bool           `json:"enabled"`
-	Key           any            `json:"-"`
-	Channel       string         `json:"channel,omitempty"`
-	Pairs         currency.Pairs `json:"pairs,omitempty"`
-	Asset         asset.Item     `json:"asset,omitempty"`
-	Params        map[string]any `json:"params,omitempty"`
-	Interval      kline.Interval `json:"interval,omitempty"`
-	Levels        int            `json:"levels,omitempty"`
-	Authenticated bool           `json:"authenticated,omitempty"`
-	state         State
-	m             sync.RWMutex
+	Enabled          bool           `json:"enabled"`
+	Key              any            `json:"-"`
+	Channel          string         `json:"channel,omitempty"`
+	Pairs            currency.Pairs `json:"pairs,omitempty"`
+	Asset            asset.Item     `json:"asset,omitempty"`
+	Params           map[string]any `json:"params,omitempty"`
+	Interval         kline.Interval `json:"interval,omitempty"`
+	Levels           int            `json:"levels,omitempty"`
+	Authenticated    bool           `json:"authenticated,omitempty"`
+	QualifiedChannel string         `json:"-"`
+	state            State
+	m                sync.RWMutex
 }
 
 // String implements Stringer, and aims to informatively and uniquely identify a subscription for errors and information
@@ -122,23 +127,23 @@ func (s *Subscription) EnsureKeyed() any {
 
 // Clone returns a copy of a subscription
 // Key is set to nil, because most Key types contain a pointer to the subscription, and because the clone isn't added to the store yet
+// QualifiedChannel is not copied because it's expected that the contributing fields will be changed
 // Users should allow a default key to be assigned on AddSubscription or can SetKey as necessary
 func (s *Subscription) Clone() *Subscription {
 	s.m.RLock()
 	c := &Subscription{
-		Key:           nil,
-		Enabled:       s.Enabled,
-		Channel:       s.Channel,
-		Asset:         s.Asset,
-		Params:        s.Params,
-		Interval:      s.Interval,
-		Levels:        s.Levels,
-		Authenticated: s.Authenticated,
-		state:         s.state,
-		Pairs:         s.Pairs,
+		Key:              nil,
+		Enabled:          s.Enabled,
+		Channel:          s.Channel,
+		Asset:            s.Asset,
+		Params:           maps.Clone(s.Params),
+		Interval:         s.Interval,
+		Levels:           s.Levels,
+		Authenticated:    s.Authenticated,
+		state:            s.state,
+		Pairs:            slices.Clone(s.Pairs),
+		QualifiedChannel: s.QualifiedChannel,
 	}
-	s.Pairs = slices.Clone(s.Pairs)
-	s.Params = maps.Clone(s.Params)
 	s.m.RUnlock()
 	return c
 }
@@ -156,8 +161,6 @@ func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 		return
 	}
 	s.m.Lock()
-	for _, p := range pairs {
-		s.Pairs = s.Pairs.Add(p)
-	}
+	s.Pairs = s.Pairs.Add(pairs...)
 	s.m.Unlock()
 }

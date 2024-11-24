@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -51,14 +52,14 @@ func TestAllExchangeWrappers(t *testing.T) {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
 			t.Parallel()
-			if common.StringDataContains(unsupportedExchangeNames, name) {
+			if slices.Contains(unsupportedExchangeNames, name) {
 				t.Skipf("skipping unsupported exchange %v", name)
 			}
 			if singleExchangeOverride != "" && name != singleExchangeOverride {
 				t.Skip("skipping ", name, " due to override")
 			}
 			ctx := context.Background()
-			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
@@ -175,7 +176,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
-	for x := 0; x < iExchange.NumMethod(); x++ {
+	for x := range iExchange.NumMethod() {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
@@ -183,7 +184,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		method := actualExchange.MethodByName(methodName)
 
 		var assetLen int
-		for y := 0; y < method.Type().NumIn(); y++ {
+		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
 			for _, t := range []reflect.Type{
 				assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
@@ -213,7 +214,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 				Start:       s,
 				End:         e,
 			}
-			for z := 0; z < method.Type().NumIn(); z++ {
+			for z := range method.Type().NumIn() {
 				argGenerator.MethodInputType = method.Type().In(z)
 				generatedArg := generateMethodArg(ctx, t, argGenerator)
 				inputs[z] = *generatedArg
@@ -605,9 +606,10 @@ var unsupportedAssets = []asset.Item{
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
-	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"btse",     // 	TODO rm once timeout issues resolved
-	"poloniex", // 	outdated API // TODO rm once updated
+	"bitflyer",    // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+	"btse",        // 	TODO rm once timeout issues resolved
+	"poloniex",    // 	outdated API // TODO rm once updated
+	"coinbasepro", // 	outdated API // TODO rm once updated
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange

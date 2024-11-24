@@ -63,6 +63,11 @@ func (ok *Okx) SetDefaults() {
 
 	// Fill out the capabilities/features that the exchange supports
 	ok.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
+			currency.NewCode("USDT-SWAP"): currency.USDT,
+			currency.NewCode("USD-SWAP"):  currency.USD,
+			currency.NewCode("USDC-SWAP"): currency.USDC,
+		}),
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
 			Websocket:           true,
@@ -151,6 +156,7 @@ func (ok *Okx) SetDefaults() {
 				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	ok.Requester, err = request.New(ok.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -206,33 +212,34 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Connector:                              ok.WsConnect,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,
-		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+		GenerateSubscriptions:                  ok.generateSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
+		RateLimitDefinitions: ok.Requester.GetRateLimiterDefinitions(),
 	}); err != nil {
 		return err
 	}
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	}); err != nil {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            500,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	})
 }
 
@@ -518,7 +525,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	for i := range accountBalances {
 		for j := range accountBalances[i].Details {
 			currencyBalances = append(currencyBalances, account.Balance{
-				Currency: currency.NewCode(accountBalances[i].Details[j].Currency),
+				Currency: accountBalances[i].Details[j].Currency,
 				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
 				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
 				Free:     accountBalances[i].Details[j].AvailableBalance.Float64(),
@@ -680,7 +687,7 @@ allTrades:
 		if len(trades) == 0 {
 			break
 		}
-		for i := 0; i < len(trades); i++ {
+		for i := range trades {
 			if timestampStart.Equal(trades[i].Timestamp.Time()) ||
 				trades[i].Timestamp.Time().Before(timestampStart) ||
 				tradeIDEnd == trades[len(trades)-1].TradeID {
@@ -712,7 +719,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(ok.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if !ok.SupportsAsset(s.AssetType) {
@@ -985,7 +992,7 @@ ordersLoop:
 	}
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
-	for b := 0; b < loop; b++ {
+	for range loop {
 		var response []OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1848,7 +1855,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 	)
 
 	for i := range acc[0].Details {
-		if acc[0].Details[i].Currency != positionSummary.Currency {
+		if !acc[0].Details[i].Currency.Equal(positionSummary.Currency) {
 			continue
 		}
 		freeCollateral = acc[0].Details[i].AvailableBalance.Decimal()
@@ -1877,7 +1884,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		Asset:           req.Asset,
 		MarginType:      marginMode,
 		CollateralMode:  collateralMode,
-		Currency:        currency.NewCode(positionSummary.Currency),
+		Currency:        positionSummary.Currency,
 		AvailableEquity: availableEquity,
 		CashBalance:     cashBalance,
 		DiscountEquity:  discountEquity,

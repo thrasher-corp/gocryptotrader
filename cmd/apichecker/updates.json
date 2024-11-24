@@ -303,22 +303,6 @@
    "Disabled": false
   },
   {
-   "Name": "Okcoin",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "a",
-     "Key": "href",
-     "Val": "./#change-change",
-     "TokenDataEnd": "./#change-",
-     "RegExp": "./#change-\\d{8}",
-     "CheckString": "20200229",
-     "Path": "https://www.okcoin.com/docs/en/#change-change"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Gemini",
    "CheckType": "HTML String Check",
    "Data": {

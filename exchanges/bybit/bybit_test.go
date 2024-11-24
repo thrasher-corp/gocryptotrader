@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,8 +26,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	testws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -45,21 +54,17 @@ var (
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "", "", 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+	payload, err := b.GetInstrumentInfo(context.Background(), "linear", "10000000AIDOGEUSDT", "", "", "", 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, payload.List)
+	require.NotZero(t, payload.List[0].LotSizeFilter.MinNotionalValue)
 }
 
 func TestGetKlines(t *testing.T) {
@@ -619,29 +624,17 @@ func TestUpdateTickers(t *testing.T) {
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
-	if !errors.Is(err, errInvalidCategory) {
-		t.Errorf("expected %v, got %v", errInvalidCategory, err)
-	}
+	require.ErrorIs(t, err, errInvalidCategory)
 	_, err = b.GetTickers(context.Background(), "option", "BTC-29DEC23-80000-C", "", time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "option", "", "BTC", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "inverse", "", "", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "linear", "", "", time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetFundingRateHistory(t *testing.T) {
@@ -1676,9 +1669,87 @@ func TestGetWalletBalance(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	_, err := b.GetWalletBalance(context.Background(), "UNIFIED", "")
-	if err != nil {
-		t.Fatal(err)
+
+	r, err := b.GetWalletBalance(context.Background(), "UNIFIED", "")
+	require.NoError(t, err, "GetWalletBalance should not error")
+	require.NotNil(t, r, "GetWalletBalance should return a result")
+
+	if mockTests {
+		require.Len(t, r.List, 1, "GetWalletBalance should return a single list result")
+		assert.Equal(t, types.Number(0.1997), r.List[0].AccountIMRate, "AccountIMRate should match")
+		assert.Equal(t, types.Number(0.4996), r.List[0].AccountLTV, "AccountLTV should match")
+		assert.Equal(t, types.Number(0.0399), r.List[0].AccountMMRate, "AccountMMRate should match")
+		assert.Equal(t, "UNIFIED", r.List[0].AccountType, "AccountType should match")
+		assert.Equal(t, types.Number(24616.49915805), r.List[0].TotalAvailableBalance, "TotalAvailableBalance should match")
+		assert.Equal(t, types.Number(41445.9203332), r.List[0].TotalEquity, "TotalEquity should match")
+		assert.Equal(t, types.Number(6144.46796478), r.List[0].TotalInitialMargin, "TotalInitialMargin should match")
+		assert.Equal(t, types.Number(1228.89359295), r.List[0].TotalMaintenanceMargin, "TotalMaintenanceMargin should match")
+		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalMarginBalance, "TotalMarginBalance should match")
+		assert.Equal(t, types.Number(0.0), r.List[0].TotalPerpUPL, "TotalPerpUPL should match")
+		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalWalletBalance, "TotalWalletBalance should match")
+		require.Len(t, r.List[0].Coin, 3, "GetWalletBalance should return 3 coins")
+
+		for x := range r.List[0].Coin {
+			switch x {
+			case 0:
+				assert.Equal(t, types.Number(0.21976631), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should match")
+				assert.Equal(t, types.Number(30723.630216383711792744), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should match")
+				assert.Equal(t, currency.USDC, r.List[0].Coin[x].Coin, "Coin should match")
+				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should match")
+				assert.Equal(t, types.Number(-30723.63021638), r.List[0].Coin[x].Equity, "Equity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should match")
+				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should match")
+				assert.Equal(t, types.Number(-30722.33982391), r.List[0].Coin[x].USDValue, "USDValue should match")
+				assert.Equal(t, types.Number(-30723.63021638), r.List[0].Coin[x].WalletBalance, "WalletBalance should match")
+			case 1:
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should match")
+				assert.Equal(t, types.Number(1005.79191187), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should match")
+				assert.Equal(t, currency.AVAX, r.List[0].Coin[x].Coin, "Coin should match")
+				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should match")
+				assert.Equal(t, types.Number(2473.9), r.List[0].Coin[x].Equity, "Equity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should match")
+				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should match")
+				assert.Equal(t, types.Number(71233.0214024), r.List[0].Coin[x].USDValue, "USDValue should match")
+				assert.Equal(t, types.Number(2473.9), r.List[0].Coin[x].WalletBalance, "WalletBalance should match")
+			case 2:
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should match")
+				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should match")
+				assert.Equal(t, currency.USDT, r.List[0].Coin[x].Coin, "Coin should match")
+				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should match")
+				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].Equity, "Equity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should match")
+				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should match")
+				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should match")
+				assert.Equal(t, types.Number(935.23875471), r.List[0].Coin[x].USDValue, "USDValue should match")
+				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].WalletBalance, "WalletBalance should match")
+			}
+		}
 	}
 }
 
@@ -2910,13 +2981,40 @@ func TestGetBrokerEarning(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
+
+	r, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountInfo should not error")
+	require.NotEmpty(t, r, "UpdateAccountInfo should return account info")
+
+	if mockTests {
+		require.Len(t, r.Accounts, 1, "Accounts should have 1 item")
+		require.Len(t, r.Accounts[0].Currencies, 3, "Accounts currencies should have 3 currency items")
+
+		for x := range r.Accounts[0].Currencies {
+			switch x {
+			case 0:
+				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
+				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should match")
+				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+			case 1:
+				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
+				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should match")
+				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
+				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+			case 2:
+				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
+				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+			}
+		}
 	}
 }
 
@@ -2950,34 +3048,22 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
-	if err != nil {
-		t.Error(err)
+	for _, tt := range []struct {
+		a asset.Item
+		p currency.Pair
+	}{
+		{asset.Spot, spotTradablePair},
+		{asset.Options, optionsTradablePair},
+		{asset.CoinMarginedFutures, inverseTradablePair},
+		{asset.USDTMarginedFutures, usdtMarginedTradablePair},
+		{asset.USDCMarginedFutures, usdcMarginedTradablePair},
+	} {
+		_, err := b.GetRecentTrades(context.Background(), tt.p, tt.a)
+		assert.NoErrorf(t, err, "GetRecentTrades should not error for %s asset", tt.a)
 	}
-	_, err = b.GetRecentTrades(context.Background(), inverseTradablePair, asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(), spotTradablePair, asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
-	cp, err := b.ExtractCurrencyPair("BTC-29DEC23-80000-C", asset.Options, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(), cp, asset.Options)
-	if err != nil {
-		t.Error(err)
-	}
+
+	_, err := b.GetRecentTrades(context.Background(), spotTradablePair, asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetBybitServerTime(t *testing.T) {
@@ -3093,19 +3179,16 @@ func TestWsOptionsConnect(t *testing.T) {
 }
 
 var pushDataMap = map[string]string{
-	"Orderbook Snapshot":   `{"topic":"orderbook.50.BTCUSDT","ts":1690719970602,"type":"snapshot","data":{"s":"BTCUSDT","b":[["29328.25","3.911681"],["29328.21","0.117584"],["29328.19","0.511493"],["29328.16","0.013639"],["29328","0.1646"],["29327.99","1"],["29327.98","0.681309"],["29327.53","0.001"],["29327.46","0.000048"],["29327","0.046517"],["29326.99","0.077528"],["29326.55","0.026808"],["29326.48","0.03"],["29326","0.1646"],["29325.99","0.00075"],["29325.93","0.409862"],["29325.92","0.745"],["29325.87","0.511533"],["29325.85","0.00018"],["29325.42","0.001023"],["29325.41","0.68199"],["29325.36","0.006309"],["29325.35","0.0153"],["29324.97","0.903728"],["29324.96","1.506212"],["29324.49","0.016966"],["29324.38","0.0341"],["29324.17","1.4535"],["29324","0.1646"],["29323.99","0.00075"],["29323.92","0.050492"],["29323.77","1.023141"],["29323.72","0.12"],["29323.48","0.0153"],["29323.26","0.001362"],["29322.78","0.464948"],["29322.77","0.745"],["29322.76","0.0153"],["29322.73","0.013633"],["29322.67","0.53"],["29322.62","0.01"],["29322.04","0.97036"],["29322","0.1656"],["29321.99","0.00075"],["29321.56","0.0341"],["29321.52","0.613945"],["29321.51","0.13"],["29321.4","0.002"],["29321.18","0.196788"],["29321.13","0.34104"]],"a":[["29328.26","1.256884"],["29328.36","0.013639"],["29328.97","0.51148"],["29329","0.002046"],["29329.2","0.035597"],["29329.27","0.001"],["29329.44","0.03523"],["29329.99","0.791676"],["29330","0.546264"],["29330.28","0.001"],["29330.35","0.767184"],["29330.5","0.002725"],["29330.51","0.0341"],["29330.79","0.03"],["29330.81","0.158412"],["29330.93","0.68199"],["29330.95","0.282036"],["29331","0.041"],["29331.13","0.0003"],["29331.19","0.01"],["29331.53","0.050164"],["29331.54","0.008573"],["29331.99","0.26305"],["29332.11","0.008124"],["29332.21","0.8721"],["29332.22","1.4535"],["29332.41","0.157"],["29332.58","0.001023"],["29332.59","0.0153"],["29332.84","0.679527"],["29332.85","1.022812"],["29332.98","0.200071"],["29333.01","1.13254"],["29333.24","0.0153"],["29333.25","0.001362"],["29333.35","0.625"],["29333.37","0.01"],["29333.56","0.0341"],["29333.68","0.21795"],["29333.85","0.182562"],["29333.98","0.0003"],["29333.99","0.00105"],["29334.16","0.009132"],["29334.29","0.0003"],["29334.48","0.029675"],["29334.7","0.00086"],["29334.99","0.006838"],["29335","0.002177"],["29335.18","0.013622"],["29335.32","0.034099"]],"u":51668654,"seq":10194901787}}`,
-	"Orderbook Update":     `{"topic":"orderbook.50.ACAUSDT","ts":1690719548494,"type":"snapshot","data":{"s":"ACAUSDT","b":[["0.0657","5363.66"],["0.0646","7910.21"],["0.0645","1435.73"],["0.0644","1552.8"],["0.0642","6904.01"],["0.064","3232.64"],["0.0639","106"],["0.0637","100"],["0.0636","25.62"],["0.0635","209.43"],["0.0631","237.47"],["0.063","258.13"],["0.0627","318.97"],["0.0625","10066.99"],["0.0624","16.1"],["0.0623","41.72"],["0.0622","1624.59"],["0.0621","402.57"],["0.0616","10.65"],["0.0613","652"],["0.061","1081.97"],["0.0604","413.91"],["0.06","1471.82"],["0.0597","15000"],["0.0595","15000"],["0.0593","608.77"],["0.0591","430.79"],["0.059","444"],["0.0586","4536.97"],["0.0584","1533.58"],["0.0583","3764.43"],["0.0581","3072.34"],["0.058","2654.9"],["0.0579","1022.23"],["0.0576","1931.71"],["0.0574","2545.88"],["0.0573","821.27"],["0.0571","2957"],["0.0568","1483.57"],["0.0561","392.24"],["0.0555","900.9"],["0.055","322.15"],["0.0549","182"],["0.0545","30"],["0.0536","24.24"],["0.0535","1869.15"],["0.053","40"],["0.0529","189"],["0.0525","701.66"],["0.0521","1122.64"]],"a":[["0.0661","3320.27"],["0.0662","8667.02"],["0.0663","6087.91"],["0.0664","6060.61"],["0.0684","591.31"],["0.0689","155.77"],["0.069","1148.02"],["0.0694","2421.86"],["0.0699","155.77"],["0.07","445.87"],["0.0701","142.65"],["0.071","2131.4"],["0.0718","1447.83"],["0.072","420.62"],["0.0743","1399.15"],["0.0745","1481.62"],["0.0747","32.97"],["0.0748","900.38"],["0.0749","209.44"],["0.075","124.49"],["0.0757","41.9"],["0.0762","657.43"],["0.077","48.77"],["0.0779","96.26"],["0.078","12305.94"],["0.079","29.77"],["0.0797","512.26"],["0.0799","743.29"],["0.08","5050.7"],["0.0814","11.71"],["0.0815","75.93"],["0.0817","403"],["0.082","817.43"],["0.0825","768.47"],["0.0828","388.77"],["0.083","150.53"],["0.0835","18"],["0.084","10776.95"],["0.0841","1465.17"],["0.0848","15000"],["0.085","16976.73"],["0.0853","798.45"],["0.0856","5239.19"],["0.0857","5134.18"],["0.0858","3885.13"],["0.0859","3691.71"],["0.086","16847.35"],["0.0862","898.68"],["0.0863","994.24"],["0.0865","1251.56"]],"u":4694899,"seq":12206894097}}`,
+	"Orderbook Snapshot":   `{"topic":"orderbook.50.BTCUSDT","ts":1731035685326,"type":"snapshot","data":{"s":"BTCUSDT","b":[["75848.74","0.067669"],["75848.63","0.004772"],["75848.61","0.00659"],["75848.05","0.000329"],["75847.68","0.00159"],["75846.88","0.00159"],["75845.97","0.026366"],["75845.87","0.013185"],["75845.41","0.077259"],["75845.4","0.132228"],["75844.61","0.00159"],["75844.44","0.026367"],["75844.2","0.013185"],["75844","0.00039"],["75843.13","0.00159"],["75843.07","0.013185"],["75842.33","0.00159"],["75841.99","0.006"],["75841.75","0.019538"],["75841.74","0.04"],["75841.71","0.031817"],["75841.36","0.017336"],["75841.33","0.000072"],["75841.16","0.001872"],["75841.11","0.172641"],["75841.04","0.029772"],["75841","0.000065"],["75840.93","0.015244"],["75840.86","0.00159"],["75840.79","0.000072"],["75840.38","0.043333"],["75840.32","0.092539"],["75840.3","0.132228"],["75840.2","0.054966"],["75840.06","0.00159"],["75840","0.20726"],["75839.64","0.003744"],["75839.29","0.006592"],["75838.58","0.00159"],["75838.52","0.049778"],["75838.14","0.003955"],["75838","0.000065"],["75837.78","0.00159"],["75837.75","0.000587"],["75837.53","0.322245"],["75837.52","0.593323"],["75837.37","0.00384"],["75837.29","0.044335"],["75837.24","0.119228"],["75837.13","0.152844"]],"a":[["75848.75","0.747137"],["75848.89","0.060306"],["75848.9","0.1"],["75851.43","0.00159"],["75851.44","0.080754"],["75852.23","0.00159"],["75852.54","0.131067"],["75852.65","0.003955"],["75853.71","0.00159"],["75853.86","0.003955"],["75854.43","0.015684"],["75854.5","0.130389"],["75854.51","0.00159"],["75855.21","0.031168"],["75855.23","0.271494"],["75855.73","0.042698"],["75855.98","0.00159"],["75856.04","0.01346"],["75856.33","0.001872"],["75856.78","0.00159"],["75857.15","0.000072"],["75857.17","0.015127"],["75857.8","0.043322"],["75857.81","0.045305"],["75857.85","0.003792"],["75858.09","0.026344"],["75858.26","0.00159"],["75859.06","0.031618"],["75859.07","0.025"],["75859.1","0.006592"],["75859.98","0.013183"],["75860.12","0.00384"],["75860.54","0.00159"],["75860.74","0.051204"],["75860.75","0.065861"],["75861.18","0.031222"],["75861.33","0.00159"],["75861.64","0.003888"],["75861.96","0.042213"],["75862.28","0.000777"],["75862.79","0.013184"],["75862.81","0.00159"],["75862.84","0.027959"],["75863.16","0.003888"],["75863.51","0.043628"],["75863.52","0.002525"],["75863.61","0.00159"],["75864.2","0.003955"],["75864.76","0.000072"],["75864.81","0.002018"]],"u":2876700,"seq":47474967795},"cts":1731035685323}`,
+	"Orderbook Update":     `{"topic":"orderbook.50.BTCUSDT","ts":1731035685345,"type":"delta","data":{"s":"BTCUSDT","b":[["75848.62","0.014895"],["75837.13","0"]],"a":[["75848.89","0.088149"],["75851.44","0.078379"],["75852.65","0"],["75855.23","0.260219"],["75857.74","0.049778"]],"u":2876701,"seq":47474967823},"cts":1731035685342}`,
 	"Public Trade":         `{"topic":"publicTrade.ATOM2SUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"ATOM2SUSDT","BT":false}]}`,
-	"Public Linear Ticker": `{ "topic": "tickers.BTCUSDT", "type": "snapshot", "data": { "symbol": "BTCUSDT", "tickDirection": "PlusTick", "price24hPcnt": "0.017103", "lastPrice": "17216.00", "prevPrice24h": "16926.50", "highPrice24h": "17281.50", "lowPrice24h": "16915.00", "prevPrice1h": "17238.00", "markPrice": "17217.33", "indexPrice": "17227.36", "openInterest": "68744.761", "openInterestValue": "1183601235.91", "turnover24h": "1570383121.943499", "volume24h": "91705.276", "nextFundingTime": "1673280000000", "fundingRate": "-0.000212", "bid1Price": "17215.50", "bid1Size": "84.489", "ask1Price": "17216.00", "ask1Size": "83.020" }, "cs": 24987956059, "ts": 1673272861686 }`,
-	"Public Option Ticker": `{ "id": "tickers.BTC-6JAN23-17500-C-2480334983-1672917511074", "topic": "tickers.BTC-6JAN23-17500-C", "ts": 1672917511074, "data": { "symbol": "BTC-6JAN23-17500-C", "bidPrice": "0", "bidSize": "0", "bidIv": "0", "askPrice": "10", "askSize": "5.1", "askIv": "0.514", "lastPrice": "10", "highPrice24h": "25", "lowPrice24h": "5", "markPrice": "7.86976724", "indexPrice": "16823.73", "markPriceIv": "0.4896", "underlyingPrice": "16815.1", "openInterest": "49.85", "turnover24h": "446802.8473", "volume24h": "26.55", "totalVolume": "86", "totalTurnover": "1437431", "delta": "0.047831", "gamma": "0.00021453", "vega": "0.81351067", "theta": "-19.9115368", "predictedDeliveryPrice": "0", "change24h": "-0.33333334" }, "type": "snapshot" }`,
-	"Public Ticker":        `{"topic":"tickers.APTUSDC","ts":1690724804979,"type":"snapshot","cs":11505608330,"data":{"symbol":"APTUSDC","lastPrice":"7.0884","highPrice24h":"7.19","lowPrice24h":"7.0666","prevPrice24h":"7.0767","volume24h":"642.45","turnover24h":"4568.920448","price24hPcnt":"0.0017","usdIndexPrice":"7.07930012"}}`,
 	"Public Kline":         `{ "topic": "kline.5.BTCUSDT", "data": [ { "start": 1672324800000, "end": 1672325099999, "interval": "5", "open": "16649.5", "close": "16677", "high": "16677", "low": "16608", "volume": "2.081", "turnover": "34666.4005", "confirm": false, "timestamp": 1672324988882 } ], "ts": 1672324988882,"type": "snapshot"}`,
 	"Public Liquidiation":  `{ "data": { "price": "0.03803", "side": "Buy", "size": "1637", "symbol": "GALAUSDT", "updatedTime": 1673251091822 }, "topic": "liquidation.GALAUSDT", "ts": 1673251091822, "type": "snapshot" }`,
-	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.EOS3LUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393 } ], "ts": 1672325322393 }`,
-	"Public LT Ticker":     `{ "topic": "tickers_lt.EOS3LUSDT", "ts": 1672325446847, "type": "snapshot", "data": { "symbol": "EOS3LUSDT", "lastPrice": "0.41477848043290448", "highPrice24h": "0.435285472510871305", "lowPrice24h": "0.394601507960931382", "prevPrice24h": "0.431502290172376349", "price24hPcnt": "-0.0388" } }`,
-	"Public LT Navigation": `{ "topic": "lt.EOS3LUSDT", "ts": 1672325564669, "type": "snapshot", "data": { "symbol": "EOS3LUSDT", "time": 1672325564554, "nav": "0.413517419653406162", "basketPosition": "1.261060779498318641", "leverage": "2.656197506416192150", "basketLoan": "-0.684866519289629374", "circulation": "72767.309468460367138199", "basket": "91764.000000292013277472" } }`,
+	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.BTCUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393 } ], "ts": 1672325322393 }`,
+	"Public LT Ticker":     `{ "topic": "tickers_lt.BTCUSDT", "ts": 1672325446847, "type": "snapshot", "data": { "symbol": "BTCUSDT", "lastPrice": "0.41477848043290448", "highPrice24h": "0.435285472510871305", "lowPrice24h": "0.394601507960931382", "prevPrice24h": "0.431502290172376349", "price24hPcnt": "-0.0388" } }`,
+	"Public LT Navigation": `{ "topic": "lt.EOS3LUSDT", "ts": 1672325564669, "type": "snapshot", "data": { "symbol": "BTCUSDT", "time": 1672325564554, "nav": "0.413517419653406162", "basketPosition": "1.261060779498318641", "leverage": "2.656197506416192150", "basketLoan": "-0.684866519289629374", "circulation": "72767.309468460367138199", "basket": "91764.000000292013277472" } }`,
 	"Private Position":     `{"id": "59232430b58efe-5fc5-4470-9337-4ce293b68edd", "topic": "position", "creationTime": 1672364174455, "data": [ { "positionIdx": 0, "tradeMode": 0, "riskId": 41, "riskLimitValue": "200000", "symbol": "XRPUSDT", "side": "Buy", "size": "75", "entryPrice": "0.3615", "leverage": "10", "positionValue": "27.1125", "positionBalance": "0", "markPrice": "0.3374", "positionIM": "2.72589075", "positionMM": "0.28576575", "takeProfit": "0", "stopLoss": "0", "trailingStop": "0", "unrealisedPnl": "-1.8075", "cumRealisedPnl": "0.64782276", "createdTime": "1672121182216", "updatedTime": "1672364174449", "tpslMode": "Full", "liqPrice": "", "bustPrice": "", "category": "linear","positionStatus":"Normal","adlRankIndicator":2}]}`,
-	"Private Order":        `{ "id": "5923240c6880ab-c59f-420b-9adb-3639adc9dd90", "topic": "order", "creationTime": 1672364262474, "data": [ { "symbol": "ETH-30DEC22-1400-C", "orderId": "5cf98598-39a7-459e-97bf-76ca765ee020", "side": "Sell", "orderType": "Market", "cancelType": "UNKNOWN", "price": "72.5", "qty": "1", "orderIv": "", "timeInForce": "IOC", "orderStatus": "Filled", "orderLinkId": "", "lastPriceOnCreated": "", "reduceOnly": false, "leavesQty": "", "leavesValue": "", "cumExecQty": "1", "cumExecValue": "75", "avgPrice": "75", "blockTradeId": "", "positionIdx": 0, "cumExecFee": "0.358635", "createdTime": "1672364262444", "updatedTime": "1672364262457", "rejectReason": "EC_NoError", "stopOrderType": "", "tpslMode": "", "triggerPrice": "", "takeProfit": "", "stopLoss": "", "tpTriggerBy": "", "slTriggerBy": "", "tpLimitPrice": "", "slLimitPrice": "", "triggerDirection": 0, "triggerBy": "", "closeOnTrigger": false, "category": "option", "placeType": "price", "smpType": "None", "smpGroup": 0, "smpOrderId": "" } ] }`,
+	"Private Order":        `{ "id": "5923240c6880ab-c59f-420b-9adb-3639adc9dd90", "topic": "order", "creationTime": 1672364262474, "data": [ { "symbol": "BTCUSDT", "orderId": "5cf98598-39a7-459e-97bf-76ca765ee020", "side": "Sell", "orderType": "Market", "cancelType": "UNKNOWN", "price": "72.5", "qty": "1", "orderIv": "", "timeInForce": "IOC", "orderStatus": "Filled", "orderLinkId": "", "lastPriceOnCreated": "", "reduceOnly": false, "leavesQty": "", "leavesValue": "", "cumExecQty": "1", "cumExecValue": "75", "avgPrice": "75", "blockTradeId": "", "positionIdx": 0, "cumExecFee": "0.358635", "createdTime": "1672364262444", "updatedTime": "1672364262457", "rejectReason": "EC_NoError", "stopOrderType": "", "tpslMode": "", "triggerPrice": "", "takeProfit": "", "stopLoss": "", "tpTriggerBy": "", "slTriggerBy": "", "tpLimitPrice": "", "slLimitPrice": "", "triggerDirection": 0, "triggerBy": "", "closeOnTrigger": false, "category": "option", "placeType": "price", "smpType": "None", "smpGroup": 0, "smpOrderId": "" } ] }`,
 	"Private Wallet":       `{ "id": "5923242c464be9-25ca-483d-a743-c60101fc656f", "topic": "wallet", "creationTime": 1672364262482, "data": [ { "accountIMRate": "0.016", "accountMMRate": "0.003", "totalEquity": "12837.78330098", "totalWalletBalance": "12840.4045924", "totalMarginBalance": "12837.78330188", "totalAvailableBalance": "12632.05767702", "totalPerpUPL": "-2.62129051", "totalInitialMargin": "205.72562486", "totalMaintenanceMargin": "39.42876721", "coin": [ { "coin": "USDC", "equity": "200.62572554", "usdValue": "200.62572554", "walletBalance": "201.34882644", "availableToWithdraw": "0", "availableToBorrow": "1500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "202.99874213", "totalPositionMM": "39.14289747", "unrealisedPnl": "74.2768991", "cumRealisedPnl": "-209.1544627", "bonus": "0" }, { "coin": "BTC", "equity": "0.06488393", "usdValue": "1023.08402268", "walletBalance": "0.06488393", "availableToWithdraw": "0.06488393", "availableToBorrow": "2.5", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "ETH", "equity": "0", "usdValue": "0", "walletBalance": "0", "availableToWithdraw": "0", "availableToBorrow": "26", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "USDT", "equity": "11726.64664904", "usdValue": "11613.58597018", "walletBalance": "11728.54414904", "availableToWithdraw": "11723.92075829", "availableToBorrow": "2500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "2.72589075", "totalPositionMM": "0.28576575", "unrealisedPnl": "-1.8975", "cumRealisedPnl": "0.64782276", "bonus": "0" }, { "coin": "EOS3L", "equity": "215.0570412", "usdValue": "0", "walletBalance": "215.0570412", "availableToWithdraw": "215.0570412", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "BIT", "equity": "1.82", "usdValue": "0.48758257", "walletBalance": "1.82", "availableToWithdraw": "1.82", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" } ], "accountType": "UNIFIED", "accountLTV": "0.017" } ] }`,
 	"Private Greek":        `{ "id": "592324fa945a30-2603-49a5-b865-21668c29f2a6", "topic": "greeks", "creationTime": 1672364262482, "data": [ { "baseCoin": "ETH", "totalDelta": "0.06999986", "totalGamma": "-0.00000001", "totalVega": "-0.00000024", "totalTheta": "0.00001314" } ] }`,
 	"Execution":            `{"id": "592324803b2785-26fa-4214-9963-bdd4727f07be", "topic": "execution", "creationTime": 1672364174455, "data": [ { "category": "linear", "symbol": "XRPUSDT", "execFee": "0.005061", "execId": "7e2ae69c-4edf-5800-a352-893d52b446aa", "execPrice": "0.3374", "execQty": "25", "execType": "Trade", "execValue": "8.435", "isMaker": false, "feeRate": "0.0006", "tradeIv": "", "markIv": "", "blockTradeId": "", "markPrice": "0.3391", "indexPrice": "", "underlyingPrice": "", "leavesQty": "0", "orderId": "f6e324ff-99c2-4e89-9739-3086e47f9381", "orderLinkId": "", "orderPrice": "0.3207", "orderQty":"25","orderType":"Market","stopOrderType":"UNKNOWN","side":"Sell","execTime":"1672364174443","isLeverage": "0","closedSize": "","seq":4688002127}]}`,
@@ -3113,10 +3196,163 @@ var pushDataMap = map[string]string{
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
-	for x := range pushDataMap {
-		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[x]))
-		if err != nil {
-			t.Errorf("%s: %v", x, err)
+
+	keys := slices.Collect(maps.Keys(pushDataMap))
+	slices.Sort(keys)
+
+	for x := range keys {
+		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]]))
+		assert.NoError(t, err, "wsHandleData should not error")
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	assetRouting := []asset.Item{
+		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
+		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
+	}
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(r []byte) error {
+		defer slices.Delete(assetRouting, 0, 1)
+		return b.wsHandleData(assetRouting[0], r)
+	})
+	close(b.Websocket.DataHandler)
+	expected := 8
+	require.Len(t, b.Websocket.DataHandler, expected, "Should see correct number of tickers")
+	for resp := range b.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *ticker.Price:
+			assert.Equal(t, b.Name, v.ExchangeName, "ExchangeName should be correct")
+			switch expected - len(b.Websocket.DataHandler) {
+			case 1: // Spot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 21109.77, v.Last, "Last should be correct")
+				assert.Equal(t, 21426.99, v.High, "High should be correct")
+				assert.Equal(t, 20575.00, v.Low, "Low should be correct")
+				assert.Equal(t, 6780.866843, v.Volume, "Volume should be correct")
+				assert.Equal(t, "BTC_USDT", v.Pair.String(), "Pair should be correct")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 2: // Option
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, 3565.00, v.Last, "Last should be correct")
+				assert.Equal(t, 3715.00, v.High, "High should be correct")
+				assert.Equal(t, 3555.00, v.Low, "Low should be correct")
+				assert.Equal(t, 1.62, v.Volume, "Volume should be correct")
+				assert.Equal(t, 3475.00, v.Bid, "Bid should be correct")
+				assert.Equal(t, 10.14, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 3520.00, v.Ask, "Ask should be correct")
+				assert.Equal(t, 2.5, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 3502.0715721, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61912.8, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 29.35, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
+				assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 3: // USDTMargined snapshot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
+				assert.Equal(t, 62752.90, v.High, "High should be correct")
+				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
+				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61873.9, v.Bid, "Bid should be correct")
+				assert.Equal(t, 3.783, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
+				assert.Equal(t, 16.278, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61875.25, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61903.73, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 58117.022, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDTMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715748762463), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 4: // USDTMargined partial
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
+				assert.Equal(t, 62752.90, v.High, "High should be correct")
+				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
+				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61873.90, v.Bid, "Bid should be correct")
+				assert.Equal(t, 3.543, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
+				assert.Equal(t, 16.278, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61875.06, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61903.59, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 58117.022, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDTMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715748763063), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 5: // USDCMargined snapshot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.PERP, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
+				assert.Equal(t, 62242.2, v.High, "High should be correct")
+				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
+				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61909.2, v.Bid, "Bid should be correct")
+				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
+				assert.Equal(t, 0.082, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61943.58, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61942.85, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 526.806, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDCMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715756612118), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 6: // USDCMargined partial
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.PERP, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
+				assert.Equal(t, 62242.2, v.High, "High should be correct")
+				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
+				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61909.5, v.Bid, "Bid should be correct")
+				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
+				assert.Equal(t, 0.082, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61943.58, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61942.85, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 526.806, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.USDCMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715756612210), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 7: // CoinMargined snapshot
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USD, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
+				assert.Equal(t, 62265.5, v.High, "High should be correct")
+				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
+				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
+				assert.Equal(t, 12667.0, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")
+				assert.Equal(t, 60953.0, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61894.0, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61923.36, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 931760496.0, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715757637952), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			case 8: // CoinMargined partial
+				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USD, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
+				assert.Equal(t, 62265.5, v.High, "High should be correct")
+				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
+				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
+				assert.Equal(t, 27634.0, v.BidSize, "BidSize should be correct")
+				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")
+				assert.Equal(t, 60953.0, v.AskSize, "AskSize should be correct")
+				assert.Equal(t, 61894.0, v.MarkPrice, "MarkPrice should be correct")
+				assert.Equal(t, 61923.36, v.IndexPrice, "IndexPrice should be correct")
+				assert.Equal(t, 931760496.0, v.OpenInterest, "OpenInterest should be correct")
+				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
+				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
 		}
 	}
 }
@@ -3241,12 +3477,12 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	data := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493}}`
+	data := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`
 	err := b.wsHandleData(asset.Spot, []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
-	update := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493}}`
+	update := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`
 	var wsResponse WebsocketResponse
 	err = json.Unmarshal([]byte(update), &wsResponse)
 	if err != nil {
@@ -3271,17 +3507,6 @@ func TestGetLongShortRatio(t *testing.T) {
 	_, err = b.GetLongShortRatio(context.Background(), "spot", "BTCUSDT", kline.FiveMin, 0)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
-	}
-}
-
-func TestExtractCurrencyPair(t *testing.T) {
-	t.Parallel()
-	dogeUSDT := currency.Pair{Base: currency.DOGE, Quote: currency.USDT}
-	pair, err := b.ExtractCurrencyPair("DOGEUSDT", asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	} else if !pair.Equal(dogeUSDT) {
-		t.Fatalf("expecting %v, got %v", dogeUSDT, pair)
 	}
 }
 
@@ -3397,84 +3622,6 @@ func TestConstructOrderDetails(t *testing.T) {
 	}
 }
 
-// ExtractCurrencyPair extracts the currency pair equivalent of provided pair string.
-func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, request bool) (currency.Pair, error) {
-	format, err := by.GetPairFormat(assetType, request)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	var pair currency.Pair
-	pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	return pair.Format(format), nil
-}
-
-func TestUpdateOptionsTickerInformation(t *testing.T) {
-	t.Parallel()
-	snapshots := map[asset.Item]string{
-		asset.Spot:                `{ "topic": "tickers.BTC-USDT", "ts": 1673853746003, "type": "snapshot", "cs": 2588407389, "data": { "symbol": "BTCUSDT", "lastPrice": "21109.77", "highPrice24h": "21426.99", "lowPrice24h": "20575", "prevPrice24h": "20704.93", "volume24h": "6780.866843", "turnover24h": "141946527.22907118", "price24hPcnt": "0.0196", "usdIndexPrice": "21120.2400136" } }`,
-		asset.USDTMarginedFutures: `{ "topic": "tickers.BTC_USDT", "type": "snapshot", "data": { "symbol": "BTCUSDT", "tickDirection": "PlusTick", "price24hPcnt": "0.017103", "lastPrice": "17216.00", "prevPrice24h": "16926.50", "highPrice24h": "17281.50", "lowPrice24h": "16915.00", "prevPrice1h": "17238.00", "markPrice": "17217.33", "indexPrice": "17227.36", "openInterest": "68744.761", "openInterestValue": "1183601235.91", "turnover24h": "1570383121.943499", "volume24h": "91705.276", "nextFundingTime": "1673280000000", "fundingRate": "-0.000212", "bid1Price": "17215.50", "bid1Size": "84.489", "ask1Price": "17216.00", "ask1Size": "83.020" }, "cs": 24987956059, "ts": 1673272861686 }`,
-		asset.Options:             `{ "id": "tickers.BTC-6JAN23-17500-C-2480334983-1672917511074", "topic": "tickers.BTC-6JAN23-17500-C", "ts": 1672917511074, "data": { "symbol": "BTC-USD-220930-28000-P", "bidPrice": "0", "bidSize": "0", "bidIv": "0", "askPrice": "10", "askSize": "5.1", "askIv": "0.514", "lastPrice": "10", "highPrice24h": "25", "lowPrice24h": "5", "markPrice": "7.86976724", "indexPrice": "16823.73", "markPriceIv": "0.4896", "underlyingPrice": "16815.1", "openInterest": "49.85", "turnover24h": "446802.8473", "volume24h": "26.55", "totalVolume": "86", "totalTurnover": "1437431", "delta": "0.047831", "gamma": "0.00021453", "vega": "0.81351067", "theta": "-19.9115368", "predictedDeliveryPrice": "0", "change24h": "-0.33333334" }, "type": "snapshot" }`,
-	}
-	var err error
-	for x := range snapshots {
-		err = b.wsHandleData(x, []byte(snapshots[x]))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// Spot update processing
-	data := `{ "symbol": "BTC-USDT", "lastPrice": "21109.77", "highPrice24h": "21426.99", "lowPrice24h": "20575", "prevPrice24h": "20704.93", "volume24h": "6780.866843", "turnover24h": "141946527.22907118", "price24hPcnt": "0.0196", "usdIndexPrice": "21120.2400136" }`
-	var result WsSpotTicker
-	err = json.Unmarshal([]byte(data), &result)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cp, err := b.ExtractCurrencyPair(result.Symbol, asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.updateSpotTickerInformation(&result, cp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Linear update processing
-	data = `{ "symbol": "BTC_USDT", "tickDirection": "PlusTick", "price24hPcnt": "0.017103", "lastPrice": "17216.00", "prevPrice24h": "16926.50", "highPrice24h": "17281.50", "lowPrice24h": "16915.00", "prevPrice1h": "17238.00", "markPrice": "17217.33", "indexPrice": "17227.36", "openInterest": "68744.761", "openInterestValue": "1183601235.91", "turnover24h": "1570383121.943499", "volume24h": "91705.276", "nextFundingTime": "1673280000000", "fundingRate": "-0.000212", "bid1Price": "17215.50", "bid1Size": "84.489", "ask1Price": "17216.00", "ask1Size": "83.020" }`
-	var resultLinear WsLinearTicker
-	err = json.Unmarshal([]byte(data), &resultLinear)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cp, err = b.ExtractCurrencyPair(resultLinear.Symbol, asset.USDTMarginedFutures, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.updateTickerInformation(&resultLinear, cp, asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Options update processing
-	data = `{"symbol": "BTC-USD-220930-28000-P", "bidPrice": "0", "bidSize": "0", "bidIv": "0", "askPrice": "10", "askSize": "5.1", "askIv": "0.514", "lastPrice": "10", "highPrice24h": "25", "lowPrice24h": "5", "markPrice": "7.86976724", "indexPrice": "16823.73", "markPriceIv": "0.4896", "underlyingPrice": "16815.1", "openInterest": "49.85", "turnover24h": "446802.8473", "volume24h": "26.55", "totalVolume": "86", "totalTurnover": "1437431", "delta": "0.047831", "gamma": "0.00021453", "vega": "0.81351067", "theta": "-19.9115368", "predictedDeliveryPrice": "0", "change24h": "-0.33333334" }`
-	var resultOptions WsOptionTicker
-	err = json.Unmarshal([]byte(data), &resultOptions)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cp, err = currency.NewPairFromString(resultOptions.Symbol)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.updateOptionsTickerInformation(&resultOptions, cp)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
@@ -3522,15 +3669,15 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 	is, err = b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, inverseTradablePair)
 	assert.NoError(t, err)
-	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair))
+	assert.Truef(t, is, "%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair)
 
 	is, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, usdtMarginedTradablePair)
 	assert.NoError(t, err)
-	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair))
+	assert.Truef(t, is, "%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair)
 
 	is, err = b.IsPerpetualFutureCurrency(asset.USDCMarginedFutures, usdcMarginedTradablePair)
 	assert.NoError(t, err)
-	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair))
+	assert.Truef(t, is, "%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair)
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
@@ -3544,4 +3691,93 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+// TestGenerateSubscriptions exercises generateSubscriptions
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	for _, s := range b.Features.Subscriptions {
+		for _, a := range b.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := b.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if isSymbolChannel(channelName(s)) {
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					switch s.Channel {
+					case subscription.CandlesChannel:
+						s.QualifiedChannel = fmt.Sprintf("%s.%.f.%s", channelName(s), s.Interval.Duration().Minutes(), p)
+					case subscription.OrderbookChannel:
+						s.QualifiedChannel = fmt.Sprintf("%s.%d.%s", channelName(s), s.Levels, p)
+					default:
+						s.QualifiedChannel = channelName(s) + "." + p.String()
+					}
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s.Pairs = pairs
+				s.QualifiedChannel = channelName(s)
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	b.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, b)
+	err = b.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+}
+
+func TestAuthSubscribe(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	b.Features.Subscriptions = subscription.List{}
+	success := true
+	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+		tb.Helper()
+		var req SubscriptionArgument
+		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+		require.Equal(tb, "subscribe", req.Operation)
+		msg, err = json.Marshal(SubscriptionResponse{
+			Success:   success,
+			RetMsg:    "Mock Resp Error",
+			RequestID: req.RequestID,
+			Operation: req.Operation,
+		})
+		require.NoError(tb, err, "Marshal must not error")
+		return w.WriteMessage(websocket.TextMessage, msg)
+	}
+	b = testexch.MockWsInstance[Bybit](t, testws.CurryWsMockUpgrader(t, mock))
+	b.Websocket.AuthConn = b.Websocket.Conn
+	err = b.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+	success = false
+	err = b.Subscribe(subs)
+	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
 }

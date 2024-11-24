@@ -86,7 +86,24 @@ type Base struct {
 	Pair     currency.Pair
 	Asset    asset.Item
 
-	LastUpdated  time.Time
+	// LastUpdated is the time when a change occurred on the exchange books.
+	// Note: This does not necessarily indicate the change is out of sync with
+	// the exchange. It represents the last known update time from the exchange,
+	// which could be stale if there have been no recent changes.
+	LastUpdated time.Time
+
+	// UpdatePushedAt is the time the exchange pushed this update. This helps
+	// determine factors like distance from exchange (latency) and routing
+	// time, which can affect the time it takes for an update to reach the user
+	// from the exchange.
+	UpdatePushedAt time.Time
+
+	// InsertedAt is the time the update was inserted into the orderbook
+	// management system. This field is used to calculate round-trip times and
+	// processing delays, e.g., InsertedAt.Sub(UpdatePushedAt) represents the
+	// total processing time including network latency.
+	InsertedAt time.Time
+
 	LastUpdateID int64
 	// PriceDuplication defines whether an orderbook can contain duplicate
 	// prices in a payload
@@ -95,7 +112,7 @@ type Base struct {
 	// VerifyOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
-	VerifyOrderbook bool `json:"-"`
+	VerifyOrderbook bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -117,10 +134,12 @@ type options struct {
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
+	updatePushedAt         time.Time
+	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool
-	VerifyOrderbook        bool
+	verifyOrderbook        bool
 	restSnapshot           bool
 	idAligned              bool
 	checksumStringRequired bool
@@ -145,9 +164,10 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID   int64 // Used when no time is provided
-	UpdateTime time.Time
-	Asset      asset.Item
+	UpdateID       int64 // Used when no time is provided
+	UpdateTime     time.Time
+	UpdatePushedAt time.Time
+	Asset          asset.Item
 	Action
 	Bids []Tranche
 	Asks []Tranche

@@ -17,58 +17,56 @@ import (
 
 const (
 	// Coin Margined Swap (perpetual futures) endpoints
-	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info"
-	huobiSwapFunding                     = "/swap-api/v1/swap_funding_rate"
-	huobiSwapBatchFunding                = "/swap-api/v1/swap_batch_funding_rate"
-	huobiSwapIndexPriceInfo              = "/swap-api/v1/swap_index"
-	huobiSwapPriceLimitation             = "/swap-api/v1/swap_price_limit"
-	huobiSwapOpenInterestInfo            = "/swap-api/v1/swap_open_interest"
-	huobiSwapMarketDepth                 = "/swap-ex/market/depth"
-	huobiKLineData                       = "/swap-ex/market/history/kline"
-	huobiMarketDataOverview              = "/swap-ex/market/detail/merged"
-	huobiLastTradeContract               = "/swap-ex/market/trade"
-	huobiRequestBatchOfTradingRecords    = "/swap-ex/market/history/trade"
-	huobiInsuranceBalanceAndClawbackRate = "/swap-api/v1/swap_risk_info"
-	huobiInsuranceBalanceHistory         = "/swap-api/v1/swap_insurance_fund"
-	huobiTieredAdjustmentFactor          = "/swap-api/v1/swap_adjustfactor"
-	huobiOpenInterestInfo                = "/swap-api/v1/swap_his_open_interest"
-	huobiSwapSystemStatus                = "/swap-api/v1/swap_api_state"
-	huobiSwapSentimentAccountData        = "/swap-api/v1/swap_elite_account_ratio"
-	huobiSwapSentimentPosition           = "/swap-api/v1/swap_elite_position_ratio"
-	huobiSwapLiquidationOrders           = "/swap-api/v3/swap_liquidation_orders"
-	huobiSwapHistoricalFundingRate       = "/swap-api/v1/swap_historical_funding_rate"
-	huobiPremiumIndexKlineData           = "/index/market/history/swap_premium_index_kline"
-	huobiPredictedFundingRateData        = "/index/market/history/swap_estimated_rate_kline"
-	huobiBasisData                       = "/index/market/history/swap_basis"
-	huobiSwapAccInfo                     = "/swap-api/v1/swap_account_info"
-	huobiSwapPosInfo                     = "/swap-api/v1/swap_position_info"
-	huobiSwapAssetsAndPos                = "/swap-api/v1/swap_account_position_info" //nolint // false positive gosec
-	huobiSwapSubAccList                  = "/swap-api/v1/swap_sub_account_list"
-	huobiSwapSubAccInfo                  = "/swap-api/v1/swap_sub_account_info"
-	huobiSwapSubAccPosInfo               = "/swap-api/v1/swap_sub_position_info"
-	huobiSwapFinancialRecords            = "/swap-api/v1/swap_financial_record"
-	huobiSwapSettlementRecords           = "/swap-api/v1/swap_user_settlement_records"
-	huobiSwapAvailableLeverage           = "/swap-api/v1/swap_available_level_rate"
-	huobiSwapOrderLimitInfo              = "/swap-api/v1/swap_order_limit"
-	huobiSwapTradingFeeInfo              = "/swap-api/v1/swap_fee"
-	huobiSwapTransferLimitInfo           = "/swap-api/v1/swap_transfer_limit"
-	huobiSwapPositionLimitInfo           = "/swap-api/v1/swap_position_limit"
-	huobiSwapInternalTransferData        = "/swap-api/v1/swap_master_sub_transfer"
-	huobiSwapInternalTransferRecords     = "/swap-api/v1/swap_master_sub_transfer_record"
-	huobiSwapPlaceOrder                  = "/swap-api/v1/swap_order"
-	huobiSwapPlaceBatchOrder             = "/swap-api/v1/swap_batchorder"
-	huobiSwapCancelOrder                 = "/swap-api/v1/swap_cancel"
-	huobiSwapCancelAllOrders             = "/swap-api/v1/swap_cancelall"
-	huobiSwapLightningCloseOrder         = "/swap-api/v1/swap_lightning_close_position"
-	huobiSwapOrderInfo                   = "/swap-api/v1/swap_order_info"
-	huobiSwapOrderDetails                = "/swap-api/v1/swap_order_detail"
-	huobiSwapOpenOrders                  = "/swap-api/v1/swap_openorders"
-	huobiSwapOrderHistory                = "/swap-api/v1/swap_hisorders"
-	huobiSwapTradeHistory                = "/swap-api/v1/swap_matchresults"
-	huobiSwapTriggerOrder                = "/swap-api/v1/swap_trigger_order"
-	huobiSwapCancelTriggerOrder          = "/swap-api/v1/swap_trigger_cancel"
-	huobiSwapCancelAllTriggerOrders      = "/swap-api/v1/swap_trigger_cancelall"
-	huobiSwapTriggerOrderHistory         = "/swap-api/v1/swap_trigger_hisorders"
+	huobiSwapMarkets                  = "/swap-api/v1/swap_contract_info"
+	huobiSwapFunding                  = "/swap-api/v1/swap_funding_rate"
+	huobiSwapBatchFunding             = "/swap-api/v1/swap_batch_funding_rate"
+	huobiSwapIndexPriceInfo           = "/swap-api/v1/swap_index"
+	huobiSwapPriceLimitation          = "/swap-api/v1/swap_price_limit"
+	huobiSwapOpenInterestInfo         = "/swap-api/v1/swap_open_interest"
+	huobiSwapMarketDepth              = "/swap-ex/market/depth"
+	huobiKLineData                    = "/swap-ex/market/history/kline"
+	huobiMarketDataOverview           = "/swap-ex/market/detail/merged"
+	huobiLastTradeContract            = "/swap-ex/market/trade"
+	huobiRequestBatchOfTradingRecords = "/swap-ex/market/history/trade"
+	huobiTieredAdjustmentFactor       = "/swap-api/v1/swap_adjustfactor"
+	huobiOpenInterestInfo             = "/swap-api/v1/swap_his_open_interest"
+	huobiSwapSystemStatus             = "/swap-api/v1/swap_api_state"
+	huobiSwapSentimentAccountData     = "/swap-api/v1/swap_elite_account_ratio"
+	huobiSwapSentimentPosition        = "/swap-api/v1/swap_elite_position_ratio"
+	huobiSwapLiquidationOrders        = "/swap-api/v3/swap_liquidation_orders"
+	huobiSwapHistoricalFundingRate    = "/swap-api/v1/swap_historical_funding_rate"
+	huobiPremiumIndexKlineData        = "/index/market/history/swap_premium_index_kline"
+	huobiPredictedFundingRateData     = "/index/market/history/swap_estimated_rate_kline"
+	huobiBasisData                    = "/index/market/history/swap_basis"
+	huobiSwapAccInfo                  = "/swap-api/v1/swap_account_info"
+	huobiSwapPosInfo                  = "/swap-api/v1/swap_position_info"
+	huobiSwapAssetsAndPos             = "/swap-api/v1/swap_account_position_info" //nolint // false positive gosec
+	huobiSwapSubAccList               = "/swap-api/v1/swap_sub_account_list"
+	huobiSwapSubAccInfo               = "/swap-api/v1/swap_sub_account_info"
+	huobiSwapSubAccPosInfo            = "/swap-api/v1/swap_sub_position_info"
+	huobiSwapFinancialRecords         = "/swap-api/v1/swap_financial_record"
+	huobiSwapSettlementRecords        = "/swap-api/v1/swap_user_settlement_records"
+	huobiSwapAvailableLeverage        = "/swap-api/v1/swap_available_level_rate"
+	huobiSwapOrderLimitInfo           = "/swap-api/v1/swap_order_limit"
+	huobiSwapTradingFeeInfo           = "/swap-api/v1/swap_fee"
+	huobiSwapTransferLimitInfo        = "/swap-api/v1/swap_transfer_limit"
+	huobiSwapPositionLimitInfo        = "/swap-api/v1/swap_position_limit"
+	huobiSwapInternalTransferData     = "/swap-api/v1/swap_master_sub_transfer"
+	huobiSwapInternalTransferRecords  = "/swap-api/v1/swap_master_sub_transfer_record"
+	huobiSwapPlaceOrder               = "/swap-api/v1/swap_order"
+	huobiSwapPlaceBatchOrder          = "/swap-api/v1/swap_batchorder"
+	huobiSwapCancelOrder              = "/swap-api/v1/swap_cancel"
+	huobiSwapCancelAllOrders          = "/swap-api/v1/swap_cancelall"
+	huobiSwapLightningCloseOrder      = "/swap-api/v1/swap_lightning_close_position"
+	huobiSwapOrderInfo                = "/swap-api/v1/swap_order_info"
+	huobiSwapOrderDetails             = "/swap-api/v1/swap_order_detail"
+	huobiSwapOpenOrders               = "/swap-api/v1/swap_openorders"
+	huobiSwapOrderHistory             = "/swap-api/v1/swap_hisorders"
+	huobiSwapTradeHistory             = "/swap-api/v1/swap_matchresults"
+	huobiSwapTriggerOrder             = "/swap-api/v1/swap_trigger_order"
+	huobiSwapCancelTriggerOrder       = "/swap-api/v1/swap_trigger_cancel"
+	huobiSwapCancelAllTriggerOrders   = "/swap-api/v1/swap_trigger_cancelall"
+	huobiSwapTriggerOrderHistory      = "/swap-api/v1/swap_trigger_hisorders"
 )
 
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
@@ -136,7 +134,7 @@ func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -196,38 +194,6 @@ func (h *HUOBI) GetBatchTrades(ctx context.Context, code currency.Pair, size int
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
-// GetInsuranceData gets insurance fund data and clawback rates
-func (h *HUOBI) GetInsuranceData(ctx context.Context, code currency.Pair) (InsuranceAndClawbackData, error) {
-	var resp InsuranceAndClawbackData
-	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp, err
-	}
-	params := url.Values{}
-	params.Set("contract_code", codeValue)
-	path := common.EncodeURLValues(huobiInsuranceBalanceAndClawbackRate, params)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
-}
-
-// GetHistoricalInsuranceData gets historical insurance fund data and clawback rates
-func (h *HUOBI) GetHistoricalInsuranceData(ctx context.Context, code currency.Pair, pageIndex, pageSize int64) (HistoricalInsuranceFundBalance, error) {
-	var resp HistoricalInsuranceFundBalance
-	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp, err
-	}
-	params := url.Values{}
-	params.Set("contract_code", codeValue)
-	if pageIndex != 0 {
-		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
-	}
-	if pageSize != 0 {
-		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
-	}
-	path := common.EncodeURLValues(huobiInsuranceBalanceHistory, params)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
-}
-
 // GetTieredAjustmentFactorInfo gets tiered adjustment factor data
 func (h *HUOBI) GetTieredAjustmentFactorInfo(ctx context.Context, code currency.Pair) (TieredAdjustmentFactorData, error) {
 	var resp TieredAdjustmentFactorData
@@ -248,7 +214,7 @@ func (h *HUOBI) GetOpenInterestInfo(ctx context.Context, code currency.Pair, per
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
@@ -287,7 +253,7 @@ func (h *HUOBI) GetTraderSentimentIndexAccount(ctx context.Context, code currenc
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -305,7 +271,7 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(ctx context.Context, code curren
 		return resp, err
 	}
 
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -372,7 +338,7 @@ func (h *HUOBI) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
@@ -393,7 +359,7 @@ func (h *HUOBI) GetEstimatedFundingRates(ctx context.Context, code currency.Pair
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
@@ -414,13 +380,13 @@ func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, ba
 	if err != nil {
 		return resp, err
 	}
-	if !common.StringDataCompareInsensitive(validPeriods, period) {
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
 		return resp, errors.New("invalid period value received")
 	}
 	if size <= 0 || size > 1200 {
 		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
 	}
-	if !common.StringDataCompareInsensitive(validBasisPriceTypes, basisPriceType) {
+	if !common.StringSliceCompareInsensitive(validBasisPriceTypes, basisPriceType) {
 		return resp, errors.New("invalid period value received")
 	}
 	params := url.Values{}
@@ -581,7 +547,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if !common.StringDataCompareInsensitive(validOrderTypes, orderType) {
+	if !common.StringSliceCompareInsensitive(validOrderTypes, orderType) {
 		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderType
@@ -635,7 +601,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 	req["contract_code"] = codeValue
 	req["subUid"] = subUID
 	req["amount"] = amount
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -651,7 +617,7 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
+	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
@@ -682,7 +648,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 	}
 	req["direction"] = direction
 	req["offset"] = offset
-	if !common.StringDataCompareInsensitive(validOrderTypes, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validOrderTypes, orderPriceType) {
 		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderPriceType
@@ -750,7 +716,7 @@ func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode curre
 		req["client_order_id"] = clientOrderID
 	}
 	if orderPriceType != "" {
-		if !common.StringDataCompareInsensitive(validLightningOrderPriceType, orderPriceType) {
+		if !common.StringSliceCompareInsensitive(validLightningOrderPriceType, orderPriceType) {
 			return resp, errors.New("invalid orderPriceType")
 		}
 		req["order_price_type"] = orderPriceType
@@ -913,7 +879,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency
 	req["volume"] = volume
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
-	if !common.StringDataCompareInsensitive(validOrderPriceType, orderPriceType) {
+	if !common.StringSliceCompareInsensitive(validOrderPriceType, orderPriceType) {
 		return resp, errors.New("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType

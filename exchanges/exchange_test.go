@@ -1970,7 +1970,6 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run(tt.Endpoint, func(t *testing.T) {
 			t.Parallel()
 			u, err := getURLTypeFromString(tt.Endpoint)
@@ -2146,13 +2145,13 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	if !errors.Is(err, errSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	if !errors.Is(err, ErrSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
 	}
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	if !errors.Is(err, errSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	if !errors.Is(err, ErrSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
 	}
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
@@ -2818,11 +2817,7 @@ func TestGetCachedOpenInterest(t *testing.T) {
 // TestSetSubscriptionsFromConfig tests the setting and loading of subscriptions from config and exchange defaults
 func TestSetSubscriptionsFromConfig(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Config: &config.Exchange{
-			Features: &config.FeaturesConfig{},
-		},
-	}
+	b := Base{Config: &config.Exchange{Features: &config.FeaturesConfig{}}}
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 		{Channel: subscription.OrderbookChannel, Enabled: false},
@@ -2898,6 +2893,17 @@ func TestGetDefaultConfig(t *testing.T) {
 
 	assert.Equal(t, "test", c.Name)
 	assert.Equal(t, cpy, exch.Requester)
+}
+
+// TestCanUseAuthenticatedWebsocketEndpoints exercises CanUseAuthenticatedWebsocketEndpoints
+func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
+	t.Parallel()
+	e := &FakeBase{}
+	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints(), "CanUseAuthenticatedWebsocketEndpoints should return false with nil websocket")
+	e.Websocket = stream.NewWebsocket()
+	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints())
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
 }
 
 // FakeBase is used to override functions
@@ -3061,4 +3067,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	b := Base{}
 	_, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestGetTradingRequirements(t *testing.T) {
+	t.Parallel()
+	requirements := (*Base)(nil).GetTradingRequirements()
+	require.Empty(t, requirements)
+	requirements = (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
+	require.NotEmpty(t, requirements)
 }
