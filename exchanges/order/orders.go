@@ -1115,6 +1115,7 @@ func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// MarshalJSON returns the JSON-encoded order side
 func (s Side) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + s.String() + `"`), nil
 }

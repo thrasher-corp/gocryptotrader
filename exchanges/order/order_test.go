@@ -2127,10 +2127,10 @@ func TestSideMarshal(t *testing.T) {
 	t.Parallel()
 	b, err := Buy.MarshalJSON()
 	assert.NoError(t, err, "Marshalling Side okay")
-	assert.Equal(t, `"BUY"`, string(b), "Correctly marshalled Side")
+	assert.Equal(t, `"BUY"`, string(b))
 	b, err = UnknownSide.MarshalJSON()
 	assert.NoError(t, err, "Marshalling Side okay")
-	assert.Equal(t, `"UNKNOWN"`, string(b), "Correctly marshalled Side")
+	assert.Equal(t, `"UNKNOWN"`, string(b))
 }
 
 func TestGetTradeAmount(t *testing.T) {
