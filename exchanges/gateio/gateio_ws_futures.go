@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -88,11 +89,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe,
-			futuresOrdersChannel,
-			futuresUserTradesChannel,
-			futuresBalancesChannel,
-		)
+		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
 	pairs, err := g.GetEnabledPairs(asset.Futures)
@@ -103,31 +100,22 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 		return nil, err
 	}
 
-	settlementPairs := make(currency.Pairs, 0, len(pairs))
 	switch {
 	case settlement.Equal(currency.USDT):
-		settlementPairs, err = pairs.GetPairsByQuote(currency.USDT)
-		if err != nil {
-			return nil, err
-		}
+		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return !p.Quote.Equal(currency.USDT) })
 	case settlement.Equal(currency.BTC):
-		for x := range pairs {
-			if pairs[x].Quote.Equal(currency.USDT) {
-				continue // skip USDT pairs
-			}
-			settlementPairs = append(settlementPairs, pairs[x])
-		}
+		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return p.Quote.Equal(currency.USDT) })
 	default:
 		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
 	}
 
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
-		for j := range settlementPairs {
+		for j := range pairs {
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
-				params["limit"] = 20
+				params["limit"] = 100
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
@@ -135,7 +123,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}
-			fPair, err := g.FormatExchangeCurrency(settlementPairs[j], asset.Futures)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
 			if err != nil {
 				return nil, err
 			}
