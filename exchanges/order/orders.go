@@ -1115,6 +1115,10 @@ func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+func (s Side) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {

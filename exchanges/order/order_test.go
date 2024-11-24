@@ -2123,6 +2123,16 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
 
+func TestSideMarshal(t *testing.T) {
+	t.Parallel()
+	b, err := Buy.MarshalJSON()
+	assert.NoError(t, err, "Marshalling Side okay")
+	assert.Equal(t, `"BUY"`, string(b), "Correctly marshalled Side")
+	b, err = UnknownSide.MarshalJSON()
+	assert.NoError(t, err, "Marshalling Side okay")
+	assert.Equal(t, `"UNKNOWN"`, string(b), "Correctly marshalled Side")
+}
+
 func TestGetTradeAmount(t *testing.T) {
 	t.Parallel()
 	var s *Submit
