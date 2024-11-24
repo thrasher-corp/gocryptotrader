@@ -3,7 +3,6 @@ package coinbaseinternational
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -20,17 +19,17 @@ type AssetItemInfo struct {
 
 // AssetInfoWithSupportedNetwork represents network information for a specific asset.
 type AssetInfoWithSupportedNetwork struct {
-	AssetID             string               `json:"asset_id"`
-	AssetUUID           string               `json:"asset_uuid"`
-	AssetName           string               `json:"asset_name"`
-	NetworkName         string               `json:"network_name"`
-	DisplayName         string               `json:"display_name"`
-	NetworkArnID        string               `json:"network_arn_id"`
-	MinWithdrawalAmount types.Number         `json:"min_withdrawal_amt"`
-	MaxWithdrawalAmount types.Number         `json:"max_withdrawal_amt"`
-	NetworkConfirms     int64                `json:"network_confirms"`
-	ProcessingTime      convert.ExchangeTime `json:"processing_time"`
-	IsDefault           bool                 `json:"is_default"`
+	AssetID             string       `json:"asset_id"`
+	AssetUUID           string       `json:"asset_uuid"`
+	AssetName           string       `json:"asset_name"`
+	NetworkName         string       `json:"network_name"`
+	DisplayName         string       `json:"display_name"`
+	NetworkArnID        string       `json:"network_arn_id"`
+	MinWithdrawalAmount types.Number `json:"min_withdrawal_amt"`
+	MaxWithdrawalAmount types.Number `json:"max_withdrawal_amt"`
+	NetworkConfirms     int64        `json:"network_confirms"`
+	ProcessingTime      int64        `json:"processing_time"`
+	IsDefault           bool         `json:"is_default"`
 }
 
 // InstrumentInfo represents an instrument detail for specific instrument id.

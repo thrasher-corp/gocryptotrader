@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -67,6 +68,9 @@ func TestListAssets(t *testing.T) {
 
 func TestGetAssetDetails(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetAssetDetails(context.Background(), currency.EMPTYCODE, "", "")
+	require.ErrorIs(t, err, errAssetIdentifierRequired)
+
 	result, err := co.GetAssetDetails(context.Background(), currency.EMPTYCODE, "", "207597618027560960")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -74,6 +78,9 @@ func TestGetAssetDetails(t *testing.T) {
 
 func TestGetSupportedNetworksPerAsset(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetSupportedNetworksPerAsset(context.Background(), currency.EMPTYCODE, "", "")
+	require.ErrorIs(t, err, errAssetIdentifierRequired)
+
 	result, err := co.GetSupportedNetworksPerAsset(context.Background(), currency.USDC, "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -88,6 +95,9 @@ func TestGetInstruments(t *testing.T) {
 
 func TestGetInstrumentDetails(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetInstrumentDetails(context.Background(), "", "", "")
+	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+
 	result, err := co.GetInstrumentDetails(context.Background(), "BTC-PERP", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -95,6 +105,9 @@ func TestGetInstrumentDetails(t *testing.T) {
 
 func TestGetQuotePerInstrument(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetQuotePerInstrument(context.Background(), "", "", "")
+	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+
 	result, err := co.GetQuotePerInstrument(context.Background(), "BTC-PERP", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -102,30 +115,34 @@ func TestGetQuotePerInstrument(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
-	orderType, err := orderTypeString(order.Limit)
+	orderType, err := OrderTypeString(order.Limit)
 	require.NoError(t, err)
-	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
-		Side:       "BUY",
-		BaseSize:   1,
-		Instrument: "BTC-PERP",
-		OrderType:  orderType,
-	})
+	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &OrderRequestParams{PostOnly: true}
+	_, err = co.CreateOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = "BUY"
+	_, err = co.CreateOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.BaseSize = 1
+	_, err = co.CreateOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
-	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
-		Side:       "BUY",
-		BaseSize:   1,
-		Instrument: "BTC-PERP",
-		OrderType:  orderType,
-		Price:      12345.67,
-	})
+
+	arg.Price = 12345.67
+	_, err = co.CreateOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.OrderType = orderType
+	_, err = co.CreateOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
-		Side:       "BUY",
-		BaseSize:   1,
-		Instrument: "BTC-PERP",
-		OrderType:  orderType,
-	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.ClientOrderID = "123442"
+	_, err = co.CreateOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errTimeInForceRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.CreateOrder(context.Background(), &OrderRequestParams{
@@ -153,6 +170,9 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestCancelOrders(t *testing.T) {
 	t.Parallel()
+	_, err := co.CancelOrders(context.Background(), "", "", "")
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.CancelOrders(context.Background(), "1234", "", "")
 	require.NoError(t, err)
@@ -163,6 +183,8 @@ func TestModifyOpenOrder(t *testing.T) {
 	t.Parallel()
 	_, err := co.ModifyOpenOrder(context.Background(), "1234", &ModifyOrderParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = co.ModifyOpenOrder(context.Background(), "", &ModifyOrderParam{Portfolio: "1234"})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.ModifyOpenOrder(context.Background(), "1234", &ModifyOrderParam{
@@ -205,6 +227,9 @@ func TestListAllUserPortfolios(t *testing.T) {
 
 func TestGetPortfolioDetails(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetPortfolioDetails(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetPortfolioDetails(context.Background(), "", "1234")
 	require.NoError(t, err)
@@ -213,6 +238,9 @@ func TestGetPortfolioDetails(t *testing.T) {
 
 func TestGetPortfolioSummary(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetPortfolioSummary(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetPortfolioSummary(context.Background(), "", "5189861793641175")
 	require.NoError(t, err)
@@ -221,6 +249,9 @@ func TestGetPortfolioSummary(t *testing.T) {
 
 func TestListPortfolioBalances(t *testing.T) {
 	t.Parallel()
+	_, err := co.ListPortfolioBalances(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.ListPortfolioBalances(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	require.NoError(t, err)
@@ -229,6 +260,12 @@ func TestListPortfolioBalances(t *testing.T) {
 
 func TestGetPortfolioAssetBalance(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetPortfolioAssetBalance(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = co.GetPortfolioAssetBalance(context.Background(), "", "", currency.BTC)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetPortfolioAssetBalance(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.BTC)
 	require.NoError(t, err)
@@ -237,6 +274,9 @@ func TestGetPortfolioAssetBalance(t *testing.T) {
 
 func TestPortfolioPosition(t *testing.T) {
 	t.Parallel()
+	_, err := co.ListPortfolioPositions(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.ListPortfolioPositions(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	require.NoError(t, err)
@@ -245,6 +285,11 @@ func TestPortfolioPosition(t *testing.T) {
 
 func TestGetPortfolioInstrumentPosition(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetPortfolioInstrumentPosition(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = co.GetPortfolioInstrumentPosition(context.Background(), "", "", btcPerp)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetPortfolioInstrumentPosition(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", btcPerp)
 	require.NoError(t, err)
@@ -269,6 +314,9 @@ func TestListMatchingTransfers(t *testing.T) {
 
 func TestGetTransfer(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetTransfer(context.Background(), "")
+	require.ErrorIs(t, err, errMissingTransferID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetTransfer(context.Background(), "12345")
 	require.NoError(t, err)
@@ -279,6 +327,18 @@ func TestWithdrawToCryptoAddress(t *testing.T) {
 	t.Parallel()
 	_, err := co.WithdrawToCryptoAddress(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &WithdrawCryptoParams{Nonce: "1234"}
+	_, err = co.WithdrawToCryptoAddress(context.Background(), arg)
+	require.ErrorIs(t, err, errAddressIsRequired)
+
+	arg.Address = "1234HGJHGHGHGJ"
+	_, err = co.WithdrawToCryptoAddress(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
+	arg.Amount = 1200
+	_, err = co.WithdrawToCryptoAddress(context.Background(), arg)
+	require.ErrorIs(t, err, errAssetIdentifierRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.WithdrawToCryptoAddress(context.Background(), &WithdrawCryptoParams{
@@ -294,7 +354,22 @@ func TestWithdrawToCryptoAddress(t *testing.T) {
 func TestCreateCryptoAddress(t *testing.T) {
 	t.Parallel()
 	_, err := co.CreateCryptoAddress(context.Background(), nil)
-	assert.ErrorIsf(t, err, common.ErrNilPointer, "expected %v, got %v", common.ErrNilPointer, err)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &CryptoAddressParam{
+		NetworkArnID: "networks/ethereum-mainnet/assets/313ef8a9-ae5a-5f2f-8a56-572c0e2a4d5a",
+	}
+	_, err = co.CreateCryptoAddress(context.Background(), arg)
+	assert.ErrorIs(t, err, errAssetIdentifierRequired)
+
+	arg.AssetIdentifier = "291efb0f-2396-4d41-ad03-db3b2311cb2c"
+	_, err = co.CreateCryptoAddress(context.Background(), arg)
+	assert.ErrorIs(t, err, errMissingPortfolioID)
+
+	arg.Portfolio = "892e8c7c-e979-4cad-b61b-55a197932cf1"
+	arg.NetworkArnID = ""
+	_, err = co.CreateCryptoAddress(context.Background(), arg)
+	assert.ErrorIs(t, err, errNetworkArnID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.CreateCryptoAddress(context.Background(), &CryptoAddressParam{
@@ -398,6 +473,9 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	require.NoError(t, err)
@@ -406,6 +484,9 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetFeeByType(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
 		IsMaker: true,
@@ -562,6 +643,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGetFeeRateTiers(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetFeeRateTiers(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)

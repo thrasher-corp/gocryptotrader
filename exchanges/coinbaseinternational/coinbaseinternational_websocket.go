@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -54,7 +55,7 @@ func (co *CoinbaseInternational) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	co.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	co.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       time.Second * 10,
 	})
@@ -110,7 +111,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 					Pairs:   pairs,
 				})
 		}
-		err = co.Websocket.AddSuccessfulSubscriptions(subsccefulySubscribedChannels...)
+		err = co.Websocket.AddSuccessfulSubscriptions(co.Websocket.Conn, subsccefulySubscribedChannels...)
 		if err != nil {
 			return err
 		}
@@ -127,7 +128,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 					Pairs:   pairs,
 				})
 		}
-		err = co.Websocket.RemoveSubscriptions(subsccefulySubscribedChannels...)
+		err = co.Websocket.RemoveSubscriptions(co.Websocket.Conn, subsccefulySubscribedChannels...)
 		if err != nil {
 			return err
 		}
@@ -387,7 +388,7 @@ func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput)
 				return err
 			}
 		}
-		err := co.Websocket.Conn.SendJSONMessage(payload[x])
+		err := co.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, payload[x])
 		if err != nil {
 			return err
 		}

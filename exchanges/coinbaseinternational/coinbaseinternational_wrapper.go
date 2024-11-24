@@ -157,7 +157,7 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return co.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return co.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  coinbaseinternationalWSAPIURL,
@@ -487,10 +487,10 @@ func (co *CoinbaseInternational) GetServerTime(_ context.Context, _ asset.Item) 
 
 // SubmitOrder submits a new order
 func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(co.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	oType, err := orderTypeString(s.Type)
+	oType, err := OrderTypeString(s.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -821,7 +821,7 @@ func (co *CoinbaseInternational) UpdateOrderExecutionLimits(ctx context.Context,
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (co *CoinbaseInternational) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+func (co *CoinbaseInternational) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	if cp.IsEmpty() {
 		return "", currency.ErrCurrencyPairEmpty
 	}

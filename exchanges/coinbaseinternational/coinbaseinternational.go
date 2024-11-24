@@ -210,9 +210,6 @@ func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID st
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg == nil || arg == (&ModifyOrderParam{}) {
-		return nil, fmt.Errorf("%w, empty modification parameter", common.ErrNilPointer)
-	}
 	var resp *OrderItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "orders/"+orderID, nil, arg, &resp, true)
 }
@@ -253,13 +250,18 @@ func (co *CoinbaseInternational) GetAllUserPortfolios(ctx context.Context) ([]Po
 
 // GetPortfolioDetails retrieves the summary, positions, and balances of a portfolio.
 func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfolioID, portfolioUUID string) (*PortfolioDetail, error) {
-	if portfolioID == "" {
-		portfolioID = portfolioUUID
-	} else if portfolioUUID == "" {
+	if portfolioID == "" && portfolioUUID == "" {
 		return nil, errMissingPortfolioID
 	}
+	var pID string
+	if portfolioID != "" {
+		pID = portfolioID
+	}
+	if portfolioUUID != "" {
+		pID = portfolioUUID
+	}
 	var resp *PortfolioDetail
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, portfolios+portfolioID+"/detail", nil, nil, &resp, true)
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, portfolios+pID+"/detail", nil, nil, &resp, true)
 }
 
 // GetPortfolioSummary retrieves the high level overview of a portfolio.
@@ -408,7 +410,7 @@ func (co *CoinbaseInternational) WithdrawToCryptoAddress(ctx context.Context, ar
 	if arg.Address == "" {
 		return nil, errAddressIsRequired
 	}
-	if arg.Amount < 0 {
+	if arg.Amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.AssetIdentifier == "" {
@@ -519,7 +521,8 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 	return json.Unmarshal(intrim, result)
 }
 
-func orderTypeString(oType order.Type) (string, error) {
+// OrderTypeString returns a string representation of order.Type
+func OrderTypeString(oType order.Type) (string, error) {
 	switch oType {
 	case order.Limit, order.Market, order.Stop:
 		return oType.String(), nil
@@ -582,5 +585,5 @@ func getOfflineTradeFee(price, amount float64) float64 {
 // GetFeeRateTiers return all the fee rate tiers.
 func (co *CoinbaseInternational) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
 	var resp []FeeRateInfo
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, false)
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, true)
 }
