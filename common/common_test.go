@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -794,18 +795,29 @@ func BenchmarkCounter(b *testing.B) {
 	}
 }
 
-func TestBatchProcessElement(t *testing.T) {
+func TestProcessElementsByBatch(t *testing.T) {
 	t.Parallel()
 	var testSlice []int
 	for i := range 100 {
 		testSlice = append(testSlice, i)
 	}
 
+	trackIndex := map[int]bool{}
+	m := sync.Mutex{}
+
 	ch := make(chan int, len(testSlice))
-	require.NoError(t, BatchProcessElement(10, testSlice, func(_ int, v int) error {
+	require.NoError(t, ProcessElementsByBatch(10, testSlice, func(_ int, v int) error {
+		m.Lock()
+		defer m.Unlock()
+		if trackIndex[v] {
+			return errors.New("duplicate index")
+		}
+		trackIndex[v] = true
 		ch <- v
 		return nil
 	}))
+
+	require.Len(t, trackIndex, len(testSlice))
 
 	close(ch)
 	for v := range ch {
@@ -813,12 +825,12 @@ func TestBatchProcessElement(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, BatchProcessElement(10, testSlice, func(_ int, v int) error {
+	require.ErrorIs(t, ProcessElementsByBatch(10, testSlice, func(_ int, v int) error {
 		return expected
 	}), expected)
 }
 
-func TestBatchProcessList(t *testing.T) {
+func TestProcessBatches(t *testing.T) {
 	t.Parallel()
 	var testSlice []int
 	for i := range 100 {
@@ -826,7 +838,7 @@ func TestBatchProcessList(t *testing.T) {
 	}
 
 	ch := make(chan int, len(testSlice))
-	require.NoError(t, BatchProcessList(10, testSlice, func(v []int) error {
+	require.NoError(t, ProcessBatches(10, testSlice, func(v []int) error {
 		for _, i := range v {
 			ch <- i
 		}
@@ -839,7 +851,7 @@ func TestBatchProcessList(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, BatchProcessList(10, testSlice, func(v []int) error {
+	require.ErrorIs(t, ProcessBatches(10, testSlice, func(v []int) error {
 		return expected
 	}), expected)
 }

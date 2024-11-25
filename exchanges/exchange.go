@@ -1810,7 +1810,7 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
 func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
-	return common.BatchProcessList(batchSize, channels, m)
+	return common.ProcessBatches(batchSize, channels, m)
 }
 
 // Bootstrap function allows for exchange authors to supplement or override common startup actions

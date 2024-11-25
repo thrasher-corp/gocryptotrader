@@ -585,7 +585,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 		return errs
 	}
 
-	return common.BatchProcessElement(subscriptionBatchCount, subs, func(_ int, s *subscription.Subscription) error {
+	return common.ProcessElementsByBatch(subscriptionBatchCount, subs, func(_ int, s *subscription.Subscription) error {
 		if err := g.manageTemplatePayload(ctx, conn, event, s); err != nil {
 			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
@@ -703,7 +703,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		return err
 	}
 
-	return common.BatchProcessElement(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
+	return common.ProcessElementsByBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
 		if err := g.managePayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
 			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}

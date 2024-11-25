@@ -646,10 +646,14 @@ func (c *Counter) IncrementAndGet() int64 {
 	return newID
 }
 
-// BatchProcessElement takes a slice of elements and processes them in batches of batchSize in parallel.
-// e.g batchSize = 10, list = 100, 10 go routines will be created to process 10 elements at a time per batch wait
-// for them to complete before moving on to the next batch.
-func BatchProcessElement[S ~[]E, E any](batchSize int, list S, process func(index int, element E) error) (errs error) {
+// ElementProcessor defines the function signature for processing an individual element with its index.
+type ElementProcessor[E any] func(index int, element E) error
+
+// ProcessElementsByBatch takes a slice of elements and processes them in batches of `batchSize` concurrently.
+// For example, if batchSize = 10 and list has 100 elements, 10 goroutines will process 10 elements concurrently
+// in each batch. Each batch completes before the next batch begins.
+// `process` is a function called for each individual element with its index and value.
+func ProcessElementsByBatch[S ~[]E, E any](batchSize int, list S, process ElementProcessor[E]) (errs error) {
 	var wg sync.WaitGroup
 	errC := make(chan error, len(list))
 	for i, s := range Batch(list, batchSize) {
@@ -671,10 +675,14 @@ func BatchProcessElement[S ~[]E, E any](batchSize int, list S, process func(inde
 	return errs
 }
 
-// BatchProcessList takes a slice of elements and processes them in batches of batchSize in parallel.
-// e.g batchSize = 10, list = 100, 10 go routines will be created to process 10 batches and each individual batch list
-// is processed sequentially.
-func BatchProcessList[S ~[]E, E any](batchSize int, list S, process func(S) error) (errs error) {
+// BatchProcessor defines the function signature for processing a batch of elements.
+type BatchProcessor[S ~[]E, E any] func(batch S) error
+
+// ProcessBatches takes a slice of elements and processes them in batches of `batchSize` concurrently.
+// For example, if batchSize = 10 and list has 100 elements, 10 goroutines will be created to process
+// 10 batches. Each batch is processed as a whole by the `process` function, and batches are processed
+// in parallel.
+func ProcessBatches[S ~[]E, E any](batchSize int, list S, process BatchProcessor[S, E]) (errs error) {
 	var wg sync.WaitGroup
 	errC := make(chan error, len(list))
 	for _, s := range Batch(list, batchSize) {
