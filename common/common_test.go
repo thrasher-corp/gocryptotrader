@@ -797,7 +797,7 @@ func BenchmarkCounter(b *testing.B) {
 
 func TestProcessElementsByBatch(t *testing.T) {
 	t.Parallel()
-	var testSlice []int
+	testSlice := make([]int, 0, 100)
 	for i := range 100 {
 		testSlice = append(testSlice, i)
 	}
@@ -825,14 +825,12 @@ func TestProcessElementsByBatch(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, ProcessElementsByBatch(10, testSlice, func(_ int, v int) error {
-		return expected
-	}), expected)
+	require.ErrorIs(t, ProcessElementsByBatch(10, testSlice, func(int, int) error { return expected }), expected)
 }
 
 func TestProcessBatches(t *testing.T) {
 	t.Parallel()
-	var testSlice []int
+	testSlice := make([]int, 0, 100)
 	for i := range 100 {
 		testSlice = append(testSlice, i)
 	}
@@ -851,7 +849,5 @@ func TestProcessBatches(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, ProcessBatches(10, testSlice, func(v []int) error {
-		return expected
-	}), expected)
+	require.ErrorIs(t, ProcessBatches(10, testSlice, func([]int) error { return expected }), expected)
 }
