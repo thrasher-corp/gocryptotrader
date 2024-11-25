@@ -2123,7 +2123,7 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
 
-func TestSideMarshal(t *testing.T) {
+func TestSideMarshalJSON(t *testing.T) {
 	t.Parallel()
 	b, err := Buy.MarshalJSON()
 	assert.NoError(t, err)
