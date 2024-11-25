@@ -660,7 +660,7 @@ func BatchProcessElement[S ~[]E, E any](batchSize int, list S, process func(inde
 				if err := process(index, element); err != nil {
 					errC <- err
 				}
-			}(i+j, e)
+			}((i*batchSize)+j, e)
 		}
 		wg.Wait()
 	}
