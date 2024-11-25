@@ -26,7 +26,7 @@ type Connection interface {
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
 	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
-	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector ...Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
 	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
 	// SendJSONMessage sends a JSON encoded message over the connection
@@ -35,7 +35,14 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// MatchReturnResponses sets up a channel to listen for an expected number of responses. This is used for when a
+	// request is sent and a response is expected in a different connection. Please see implementation in
+	// websocket_connection.go
+	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
+
+// Inspector is a hook that allows for custom message inspection
+type Inspector func([]byte) bool
 
 // Response defines generalised data from the stream connection
 type Response struct {
@@ -45,9 +52,10 @@ type Response struct {
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout    time.Duration
-	ResponseMaxLimit        time.Duration
-	RateLimit               *request.RateLimiterWithWeight
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            *request.RateLimiterWithWeight
+	// Authenticated indicates if the connection can be authenticated, this is not used for multi-connection.
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
 
@@ -76,6 +84,31 @@ type ConnectionSetup struct {
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
 	BespokeGenerateMessageID func(highPrecision bool) int64
+	// Authenticate is a function that will be called to authenticate the
+	// connection to the exchange's websocket server. This function should
+	// handle the authentication process and return an error if the
+	// authentication fails.
+	Authenticate func(ctx context.Context, conn Connection) error
+	// WrapperDefinedConnectionSignature is any type that will match to a specific connection. This could be an asset
+	// type `asset.Spot`, a string type denoting the individual URL, an authenticated or unauthenticated string or a
+	// mixture of these.
+	WrapperDefinedConnectionSignature any
+	// ConnectionDoesNotRequireSubscriptions is for when this is a dedicated connection for only outbound requests.
+	// Subscription generation and handling is not required. Please use dummy functions `SubscriberNotRequired` &
+	// `SubscriptionGenerationNotRequired` for fields.
+	ConnectionDoesNotRequireSubscriptions bool
+}
+
+// SubscriberNotRequired is a default subscriber function that can be used when a connection does not require
+// subscription functionality.
+func SubscriberNotRequired(context.Context, Connection, subscription.List) error {
+	return nil
+}
+
+// SubscriptionGenerationNotRequired is a default subscription generation function that can be used when a connection
+// does not require subscription functionality.
+func SubscriptionGenerationNotRequired() (subscription.List, error) {
+	return nil, nil
 }
 
 // ConnectionWrapper contains the connection setup details to be used when

@@ -293,8 +293,8 @@ func (w *WebsocketConnection) GetURL() string {
 }
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error) {
-	resps, err := w.SendMessageReturnResponses(ctx, epl, signature, request, 1)
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
+	resps, err := w.SendMessageReturnResponses(ctx, epl, signature, payload, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
+func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector ...Inspector) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -320,26 +320,40 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		return nil, err
 	}
 
+	resps, err := w.waitForResponses(ctx, signature, ch, expected, messageInspector...)
+	if err != nil {
+		return nil, err
+	}
+
+	if w.Reporter != nil {
+		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
+	}
+
+	return resps, err
+}
+
+// waitForResponses waits for N responses from a channel
+func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector ...Inspector) ([][]byte, error) {
 	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
+	defer timeout.Stop()
 
 	resps := make([][]byte, 0, expected)
-	for err == nil && len(resps) < expected {
+	for range expected {
 		select {
 		case resp := <-ch:
 			resps = append(resps, resp)
+			// Checks recently received message to determine if this is in fact the final message in a sequence of messages.
+			if len(messageInspector) == 1 && messageInspector[0](resp) {
+				w.Match.RemoveSignature(signature)
+				return resps, nil
+			}
 		case <-timeout.C:
 			w.Match.RemoveSignature(signature)
-			err = fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
+			return nil, fmt.Errorf("%s %w %v", w.ExchangeName, ErrSignatureTimeout, signature)
 		case <-ctx.Done():
 			w.Match.RemoveSignature(signature)
-			err = ctx.Err()
+			return nil, ctx.Err()
 		}
-	}
-
-	timeout.Stop()
-
-	if err == nil && w.Reporter != nil {
-		w.Reporter.Latency(w.ExchangeName, outbound, time.Since(start))
 	}
 
 	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
@@ -349,7 +363,33 @@ func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, ep
 		}
 	}
 
-	return resps, err
+	return resps, nil
+}
+
+// MatchedResponse encapsulates the matched responses along with any errors encountered.
+type MatchedResponse struct {
+	Responses [][]byte
+	Err       error
+}
+
+// MatchReturnResponses sets up a channel to listen for an expected number of responses. These responses may not
+// originate from the same connection as the request, but can come from an alternative connection. It returns a channel
+// that will receive a MatchedResponse containing the collected responses or an error.
+func (w *WebsocketConnection) MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error) {
+	connectionListen, err := w.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't leak
+
+	go func() {
+		resps, err := w.waitForResponses(ctx, signature, connectionListen, expected)
+		out <- MatchedResponse{Responses: resps, Err: err}
+		close(out)
+	}()
+
+	return out, nil
 }
 
 func removeURLQueryString(url string) string {
