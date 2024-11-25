@@ -793,3 +793,53 @@ func BenchmarkCounter(b *testing.B) {
 		c.IncrementAndGet()
 	}
 }
+
+func TestBatchProcessElement(t *testing.T) {
+	t.Parallel()
+	var testSlice []int
+	for i := range 100 {
+		testSlice = append(testSlice, i)
+	}
+
+	ch := make(chan int, len(testSlice))
+	require.NoError(t, BatchProcessElement(10, testSlice, func(v int) error {
+		ch <- v
+		return nil
+	}))
+
+	close(ch)
+	for v := range ch {
+		assert.Contains(t, testSlice, v)
+	}
+
+	expected := errors.New("test error")
+	require.ErrorIs(t, BatchProcessElement(10, testSlice, func(v int) error {
+		return expected
+	}), expected)
+}
+
+func TestBatchProcessList(t *testing.T) {
+	t.Parallel()
+	var testSlice []int
+	for i := range 100 {
+		testSlice = append(testSlice, i)
+	}
+
+	ch := make(chan int, len(testSlice))
+	require.NoError(t, BatchProcessList(10, testSlice, func(v []int) error {
+		for _, i := range v {
+			ch <- i
+		}
+		return nil
+	}))
+
+	close(ch)
+	for v := range ch {
+		assert.Contains(t, testSlice, v)
+	}
+
+	expected := errors.New("test error")
+	require.ErrorIs(t, BatchProcessList(10, testSlice, func(v []int) error {
+		return expected
+	}), expected)
+}

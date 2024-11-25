@@ -645,3 +645,51 @@ func (c *Counter) IncrementAndGet() int64 {
 	}
 	return newID
 }
+
+// BatchProcessElement takes a slice of elements and processes them in batches of batchSize in parallel.
+// e.g batchSize = 10, list = 100, 10 go routines will be created to process 10 elements at a time per batch wait
+// for them to complete before moving on to the next batch.
+func BatchProcessElement[S ~[]E, E any](batchSize int, list S, process func(E) error) (errs error) {
+	var wg sync.WaitGroup
+	errC := make(chan error, len(list))
+	for _, s := range Batch(list, batchSize) {
+		wg.Add(len(s))
+		for _, e := range s {
+			go func(e E) {
+				defer wg.Done()
+				if err := process(e); err != nil {
+					errC <- err
+				}
+			}(e)
+		}
+		wg.Wait()
+	}
+	close(errC)
+	for err := range errC {
+		errs = AppendError(errs, err)
+	}
+	return errs
+}
+
+// BatchProcessList takes a slice of elements and processes them in batches of batchSize in parallel.
+// e.g batchSize = 10, list = 100, 10 go routines will be created to process 10 batches and each individual batch list
+// is processed sequentially.
+func BatchProcessList[S ~[]E, E any](batchSize int, list S, process func(S) error) (errs error) {
+	var wg sync.WaitGroup
+	errC := make(chan error, len(list))
+	for _, s := range Batch(list, batchSize) {
+		wg.Add(1)
+		go func(s S) {
+			defer wg.Done()
+			if err := process(s); err != nil {
+				errC <- err
+			}
+		}(s)
+	}
+	wg.Wait()
+	close(errC)
+	for err := range errC {
+		errs = AppendError(errs, err)
+	}
+	return errs
+}
