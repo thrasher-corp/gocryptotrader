@@ -680,7 +680,7 @@ type BatchProcessor[S ~[]E, E any] func(batch S) error
 
 // ProcessBatches takes a slice of elements and processes them in batches of `batchSize` concurrently.
 // For example, if batchSize = 10 and list has 100 elements, 10 goroutines will be created to process
-// 10 batches. Each batch is processed as a whole by the `process` function, and batches are processed
+// 10 batches. Each batch is processed sequentially by the `process` function, and batches are processed
 // in parallel.
 func ProcessBatches[S ~[]E, E any](batchSize int, list S, process BatchProcessor[S, E]) (errs error) {
 	var wg sync.WaitGroup
