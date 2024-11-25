@@ -2877,13 +2877,14 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 }
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
-		t.Error(err)
-	}
-
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
-		t.Error(err)
-	}
+	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	subs, err = g.GenerateFuturesDefaultSubscriptions(currency.BTC)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
+	require.Error(t, err)
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -88,11 +89,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe,
-			futuresOrdersChannel,
-			futuresUserTradesChannel,
-			futuresBalancesChannel,
-		)
+		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
 	pairs, err := g.GetEnabledPairs(asset.Futures)
@@ -103,28 +100,17 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 		return nil, err
 	}
 
+	switch {
+	case settlement.Equal(currency.USDT):
+		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return !p.Quote.Equal(currency.USDT) })
+	case settlement.Equal(currency.BTC):
+		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return p.Quote.Equal(currency.USDT) })
+	default:
+		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
+	}
+
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
-		switch {
-		case settlement.Equal(currency.USDT):
-			pairs, err = pairs.GetPairsByQuote(currency.USDT)
-			if err != nil {
-				return nil, err
-			}
-		case settlement.Equal(currency.BTC):
-			offset := 0
-			for x := range pairs {
-				if pairs[x].Quote.Equal(currency.USDT) {
-					continue // skip USDT pairs
-				}
-				pairs[offset] = pairs[x]
-				offset++
-			}
-			pairs = pairs[:offset]
-		default:
-			return nil, fmt.Errorf("settlement currency %s not supported", settlement)
-		}
-
 		for j := range pairs {
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {

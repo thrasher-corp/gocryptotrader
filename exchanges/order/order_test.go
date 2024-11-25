@@ -55,7 +55,7 @@ func TestSubmit_Validate(t *testing.T) {
 			Submit: &Submit{
 				Exchange:  "test",
 				Pair:      testPair,
-				AssetType: 255,
+				AssetType: asset.All,
 			},
 		}, // valid pair but invalid asset
 		{
