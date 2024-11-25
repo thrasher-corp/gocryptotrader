@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -655,28 +654,12 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 		return errs
 	}
 
-	ch := make(chan error, len(subs))
-	var wg sync.WaitGroup
-	for _, batch := range common.Batch(subs, subscriptionBatchCount) {
-		wg.Add(len(batch))
-		for _, s := range batch {
-			go func() {
-				err := g.manageTemplatePayload(ctx, conn, event, s)
-				if err != nil {
-					ch <- fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
-				}
-				wg.Done()
-			}()
+	return common.BatchProcessElement(subscriptionBatchCount, subs, func(_ int, s *subscription.Subscription) error {
+		if err := g.manageTemplatePayload(ctx, conn, event, s); err != nil {
+			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
-		wg.Wait()
-	}
-
-	close(ch)
-	for err := range ch {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+		return nil
+	})
 }
 
 func (g *Gateio) manageTemplatePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription) error {
@@ -802,29 +785,13 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	if err != nil {
 		return err
 	}
-	var errs error
-	var wg sync.WaitGroup
-	ch := make(chan error, len(payloads))
-	for k, batch := range common.Batch(payloads, subscriptionBatchCount) {
-		wg.Add(len(batch))
-		for i, payload := range batch {
-			go func() {
-				err := g.managePayload(ctx, conn, event, channelsToSubscribe[k*subscriptionBatchCount+i], &payload)
-				if err != nil {
-					ch <- fmt.Errorf("%s %s %s: %w", channelsToSubscribe[k].Channel, channelsToSubscribe[k].Asset, channelsToSubscribe[k].Pairs, err)
-				}
-				wg.Done()
-			}()
+
+	return common.BatchProcessElement(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
+		if err := g.managePayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
+			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}
-		wg.Wait()
-	}
-
-	close(ch)
-	for err := range ch {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+		return nil
+	})
 }
 
 func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload *WsInput) error {

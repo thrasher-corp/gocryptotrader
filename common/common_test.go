@@ -802,7 +802,7 @@ func TestBatchProcessElement(t *testing.T) {
 	}
 
 	ch := make(chan int, len(testSlice))
-	require.NoError(t, BatchProcessElement(10, testSlice, func(v int) error {
+	require.NoError(t, BatchProcessElement(10, testSlice, func(_ int, v int) error {
 		ch <- v
 		return nil
 	}))
@@ -813,7 +813,7 @@ func TestBatchProcessElement(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, BatchProcessElement(10, testSlice, func(v int) error {
+	require.ErrorIs(t, BatchProcessElement(10, testSlice, func(_ int, v int) error {
 		return expected
 	}), expected)
 }

@@ -649,18 +649,18 @@ func (c *Counter) IncrementAndGet() int64 {
 // BatchProcessElement takes a slice of elements and processes them in batches of batchSize in parallel.
 // e.g batchSize = 10, list = 100, 10 go routines will be created to process 10 elements at a time per batch wait
 // for them to complete before moving on to the next batch.
-func BatchProcessElement[S ~[]E, E any](batchSize int, list S, process func(E) error) (errs error) {
+func BatchProcessElement[S ~[]E, E any](batchSize int, list S, process func(index int, element E) error) (errs error) {
 	var wg sync.WaitGroup
 	errC := make(chan error, len(list))
-	for _, s := range Batch(list, batchSize) {
+	for i, s := range Batch(list, batchSize) {
 		wg.Add(len(s))
-		for _, e := range s {
-			go func(e E) {
+		for j, e := range s {
+			go func(index int, element E) {
 				defer wg.Done()
-				if err := process(e); err != nil {
+				if err := process(index, element); err != nil {
 					errC <- err
 				}
-			}(e)
+			}(i+j, e)
 		}
 		wg.Wait()
 	}
