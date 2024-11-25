@@ -857,22 +857,22 @@ func TestFindPairDifferences(t *testing.T) {
 
 	diff, err = pairList.FindDifferences(Pairs{}, EMPTYFORMAT)
 	require.NoError(t, err)
-	assert.Len(t, diff.New, 0)
+	assert.Empty(t, diff.New)
 	assert.Len(t, diff.Remove, 3)
 	assert.True(t, diff.FormatDifference)
 
 	diff, err = Pairs{}.FindDifferences(pairList, EMPTYFORMAT)
 	require.NoError(t, err)
 	assert.Len(t, diff.New, 3)
-	assert.Len(t, diff.Remove, 0)
+	assert.Empty(t, diff.Remove)
 	assert.True(t, diff.FormatDifference)
 
 	// Test that the supplied pair lists are the same, so
 	// no newPairs or removedPairs
 	diff, err = pairList.FindDifferences(pairList, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
 	require.NoError(t, err)
-	assert.Len(t, diff.New, 0)
-	assert.Len(t, diff.Remove, 0)
+	assert.Empty(t, diff.New)
+	assert.Empty(t, diff.Remove)
 	assert.False(t, diff.FormatDifference)
 
 	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, EMPTYFORMAT)
