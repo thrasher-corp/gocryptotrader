@@ -264,7 +264,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 	}
 	removedPairs := make(Pairs, 0, len(p))
-	maps.Clear(check)
+	clear(check)
 	for x := range p {
 		if p[x].IsEmpty() {
 			return PairDifference{}, fmt.Errorf("contained in the existing pairs a %w", ErrCurrencyPairEmpty)
