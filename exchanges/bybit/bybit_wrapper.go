@@ -293,7 +293,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	)
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
-		nextPageCursor := ""
+		var nextPageCursor string
 		category = getCategoryName(a)
 		for {
 			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
@@ -306,7 +306,6 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				break
 			}
 		}
-
 	case asset.Options:
 		category = getCategoryName(a)
 		for x := range supportedOptionsTypes {

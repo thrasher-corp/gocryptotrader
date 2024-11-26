@@ -626,6 +626,7 @@ func TestGetTickersV5(t *testing.T) {
 	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
 	require.ErrorIs(t, err, errInvalidCategory)
 	_, err = b.GetTickers(context.Background(), "option", "BTC-26NOV24-92000-C", "", time.Time{})
+	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
 	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "inverse", "", "", time.Time{})
