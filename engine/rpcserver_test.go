@@ -1533,97 +1533,53 @@ func TestCheckVars(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
 	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("expected %v, got %v", errExchangeNotLoaded, err)
-	}
+	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
 
 	e = &binance.Binance{}
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errExchangeNotEnabled) {
-		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
-	}
+	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
 
 	e.SetEnabled(true)
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, currency.ErrPairManagerNotInitialised) {
-		t.Errorf("expected %v, got %v", currency.ErrPairManagerNotInitialised, err)
-	}
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParams should error correctly")
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
-	}
-	coinFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-	usdtFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		t.Error(err)
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.Margin, fmt1)
-	if err != nil {
-		t.Error(err)
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
-	if err != nil {
-		t.Error(err)
+	b := e.GetBase()
+
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+		}
+		switch a {
+		case asset.CoinMarginedFutures:
+			ps.RequestFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+		case asset.USDTMarginedFutures:
+			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+		}
+		require.NoError(t, b.StoreAssetPairFormat(a, ps), "StoreAssetPairFormat must not error")
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errCurrencyPairInvalid) {
-		t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
-	}
+	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams should error correctly")
 
 	var data = []currency.Pair{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
-	err = e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
+	require.NoError(t, err, "StorePairs must not error")
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errCurrencyNotEnabled) {
-		t.Errorf("expected %v, got %v", errCurrencyNotEnabled, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
 
-	err = e.GetBase().CurrencyPairs.EnablePair(
-		asset.Spot,
-		currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
+	require.NoError(t, err, "EnablePair must not error")
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "checkParams must not error")
 }
 
 func TestParseEvents(t *testing.T) {
