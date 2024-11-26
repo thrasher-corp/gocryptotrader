@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"slices"
 	"testing"
 	"time"
@@ -18,19 +19,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	testws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -3137,45 +3139,21 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 }
 
+type DummyConnection struct{ stream.Connection }
+
+func (d *DummyConnection) GenerateMessageID(bool) int64                               { return 1337 }
+func (d *DummyConnection) SetupPingHandler(request.EndpointLimit, stream.PingHandler) {}
+func (d *DummyConnection) DialContext(context.Context, *websocket.Dialer, http.Header) error {
+	return nil
+}
+func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
+}
+
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip(skippingWebsocketFunctionsForMockTesting)
-	}
-	err := b.WsConnect()
-	if err != nil {
-		t.Error(err)
-	}
-}
-func TestWsLinearConnect(t *testing.T) {
-	t.Parallel()
-	if mockTests {
-		t.Skip(skippingWebsocketFunctionsForMockTesting)
-	}
-	err := b.WsLinearConnect()
-	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
-		t.Error(err)
-	}
-}
-func TestWsInverseConnect(t *testing.T) {
-	t.Parallel()
-	if mockTests {
-		t.Skip(skippingWebsocketFunctionsForMockTesting)
-	}
-	err := b.WsInverseConnect()
-	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
-		t.Error(err)
-	}
-}
-func TestWsOptionsConnect(t *testing.T) {
-	t.Parallel()
-	if mockTests {
-		t.Skip(skippingWebsocketFunctionsForMockTesting)
-	}
-	err := b.WsOptionsConnect()
-	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
-		t.Error(err)
-	}
+	err := b.WsConnect(context.Background(), &DummyConnection{})
+	require.NoError(t, err)
 }
 
 var pushDataMap = map[string]string{
@@ -3201,7 +3179,7 @@ func TestPushData(t *testing.T) {
 	slices.Sort(keys)
 
 	for x := range keys {
-		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]]))
+		err := b.wsHandleData(context.Background(), []byte(pushDataMap[keys[x]]), asset.Spot)
 		assert.NoError(t, err, "wsHandleData should not error")
 	}
 }
@@ -3216,7 +3194,7 @@ func TestWsTicker(t *testing.T) {
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
-		return b.wsHandleData(assetRouting[0], r)
+		return b.wsHandleData(context.Background(), r, assetRouting[0])
 	})
 	close(b.Websocket.DataHandler)
 	expected := 8
@@ -3478,7 +3456,7 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`
-	err := b.wsHandleData(asset.Spot, []byte(data))
+	err := b.wsHandleData(context.Background(), []byte(data), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3746,38 +3724,39 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	b.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, b)
-	err = b.Subscribe(subs)
+	err = b.Subscribe(context.Background(), &DummyConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
+
 	b := new(Bybit)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	require.NoError(t, testexch.Setup(b))
+	require.NoError(t, b.authSubscribe(context.Background(), &DummyConnection{}, subscription.List{}))
+
+	authsubs, err := b.generateAuthSubscriptions()
+	require.NoError(t, err)
+	require.Empty(t, authsubs)
+
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	b.Features.Subscriptions = subscription.List{}
-	success := true
-	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
-		tb.Helper()
-		var req SubscriptionArgument
-		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
-		require.Equal(tb, "subscribe", req.Operation)
-		msg, err = json.Marshal(SubscriptionResponse{
-			Success:   success,
-			RetMsg:    "Mock Resp Error",
-			RequestID: req.RequestID,
-			Operation: req.Operation,
-		})
-		require.NoError(tb, err, "Marshal must not error")
-		return w.WriteMessage(websocket.TextMessage, msg)
-	}
-	b = testexch.MockWsInstance[Bybit](t, testws.CurryWsMockUpgrader(t, mock))
-	b.Websocket.AuthConn = b.Websocket.Conn
-	err = b.Subscribe(subs)
-	require.NoError(t, err, "Subscribe must not error")
-	success = false
-	err = b.Subscribe(subs)
-	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
+	authsubs, err = b.generateAuthSubscriptions()
+	require.NoError(t, err)
+	require.NotEmpty(t, authsubs)
+
+	require.NoError(t, b.authSubscribe(context.Background(), &DummyConnection{}, authsubs))
+	require.NoError(t, b.authUnsubscribe(context.Background(), &DummyConnection{}, authsubs))
+}
+
+func TestWebsocketAuthenticateConnection(t *testing.T) {
+	t.Parallel()
+
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b))
+	b.API.AuthenticatedSupport = true
+	b.API.AuthenticatedWebsocketSupport = true
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "dummy", Secret: "dummy"})
+	err := b.WebsocketAuthenticateConnection(ctx, &DummyConnection{})
+	require.NoError(t, err)
 }

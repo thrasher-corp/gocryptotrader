@@ -223,12 +223,16 @@ func TestConnectionMessageErrors(t *testing.T) {
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
 	ws.useMultiConnectionManagement = true
+	ws.SetCanUseAuthenticatedEndpoints(true)
+	ws.verbose = true // NOTE: Intentional
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
+
+	ws.connectionManager[0].Setup.Authenticate = func(context.Context, Connection) error { return errDastardlyReason }
 
 	ws.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) {
 		return nil, errDastardlyReason
@@ -371,7 +375,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -463,8 +467,8 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.connections = map[Connection]*ConnectionWrapper{
-		amazingConn: &multi.connectionManager[0],
+	multi.connectionToWrapper = map[Connection]*ConnectionWrapper{
+		amazingConn: multi.connectionManager[0],
 	}
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
@@ -975,7 +979,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.connections = map[Connection]*ConnectionWrapper{
+	w.connectionToWrapper = map[Connection]*ConnectionWrapper{
 		sweetConn: {Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
 	}
 
@@ -988,7 +992,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	err := w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	err := w.connectionToWrapper[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
 	require.NoError(t, err)
 
 	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
@@ -1229,6 +1233,11 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.WrapperDefinedConnectionSignature = []string{"slices are super naughty and not comparable"}
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errWrapperDefinedConnectionSignatureNotComparable)
+
+	connSetup.WrapperDefinedConnectionSignature = "comparable string signature"
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
@@ -1483,4 +1492,41 @@ func TestMonitorTraffic(t *testing.T) {
 	ws.setState(connectedState)
 	ws.TrafficAlert <- struct{}{}
 	require.False(t, innerShell())
+}
+
+func TestGetConnection(t *testing.T) {
+	t.Parallel()
+	var ws *Websocket
+	_, err := ws.GetConnection(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	ws = &Websocket{}
+
+	_, err = ws.GetConnection(nil)
+	require.ErrorIs(t, err, errConnectionSignatureNotSet)
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	ws.setState(connectedState)
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
+
+	ws.useMultiConnectionManagement = true
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrRequestRouteNotFound)
+
+	ws.connectionManager = []*ConnectionWrapper{{
+		Setup: &ConnectionSetup{WrapperDefinedConnectionSignature: "testURL", URL: "testURL"},
+	}}
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	expected := &WebsocketConnection{}
+	ws.connectionManager[0].Connection = expected
+
+	conn, err := ws.GetConnection("testURL")
+	require.NoError(t, err)
+	assert.Same(t, expected, conn)
 }

@@ -151,9 +151,15 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
 	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &push); err != nil {
 		return err
+	}
+
+	if push.RequestID != "" {
+		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
+			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
+		}
+		return nil
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
@@ -177,8 +183,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
-		var processed []order.Detail
-		processed, err = g.processFuturesOrdersPushData(respRaw, a)
+		processed, err := g.processFuturesOrdersPushData(respRaw, a)
 		if err != nil {
 			return err
 		}

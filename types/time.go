@@ -28,7 +28,20 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		s = s[1 : len(s)-1]
 	}
 
-	if target := strings.Index(s, "."); target != -1 {
+	badSyntax := false
+	target := strings.IndexFunc(s, func(r rune) bool {
+		if r == '.' {
+			return true
+		}
+		// As a mistake this type can be used instead of time.Time and parse int below will not fail.
+		badSyntax = r < '0' || r > '9'
+		return badSyntax // exit early
+	})
+
+	if target != -1 {
+		if badSyntax {
+			return strconv.ErrSyntax
+		}
 		s = s[:target] + s[target+1:]
 	}
 
