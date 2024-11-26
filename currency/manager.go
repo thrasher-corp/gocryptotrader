@@ -14,8 +14,6 @@ import (
 // Public errors
 var (
 	ErrAssetNotFound                    = errors.New("asset type not found in pair store")
-	ErrAssetAlreadyEnabled              = errors.New("asset already enabled")
-	ErrAssetAlreadyDisabled             = errors.New("asset already disabled")
 	ErrPairAlreadyEnabled               = errors.New("pair already enabled")
 	ErrPairFormatIsNil                  = errors.New("pair format is nil")
 	ErrPairManagerNotInitialised        = errors.New("pair manager not initialised")
@@ -204,8 +202,7 @@ func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error)
 	return *pFmt, nil
 }
 
-// StorePairs stores a list of pairs based on the asset type and whether
-// they're enabled or not
+// StorePairs stores a list of pairs based on the asset type and whether they're enabled or not
 func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error {
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -319,8 +316,7 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	}
 
 	if !pairStore.Available.Contains(pair, true) {
-		return fmt.Errorf("%s %w in the list of available pairs",
-			pair, ErrPairNotFound)
+		return fmt.Errorf("%s %w in the list of available pairs", pair, ErrPairNotFound)
 	}
 	pairStore.Enabled = pairStore.Enabled.Add(pair)
 	return nil
@@ -407,12 +403,6 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
-	}
-
-	if !pairStore.AssetEnabled && !enabled {
-		return ErrAssetAlreadyDisabled
-	} else if pairStore.AssetEnabled && enabled {
-		return ErrAssetAlreadyEnabled
 	}
 
 	pairStore.AssetEnabled = enabled
