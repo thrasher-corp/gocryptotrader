@@ -1075,13 +1075,25 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 // Reader reads and handles data from a specific connection
 func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, message []byte) error) {
 	defer w.Wg.Done()
+	var reporter ProcessReporter
+	if w.processReporter != nil {
+		reporter = w.processReporter.New()
+	}
 	for {
 		resp := conn.ReadMessage()
+		readAt := time.Now()
 		if resp.Raw == nil {
+			if reporter != nil {
+				reporter.Report(conn, readAt, nil)
+			}
 			return // Connection has been closed
 		}
 		if err := handler(ctx, resp.Raw); err != nil {
 			w.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
+		}
+
+		if reporter != nil {
+			reporter.Report(conn, readAt, resp.Raw)
 		}
 	}
 }
