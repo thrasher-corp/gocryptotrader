@@ -1546,37 +1546,48 @@ func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var err error
-	var instrumentsInfo *InstrumentsInfo
+	var (
+		instrumentsInfo InstrumentsInfo
+		nextPageCursor  string
+	)
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", "", 400)
-		if err != nil {
-			return err
+		for {
+			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", nextPageCursor, 1000)
+			if err != nil {
+				return err
+			}
+			instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+			nextPageCursor = instrumentInfo.NextPageCursor
+			if nextPageCursor == "" {
+				break
+			}
 		}
 	case asset.Options:
-		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "BTC", "", 400)
-		if err != nil {
-			return err
+		optionsBaseCoins := []string{"BTC", "ETH", "SOL"}
+		for i := range optionsBaseCoins {
+			nextPageCursor = ""
+			for {
+				instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", optionsBaseCoins[i], nextPageCursor, 1000)
+				if err != nil {
+					return fmt.Errorf("%w - %v", err, optionsBaseCoins[i])
+				}
+				instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+				nextPageCursor = instrumentInfo.NextPageCursor
+				if nextPageCursor == "" {
+					break
+				}
+			}
 		}
-		var ethInstruments *InstrumentsInfo
-		ethInstruments, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "ETH", "", 400)
-		if err != nil {
-			return err
-		}
-		instrumentsInfo.List = append(instrumentsInfo.List, ethInstruments.List...)
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
 	for x := range instrumentsInfo.List {
-		var pair currency.Pair
-		pair, err = by.MatchSymbolWithAvailablePairs(instrumentsInfo.List[x].Symbol, a, true)
+		pair, err := by.MatchSymbolWithAvailablePairs(instrumentsInfo.List[x].Symbol, a, true)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, instrumentsInfo.List[x].Symbol)
 			continue
 		}
-
 		limits = append(limits, order.MinMaxLevel{
 			Asset:                   a,
 			Pair:                    pair,
