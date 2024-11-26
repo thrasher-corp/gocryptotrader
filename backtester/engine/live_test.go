@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -315,25 +316,18 @@ func TestFetchLatestData(t *testing.T) {
 		funding: &fakeFunding{},
 	}
 	_, err := dataHandler.FetchLatestData()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
-	}
+	require.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
 	dataHandler.started = 1
 	_, err = dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
-		currency.PairFormat{
-			Uppercase: true,
-		})
+	require.NoError(t, err)
+	cp := currency.NewBTCUSDT()
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
-	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
-	fbA.Enabled = fbA.Enabled.Add(cp)
-	fbA.Available = fbA.Available.Add(cp)
+	require.NoError(t, fb.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
+	require.NoError(t, fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, false), "StorePairs must not error")
+	require.NoError(t, fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true), "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
 			exchange:                  f,
@@ -369,15 +363,11 @@ func TestFetchLatestData(t *testing.T) {
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
 	_, err = dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	var dh *dataChecker
 	_, err = dh.FetchLatestData()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestLoadCandleData(t *testing.T) {
