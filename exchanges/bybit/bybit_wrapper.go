@@ -291,12 +291,12 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		allPairs []InstrumentInfo
 		response *InstrumentsInfo
 	)
+	var nextPageCursor string
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
-		var nextPageCursor string
 		category = getCategoryName(a)
 		for {
-			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
+			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, int64(by.Features.Enabled.Kline.GlobalResultLimit))
 			if err != nil {
 				return nil, err
 			}
@@ -309,7 +309,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	case asset.Options:
 		category = getCategoryName(a)
 		for x := range supportedOptionsTypes {
-			var nextPageCursor = ""
+			nextPageCursor = ""
 			for {
 				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, int64(by.Features.Enabled.Kline.GlobalResultLimit))
 				if err != nil {
