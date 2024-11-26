@@ -308,60 +308,56 @@ func (b *Base) SetCurrencyPairFormat() error {
 func (b *Base) SetConfigPairs() error {
 	assetTypes := b.Config.CurrencyPairs.GetAssetTypes(false)
 	exchangeAssets := b.CurrencyPairs.GetAssetTypes(false)
-	for x := range assetTypes {
-		if !exchangeAssets.Contains(assetTypes[x]) {
-			log.Warnf(log.ExchangeSys,
-				"%s exchange asset type %s unsupported, please manually remove from configuration",
-				b.Name,
-				assetTypes[x])
-			continue // If there are unsupported assets contained in config, skip.
+	for _, a := range assetTypes {
+		if !exchangeAssets.Contains(a) {
+			log.Warnf(log.ExchangeSys, "%s exchange asset type %s unsupported, please manually remove from configuration", b.Name, a)
+			continue
+		}
+		if !b.Config.CurrencyPairs.UseGlobalFormat {
+			// TODO: Should be in SetCurrencyPairFormat. See #1748
+			if err := b.setConfigPairFormatFromExchange(a); err != nil {
+				return err
+			}
+		}
+
+		cfgPS, err := b.Config.CurrencyPairs.Get(a)
+		if err != nil {
+			return err
+		}
+		if err := b.CurrencyPairs.StorePairs(a, cfgPS.Available, false); err != nil {
+			return err
+		}
+		if err := b.CurrencyPairs.StorePairs(a, cfgPS.Enabled, true); err != nil {
+			return err
 		}
 
 		var enabledAsset bool
-		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
+		if b.Config.CurrencyPairs.IsAssetEnabled(a) == nil {
 			enabledAsset = true
 		}
 
-		if err := b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset); err != nil {
+		// Must happen after StorePairs, which would have enabled the asset automatically
+		if err := b.CurrencyPairs.SetAssetEnabled(a, enabledAsset); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
-		if err != nil {
+// setConfigPairFormatFromExchange sets the config formats from the exchange's format
+// This deprecated behaviour will be removed, because config should not be backloaded from runtime
+func (b *Base) setConfigPairFormatFromExchange(a asset.Item) error {
+	ps, err := b.CurrencyPairs.Get(a)
+	if err != nil {
+		return err
+	}
+	if ps.ConfigFormat != nil {
+		if err := b.Config.CurrencyPairs.StoreFormat(a, ps.ConfigFormat, true); err != nil {
 			return err
 		}
-
-		if b.Config.CurrencyPairs.UseGlobalFormat {
-			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-			if err != nil {
-				return err
-			}
-			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-		exchPS, err := b.CurrencyPairs.Get(assetTypes[x])
-		if err != nil {
-			return err
-		}
-
-		if exchPS.ConfigFormat != nil {
-			if err := b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true); err != nil {
-				return err
-			}
-		}
-		if exchPS.RequestFormat != nil {
-			if err := b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false); err != nil {
-				return err
-			}
-		}
-
-		if err := b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false); err != nil {
-			return err
-		}
-		if err := b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true); err != nil {
+	}
+	if ps.RequestFormat != nil {
+		if err := b.Config.CurrencyPairs.StoreFormat(a, ps.RequestFormat, false); err != nil {
 			return err
 		}
 	}

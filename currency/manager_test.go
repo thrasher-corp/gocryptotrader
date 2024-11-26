@@ -462,25 +462,21 @@ func TestEnablePair(t *testing.T) {
 	}
 }
 
-func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
+func TestAssetEnabled(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
 
 	err := p.IsAssetEnabled(asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	p.Pairs = nil
+
 	// Test enabling a pair when the pair manager is not initialised
 	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised)
 
 	err = p.SetAssetEnabled(asset.Spot, true)
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised)
 
 	// Test asset type which doesn't exist
 	p = initTest(t)
@@ -488,39 +484,25 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	p.Pairs[asset.Spot].AssetEnabled = false
 
 	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
 	err = p.SetAssetEnabled(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = p.SetAssetEnabled(asset.Spot, false)
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	assert.NoError(t, err, "Setting to disabled twice should not error")
 
 	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
 	err = p.SetAssetEnabled(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = p.SetAssetEnabled(asset.Spot, true)
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	assert.NoError(t, err, "Setting to enabled twice should not error")
 
 	err = p.IsAssetEnabled(asset.Spot)
-	if err != nil {
-		t.Error("unexpected result")
-	}
+	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
 // TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
