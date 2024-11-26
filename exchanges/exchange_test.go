@@ -3129,3 +3129,20 @@ func TestGetTradingRequirements(t *testing.T) {
 	requirements = (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
 	require.NotEmpty(t, requirements)
 }
+
+func TestSetConfigPairFormatFromExchange(t *testing.T) {
+	t.Parallel()
+	b := Base{Config: &config.Exchange{CurrencyPairs: &currency.PairsManager{}}}
+	err := b.setConfigPairFormatFromExchange(asset.Spot)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "setConfigPairFormatFromExchange should error correctly without pairs")
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		Enabled:       currency.Pairs{btcusdPair},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "🐋"},
+		RequestFormat: &currency.PairFormat{Delimiter: "🦥"},
+	})
+	require.NoError(t, err, "CurrencyPairs.Store must not error")
+	err = b.setConfigPairFormatFromExchange(asset.Spot)
+	require.NoError(t, err)
+	assert.Equal(t, "🐋", b.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat.Delimiter, "ConfigFormat should be correct and have a blow hole")
+	assert.Equal(t, "🦥", b.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter, "RequestFormat should be correct and kinda lazy")
+}
