@@ -293,26 +293,34 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	)
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
+		nextPageCursor := ""
 		category = getCategoryName(a)
-		response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
-		if err != nil {
-			return nil, err
+		for {
+			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
+			if err != nil {
+				return nil, err
+			}
+			allPairs = append(allPairs, response.List...)
+			nextPageCursor = response.NextPageCursor
+			if nextPageCursor == "" {
+				break
+			}
 		}
-		allPairs = response.List
+
 	case asset.Options:
 		category = getCategoryName(a)
 		for x := range supportedOptionsTypes {
-			var bookmark = ""
+			var nextPageCursor = ""
 			for {
-				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], bookmark, int64(by.Features.Enabled.Kline.GlobalResultLimit))
+				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, int64(by.Features.Enabled.Kline.GlobalResultLimit))
 				if err != nil {
 					return nil, err
 				}
 				allPairs = append(allPairs, response.List...)
-				if response.NextPageCursor == "" || (bookmark != "" && bookmark == response.NextPageCursor) || len(response.List) == 0 {
+				if response.NextPageCursor == "" || (nextPageCursor != "" && nextPageCursor == response.NextPageCursor) || len(response.List) == 0 {
 					break
 				}
-				bookmark = response.NextPageCursor
+				nextPageCursor = response.NextPageCursor
 			}
 		}
 	default:
@@ -1547,8 +1555,9 @@ func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	var (
-		instrumentsInfo InstrumentsInfo
-		nextPageCursor  string
+		allInstrumentsInfo InstrumentsInfo
+		nextPageCursor     string
+		mayHaveDelimiter   = a == asset.Options || a == asset.USDCMarginedFutures
 	)
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
@@ -1557,22 +1566,38 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			if err != nil {
 				return err
 			}
-			instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+			if a == asset.USDCMarginedFutures {
+				// this matches the formatting used in UpdateTradablePairs
+				for i := range instrumentInfo.List {
+					if instrumentInfo.List[i].QuoteCoin == "USDC" {
+						var formattedPair string
+						if strings.EqualFold(instrumentInfo.List[i].ContractType, "linearfutures") {
+							// long-dated contracts have a delimiter
+							formattedPair = instrumentInfo.List[i].Symbol
+						} else {
+							formattedPair = instrumentInfo.List[i].BaseCoin + instrumentInfo.List[i].Symbol[len(instrumentInfo.List[i].BaseCoin):]
+						}
+						instrumentInfo.List[i].Symbol = formattedPair
+						allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List[i])
+					}
+				}
+			} else {
+				allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List...)
+			}
 			nextPageCursor = instrumentInfo.NextPageCursor
 			if nextPageCursor == "" {
 				break
 			}
 		}
 	case asset.Options:
-		optionsBaseCoins := []string{"BTC", "ETH", "SOL"}
-		for i := range optionsBaseCoins {
+		for i := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", optionsBaseCoins[i], nextPageCursor, 1000)
+				instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", supportedOptionsTypes[i], nextPageCursor, 1000)
 				if err != nil {
-					return fmt.Errorf("%w - %v", err, optionsBaseCoins[i])
+					return fmt.Errorf("%w - %v", err, supportedOptionsTypes[i])
 				}
-				instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+				allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List...)
 				nextPageCursor = instrumentInfo.NextPageCursor
 				if nextPageCursor == "" {
 					break
@@ -1582,24 +1607,25 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
-	for x := range instrumentsInfo.List {
-		pair, err := by.MatchSymbolWithAvailablePairs(instrumentsInfo.List[x].Symbol, a, true)
+	limits := make([]order.MinMaxLevel, 0, len(allInstrumentsInfo.List))
+	for x := range allInstrumentsInfo.List {
+		pair, err := by.MatchSymbolWithAvailablePairs(allInstrumentsInfo.List[x].Symbol, a, mayHaveDelimiter)
 		if err != nil {
+			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", by.Name, a, allInstrumentsInfo.List[x].Symbol)
 			continue
 		}
 		limits = append(limits, order.MinMaxLevel{
 			Asset:                   a,
 			Pair:                    pair,
-			MinimumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
-			MaximumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
-			MinPrice:                instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaxPrice:                instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
-			PriceStepIncrementSize:  instrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
-			AmountStepIncrementSize: instrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
-			QuoteStepIncrementSize:  instrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
-			MinimumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaximumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
+			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
+			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
+			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			PriceStepIncrementSize:  allInstrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
+			AmountStepIncrementSize: allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
+			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
+			MinimumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
+			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
 	return by.LoadLimits(limits)

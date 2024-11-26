@@ -3096,7 +3096,6 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	b.HTTPRecording = true
 	_, err = b.GetHistoricTrades(context.Background(), optionsTradablePair, asset.Options, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
