@@ -205,11 +205,12 @@ var packageRateLimits = request.RateLimitDefinitions{
 	publicCurrencyPairsMarginEPL: standardRateLimit(),
 	publicOrderbookMarginEPL:     standardRateLimit(),
 
-	publicInsuranceDeliveryEPL:    standardRateLimit(),
-	publicDeliveryContractsEPL:    standardRateLimit(),
-	publicOrderbookDeliveryEPL:    standardRateLimit(),
-	publicCandleSticksDeliveryEPL: standardRateLimit(),
-	publicTickersDeliveryEPL:      standardRateLimit(),
+	publicInsuranceDeliveryEPL:      standardRateLimit(),
+	publicDeliveryContractsEPL:      standardRateLimit(),
+	publicOrderbookDeliveryEPL:      standardRateLimit(),
+	publicTradingHistoryDeliveryEPL: standardRateLimit(),
+	publicCandleSticksDeliveryEPL:   standardRateLimit(),
+	publicTickersDeliveryEPL:        standardRateLimit(),
 
 	publicFuturesContractsEPL:      standardRateLimit(),
 	publicOrderbookFuturesEPL:      standardRateLimit(),
@@ -370,6 +371,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	optionsSubmitOrderEPL:        optionsSubmitCancelAmendRateLimit(),
 	optionsOrdersEPL:             standardRateLimit(),
 	optionsCancelOrdersEPL:       optionsSubmitCancelAmendRateLimit(),
+	optionsOrderEPL:              standardRateLimit(),
 	optionsCancelOrderEPL:        optionsSubmitCancelAmendRateLimit(),
 	optionsTradingHistoryEPL:     standardRateLimit(),
 
