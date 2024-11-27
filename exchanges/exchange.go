@@ -330,10 +330,12 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		if b.Config.CurrencyPairs.UseGlobalFormat {
-			if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false); err != nil {
+			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+			if err != nil {
 				return err
 			}
-			if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true); err != nil {
+			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+			if err != nil {
 				return err
 			}
 			continue
@@ -344,20 +346,20 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		if exchPS.ConfigFormat != nil {
-			if err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true); err != nil {
+			if err := b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true); err != nil {
 				return err
 			}
 		}
 		if exchPS.RequestFormat != nil {
-			if err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false); err != nil {
+			if err := b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false); err != nil {
 				return err
 			}
 		}
 
-		if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false); err != nil {
+		if err := b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false); err != nil {
 			return err
 		}
-		if err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true); err != nil {
+		if err := b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true); err != nil {
 			return err
 		}
 	}
