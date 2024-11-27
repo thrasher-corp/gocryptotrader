@@ -151,7 +151,7 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()),
+		request.WithLimiter(packageRateLimits),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -1658,7 +1658,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var spotOrders []SpotOrdersDetail
-		spotOrders, err = g.GateioSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
+		spotOrders, err = g.GetSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
 		if err != nil {
 			return nil, err
 		}
