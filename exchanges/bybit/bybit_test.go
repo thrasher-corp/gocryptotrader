@@ -762,13 +762,16 @@ func TestGetDeliveryPrice(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	assert.NoError(t, err)
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	assert.NoError(t, err)
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.USDTMarginedFutures)
+	assert.NoError(t, err)
+
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error("Bybit UpdateOrderExecutionLimits() error", err)
-	}
+	assert.NoError(t, err)
 	availablePairs, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		t.Fatal("Bybit GetAvailablePairs() error", err)
@@ -776,16 +779,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	for x := range availablePairs {
 		var limits order.MinMaxLevel
 		limits, err = b.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
-		if err != nil {
-			t.Fatal("Bybit GetOrderExecutionLimits() error", err)
-		}
+		require.NoError(t, err)
 		if limits == (order.MinMaxLevel{}) {
 			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
 		}
-	}
-	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Options)
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -3777,4 +3774,68 @@ func TestAuthSubscribe(t *testing.T) {
 	success = false
 	err = b.Subscribe(subs)
 	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
+}
+
+func TestTransformSymbol(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		symbol         string
+		baseCoin       string
+		contractType   string
+		item           asset.Item
+		expectedSymbol string
+	}{
+		{
+			symbol:         "POPCATUSDT",
+			baseCoin:       "POPCAT",
+			item:           asset.Spot,
+			expectedSymbol: "POPCAT_USDT",
+		},
+		{
+			symbol:         "BTC26SEP25-300000-P",
+			item:           asset.Options,
+			baseCoin:       "BTC",
+			expectedSymbol: "BTC-26SEP25-300000-P",
+		},
+		{
+			symbol:         "1000000BABYDOGEUSDT",
+			item:           asset.USDTMarginedFutures,
+			baseCoin:       "1000000BABYDOGE",
+			expectedSymbol: "1000000BABYDOGE-USDT",
+		},
+		{
+			symbol:         "BTC-06DEC24",
+			item:           asset.USDCMarginedFutures,
+			expectedSymbol: "BTC-06DEC24",
+			contractType:   "LinearFutures",
+		},
+		{
+			symbol:         "1000PEPEPERP",
+			baseCoin:       "1000PEPE",
+			item:           asset.USDCMarginedFutures,
+			expectedSymbol: "1000PEPE-PERP",
+		},
+		{
+			symbol:         "BTCUSD",
+			baseCoin:       "BTC",
+			item:           asset.CoinMarginedFutures,
+			expectedSymbol: "BTC_USD",
+		},
+		{
+			symbol:         "nothingHappens",
+			item:           asset.CrossMargin,
+			expectedSymbol: "nothingHappens",
+		},
+	}
+	for i := range tests {
+		t.Run(tests[i].symbol+" "+tests[i].item.String(), func(t *testing.T) {
+			t.Parallel()
+			ii := InstrumentInfo{
+				Symbol:       tests[i].symbol,
+				ContractType: tests[i].contractType,
+				BaseCoin:     tests[i].baseCoin,
+			}
+			assert.Equal(t, tests[i].expectedSymbol, ii.transformSymbol(tests[i].item), "expected symbols to match")
+		})
+	}
 }
