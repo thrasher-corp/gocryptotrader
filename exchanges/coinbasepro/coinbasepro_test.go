@@ -326,7 +326,7 @@ func TestGetAllOrders(t *testing.T) {
 	status = make([]string, 0)
 	assets = make([]string, 1)
 	assets[0] = testCrypto.String()
-	_, err = c.GetAllOrders(context.Background(), "", testFiat.String(), "LIMIT", "SELL", "", "SPOT", "RETAIL_ADVANCED", "UNKNOWN_CONTRACT_EXPIRY_TYPE", "2", status, assets, 10, time.Time{}, time.Time{})
+	_, err = c.GetAllOrders(context.Background(), "", testFiat.String(), "LIMIT", "SELL", "", "SPOT", "RETAIL_ADVANCED", "UNKNOWN_CONTRACT_EXPIRY_TYPE", "", status, assets, 10, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -435,6 +435,7 @@ func TestDeletePortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
 	pID := portfolioIDFromName(t, "GCT Test Portfolio To-Delete")
 	err = c.DeletePortfolio(context.Background(), pID)
+	// The new JWT-based keys don't have permissions to delete portfolios they aren't assigned to, causing this to fail
 	assert.NoError(t, err)
 }
 
@@ -446,6 +447,7 @@ func TestEditPortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errNameEmpty)
 	pID := portfolioIDFromName(t, "GCT Test Portfolio To-Edit")
 	_, err = c.EditPortfolio(context.Background(), pID, "GCT Test Portfolio Edited")
+	// The new JWT-based keys don't have permissions to edit portfolios they aren't assigned to, causing this to fail
 	if err != nil && err.Error() != errPortfolioNameDuplicate {
 		t.Error(err)
 	}
@@ -586,6 +588,7 @@ func TestGetPaymentMethodByID(t *testing.T) {
 func TestGetCurrentUser(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	// This intermittently fails with the message "Unauthorized", for no clear reason
 	testGetNoArgs(t, c.GetCurrentUser)
 }
 
@@ -595,7 +598,7 @@ func TestGetAllWallets(t *testing.T) {
 	pagIn := PaginationInp{Limit: 2}
 	resp, err := c.GetAllWallets(context.Background(), pagIn)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	require.NotEmpty(t, resp, errExpectedNonEmpty)
 	if resp.Pagination.NextStartingAfter == "" {
 		t.Skip(skipInsufficientWallets)
 	}
@@ -963,11 +966,7 @@ func TestSendHTTPRequest(t *testing.T) {
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
-	fc := &CoinbasePro{}
-	err := fc.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", nil, nil, false, nil, nil)
-	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", nil, nil, false, nil, nil)
+	err := c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", nil, nil, false, nil, nil)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound)
 	ch := make(chan struct{})
 	body := map[string]any{"Unmarshalable": ch}
@@ -1518,9 +1517,10 @@ func TestWsAuth(t *testing.T) {
 	go c.wsReadData()
 	err = c.Subscribe(subscription.List{
 		{
-			Channel: "myAccount",
-			Asset:   asset.All,
-			Pairs:   p,
+			Channel:       "myAccount",
+			Asset:         asset.All,
+			Pairs:         p,
+			Authenticated: true,
 		},
 	})
 	assert.NoError(t, err)
@@ -1705,7 +1705,7 @@ func TestCheckSubscriptions(t *testing.T) {
 func TestGetJWT(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetJWT(context.Background(), "")
+	_, _, err := c.GetJWT(context.Background(), "")
 	assert.NoError(t, err)
 }
 

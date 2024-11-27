@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -16,26 +17,22 @@ type CoinbasePro struct {
 	exchange.Base
 	jwt          string
 	jwtLastRegen time.Time
+	mut          sync.RWMutex
 }
 
-// Version is used for the niche cases where the Version of the API must be specified and passed
-// around for proper functionality
+// Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality
 type Version bool
 
-// FiatTransferType is used so that we don't need to duplicate the four fiat transfer-related
-// endpoints under version 2 of the API
+// FiatTransferType is used so that we don't need to duplicate the four fiat transfer-related endpoints under version 2 of the API
 type FiatTransferType bool
 
-// ValueWithCurrency is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse,
-// FuturesBalanceSummary, ListFuturesSweepsResponse, PerpetualsPortfolioSummary, PerpPositionDetail,
-// FeeStruct, AmScale, and ConvertResponse
+// ValueWithCurrency is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse, FuturesBalanceSummary, ListFuturesSweepsResponse, PerpetualsPortfolioSummary, PerpPositionDetail, FeeStruct, AmScale, and ConvertResponse
 type ValueWithCurrency struct {
 	Value    float64 `json:"value,string"`
 	Currency string  `json:"currency"`
 }
 
-// Account holds details for a trading account, returned by GetAccountByID and used as
-// a sub-struct in the type AllAccountsResponse
+// Account holds details for a trading account, returned by GetAccountByID and used as a sub-struct in the type AllAccountsResponse
 type Account struct {
 	UUID             string            `json:"uuid"`
 	Name             string            `json:"name"`
@@ -51,8 +48,7 @@ type Account struct {
 	Hold             ValueWithCurrency `json:"hold"`
 }
 
-// AllAccountsResponse holds many Account structs, as well as pagination information,
-// returned by GetAllAccounts
+// AllAccountsResponse holds many Account structs, as well as pagination information, returned by GetAllAccounts
 type AllAccountsResponse struct {
 	Accounts []Account `json:"accounts"`
 	HasNext  bool      `json:"has_next"`
@@ -125,8 +121,7 @@ type FutureProductDetails struct {
 	ContractExpiryName     string           `json:"contract_expiry_name"`
 }
 
-// Product holds product information, returned by GetProductByID, and used as a sub-struct
-// in the type AllProducts
+// Product holds product information, returned by GetProductByID, and used as a sub-struct in the type AllProducts
 type Product struct {
 	ID                        currency.Pair            `json:"product_id"`
 	Price                     types.Number             `json:"price"`
@@ -167,8 +162,7 @@ type Product struct {
 	FutureProductDetails      FutureProductDetails     `json:"future_product_details"`
 }
 
-// AllProducts holds information on a lot of available currency pairs, returned by
-// GetAllProducts
+// AllProducts holds information on a lot of available currency pairs, returned by GetAllProducts
 type AllProducts struct {
 	Products    []Product `json:"products"`
 	NumProducts int32     `json:"num_products"`
@@ -241,8 +235,7 @@ type StopLimitStopLimitGTD struct {
 	StopDirection string       `json:"stop_direction"`
 }
 
-// OrderConfiguration is a struct used in the formation of requests in PrepareOrderConfig, and is
-// a sub-struct used in the types PlaceOrderResp and GetOrderResponse
+// OrderConfiguration is a struct used in the formation of requests in PrepareOrderConfig, and is a sub-struct used in the types PlaceOrderResp and GetOrderResponse
 type OrderConfiguration struct {
 	MarketMarketIOC       *MarketMarketIOC       `json:"market_market_ioc,omitempty"`
 	LimitLimitGTC         *LimitLimitGTC         `json:"limit_limit_gtc,omitempty"`
@@ -275,8 +268,7 @@ type OrderCancelDetail struct {
 	OrderID       string `json:"order_id"`
 }
 
-// EditOrderPreviewResp contains information on the effects of editing an order,
-// returned by EditOrderPreview
+// EditOrderPreviewResp contains information on the effects of editing an order, returned by EditOrderPreview
 type EditOrderPreviewResp struct {
 	Slippage           float64 `json:"slippage,string"`
 	OrderTotal         float64 `json:"order_total,string"`
@@ -295,8 +287,7 @@ type EditHistory struct {
 	ReplaceAcceptTimestamp time.Time `json:"replace_accept_timestamp"`
 }
 
-// GetOrderResponse contains information on an order, returned by GetOrderByID IterativeGetAllOrders, and used in
-// GetAllOrdersResp
+// GetOrderResponse contains information on an order, returned by GetOrderByID IterativeGetAllOrders, and used in GetAllOrdersResp
 type GetOrderResponse struct {
 	OrderID               string             `json:"order_id"`
 	ProductID             currency.Pair      `json:"product_id"`
@@ -359,8 +350,7 @@ type FillResponse struct {
 	Cursor string  `json:"cursor"`
 }
 
-// PreviewOrderResp contains information on the effects of placing an order, returned by
-// PreviewOrder
+// PreviewOrderResp contains information on the effects of placing an order, returned by PreviewOrder
 type PreviewOrderResp struct {
 	OrderTotal       float64  `json:"order_total,string"`
 	CommissionTotal  float64  `json:"commission_total,string"`
@@ -386,8 +376,7 @@ type SimplePortfolioData struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// MovePortfolioFundsResponse contains the UUIDs of the portfolios involved. Returned by
-// MovePortfolioFunds
+// MovePortfolioFundsResponse contains the UUIDs of the portfolios involved. Returned by MovePortfolioFunds
 type MovePortfolioFundsResponse struct {
 	SourcePortfolioUUID string `json:"source_portfolio_uuid"`
 	TargetPortfolioUUID string `json:"target_portfolio_uuid"`
@@ -470,8 +459,7 @@ type FuturesPositions []struct {
 	NotionalValue   float64       `json:"notional_value,string"`
 }
 
-// DetailedPortfolioResponse contains a great deal of information on a single portfolio.
-// Returned by GetPortfolioByID
+// DetailedPortfolioResponse contains a great deal of information on a single portfolio. Returned by GetPortfolioByID
 type DetailedPortfolioResponse struct {
 	Portfolio         SimplePortfolioData `json:"portfolio"`
 	PortfolioBalances PortfolioBalances   `json:"portfolio_balances"`
@@ -480,8 +468,7 @@ type DetailedPortfolioResponse struct {
 	FuturesPositions  []FuturesPositions  `json:"futures_positions"`
 }
 
-// FuturesBalanceSummary contains information on futures balances, returned by
-// GetFuturesBalanceSummary
+// FuturesBalanceSummary contains information on futures balances, returned by GetFuturesBalanceSummary
 type FuturesBalanceSummary struct {
 	FuturesBuyingPower          ValueWithCurrency `json:"futures_buying_power"`
 	TotalUSDBalance             ValueWithCurrency `json:"total_usd_balance"`
@@ -497,11 +484,9 @@ type FuturesBalanceSummary struct {
 	LiquidationBufferPercentage float64           `json:"liquidation_buffer_percentage,string"`
 }
 
-// FuturesPosition contains information on a single futures position, returned by
-// GetFuturesPositionByID
+// FuturesPosition contains information on a single futures position, returned by GetFuturesPositionByID
 type FuturesPosition struct {
-	// This may belong in a struct of its own called "position", requiring a bit
-	// more abstraction, but for the moment I'll assume it doesn't
+	// This may belong in a struct of its own called "position", requiring a bit more abstraction, but for the moment I'll assume it doesn't
 	ProductID         currency.Pair `json:"product_id"`
 	ExpirationTime    time.Time     `json:"expiration_time"`
 	Side              string        `json:"side"`
@@ -521,9 +506,7 @@ type SweepData struct {
 	ScheduledTime   time.Time         `json:"scheduled_time"`
 }
 
-// PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as
-// a sub-struct in the types PerpPositionDetail, AllPerpPosResponse, and
-// OnePerpPosResponse
+// PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as a sub-struct in the types PerpPositionDetail, AllPerpPosResponse, and OnePerpPosResponse
 type PerpetualsPortfolioSummary struct {
 	PortfolioUUID              string            `json:"portfolio_uuid"`
 	Collateral                 float64           `json:"collateral,string"`
@@ -548,8 +531,7 @@ type PerpetualsPortfolioSummary struct {
 	MaxWithDrawal              ValueWithCurrency `json:"max_withdrawal"`
 }
 
-// PerpPositionDetail contains information on a single perpetuals position, used as a sub-struct
-// in the types AllPerpPosResponse and OnePerpPosResponse
+// PerpPositionDetail contains information on a single perpetuals position, used as a sub-struct in the types AllPerpPosResponse and OnePerpPosResponse
 type PerpPositionDetail struct {
 	ProductID             currency.Pair              `json:"product_id"`
 	ProductUUID           string                     `json:"product_uuid"`
@@ -573,15 +555,13 @@ type PerpPositionDetail struct {
 	PortfolioSummary      PerpetualsPortfolioSummary `json:"portfolio_summary"`
 }
 
-// AllPerpPosResponse contains information on perpetuals positions, returned by
-// GetAllPerpetualsPositions
+// AllPerpPosResponse contains information on perpetuals positions, returned by GetAllPerpetualsPositions
 type AllPerpPosResponse struct {
 	Positions        []PerpPositionDetail       `json:"positions"`
 	PortfolioSummary PerpetualsPortfolioSummary `json:"portfolio_summary"`
 }
 
-// OnePerpPosResponse contains information on a single perpetuals position, returned by
-// GetPerpetualsPositionByID
+// OnePerpPosResponse contains information on a single perpetuals position, returned by GetPerpetualsPositionByID
 type OnePerpPosResponse struct {
 	Position         PerpPositionDetail         `json:"position"`
 	PortfolioSummary PerpetualsPortfolioSummary `json:"portfolio_summary"`
@@ -609,8 +589,7 @@ type GoodsAndServicesTax struct {
 	Type string  `json:"type"`
 }
 
-// TransactionSummary contains a summary of transaction fees, volume, and the like. Returned
-// by GetTransactionSummary
+// TransactionSummary contains a summary of transaction fees, volume, and the like. Returned by GetTransactionSummary
 type TransactionSummary struct {
 	TotalVolume             float64             `json:"total_volume"`
 	TotalFees               float64             `json:"total_fees"`
@@ -633,8 +612,7 @@ type GetAllOrdersResp struct {
 	Cursor   string             `json:"cursor"`
 }
 
-// LinkStruct is a sub-struct storing information on links, used in Disclosure and
-// ConvertResponse
+// LinkStruct is a sub-struct storing information on links, used in Disclosure and ConvertResponse
 type LinkStruct struct {
 	Text string `json:"text"`
 	URL  string `json:"url"`
@@ -731,8 +709,7 @@ type TradeIncentiveInfo struct {
 	Redeemed            bool              `json:"redeemed"`
 }
 
-// ConvertResponse contains information on a convert trade, returned by CreateConvertQuote,
-// CommitConvertTrade, and GetConvertTradeByID
+// ConvertResponse contains information on a convert trade, returned by CreateConvertQuote, CommitConvertTrade, and GetConvertTradeByID
 type ConvertResponse struct {
 	ID                 string             `json:"id"`
 	Status             string             `json:"status"`
@@ -781,8 +758,7 @@ type PaymentMethodData struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse,
-// TransactionData, DeposWithdrData, and PaymentMethodData
+// IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse, TransactionData, DeposWithdrData, and PaymentMethodData
 type IDResource struct {
 	ID           string `json:"id"`
 	Resource     string `json:"resource"`
@@ -790,9 +766,7 @@ type IDResource struct {
 	Email        string `json:"email"`
 }
 
-// PaginationResp holds pagination information, used in ListNotificationsResponse,
-// GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, ManyDeposWithdrResp,
-// and GetAllPaymentMethodsResp
+// PaginationResp holds pagination information, used in ListNotificationsResponse, GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, ManyDeposWithdrResp, and GetAllPaymentMethodsResp
 type PaginationResp struct {
 	EndingBefore         string `json:"ending_before"`
 	StartingAfter        string `json:"starting_after"`
@@ -867,8 +841,7 @@ type ListNotificationsData struct {
 	Transaction      IDResource               `json:"transaction"`
 }
 
-// ListNotificationsResponse holds information on notifications that the user is subscribed
-// to. Returned by ListNotifications
+// ListNotificationsResponse holds information on notifications that the user is subscribed to. Returned by ListNotifications
 type ListNotificationsResponse struct {
 	Pagination PaginationResp          `json:"pagination"`
 	Data       []ListNotificationsData `json:"data"`
@@ -1062,8 +1035,7 @@ type Network struct {
 	Name   string `json:"name"`
 }
 
-// TransactionData is a sub-type that holds information on a transaction. Used in
-// ManyTransactionsResp
+// TransactionData is a sub-type that holds information on a transaction. Used in ManyTransactionsResp
 type TransactionData struct {
 	ID           string             `json:"id"`
 	Type         string             `json:"type"`
@@ -1081,15 +1053,13 @@ type TransactionData struct {
 	From         IDResource         `json:"from"`
 }
 
-// ManyTransactionsResp holds information on many transactions. Returned by
-// GetAddressTransactions and GetAllTransactions
+// ManyTransactionsResp holds information on many transactions. Returned by GetAddressTransactions and GetAllTransactions
 type ManyTransactionsResp struct {
 	Pagination PaginationResp    `json:"pagination"`
 	Data       []TransactionData `json:"data"`
 }
 
-// DeposWithdrData is a sub-type that holds information on a deposit/withdrawal. Used in
-// ManyDeposWithdrResp
+// DeposWithdrData is a sub-type that holds information on a deposit/withdrawal. Used in ManyDeposWithdrResp
 type DeposWithdrData struct {
 	ID            string             `json:"id"`
 	Status        string             `json:"status"`
@@ -1208,8 +1178,7 @@ type WebsocketMarketTrade struct {
 	Time      time.Time     `json:"time"`
 }
 
-// WebsocketMarketTradeHolder holds a variety of market trade responses, used when wsHandleData
-// processes trades
+// WebsocketMarketTradeHolder holds a variety of market trade responses, used when wsHandleData processes trades
 type WebsocketMarketTradeHolder struct {
 	Type   string                 `json:"type"`
 	Trades []WebsocketMarketTrade `json:"trades"`
@@ -1229,8 +1198,7 @@ type WebsocketProduct struct {
 	MinMarketFunds float64       `json:"min_market_funds,string"`
 }
 
-// WebsocketProductHolder holds a variety of product responses, used when wsHandleData processes
-// an update on a product's status
+// WebsocketProductHolder holds a variety of product responses, used when wsHandleData processes an update on a product's status
 type WebsocketProductHolder struct {
 	Type     string             `json:"type"`
 	Products []WebsocketProduct `json:"products"`
@@ -1244,8 +1212,7 @@ type WebsocketOrderbookData struct {
 	NewQuantity float64   `json:"new_quantity,string"`
 }
 
-// WebsocketOrderbookDataHolder holds a variety of orderbook responses, used when wsHandleData processes
-// orderbooks, as well as under typical operation of ProcessSnapshot, ProcessUpdate, and processBidAskArray
+// WebsocketOrderbookDataHolder holds a variety of orderbook responses, used when wsHandleData processes orderbooks, as well as under typical operation of ProcessSnapshot, ProcessUpdate, and processBidAskArray
 type WebsocketOrderbookDataHolder struct {
 	Type      string                   `json:"type"`
 	ProductID currency.Pair            `json:"product_id"`
@@ -1424,8 +1391,7 @@ type Auction struct {
 	Time         time.Time `json:"time"`
 }
 
-// OrderBookResp holds information on bids and asks for a particular currency pair, used for unmarshalling in
-// GetProductBookV1
+// OrderBookResp holds information on bids and asks for a particular currency pair, used for unmarshalling in GetProductBookV1
 type OrderBookResp struct {
 	Bids        [][3]any  `json:"bids"`
 	Asks        [][3]any  `json:"asks"`
@@ -1516,8 +1482,7 @@ type AllWrappedAssets struct {
 	WrappedAssets []WrappedAsset `json:"wrapped_assets"`
 }
 
-// WrappedAssetConversionRate holds information on a wrapped asset's conversion rate, returned by
-// GetWrappedAssetConversionRate
+// WrappedAssetConversionRate holds information on a wrapped asset's conversion rate, returned by GetWrappedAssetConversionRate
 type WrappedAssetConversionRate struct {
 	Amount float64 `json:"amount,string"`
 }

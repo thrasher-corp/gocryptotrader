@@ -3,8 +3,9 @@ package coinbasepro
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,8 +15,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/golang-jwt/jwt"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -155,6 +156,7 @@ var (
 	errUnrecognisedAssetType    = errors.New("unrecognised asset type")
 	errUnrecognisedStrategyType = errors.New("unrecognised strategy type")
 	errIntervalNotSupported     = errors.New("interval not supported")
+	errEndpointPathInvalid      = errors.New("endpoint path invalid, should start with https://")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -428,6 +430,7 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 	if contractExpiryType != "" {
 		params.Values.Set("contract_expiry_type", contractExpiryType)
 	}
+	// This functionality has been deprecated, and only works for legacy API keys
 	if retailPortfolioID != "" {
 		params.Values.Set("retail_portfolio_id", retailPortfolioID)
 	}
@@ -1396,19 +1399,14 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, bodyParams map[string]any, isVersion3 bool, result any, returnHead *http.Header) (err error) {
-	creds, err := c.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
-	queryString := common.EncodeURLValues("", queryParams)
-	// Version 2 wants query params in the path during signing
-	if !isVersion3 {
-		path += queryString
+	if len(endpoint) < 8 {
+		return errEndpointPathInvalid
 	}
+	queryString := common.EncodeURLValues("", queryParams)
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
 		payload := []byte("")
@@ -1418,31 +1416,15 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 				return nil, err
 			}
 		}
-		n := strconv.FormatInt(time.Now().Unix(), 10)
-		message := n + method + path + string(payload)
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(message),
-			[]byte(creds.Secret))
+		jwt, _, err := c.GetJWT(ctx, method+" "+endpoint[8:]+path)
 		if err != nil {
 			return nil, err
 		}
-		// TODO: Implement JWT authentication once it's supported by all endpoints we care about
-		// jwt, err := c.GetJWT(ctx, method+" "+path)
-		// if err != nil {
-		// 	return nil, err
-		// }
 		headers := make(map[string]string)
-		headers["CB-ACCESS-KEY"] = creds.Key
-		headers["CB-ACCESS-SIGN"] = hex.EncodeToString(hmac)
-		headers["CB-ACCESS-TIMESTAMP"] = n
 		headers["Content-Type"] = "application/json"
-		headers["CB-VERSION"] = "2024-09-24"
-		// headers["Authorization"] = "Bearer " + jwt
-		// Version 3 only wants query params in the path when the request is sent
-		if isVersion3 {
-			path += queryString
-		}
+		headers["CB-VERSION"] = "2024-11-27"
+		headers["Authorization"] = "Bearer " + jwt
+		path += queryString
 		return &request.Item{
 			Method:         method,
 			Path:           endpoint + path,
@@ -1503,6 +1485,65 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		return nil
 	}
 	return json.Unmarshal(interim, result)
+}
+
+// GetJWT generates a new JWT
+func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, time.Time, error) {
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	block, _ := pem.Decode([]byte(creds.Secret))
+	if block == nil {
+		return "", time.Time{}, errCantDecodePrivKey
+	}
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	nonce, err := common.GenerateRandomString(16, "1234567890ABCDEF")
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	regTime := time.Now()
+	mapClaims := jwt.MapClaims{
+		"iss": "cdp",
+		"nbf": regTime.Unix(),
+		"exp": regTime.Add(time.Minute * 2).Unix(),
+		"sub": creds.Key,
+	}
+	if uri != "" {
+		mapClaims["uri"] = uri
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodES256, mapClaims)
+	tok.Header["kid"] = creds.Key
+	tok.Header["nonce"] = nonce
+	sign, err := tok.SignedString(key)
+	return sign, regTime, err
+	// The code below mostly works, but seems to lead to bad results on the signature step. Deferring until later
+	// head := map[string]any{"kid": creds.Key, "typ": "JWT", "alg": "ES256", "nonce": nonce}
+	// headJSON, err := json.Marshal(head)
+	// if err != nil {
+	// 	return "", time.Time{}, err
+	// }
+	// headEncode := base64URLEncode(headJSON)
+	// regTime := time.Now()
+	// body := map[string]any{"iss": "cdp", "nbf": regTime.Unix(), "exp": regTime.Add(time.Minute * 2).Unix(), "sub": creds.Key /*, "aud": "retail_rest_api_proxy"*/}
+	// if uri != "" {
+	// 	body["uri"] = uri
+	// }
+	// bodyJSON, err := json.Marshal(body)
+	// if err != nil {
+	// 	return "", time.Time{}, err
+	// }
+	// bodyEncode := base64URLEncode(bodyJSON)
+	// hash := sha256.Sum256([]byte(headEncode + "." + bodyEncode))
+	// sig, err := ecdsa.SignASN1(rand.Reader, key, hash[:])
+	// if err != nil {
+	// 	return "", time.Time{}, err
+	// }
+	// sigEncode := base64URLEncode(sig)
+	// return headEncode + "." + bodyEncode + "." + sigEncode, regTime, nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction

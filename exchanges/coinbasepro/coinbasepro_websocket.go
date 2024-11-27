@@ -2,13 +2,7 @@ package coinbasepro
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/sha256"
-	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -124,8 +117,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		return warnString, err
 	}
 	if seqNum != seqCount {
-		warnString = fmt.Sprintf(warnSequenceIssue, seqNum,
-			seqCount)
+		warnString = fmt.Sprintf(warnSequenceIssue, seqNum, seqCount)
 	}
 	channelRaw, _, _, err := jsonparser.Get(respRaw, "channel")
 	if err != nil {
@@ -462,71 +454,28 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 }
 
 func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
-	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
-	// an exchange-wide reform to enable multiple sets of authentication credentials
-	// jwt, err := c.GetJWT(context.Background(), "")
-	// if err != nil {
-	// 	return err
-	// }
-	// c.jwt, r.JWT = jwt, jwt
-	creds, err := c.GetCredentials(context.Background())
+	jwt, err := c.GetWSJWT()
 	if err != nil {
 		return err
 	}
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(r.Timestamp+r.Channel+currency.Pairs(r.ProductIDs).Join()), []byte(creds.Secret))
-	if err != nil {
-		return err
-	}
-	r.Key = creds.Key
-	r.Signature = hex.EncodeToString(hmac)
+	r.JWT = jwt
 	return nil
 }
 
-// GetJWT checks if the current JWT is valid, returns it if it is, generates a new one if it isn't. Also suitable for use in REST requests, by checking for the presence of a URI, and always generating a new JWT if one is provided
-func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
-	if c.jwtLastRegen.Add(time.Minute*2).After(time.Now()) && uri == "" {
-		return c.jwt, nil
+// GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
+func (c *CoinbasePro) GetWSJWT() (string, error) {
+	c.mut.RLock()
+	if c.jwtLastRegen.Add(time.Minute * 2).After(time.Now()) {
+		retStr := c.jwt
+		c.mut.RUnlock()
+		return retStr, nil
 	}
-	creds, err := c.GetCredentials(ctx)
-	if err != nil {
-		return "", err
-	}
-	block, _ := pem.Decode([]byte(creds.Secret))
-	if block == nil {
-		return "", errCantDecodePrivKey
-	}
-	key, err := x509.ParseECPrivateKey(block.Bytes)
-	if err != nil {
-		return "", err
-	}
-	nonce, err := common.GenerateRandomString(16, "1234567890ABCDEF")
-	if err != nil {
-		return "", err
-	}
-	head := map[string]any{"kid": creds.ClientID, "typ": "JWT", "alg": "ES256", "nonce": nonce}
-	headJSON, err := json.Marshal(head)
-	if err != nil {
-		return "", err
-	}
-	headEncode := base64URLEncode(headJSON)
-	body := map[string]any{"iss": "cdp", "nbf": time.Now().Unix(), "exp": time.Now().Add(time.Minute * 2).Unix(), "sub": creds.ClientID, "aud": "retail_rest_api_proxy"}
-	if uri != "" {
-		body["uri"] = uri
-	} else {
-		c.jwtLastRegen = time.Now()
-	}
-	bodyJSON, err := json.Marshal(body)
-	if err != nil {
-		return "", err
-	}
-	bodyEncode := base64URLEncode(bodyJSON)
-	hash := sha256.Sum256([]byte(headEncode + "." + bodyEncode))
-	sig, err := ecdsa.SignASN1(rand.Reader, key, hash[:])
-	if err != nil {
-		return "", err
-	}
-	sigEncode := base64URLEncode(sig)
-	return headEncode + "." + bodyEncode + "." + sigEncode, nil
+	go c.mut.RUnlock()
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	var err error
+	c.jwt, c.jwtLastRegen, err = c.GetJWT(context.Background(), "")
+	return c.jwt, err
 }
 
 // getTimestamp is a helper function which pulls a RFC3339-formatted timestamp from a byte slice of JSON data

@@ -279,7 +279,7 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
-func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
+func (c *CoinbasePro) UpdateTickers(context.Context, asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -479,7 +479,7 @@ func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Co
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (c *CoinbasePro) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+func (c *CoinbasePro) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -611,7 +611,7 @@ func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (c *CoinbasePro) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
