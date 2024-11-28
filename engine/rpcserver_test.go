@@ -1548,6 +1548,7 @@ func TestCheckVars(t *testing.T) {
 
 	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		fmt := currency.PairStore{
+			AssetEnabled:  true,
 			RequestFormat: &currency.PairFormat{Uppercase: true},
 			ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
 		}
@@ -1558,8 +1559,7 @@ func TestCheckVars(t *testing.T) {
 		case asset.USDTMarginedFutures:
 			fmt.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 		}
-		require.NoError(t, b.StoreAssetPairFormat(a, fmt), "StoreAssetPairFormat must not error")
-		require.NoError(t, b.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
+		require.NoError(t, b.StoreAssetPairStore(a, fmt), "StoreAssetPairStore must not error")
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))

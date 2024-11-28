@@ -55,6 +55,7 @@ var (
 )
 
 var (
+	errStoreAssetPairStore               = errors.New("error storing asset pair store")
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
@@ -982,26 +983,18 @@ func (b *Base) EnableRateLimiter() error {
 	return b.Requester.EnableRateLimiter()
 }
 
-// StoreAssetPairFormat initialises and stores a defined asset format
-func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
+// StoreAssetPairStore initialises and stores a defined asset format
+func (b *Base) StoreAssetPairStore(a asset.Item, f currency.PairStore) error {
 	if a.String() == "" {
-		return fmt.Errorf("%s cannot add to pairs manager, no asset provided",
-			b.Name)
+		return asset.ErrInvalidAsset
 	}
 
-	if f.RequestFormat == nil {
-		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
-			b.Name)
-	}
-
-	if f.ConfigFormat == nil {
-		return fmt.Errorf("%s cannot add to pairs manager, config pair format not provided",
-			b.Name)
+	if f.RequestFormat == nil || f.ConfigFormat == nil {
+		return currency.ErrPairFormatIsNil
 	}
 
 	if f.ConfigFormat.Delimiter == "" {
-		return fmt.Errorf("exchange %s cannot set asset %s pair format %w",
-			b.Name, a, errConfigPairFormatRequiresDelimiter)
+		return errConfigPairFormatRequiresDelimiter
 	}
 
 	if b.CurrencyPairs.Pairs == nil {
@@ -1009,6 +1002,7 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	}
 
 	b.CurrencyPairs.Pairs[a] = &f
+
 	return nil
 }
 
@@ -1445,9 +1439,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 // check availability of asset type.
 func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
 	if !b.SupportsAsset(aType) {
-		return fmt.Errorf("%s %w",
-			aType,
-			asset.ErrNotSupported)
+		return fmt.Errorf("%s %w", aType, asset.ErrNotSupported)
 	}
 	b.AssetWebsocketSupport.m.Lock()
 	if b.AssetWebsocketSupport.unsupported == nil {
