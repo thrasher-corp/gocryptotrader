@@ -1049,10 +1049,10 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 	}
 	if apiData != dbData {
 		var diff float64
-		if apiData > dbData {
-			diff = gctmath.CalculatePercentageGainOrLoss(apiData, dbData)
+		if apiData < dbData {
+			diff = gctmath.PercentageChange(apiData, dbData)
 		} else {
-			diff = gctmath.CalculatePercentageGainOrLoss(dbData, apiData)
+			diff = gctmath.PercentageChange(dbData, apiData)
 		}
 		if diff > job.IssueTolerancePercentage {
 			issue = fmt.Sprintf("%s api: %v db: %v diff: %v %%", candleField, apiData, dbData, diff)
