@@ -1396,47 +1396,37 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	}
 }
 
-func TestStoreAssetPairFormat(t *testing.T) {
+func TestSetAssetPairStore(t *testing.T) {
 	b := Base{
 		Config: &config.Exchange{Name: "kitties"},
 	}
 
-	err := b.StoreAssetPairFormat(asset.Empty, currency.PairStore{})
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err := b.SetAssetPairStore(asset.Empty, currency.PairStore{})
+	assert.ErrorIs(t, err, asset.ErrInvalidAsset)
 
-	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{})
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{})
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
-	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true}})
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{RequestFormat: &currency.PairFormat{Uppercase: true}})
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
-	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true}})
-	if !errors.Is(err, errConfigPairFormatRequiresDelimiter) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigPairFormatRequiresDelimiter)
-	}
+	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter)
 
-	err = b.StoreAssetPairFormat(asset.Futures, currency.PairStore{
+	err = b.SetAssetPairStore(asset.Futures, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+	assert.False(t, b.CurrencyPairs.Pairs[asset.Futures].AssetEnabled, "SetAssetPairStore should not magically enable AssetTypes")
 
-	err = b.StoreAssetPairFormat(asset.Futures, currency.PairStore{
+	err = b.SetAssetPairStore(asset.Futures, currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+	assert.True(t, b.CurrencyPairs.Pairs[asset.Futures].AssetEnabled, "AssetEnabled should be respected")
 }
 
 func TestSetGlobalPairsManager(t *testing.T) {
@@ -1796,7 +1786,7 @@ func TestFormatSymbol(t *testing.T) {
 			Uppercase: true,
 		},
 	}
-	err := b.StoreAssetPairFormat(asset.Spot, spotStore)
+	err := b.SetAssetPairStore(asset.Spot, spotStore)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1908,7 +1898,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 		t.Fatalf("expected error: %v but received: %v", asset.ErrNotSupported, err)
 	}
 
-	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
