@@ -1559,7 +1559,7 @@ func TestCheckVars(t *testing.T) {
 		case asset.USDTMarginedFutures:
 			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 		}
-		require.NoError(t, b.StoreAssetPairFormat(a, ps), "StoreAssetPairFormat must not error")
+		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
