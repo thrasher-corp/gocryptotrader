@@ -20,39 +20,40 @@ type Item uint32
 // Items stores a list of assets types
 type Items []Item
 
-// Const vars for asset package
+// Supported Assets
 const (
-	Empty Item = 0
-	Spot  Item = 1 << iota
+	Empty Item = iota
+	Spot
 	Margin
 	CrossMargin
 	MarginFunding
 	Index
 	Binary
+	OTC // Over-the-counter(OTC)
+	// Futures asset consts must come below this comment for method `IsFutures`
+	Futures
 	PerpetualContract
 	PerpetualSwap
-	Futures
 	DeliveryFutures
 	UpsideProfitContract
 	DownsideProfitContract
 	CoinMarginedFutures
 	USDTMarginedFutures
 	USDCMarginedFutures
+	FutureCombo
+	LinearContract
+	// Options asset consts must come below this comment for method `IsOptions`
 	Options
 	OptionCombo
-	FutureCombo
-	OTC // Over-the-counter(OTC)
 
-	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5
+	// All asset const must come immediately after all valid assets for method `IsValid`
 	All
+)
 
-	optionsFlag   = OptionCombo | Options
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract | OptionCombo | FutureCombo | OTC
-
+const (
 	spot                   = "spot"
 	margin                 = "margin"
-	crossMargin            = "cross_margin" // for Gateio exchange
+	crossMargin            = "cross_margin"
 	marginFunding          = "marginfunding"
 	index                  = "index"
 	binary                 = "binary"
@@ -70,6 +71,7 @@ const (
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
 	otc                    = "otc"
+	linearContract         = "linearcontract"
 	all                    = "all"
 )
 
@@ -123,6 +125,8 @@ func (a Item) String() string {
 		return futureCombo
 	case OTC:
 		return otc
+	case LinearContract:
+		return linearContract
 	case All:
 		return all
 	default:
@@ -160,7 +164,17 @@ func (a Items) JoinToString(separator string) string {
 
 // IsValid returns whether or not the supplied asset type is valid or not
 func (a Item) IsValid() bool {
-	return a != Empty && supportedFlag&a == a
+	return a > Empty && a < All
+}
+
+// IsFutures checks if the asset type is a futures contract based asset
+func (a Item) IsFutures() bool {
+	return a >= Futures && a < Options
+}
+
+// IsOptions checks if the asset type is options contract based asset
+func (a Item) IsOptions() bool {
+	return a >= Options && a < All
 }
 
 // UnmarshalJSON conforms type to the umarshaler interface
@@ -231,6 +245,8 @@ func New(input string) (Item, error) {
 		return FutureCombo, nil
 	case otc:
 		return OTC, nil
+	case linearContract:
+		return LinearContract, nil
 	case all:
 		return All, nil
 	default:
@@ -241,14 +257,4 @@ func New(input string) (Item, error) {
 // UseDefault returns default asset type
 func UseDefault() Item {
 	return Spot
-}
-
-// IsFutures checks if the asset type is a futures contract based asset
-func (a Item) IsFutures() bool {
-	return a != Empty && futuresFlag&a == a
-}
-
-// IsOptions checks if the asset type is options contract based asset
-func (a Item) IsOptions() bool {
-	return a != Empty && optionsFlag&a == a
 }
