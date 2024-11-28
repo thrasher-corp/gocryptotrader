@@ -400,7 +400,7 @@ func (bids *bidTranches) hitBidsByNominalSlippage(slippage, refPrice float64) (*
 		currentTotalAmounts := cumulativeAmounts + bids.Tranches[x].Amount
 
 		nominal.AverageOrderCost = currentFullValue / currentTotalAmounts
-		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
+		percent := math.PercentageChange(refPrice, nominal.AverageOrderCost)
 		if percent != 0 {
 			percent *= -1
 		}
@@ -461,7 +461,7 @@ func (bids *bidTranches) hitBidsByImpactSlippage(slippage, refPrice float64) (*M
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	for x := range bids.Tranches {
-		percent := math.CalculatePercentageGainOrLoss(bids.Tranches[x].Price, refPrice)
+		percent := math.PercentageChange(refPrice, bids.Tranches[x].Price)
 		if percent != 0 {
 			percent *= -1
 		}
@@ -529,7 +529,7 @@ func (ask *askTranches) liftAsksByNominalSlippage(slippage, refPrice float64) (*
 		currentAmounts := cumulativeAmounts + ask.Tranches[x].Amount
 
 		nominal.AverageOrderCost = currentValue / currentAmounts
-		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
+		percent := math.PercentageChange(refPrice, nominal.AverageOrderCost)
 
 		if slippage < percent {
 			targetCost := (1 + slippage/100) * refPrice
@@ -582,7 +582,7 @@ func (ask *askTranches) liftAsksByImpactSlippage(slippage, refPrice float64) (*M
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	for x := range ask.Tranches {
-		percent := math.CalculatePercentageGainOrLoss(ask.Tranches[x].Price, refPrice)
+		percent := math.PercentageChange(refPrice, ask.Tranches[x].Price)
 		impact.ImpactPercentage = percent
 		impact.EndPrice = ask.Tranches[x].Price
 		if slippage <= percent {
@@ -625,7 +625,7 @@ func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swa
 
 	// Nominal percentage is the difference from the reference price to average
 	// order cost.
-	m.NominalPercentage = math.CalculatePercentageGainOrLoss(m.AverageOrderCost, m.StartPrice)
+	m.NominalPercentage = math.PercentageChange(m.StartPrice, m.AverageOrderCost)
 	if m.NominalPercentage < 0 {
 		m.NominalPercentage *= -1
 	}
@@ -634,7 +634,7 @@ func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swa
 		// Impact percentage is how much the orderbook slips from the reference
 		// price to the remaining tranche price.
 
-		m.ImpactPercentage = math.CalculatePercentageGainOrLoss(m.EndPrice, m.StartPrice)
+		m.ImpactPercentage = math.PercentageChange(m.StartPrice, m.EndPrice)
 		if m.ImpactPercentage < 0 {
 			m.ImpactPercentage *= -1
 		}
