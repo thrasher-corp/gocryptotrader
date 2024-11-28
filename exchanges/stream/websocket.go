@@ -1077,23 +1077,24 @@ func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ct
 	defer w.Wg.Done()
 	var reporter ProcessReporter
 	if w.processReporter != nil {
-		reporter = w.processReporter.New()
+		reporter = w.processReporter.New(conn)
 	}
 	for {
 		resp := conn.ReadMessage()
 		readAt := time.Now()
 		if resp.Raw == nil {
 			if reporter != nil {
-				reporter.Report(conn, readAt, nil)
+				reporter.Close()
 			}
 			return // Connection has been closed
 		}
-		if err := handler(ctx, resp.Raw); err != nil {
+		err := handler(ctx, resp.Raw)
+		if err != nil {
 			w.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
 		}
 
 		if reporter != nil {
-			reporter.Report(conn, readAt, resp.Raw)
+			reporter.Report(readAt, resp.Raw, err)
 		}
 	}
 }

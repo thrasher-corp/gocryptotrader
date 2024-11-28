@@ -134,6 +134,10 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 			continue
 		}
 
+		if m.verbose {
+			ws.SetProcessReportManager(&stream.DefaultProcessReporterManager{})
+		}
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

@@ -10,18 +10,36 @@ import (
 // ProcessReporterManager defines an interface for managing ProcessReporter instances across connections, this will
 // create a new ProcessReporter instance for each new connection reader.
 type ProcessReporterManager interface {
-	New() ProcessReporter
+	New(conn Connection) ProcessReporter
+}
+
+// ProcessReporter defines an interface for reporting processed data from a connection
+type ProcessReporter interface {
+	// Report logs the processing time for a received data packet and updates metrics.
+	// read is the time the data was read from the connection.
+	// data is the raw data received from the connection.
+	// err is any error that occurred while processing the data.
+	Report(read time.Time, data []byte, err error)
+	// close closes the process reporter and handles any cleanup.
+	Close()
+}
+
+// SetProcessReportManager sets the ProcessReporterManager for the Websocket instance which will be used to create new ProcessReporter instances.
+// This will track metrics for processing websocket data.
+func (w *Websocket) SetProcessReportManager(m ProcessReporterManager) {
+	w.m.Lock()
+	defer w.m.Unlock()
+	w.processReporter = m
 }
 
 // DefaultProcessReporter is a default implementation of ProcessReporter
 type DefaultProcessReporterManager struct{}
 
 // New returns a new DefaultProcessReporter instance for a connection
-func (d DefaultProcessReporterManager) New() ProcessReporter { return &DefaultProcessReporter{} }
-
-// ProcessReporter defines an interface for reporting processed data from a connection
-type ProcessReporter interface {
-	Report(conn Connection, read time.Time, data []byte)
+func (d DefaultProcessReporterManager) New(conn Connection) ProcessReporter {
+	reporter := &DefaultProcessReporter{ch: make(chan struct{})}
+	go reporter.collectMetrics(conn)
+	return reporter
 }
 
 // DefaultProcessReporter provides a thread-safe implementation of the ProcessReporter interface.
@@ -35,28 +53,23 @@ type DefaultProcessReporter struct {
 }
 
 // Report logs the processing time for a received data packet and updates metrics.
-// If `data` is nil, the reporter shuts down its metrics collection routine.
-func (r *DefaultProcessReporter) Report(conn Connection, read time.Time, data []byte) {
+func (r *DefaultProcessReporter) Report(read time.Time, _ []byte, _ error) {
 	processingDuration := time.Since(read)
-
 	r.m.Lock()
 	defer r.m.Unlock()
-	if data == nil {
-		if r.ch != nil {
-			close(r.ch)
-		}
-		return
-	}
-
-	if r.ch == nil {
-		r.ch = make(chan struct{})
-		go r.collectMetrics(conn)
-	}
-
 	r.operations++
 	r.totalProcessingTime += processingDuration
 	if processingDuration > r.peakProcessingTime {
 		r.peakProcessingTime = processingDuration
+	}
+}
+
+// Close closes the process reporter
+func (r *DefaultProcessReporter) Close() {
+	r.m.Lock()
+	defer r.m.Unlock()
+	if r.ch != nil {
+		close(r.ch)
 	}
 }
 
@@ -88,12 +101,4 @@ func (r *DefaultProcessReporter) collectMetrics(conn Connection) {
 			}
 		}
 	}
-}
-
-// SetProcessReportManager sets the ProcessReporterManager for the Websocket instance which will be used to create new ProcessReporter instances.
-// This will track metrics for processing websocket data.
-func (w *Websocket) SetProcessReportManager(m ProcessReporterManager) {
-	w.m.Lock()
-	defer w.m.Unlock()
-	w.processReporter = m
 }
