@@ -62,30 +62,8 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 	case limit == 0, limit >= 500 && limit < 1000:
 		rateBudget = cFuturesOrderbook500Rate
 	}
-	var data OrderbookData
-	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/depth", params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := &OrderBook{
-		Symbol: symbol.String(),
-		Asks:   make([]OrderbookItem, len(data.Asks)),
-		Bids:   make([]OrderbookItem, len(data.Bids)),
-	}
-	for x := range data.Asks {
-		resp.Asks[x] = OrderbookItem{
-			Price:    data.Asks[x][0].Float64(),
-			Quantity: data.Asks[x][1].Float64(),
-		}
-	}
-
-	for y := range data.Bids {
-		resp.Bids[y] = OrderbookItem{
-			Price:    data.Bids[y][0].Float64(),
-			Quantity: data.Bids[y][1].Float64(),
-		}
-	}
-	return resp, nil
+	var resp *OrderBook
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/depth", params), rateBudget, &resp)
 }
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,

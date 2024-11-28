@@ -3,7 +3,6 @@ package binance
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -97,7 +96,7 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol string, limit in
 	strLimit := strconv.FormatInt(limit, 10)
 	if strLimit != "" {
 		if !slices.Contains(uValidOBLimits, strLimit) {
-			return nil, fmt.Errorf("invalid limit: %v", limit)
+			return nil, errLimitNumberRequired
 		}
 		params.Set("limit", strLimit)
 	}
@@ -112,31 +111,8 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol string, limit in
 		rateBudget = uFuturesOrderbook500Rate
 	}
 
-	var data OrderbookData
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesOrderbook, params), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := OrderBook{
-		Symbol:       symbol,
-		LastUpdateID: data.LastUpdateID,
-		Bids:         make([]OrderbookItem, len(data.Bids)),
-		Asks:         make([]OrderbookItem, len(data.Asks)),
-	}
-	for x := range data.Asks {
-		resp.Asks[x] = OrderbookItem{
-			Price:    data.Asks[x][0].Float64(),
-			Quantity: data.Asks[x][1].Float64(),
-		}
-	}
-	for y := range data.Bids {
-		resp.Bids[y] = OrderbookItem{
-			Price:    data.Bids[y][0].Float64(),
-			Quantity: data.Bids[y][1].Float64(),
-		}
-	}
-	return &resp, nil
+	var resp *OrderBook
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesOrderbook, params), rateBudget, &resp)
 }
 
 // URecentTrades gets recent trades for usdt margined futures

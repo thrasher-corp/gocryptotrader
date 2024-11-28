@@ -59,7 +59,6 @@ func (b *Binance) WsCFutureConnect() error {
 	})
 	b.Websocket.Wg.Add(1)
 	go b.wsCFuturesReadData()
-
 	return nil
 }
 

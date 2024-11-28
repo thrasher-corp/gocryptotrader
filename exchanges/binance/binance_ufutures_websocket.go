@@ -607,14 +607,8 @@ func (b *Binance) processDepthUpdate(respRaw []byte) error {
 		Asks:       make([]orderbook.Tranche, len(resp.Data.Asks)),
 		Pair:       cp,
 	}
-	for a := range resp.Data.Asks {
-		oUpdate.Asks[a].Price = resp.Data.Asks[a][0].Float64()
-		oUpdate.Asks[a].Amount = resp.Data.Asks[a][1].Float64()
-	}
-	for b := range resp.Data.Bids {
-		oUpdate.Bids[b].Price = resp.Data.Bids[b][0].Float64()
-		oUpdate.Bids[b].Amount = resp.Data.Bids[b][1].Float64()
-	}
+	oUpdate.Asks = orderbook.Tranches(resp.Data.Asks)
+	oUpdate.Bids = orderbook.Tranches(resp.Data.Bids)
 	return b.Websocket.Orderbook.Update(oUpdate)
 }
 

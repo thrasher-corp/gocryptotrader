@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -374,29 +375,33 @@ type OrderBookDataRequestParams struct {
 	Limit  int64         `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price    float64
-	Quantity float64
-}
+// OrderbookTranches stores an orderbook.Tranches unmarshaled from a slice of bytes.
+type OrderbookTranches orderbook.Tranches
 
-// OrderBookData is resp data from orderbook endpoint
-type OrderBookData struct {
-	Code         int64             `json:"code"`
-	Msg          string            `json:"msg"`
-	LastUpdateID int64             `json:"lastUpdateId"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
+// UnmarshalJSON deserializes a byte slice into a OrderOrder OrderbookTranches
+func (o *OrderbookTranches) UnmarshalJSON(data []byte) error {
+	target := [][2]types.Number{}
+	err := json.Unmarshal(data, &target)
+	if err != nil {
+		return err
+	}
+	tranches := make(orderbook.Tranches, len(target))
+	for a := range target {
+		tranches[a].Price = target[a][0].Float64()
+		tranches[a].Amount = target[a][1].Float64()
+	}
+	*o = OrderbookTranches(tranches)
+	return nil
 }
 
 // OrderBook actual structured data that can be used for orderbook
 type OrderBook struct {
-	Symbol       string
-	LastUpdateID int64
-	Code         int64
-	Msg          string
-	Bids         []OrderbookItem
-	Asks         []OrderbookItem
+	Symbol       string            `json:"symbol"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Code         int64             `json:"code"`
+	Msg          string            `json:"msg"`
+	Bids         OrderbookTranches `json:"bids"`
+	Asks         OrderbookTranches `json:"asks"`
 }
 
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
@@ -413,8 +418,8 @@ type WebsocketDepthStream struct {
 	Pair          string            `json:"s"`
 	FirstUpdateID int64             `json:"U"`
 	LastUpdateID  int64             `json:"u"`
-	UpdateBids    [][2]types.Number `json:"b"`
-	UpdateAsks    [][2]types.Number `json:"a"`
+	UpdateBids    OrderbookTranches `json:"b"`
+	UpdateAsks    OrderbookTranches `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -1815,8 +1820,8 @@ type UFuturesOrderbook struct {
 		FirstUpdateID           int64             `json:"U"`
 		FinalUpdateID           int64             `json:"u"`
 		FinalUpdateIDLastStream int64             `json:"pu"`
-		Bids                    [][2]types.Number `json:"b"`
-		Asks                    [][2]types.Number `json:"a"`
+		Bids                    OrderbookTranches `json:"b"`
+		Asks                    OrderbookTranches `json:"a"`
 	} `json:"data"`
 }
 

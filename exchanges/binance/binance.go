@@ -85,31 +85,11 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(obd.Limit, 10))
 
-	var resp OrderBookData
-	if err := b.SendHTTPRequest(ctx,
+	var resp *OrderBook
+	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpot,
 		common.EncodeURLValues("/api/v3/depth", params),
-		orderbookLimit(obd.Limit), &resp); err != nil {
-		return nil, err
-	}
-	orderbook := &OrderBook{
-		Bids:         make([]OrderbookItem, len(resp.Bids)),
-		Asks:         make([]OrderbookItem, len(resp.Asks)),
-		LastUpdateID: resp.LastUpdateID,
-	}
-	for x := range resp.Bids {
-		orderbook.Bids[x] = OrderbookItem{
-			Price:    resp.Bids[x][0].Float64(),
-			Quantity: resp.Bids[x][1].Float64(),
-		}
-	}
-	for x := range resp.Asks {
-		orderbook.Asks[x] = OrderbookItem{
-			Price:    resp.Asks[x][0].Float64(),
-			Quantity: resp.Asks[x][1].Float64(),
-		}
-	}
-	return orderbook, nil
+		orderbookLimit(obd.Limit), &resp)
 }
 
 // GetMostRecentTrades returns recent trade activity

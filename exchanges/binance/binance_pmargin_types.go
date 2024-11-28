@@ -325,8 +325,8 @@ type UMCMAccountTradeItem struct {
 	PositionSide    string       `json:"positionSide"`
 
 	// used with the CM trade info
-	Pair    string `json:"pair"`
-	BaseQty string `json:"baseQty"`
+	Pair    types.Number `json:"pair"`
+	BaseQty types.Number `json:"baseQty"`
 }
 
 // NotionalAndLeverage represents notional and leverage brackets
@@ -360,9 +360,9 @@ type CMNotionalAndLeverage struct {
 // MarginForceOrder user's margin force order
 type MarginForceOrder struct {
 	Rows []struct {
+		OrderID     int64        `json:"orderId"`
 		AvgPrice    types.Number `json:"avgPrice"`
 		ExecutedQty types.Number `json:"executedQty"`
-		OrderID     int64        `json:"orderId"`
 		Price       types.Number `json:"price"`
 		Qty         types.Number `json:"qty"`
 		Side        string       `json:"side"`
@@ -402,9 +402,9 @@ type ForceOrder struct {
 
 // CommissionRate represents a user's commission rate
 type CommissionRate struct {
-	Symbol              string `json:"symbol"`
-	MakerCommissionRate string `json:"makerCommissionRate"`
-	TakerCommissionRate string `json:"takerCommissionRate"`
+	Symbol              string       `json:"symbol"`
+	MakerCommissionRate types.Number `json:"makerCommissionRate"`
+	TakerCommissionRate types.Number `json:"takerCommissionRate"`
 }
 
 // MarginLoanRecord represents a margin loan record.

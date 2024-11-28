@@ -64,8 +64,8 @@ type EOptionExchangeInfo struct {
 type EOptionsOrderbook struct {
 	TransactionTime types.Time        `json:"T"`
 	UpdateID        int64             `json:"u"`
-	Asks            [][2]types.Number `json:"asks"`
-	Bids            [][2]types.Number `json:"bids"` // [][Price, Quantity]
+	Asks            OrderbookTranches `json:"asks"`
+	Bids            OrderbookTranches `json:"bids"` // [][Price, Quantity]
 }
 
 // EOptionsTradeItem represents a recent trade information
@@ -530,6 +530,6 @@ type WsOptionsOrderbook struct {
 	OptionSymbol    string            `json:"symbol"`
 	UpdateID        int64             `json:"u"`  // update id in event
 	PUpdateID       int64             `json:"pu"` // same as update id in event
-	Bids            [][2]types.Number `json:"b"`  // 0: Price 1: Quantity
-	Asks            [][2]types.Number `json:"a"`
+	Bids            OrderbookTranches `json:"b"`  // 0: Price 1: Quantity
+	Asks            OrderbookTranches `json:"a"`
 }

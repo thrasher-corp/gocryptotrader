@@ -349,17 +349,7 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 	if err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(resp.Asks))
-	for a := range resp.Asks {
-		asks[a].Price = resp.Asks[a][0].Float64()
-		asks[a].Amount = resp.Asks[a][1].Float64()
-	}
-	bids := make([]orderbook.Tranche, len(resp.Bids))
-	for b := range resp.Bids {
-		bids[b].Price = resp.Bids[b][0].Float64()
-		bids[b].Amount = resp.Bids[b][1].Float64()
-	}
-	if len(asks) == 0 && len(bids) == 0 {
+	if len(resp.Asks) == 0 && len(resp.Bids) == 0 {
 		return nil
 	}
 	okay := orderbookSnapshotLoadedPairsMap[resp.OptionSymbol]
@@ -370,8 +360,8 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 			Asset:        asset.Options,
 			LastUpdated:  resp.TransactionTime.Time(),
 			LastUpdateID: resp.UpdateID,
-			Asks:         asks,
-			Bids:         bids,
+			Asks:         orderbook.Tranches(resp.Asks),
+			Bids:         orderbook.Tranches(resp.Bids),
 		})
 		if err != nil {
 			return err
@@ -379,8 +369,8 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 	} else {
 		err = b.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       pair,
-			Asks:       asks,
-			Bids:       bids,
+			Asks:       orderbook.Tranches(resp.Asks),
+			Bids:       orderbook.Tranches(resp.Bids),
 			Asset:      asset.Options,
 			UpdateID:   resp.UpdateID,
 			UpdateTime: resp.TransactionTime.Time(),
