@@ -5479,8 +5479,11 @@ func TestGetLendingOrders(t *testing.T) {
 
 func TestGetLendingSubOrderList(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetLendingSubOrderList(context.Background(), "", "pending", time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetLendingSubOrderList(context.Background(), "", "pending", time.Time{}, time.Time{}, 10)
+	result, err := ok.GetLendingSubOrderList(context.Background(), "12345", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

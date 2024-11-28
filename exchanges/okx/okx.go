@@ -5834,10 +5834,11 @@ func (ok *Okx) GetLendingOrders(ctx context.Context, orderID, state string, ccy 
 
 // GetLendingSubOrderList retrieves a lending sub-orders list.
 func (ok *Okx) GetLendingSubOrderList(ctx context.Context, orderID, state string, startAt, endAt time.Time, limit int64) ([]LendingSubOrder, error) {
-	params := url.Values{}
-	if orderID != "" {
-		params.Set("orderId", orderID)
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
 	}
+	params := url.Values{}
+	params.Set("ordId", orderID)
 	if state != "" {
 		params.Set("state", state)
 	}
@@ -5866,7 +5867,7 @@ func (ok *Okx) GetLendingOffers(ctx context.Context, ccy currency.Code, term str
 		params.Set("term", term)
 	}
 	var resp []PublicLendingOffer
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingPublicOfferEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-offers", params), nil, &resp, request.UnauthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingPublicOfferEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-offers", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetLendingAPYHistory retrieves a lending history.
