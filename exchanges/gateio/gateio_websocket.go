@@ -598,10 +598,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 			if resp.Error != nil && resp.Error.Code != 0 {
 				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
 			}
-			if event == "unsubscribe" {
-				return g.Websocket.RemoveSubscriptions(conn, s)
-			}
-			return g.Websocket.AddSuccessfulSubscriptions(conn, s)
+			return nil
 		}(); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
 		}
@@ -706,16 +703,8 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		var resp WsEventResponse
 		if err = json.Unmarshal(result, &resp); err != nil {
 			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
-			} else {
-				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
-			}
+		} else if resp.Error != nil && resp.Error.Code != 0 {
+			errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 		}
 	}
 	return errs
