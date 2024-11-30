@@ -1,10 +1,10 @@
 package alphapoint
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )

@@ -1,11 +1,11 @@
 package okx
 
 import (
-	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

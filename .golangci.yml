@@ -25,7 +25,7 @@ linters:
     - copyloopvar
 #   - cyclop
     - decorder
-#   - depguard
+    - depguard
     - dogsled
 #   - dupl
     - dupword
@@ -117,6 +117,17 @@ linters:
 #   - zerologlint
 
 linters-settings:
+  depguard:
+    rules:
+      prevent_json_package_use:
+        list-mode: lax # allow unless explicitely denied
+        files:
+          - $all
+        allow:
+          - github.com/thrasher-corp/gocryptotrader/encoding/json
+        deny:
+          - pkg: encoding/json
+            desc: "Please use the custom JSON package github.com/thrasher-corp/gocryptotrader/encoding/json instead of encoding/json to allow sonic/json switching."
   govet:
     enable: 
       - shadow
@@ -141,7 +152,6 @@ linters-settings:
       - float-compare
       # We deliberately use Equal over Len to avoid spamming the contents of large Slices
       - len
-
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
