@@ -150,11 +150,11 @@ func (b *Binance) NewCMConditionalOrder(ctx context.Context, arg *ConditionalOrd
 	return b.placeConditionalOrder(ctx, arg, "/papi/v1/cm/conditional/order")
 }
 func (b *Binance) placeConditionalOrder(ctx context.Context, arg *ConditionalOrderParam, path string) (*ConditionalOrder, error) {
-	if *arg == (ConditionalOrderParam{}) {
+	if arg == nil || *arg == (ConditionalOrderParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
-		return nil, currency.ErrCurrencyPairEmpty
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid

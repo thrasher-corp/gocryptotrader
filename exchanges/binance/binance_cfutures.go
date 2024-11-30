@@ -3,7 +3,6 @@ package binance
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -578,10 +577,8 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 	if x.PositionSide != "" && !slices.Contains(validPositionSide, x.PositionSide) {
 		return nil, fmt.Errorf("%w %s", errInvalidPositionSide, x.PositionSide)
 	}
-	if x.WorkingType != "" {
-		if !slices.Contains(validWorkingType, x.WorkingType) {
-			return nil, errInvalidWorkingType
-		}
+	if x.WorkingType != "" && !slices.Contains(validWorkingType, x.WorkingType) {
+		return nil, errInvalidWorkingType
 	}
 	if x.NewOrderRespType != "" && !slices.Contains(validNewOrderRespType, x.NewOrderRespType) {
 		return nil, errInvalidNewOrderResponseType
@@ -601,20 +598,14 @@ func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderD
 		if err != nil {
 			return nil, err
 		}
-		if data[x].PositionSide != "" {
-			if !slices.Contains(validPositionSide, data[x].PositionSide) {
-				return nil, fmt.Errorf("%w %s", errInvalidPositionSide, data[x].PositionSide)
-			}
+		if data[x].PositionSide != "" && !slices.Contains(validPositionSide, data[x].PositionSide) {
+			return nil, fmt.Errorf("%w %s", errInvalidPositionSide, data[x].PositionSide)
 		}
-		if data[x].WorkingType != "" {
-			if !slices.Contains(validWorkingType, data[x].WorkingType) {
-				return nil, errInvalidWorkingType
-			}
+		if data[x].WorkingType != "" && !slices.Contains(validWorkingType, data[x].WorkingType) {
+			return nil, errInvalidWorkingType
 		}
-		if data[x].NewOrderRespType != "" {
-			if !slices.Contains(validNewOrderRespType, data[x].NewOrderRespType) {
-				return nil, errInvalidNewOrderResponseType
-			}
+		if data[x].NewOrderRespType != "" && !slices.Contains(validNewOrderRespType, data[x].NewOrderRespType) {
+			return nil, errInvalidNewOrderResponseType
 		}
 	}
 	jsonData, err := json.Marshal(data)
@@ -808,7 +799,7 @@ func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol curre
 		return nil, err
 	}
 	if leverage < 1 || leverage > 125 {
-		return nil, errors.New("invalid leverage")
+		return nil, fmt.Errorf("%w, leverage value should range between 1 and 125", order.ErrSubmitLeverageNotSupported)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
@@ -839,19 +830,21 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 	if err != nil {
 		return nil, err
 	}
-	cType, ok := validMarginChange[changeType]
-	if !ok {
-		return nil, errMarginChangeTypeInvalid
-	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
+	if changeType != "" {
+		cType, ok := validMarginChange[changeType]
+		if !ok {
+			return nil, fmt.Errorf("%w, possible position margin are 1: add position margin 2: reduce position margin", errMarginChangeTypeInvalid)
+		}
+		params.Set("type", strconv.FormatInt(cType, 10))
+	}
 	if positionSide != "" {
 		if !slices.Contains(validPositionSide, positionSide) {
 			return nil, errInvalidPositionSide
 		}
 		params.Set("positionSide", positionSide)
 	}
-	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *FuturesMarginUpdatedResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/positionMargin", params, cFuturesDefaultRate, nil, &resp)

@@ -84,7 +84,6 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(obd.Limit, 10))
-
 	var resp *OrderBook
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpot,
@@ -6139,7 +6138,7 @@ func fillNFTFetchParams(startTime, endTime time.Time, limit, page int64) (url.Va
 // orderType: 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee
 func (b *Binance) GetNFTTransactionHistory(ctx context.Context, orderType int64, startTime, endTime time.Time, limit, page int64) (*NFTTransactionHistory, error) {
 	if orderType < 0 || orderType > 4 {
-		return nil, fmt.Errorf("%s; 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee", order.ErrUnsupportedOrderType)
+		return nil, fmt.Errorf("%w 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee", order.ErrUnsupportedOrderType)
 	}
 	params, err := fillNFTFetchParams(startTime, endTime, limit, page)
 	if err != nil {

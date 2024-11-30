@@ -1696,7 +1696,6 @@ func (b *Binance) GetDepositAddress(ctx context.Context, cryptocurrency currency
 	if err != nil {
 		return nil, err
 	}
-
 	return &deposit.Address{
 		Chain:   chain,
 		Address: addr.Address,

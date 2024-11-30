@@ -210,7 +210,7 @@ func (b *Binance) GetWsOptimizedCandlestick(arg *KlinesRequestParams) ([]CandleS
 // getWsKlines retrieves spot kline data through the websocket connection.
 func (b *Binance) getWsKlines(method string, arg *KlinesRequestParams) ([]CandleStick, error) {
 	if *arg == (KlinesRequestParams{}) {
-		return nil, nil
+		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -580,7 +580,7 @@ func (b *Binance) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([]
 // WsPlaceOCOOrder send in a new one-cancels-the-other (OCO) pair: LIMIT_MAKER + STOP_LOSS/STOP_LOSS_LIMIT orders (called legs), where activation of one order immediately cancels the other.
 // Response format for orderReports is selected using the newOrderRespType parameter. The following example is for RESULT response type. See order.place for more examples.
 func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
-	if arg == nil {
+	if arg == nil || *arg == (PlaceOCOOrderParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
@@ -682,7 +682,7 @@ func (b *Binance) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
 
 // WsPlaceNewSOROrder places an order using smart order routing (SOR).
 func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, error) {
-	if *arg == (WsOSRPlaceOrderParams{}) {
+	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
@@ -785,11 +785,11 @@ func (b *Binance) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitIt
 // WsQueryAccountOrderHistory query information about all your orders – active, canceled, filled – filtered by time range.
 // Status reports for orders are identical to order.status.
 func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]TradeOrder, error) {
-	if arg == nil {
+	if arg == nil || *arg == (AccountOrderRequestParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signature, err := b.getSignature(arg)
@@ -839,11 +839,11 @@ func (b *Binance) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64,
 
 // WsAccountTradeHistory query information about all your trades, filtered by time range.
 func (b *Binance) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]TradeHistory, error) {
-	if arg == nil {
+	if arg == nil || *arg == (AccountOrderRequestParam{}) {
 		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
-		return nil, currency.ErrCurrencyPairEmpty
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signatures, err := b.getSignature(arg)
@@ -868,7 +868,7 @@ func (b *Binance) WsAccountPreventedMatches(symbol currency.Pair, preventedMatch
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if orderID == 0 && preventedMatchID == 0 {
-		return nil, errors.New("either orderID or preventedMatchID is required")
+		return nil, fmt.Errorf("%w, either orderID or preventedMatchID is required", order.ErrOrderIDNotSet)
 	}
 	params := map[string]interface{}{}
 	params["symbol"] = symbol
