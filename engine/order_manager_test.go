@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1543,7 +1542,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, &config.OrderManager{
-		Enabled:                       convert.BoolPtr(true),
+		Enabled:                       true,
 		FuturesTrackingSeekDuration:   time.Hour,
 		Verbose:                       true,
 		ActivelyTrackFuturesPositions: true,
