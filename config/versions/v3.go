@@ -3,6 +3,9 @@ package versions
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/buger/jsonparser"
 )
@@ -18,20 +21,55 @@ func init() {
 // Exchanges returns all exchanges: "*"
 func (v *Version3) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange sets AssetEnabed: true for any exchange missing it
+// UpgradeExchange sets AssetEnabed: true for all assets listed in assetTypes, and false for any with no field
 func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	cb := func(k []byte, v []byte, _ jsonparser.ValueType, _ int) error {
-		if _, err := jsonparser.GetBoolean(v, "assetEnabled"); err != nil {
-			e, err = jsonparser.Set(e, []byte(`true`), "currencyPairs", "pairs", string(k), "assetEnabled")
+	toEnable := map[string]bool{}
+
+	assetTypesFn := func(v []byte, vT jsonparser.ValueType, _ int, _ error) {
+		if vT == jsonparser.String {
+			toEnable[string(v)] = true
+		}
+	}
+	_, err := jsonparser.ArrayEach(e, assetTypesFn, "currencyPairs", "assetTypes")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return e, err
+	}
+
+	assetEnabledFn := func(kBytes []byte, v []byte, _ jsonparser.ValueType, _ int) error {
+		k := string(kBytes)
+		if toEnable[k] {
+			e, err = jsonparser.Set(e, []byte(`true`), "currencyPairs", "pairs", k, "assetEnabled")
 			return err
 		}
-		return nil
+		_, err = jsonparser.GetBoolean(v, "assetEnabled")
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			e, err = jsonparser.Set(e, []byte(`false`), "currencyPairs", "pairs", k, "assetEnabled")
+		}
+		return err
 	}
-	err := jsonparser.ObjectEach(bytes.Clone(e), cb, "currencyPairs", "pairs")
+	err = jsonparser.ObjectEach(bytes.Clone(e), assetEnabledFn, "currencyPairs", "pairs")
+	if err == nil {
+		e = jsonparser.Delete(e, "currencyPairs", "assetTypes")
+	}
 	return e, err
 }
 
-// DowngradeExchange doesn't do anything for this version, because it's a lossy downgrade to disable all assets
+// DowngradeExchange moves AssetEnabled assets into AssetType field
 func (v *Version3) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	return e, nil
+	assetTypes := []string{}
+
+	assetEnabledFn := func(k []byte, v []byte, _ jsonparser.ValueType, _ int) error {
+		if b, err := jsonparser.GetBoolean(v, "assetEnabled"); err == nil {
+			if b {
+				assetTypes = append(assetTypes, fmt.Sprintf("%q", k))
+			}
+			e = jsonparser.Delete(e, "currencyPairs", "pairs", string(k), "assetEnabled")
+		}
+		return nil
+	}
+	err := jsonparser.ObjectEach(bytes.Clone(e), assetEnabledFn, "currencyPairs", "pairs")
+	if err == nil {
+		e, err = jsonparser.Set(e, []byte(`[`+strings.Join(assetTypes, ",")+`]`), "currencyPairs", "assetTypes")
+	}
+	return e, err
 }
