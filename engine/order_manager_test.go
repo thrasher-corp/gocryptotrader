@@ -1543,7 +1543,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, &config.OrderManager{
-		Enabled:                       convert.BoolPtr(true),
+		Enabled:                       true,
 		FuturesTrackingSeekDuration:   time.Hour,
 		Verbose:                       true,
 		ActivelyTrackFuturesPositions: true,
