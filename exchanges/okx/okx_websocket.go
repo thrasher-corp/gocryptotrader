@@ -280,14 +280,6 @@ func (ok *Okx) WsConnect() error {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	subscs, err := ok.generateSubscriptions()
-	if err != nil {
-		return err
-	}
-	err = ok.Subscribe(subscs)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
