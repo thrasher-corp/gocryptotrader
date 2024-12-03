@@ -25,7 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -830,7 +832,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestWsPositionUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"table":"position",
+	pressXToJSON := []byte(`[0, "public", "public", {"table":"position",
    "action":"update",
    "data":[{
     "account":2,"symbol":"ETHUSD","currency":"XBt",
@@ -838,7 +840,7 @@ func TestWsPositionUpdate(t *testing.T) {
     "riskValue":87960,"homeNotional":0.0008796,"posState":"Liquidation","maintMargin":263,
     "unrealisedGrossPnl":-677,"unrealisedPnl":-677,"unrealisedPnlPcnt":-0.0078,"unrealisedRoePcnt":-0.7756,
     "simpleQty":0.001,"liquidationPrice":1140.1, "timestamp":"2017-04-04T22:07:45.442Z"
-   }]}`)
+   }]}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -847,7 +849,7 @@ func TestWsPositionUpdate(t *testing.T) {
 
 func TestWsInsertExectuionUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"table":"execution",
+	pressXToJSON := []byte(`[0, "public", "public", {"table":"execution",
    "action":"insert",
    "data":[{
     "execID":"0193e879-cb6f-2891-d099-2c4eb40fee21",
@@ -862,27 +864,7 @@ func TestWsInsertExectuionUpdate(t *testing.T) {
     "text":"Liquidation","trdMatchID":"7f4ab7f6-0006-3234-76f4-ae1385aad00f","execCost":88155,"execComm":66,
     "homeNotional":-0.00088155,"foreignNotional":1,"transactTime":"2017-04-04T22:07:46.035Z",
     "timestamp":"2017-04-04T22:07:46.035Z"
-   }]}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWSConnectionHandling(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{"info":"Welcome to the BitMEX Realtime API.","version":"1.1.0",
-     "timestamp":"2015-01-18T10:14:06.802Z","docs":"https://www.bitmex.com/app/wsAPI","heartbeatEnabled":false}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWSSubscriptionHandling(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{"success":true,"subscribe":"trade:ETHUSD",
-     "request":{"op":"subscribe","args":["trade:ETHUSD","instrument:ETHUSD"]}}`)
+   }]}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -891,18 +873,18 @@ func TestWSSubscriptionHandling(t *testing.T) {
 
 func TestWSPositionUpdateHandling(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"table":"position",
+	pressXToJSON := []byte(`[0, "public", "public", {"table":"position",
    "action":"update",
    "data":[{
     "account":2,"symbol":"ETHUSD","currency":"XBt","currentQty":1,
     "markPrice":1136.88,"posState":"Liquidated","simpleQty":0.001,"liquidationPrice":1140.1,"bankruptPrice":1134.37,
     "timestamp":"2017-04-04T22:07:46.019Z"
-   }]}`)
+   }]}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
-	pressXToJSON = []byte(`{"table":"position",
+	pressXToJSON = []byte(`[0, "public", "public", {"table":"position",
    "action":"update",
    "data":[{
     "account":2,"symbol":"ETHUSD","currency":"XBt",
@@ -915,7 +897,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
     "unrealisedPnlPcnt":0,"unrealisedRoePcnt":0,"simpleQty":0,"simpleCost":0,"simpleValue":0,"avgCostPrice":null,
     "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
     "timestamp":"2017-04-04T22:07:46.140Z"
-   }]}`)
+   }]}]`)
 	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -924,7 +906,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
 
 func TestWSOrderbookHandling(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
+	pressXToJSON := []byte(`[0, "public", "public", {
       "table":"orderBookL2_25",
       "keys":["symbol","id","side"],
       "types":{"id":"long","price":"float","side":"symbol","size":"long","symbol":"symbol"},
@@ -938,76 +920,60 @@ func TestWSOrderbookHandling(t *testing.T) {
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":10,"price":50},
         {"symbol":"ETHUSD","id":17999996000,"side":"Buy","size":20,"price":40},
         {"symbol":"ETHUSD","id":17999997000,"side":"Buy","size":100,"price":30}
-      ]
-    }`)
+      ]}]`)
 	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
-	pressXToJSON = []byte(`{
+	pressXToJSON = []byte(`[0, "public", "public", {
       "table":"orderBookL2_25",
       "action":"update",
       "data":[
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5,"timestamp":"2017-04-04T22:16:38.461Z"}
-      ]
-    }`)
+      ]}]`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
-	pressXToJSON = []byte(`{
+	pressXToJSON = []byte(`[0, "public", "public", {
       "table":"orderBookL2_25",
       "action":"update",
-      "data":[
-      ]
-    }`)
+      "data":[]}]`)
 	err = b.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected error")
-	}
+	require.ErrorContains(t, err, "empty orderbook")
 
-	pressXToJSON = []byte(`{
+	pressXToJSON = []byte(`[0, "public", "public", {
       "table":"orderBookL2_25",
       "action":"delete",
       "data":[
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
-      ]
-    }`)
+      ]}]`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
-	pressXToJSON = []byte(`{
+	pressXToJSON = []byte(`[0, "public", "public", {
       "table":"orderBookL2_25",
       "action":"delete",
       "data":[
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
-      ]
-    }`)
+      ]}]`)
 	err = b.wsHandleData(pressXToJSON)
-	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 }
 
 func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"table":"position",
+	pressXToJSON := []byte(`[0, "public", "public", {"table":"position",
    "action":"update",
    "data":[{
     "account":2,"symbol":"ETHUSD","currency":"XBt","currentQty":2000,
     "markPrice":1160.72,"posState":"Deleverage","simpleQty":1.746,"liquidationPrice":1140.1,
     "timestamp":"2017-04-04T22:16:38.460Z"
-   }]}`)
+   }]}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 
-	pressXToJSON = []byte(`{"table":"position",
+	pressXToJSON = []byte(`[0, "public", "public", {"table":"position",
    "action":"update",
    "data":[{
     "account":2,"symbol":"ETHUSD","currency":"XBt",
@@ -1021,7 +987,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
     "simpleQty":0,"simpleCost":0,"simpleValue":0,"simplePnl":0,"simplePnlPcnt":0,"avgCostPrice":null,
     "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
     "timestamp":"2017-04-04T22:16:38.547Z"
-   }]}`)
+   }]}]`)
 	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1030,7 +996,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
 
 func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"table":"execution",
+	pressXToJSON := []byte(`[0, "public", "public", {"table":"execution",
    "action":"insert",
    "data":[{
     "execID":"20ad1ff4-c110-a4f2-dd31-f94eaa0701fd",
@@ -1045,7 +1011,7 @@ func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
     "trdMatchID":"1e849b8a-7e88-3c67-a93f-cc654d40e8ba","execCost":172306000,"execComm":-43077,
     "homeNotional":-1.72306,"foreignNotional":2000,"transactTime":"2017-04-04T22:16:38.472Z",
     "timestamp":"2017-04-04T22:16:38.472Z"
-   }]}`)
+   }]}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1054,11 +1020,17 @@ func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
 
 func TestWsTrades(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"MinusTick","trdMatchID":"c427f7a0-6b26-1e10-5c4e-1bd74daf2a73","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"95eb9155-b58c-70e9-44b7-34efe50302e0","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"e607c187-f25c-86bc-cb39-8afff7aaf2d9","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":17,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"0f076814-a57d-9a59-8063-ad6b823a80ac","grossValue":439110,"homeNotional":0.1683835182250396,"foreignNotional":43.49346275752773},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"MinusTick","trdMatchID":"f4ef3dfd-51c4-538f-37c1-e5071ba1c75d","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"81ef136b-8f4a-b1cf-78a8-fffbfa89bf40","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"65a87e8c-7563-34a4-d040-94e8513c5401","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":15,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"1d11a74e-a157-3f33-036d-35a101fba50b","grossValue":387375,"homeNotional":0.14857369255150554,"foreignNotional":38.369156101426306},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":1,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"40d49df1-f018-f66f-4ca5-31d4997641d7","grossValue":25825,"homeNotional":0.009904912836767036,"foreignNotional":2.5579437400950873},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"MinusTick","trdMatchID":"36135b51-73e5-c007-362b-a55be5830c6b","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"6ee19edb-99aa-3030-ba63-933ffb347ade","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"d44be603-cdb8-d676-e3e2-f91fb12b2a70","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":5,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"a14b43b3-50b4-c075-c54d-dfb0165de33d","grossValue":129100,"homeNotional":0.04952456418383518,"foreignNotional":12.787242472266245},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":8,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"3c30e175-5194-320c-8f8c-01636c2f4a32","grossValue":206560,"homeNotional":0.07923930269413629,"foreignNotional":20.45958795562599},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":50,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"5b803378-760b-4919-21fc-bfb275d39ace","grossValue":1291000,"homeNotional":0.49524564183835185,"foreignNotional":127.87242472266244},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":244,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"cf57fec1-c444-b9e5-5e2d-4fb643f4fdb7","grossValue":6300080,"homeNotional":2.416798732171157,"foreignNotional":624.0174326465927}]}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	b := new(Bitmex) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	b.SetSaveTradeDataStatus(true)
+	msg := []byte(`[0, "public", "public", {"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"MinusTick","trdMatchID":"c427f7a0-6b26-1e10-5c4e-1bd74daf2a73","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"95eb9155-b58c-70e9-44b7-34efe50302e0","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"e607c187-f25c-86bc-cb39-8afff7aaf2d9","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":17,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"0f076814-a57d-9a59-8063-ad6b823a80ac","grossValue":439110,"homeNotional":0.1683835182250396,"foreignNotional":43.49346275752773},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"MinusTick","trdMatchID":"f4ef3dfd-51c4-538f-37c1-e5071ba1c75d","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"81ef136b-8f4a-b1cf-78a8-fffbfa89bf40","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"65a87e8c-7563-34a4-d040-94e8513c5401","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":15,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"1d11a74e-a157-3f33-036d-35a101fba50b","grossValue":387375,"homeNotional":0.14857369255150554,"foreignNotional":38.369156101426306},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":1,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"40d49df1-f018-f66f-4ca5-31d4997641d7","grossValue":25825,"homeNotional":0.009904912836767036,"foreignNotional":2.5579437400950873},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"MinusTick","trdMatchID":"36135b51-73e5-c007-362b-a55be5830c6b","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"6ee19edb-99aa-3030-ba63-933ffb347ade","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"d44be603-cdb8-d676-e3e2-f91fb12b2a70","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":5,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"a14b43b3-50b4-c075-c54d-dfb0165de33d","grossValue":129100,"homeNotional":0.04952456418383518,"foreignNotional":12.787242472266245},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":8,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"3c30e175-5194-320c-8f8c-01636c2f4a32","grossValue":206560,"homeNotional":0.07923930269413629,"foreignNotional":20.45958795562599},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":50,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"5b803378-760b-4919-21fc-bfb275d39ace","grossValue":1291000,"homeNotional":0.49524564183835185,"foreignNotional":127.87242472266244},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":244,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"cf57fec1-c444-b9e5-5e2d-4fb643f4fdb7","grossValue":6300080,"homeNotional":2.416798732171157,"foreignNotional":624.0174326465927}]}]`)
+	require.NoError(t, b.wsHandleData(msg), "Must not error handling a standard stream of trades")
+
+	msg = []byte(`[0, "public", "public", {"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":".BGCT","size":14,"price":258.2,"side":"sell"}]}]`)
+	require.ErrorIs(t, b.wsHandleData(msg), exchange.ErrSymbolCannotBeMatched, "Must error correctly with an unknown symbol")
+
+	msg = []byte(`[0, "public", "public", {"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":".BGCT","size":0,"price":258.2,"side":"sell"}]}]`)
+	require.NoError(t, b.wsHandleData(msg), "Must not error that symbol is unknown when index trade is ignored due to zero size")
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -1355,5 +1327,55 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	b := new(Bitmex)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+
+	p := currency.Pairs{
+		currency.NewPair(currency.ETH, currency.USD),
+		currency.NewPair(currency.BCH, currency.NewCode("Z19")),
+	}
+
+	exp := subscription.List{
+		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[1].String(), Channel: bitmexWSOrderbookL2, Asset: asset.Futures, Pairs: p[1:2]},
+		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[0].String(), Channel: bitmexWSOrderbookL2, Asset: asset.PerpetualContract, Pairs: p[:1]},
+		{QualifiedChannel: bitmexWSTrade + ":" + p[1].String(), Channel: bitmexWSTrade, Asset: asset.Futures, Pairs: p[1:2]},
+		{QualifiedChannel: bitmexWSTrade + ":" + p[0].String(), Channel: bitmexWSTrade, Asset: asset.PerpetualContract, Pairs: p[:1]},
+		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
+		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
+		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
+		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
+		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
+		{QualifiedChannel: bitmexWSExecution + ":" + p[0].String(), Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
+		{QualifiedChannel: bitmexWSPosition + ":" + p[0].String(), Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
+	}
+
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	b := new(Bitmex)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	subs, err := b.generateSubscriptions() // Note: We grab this before it's overwritten by SetupWs
+	require.NoError(t, err, "generateSubscriptions must not error")
+	testexch.SetupWs(t, b)
+	err = b.Subscribe(subs)
+	require.NoError(t, err, "Subscribe should not error")
+	for _, s := range subs {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "%s state should be subscribed", s.QualifiedChannel)
+	}
+	err = b.Unsubscribe(subs)
+	require.NoError(t, err, "Unsubscribe should not error")
+	for _, s := range subs {
+		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "%s state should be unsusbscribed", s.QualifiedChannel)
 	}
 }

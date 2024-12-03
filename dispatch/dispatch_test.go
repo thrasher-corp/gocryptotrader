@@ -60,7 +60,7 @@ func TestStartStop(t *testing.T) {
 	assert.NoError(t, err, "subscribe should not error")
 
 	// Max out jobs channel
-	for x := 0; x < 99; x++ {
+	for range 99 {
 		err = d.publish(id, "woah-nelly")
 		assert.NoError(t, err, "publish should not error")
 	}
@@ -172,7 +172,7 @@ func TestPublish(t *testing.T) {
 	d.routes[nonEmptyUUID] = []chan interface{}{
 		make(chan interface{}),
 	}
-	for x := 0; x < 200; x++ {
+	for range 200 {
 		if err = d.publish(nonEmptyUUID, "test"); err != nil {
 			break
 		}
@@ -193,7 +193,7 @@ func TestPublishReceive(t *testing.T) {
 	require.NoError(t, err, "subscribe should not error")
 
 	go func(d *Dispatcher, id uuid.UUID) {
-		for x := 0; x < 10; x++ {
+		for range 10 {
 			err := d.publish(id, "WOW")
 			assert.NoError(t, err, "publish should not error")
 		}
@@ -294,11 +294,11 @@ func TestMuxSubscribe(t *testing.T) {
 	itemID, err := mux.GetID()
 	require.NoError(t, err, "GetID should not error")
 
-	var pipes []Pipe
-	for i := 0; i < 1000; i++ {
+	pipes := make([]Pipe, 1000)
+	for x := range 1000 {
 		newPipe, err := mux.Subscribe(itemID)
 		assert.NoError(t, err, "Subscribe should not error")
-		pipes = append(pipes, newPipe)
+		pipes[x] = newPipe
 	}
 
 	for i := range pipes {
@@ -319,7 +319,7 @@ func TestMuxPublish(t *testing.T) {
 
 	overloadCeiling := DefaultMaxWorkers * DefaultJobsLimit * 2
 
-	for i := 0; i < overloadCeiling; i++ {
+	for range overloadCeiling {
 		err = mux.Publish("test", itemID)
 		if !assert.NoError(t, err, "Publish should not error when over limit but no listeners") {
 			break
@@ -341,7 +341,7 @@ func TestMuxPublish(t *testing.T) {
 
 	go func() {
 		<-ready // Ensure listener is ready before starting
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			errMux := mux.Publish(i, itemID)
 			if !assert.NoError(t, errMux, "Publish should not error within limits") {
 				return
@@ -354,7 +354,7 @@ func TestMuxPublish(t *testing.T) {
 	// demonstrate that jobs can be limited when subscribed
 	// Published data gets consumed from .jobs to the worker channels, so we're looking to push more than it's consumed and prevent the select reading them too quickly
 	runtime.LockOSThread()
-	for i := 0; i < overloadCeiling; i++ {
+	for range overloadCeiling {
 		if err = mux.Publish("test", itemID); err != nil {
 			break
 		}
@@ -365,7 +365,7 @@ func TestMuxPublish(t *testing.T) {
 	err = mux.Unsubscribe(itemID, pipe.c)
 	assert.NoError(t, err, "Unsubscribe should not error")
 
-	for i := 0; i < overloadCeiling; i++ {
+	for range overloadCeiling {
 		if err = mux.Publish("test", itemID); err != nil {
 			break
 		}

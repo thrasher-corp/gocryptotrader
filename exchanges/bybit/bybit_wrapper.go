@@ -33,6 +33,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+type assetPairFmt struct {
+	asset  asset.Item
+	cfgFmt *currency.PairFormat
+	reqFmt *currency.PairFormat
+}
+
+var (
+	underscoreFmt = &currency.PairFormat{Uppercase: true, Delimiter: "_"}
+	dashFmt       = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	plainFmt      = &currency.PairFormat{Uppercase: true}
+	assetPairFmts = []assetPairFmt{
+		{asset.Spot, underscoreFmt, plainFmt},
+		{asset.USDTMarginedFutures, underscoreFmt, plainFmt},
+		{asset.CoinMarginedFutures, underscoreFmt, plainFmt},
+		{asset.USDCMarginedFutures, dashFmt, plainFmt},
+		{asset.Options, dashFmt, dashFmt},
+	}
+)
+
 // SetDefaults sets the basic defaults for Bybit
 func (by *Bybit) SetDefaults() {
 	by.Name = "Bybit"
@@ -41,56 +60,46 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresKey = true
 	by.API.CredentialsValidator.RequiresSecret = true
 
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "_"}
-	requestFormat := &currency.PairFormat{Uppercase: true}
-	spotPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err := by.StoreAssetPairFormat(asset.Spot, spotPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
-	}
-	usdtMarginedFuturesPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtMarginedFuturesPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.USDTMarginedFutures, err)
-	}
-	usdcMarginedFutures := currency.PairStore{RequestFormat: requestFormat,
-		ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}}
-	err = by.StoreAssetPairFormat(asset.USDCMarginedFutures, usdcMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.USDCMarginedFutures, err)
-	}
-	coinMarginedFutures := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, coinMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.CoinMarginedFutures, err)
-	}
-	optionPairStore := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	}
-	err = by.StoreAssetPairFormat(asset.Options, optionPairStore)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Options, err)
+	for _, n := range assetPairFmts {
+		ps := currency.PairStore{RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
+		if err := by.StoreAssetPairFormat(n.asset, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%v %v", n.asset, err)
+		}
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.DisableAssetWebsocketSupport(asset.USDCMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
+		if err := by.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	by.Features = exchange.Features{
+		CurrencyTranslations: currency.NewTranslations(
+			map[currency.Code]currency.Code{
+				currency.NewCode("10000000AIDOGE"):  currency.AIDOGE,
+				currency.NewCode("1000000BABYDOGE"): currency.BABYDOGE,
+				currency.NewCode("1000000MOG"):      currency.NewCode("MOG"),
+				currency.NewCode("10000COQ"):        currency.NewCode("COQ"),
+				currency.NewCode("10000LADYS"):      currency.NewCode("LADYS"),
+				currency.NewCode("10000NFT"):        currency.NFT,
+				currency.NewCode("10000SATS"):       currency.NewCode("SATS"),
+				currency.NewCode("10000STARL"):      currency.STARL,
+				currency.NewCode("10000WEN"):        currency.NewCode("WEN"),
+				currency.NewCode("1000APU"):         currency.NewCode("APU"),
+				currency.NewCode("1000BEER"):        currency.NewCode("BEER"),
+				currency.NewCode("1000BONK"):        currency.BONK,
+				currency.NewCode("1000BTT"):         currency.BTT,
+				currency.NewCode("1000FLOKI"):       currency.FLOKI,
+				currency.NewCode("1000IQ50"):        currency.NewCode("IQ50"),
+				currency.NewCode("1000LUNC"):        currency.LUNC,
+				currency.NewCode("1000PEPE"):        currency.PEPE,
+				currency.NewCode("1000RATS"):        currency.NewCode("RATS"),
+				currency.NewCode("1000TURBO"):       currency.NewCode("TURBO"),
+				currency.NewCode("1000XEC"):         currency.XEC,
+				currency.NewCode("LUNA2"):           currency.LUNA,
+				currency.NewCode("SHIB1000"):        currency.SHIB,
+			},
+		),
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -174,16 +183,11 @@ func (by *Bybit) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
-	by.Requester, err = request.New(by.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()))
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	by.API.Endpoints = by.NewEndpoints()
-	err = by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err := by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         bybitAPIURL,
 		exchange.RestCoinMargined: bybitAPIURL,
 		exchange.RestUSDTMargined: bybitAPIURL,
@@ -192,6 +196,13 @@ func (by *Bybit) SetDefaults() {
 		exchange.WebsocketSpot:    spotPublic,
 	})
 	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	if by.Requester, err = request.New(by.Name,
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(GetRateLimit()),
+	); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -231,7 +242,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			Connector:             by.WsConnect,
 			Subscriber:            by.Subscribe,
 			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+			GenerateSubscriptions: by.generateSubscriptions,
 			Features:              &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
@@ -242,7 +253,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     bybitWebsocketTimer,
@@ -251,7 +262,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  websocketPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -280,86 +291,64 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		allPairs []InstrumentInfo
 		response *InstrumentsInfo
 	)
+	var nextPageCursor string
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		category = getCategoryName(a)
-		response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
-		if err != nil {
-			return nil, err
+		for {
+			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, 1000)
+			if err != nil {
+				return nil, err
+			}
+			allPairs = append(allPairs, response.List...)
+			nextPageCursor = response.NextPageCursor
+			if nextPageCursor == "" {
+				break
+			}
 		}
-		allPairs = response.List
 	case asset.Options:
 		category = getCategoryName(a)
 		for x := range supportedOptionsTypes {
-			var bookmark = ""
+			nextPageCursor = ""
 			for {
-				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], bookmark, int64(by.Features.Enabled.Kline.GlobalResultLimit))
+				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, 1000)
 				if err != nil {
 					return nil, err
 				}
 				allPairs = append(allPairs, response.List...)
-				if response.NextPageCursor == "" || (bookmark != "" && bookmark == response.NextPageCursor) || len(response.List) == 0 {
+				if response.NextPageCursor == "" || (nextPageCursor != "" && nextPageCursor == response.NextPageCursor) || len(response.List) == 0 {
 					break
 				}
-				bookmark = response.NextPageCursor
+				nextPageCursor = response.NextPageCursor
 			}
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	pairs = make(currency.Pairs, 0, len(allPairs))
+	var filterSymbol string
 	switch a {
-	case asset.Spot, asset.Options:
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" {
-				continue
-			}
-			quote := strings.TrimPrefix(allPairs[x].Symbol[len(allPairs[x].BaseCoin):], currency.DashDelimiter)
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, quote)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
-	case asset.CoinMarginedFutures:
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USD" {
-				continue
-			}
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, allPairs[x].Symbol[len(allPairs[x].BaseCoin):])
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
 	case asset.USDCMarginedFutures:
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USDC" {
-				continue
-			}
-			if strings.EqualFold(allPairs[x].ContractType, "linearfutures") {
-				// long-dated contracts have a delimiter
-				pair, err = currency.NewPairFromString(allPairs[x].Symbol)
-			} else {
-				pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, allPairs[x].Symbol[len(allPairs[x].BaseCoin):])
-			}
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
+		filterSymbol = "USDC"
 	case asset.USDTMarginedFutures:
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USDT" {
-				continue
-			}
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, allPairs[x].Symbol[len(allPairs[x].BaseCoin):])
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
+		filterSymbol = "USDT"
+	case asset.CoinMarginedFutures:
+		filterSymbol = "USD"
 	}
+	for x := range allPairs {
+		if allPairs[x].Status != "Trading" || (filterSymbol != "" && allPairs[x].QuoteCoin != filterSymbol) {
+			continue
+		}
+		if a == asset.Options {
+			_ = allPairs[x].transformSymbol(a)
+		}
+		pair, err = currency.NewPairFromString(allPairs[x].transformSymbol(a))
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
+	}
+
 	return pairs.Format(format), nil
 }
 
@@ -604,8 +593,8 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
 			balance := account.Balance{
-				Currency: currency.NewCode(balances.List[i].Coin[c].Coin),
-				Total:    balances.List[i].TotalWalletBalance.Float64(),
+				Currency: balances.List[i].Coin[c].Coin,
+				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
 				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
 				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
 				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
@@ -669,6 +658,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 				Fee:             withdrawals.Rows[i].WithdrawFee.Float64(),
 				CryptoToAddress: withdrawals.Rows[i].ToAddress,
 				CryptoTxID:      withdrawals.Rows[i].TransactionID,
+				CryptoChain:     withdrawals.Rows[i].Chain,
 				Timestamp:       withdrawals.Rows[i].UpdateTime.Time(),
 			}
 		}
@@ -794,7 +784,7 @@ func orderTypeToString(oType order.Type) string {
 
 // SubmitOrder submits a new order
 func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(by.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -1532,51 +1522,106 @@ func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 	return info.TimeNano.Time(), err
 }
 
+// transformInstrumentInfoSymbol converts GetInstrumentInfo symbol to one stored in config with proper delimiters
+func (i *InstrumentInfo) transformSymbol(a asset.Item) string {
+	switch a {
+	case asset.Spot, asset.CoinMarginedFutures:
+		quote := i.Symbol[len(i.BaseCoin):]
+		return i.BaseCoin + "_" + quote
+	case asset.Options:
+		quote := strings.TrimPrefix(i.Symbol[len(i.BaseCoin):], currency.DashDelimiter)
+		return i.BaseCoin + "-" + quote
+	case asset.USDTMarginedFutures:
+		quote := i.Symbol[len(i.BaseCoin):]
+		return i.BaseCoin + "-" + quote
+	case asset.USDCMarginedFutures:
+		if i.ContractType != "LinearFutures" {
+			quote := i.Symbol[len(i.BaseCoin):]
+			return i.BaseCoin + "-" + quote
+		}
+		fallthrough // Contracts with linear futures already have a delimiter
+	default:
+		return i.Symbol
+	}
+}
+
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var err error
-	var instrumentsInfo *InstrumentsInfo
+	var (
+		allInstrumentsInfo InstrumentsInfo
+		nextPageCursor     string
+	)
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", "", 400)
-		if err != nil {
-			return err
+		for {
+			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", nextPageCursor, 1000)
+			if err != nil {
+				return err
+			}
+			switch a {
+			case asset.USDTMarginedFutures:
+				for i := range instrumentInfo.List {
+					if instrumentInfo.List[i].QuoteCoin != "USDT" {
+						continue
+					}
+					allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List[i])
+				}
+			case asset.USDCMarginedFutures:
+				for i := range instrumentInfo.List {
+					if instrumentInfo.List[i].QuoteCoin != "USDC" {
+						continue
+					}
+					allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List[i])
+				}
+			default:
+				allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List...)
+			}
+			nextPageCursor = instrumentInfo.NextPageCursor
+			if nextPageCursor == "" {
+				break
+			}
 		}
 	case asset.Options:
-		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "BTC", "", 400)
-		if err != nil {
-			return err
+		for i := range supportedOptionsTypes {
+			nextPageCursor = ""
+			for {
+				instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", supportedOptionsTypes[i], nextPageCursor, 1000)
+				if err != nil {
+					return fmt.Errorf("%w - %v", err, supportedOptionsTypes[i])
+				}
+				allInstrumentsInfo.List = append(allInstrumentsInfo.List, instrumentInfo.List...)
+				nextPageCursor = instrumentInfo.NextPageCursor
+				if nextPageCursor == "" {
+					break
+				}
+			}
 		}
-		var ethInstruments *InstrumentsInfo
-		ethInstruments, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "ETH", "", 400)
-		if err != nil {
-			return err
-		}
-		instrumentsInfo.List = append(instrumentsInfo.List, ethInstruments.List...)
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
-	for x := range instrumentsInfo.List {
-		var pair currency.Pair
-		pair, err = by.MatchSymbolWithAvailablePairs(instrumentsInfo.List[x].Symbol, a, true)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, instrumentsInfo.List[x].Symbol)
+	limits := make([]order.MinMaxLevel, 0, len(allInstrumentsInfo.List))
+	for x := range allInstrumentsInfo.List {
+		if allInstrumentsInfo.List[x].Status != "Trading" {
 			continue
 		}
-
+		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
+		pair, err := by.MatchSymbolWithAvailablePairs(symbol, a, true)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", by.Name, a, symbol)
+			continue
+		}
 		limits = append(limits, order.MinMaxLevel{
 			Asset:                   a,
 			Pair:                    pair,
-			MinimumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
-			MaximumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
-			MinPrice:                instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaxPrice:                instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
-			PriceStepIncrementSize:  instrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
-			AmountStepIncrementSize: instrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
-			QuoteStepIncrementSize:  instrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
-			MinimumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaximumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
+			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
+			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
+			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			PriceStepIncrementSize:  allInstrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
+			AmountStepIncrementSize: allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
+			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
+			MinimumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
+			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
 	return by.LoadLimits(limits)

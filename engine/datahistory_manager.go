@@ -958,7 +958,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	}
 	var validationIssues []string
 	multiplier := int64(1)
-	for i := int64(0); i < job.DecimalPlaceComparison; i++ {
+	for range job.DecimalPlaceComparison {
 		multiplier *= 10
 	}
 	for i := range apiCandles.Candles {
@@ -1049,10 +1049,10 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 	}
 	if apiData != dbData {
 		var diff float64
-		if apiData > dbData {
-			diff = gctmath.CalculatePercentageGainOrLoss(apiData, dbData)
+		if apiData < dbData {
+			diff = gctmath.PercentageChange(apiData, dbData)
 		} else {
-			diff = gctmath.CalculatePercentageGainOrLoss(dbData, apiData)
+			diff = gctmath.PercentageChange(dbData, apiData)
 		}
 		if diff > job.IssueTolerancePercentage {
 			issue = fmt.Sprintf("%s api: %v db: %v diff: %v %%", candleField, apiData, dbData, diff)

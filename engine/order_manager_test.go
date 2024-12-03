@@ -11,6 +11,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -562,9 +563,7 @@ func TestCancelAllOrders(t *testing.T) {
 func TestSubmit(t *testing.T) {
 	m := OrdersSetup(t)
 	_, err := m.Submit(context.Background(), nil)
-	if err == nil {
-		t.Error("Expected error from nil order")
-	}
+	require.ErrorIs(t, err, errNilOrder)
 
 	o := &order.Submit{Type: order.Market}
 	_, err = m.Submit(context.Background(), o)
@@ -1316,26 +1315,12 @@ func TestSubmitFakeOrder(t *testing.T) {
 	o := &OrderManager{}
 	resp := &order.SubmitResponse{}
 	_, err := o.SubmitFakeOrder(nil, resp, false)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	o.started = 1
 	_, err = o.SubmitFakeOrder(nil, resp, false)
-	if !errors.Is(err, errNilOrder) {
-		t.Errorf("received '%v', expected '%v'", err, errNilOrder)
-	}
-	ord := &order.Submit{}
-	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNameIsEmpty)
-	}
-	ord.Exchange = testExchange
-	ord.AssetType = asset.Spot
-	ord.Pair = currency.NewPair(currency.BTC, currency.DOGE)
-	ord.Side = order.Buy
-	ord.Type = order.Market
-	ord.Amount = 1337
+	assert.ErrorIs(t, err, errNilOrder)
+
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
@@ -1347,6 +1332,17 @@ func TestSubmitFakeOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	o.orderStore.exchangeManager = em
+
+	ord := &order.Submit{}
+	_, err = o.SubmitFakeOrder(ord, resp, false)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+
+	ord.Exchange = testExchange
+	ord.AssetType = asset.Spot
+	ord.Pair = currency.NewPair(currency.BTC, currency.DOGE)
+	ord.Side = order.Buy
+	ord.Type = order.Market
+	ord.Amount = 1337
 
 	resp, err = ord.DeriveSubmitResponse("1234")
 	if err != nil {

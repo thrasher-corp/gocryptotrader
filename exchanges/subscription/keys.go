@@ -39,6 +39,7 @@ func (k ExactKey) String() string {
 
 // Match implements MatchableKey
 // Returns true if the key fields exactly matches the subscription, including all Pairs
+// Does not check QualifiedChannel or Params
 func (k ExactKey) Match(eachKey MatchableKey) bool {
 	if eachKey == nil {
 		return false
@@ -83,6 +84,41 @@ func (k IgnoringPairsKey) Match(eachKey MatchableKey) bool {
 	return eachSub != nil &&
 		eachSub.Channel == k.Channel &&
 		eachSub.Asset == k.Asset &&
+		eachSub.Levels == k.Levels &&
+		eachSub.Interval == k.Interval
+}
+
+// IgnoringAssetKey is a key type for finding subscriptions to group together for requests
+type IgnoringAssetKey struct {
+	*Subscription
+}
+
+var _ MatchableKey = IgnoringAssetKey{} // Enforce IgnoringAssetKey must implement MatchableKey
+
+// GetSubscription returns the underlying subscription
+func (k IgnoringAssetKey) GetSubscription() *Subscription {
+	return k.Subscription
+}
+
+// String implements Stringer; returns the asset and Channel name but no pairs
+func (k IgnoringAssetKey) String() string {
+	s := k.Subscription
+	if s == nil {
+		return "Uninitialised IgnoringAssetKey"
+	}
+	return fmt.Sprintf("%s %s", s.Channel, s.Pairs)
+}
+
+// Match implements MatchableKey
+func (k IgnoringAssetKey) Match(eachKey MatchableKey) bool {
+	if eachKey == nil {
+		return false
+	}
+	eachSub := eachKey.GetSubscription()
+
+	return eachSub != nil &&
+		eachSub.Channel == k.Channel &&
+		eachSub.Pairs.Equal(k.Pairs) &&
 		eachSub.Levels == k.Levels &&
 		eachSub.Interval == k.Interval
 }

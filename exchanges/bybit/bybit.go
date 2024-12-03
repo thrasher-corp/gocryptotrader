@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ type Bybit struct {
 
 	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
 	// 0: unified, and 1: for normal account
-	AccountType uint8
+	AccountType int64
 }
 
 const (
@@ -1343,7 +1344,7 @@ func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreek
 // GetFeeRate retrieves the trading fee rate.
 func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
 	params := url.Values{}
-	if !common.StringDataContains(validCategory, category) {
+	if !slices.Contains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
 	}
 	if category != "" {
@@ -1470,7 +1471,7 @@ func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, c
 
 // GetDeliveryRecord retrieves delivery records of USDC futures and Options, sorted by deliveryTime in descending order
 func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
-	if !common.StringDataContains([]string{cLinear, cOption}, category) {
+	if !slices.Contains([]string{cLinear, cOption}, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, []string{cLinear, cOption})
 	}
 	params := url.Values{}
@@ -1493,7 +1494,7 @@ func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor
 
 // GetUSDCSessionSettlement retrieves session settlement records of USDC perpetual and futures
 func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
-	if !common.StringDataContains([]string{cLinear}, category) {
+	if category != cLinear {
 		return nil, fmt.Errorf("%w, valid category value is %v", errInvalidCategory, cLinear)
 	}
 	params := url.Values{}
@@ -2704,7 +2705,7 @@ func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	by.AccountType = uint8(accInfo.IsUnifiedTradeAccount) // 0：regular account; 1：unified trade account
+	by.AccountType = accInfo.IsUnifiedTradeAccount // 0：regular account; 1：unified trade account
 	return nil
 }
 

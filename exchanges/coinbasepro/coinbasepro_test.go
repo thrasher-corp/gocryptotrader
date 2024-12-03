@@ -67,6 +67,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetProducts(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetProducts(context.Background())
 	if err != nil {
 		t.Errorf("Coinbase, GetProducts() Error: %s", err)
@@ -74,6 +76,8 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetOrderbook(context.Background(), testPair.String(), 2)
 	if err != nil {
 		t.Error(err)
@@ -85,6 +89,8 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	_, err := c.GetTicker(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetTicker() error", err)
@@ -99,6 +105,8 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
 	_, err := c.GetHistoricCandles(context.Background(),
@@ -109,6 +117,8 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 }
 
 func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
+	t.Skip("API is deprecated")
+
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 

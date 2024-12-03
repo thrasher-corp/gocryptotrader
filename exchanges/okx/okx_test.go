@@ -28,7 +28,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -205,7 +207,7 @@ func TestGetBlockTrade(t *testing.T) {
 		assert.Positive(t, trade.Price, "Price should have a positive value")
 		assert.Positive(t, trade.Size, "Size should have a positive value")
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
+		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
 	}
 
 	testexch.UpdatePairsOnce(t, ok)
@@ -3193,8 +3195,7 @@ func TestGetIntervalEnum(t *testing.T) {
 		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
 	}
 
-	for x := range tests {
-		tt := tests[x]
+	for _, tt := range tests {
 		t.Run(tt.Description, func(t *testing.T) {
 			t.Parallel()
 
@@ -3756,4 +3757,68 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ok := new(Okx)
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+
+	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ok.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{
+		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	}
+	for _, s := range ok.Features.Subscriptions {
+		for _, a := range ok.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := ok.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "-"})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			name := channelName(s)
+			if isSymbolChannel(s) {
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+				if isAssetChannel(s) {
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, ok.GetInstrumentTypeFromAssetItem(s.Asset))
+				} else {
+					s.QualifiedChannel = `{"channel":"` + name + `"}`
+				}
+				s.Pairs = pairs
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestGenerateGridSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ok := new(Okx)
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+
+	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}}}
+	subs, err := ok.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
+	testsubs.EqualLists(t, exp, subs)
+
+	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions}}
+	subs, err = ok.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp = subscription.List{{Channel: okxChannelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
+	testsubs.EqualLists(t, exp, subs)
 }

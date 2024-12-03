@@ -100,7 +100,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	d.maxWorkers = workers
 	d.shutdown = make(chan struct{})
 
-	for i := 0; i < d.maxWorkers; i++ {
+	for range d.maxWorkers {
 		d.wg.Add(1)
 		go d.relayer()
 	}

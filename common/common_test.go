@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -236,85 +235,41 @@ func TestIsValidCryptoAddress(t *testing.T) {
 	}
 }
 
-func TestStringSliceDifference(t *testing.T) {
+func TestSliceDifference(t *testing.T) {
 	t.Parallel()
-	originalInputOne := []string{"hello"}
-	originalInputTwo := []string{"hello", "moto"}
-	expectedOutput := []string{"hello moto"}
-	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
-	if reflect.DeepEqual(expectedOutput, actualResult) {
-		t.Errorf("Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
+
+	assert.ElementsMatch(t, []string{"world", "go"}, SliceDifference([]string{"hello", "world"}, []string{"hello", "go"}))
+	assert.ElementsMatch(t, []int64{1, 2, 5, 6}, SliceDifference([]int64{1, 2, 3, 4}, []int64{3, 4, 5, 6}))
+	assert.ElementsMatch(t, []float64{1.1, 4.4}, SliceDifference([]float64{1.1, 2.2, 3.3}, []float64{2.2, 3.3, 4.4}))
+	type mixedType struct {
+		A string
+		B int
 	}
+	assert.ElementsMatch(t, []mixedType{{"A", 1}, {"D", 4}}, SliceDifference([]mixedType{{"A", 1}, {"B", 2}, {"C", 3}}, []mixedType{{"B", 2}, {"C", 3}, {"D", 4}}))
+	assert.ElementsMatch(t, []int{1, 2, 3}, SliceDifference([]int{}, []int{1, 2, 3}))
+	assert.ElementsMatch(t, []int{1, 2, 3}, SliceDifference([]int{1, 2, 3}, []int{}))
+	assert.Empty(t, SliceDifference([]int{}, []int{}))
 }
 
-func TestStringDataContains(t *testing.T) {
+func TestStringSliceContains(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"hello", "world", "USDT", "Contains", "string"}
-	originalNeedle := "USD"
-	anotherNeedle := "thing"
-	actualResult := StringDataContains(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-	actualResult = StringDataContains(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
+	assert.True(t, StringSliceContains(originalHaystack, "USD"), "Should contain 'USD'")
+	assert.False(t, StringSliceContains(originalHaystack, "thing"), "Should not contain 'thing'")
 }
 
-func TestStringDataCompare(t *testing.T) {
+func TestStringSliceCompareInsensitive(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
-	originalNeedle := "WoRld"
-	anotherNeedle := "USD"
-	actualResult := StringDataCompare(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-	actualResult = StringDataCompare(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
+	assert.False(t, StringSliceCompareInsensitive(originalHaystack, "USD"), "Should not contain 'USD'")
+	assert.True(t, StringSliceCompareInsensitive(originalHaystack, "WORLD"), "Should find 'WoRld'")
 }
 
-func TestStringDataCompareUpper(t *testing.T) {
-	t.Parallel()
-	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
-	originalNeedle := "WoRld"
-	anotherNeedle := "WoRldD"
-	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-
-	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-}
-
-func TestStringDataContainsUpper(t *testing.T) {
+func TestStringSliceContainsInsensitive(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"bLa", "BrO", "sUp"}
-	originalNeedle := "Bla"
-	anotherNeedle := "ning"
-	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
-	if expectedOutput := true; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
-	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
-	if expectedOutput := false; actualResult != expectedOutput {
-		t.Errorf("Expected '%v'. Actual '%v'",
-			expectedOutput, actualResult)
-	}
+	assert.True(t, StringSliceContainsInsensitive(originalHaystack, "Bla"), "Should contain 'Bla'")
+	assert.False(t, StringSliceContainsInsensitive(originalHaystack, "ning"), "Should not contain 'ning'")
 }
 
 func TestYesOrNo(t *testing.T) {
@@ -558,33 +513,6 @@ func TestChangePermission(t *testing.T) {
 	}
 }
 
-func initStringSlice(size int) (out []string) {
-	for x := 0; x < size; x++ {
-		out = append(out, "gct-"+strconv.Itoa(x))
-	}
-	return
-}
-
-func TestSplitStringSliceByLimit(t *testing.T) {
-	t.Parallel()
-	slice50 := initStringSlice(50)
-	out := SplitStringSliceByLimit(slice50, 20)
-	if len(out) != 3 {
-		t.Errorf("expected len() to be 3 instead received: %v", len(out))
-	}
-	if len(out[0]) != 20 {
-		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-
-	out = SplitStringSliceByLimit(slice50, 50)
-	if len(out) != 1 {
-		t.Errorf("expected len() to be 3 instead received: %v", len(out))
-	}
-	if len(out[0]) != 50 {
-		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-}
-
 func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 
@@ -613,45 +541,6 @@ func TestAddPaddingOnUpperCase(t *testing.T) {
 		if received := AddPaddingOnUpperCase(testCases[x].Supplied); received != testCases[x].Expected {
 			t.Fatalf("received '%v' but expected '%v'", received, testCases[x].Expected)
 		}
-	}
-}
-
-func TestInArray(t *testing.T) {
-	t.Parallel()
-	InArray(nil, nil)
-
-	array := [6]int{2, 3, 5, 7, 11, 13}
-	isIn, pos := InArray(5, array)
-	if !isIn {
-		t.Errorf("failed to find the value within the array")
-	}
-	if pos != 2 {
-		t.Errorf("failed return the correct position of the value in the array")
-	}
-	isIn, _ = InArray(1, array)
-	if isIn {
-		t.Errorf("found a non existent value in the array")
-	}
-
-	slice := make([]int, 0)
-	slice = append(append(slice, 5), 3)
-	isIn, pos = InArray(5, slice)
-	if !isIn {
-		t.Errorf("failed to find the value within the slice")
-	}
-	if pos != 0 {
-		t.Errorf("failed return the correct position of the value in the slice")
-	}
-	isIn, pos = InArray(3, slice)
-	if !isIn {
-		t.Errorf("failed to find the value within the slice")
-	}
-	if pos != 1 {
-		t.Errorf("failed return the correct position of the value in the slice")
-	}
-	isIn, _ = InArray(1, slice)
-	if isIn {
-		t.Errorf("found a non existent value in the slice")
 	}
 }
 
@@ -855,4 +744,52 @@ func TestErrorCollector(t *testing.T) {
 	errs, ok := v.(*multiError)
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
+}
+
+// TestBatch ensures the Batch function does not regress into common behavioural faults if implementation changes
+func TestBatch(t *testing.T) {
+	s := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	b := Batch(s, 3)
+	require.Len(t, b, 4)
+	assert.Len(t, b[0], 3)
+	assert.Len(t, b[3], 1)
+
+	b[0][0] = 42
+	assert.Equal(t, 1, s[0], "Changing the batches must not change the source")
+
+	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
+	done := make(chan any, 1)
+	go func() { done <- Batch(s, 0) }()
+	require.Eventually(t, func() bool { return len(done) > 0 }, time.Second, time.Millisecond, "Batch 0 must not hang")
+
+	for _, i := range []int{-1, 0, 50} {
+		b = Batch(s, i)
+		require.Lenf(t, b, 1, "A batch size of %v should produce a single batch", i)
+		assert.Lenf(t, b[0], len(s), "A batch size of %v should produce a single batch", i)
+	}
+}
+
+type A int
+
+func (a A) String() string {
+	return strconv.Itoa(int(a))
+}
+
+func TestSortStrings(t *testing.T) {
+	assert.Equal(t, []A{1, 2, 5, 6}, SortStrings([]A{6, 2, 5, 1}))
+}
+
+func TestCounter(t *testing.T) {
+	t.Parallel()
+	c := Counter{n: -5}
+	require.Equal(t, int64(1), c.IncrementAndGet())
+	require.Equal(t, int64(2), c.IncrementAndGet())
+}
+
+// 683185328	         1.787 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkCounter(b *testing.B) {
+	c := Counter{}
+	for i := 0; i < b.N; i++ {
+		c.IncrementAndGet()
+	}
 }

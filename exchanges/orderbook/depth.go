@@ -46,7 +46,7 @@ type Depth struct {
 	// validationError defines current book state and why it was invalidated.
 	validationError error
 
-	m sync.Mutex
+	m sync.RWMutex
 }
 
 // NewDepth returns a new orderbook depth
@@ -64,8 +64,8 @@ func (d *Depth) Publish() {
 // Retrieve returns the orderbook base a copy of the underlying linked list
 // spread
 func (d *Depth) Retrieve() (*Base, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
@@ -76,17 +76,19 @@ func (d *Depth) Retrieve() (*Base, error) {
 		Asset:                  d.asset,
 		Pair:                   d.pair,
 		LastUpdated:            d.lastUpdated,
+		UpdatePushedAt:         d.updatePushedAt,
+		InsertedAt:             d.insertedAt,
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
 		IsFundingRate:          d.isFundingRate,
-		VerifyOrderbook:        d.VerifyOrderbook,
+		VerifyOrderbook:        d.verifyOrderbook,
 		MaxDepth:               d.maxDepth,
 		ChecksumStringRequired: d.checksumStringRequired,
 	}, nil
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) error {
+func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated, updatePushedAt time.Time, updateByREST bool) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if lastUpdated.IsZero() {
@@ -98,6 +100,8 @@ func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdat
 	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
+	d.updatePushedAt = updatePushedAt
+	d.insertedAt = time.Now()
 	d.restSnapshot = updateByREST
 	d.bidTranches.load(bids)
 	d.askTranches.load(asks)
@@ -132,10 +136,9 @@ func (d *Depth) Invalidate(withReason error) error {
 
 // IsValid returns if the underlying book is valid.
 func (d *Depth) IsValid() bool {
-	d.m.Lock()
-	valid := d.validationError == nil
-	d.m.Unlock()
-	return valid
+	d.m.RLock()
+	defer d.m.RUnlock()
+	return d.validationError == nil
 }
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
@@ -281,7 +284,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		lastUpdateID:           b.LastUpdateID,
 		priceDuplication:       b.PriceDuplication,
 		isFundingRate:          b.IsFundingRate,
-		VerifyOrderbook:        b.VerifyOrderbook,
+		verifyOrderbook:        b.VerifyOrderbook,
 		restSnapshot:           b.RestSnapshot,
 		idAligned:              b.IDAlignment,
 		maxDepth:               b.MaxDepth,
@@ -292,15 +295,15 @@ func (d *Depth) AssignOptions(b *Base) {
 
 // GetName returns name of exchange
 func (d *Depth) GetName() string {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	return d.exchange
 }
 
 // IsRESTSnapshot returns if the depth was updated via REST
 func (d *Depth) IsRESTSnapshot() (bool, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return false, d.validationError
 	}
@@ -309,8 +312,8 @@ func (d *Depth) IsRESTSnapshot() (bool, error) {
 
 // LastUpdateID returns the last Update ID
 func (d *Depth) LastUpdateID() (int64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -319,15 +322,22 @@ func (d *Depth) LastUpdateID() (int64, error) {
 
 // IsFundingRate returns if the depth is a funding rate
 func (d *Depth) IsFundingRate() bool {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	return d.isFundingRate
+}
+
+// VerifyOrderbook returns if the verify orderbook option is set
+func (d *Depth) VerifyOrderbook() bool {
+	d.m.RLock()
+	defer d.m.RUnlock()
+	return d.verifyOrderbook
 }
 
 // GetAskLength returns length of asks
 func (d *Depth) GetAskLength() (int, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -336,8 +346,8 @@ func (d *Depth) GetAskLength() (int, error) {
 
 // GetBidLength returns length of bids
 func (d *Depth) GetBidLength() (int, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -347,8 +357,8 @@ func (d *Depth) GetBidLength() (int, error) {
 // TotalBidAmounts returns the total amount of bids and the total orderbook
 // bids value
 func (d *Depth) TotalBidAmounts() (liquidity, value float64, err error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, 0, d.validationError
 	}
@@ -359,8 +369,8 @@ func (d *Depth) TotalBidAmounts() (liquidity, value float64, err error) {
 // TotalAskAmounts returns the total amount of asks and the total orderbook
 // asks value
 func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, 0, d.validationError
 	}
@@ -373,6 +383,8 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
+	d.updatePushedAt = update.UpdatePushedAt
+	d.insertedAt = time.Now()
 	d.Alert()
 }
 
@@ -660,8 +672,8 @@ func (d *Depth) LiftTheAsksFromBest(amount float64, purchase bool) (*Movement, e
 
 // GetMidPrice returns the mid price between the ask and bid spread
 func (d *Depth) GetMidPrice() (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -683,8 +695,8 @@ func (d *Depth) getMidPriceNoLock() (float64, error) {
 
 // GetBestBid returns the best bid price
 func (d *Depth) GetBestBid() (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -693,8 +705,8 @@ func (d *Depth) GetBestBid() (float64, error) {
 
 // GetBestAsk returns the best ask price
 func (d *Depth) GetBestAsk() (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -703,8 +715,8 @@ func (d *Depth) GetBestAsk() (float64, error) {
 
 // GetSpreadAmount returns the spread as a quotation amount
 func (d *Depth) GetSpreadAmount() (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -721,8 +733,8 @@ func (d *Depth) GetSpreadAmount() (float64, error) {
 
 // GetSpreadPercentage returns the spread as a percentage
 func (d *Depth) GetSpreadPercentage() (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -739,8 +751,8 @@ func (d *Depth) GetSpreadPercentage() (float64, error) {
 
 // GetImbalance returns top orderbook imbalance
 func (d *Depth) GetImbalance() (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
@@ -763,8 +775,8 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 	if count < 0 {
 		return nil, nil, errInvalidBookDepth
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return nil, nil, d.validationError
 	}
@@ -773,8 +785,8 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 
 // GetPair returns the pair associated with the depth
 func (d *Depth) GetPair() (currency.Pair, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+	d.m.RLock()
+	defer d.m.RUnlock()
 	if d.pair.IsEmpty() {
 		return currency.Pair{}, currency.ErrCurrencyPairEmpty
 	}

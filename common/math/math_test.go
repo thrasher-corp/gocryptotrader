@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculateFee(t *testing.T) {
@@ -28,27 +30,49 @@ func TestCalculateAmountWithFee(t *testing.T) {
 	}
 }
 
-func TestCalculatePercentageGainOrLoss(t *testing.T) {
+func TestPercentageChange(t *testing.T) {
 	t.Parallel()
-	originalInput := float64(9300)
-	secondInput := float64(9000)
-	expectedOutput := 3.3333333333333335
-	actualResult := CalculatePercentageGainOrLoss(originalInput, secondInput)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%v'. Actual '%v'.", expectedOutput, actualResult)
+	assert.Equal(t, 3.3333333333333335, PercentageChange(9000, 9300))
+	assert.Equal(t, -3.225806451612903, PercentageChange(9300, 9000))
+	assert.True(t, math.IsNaN(PercentageChange(0, 0)))
+	assert.Equal(t, 0.0, PercentageChange(1, 1))
+	assert.Equal(t, 0.0, PercentageChange(-1, -1))
+	assert.True(t, math.IsInf(PercentageChange(0, 1), 1))
+	assert.Equal(t, -100., PercentageChange(1, 0))
+}
+
+func TestPercentageDifference(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, 196.03960396039605, PercentageDifference(1, 100))
+	require.Equal(t, 196.03960396039605, PercentageDifference(100, 1))
+	require.Equal(t, 0.13605442176870758, PercentageDifference(1.469, 1.471))
+	require.Equal(t, 0.13605442176870758, PercentageDifference(1.471, 1.469))
+	require.Equal(t, 0.0, PercentageDifference(1.0, 1.0))
+	require.True(t, math.IsNaN(PercentageDifference(0.0, 0.0)))
+}
+
+// 1000000000	         0.2215 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkPercentageDifference(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		PercentageDifference(1.469, 1.471)
 	}
 }
 
-func TestCalculatePercentageDifference(t *testing.T) {
+func TestPercentageDifferenceDecimal(t *testing.T) {
 	t.Parallel()
-	originalInput := float64(10)
-	secondAmount := float64(5)
-	expectedOutput := 66.66666666666666
-	actualResult := CalculatePercentageDifference(originalInput, secondAmount)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+	require.Equal(t, "196.03960396039604", PercentageDifferenceDecimal(decimal.NewFromFloat(1), decimal.NewFromFloat(100)).String())
+	require.Equal(t, "196.03960396039604", PercentageDifferenceDecimal(decimal.NewFromFloat(100), decimal.NewFromFloat(1)).String())
+	require.Equal(t, "0.13605442176871", PercentageDifferenceDecimal(decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)).String())
+	require.Equal(t, "0.13605442176871", PercentageDifferenceDecimal(decimal.NewFromFloat(1.471), decimal.NewFromFloat(1.469)).String())
+	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.NewFromFloat(1.0), decimal.NewFromFloat(1.0)).String())
+	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.Zero, decimal.Zero).String())
+}
+
+// 1585596	       751.8 ns/op	     792 B/op	      27 allocs/op
+func BenchmarkDecimalPercentageDifference(b *testing.B) {
+	d1, d2 := decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)
+	for i := 0; i < b.N; i++ {
+		PercentageDifferenceDecimal(d1, d2)
 	}
 }
 

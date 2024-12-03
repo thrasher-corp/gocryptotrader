@@ -1,11 +1,15 @@
 package kraken
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -72,10 +76,18 @@ const (
 	statusOpen = "open"
 
 	krakenFormat = "2006-01-02T15:04:05.000Z"
+
+	// ChannelOrderbookDepthKey configures the orderbook depth in stream.ChannelSubscription.Params
+	ChannelOrderbookDepthKey = "_depth"
+	// ChannelCandlesTimeframeKey configures the candle bar timeframe in stream.ChannelSubscription.Params
+	ChannelCandlesTimeframeKey = "_timeframe"
 )
 
 var (
 	assetTranslator assetTranslatorStore
+
+	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
+	errBadChannelSuffix         = errors.New("bad websocket channel suffix")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -84,16 +96,11 @@ type GenericResponse struct {
 	Result    string `json:"result"`
 }
 
-// AuthErrorData stores authenticated error messages
-type AuthErrorData struct {
-	Result     string `json:"result"`
-	ServerTime string `json:"serverTime"`
-	Error      string `json:"error"`
-}
-
-// SpotAuthError stores authenticated error messages
-type SpotAuthError struct {
-	Error interface{} `json:"error"` // can be a []string or string
+type genericFuturesResponse struct {
+	Result     string    `json:"result"`
+	ServerTime time.Time `json:"serverTime"`
+	Error      string    `json:"error"`
+	Errors     []string  `json:"errors"`
 }
 
 // Asset holds asset information
@@ -161,7 +168,7 @@ type TickerResponse struct {
 
 // OpenHighLowClose contains ticker event information
 type OpenHighLowClose struct {
-	Time                       float64
+	Time                       time.Time
 	Open                       float64
 	High                       float64
 	Low                        float64
@@ -169,13 +176,6 @@ type OpenHighLowClose struct {
 	VolumeWeightedAveragePrice float64
 	Volume                     float64
 	Count                      float64
-}
-
-// RecentTradesResponse defines the response for recent trades
-type RecentTradesResponse struct {
-	Error  []interface{}          `json:"error"`
-	Result map[string]interface{} `json:"result"`
-	Last   string                 `json:"last"`
 }
 
 // RecentTrades holds recent trade data
@@ -191,8 +191,9 @@ type RecentTrades struct {
 
 // OrderbookBase stores the orderbook price and amount data
 type OrderbookBase struct {
-	Price  float64
-	Amount float64
+	Price     types.Number
+	Amount    types.Number
+	Timestamp time.Time
 }
 
 // Orderbook stores the bids and asks orderbook data
@@ -498,43 +499,29 @@ type WithdrawStatusResponse struct {
 	Status string  `json:"status"`
 }
 
-// WebsocketSubscriptionEventRequest handles WS subscription events
-type WebsocketSubscriptionEventRequest struct {
-	Event        string                    `json:"event"`           // subscribe
-	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs        []string                  `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+// WebsocketSubRequest contains request data for Subscribe/Unsubscribe to channels
+type WebsocketSubRequest struct {
+	Event        string                    `json:"event"`
+	RequestID    int64                     `json:"reqid,omitempty"`
+	Pairs        []string                  `json:"pair,omitempty"`
 	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
-	Channels     subscription.List         `json:"-"` // Keeps track of associated subscriptions in batched outgoings
-}
-
-// WebsocketBaseEventRequest Just has an "event" property
-type WebsocketBaseEventRequest struct {
-	Event string `json:"event"` // eg "unsubscribe"
-}
-
-// WebsocketUnsubscribeByChannelIDEventRequest  handles WS unsubscribe events
-type WebsocketUnsubscribeByChannelIDEventRequest struct {
-	WebsocketBaseEventRequest
-	RequestID int64    `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs     []string `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
-	ChannelID int64    `json:"channelID,omitempty"`
 }
 
 // WebsocketSubscriptionData contains details on WS channel
 type WebsocketSubscriptionData struct {
 	Name     string `json:"name,omitempty"`     // ticker|ohlc|trade|book|spread|*, * for all (ohlc interval value is 1 if all channels subscribed)
-	Interval int64  `json:"interval,omitempty"` // Optional - Time interval associated with ohlc subscription in minutes. Default 1. Valid Interval values: 1|5|15|30|60|240|1440|10080|21600
-	Depth    int64  `json:"depth,omitempty"`    // Optional - depth associated with book subscription in number of levels each side, default 10. Valid Options are: 10, 25, 100, 500, 1000
-	Token    string `json:"token,omitempty"`    // Optional used for authenticated requests
+	Interval int    `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
+	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000
+	Token    string `json:"token,omitempty"`    // Optional - Token for authenticated channels
 
 }
 
 // WebsocketEventResponse holds all data response types
 type WebsocketEventResponse struct {
-	WebsocketBaseEventRequest
+	Event        string                            `json:"event"`
 	Status       string                            `json:"status"`
 	Pair         currency.Pair                     `json:"pair,omitempty"`
-	RequestID    int64                             `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	RequestID    int64                             `json:"reqid,omitempty"`
 	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
 	ChannelName  string                            `json:"channelName,omitempty"`
 	WebsocketSubscriptionEventResponse
@@ -551,30 +538,15 @@ type WebsocketSubscriptionResponseData struct {
 	Name string `json:"name"`
 }
 
-// WebsocketDataResponse defines a websocket data type
-type WebsocketDataResponse []interface{}
-
 // WebsocketErrorResponse defines a websocket error response
 type WebsocketErrorResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 }
 
-// WebsocketChannelData Holds relevant data for channels to identify what we're
-// doing
-type WebsocketChannelData struct {
-	Subscription string
-	Pair         currency.Pair
-	ChannelID    *int64
-	MaxDepth     int
-}
-
 // WsTokenResponse holds the WS auth token
 type WsTokenResponse struct {
-	Error  []string `json:"error"`
-	Result struct {
-		Expires int64  `json:"expires"`
-		Token   string `json:"token"`
-	} `json:"result"`
+	Expires int64  `json:"expires"`
+	Token   string `json:"token"`
 }
 
 type wsSystemStatus struct {
@@ -582,21 +554,6 @@ type wsSystemStatus struct {
 	Event        string  `json:"event"`
 	Status       string  `json:"status"`
 	Version      string  `json:"version"`
-}
-
-type wsSubscription struct {
-	ChannelID    *int64 `json:"channelID"`
-	ChannelName  string `json:"channelName"`
-	ErrorMessage string `json:"errorMessage"`
-	Event        string `json:"event"`
-	Pair         string `json:"pair"`
-	RequestID    int64  `json:"reqid"`
-	Status       string `json:"status"`
-	Subscription struct {
-		Depth    int    `json:"depth"`
-		Interval int    `json:"interval"`
-		Name     string `json:"name"`
-	} `json:"subscription"`
 }
 
 // WsOpenOrder contains all open order data from ws feed
@@ -743,3 +700,54 @@ var (
 	// RequestParamsTimeIOC IOC
 	RequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
+
+type genericRESTResponse struct {
+	Error  errorResponse `json:"error"`
+	Result any           `json:"result"`
+}
+
+type errorResponse struct {
+	warnings []string
+	errors   error
+}
+
+func (e *errorResponse) UnmarshalJSON(data []byte) error {
+	var errInterface any
+	if err := json.Unmarshal(data, &errInterface); err != nil {
+		return err
+	}
+
+	switch d := errInterface.(type) {
+	case string:
+		if d[0] == 'E' {
+			e.errors = common.AppendError(e.errors, errors.New(d))
+		} else {
+			e.warnings = append(e.warnings, d)
+		}
+	case []interface{}:
+		for x := range d {
+			errStr, ok := d[x].(string)
+			if !ok {
+				return fmt.Errorf("unable to convert %v to string", d[x])
+			}
+			if errStr[0] == 'E' {
+				e.errors = common.AppendError(e.errors, errors.New(errStr))
+			} else {
+				e.warnings = append(e.warnings, errStr)
+			}
+		}
+	default:
+		return fmt.Errorf("unhandled error response type %T", errInterface)
+	}
+	return nil
+}
+
+// Errors returns one or many errors as an error
+func (e errorResponse) Errors() error {
+	return e.errors
+}
+
+// Warnings returns a string of warnings
+func (e errorResponse) Warnings() string {
+	return strings.Join(e.warnings, ", ")
+}

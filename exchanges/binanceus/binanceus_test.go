@@ -1307,7 +1307,7 @@ var ticker24hourChangeStream = `{
 	"stream":"btcusdt@ticker",
 	"data" :{
 		"e": "24hrTicker",  
-		"E": 123456789,     
+		"E": 1234567891,     
 		"s": "BNBBTC",      
 		"p": "0.0015",      
 		"P": "250.00",      
@@ -1325,7 +1325,7 @@ var ticker24hourChangeStream = `{
 		"v": "10000",        
 		"q": "18",           
 		"O": 0,             
-		"C": 86400000,      
+		"C": 8640000011,      
 		"F": 0,             
 		"L": 18150,         
 		"n": 18151           
@@ -1346,11 +1346,11 @@ func TestWebsocketKlineUpdate(t *testing.T) {
 		"stream":"btcusdt@kline_1m",
 		"data":{
 			"e": "kline",     
-			"E": 123456789,   
+			"E": 1234567891,   
 			"s": "BNBBTC",    
 			"k": {
-				"t": 123400000, 
-				"T": 123460000, 
+				"t": 1234000001, 
+				"T": 1234600001, 
 				"s": "BNBBTC",  
 				"i": "1m",      
 				"f": 100,       
@@ -1429,7 +1429,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	}
 	update1 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
-	  "E": 123456788,     
+	  "E": 1234567891,     
 	  "s": "BTCUSDT",      
 	  "U": 157,           
 	  "u": 160,           
@@ -1446,7 +1446,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := bi.wsHandleData(update1); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
 	ob, err := bi.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
@@ -1465,7 +1465,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	update2 := []byte(`{
 		"stream":"btcusdt@depth","data":{
 			"e": "depthUpdate", 
-			"E": 123456789,     
+			"E": 1234567892,     
 			"s": "BTCUSDT",      
 			"U": 161,           
 			"u": 165,           
@@ -1686,7 +1686,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 var websocketDepthUpdate = []byte(
 	`{
 		"e": "depthUpdate",
-		"E": 123456789,    
+		"E": 12345678911,    
 		"s": "BNBBTC",     
 		"U": 157,          
 		"u": 160,          

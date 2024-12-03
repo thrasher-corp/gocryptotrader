@@ -289,11 +289,14 @@ func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 		return err
 	}
 
-	enabled, err := pairStore.Enabled.Remove(pair)
-	if err != nil {
-		return err
+	enabledLen := len(pairStore.Enabled)
+
+	pairStore.Enabled = pairStore.Enabled.Remove(pair)
+
+	if enabledLen == len(pairStore.Enabled) {
+		return fmt.Errorf("%w %s", ErrPairNotFound, pair)
 	}
-	pairStore.Enabled = enabled
+
 	return nil
 }
 
@@ -494,7 +497,7 @@ func (p *PairsManager) SetDelimitersFromConfig() error {
 		}
 		for i, p := range []Pairs{s.Enabled, s.Available} {
 			for j := range p {
-				if p[j].Delimiter == cf.Delimiter {
+				if cf.Delimiter == "" || p[j].Delimiter == cf.Delimiter {
 					continue
 				}
 				nP, err := NewPairDelimiter(p[j].String(), cf.Delimiter)

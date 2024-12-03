@@ -22,8 +22,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
 
 // Please supply your own keys here to do better tests
@@ -748,4 +750,24 @@ func TestStripExponent(t *testing.T) {
 
 	_, err = (&MarketPair{Symbol: "M_BTC_ETH"}).StripExponent()
 	assert.ErrorIs(t, err, errInvalidPairSymbol, "Should error on a symbol with too many underscores")
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	b := new(BTSE)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+
+	exp := subscription.List{
+		{Channel: subscription.AllTradesChannel, QualifiedChannel: "tradeHistory:BTC-USD", Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+		{Channel: subscription.MyTradesChannel, QualifiedChannel: "notificationApi"},
+	}
+
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	testsubs.EqualLists(t, exp, subs)
+
+	_, err = subscription.List{{Channel: subscription.OrderbookChannel}}.ExpandTemplates(b)
+	assert.ErrorContains(t, err, "Channel not supported", "Sub template must error on unsupported channels")
 }
