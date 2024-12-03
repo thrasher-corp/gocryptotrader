@@ -625,15 +625,15 @@ func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
 	require.ErrorIs(t, err, errInvalidCategory)
-	_, err = b.GetTickers(context.Background(), "option", "BTC-29DEC23-80000-C", "", time.Time{})
+	_, err = b.GetTickers(context.Background(), "option", "BTC-26NOV24-92000-C", "", time.Time{})
 	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
-	require.NoError(t, err)
-	_, err = b.GetTickers(context.Background(), "option", "", "BTC", time.Time{})
 	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "inverse", "", "", time.Time{})
 	require.NoError(t, err)
 	_, err = b.GetTickers(context.Background(), "linear", "", "", time.Time{})
+	require.NoError(t, err)
+	_, err = b.GetTickers(context.Background(), "option", "", "BTC", time.Time{})
 	require.NoError(t, err)
 }
 
@@ -761,34 +761,28 @@ func TestGetDeliveryPrice(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
-	}
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	assert.NoError(t, err)
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	assert.NoError(t, err)
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.USDTMarginedFutures)
+	assert.NoError(t, err)
+
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error("Bybit UpdateOrderExecutionLimits() error", err)
-	}
-	enabled, err := b.GetAvailablePairs(asset.Spot)
+	assert.NoError(t, err)
+	availablePairs, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		t.Fatal("Bybit GetAvailablePairs() error", err)
 	}
-	for x := range enabled {
+	for x := range availablePairs {
 		var limits order.MinMaxLevel
-		limits, err = b.GetOrderExecutionLimits(asset.Spot, enabled[x])
-		if err != nil {
-			t.Fatal("Bybit GetOrderExecutionLimits() error", err)
-		}
+		limits, err = b.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
+		require.NoError(t, err)
 		if limits == (order.MinMaxLevel{}) {
 			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
 		}
-	}
-	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Options)
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -1267,7 +1261,7 @@ func TestGetPositionInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPositionInfo(context.Background(), "option", "BTC-29DEC23-80000-C", "BTC", "", "", 20)
+	_, err = b.GetPositionInfo(context.Background(), "option", "BTC-26NOV24-92000-C", "BTC", "", "", 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3181,7 +3175,7 @@ func TestWsOptionsConnect(t *testing.T) {
 var pushDataMap = map[string]string{
 	"Orderbook Snapshot":   `{"topic":"orderbook.50.BTCUSDT","ts":1731035685326,"type":"snapshot","data":{"s":"BTCUSDT","b":[["75848.74","0.067669"],["75848.63","0.004772"],["75848.61","0.00659"],["75848.05","0.000329"],["75847.68","0.00159"],["75846.88","0.00159"],["75845.97","0.026366"],["75845.87","0.013185"],["75845.41","0.077259"],["75845.4","0.132228"],["75844.61","0.00159"],["75844.44","0.026367"],["75844.2","0.013185"],["75844","0.00039"],["75843.13","0.00159"],["75843.07","0.013185"],["75842.33","0.00159"],["75841.99","0.006"],["75841.75","0.019538"],["75841.74","0.04"],["75841.71","0.031817"],["75841.36","0.017336"],["75841.33","0.000072"],["75841.16","0.001872"],["75841.11","0.172641"],["75841.04","0.029772"],["75841","0.000065"],["75840.93","0.015244"],["75840.86","0.00159"],["75840.79","0.000072"],["75840.38","0.043333"],["75840.32","0.092539"],["75840.3","0.132228"],["75840.2","0.054966"],["75840.06","0.00159"],["75840","0.20726"],["75839.64","0.003744"],["75839.29","0.006592"],["75838.58","0.00159"],["75838.52","0.049778"],["75838.14","0.003955"],["75838","0.000065"],["75837.78","0.00159"],["75837.75","0.000587"],["75837.53","0.322245"],["75837.52","0.593323"],["75837.37","0.00384"],["75837.29","0.044335"],["75837.24","0.119228"],["75837.13","0.152844"]],"a":[["75848.75","0.747137"],["75848.89","0.060306"],["75848.9","0.1"],["75851.43","0.00159"],["75851.44","0.080754"],["75852.23","0.00159"],["75852.54","0.131067"],["75852.65","0.003955"],["75853.71","0.00159"],["75853.86","0.003955"],["75854.43","0.015684"],["75854.5","0.130389"],["75854.51","0.00159"],["75855.21","0.031168"],["75855.23","0.271494"],["75855.73","0.042698"],["75855.98","0.00159"],["75856.04","0.01346"],["75856.33","0.001872"],["75856.78","0.00159"],["75857.15","0.000072"],["75857.17","0.015127"],["75857.8","0.043322"],["75857.81","0.045305"],["75857.85","0.003792"],["75858.09","0.026344"],["75858.26","0.00159"],["75859.06","0.031618"],["75859.07","0.025"],["75859.1","0.006592"],["75859.98","0.013183"],["75860.12","0.00384"],["75860.54","0.00159"],["75860.74","0.051204"],["75860.75","0.065861"],["75861.18","0.031222"],["75861.33","0.00159"],["75861.64","0.003888"],["75861.96","0.042213"],["75862.28","0.000777"],["75862.79","0.013184"],["75862.81","0.00159"],["75862.84","0.027959"],["75863.16","0.003888"],["75863.51","0.043628"],["75863.52","0.002525"],["75863.61","0.00159"],["75864.2","0.003955"],["75864.76","0.000072"],["75864.81","0.002018"]],"u":2876700,"seq":47474967795},"cts":1731035685323}`,
 	"Orderbook Update":     `{"topic":"orderbook.50.BTCUSDT","ts":1731035685345,"type":"delta","data":{"s":"BTCUSDT","b":[["75848.62","0.014895"],["75837.13","0"]],"a":[["75848.89","0.088149"],["75851.44","0.078379"],["75852.65","0"],["75855.23","0.260219"],["75857.74","0.049778"]],"u":2876701,"seq":47474967823},"cts":1731035685342}`,
-	"Public Trade":         `{"topic":"publicTrade.ATOM2SUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"ATOM2SUSDT","BT":false}]}`,
+	"Public Trade":         `{"topic":"publicTrade.BTCUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"BTCUSDT","BT":false}]}`,
 	"Public Kline":         `{ "topic": "kline.5.BTCUSDT", "data": [ { "start": 1672324800000, "end": 1672325099999, "interval": "5", "open": "16649.5", "close": "16677", "high": "16677", "low": "16608", "volume": "2.081", "turnover": "34666.4005", "confirm": false, "timestamp": 1672324988882 } ], "ts": 1672324988882,"type": "snapshot"}`,
 	"Public Liquidiation":  `{ "data": { "price": "0.03803", "side": "Buy", "size": "1637", "symbol": "GALAUSDT", "updatedTime": 1673251091822 }, "topic": "liquidation.GALAUSDT", "ts": 1673251091822, "type": "snapshot" }`,
 	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.BTCUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393 } ], "ts": 1672325322393 }`,
@@ -3555,7 +3549,7 @@ func TestStringToOrderStatus(t *testing.T) {
 }
 
 func TestRetrieveAndSetAccountType(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.RetrieveAndSetAccountType(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -3780,4 +3774,68 @@ func TestAuthSubscribe(t *testing.T) {
 	success = false
 	err = b.Subscribe(subs)
 	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
+}
+
+func TestTransformSymbol(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		symbol         string
+		baseCoin       string
+		contractType   string
+		item           asset.Item
+		expectedSymbol string
+	}{
+		{
+			symbol:         "POPCATUSDT",
+			baseCoin:       "POPCAT",
+			item:           asset.Spot,
+			expectedSymbol: "POPCAT_USDT",
+		},
+		{
+			symbol:         "BTC26SEP25-300000-P",
+			item:           asset.Options,
+			baseCoin:       "BTC",
+			expectedSymbol: "BTC-26SEP25-300000-P",
+		},
+		{
+			symbol:         "1000000BABYDOGEUSDT",
+			item:           asset.USDTMarginedFutures,
+			baseCoin:       "1000000BABYDOGE",
+			expectedSymbol: "1000000BABYDOGE-USDT",
+		},
+		{
+			symbol:         "BTC-06DEC24",
+			item:           asset.USDCMarginedFutures,
+			expectedSymbol: "BTC-06DEC24",
+			contractType:   "LinearFutures",
+		},
+		{
+			symbol:         "1000PEPEPERP",
+			baseCoin:       "1000PEPE",
+			item:           asset.USDCMarginedFutures,
+			expectedSymbol: "1000PEPE-PERP",
+		},
+		{
+			symbol:         "BTCUSD",
+			baseCoin:       "BTC",
+			item:           asset.CoinMarginedFutures,
+			expectedSymbol: "BTC_USD",
+		},
+		{
+			symbol:         "nothingHappens",
+			item:           asset.CrossMargin,
+			expectedSymbol: "nothingHappens",
+		},
+	}
+	for i := range tests {
+		t.Run(tests[i].symbol+" "+tests[i].item.String(), func(t *testing.T) {
+			t.Parallel()
+			ii := InstrumentInfo{
+				Symbol:       tests[i].symbol,
+				ContractType: tests[i].contractType,
+				BaseCoin:     tests[i].baseCoin,
+			}
+			assert.Equal(t, tests[i].expectedSymbol, ii.transformSymbol(tests[i].item), "expected symbols to match")
+		})
+	}
 }
