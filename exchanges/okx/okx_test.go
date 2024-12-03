@@ -5488,37 +5488,6 @@ func TestGetLendingSubOrderList(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetLendingOffers(t *testing.T) {
-	t.Parallel()
-	result, err := ok.GetLendingOffers(context.Background(), currency.BTC, "30D")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetLendingAPYHistory(t *testing.T) {
-	t.Parallel()
-	_, err := ok.GetLendingAPYHistory(context.Background(), currency.EMPTYCODE, "30D")
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = ok.GetLendingAPYHistory(context.Background(), currency.BTC, "")
-	require.ErrorIs(t, err, errLendingTermIsRequired)
-
-	result, err := ok.GetLendingAPYHistory(context.Background(), currency.BTC, "30D")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetLendingVolume(t *testing.T) {
-	t.Parallel()
-	_, err := ok.GetLendingVolume(context.Background(), currency.EMPTYCODE, "30D")
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = ok.GetLendingVolume(context.Background(), currency.BTC, "")
-	require.ErrorIs(t, err, errLendingTermIsRequired)
-
-	result, err := ok.GetLendingVolume(context.Background(), currency.BTC, "30D")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestCancelAllSpreadOrdersAfterCountdown(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CancelAllSpreadOrdersAfterCountdown(context.Background(), 2)

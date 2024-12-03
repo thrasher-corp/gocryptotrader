@@ -5513,7 +5513,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume-strike", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetTakerFlow shows the relative buy/sell volume for calls and puts.
+// GetTakerFlow shows the relative buy/sell volume for calls and puts
 // It shows whether traders are bullish or bearish on price and volatility
 func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline.Interval) (*CurrencyTakerFlow, error) {
 	params := url.Values{}
@@ -5530,10 +5530,10 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline
 
 // ********************************************************** Affiliate **********************************************************************
 
-// The Affiliate API offers affiliate users a flexible function to query the invitee information.
-// Simply enter the UID of your direct invitee to access their relevant information, empowering your affiliate business growth and day-to-day business operation.
-// If you have additional data requirements regarding the Affiliate API, please don't hesitate to contact your BD.
-// We will reach out to you through your BD to provide more comprehensive API support.
+// The Affiliate API offers affiliate users a flexible function to query the invitee information
+// Simply enter the UID of your direct invitee to access their relevant information, empowering your affiliate business growth and day-to-day business operation
+// If you have additional data requirements regarding the Affiliate API, please don't hesitate to contact your BD
+// We will reach out to you through your BD to provide more comprehensive API support
 
 // GetInviteesDetail retrieves affiliate invitees details.
 func (ok *Okx) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
@@ -5857,50 +5857,7 @@ func (ok *Okx) GetLendingSubOrderList(ctx context.Context, orderID, state string
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingSubOrderListEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetLendingOffers get lending-supported currencies and estimated APY.
-func (ok *Okx) GetLendingOffers(ctx context.Context, ccy currency.Code, term string) ([]PublicLendingOffer, error) {
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if term != "" {
-		params.Set("term", term)
-	}
-	var resp []PublicLendingOffer
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingPublicOfferEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-offers", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// GetLendingAPYHistory retrieves a lending history.
-func (ok *Okx) GetLendingAPYHistory(ctx context.Context, ccy currency.Code, term string) ([]LendingAPIHistoryItem, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if term == "" {
-		return nil, errLendingTermIsRequired
-	}
-	params := url.Values{}
-	params.Set("term", term)
-	params.Set("ccy", ccy.String())
-	var resp []LendingAPIHistoryItem
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingAPYHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-apy-history", params), nil, &resp, request.UnauthenticatedRequest)
-}
-
-// GetLendingVolume retrieves a lending volume
-func (ok *Okx) GetLendingVolume(ctx context.Context, ccy currency.Code, term string) ([]LendingVolume, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if term == "" {
-		return nil, errLendingTermIsRequired
-	}
-	params := url.Values{}
-	params.Set("term", term)
-	params.Set("ccy", ccy.String())
-	var resp []LendingVolume
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lendingVolumeEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/pending-lending-volume", params), nil, &resp, request.UnauthenticatedRequest)
-}
-
-// Trading Statistics endpoints.
+// Trading Statistics endpoints
 
 // GetFuturesContractsOpenInterestHistory retrieve the contract open interest statistics of futures and perp. This endpoint returns a maximum of 1440 records.
 func (ok *Okx) GetFuturesContractsOpenInterestHistory(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]ContractOpenInterestHistoryItem, error) {
