@@ -51,11 +51,8 @@ const (
 
 // Public Errors
 var (
-	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
-	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
-	// ErrSettingProxyAddress is returned when setting a proxy address fails
-	ErrSettingProxyAddress = errors.New("setting proxy address error")
-	// ErrEndpointPathNotFound is returned when an endpoint path is not found for a particular key
+	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	ErrSettingProxyAddress   = errors.New("setting proxy address error")
 	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
 	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
 )

@@ -1416,7 +1416,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 				return nil, err
 			}
 		}
-		jwt, _, err := c.GetJWT(ctx, method+" "+endpoint[8:]+path)
+		var jwt string
+		jwt, _, err = c.GetJWT(ctx, method+" "+endpoint[8:]+path)
 		if err != nil {
 			return nil, err
 		}
