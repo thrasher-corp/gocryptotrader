@@ -135,7 +135,7 @@ func TestExpandTemplates(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1, "Must get back the one sub")
 	assert.Equal(t, "already happy", l[0].QualifiedChannel, "Should get back the one sub")
-	assert.NotSame(t, got, l, "Should get back a different actual list")
+	assert.NotSame(t, &got, &l, "Should get back a different actual list")
 
 	_, err = List{{Channel: "nil"}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errInvalidTemplate, "Should get correct error on nil template")
