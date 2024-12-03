@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
-	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -110,7 +111,7 @@ func (bi *Bitget) WsConnect() error {
 	}
 	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData(bi.Websocket.Conn)
-	stream.Connection.SetupPingHandler(bi.Websocket.Conn, stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Message:     []byte(`ping`),
 		MessageType: websocket.TextMessage,
@@ -138,7 +139,7 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	}
 	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData(bi.Websocket.AuthConn)
-	stream.Connection.SetupPingHandler(bi.Websocket.AuthConn, stream.PingHandler{
+	bi.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Message:     []byte(`ping`),
 		MessageType: websocket.TextMessage,
@@ -166,7 +167,7 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = bi.Websocket.AuthConn.SendJSONMessage(payload)
+	err = bi.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, payload)
 	if err != nil {
 		return err
 	}
@@ -1104,7 +1105,7 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 			wg.Add(1)
 			go func(req WsRequest) {
 				defer wg.Done()
-				err := bi.Websocket.Conn.SendJSONMessage(req)
+				err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 				if err != nil {
 					errC <- err
 				}
@@ -1116,7 +1117,7 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 			wg.Add(1)
 			go func(req WsRequest) {
 				defer wg.Done()
-				err := bi.Websocket.AuthConn.SendJSONMessage(req)
+				err := bi.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
 				if err != nil {
 					errC <- err
 				}

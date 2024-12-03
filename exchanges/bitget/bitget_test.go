@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
@@ -101,7 +102,7 @@ func TestMain(m *testing.M) {
 	}
 	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData(bi.Websocket.Conn)
-	stream.Connection.SetupPingHandler(bi.Websocket.Conn, stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		Websocket:   true,
 		Message:     []byte(`ping`),
 		MessageType: websocket.TextMessage,
@@ -771,8 +772,7 @@ func TestSpotGetPlanSubOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	ordIDs := getPlanOrdIDHelper(t, true)
 	require.NotNil(t, ordIDs)
-	// This gets the error "the current plan order does not exist or has not been triggered" even when using
-	// a plan order that definitely exists and has definitely been triggered. Re-investigate later
+	// This gets the error "the current plan order does not exist or has not been triggered" even when using a plan order that definitely exists and has definitely been triggered. Re-investigate later
 	testGetOneArg(t, bi.GetSpotPlanSubOrder, "", strconv.FormatInt(int64(ordIDs.OrderID), 10), errOrderIDEmpty, true, true, true)
 }
 

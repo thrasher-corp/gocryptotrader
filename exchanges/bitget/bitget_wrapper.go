@@ -179,21 +179,21 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 		Verbose:          bi.Verbose,
 		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
 	}
-	err = bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  bitgetPublicWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            10,
+		RateLimit:            request.NewRateLimitWithWeight(time.Hour, 240, 1),
 	})
 	if err != nil {
 		return err
 	}
-	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  bitgetPrivateWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            10,
+		RateLimit:            request.NewRateLimitWithWeight(time.Hour, 240, 1),
 	})
 }
 
@@ -835,7 +835,7 @@ func (bi *Bitget) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, e
 
 // SubmitOrder submits a new order
 func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(bi.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -2490,8 +2490,10 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
 	var pagination int64
 	for {
-		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now(), 100, pagination)
+		bi.Verbose = true
+		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now().Add(-time.Second), 100, pagination)
 		if err != nil {
+			bi.Verbose = false
 			return nil, err
 		}
 		if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.IDLessThan) {
