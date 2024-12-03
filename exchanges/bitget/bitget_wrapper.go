@@ -206,14 +206,16 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			return nil, err
 		}
 		pairs := make(currency.Pairs, len(resp))
+		var filter int
 		for x := range resp {
-			pair, err := currency.NewPairFromString(resp[x].BaseCoin + "-" + resp[x].QuoteCoin)
-			if err != nil {
-				return nil, err
+			if resp[x].PricePrecision == 0 && resp[x].QuantityPrecision == 0 && resp[x].QuotePrecision == 0 {
+				continue
 			}
-			pairs[x] = pair
+			pair := currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
+			pairs[filter] = pair
+			filter++
 		}
-		return pairs, nil
+		return pairs[:filter], nil
 	case asset.Futures:
 		var resp []FutureTickerResp
 		req := []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
@@ -240,7 +242,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		}
 		pairs := make(currency.Pairs, len(resp))
 		for x := range resp {
-			pairs[x] = currency.NewPair(currency.NewCode(resp[x].BaseCoin), currency.NewCode(resp[x].QuoteCoin))
+			pairs[x] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
 		}
 		return pairs, nil
 	}
@@ -562,7 +564,7 @@ func (bi *Bitget) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		acc.Accounts = make([]account.SubAccount, 1)
 		acc.Accounts[0].Currencies = make([]account.Balance, len(resp))
 		for x := range resp {
-			acc.Accounts[0].Currencies[x].Currency = currency.NewCode(resp[x].Coin)
+			acc.Accounts[0].Currencies[x].Currency = resp[x].Coin
 			acc.Accounts[0].Currencies[x].Hold = resp[x].Frozen + resp[x].Locked + resp[x].LimitAvailable
 			acc.Accounts[0].Currencies[x].Total = resp[x].Available + acc.Accounts[0].Currencies[x].Hold
 			acc.Accounts[0].Currencies[x].Free = resp[x].Available
@@ -576,7 +578,7 @@ func (bi *Bitget) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			}
 			acc.Accounts[i].Currencies = make([]account.Balance, len(resp))
 			for x := range resp {
-				acc.Accounts[i].Currencies[x].Currency = currency.NewCode(resp[x].MarginCoin)
+				acc.Accounts[i].Currencies[x].Currency = resp[x].MarginCoin
 				acc.Accounts[i].Currencies[x].Hold = resp[x].Locked
 				acc.Accounts[i].Currencies[x].Total = resp[x].Locked + resp[x].Available
 				acc.Accounts[i].Currencies[x].Free = resp[x].Available
@@ -590,7 +592,7 @@ func (bi *Bitget) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		acc.Accounts = make([]account.SubAccount, 1)
 		acc.Accounts[0].Currencies = make([]account.Balance, len(resp))
 		for x := range resp {
-			acc.Accounts[0].Currencies[x].Currency = currency.NewCode(resp[x].Coin)
+			acc.Accounts[0].Currencies[x].Currency = resp[x].Coin
 			acc.Accounts[0].Currencies[x].Hold = resp[x].Frozen
 			acc.Accounts[0].Currencies[x].Total = resp[x].TotalAmount
 			acc.Accounts[0].Currencies[x].Free = resp[x].Available
@@ -604,7 +606,7 @@ func (bi *Bitget) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		acc.Accounts = make([]account.SubAccount, 1)
 		acc.Accounts[0].Currencies = make([]account.Balance, len(resp))
 		for x := range resp {
-			acc.Accounts[0].Currencies[x].Currency = currency.NewCode(resp[x].Coin)
+			acc.Accounts[0].Currencies[x].Currency = resp[x].Coin
 			acc.Accounts[0].Currencies[x].Hold = resp[x].Frozen
 			acc.Accounts[0].Currencies[x].Total = resp[x].TotalAmount
 			acc.Accounts[0].Currencies[x].Free = resp[x].Available
@@ -618,7 +620,7 @@ func (bi *Bitget) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return acc, err
 	}
 	for x := range acc.Accounts {
-		acc.Accounts[x].ID = strconv.FormatInt(ID.UserID, 10)
+		acc.Accounts[x].ID = strconv.FormatUint(ID.UserID, 10)
 		acc.Accounts[x].AssetType = assetType
 	}
 	err = account.Process(&acc, creds)
@@ -656,7 +658,7 @@ func (bi *Bitget) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 			Status:            resp[x].Status,
 			TransferID:        strconv.FormatInt(resp[x].OrderID, 10),
 			Timestamp:         resp[x].CreationTime.Time(),
-			Currency:          resp[x].Coin,
+			Currency:          resp[x].Coin.String(),
 			Amount:            resp[x].Size,
 			TransferType:      "Withdrawal",
 			CryptoToAddress:   resp[x].ToAddress,
@@ -686,7 +688,7 @@ func (bi *Bitget) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 				Status:            resp[x].Status,
 				TransferID:        strconv.FormatInt(resp[x].OrderID, 10),
 				Timestamp:         resp[x].CreationTime.Time(),
-				Currency:          resp[x].Coin,
+				Currency:          resp[x].Coin.String(),
 				Amount:            resp[x].Size,
 				TransferType:      "Deposit",
 				CryptoToAddress:   resp[x].ToAddress,
@@ -715,7 +717,7 @@ func (bi *Bitget) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 			Status:          resp[x].Status,
 			TransferID:      strconv.FormatInt(resp[x].OrderID, 10),
 			Timestamp:       resp[x].CreationTime.Time(),
-			Currency:        resp[x].Coin,
+			Currency:        resp[x].Coin.String(),
 			Amount:          resp[x].Size,
 			TransferType:    "Withdrawal",
 			CryptoToAddress: resp[x].ToAddress,
@@ -1040,7 +1042,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if len(ordInfo) == 0 {
 			return nil, errOrderNotFound
 		}
-		resp.AccountID = ordInfo[0].UserID
+		resp.AccountID = strconv.FormatUint(ordInfo[0].UserID, 10)
 		resp.ClientOrderID = ordInfo[0].ClientOrderID
 		resp.Price = ordInfo[0].Price
 		resp.Amount = ordInfo[0].Size
@@ -1053,7 +1055,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		resp.LastUpdated = ordInfo[0].UpdateTime.Time()
 		for s, f := range ordInfo[0].FeeDetail {
 			if s != "newFees" {
-				resp.FeeAsset = currency.NewCode(f.FeeCoinCode)
+				resp.FeeAsset = f.FeeCoinCode
 				resp.Fee = f.TotalFee
 				break
 			}
@@ -1071,7 +1073,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 				Price:     fillInfo[x].PriceAverage,
 				Amount:    fillInfo[x].Size,
 				Fee:       fillInfo[x].FeeDetail.TotalFee,
-				FeeAsset:  fillInfo[x].FeeDetail.FeeCoin,
+				FeeAsset:  fillInfo[x].FeeDetail.FeeCoin.String(),
 				Timestamp: fillInfo[x].CreationTime.Time(),
 			}
 		}
@@ -1088,7 +1090,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		resp.Status = statusDecoder(ordInfo.State)
 		resp.Side = sideDecoder(ordInfo.Side)
 		resp.ImmediateOrCancel, resp.FillOrKill, resp.PostOnly = strategyDecoder(ordInfo.Force)
-		resp.SettlementCurrency = currency.NewCode(ordInfo.MarginCoin)
+		resp.SettlementCurrency = ordInfo.MarginCoin
 		resp.LimitPriceUpper = ordInfo.PresetStopSurplusPrice
 		resp.LimitPriceLower = ordInfo.PresetStopLossPrice
 		resp.QuoteAmount = ordInfo.QuoteVolume
@@ -1113,7 +1115,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			}
 			for i := range fillInfo.FillList[x].FeeDetail {
 				resp.Trades[x].Fee += fillInfo.FillList[x].FeeDetail[i].TotalFee
-				resp.Trades[x].FeeAsset = fillInfo.FillList[x].FeeDetail[i].FeeCoin
+				resp.Trades[x].FeeAsset = fillInfo.FillList[x].FeeDetail[i].FeeCoin.String()
 			}
 			if fillInfo.FillList[x].TradeScope == "maker" {
 				resp.Trades[x].IsMaker = true
@@ -1161,7 +1163,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 				Amount:    fillInfo.Fills[x].Size,
 				Timestamp: fillInfo.Fills[x].CreationTime.Time(),
 				Fee:       fillInfo.Fills[x].FeeDetail.TotalFee,
-				FeeAsset:  fillInfo.Fills[x].FeeDetail.FeeCoin,
+				FeeAsset:  fillInfo.Fills[x].FeeDetail.FeeCoin.String(),
 			}
 		}
 	default:
@@ -1248,7 +1250,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					tempOrds[i] = order.Detail{
 						Exchange:             bi.Name,
 						AssetType:            asset.Spot,
-						AccountID:            genOrds[i].UserID,
+						AccountID:            strconv.FormatUint(genOrds[i].UserID, 10),
 						OrderID:              strconv.FormatInt(int64(genOrds[i].OrderID), 10),
 						ClientOrderID:        genOrds[i].ClientOrderID,
 						AverageExecutedPrice: genOrds[i].PriceAverage,
@@ -1423,7 +1425,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					tempOrds[i] = order.Detail{
 						Exchange:             bi.Name,
 						AssetType:            asset.Spot,
-						AccountID:            genOrds[i].UserID,
+						AccountID:            strconv.FormatUint(genOrds[i].UserID, 10),
 						OrderID:              strconv.FormatInt(int64(genOrds[i].OrderID), 10),
 						ClientOrderID:        genOrds[i].ClientOrderID,
 						Price:                genOrds[i].Price,
@@ -1446,7 +1448,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					}
 					for y := range genOrds[i].FeeDetail {
 						tempOrds[i].Fee += genOrds[i].FeeDetail[y].TotalFee
-						tempOrds[i].FeeAsset = currency.NewCode(genOrds[i].FeeDetail[y].FeeCoinCode)
+						tempOrds[i].FeeAsset = genOrds[i].FeeDetail[y].FeeCoinCode
 					}
 					if len(fillMap[int64(genOrds[i].OrderID)]) > 0 {
 						tempOrds[i].Trades = fillMap[int64(genOrds[i].OrderID)]
@@ -1494,7 +1496,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 						Amount:    genFills.Fills[i].Size,
 						Timestamp: genFills.Fills[i].CreationTime.Time(),
 						Fee:       genFills.Fills[i].FeeDetail.TotalFee,
-						FeeAsset:  genFills.Fills[i].FeeDetail.FeeCoin,
+						FeeAsset:  genFills.Fills[i].FeeDetail.FeeCoin.String(),
 					})
 				}
 			}
@@ -1681,7 +1683,7 @@ func (bi *Bitget) GetFuturesContractDetails(ctx context.Context, _ asset.Item) (
 		for x := range resp {
 			temp[x] = futures.Contract{
 				Exchange:    bi.Name,
-				Name:        currency.NewPair(currency.NewCode(resp[x].BaseCoin), currency.NewCode(resp[x].QuoteCoin)),
+				Name:        currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin),
 				Multiplier:  resp[x].SizeMultiplier,
 				Asset:       itemDecoder(resp[x].SymbolType),
 				Type:        contractTypeDecoder(resp[x].SymbolType),
@@ -1747,7 +1749,7 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		for i := range resp {
 			limits[i] = order.MinMaxLevel{
 				Asset:                   a,
-				Pair:                    currency.NewPair(currency.NewCode(resp[i].BaseCoin), currency.NewCode(resp[i].QuoteCoin)),
+				Pair:                    currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin),
 				PriceStepIncrementSize:  math.Pow10(-int(resp[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(resp[i].QuantityPrecision)),
 				QuoteStepIncrementSize:  math.Pow10(-int(resp[i].QuotePrecision)),
@@ -1766,7 +1768,7 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			for x := range resp {
 				tempResp[x] = order.MinMaxLevel{
 					Asset:          a,
-					Pair:           currency.NewPair(currency.NewCode(resp[x].BaseCoin), currency.NewCode(resp[x].QuoteCoin)),
+					Pair:           currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin),
 					MinNotional:    resp[x].MinTradeUSDT,
 					MaxTotalOrders: resp[x].MaxSymbolOpenOrderNum,
 				}
@@ -1782,7 +1784,7 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		for i := range resp {
 			limits[i] = order.MinMaxLevel{
 				Asset:                   a,
-				Pair:                    currency.NewPair(currency.NewCode(resp[i].BaseCoin), currency.NewCode(resp[i].QuoteCoin)),
+				Pair:                    currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin),
 				MinNotional:             resp[i].MinTradeUSDT,
 				MarketMinQty:            resp[i].MinTradeAmount,
 				MarketMaxQty:            resp[i].MaxTradeAmount,
@@ -1818,7 +1820,7 @@ func (bi *Bitget) UpdateCurrencyStates(ctx context.Context, a asset.Item) error 
 		if withdraw && deposit {
 			trade = true
 		}
-		payload[currency.NewCode(resp[i].Coin)] = currencystate.Options{
+		payload[resp[i].Coin] = currencystate.Options{
 			Withdraw: &withdraw,
 			Deposit:  &deposit,
 			Trade:    &trade,
@@ -2418,7 +2420,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 				AverageExecutedPrice: float64(genOrds.EntrustedList[i].PriceAverage),
 				Status:               statusDecoder(genOrds.EntrustedList[i].Status),
 				Side:                 sideDecoder(genOrds.EntrustedList[i].Side),
-				SettlementCurrency:   currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+				SettlementCurrency:   genOrds.EntrustedList[i].MarginCoin,
 				QuoteAmount:          genOrds.EntrustedList[i].QuoteVolume,
 				Leverage:             genOrds.EntrustedList[i].Leverage,
 				MarginType:           marginDecoder(genOrds.EntrustedList[i].MarginMode),
@@ -2463,7 +2465,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 					TriggerPrice:       float64(genOrds.EntrustedList[i].TriggerPrice),
 					Status:             statusDecoder(genOrds.EntrustedList[i].PlanStatus),
 					Side:               sideDecoder(genOrds.EntrustedList[i].Side),
-					SettlementCurrency: currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+					SettlementCurrency: genOrds.EntrustedList[i].MarginCoin,
 					MarginType:         marginDecoder(genOrds.EntrustedList[i].MarginMode),
 					Type:               typeDecoder(genOrds.EntrustedList[i].OrderType),
 					Date:               genOrds.EntrustedList[i].CreationTime.Time(),
@@ -2490,10 +2492,8 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
 	var pagination int64
 	for {
-		bi.Verbose = true
 		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now().Add(-time.Second), 100, pagination)
 		if err != nil {
-			bi.Verbose = false
 			return nil, err
 		}
 		if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.IDLessThan) {
@@ -2552,7 +2552,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType 
 			}
 			for y := range fillOrds.FillList[i].FeeDetail {
 				tempFill.Fee += fillOrds.FillList[i].FeeDetail[y].TotalFee
-				tempFill.FeeAsset = fillOrds.FillList[i].FeeDetail[y].FeeCoin
+				tempFill.FeeAsset = fillOrds.FillList[i].FeeDetail[y].FeeCoin.String()
 			}
 			fillMap[fillOrds.FillList[i].OrderID] = append(fillMap[fillOrds.FillList[i].OrderID], tempFill)
 		}
@@ -2580,7 +2580,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType 
 				AverageExecutedPrice: float64(genOrds.EntrustedList[i].PriceAverage),
 				Status:               statusDecoder(genOrds.EntrustedList[i].Status),
 				Side:                 sideDecoder(genOrds.EntrustedList[i].Side),
-				SettlementCurrency:   currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+				SettlementCurrency:   genOrds.EntrustedList[i].MarginCoin,
 				QuoteAmount:          genOrds.EntrustedList[i].QuoteVolume,
 				Leverage:             genOrds.EntrustedList[i].Leverage,
 				MarginType:           marginDecoder(genOrds.EntrustedList[i].MarginMode),
@@ -2629,7 +2629,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType 
 					AverageExecutedPrice: float64(genOrds.EntrustedList[i].PriceAverage),
 					TriggerPrice:         float64(genOrds.EntrustedList[i].TriggerPrice),
 					Side:                 sideDecoder(genOrds.EntrustedList[i].Side),
-					SettlementCurrency:   currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+					SettlementCurrency:   genOrds.EntrustedList[i].MarginCoin,
 					MarginType:           marginDecoder(genOrds.EntrustedList[i].MarginMode),
 					Type:                 typeDecoder(genOrds.EntrustedList[i].OrderType),
 					Date:                 genOrds.EntrustedList[i].CreationTime.Time(),
@@ -2676,7 +2676,7 @@ func (bi *Bitget) spotFillsHelper(ctx context.Context, pair currency.Pair, fillM
 					Price:     genFills[i].PriceAverage,
 					Amount:    genFills[i].Size,
 					Fee:       genFills[i].FeeDetail.TotalFee,
-					FeeAsset:  genFills[i].FeeDetail.FeeCoin,
+					FeeAsset:  genFills[i].FeeDetail.FeeCoin.String(),
 					Timestamp: genFills[i].CreationTime.Time(),
 				})
 		}
@@ -2839,7 +2839,7 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 				AverageExecutedPrice: float64(genOrds.EntrustedList[i].PriceAverage),
 				Status:               statusDecoder(genOrds.EntrustedList[i].Status),
 				Side:                 sideDecoder(genOrds.EntrustedList[i].Side),
-				SettlementCurrency:   currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+				SettlementCurrency:   genOrds.EntrustedList[i].MarginCoin,
 				QuoteAmount:          genOrds.EntrustedList[i].QuoteVolume,
 				Leverage:             genOrds.EntrustedList[i].Leverage,
 				MarginType:           marginDecoder(genOrds.EntrustedList[i].MarginMode),
@@ -2886,7 +2886,7 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 					TriggerPrice:       float64(genOrds.EntrustedList[i].TriggerPrice),
 					Status:             statusDecoder(genOrds.EntrustedList[i].PlanStatus),
 					Side:               sideDecoder(genOrds.EntrustedList[i].Side),
-					SettlementCurrency: currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+					SettlementCurrency: genOrds.EntrustedList[i].MarginCoin,
 					MarginType:         marginDecoder(genOrds.EntrustedList[i].MarginMode),
 					Type:               typeDecoder(genOrds.EntrustedList[i].OrderType),
 					Date:               genOrds.EntrustedList[i].CreationTime.Time(),
@@ -2928,7 +2928,7 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 					AverageExecutedPrice: float64(genOrds.EntrustedList[i].PriceAverage),
 					TriggerPrice:         float64(genOrds.EntrustedList[i].TriggerPrice),
 					Side:                 sideDecoder(genOrds.EntrustedList[i].Side),
-					SettlementCurrency:   currency.NewCode(genOrds.EntrustedList[i].MarginCoin),
+					SettlementCurrency:   genOrds.EntrustedList[i].MarginCoin,
 					MarginType:           marginDecoder(genOrds.EntrustedList[i].MarginMode),
 					Type:                 typeDecoder(genOrds.EntrustedList[i].OrderType),
 					Date:                 genOrds.EntrustedList[i].CreationTime.Time(),

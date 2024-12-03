@@ -328,7 +328,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				sub.Currencies = make([]account.Balance, len(acc))
 				for i := range acc {
 					sub.Currencies[i] = account.Balance{
-						Currency: currency.NewCode(acc[i].Coin),
+						Currency: acc[i].Coin,
 						Hold:     acc[i].Frozen + acc[i].Locked,
 						Free:     acc[i].Available,
 						Total:    sub.Currencies[i].Hold + sub.Currencies[i].Free,
@@ -343,7 +343,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				sub.Currencies = make([]account.Balance, len(acc))
 				for i := range acc {
 					sub.Currencies[i] = account.Balance{
-						Currency: currency.NewCode(acc[i].MarginCoin),
+						Currency: acc[i].MarginCoin,
 						Hold:     acc[i].Frozen,
 						Free:     acc[i].Available,
 						Total:    acc[i].Available + acc[i].Frozen,
@@ -459,7 +459,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 					}
 					for x := range orders[i].FeeDetail {
 						resp[i].Fee += orders[i].FeeDetail[x].TotalFee
-						resp[i].FeeAsset = currency.NewCode(orders[i].FeeDetail[x].FeeCoin)
+						resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 					}
 				}
 				bi.Websocket.DataHandler <- resp
@@ -513,7 +513,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 					}
 					for x := range orders[i].FeeDetail {
 						resp[i].Fee += orders[i].FeeDetail[x].Fee
-						resp[i].FeeAsset = currency.NewCode(orders[i].FeeDetail[x].FeeCoin)
+						resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 					}
 				}
 				bi.Websocket.DataHandler <- resp
@@ -628,7 +628,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 					Exchange:          bi.Name,
 					PositionID:        strconv.FormatInt(positions[i].PositionID, 10),
 					Pair:              pair,
-					MarginCoin:        currency.NewCode(positions[i].MarginCoin),
+					MarginCoin:        positions[i].MarginCoin,
 					MarginType:        marginDecoder(positions[i].MarginMode),
 					Side:              sideDecoder(positions[i].HoldSide),
 					PositionMode:      positionModeDecoder(positions[i].PositionMode),
@@ -685,7 +685,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			sub.Currencies = make([]account.Balance, len(acc))
 			for i := range acc {
 				sub.Currencies[i] = account.Balance{
-					Currency:               currency.NewCode(acc[i].Coin),
+					Currency:               acc[i].Coin,
 					Hold:                   acc[i].Frozen,
 					Free:                   acc[i].Available,
 					Borrowed:               acc[i].Borrow,
@@ -726,7 +726,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				}
 				for x := range orders[i].FeeDetail {
 					resp[i].Fee += orders[i].FeeDetail[x].TotalFee
-					resp[i].FeeAsset = currency.NewCode(orders[i].FeeDetail[x].FeeCoin)
+					resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 				}
 				if wsResponse.Arg.Channel == bitgetOrdersIsolatedChannel {
 					resp[i].AssetType = asset.Margin
@@ -749,7 +749,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			sub.Currencies = make([]account.Balance, len(acc))
 			for i := range acc {
 				sub.Currencies[i] = account.Balance{
-					Currency:               currency.NewCode(acc[i].Coin),
+					Currency:               acc[i].Coin,
 					Hold:                   acc[i].Frozen,
 					Free:                   acc[i].Available,
 					Borrowed:               acc[i].Borrow,
@@ -838,7 +838,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				for i := range acc {
 					resp[i] = account.Change{
 						Exchange: bi.Name,
-						Currency: currency.NewCode(acc[i].Coin),
+						Currency: acc[i].Coin,
 						Asset:    asset.Spot,
 						Amount:   acc[i].Available,
 					}
@@ -854,7 +854,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				for i := range acc {
 					resp[i] = account.Change{
 						Exchange: bi.Name,
-						Currency: currency.NewCode(acc[i].MarginCoin),
+						Currency: acc[i].MarginCoin,
 						Asset:    asset.Futures,
 						Amount:   acc[i].Available,
 					}
@@ -1061,20 +1061,20 @@ func (bi *Bitget) reqBuilder(req *WsRequest, sub *subscription.Subscription) {
 		req.Arguments = append(req.Arguments, WsArgument{
 			Channel:        sub.Channel,
 			InstrumentType: itemEncoder(sub.Asset, currency.Pair{}),
-			Coin:           "default",
+			Coin:           currency.NewCode("default"),
 			InstrumentID:   "default",
 		})
 		if sub.Asset == asset.Futures {
 			req.Arguments = append(req.Arguments, WsArgument{
 				Channel:        sub.Channel,
 				InstrumentType: "USDT-FUTURES",
-				Coin:           "default",
+				Coin:           currency.NewCode("default"),
 				InstrumentID:   "default",
 			})
 			req.Arguments = append(req.Arguments, WsArgument{
 				Channel:        sub.Channel,
 				InstrumentType: "USDC-FUTURES",
-				Coin:           "default",
+				Coin:           currency.NewCode("default"),
 				InstrumentID:   "default",
 			})
 		}

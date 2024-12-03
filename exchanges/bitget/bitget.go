@@ -204,6 +204,13 @@ const (
 	bitgetReviseHistory            = "/revise-history"
 	bitgetDebts                    = "/debts"
 	bitgetReduces                  = "/reduces"
+	bitgetInsLoan                  = "ins-loan/"
+	bitgetProductInfos             = "product-infos"
+	bitgetEnsureCoinsConvert       = "ensure-coins-convert"
+	bitgetLTVConvert               = "ltv-convert"
+	bitgetTransferred              = "transfered" // sic
+	bitgetLoanOrder                = "loan-order"
+	bitgetRepaidHistory            = "repaid-history"
 
 	// Websocket endpoints
 	// Unauthenticated
@@ -752,7 +759,7 @@ func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination i
 	var resp struct {
 		GetVirSubResp `json:"data"`
 	}
-	return &resp.GetVirSubResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
+	return &resp.GetVirSubResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate2, http.MethodGet, path, vals, nil, &resp)
 }
 
 // CreateAPIKey creates an API key for the selected virtual sub-account
@@ -3784,7 +3791,7 @@ func (bi *Bitget) GetCrossLiquidationOrders(ctx context.Context, orderType, from
 }
 
 // GetIsolatedRepayHistory returns the repayment history for isolated margin
-func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pair, currency string, repayID, limit, pagination int64, startTime, endTime time.Time) (*RepayHistResp, error) {
+func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pair, currency currency.Code, repayID, limit, pagination int64, startTime, endTime time.Time) (*RepayHistResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -3804,8 +3811,8 @@ func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pai
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	params.Values.Set("symbol", pair.String())
-	if currency != "" {
-		params.Values.Set("coin", currency)
+	if !currency.IsEmpty() {
+		params.Values.Set("coin", currency.String())
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetRepayHistory
 	var resp struct {
@@ -4853,6 +4860,104 @@ func (bi *Bitget) GetLiquidationRecords(ctx context.Context, orderID, pagination
 		LiquidRecs []LiquidRecs `json:"data"`
 	}
 	return resp.LiquidRecs, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+}
+
+// GetLoanInfo returns information on an offered institutional loan
+func (bi *Bitget) GetLoanInfo(ctx context.Context, productID string) (*LoanInfo, error) {
+	if productID == "" {
+		return nil, errProductIDEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productId", productID)
+	path := bitgetSpot + bitgetInsLoan + bitgetProductInfos
+	var resp struct {
+		LoanInfo `json:"data"`
+	}
+	return &resp.LoanInfo, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetMarginCoinRatio returns the conversion rate various margin coins have for a particular loan
+func (bi *Bitget) GetMarginCoinRatio(ctx context.Context, productID string) (*MarginCoinRatio, error) {
+	if productID == "" {
+		return nil, errProductIDEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productId", productID)
+	path := bitgetSpot + bitgetInsLoan + bitgetEnsureCoinsConvert
+	var resp struct {
+		MarginCoinRatio `json:"data"`
+	}
+	return &resp.MarginCoinRatio, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetSpotSymbols returns spot trading pairs that meet ======A CERTAIN CRITERIA CURRENTLY UNCLEAR TO ME======
+func (bi *Bitget) GetSpotSymbols(ctx context.Context, productID string) (*SpotSymbols, error) {
+	if productID == "" {
+		return nil, errProductIDEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productId", productID)
+	path := bitgetSpot + bitgetInsLoan + bitgetSymbols
+	var resp struct {
+		SpotSymbols `json:"data"`
+	}
+	return &resp.SpotSymbols, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetLoanToValue returns the loan to value ratio for all loans on the user's account
+func (bi *Bitget) GetLoanToValue(ctx context.Context) (*LoanToValue, error) {
+	path := bitgetSpot + bitgetInsLoan + bitgetLTVConvert
+	var resp struct {
+		LoanToValue `json:"data"`
+	}
+	return &resp.LoanToValue, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, nil, nil, &resp)
+}
+
+// GetTransferableAmount returns the amount of a currency that can be transferred
+func (bi *Bitget) GetTransferableAmount(ctx context.Context, accountID string, coin currency.Code) (*TransferableAmount, error) {
+	if coin.IsEmpty() {
+		return nil, errCurrencyEmpty
+	}
+	vals := url.Values{}
+	vals.Set("userId", accountID)
+	vals.Set("coin", coin.String())
+	path := bitgetSpot + bitgetInsLoan + bitgetTransferred
+	var resp struct {
+		TransferableAmount `json:"data"`
+	}
+	return &resp.TransferableAmount, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetLoanOrders returns a list of loan orders taken out on the user's account
+func (bi *Bitget) GetLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time) ([]LoanOrders, error) {
+	var params Params
+	params.Values = make(url.Values)
+	params.Values.Set("orderId", orderID)
+	err := params.prepareDateString(startTime, endTime, true, true)
+	if err != nil {
+		return nil, err
+	}
+	path := bitgetSpot + bitgetInsLoan + bitgetLoanOrder
+	var resp struct {
+		LoanOrders []LoanOrders `json:"data"`
+	}
+	return resp.LoanOrders, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values, nil, &resp)
+}
+
+// GetRepaymentOrders returns a list of repayment orders taken out on the user's account
+func (bi *Bitget) GetRepaymentOrders(ctx context.Context, orderID string, startTime, endTime time.Time) ([]RepaymentOrders, error) {
+	var params Params
+	params.Values = make(url.Values)
+	params.Values.Set("orderId", orderID)
+	err := params.prepareDateString(startTime, endTime, true, true)
+	if err != nil {
+		return nil, err
+	}
+	path := bitgetSpot + bitgetInsLoan + bitgetRepaidHistory
+	var resp struct {
+		RepaymentOrders []RepaymentOrders `json:"data"`
+	}
+	return resp.RepaymentOrders, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request

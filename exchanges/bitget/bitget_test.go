@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -616,7 +615,7 @@ func TestBatchCancelAndPlaceSpotOrders(t *testing.T) {
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	newPair, err := currency.NewPairFromString(resp[0].Symbol)
+	newPair, err := pairFromStringHelper(resp[0].Symbol)
 	require.NoError(t, err)
 	req = append(req, ReplaceSpotOrderStruct{
 		OrderID:          int64(resp[0].OrderID),
@@ -659,7 +658,7 @@ func TestBatchPlaceSpotOrders(t *testing.T) {
 		Strategy:  "IOC",
 		Price:     testPrice,
 		Size:      testAmount,
-		Pair:      testPair.String(),
+		Pair:      testPair,
 	})
 	resp, err := bi.BatchPlaceSpotOrders(context.Background(), testPair, true, true, req)
 	require.NoError(t, err)
@@ -679,10 +678,12 @@ func TestBatchCancelOrders(t *testing.T) {
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
+	pair, err := pairFromStringHelper(resp[0].Symbol)
+	assert.NoError(t, err)
 	req = append(req, CancelSpotOrderStruct{
 		OrderID:       int64(resp[0].OrderID),
 		ClientOrderID: resp[0].ClientOrderID,
-		Pair:          resp[0].Symbol,
+		Pair:          pair,
 	})
 	resp2, err := bi.BatchCancelOrders(context.Background(), testPair, true, req)
 	assert.NoError(t, err)
@@ -795,8 +796,7 @@ func TestBatchCancelSpotPlanOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	// Not chucked into testGetNoArgs due to checking the presence of resp.Data, refactoring that generic for that
-	// would waste too many lines to do so just for this
+	// Not chucked into testGetNoArgs due to checking the presence of resp.Data, refactoring that generic for that would waste too many lines to do so just for this
 	resp, err := bi.GetAccountInfo(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
@@ -1787,17 +1787,17 @@ func TestGetCrossLiquidationOrders(t *testing.T) {
 
 func TestGetIsolatedRepayHistory(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetIsolatedRepayHistory(context.Background(), currency.Pair{}, "", 0, 0, 0, time.Time{}, time.Time{})
+	_, err := bi.GetIsolatedRepayHistory(context.Background(), currency.Pair{}, currency.Code{}, 0, 0, 0, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.GetIsolatedRepayHistory(context.Background(), testPair, "", 0, 0, 0, time.Time{}, time.Time{})
+	_, err = bi.GetIsolatedRepayHistory(context.Background(), testPair, currency.Code{}, 0, 0, 0, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetIsolatedRepayHistory(context.Background(), testPair, "", 0, 5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
+	resp, err := bi.GetIsolatedRepayHistory(context.Background(), testPair, currency.Code{}, 0, 5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
 	require.NoError(t, err)
 	if len(resp.ResultList) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	_, err = bi.GetIsolatedRepayHistory(context.Background(), testPair, "", resp.ResultList[0].RepayID, 5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
+	_, err = bi.GetIsolatedRepayHistory(context.Background(), testPair, testFiat, resp.ResultList[0].RepayID, 5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -2348,6 +2348,68 @@ func TestGetLiquidationRecords(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetLiquidationRecords(context.Background(), 0, 1, 5, currency.Code{}, currency.Code{}, "", time.Now().Add(-time.Hour*24*85), time.Now())
+	assert.NoError(t, err)
+}
+
+// Try to put these into those get one arg functions
+func TestGetLoanInfo(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetLoanInfo(context.Background(), "")
+	assert.ErrorIs(t, err, errProductIDEmpty)
+	_, err = bi.GetLoanInfo(context.Background(), "1")
+	assert.NoError(t, err)
+}
+
+func TestGetMarginCoinRatio(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetMarginCoinRatio(context.Background(), "")
+	assert.ErrorIs(t, err, errProductIDEmpty)
+	_, err = bi.GetMarginCoinRatio(context.Background(), "1")
+	assert.NoError(t, err)
+}
+
+func TestGetSpotSymbols(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetSpotSymbols(context.Background(), "")
+	assert.ErrorIs(t, err, errProductIDEmpty)
+	_, err = bi.GetSpotSymbols(context.Background(), "1")
+	assert.NoError(t, err)
+}
+
+func TestGetLoanToValue(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetLoanToValue(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetTransferableAmount(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetTransferableAmount(context.Background(), "", currency.Code{})
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.GetTransferableAmount(context.Background(), "", testFiat)
+	assert.NoError(t, err)
+}
+
+func TestGetLoanOrders(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetLoanOrders(context.Background(), "", time.Now().Add(time.Minute), time.Time{})
+	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
+	_, err = bi.GetLoanOrders(context.Background(), "", time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetRepaymentOrders(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	_, err := bi.GetRepaymentOrders(context.Background(), "", time.Now().Add(time.Minute), time.Time{})
+	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
+	_, err = bi.GetRepaymentOrders(context.Background(), "", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -3812,14 +3874,14 @@ func aBenchmarkHelper(a, pag int64) {
 // 763	   1819054 ns/op	   14336 B/op	       1 allocs/op
 // 87	  13602672 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkGen(b *testing.B) {
-	pairs, err := bi.GetSupportedCurrencies(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	check, err := bi.GetSymbolInfo(context.Background(), currency.Pair{})
-	if err != nil {
-		panic(err)
-	}
+	// pairs, err := bi.GetSupportedCurrencies(context.Background())
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// check, err := bi.GetSymbolInfo(context.Background(), currency.Pair{})
+	// if err != nil {
+	// 	panic(err)
+	// }
 	b.ResetTimer()
 	// for j := 0; j < b.N; j++ {
 	// 	checkSlice := make([]string, len(check))
@@ -3833,13 +3895,13 @@ func BenchmarkGen(b *testing.B) {
 	// 	}
 	// }
 
-	for j := 0; j < b.N; j++ {
-		for x := range pairs {
-			if !slices.ContainsFunc(check, func(s SymbolInfoResp) bool {
-				return s.Symbol == pairs[x].Symbol
-			}) {
-				continue
-			}
-		}
-	}
+	// for j := 0; j < b.N; j++ {
+	// 	for x := range pairs {
+	// 		if !slices.ContainsFunc(check, func(s SymbolInfoResp) bool {
+	// 			return s.Symbol == pairs[x].Symbol
+	// 		}) {
+	// 			continue
+	// 		}
+	// 	}
+	// }
 }
