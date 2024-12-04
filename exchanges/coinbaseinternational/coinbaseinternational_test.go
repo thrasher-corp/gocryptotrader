@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -86,6 +87,54 @@ func TestGetSupportedNetworksPerAsset(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetIndexComposition(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetIndexComposition(context.Background(), "")
+	require.ErrorIs(t, err, errIndexNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetIndexComposition(context.Background(), "COIN50")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexCompositionHistory(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetIndexCompositionHistory(context.Background(), "", time.Time{}, 0, 100)
+	require.ErrorIs(t, err, errIndexNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetIndexCompositionHistory(context.Background(), "COIN50", time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexPrice(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetIndexPrice(context.Background(), "")
+	require.ErrorIs(t, err, errIndexNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetIndexPrice(context.Background(), "COIN50")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexCandles(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetIndexCandles(context.Background(), "", "", time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errIndexNameRequired)
+	_, err = co.GetIndexCandles(context.Background(), "COIN50", "", time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errGranularityRequired)
+	_, err = co.GetIndexCandles(context.Background(), "COIN50", "ONE_DAY", time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errStartTimeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetIndexCandles(context.Background(), "COIN50", "ONE_DAY", time.Now().Add(-time.Hour*50), time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetInstruments(t *testing.T) {
 	t.Parallel()
 	result, err := co.GetInstruments(context.Background())
@@ -109,6 +158,47 @@ func TestGetQuotePerInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
 
 	result, err := co.GetQuotePerInstrument(context.Background(), "BTC-PERP", "", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDailyTradingVolumes(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetDailyTradingVolumes(context.Background(), []string{}, 10, 10, time.Now().Add(-time.Hour*100), true)
+	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+
+	result, err := co.GetDailyTradingVolumes(context.Background(), []string{"BTC-PERP"}, 10, 1, time.Now().Add(-time.Hour*100), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAggregatedCandlesDataPerInstrument(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetAggregatedCandlesDataPerInstrument(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+	_, err = co.GetAggregatedCandlesDataPerInstrument(context.Background(), "BTC-PERP", kline.FiveMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errStartTimeRequired)
+	_, err = co.GetAggregatedCandlesDataPerInstrument(context.Background(), "BTC-PERP", kline.TenMin, time.Now().Add(-time.Hour*100), time.Time{})
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
+	result, err := co.GetAggregatedCandlesDataPerInstrument(context.Background(), "BTC-PERP", kline.FifteenMin, time.Now().Add(-time.Hour*100), time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetHistoricalFundingRate(context.Background(), "", 0, 10)
+	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+
+	result, err := co.GetHistoricalFundingRate(context.Background(), "BTC-PERP", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPositionOffsets(t *testing.T) {
+	t.Parallel()
+	result, err := co.GetPositionOffsets(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -221,6 +311,36 @@ func TestListAllUserPortfolios(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetAllUserPortfolios(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreatePortfolio(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.CreatePortfolio(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPatchPortfolio(t *testing.T) {
+	t.Parallel()
+	_, err := co.PatchPortfolio(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.PatchPortfolio(context.Background(), &PatchPortfolioParams{AutoMarginEnabled: true, PortfolioName: "new-portfolio"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUpdatePortfolio(t *testing.T) {
+	t.Parallel()
+	_, err := co.UpdatePortfolio(context.Background(), "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.UpdatePortfolio(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

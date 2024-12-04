@@ -80,6 +80,103 @@ type InstrumentInfo struct {
 	} `json:"quote"`
 }
 
+// IndexMetadata represents an index metadata detail
+type IndexMetadata struct {
+	ProductID          string    `json:"product_id"`
+	Divisor            float64   `json:"divisor"`
+	Timestamp          time.Time `json:"timestamp"`
+	InceptionTimestamp time.Time `json:"inception_timestamp"`
+	LastRebalance      time.Time `json:"last_rebalance"`
+	Constituents       []struct {
+		Symbol         string       `json:"symbol"`
+		Name           string       `json:"name"`
+		Rank           int64        `json:"rank"`
+		CapFactor      string       `json:"cap_factor"` // constituent market cap factor (or multiplier)
+		Amount         types.Number `json:"amount"`
+		MarketCap      types.Number `json:"market_cap"`
+		IndexMarketCap types.Number `json:"index_market_cap"`
+		Weight         types.Number `json:"weight"`
+		RunningWeight  types.Number `json:"running_weight"`
+	} `json:"constituents"`
+}
+
+// IndexPriceInfo represents latest index price info
+type IndexPriceInfo struct {
+	ProductID       string       `json:"product_id"`
+	Status          string       `json:"status"`
+	Timestamp       time.Time    `json:"timestamp"`
+	Price           types.Number `json:"price"`
+	Price24HrChange types.Number `json:"price_24hr_change"`
+}
+
+// IndexPriceCandlesticks represents a index price candlestick data of instruments
+type IndexPriceCandlesticks struct {
+	Aggregations []struct {
+		Start time.Time    `json:"start"`
+		Open  types.Number `json:"open"`
+		High  types.Number `json:"high"`
+		Low   types.Number `json:"low"`
+		Close types.Number `json:"close"`
+	} `json:"aggregations"`
+}
+
+// InstrumentsTradingVolumeInfo represents a daily trading volume information
+type InstrumentsTradingVolumeInfo struct {
+	Pagination struct {
+		ResultLimit  float64 `json:"result_limit"`
+		ResultOffset float64 `json:"result_offset"`
+	} `json:"pagination"`
+	Results []struct {
+		Timestamp   time.Time `json:"timestamp"`
+		Instruments []struct {
+			Symbol   string       `json:"symbol"`
+			Volume   types.Number `json:"volume"`
+			Notional types.Number `json:"notional"`
+		} `json:"instruments"`
+		Totals struct {
+			TotalInstrumentsVolume   types.Number `json:"total_instruments_volume"`
+			TotalInstrumentsNotional types.Number `json:"total_instruments_notional"`
+			TotalExchangeVolume      types.Number `json:"total_exchange_volume"`
+			TotalExchangeNotional    types.Number `json:"total_exchange_notional"`
+		} `json:"totals"`
+	} `json:"results"`
+}
+
+// CandlestickDataHistory represents aggregated candles data
+type CandlestickDataHistory struct {
+	Aggregations []struct {
+		Start  time.Time    `json:"start"`
+		Open   types.Number `json:"open"`
+		High   types.Number `json:"high"`
+		Low    types.Number `json:"low"`
+		Close  types.Number `json:"close"`
+		Volume types.Number `json:"volume"`
+	} `json:"aggregations"`
+}
+
+// FundingRateHistory represents a funding rate history detail
+type FundingRateHistory struct {
+	Pagination struct {
+		ResultLimit  int64 `json:"result_limit"`
+		ResultOffset int64 `json:"result_offset"`
+	} `json:"pagination"`
+	Results []struct {
+		InstrumentID string       `json:"instrument_id"`
+		FundingRate  types.Number `json:"funding_rate"`
+		MarkPrice    types.Number `json:"mark_price"`
+		EventTime    time.Time    `json:"event_time"`
+	} `json:"results"`
+}
+
+// PositionsOffset represents a position offset detail
+type PositionsOffset struct {
+	PositionOffsets []struct {
+		PrimaryInstrumentID   string  `json:"primary_instrument_id"`
+		SecondaryInstrumentID string  `json:"secondary_instrument_id"`
+		Offset                float64 `json:"offset"`
+	} `json:"position_offsets"`
+}
+
 // QuoteInformation represents a instrument quote information
 type QuoteInformation struct {
 	BestBidPrice     types.Number `json:"best_bid_price"`
@@ -188,15 +285,27 @@ type OrderItem struct {
 // PortfolioItem represents a user portfolio item
 // and transaction fee information.
 type PortfolioItem struct {
-	PortfolioID    string       `json:"portfolio_id"`
-	PortfolioUUID  string       `json:"portfolio_uuid"`
-	Name           string       `json:"name"`
-	UserUUID       string       `json:"user_uuid"`
-	MakerFeeRate   types.Number `json:"maker_fee_rate"`
-	TakerFeeRate   types.Number `json:"taker_fee_rate"`
-	TradingLock    bool         `json:"trading_lock"`
-	BorrowDisabled bool         `json:"borrow_disabled"`
-	IsLSP          bool         `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
+	PortfolioID             string       `json:"portfolio_id"`
+	PortfolioUUID           string       `json:"portfolio_uuid"`
+	Name                    string       `json:"name"`
+	UserUUID                string       `json:"user_uuid"`
+	MakerFeeRate            types.Number `json:"maker_fee_rate"`
+	TakerFeeRate            types.Number `json:"taker_fee_rate"`
+	TradingLock             bool         `json:"trading_lock"`
+	BorrowDisabled          bool         `json:"borrow_disabled"`
+	IsLSP                   bool         `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
+	IsDefault               string       `json:"is_default"`
+	CrossCollateralEnabled  string       `json:"cross_collateral_enabled"`
+	PreLaunchTradingEnabled string       `json:"pre_launch_trading_enabled"`
+}
+
+// PatchPortfolioParams represents a request body for patching a portfolio
+type PatchPortfolioParams struct {
+	AutoMarginEnabled       bool   `json:"auto_margin_enabled,omitempty"`
+	CrossCollateralEnabled  bool   `json:"cross_collateral_enabled,omitempty"`
+	PositionOffsetEnabled   bool   `json:"position_offsets_enabled,omitempty"`
+	PreLaunchTradingEnabled bool   `json:"pre_launch_trading_enabled,omitempty"`
+	PortfolioName           string `json:"portfolio_name,omitempty"`
 }
 
 // PortfolioDetail represents a portfolio detail.

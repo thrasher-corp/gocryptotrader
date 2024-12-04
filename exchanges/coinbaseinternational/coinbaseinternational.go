@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -41,6 +42,9 @@ var (
 	errMissingTransferID            = errors.New("missing transfer ID")
 	errAddressIsRequired            = errors.New("missing address")
 	errAssetIdentifierRequired      = errors.New("asset identified is required")
+	errIndexNameRequired            = errors.New("index name required")
+	errGranularityRequired          = errors.New("granularity value is required")
+	errStartTimeRequired            = errors.New("start time required")
 	errEmptyArgument                = errors.New("empty argument")
 	errTimeInForceRequired          = errors.New("time_in_force is required")
 	errInstrumentIdentifierRequired = errors.New("instrument information is required")
@@ -86,6 +90,66 @@ func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Contex
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/networks", nil, nil, &resp, false)
 }
 
+// GetIndexComposition retrieves the latest index composition (metadata) with an ordered set of constituents
+func (co *CoinbaseInternational) GetIndexComposition(ctx context.Context, indexName string) (*IndexMetadata, error) {
+	if indexName == "" {
+		return nil, errIndexNameRequired
+	}
+	var resp *IndexMetadata
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/composition", nil, nil, &resp, true)
+}
+
+// GetIndexCompositionHistory retrieves a history of index composition records in a descending time order.
+// The results are an array of index composition data recorded at different “timestamps”.
+func (co *CoinbaseInternational) GetIndexCompositionHistory(ctx context.Context, indexName string, timeFrom time.Time, resultLimit, resultOffset int64) (*IndexMetadata, error) {
+	if indexName == "" {
+		return nil, errIndexNameRequired
+	}
+	params := url.Values{}
+	if !timeFrom.IsZero() {
+		params.Set("timeFrom", strconv.FormatInt(timeFrom.UnixMilli(), 10))
+	}
+	if resultOffset > 0 {
+		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
+	}
+	if resultLimit > 0 {
+		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
+	}
+	var resp *IndexMetadata
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/compositio/history", params, nil, &resp, true)
+}
+
+// GetIndexPrice retrieves the latest index price
+func (co *CoinbaseInternational) GetIndexPrice(ctx context.Context, indexName string) (*IndexPriceInfo, error) {
+	if indexName == "" {
+		return nil, errIndexNameRequired
+	}
+	var resp *IndexPriceInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/price", nil, nil, &resp, true)
+}
+
+// GetIndexCandles retrieves the historical daily index prices in time descending order.
+// The daily values are represented as aggregated entries for the day in typical OHLC format.
+func (co *CoinbaseInternational) GetIndexCandles(ctx context.Context, indexName, granularity string, start, end time.Time) (*IndexPriceCandlesticks, error) {
+	if indexName == "" {
+		return nil, errIndexNameRequired
+	}
+	if granularity == "" {
+		return nil, fmt.Errorf("%w, possible values are ONE_DAY and ONE_HOUR", errGranularityRequired)
+	}
+	if start.IsZero() {
+		return nil, errStartTimeRequired
+	}
+	params := url.Values{}
+	params.Set("granularity", granularity)
+	params.Set("start", start.Format("2006-01-02T15:04:05Z"))
+	if !end.IsZero() {
+		params.Set("end", end.Format("2006-01-02T15:04:05Z"))
+	}
+	var resp *IndexPriceCandlesticks
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/candles", params, nil, &resp, true)
+}
+
 // GetInstruments returns all of the instruments available for trading.
 func (co *CoinbaseInternational) GetInstruments(ctx context.Context) ([]InstrumentInfo, error) {
 	var resp []InstrumentInfo
@@ -124,6 +188,86 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 	}
 	var resp *QuoteInformation
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
+}
+
+// GetDailyTradingVolumes retrieves the trading volumes for each instrument separated by day
+func (co *CoinbaseInternational) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumeInfo, error) {
+	if len(instruments) == 0 {
+		return nil, errInstrumentIdentifierRequired
+	}
+	params := url.Values{}
+	params.Set("instruments", strings.Join(instruments, ","))
+	if resultOffset > 0 {
+		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
+	}
+	if resultLimit > 0 {
+		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
+	}
+	if !timeFrom.IsZero() {
+		params.Set("time_from", timeFrom.Format("2006-01-02T15:04:05Z"))
+	}
+	if showOther {
+		params.Set("show_other", "true")
+	}
+	var resp *InstrumentsTradingVolumeInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/volumes/daily", params, nil, &resp, false)
+}
+
+// GetAggregatedCandlesDataPerInstrument retrieves a list of aggregated candles data for a given instrument, granularity and time range
+func (co *CoinbaseInternational) GetAggregatedCandlesDataPerInstrument(ctx context.Context, instrument string, granularity kline.Interval, start, end time.Time) (*CandlestickDataHistory, error) {
+	if instrument == "" {
+		return nil, errInstrumentIdentifierRequired
+	}
+	if start.IsZero() {
+		return nil, errStartTimeRequired
+	}
+	params := url.Values{}
+	params.Set("start", start.Format("2006-01-02T15:04:05Z"))
+	if granularity != kline.Interval(0) {
+		intervalString, err := stringFromInterval(granularity)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("granularity", intervalString)
+	}
+	if !end.IsZero() {
+		params.Set("end", end.Format("2006-01-02T15:04:05Z"))
+	}
+	var resp *CandlestickDataHistory
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument+"/candles", params, nil, &resp, false)
+}
+
+var intervalToStringMap = map[kline.Interval]string{kline.OneDay: "ONE_DAY", kline.SixHour: "SIX_HOUR", kline.TwoHour: "TWO_HOUR", kline.OneHour: "ONE_HOUR",
+	kline.ThirtyMin: "THIRTY_MINUTE", kline.FifteenMin: "FIFTEEN_MINUTE", kline.FiveMin: "FIVE_MINUTE", kline.OneMin: "ONE_MINUTE"}
+
+func stringFromInterval(interval kline.Interval) (string, error) {
+	intervalString, ok := intervalToStringMap[interval]
+	if !ok {
+		return "", kline.ErrUnsupportedInterval
+	}
+	return intervalString, nil
+}
+
+// GetHistoricalFundingRate retrieves the historical funding rates for a specific instrument.
+func (co *CoinbaseInternational) GetHistoricalFundingRate(ctx context.Context, instrument string, resultOffset, resultLimit int64) (*FundingRateHistory, error) {
+	if instrument == "" {
+		return nil, errInstrumentIdentifierRequired
+	}
+	params := url.Values{}
+	if resultOffset > 0 {
+		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
+	}
+	if resultLimit > 0 {
+		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
+	}
+	var resp *FundingRateHistory
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument+"/funding", params, nil, &resp, false)
+}
+
+// GetPositionOffsets returns all active position offsets
+func (co *CoinbaseInternational) GetPositionOffsets(ctx context.Context) (*PositionsOffset, error) {
+	var resp *PositionsOffset
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "position-offsets", nil, nil, &resp, false)
 }
 
 // CreateOrder creates a new order.
@@ -246,6 +390,33 @@ func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, 
 func (co *CoinbaseInternational) GetAllUserPortfolios(ctx context.Context) ([]PortfolioItem, error) {
 	var resp []PortfolioItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios", nil, nil, &resp, true)
+}
+
+// CreatePortfolio create a new portfolio. Request will fail if no name is provided or if user already has max number of portfolios.
+// Max number of portfolios is 20.
+func (co *CoinbaseInternational) CreatePortfolio(ctx context.Context, portfolioName string) (*PortfolioItem, error) {
+	var resp *PortfolioItem
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios", nil, &struct {
+		Name string `json:"name,omitempty"`
+	}{Name: portfolioName}, &resp, true)
+}
+
+// PatchPortfolio update parameters for existing portfolio
+func (co *CoinbaseInternational) PatchPortfolio(ctx context.Context, arg *PatchPortfolioParams) (interface{}, error) {
+	if arg == nil || *arg == (PatchPortfolioParams{}) {
+		return nil, common.ErrEmptyParams
+	}
+	var resp *PatchPortfolioParams
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPatch, "portfolios", nil, arg, &resp, true)
+}
+
+// UpdatePortfolio update existing user portfolio
+func (co *CoinbaseInternational) UpdatePortfolio(ctx context.Context, portfolioID string) (interface{}, error) {
+	if portfolioID == "" {
+		return nil, errMissingPortfolioID
+	}
+	var resp interface{}
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, portfolios+portfolioID, nil, nil, &resp, true)
 }
 
 // GetPortfolioDetails retrieves the summary, positions, and balances of a portfolio.

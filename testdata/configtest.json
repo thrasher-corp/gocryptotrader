@@ -1224,7 +1224,7 @@
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 1.5e+17,
+   "websocketResponseMaxLimit": 7000000000,
    "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
