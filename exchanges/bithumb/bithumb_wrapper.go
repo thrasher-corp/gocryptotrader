@@ -109,6 +109,7 @@ func (b *Bithumb) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
