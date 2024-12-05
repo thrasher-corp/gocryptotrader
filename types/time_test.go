@@ -56,17 +56,20 @@ func TestUnmarshalJSON(t *testing.T) {
 
 	require.ErrorIs(t, json.Unmarshal([]byte(`"blurp"`), &testTime), strconv.ErrSyntax)
 	require.Error(t, json.Unmarshal([]byte(`"123456"`), &testTime))
+
+	// Captures bad syntax when type should be time.Time (RFC3339)
+	require.ErrorIs(t, json.Unmarshal([]byte(`"2025-03-28T08:00:00Z"`), &testTime), strconv.ErrSyntax)
+	// parse int failure
+	require.ErrorIs(t, json.Unmarshal([]byte(`"1606292218213.45.8"`), &testTime), strconv.ErrSyntax)
 }
 
-// 5046307	       216.0 ns/op	     168 B/op	       2 allocs/op (current)
+// 5030734	       240.1 ns/op	     168 B/op	       2 allocs/op (current)
 // 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
 	for i := 0; i < b.N; i++ {
 		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
-		if err != nil {
-			b.Fatal(err)
-		}
+		require.NoError(b, err)
 	}
 }
 
