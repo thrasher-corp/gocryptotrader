@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -94,7 +93,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -598,7 +597,7 @@ func (g *Gateio) manageTemplatePayload(ctx context.Context, conn stream.Connecti
 	if err != nil {
 		return err
 	}
-	result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 	if err != nil {
 		return err
 	}
@@ -712,7 +711,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 }
 
 func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
-	result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payload.ID, payload)
+	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.ID, payload)
 	if err != nil {
 		return err
 	}
