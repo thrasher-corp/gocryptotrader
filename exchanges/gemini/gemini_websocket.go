@@ -169,6 +169,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
+	g.Websocket.Wg.Add(1)
 	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
 	return nil
 }
