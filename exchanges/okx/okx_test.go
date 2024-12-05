@@ -5750,8 +5750,10 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 	}
 	return "", fmt.Errorf("instrument family not found for instrument %s", instID)
 }
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
+
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := ok.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
