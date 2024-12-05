@@ -203,6 +203,10 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.setState(disconnectedState)
 
 	w.rateLimitDefinitions = s.RateLimitDefinitions
+
+	if s.ExchangeConfig.WebsocketMetricsLogging {
+		w.processReporter = &DefaultProcessReporterManager{}
+	}
 	return nil
 }
 
@@ -1081,13 +1085,19 @@ func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ct
 	}
 	for {
 		resp := conn.ReadMessage()
-		readAt := time.Now()
+
+		var readAt time.Time
+		if reporter != nil {
+			readAt = time.Now()
+		}
+
 		if resp.Raw == nil {
 			if reporter != nil {
 				reporter.Close()
 			}
 			return // Connection has been closed
 		}
+
 		err := handler(ctx, resp.Raw)
 		if err != nil {
 			w.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
