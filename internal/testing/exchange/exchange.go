@@ -3,7 +3,6 @@ package exchange
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -38,11 +37,8 @@ func Setup(e exchange.IBotExchange) error {
 	if err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
 	}
-	parts := strings.Split(fmt.Sprintf("%T", e), ".")
-	if len(parts) != 2 {
-		return errors.New("unexpected parts splitting exchange type name")
-	}
-	eName := parts[1]
+	e.SetDefaults()
+	eName := e.GetName()
 	exchConf, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(`%s`) error: %w", eName, err)
