@@ -190,6 +190,8 @@ const (
 	optionsOrderEPL
 	optionsCancelOrderEPL
 	optionsTradingHistoryEPL
+
+	websocketRateLimitNotNeededEPL
 )
 
 // package level rate limits for REST API
@@ -254,7 +256,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	walletSavedAddressesEPL:                 standardRateLimit(),
 	walletTradingFeeEPL:                     standardRateLimit(),
 	walletTotalBalanceEPL:                   personalAccountRateLimit(),
-	walletWithdrawEPL:                       request.NewRateLimitWithWeight(time.Second*3, 1, 1), // 1r/3s
+	walletWithdrawEPL:                       withdrawFromWalletRateLimit(),
 	walletCancelWithdrawEPL:                 standardRateLimit(),
 
 	subAccountEPL: personalAccountRateLimit(),
@@ -376,6 +378,8 @@ var packageRateLimits = request.RateLimitDefinitions{
 	optionsTradingHistoryEPL:     standardRateLimit(),
 
 	privateUnifiedSpotEPL: standardRateLimit(),
+
+	websocketRateLimitNotNeededEPL: nil, // no rate limit for certain websocket functions
 }
 
 func standardRateLimit() *request.RateLimiterWithWeight {
@@ -408,4 +412,8 @@ func deliverySubmitCancelAmendRateLimit() *request.RateLimiterWithWeight {
 
 func optionsSubmitCancelAmendRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Second, 200, 1)
+}
+
+func withdrawFromWalletRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Second*3, 1, 1)
 }
