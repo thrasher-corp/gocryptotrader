@@ -332,7 +332,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -2843,7 +2843,7 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 					case subscription.CandlesChannel:
 						s.QualifiedChannel = "5m," + pairs[i].String()
 					case subscription.OrderbookChannel:
-						s.QualifiedChannel = pairs[i].String() + ",100ms"
+						s.QualifiedChannel = pairs[i].String() + ",100,100ms"
 					case spotOrderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
 					}

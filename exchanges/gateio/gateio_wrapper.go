@@ -151,7 +151,7 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()),
+		request.WithLimiter(packageRateLimits),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -203,6 +203,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		FillsFeed:                    g.Features.Enabled.FillsFeed,
 		TradeFeed:                    g.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
+		RateLimitDefinitions:         packageRateLimits,
 	})
 	if err != nil {
 		return err
@@ -210,7 +211,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Spot connection
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                      gateioWebsocketEndpoint,
-		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleSpotData,
@@ -226,7 +226,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - USDT margined
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketUsdtURL,
-		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, incoming []byte) error {
@@ -245,7 +244,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - BTC margined
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
-		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, incoming []byte) error {
@@ -265,7 +263,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - Delivery - USDT margined
 	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  deliveryRealUSDTTradingURL,
-		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, incoming []byte) error {
@@ -284,7 +281,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	// Futures connection - Options
 	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                      optionsWebsocketURL,
-		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Handler:                  g.WsHandleOptionsData,
@@ -1658,7 +1654,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var spotOrders []SpotOrdersDetail
-		spotOrders, err = g.GateioSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
+		spotOrders, err = g.GetSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
 		if err != nil {
 			return nil, err
 		}

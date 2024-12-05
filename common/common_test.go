@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -792,4 +793,61 @@ func BenchmarkCounter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.IncrementAndGet()
 	}
+}
+
+func TestProcessElementsByBatch(t *testing.T) {
+	t.Parallel()
+	testSlice := make([]int, 0, 100)
+	for i := range 100 {
+		testSlice = append(testSlice, i)
+	}
+
+	trackIndex := map[int]bool{}
+	m := sync.Mutex{}
+
+	ch := make(chan int, len(testSlice))
+	require.NoError(t, ProcessElementsByBatch(10, testSlice, func(_ int, v int) error {
+		m.Lock()
+		defer m.Unlock()
+		if trackIndex[v] {
+			return errors.New("duplicate index")
+		}
+		trackIndex[v] = true
+		ch <- v
+		return nil
+	}))
+
+	require.Len(t, trackIndex, len(testSlice))
+
+	close(ch)
+	for v := range ch {
+		assert.Contains(t, testSlice, v)
+	}
+
+	expected := errors.New("test error")
+	require.ErrorIs(t, ProcessElementsByBatch(10, testSlice, func(int, int) error { return expected }), expected)
+}
+
+func TestProcessBatches(t *testing.T) {
+	t.Parallel()
+	testSlice := make([]int, 0, 100)
+	for i := range 100 {
+		testSlice = append(testSlice, i)
+	}
+
+	ch := make(chan int, len(testSlice))
+	require.NoError(t, ProcessBatches(10, testSlice, func(v []int) error {
+		for _, i := range v {
+			ch <- i
+		}
+		return nil
+	}))
+
+	close(ch)
+	for v := range ch {
+		assert.Contains(t, testSlice, v)
+	}
+
+	expected := errors.New("test error")
+	require.ErrorIs(t, ProcessBatches(10, testSlice, func([]int) error { return expected }), expected)
 }
