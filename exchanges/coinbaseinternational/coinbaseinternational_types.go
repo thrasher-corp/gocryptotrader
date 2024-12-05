@@ -349,6 +349,58 @@ type PortfolioDetail struct {
 	} `json:"positions"`
 }
 
+// PortfolioLoanDetail represents a portfolio loan detail
+type PortfolioLoanDetail struct {
+	PortfolioID                   string  `json:"portfolio_id"`
+	AssetID                       string  `json:"asset_id"`
+	AssetUUID                     string  `json:"asset_uuid"`
+	AssetName                     string  `json:"asset_name"`
+	TotalLoan                     float64 `json:"total_loan"`
+	CollateralBackedOverdraftLoan float64 `json:"collateral_backed_overdraft_loan"`
+	UserRequestedLoan             float64 `json:"user_requested_loan"`
+	CollateralRequirement         float64 `json:"collateral_requirement"`
+	InitialMarginContribution     float64 `json:"initial_margin_contribution"`
+	InitialMarginRequirement      float64 `json:"initial_margin_requirement"`
+	CurrentInterestRate           float64 `json:"current_interest_rate"`
+	PendingInterestCharge         float64 `json:"pending_interest_charge"`
+}
+
+// AcquireRepayLoanResponse represents a response data for a loan acquire and repayment
+type AcquireRepayLoanResponse struct {
+	PortfolioID   string  `json:"portfolio_id"`
+	AssetID       string  `json:"asset_id"`
+	Delta         float64 `json:"delta"`
+	Total         float64 `json:"total"`
+	AssetUUID     string  `json:"asset_uuid"`
+	PortfolioUUID string  `json:"portfolio_uuid"`
+}
+
+// LoanActionAmountParam represents a request parameters for loan orders which require action and amount
+type LoanActionAmountParam struct {
+	Action string  `json:"action,omitempty"`
+	Amount float64 `json:"amount,omitempty"`
+}
+
+// LoanUpdate represents a loan update detail
+type LoanUpdate struct {
+	InitialMarginContribution      float64 `json:"initial_margin_contribution"`
+	InitialMarginDelta             float64 `json:"initial_margin_delta"`
+	PortfolioInitialMargin         float64 `json:"portfolio_initial_margin"`
+	PortfolioInitialMarginNotional float64 `json:"portfolio_initial_margin_notional"`
+	LoanCollateralRequirement      float64 `json:"loan_collateral_requirement"`
+	LoanCollateralRequirementDelta float64 `json:"loan_collateral_requirement_delta"`
+	TotalLoan                      float64 `json:"total_loan"`
+	LoanDelta                      float64 `json:"loan_delta"`
+	MaxAvailable                   float64 `json:"max_available"`
+	RejectDetails                  string  `json:"reject_details"`
+	IsValid                        string  `json:"is_valid"`
+}
+
+// MaxLoanAvailability represents a maximum loan availability information
+type MaxLoanAvailability struct {
+	Available float64 `json:"available"`
+}
+
 // PortfolioSummary represents a portfolio summary detailed instance.
 type PortfolioSummary struct {
 	Collateral             float64 `json:"collateral"`
@@ -425,6 +477,86 @@ type PortfolioFill struct {
 		OrderStatus    string    `json:"order_status"`
 		EventTime      time.Time `json:"event_time"`
 	} `json:"results"`
+}
+
+// PortfolioCrossCollateralDetail represents a portfolio cross-collateral response detail
+type PortfolioCrossCollateralDetail struct {
+	PortfolioID             string  `json:"portfolio_id"`
+	PortfolioUUID           string  `json:"portfolio_uuid"`
+	Name                    string  `json:"name"`
+	UserUUID                string  `json:"user_uuid"`
+	MakerFeeRate            float64 `json:"maker_fee_rate"`
+	TakerFeeRate            float64 `json:"taker_fee_rate"`
+	TradingLock             string  `json:"trading_lock"`
+	BorrowDisabled          string  `json:"borrow_disabled"`
+	IsLsp                   string  `json:"is_lsp"`
+	IsDefault               string  `json:"is_default"`
+	CrossCollateralEnabled  string  `json:"cross_collateral_enabled"`
+	PreLaunchTradingEnabled string  `json:"pre_launch_trading_enabled"`
+}
+
+// PortfolioMarginOverrideResponse represents margin override value for a portfolio
+type PortfolioMarginOverrideResponse struct {
+	PortfolioID    string  `json:"portfolio_id"`
+	MarginOverride float64 `json:"margin_override"`
+}
+
+// TransferFundsBetweenPortfoliosParams transfer assets from one portfolio to another
+type TransferFundsBetweenPortfoliosParams struct {
+	From   string        `json:"from,omitempty"`
+	To     string        `json:"to,omitempty"`
+	Asset  currency.Code `json:"asset,omitempty"`
+	Amount float64       `json:"amount,omitempty"`
+}
+
+// TransferPortfolioParams represents a response detail for transfer an existing position from one portfolio to another
+type TransferPortfolioParams struct {
+	From       string  `json:"from"`
+	To         string  `json:"to"`
+	Instrument string  `json:"instrument"`
+	Quantity   float64 `json:"quantity"`
+	Side       string  `json:"side"`
+}
+
+// PortfolioMarginOverrideParams represents a margin override value for a portfolio parameter
+type PortfolioMarginOverrideParams struct {
+	PortfolioID    string  `json:"portfolio_id,omitempty"`
+	MarginOverride float64 `json:"margin_override,omitempty"`
+}
+
+// PortfolioFeeRate represents Perpetual Future and Spot fee rate
+type PortfolioFeeRate struct {
+	InstrumentType          string  `json:"instrument_type"`
+	FeeTierID               int64   `json:"fee_tier_id"`
+	IsVipTier               string  `json:"is_vip_tier"`
+	FeeTierName             string  `json:"fee_tier_name"`
+	MakerFeeRate            float64 `json:"maker_fee_rate"`
+	TakerFeeRate            float64 `json:"taker_fee_rate"`
+	IsOverride              string  `json:"is_override"`
+	Trailing30DayVolume     float64 `json:"trailing_30day_volume"`
+	Trailing24HrUsdcBalance float64 `json:"trailing_24hr_usdc_balance"`
+}
+
+// VolumeRankingInfo represents a volume ranking information
+type VolumeRankingInfo struct {
+	LastUpdated time.Time `json:"last_updated"`
+	Statistics  struct {
+		Maker struct {
+			Rank            float64 `json:"rank"`
+			RelativePercent float64 `json:"relative_percent"`
+			Volume          float64 `json:"volume"`
+		} `json:"maker"`
+		Taker struct {
+			Rank            float64 `json:"rank"`
+			RelativePercent float64 `json:"relative_percent"`
+			Volume          float64 `json:"volume"`
+		} `json:"taker"`
+		Total struct {
+			Rank            float64 `json:"rank"`
+			RelativePercent float64 `json:"relative_percent"`
+			Volume          float64 `json:"volume"`
+		} `json:"total"`
+	} `json:"statistics"`
 }
 
 // Transfers returns a list of fund transfers.
@@ -507,6 +639,37 @@ type CryptoAddressParam struct {
 type CryptoAddressInfo struct {
 	Address      string `json:"address"`
 	NetworkArnID string `json:"network_arn_id"`
+}
+
+// CounterpartyIDCreationResponse represents a counterparty ID creation response
+type CounterpartyIDCreationResponse struct {
+	PortfolioUUID  string `json:"portfolio_uuid"`
+	CounterpartyID string `json:"counterparty_id"`
+}
+
+// CounterpartyValidationResponse represents a counterparty validation response
+type CounterpartyValidationResponse struct {
+	CounterpartyID string `json:"counterparty_id"`
+	Valid          bool   `json:"valid"`
+}
+
+// AssetCounterpartyWithdrawalResponse represents an asset counterparty withdrawal information
+type AssetCounterpartyWithdrawalResponse struct {
+	Portfolio      string  `json:"portfolio"`
+	CounterpartyID string  `json:"counterparty_id"`
+	Asset          string  `json:"asset"`
+	Amount         float64 `json:"amount"`
+	Nonce          string  `json:"nonce"`
+}
+
+// CounterpartyWithdrawalResponse an asset withdrawal response
+type CounterpartyWithdrawalResponse struct {
+	Idem                 string  `json:"idem"`
+	PortfolioUUID        string  `json:"portfolio_uuid"`
+	SourceCounterpartyID string  `json:"source_counterparty_id"`
+	TargetCounterpartyID string  `json:"target_counterparty_id"`
+	Asset                string  `json:"asset"`
+	Amount               float64 `json:"amount"`
 }
 
 // SubscriptionInput holds channel subscription information

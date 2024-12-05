@@ -392,6 +392,73 @@ func TestGetPortfolioAssetBalance(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetActiveLoansForPortfolio(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetActiveLoansForPortfolio(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetActiveLoansForPortfolio(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLoanInfoForPortfolioAsset(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetLoanInfoForPortfolioAsset(context.Background(), "", "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+	_, err = co.GetLoanInfoForPortfolioAsset(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetLoanInfoForPortfolioAsset(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAcquireRepayLoan(t *testing.T) {
+	t.Parallel()
+	_, err := co.AcquireRepayLoan(context.Background(), "", "", currency.BTC, &LoanActionAmountParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = co.AcquireRepayLoan(context.Background(), "", "", currency.BTC, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
+	require.ErrorIs(t, err, errMissingPortfolioID)
+	_, err = co.AcquireRepayLoan(context.Background(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.EMPTYCODE, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.AcquireRepayLoan(context.Background(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.BTC, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPreviewLoanUpdate(t *testing.T) {
+	t.Parallel()
+	_, err := co.PreviewLoanUpdate(context.Background(), "", "", currency.BTC, &LoanActionAmountParam{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = co.PreviewLoanUpdate(context.Background(), "", "", currency.BTC, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
+	require.ErrorIs(t, err, errMissingPortfolioID)
+	_, err = co.PreviewLoanUpdate(context.Background(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.EMPTYCODE, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.PreviewLoanUpdate(context.Background(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.BTC, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestViewMaxLoanAvailability(t *testing.T) {
+	t.Parallel()
+	_, err := co.ViewMaxLoanAvailability(context.Background(), "", "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+	_, err = co.ViewMaxLoanAvailability(context.Background(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.ViewMaxLoanAvailability(context.Background(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestPortfolioPosition(t *testing.T) {
 	t.Parallel()
 	_, err := co.ListPortfolioPositions(context.Background(), "", "")
@@ -416,10 +483,132 @@ func TestGetPortfolioInstrumentPosition(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestListPortfolioFills(t *testing.T) {
+func TestGetFillsByPortfolio(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetFillsByPortfolio(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", "abcdefg", 10, 1, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestListPortfolioFills(t *testing.T) {
+	t.Parallel()
+	_, err := co.ListPortfolioFills(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.ListPortfolioFills(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableDisablePortfolioCrossCollateral(t *testing.T) {
+	t.Parallel()
+	_, err := co.EnableDisablePortfolioCrossCollateral(context.Background(), "", "", false)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.EnableDisablePortfolioCrossCollateral(context.Background(), "", "f67de785-60a7-45ea-b87a-07e83eae7c12", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableDisablePortfolioAutoMarginMode(t *testing.T) {
+	t.Parallel()
+	_, err := co.EnableDisablePortfolioAutoMarginMode(context.Background(), "", "", false)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.EnableDisablePortfolioAutoMarginMode(context.Background(), "", "f67de785-60a7-45ea-b87a-07e83eae7c12", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetPortfolioMarginOverride(t *testing.T) {
+	t.Parallel()
+	_, err := co.SetPortfolioMarginOverride(context.Background(), &PortfolioMarginOverrideParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.SetPortfolioMarginOverride(context.Background(), &PortfolioMarginOverrideParams{MarginOverride: .5, PortfolioID: "f67de785-60a7-45ea-b87"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTransferFundsBetweenPortfolios(t *testing.T) {
+	t.Parallel()
+	_, err := co.TransferFundsBetweenPortfolios(context.Background(), &TransferFundsBetweenPortfoliosParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.TransferFundsBetweenPortfolios(context.Background(), &TransferFundsBetweenPortfoliosParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175", Asset: currency.BTC})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTransferPositionsBetweenPortfolios(t *testing.T) {
+	t.Parallel()
+	_, err := co.TransferPositionsBetweenPortfolios(context.Background(), &TransferPortfolioParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.TransferPositionsBetweenPortfolios(context.Background(), &TransferPortfolioParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175", Instrument: "BTC-PERP", Quantity: 123, Side: "BUY"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioFeeRates(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetPortfolioFeeRates(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetYourRanking(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetYourRanking(context.Background(), "", "THIS_MONTH", []string{})
+	require.ErrorIs(t, err, errInstrumentTypeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetYourRanking(context.Background(), "SPOT", "THIS_MONTH", []string{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateCounterPartyID(t *testing.T) {
+	t.Parallel()
+	_, err := co.CreateCounterPartyID(context.Background(), "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.CreateCounterPartyID(context.Background(), "5189861793641175")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestValidateCounterpartyID(t *testing.T) {
+	t.Parallel()
+	_, err := co.ValidateCounterpartyID(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.ValidateCounterpartyID(context.Background(), "CBTQDGENHE")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWithdrawToCounterpartyID(t *testing.T) {
+	t.Parallel()
+	_, err := co.WithdrawToCounterpartyID(context.Background(), &AssetCounterpartyWithdrawalResponse{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	result, err := co.WithdrawToCounterpartyID(context.Background(), &AssetCounterpartyWithdrawalResponse{
+		Portfolio:      "5189861793641175",
+		CounterpartyID: "CBTQDGENHE",
+		Asset:          "BTC",
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

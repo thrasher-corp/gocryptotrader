@@ -48,6 +48,7 @@ var (
 	errEmptyArgument                = errors.New("empty argument")
 	errTimeInForceRequired          = errors.New("time_in_force is required")
 	errInstrumentIdentifierRequired = errors.New("instrument information is required")
+	errInstrumentTypeRequired       = errors.New("instrument type required")
 )
 
 // ListAssets returns a list of all supported assets.
@@ -483,6 +484,100 @@ func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, p
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
+// GetActiveLoansForPortfolio retrieves all loan info for a given portfolio.
+func (co *CoinbaseInternational) GetActiveLoansForPortfolio(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioLoanDetail, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/loans"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/loans"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	var resp *PortfolioLoanDetail
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// GetLoanInfoForPortfolioAsset retrieves the loan info for a given portfolio and asset.
+func (co *CoinbaseInternational) GetLoanInfoForPortfolioAsset(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code) (*PortfolioLoanDetail, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/loans/"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/loans/"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *PortfolioLoanDetail
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+asset.String(), nil, nil, &resp, true)
+}
+
+// AcquireRepayLoan acquire or repay loan for a given portfolio and asset.
+// Action possible values: [ACQUIRE, REPAY]
+func (co *CoinbaseInternational) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*AcquireRepayLoanResponse, error) {
+	if arg == nil || *arg == (LoanActionAmountParam{}) {
+		return nil, common.ErrEmptyParams
+	}
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/loans/"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/loans/"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *AcquireRepayLoanResponse
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+asset.String(), nil, arg, &resp, true)
+}
+
+// PreviewLoanUpdate preview acquire or repay loan for a given portfolio and asset.
+func (co *CoinbaseInternational) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*LoanUpdate, error) {
+	if arg == nil || *arg == (LoanActionAmountParam{}) {
+		return nil, common.ErrEmptyParams
+	}
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/loans/"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/loans/"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *LoanUpdate
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+asset.String()+"/preview", nil, arg, &resp, true)
+}
+
+// ViewMaxLoanAvailability view the maximum amount of loan that could be acquired now
+func (co *CoinbaseInternational) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code) (*MaxLoanAvailability, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/loans/"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/loans/"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *MaxLoanAvailability
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+asset.String()+"/availability", nil, nil, &resp, true)
+}
+
 // ListPortfolioPositions returns all of the positions for a given portfolio.
 func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioPosition, error) {
 	var path string
@@ -516,6 +611,34 @@ func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Cont
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
+// GetFillsByPortfolio returns fills for specified portfolios or fills for all portfolios if none are provided
+func (co *CoinbaseInternational) GetFillsByPortfolio(ctx context.Context, portfolioUUID, orderID, clientOrderID string, resultLimit, resultOffset int64, refDateTime, timeFrom time.Time) (*PortfolioFill, error) {
+	params := url.Values{}
+	if portfolioUUID != "" {
+		params.Set("portfolios", portfolioUUID)
+	}
+	if orderID != "" {
+		params.Set("order_id", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("client_order_id", clientOrderID)
+	}
+	if !refDateTime.IsZero() {
+		params.Set("ref_datetime", refDateTime.Format("2006-01-02T15:04:05Z"))
+	}
+	if resultLimit > 0 {
+		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
+	}
+	if resultOffset > 0 {
+		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
+	}
+	if !timeFrom.IsZero() {
+		params.Set("time_from", timeFrom.Format("2006-01-02T15:04:05Z"))
+	}
+	var resp *PortfolioFill
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/fills", params, nil, &resp, true)
+}
+
 // ListPortfolioFills returns all of the fills for a given portfolio.
 func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioFill, error) {
 	var path string
@@ -529,6 +652,105 @@ func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfol
 	}
 	var resp []PortfolioFill
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// EnableDisablePortfolioCrossCollateral enable or disable the cross collateral feature for the portfolio, which allows the portfolio to use non-USDC assets as collateral for margin trading.
+func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioCrossCollateralDetail, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/cross-collateral-enabled"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/cross-collateral-enabled"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	var resp *PortfolioCrossCollateralDetail
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &struct {
+		Enabled bool `json:"enabled,omitempty"`
+	}{
+		Enabled: enabled,
+	}, &resp, true)
+}
+
+// EnableDisablePortfolioAutoMarginMode enable or disable the auto margin feature,
+// which lets the portfolio automatically post margin amounts required to exceed the high leverage position restrictions.
+func (co *CoinbaseInternational) EnableDisablePortfolioAutoMarginMode(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (interface{}, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID + "/auto-margin-enabled"
+	case portfolioID != "":
+		path = portfolios + portfolioID + "/auto-margin-enabled"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	var resp *PortfolioCrossCollateralDetail
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &struct {
+		Enabled bool `json:"enabled,omitempty"`
+	}{
+		Enabled: enabled,
+	}, &resp, true)
+}
+
+// SetPortfolioMarginOverride specify the margin override value for a portfolio to either increase notional requirements or opt-in to higher leverage.
+func (co *CoinbaseInternational) SetPortfolioMarginOverride(ctx context.Context, arg *PortfolioMarginOverrideParams) (*PortfolioMarginOverrideResponse, error) {
+	if arg == nil || *arg == (PortfolioMarginOverrideParams{}) {
+		return nil, common.ErrEmptyParams
+	}
+	var resp *PortfolioMarginOverrideResponse
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios/margin", nil, arg, &resp, true)
+}
+
+// TransferFundsBetweenPortfolios transfer assets from one portfolio to another.
+func (co *CoinbaseInternational) TransferFundsBetweenPortfolios(ctx context.Context, arg *TransferFundsBetweenPortfoliosParams) (bool, error) {
+	if arg == nil || *arg == (TransferFundsBetweenPortfoliosParams{}) {
+		return false, common.ErrEmptyParams
+	}
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios/transfer", nil, arg, &resp, true)
+}
+
+// TransferPositionsBetweenPortfolios transfer an existing position from one portfolio to another.
+// The position transfer must fulfill the same portfolio-level margin requirements as submitting a new order on the opposite side for the sender's portfolio and a new order on the same side for the recipient's portfolio.
+// Additionally, organization-level requirements must be satisfied when evaluating the outcome of the position transfer.
+func (co *CoinbaseInternational) TransferPositionsBetweenPortfolios(ctx context.Context, arg *TransferPortfolioParams) (bool, error) {
+	if arg == nil || *arg == (TransferPortfolioParams{}) {
+		return false, common.ErrEmptyParams
+	}
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios/transfer-position", nil, arg, &resp, true)
+}
+
+// GetPortfolioFeeRates retrieves the Perpetual Future and Spot fee rate tiers for the user.
+func (co *CoinbaseInternational) GetPortfolioFeeRates(ctx context.Context) ([]PortfolioFeeRate, error) {
+	var resp []PortfolioFeeRate
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/fee-rates", nil, nil, &resp, true)
+}
+
+// GetYourRanking retrieve your volume rankings for maker, taker, and total volume.
+// Instrument type allowed values: SPOT, PERPETUAL_FUTURE
+// period allowed values: YESTERDAY, LAST_7_DAYS, THIS_MONTH, LAST_30_DAYS, LAST_MONTH. Default: THIS_MONTH
+func (co *CoinbaseInternational) GetYourRanking(ctx context.Context, instrumentType, period string, instruments []string) (*VolumeRankingInfo, error) {
+	if instrumentType == "" {
+		return nil, errInstrumentTypeRequired
+	}
+	params := url.Values{}
+	params.Set("instrument_type", instrumentType)
+	if period != "" {
+		params.Set("period", period)
+	}
+	if len(instruments) > 0 {
+		for i := range instruments {
+			params.Add("instruments", instruments[i])
+		}
+	}
+	var resp *VolumeRankingInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "rankings/statistics", params, nil, &resp, true)
 }
 
 // ListMatchingTransfers represents a list of transfer based on the query
@@ -607,6 +829,41 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 	}
 	var resp *CryptoAddressInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/address", nil, arg, &resp, true)
+}
+
+// CreateCounterPartyID create counterparty Id
+func (co *CoinbaseInternational) CreateCounterPartyID(ctx context.Context, portfolio string) (*CounterpartyIDCreationResponse, error) {
+	if portfolio == "" {
+		return nil, errMissingPortfolioID
+	}
+	var resp *CounterpartyIDCreationResponse
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/create-counterparty-id", nil, &struct {
+		Portfolio string `json:"portfolio,omitempty"`
+	}{
+		Portfolio: portfolio,
+	}, &resp, true)
+}
+
+// ValidateCounterpartyID validate counterparty Id
+func (co *CoinbaseInternational) ValidateCounterpartyID(ctx context.Context, counterpartyID string) (*CounterpartyValidationResponse, error) {
+	if counterpartyID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *CounterpartyValidationResponse
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/validate-counterparty-id", nil, &struct {
+		CounterpartyID string `json:"counterparty_id,omitempty"`
+	}{
+		CounterpartyID: counterpartyID,
+	}, &resp, true)
+}
+
+// WithdrawToCounterpartyID withdraw to counterparty Id
+func (co *CoinbaseInternational) WithdrawToCounterpartyID(ctx context.Context, arg *AssetCounterpartyWithdrawalResponse) (*CounterpartyWithdrawalResponse, error) {
+	if arg == nil || *arg == (AssetCounterpartyWithdrawalResponse{}) {
+		return nil, common.ErrEmptyParams
+	}
+	var resp *CounterpartyWithdrawalResponse
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw/counterparty", nil, arg, &resp, true)
 }
 
 // SendHTTPRequest sends a public HTTP request.
