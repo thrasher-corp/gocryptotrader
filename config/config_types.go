@@ -184,6 +184,7 @@ type Exchange struct {
 	HTTPTimeout                   time.Duration          `json:"httpTimeout"`
 	HTTPUserAgent                 string                 `json:"httpUserAgent,omitempty"`
 	HTTPDebugging                 bool                   `json:"httpDebugging,omitempty"`
+	WebsocketMetricsLogging       bool                   `json:"websocketMetricsLogging"`
 	WebsocketResponseCheckTimeout time.Duration          `json:"websocketResponseCheckTimeout"`
 	WebsocketResponseMaxLimit     time.Duration          `json:"websocketResponseMaxLimit"`
 	WebsocketTrafficTimeout       time.Duration          `json:"websocketTrafficTimeout"`

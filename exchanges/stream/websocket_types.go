@@ -109,6 +109,7 @@ type Websocket struct {
 	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential
 	// endpoints.
 	rateLimitDefinitions request.RateLimitDefinitions
+	processReporter      ProcessReporterManager
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
