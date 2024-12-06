@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -32,6 +33,11 @@ const (
 )
 
 var (
+	errParsingWSField     = errors.New("error parsing WS field")
+	errParsingWSPair      = errors.New("unable to parse currency pair from wsResponse.Channel")
+	errChannelHyphens     = errors.New("channel name does not contain exactly 0 or 2 hyphens")
+	errChannelUnderscores = errors.New("channel name does not contain exactly 2 underscores")
+
 	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
 )
 
@@ -94,78 +100,55 @@ func (b *Bitstamp) wsReadData() {
 }
 
 func (b *Bitstamp) wsHandleData(respRaw []byte) error {
-	wsResponse := &websocketResponse{}
-	if err := json.Unmarshal(respRaw, wsResponse); err != nil {
-		return err
+	event, err := jsonparser.GetUnsafeString(respRaw, "event")
+	if err != nil {
+		return fmt.Errorf("%w `event`: %w", errParsingWSField, err)
 	}
 
-	if err := b.parseChannelName(wsResponse); err != nil {
-		return err
-	}
-
-	switch wsResponse.Event {
-	case "bts:heartbeat":
+	event = strings.TrimPrefix(event, "bts:")
+	switch event {
+	case "heartbeat":
 		return nil
-	case "bts:subscribe", "bts:subscription_succeeded":
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket subscription acknowledgement", b.Name)
-		}
-	case "bts:unsubscribe":
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket unsubscribe acknowledgement", b.Name)
-		}
-	case "bts:request_reconnect":
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
-		}
+	case "subscription_succeeded", "unsubscription_succeeded":
+		return b.handleWSSubscription(event, respRaw)
+	case "data":
+		return b.handleWSOrderbook(respRaw)
+	case "trade":
+		return b.handleWSTrade(respRaw)
+	case "order_created", "order_deleted", "order_changed":
+		return b.handleWSOrder(event, respRaw)
+	case "request_reconnect":
 		go func() {
-			err := b.Websocket.Shutdown()
-			if err != nil {
+			if err := b.Websocket.Shutdown(); err != nil { // Connection monitor will reconnect
 				log.Errorf(log.WebsocketMgr, "%s failed to shutdown websocket: %v", b.Name, err)
 			}
-		}() // Connection monitor will reconnect
-	case "data":
-		if err := b.handleWSOrderbook(wsResponse, respRaw); err != nil {
-			return err
-		}
-	case "trade":
-		if err := b.handleWSTrade(wsResponse, respRaw); err != nil {
-			return err
-		}
-	case "order_created", "order_deleted", "order_changed":
-		// Only process MyOrders, not orders from the LiveOrder channel
-		if wsResponse.channelType == bitstampAPIWSMyOrders {
-			if err := b.handleWSOrder(wsResponse, respRaw); err != nil {
-				return err
-			}
-		}
+		}()
 	default:
 		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
 
-func (b *Bitstamp) handleWSOrderbook(wsResp *websocketResponse, msg []byte) error {
-	if wsResp.pair.IsEmpty() {
-		return errWSPairParsingError
-	}
-
-	wsOrderBookTemp := websocketOrderBookResponse{}
-	err := json.Unmarshal(msg, &wsOrderBookTemp)
+func (b *Bitstamp) handleWSSubscription(event string, respRaw []byte) error {
+	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
 	if err != nil {
-		return err
+		return fmt.Errorf("%w `channel`: %w", errParsingWSField, err)
 	}
-
-	return b.wsUpdateOrderbook(&wsOrderBookTemp.Data, wsResp.pair, asset.Spot)
+	event = strings.TrimSuffix(event, "scription_succeeded")
+	if !b.Websocket.Match.IncomingWithData(event+":"+channel, respRaw) {
+		return fmt.Errorf("%w: %s", stream.ErrNoMessageListener, event+":"+channel)
+	}
+	return nil
 }
 
-func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSTrade(msg []byte) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
 
-	if wsResp.pair.IsEmpty() {
-		return errWSPairParsingError
+	_, p, err := b.parseChannelName(msg)
+	if err != nil {
+		return err
 	}
 
 	wsTradeTemp := websocketTradeResponse{}
@@ -179,7 +162,7 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 	}
 	return trade.AddTradesToBuffer(b.Name, trade.Data{
 		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
-		CurrencyPair: wsResp.pair,
+		CurrencyPair: p,
 		AssetType:    asset.Spot,
 		Exchange:     b.Name,
 		Price:        wsTradeTemp.Data.Price,
@@ -189,7 +172,15 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 	})
 }
 
-func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSOrder(event string, msg []byte) error {
+	channel, p, err := b.parseChannelName(msg)
+	if err != nil {
+		return err
+	}
+	if channel != bitstampAPIWSMyOrders {
+		return nil // Only process MyOrders, not orders from the LiveOrder channel
+	}
+
 	r := &websocketOrderResponse{}
 	if err := json.Unmarshal(msg, &r); err != nil {
 		return err
@@ -200,7 +191,7 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	}
 
 	var status order.Status
-	switch wsResp.Event {
+	switch event {
 	case "order_created":
 		status = order.New
 	case "order_changed":
@@ -230,7 +221,7 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 		Status:          status,
 		AssetType:       asset.Spot,
 		Date:            r.Order.Microtimestamp.Time(),
-		Pair:            wsResp.pair,
+		Pair:            p,
 	}
 
 	b.Websocket.DataHandler <- d
@@ -249,19 +240,28 @@ func (b *Bitstamp) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (b *Bitstamp) Subscribe(subs subscription.List) error {
+	return b.manageSubsWithCreds(subs, "sub")
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from a list of channels
+func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
+	return b.manageSubsWithCreds(subs, "unsub")
+}
+
+func (b *Bitstamp) manageSubsWithCreds(subs subscription.List, op string) error {
 	var errs error
 	var creds *WebsocketAuthResponse
 	if authed := subs.Private(); len(authed) > 0 {
 		creds, errs = b.FetchWSAuth(context.TODO())
 	}
-	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.subscribe(s, creds) }, 1))
+	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.manageSubs(s, op, creds) }, 1))
 }
 
-func (b *Bitstamp) subscribe(subs subscription.List, creds *WebsocketAuthResponse) error {
+func (b *Bitstamp) manageSubs(subs subscription.List, op string, creds *WebsocketAuthResponse) error {
 	subs, errs := subs.ExpandTemplates(b)
 	for _, s := range subs {
 		req := websocketEventRequest{
-			Event: "bts:subscribe",
+			Event: "bts:" + op + "scribe",
 			Data: websocketData{
 				Channel: s.QualifiedChannel,
 			},
@@ -273,9 +273,13 @@ func (b *Bitstamp) subscribe(subs subscription.List, creds *WebsocketAuthRespons
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(creds.UserID))
 			req.Data.Auth = creds.Token
 		}
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+		_, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, op+":"+req.Data.Channel, req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
+			if op == "sub" {
+				err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
+			} else {
+				err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
+			}
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -285,32 +289,18 @@ func (b *Bitstamp) subscribe(subs subscription.List, creds *WebsocketAuthRespons
 	return errs
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
-	return b.ParallelChanOp(subs, b.unsubscribe, 1)
-}
-
-func (b *Bitstamp) unsubscribe(subs subscription.List) error {
-	var errs error
-	for _, s := range subs {
-		req := websocketEventRequest{
-			Event: "bts:unsubscribe",
-			Data: websocketData{
-				Channel: s.QualifiedChannel,
-			},
-		}
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
-		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
-		}
-		if err != nil {
-			errs = common.AppendError(errs, err)
-		}
+func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
+	_, p, err := b.parseChannelName(msg)
+	if err != nil {
+		return err
 	}
-	return errs
-}
 
-func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair, assetType asset.Item) error {
+	wsOrderBookResp := websocketOrderBookResponse{}
+	if err := json.Unmarshal(msg, &wsOrderBookResp); err != nil {
+		return err
+	}
+	update := &wsOrderBookResp.Data
+
 	if len(update.Asks) == 0 && len(update.Bids) == 0 {
 		return errors.New("no orderbook data")
 	}
@@ -320,7 +310,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		Asks:            make(orderbook.Tranches, len(update.Asks)),
 		Pair:            p,
 		LastUpdated:     time.UnixMicro(update.Microtimestamp),
-		Asset:           assetType,
+		Asset:           asset.Spot,
 		Exchange:        b.Name,
 		VerifyOrderbook: b.CanVerifyOrderbook,
 	}
@@ -411,37 +401,39 @@ func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, err
 	return resp, nil
 }
 
-// parseChannel splits the ws response channel and sets the channel type and pair
-func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
-	if r.Channel == "" {
-		return nil
+// parseChannelName splits the ws message channel and returns the channel name and pair
+func (b *Bitstamp) parseChannelName(respRaw []byte) (string, currency.Pair, error) {
+	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
+	if err != nil {
+		return "", currency.EMPTYPAIR, fmt.Errorf("%w `channel`: %w", errParsingWSField, err)
 	}
 
-	chanName := r.Channel
-	authParts := strings.Split(r.Channel, "-")
+	authParts := strings.Split(channel, "-")
 	switch len(authParts) {
 	case 1:
 		// Not an auth channel
 	case 3:
-		chanName = authParts[1]
+		channel = authParts[1]
 	default:
-		return fmt.Errorf("channel name does not contain exactly 0 or 2 hyphens: %v", r.Channel)
+		return "", currency.EMPTYPAIR, fmt.Errorf("%w: %s", errChannelHyphens, channel)
 	}
 
-	parts := strings.Split(chanName, "_")
+	parts := strings.Split(channel, "_")
 	if len(parts) != 3 {
-		return fmt.Errorf("%w: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
+		return "", currency.EMPTYPAIR, fmt.Errorf("%w: %s", errChannelUnderscores, channel)
 	}
-
-	r.channelType = parts[0] + "_" + parts[1]
-	symbol := parts[2]
 
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
-	if err == nil {
-		r.pair, err = enabledPairs.DeriveFrom(symbol)
+	if err != nil {
+		return "", currency.EMPTYPAIR, err
 	}
 
-	return err
+	pair, err := enabledPairs.DeriveFrom(parts[2])
+	if err != nil {
+		return "", currency.EMPTYPAIR, fmt.Errorf("%w: %s", errParsingWSPair, err)
+	}
+
+	return parts[0] + "_" + parts[1], pair, nil
 }
 
 // channelName converts global channel Names to exchange specific ones
