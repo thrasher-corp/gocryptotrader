@@ -65,13 +65,12 @@ func (d *Deribit) SetDefaults() {
 
 	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := d.StoreAssetPairStore(asset.Spot, currency.PairStore{AssetEnabled: true, RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat}); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, asset.Spot, err)
 	}
-	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
-			log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err := d.StoreAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, a, err)
 		}
 	}
 
@@ -149,6 +148,8 @@ func (d *Deribit) SetDefaults() {
 			},
 		},
 	}
+
+	var err error
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()),

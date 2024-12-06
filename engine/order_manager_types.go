@@ -13,20 +13,20 @@ import (
 // OrderManagerName is an exported subsystem name
 const OrderManagerName = "orders"
 
-// vars for the fund manager package
+// Public Errors
 var (
-	// ErrOrdersAlreadyExists occurs when the order already exists in the manager
-	ErrOrdersAlreadyExists = errors.New("order already exists")
-	// ErrOrderIDCannotBeEmpty occurs when an order does not have an ID
+	ErrOrdersAlreadyExists  = errors.New("order already exists")
 	ErrOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
-	// ErrOrderNotFound occurs when an order is not found in the orderstore
-	ErrOrderNotFound = errors.New("order does not exist")
+	ErrOrderNotFound        = errors.New("order does not exist")
+)
 
+var (
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilOrder                 = errors.New("nil order received")
 	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it via config under orderManager activelyTrackFuturesPositions")
 	orderManagerInterval        = time.Second * 10
-	defaultOrderSeekTime        = -time.Hour * 24 * 365
+
+	errInvalidFuturesTrackingSeekDuration = errors.New("invalid config value for futuresTrackingSeekDuration")
 )
 
 type orderManagerConfig struct {
