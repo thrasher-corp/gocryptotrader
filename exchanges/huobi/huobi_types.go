@@ -807,30 +807,11 @@ type KlinesRequestParams struct {
 	Size   int           // Size; [1-2000]
 }
 
-// WsRequest defines a request data structure
-type WsRequest struct {
-	Topic       string `json:"req,omitempty"`
-	Subscribe   string `json:"sub,omitempty"`
-	Unsubscribe string `json:"unsub,omitempty"`
-	ClientID    int64  `json:"cid,string,omitempty"`
-}
-
-// WsResponse defines a response from the websocket connection when there
-// is an error
-type WsResponse struct {
-	Op     string `json:"op"`
-	TS     int64  `json:"ts"`
-	Status string `json:"status"`
-	// ErrorCode returns either an integer or a string
-	ErrorCode    interface{} `json:"err-code"`
-	ErrorMessage string      `json:"err-msg"`
-	Ping         int64       `json:"ping"`
-	Channel      string      `json:"ch"`
-	Rep          string      `json:"rep"`
-	Topic        string      `json:"topic"`
-	Subscribed   string      `json:"subbed"`
-	UnSubscribed string      `json:"unsubbed"`
-	ClientID     int64       `json:"cid,string"`
+// wsSubReq is a request to subscribe to or unubscribe from a topic for public channels (private channels use generic wsReq)
+type wsSubReq struct {
+	ID    string `json:"id,omitempty"`
+	Sub   string `json:"sub,omitempty"`
+	Unsub string `json:"unsub,omitempty"`
 }
 
 // WsHeartBeat defines a heartbeat request
@@ -901,189 +882,100 @@ type WsTrade struct {
 	}
 }
 
-// WsAuthenticationRequest data for login
-type WsAuthenticationRequest struct {
-	Op               string `json:"op"`
-	AccessKeyID      string `json:"AccessKeyId"`
-	SignatureMethod  string `json:"SignatureMethod"`
-	SignatureVersion string `json:"SignatureVersion"`
-	Timestamp        string `json:"Timestamp"`
-	Signature        string `json:"Signature"`
-	ClientID         int64  `json:"cid,string,omitempty"`
+// wsReq contains authentication login fields
+type wsReq struct {
+	Action  string `json:"action"`
+	Channel string `json:"ch"`
+	Params  any    `json:"params"`
 }
 
-// WsMessage defines read data from the websocket connection
-type WsMessage struct {
-	Raw []byte
-	URL string
+// wsAuthReq contains authentication login fields
+type wsAuthReq struct {
+	AuthType         string `json:"authType"`
+	AccessKey        string `json:"accessKey"`
+	SignatureMethod  string `json:"signatureMethod"`
+	SignatureVersion string `json:"signatureVersion"`
+	Timestamp        string `json:"timestamp"`
+	Signature        string `json:"signature"`
 }
 
-// WsAuthenticatedSubscriptionRequest request for subscription on authenticated connection
-type WsAuthenticatedSubscriptionRequest struct {
-	Op               string `json:"op"`
-	AccessKeyID      string `json:"AccessKeyId"`
-	SignatureMethod  string `json:"SignatureMethod"`
-	SignatureVersion string `json:"SignatureVersion"`
-	Timestamp        string `json:"Timestamp"`
-	Signature        string `json:"Signature"`
-	Topic            string `json:"topic"`
-	ClientID         int64  `json:"cid,string,omitempty"`
+type wsAccountUpdateMsg struct {
+	Data WsAccountUpdate `json:"data"`
 }
 
-// WsAuthenticatedAccountsListRequest request for account list authenticated connection
-type WsAuthenticatedAccountsListRequest struct {
-	Op               string `json:"op"`
-	AccessKeyID      string `json:"AccessKeyId"`
-	SignatureMethod  string `json:"SignatureMethod"`
-	SignatureVersion string `json:"SignatureVersion"`
-	Timestamp        string `json:"Timestamp"`
-	Signature        string `json:"Signature"`
-	Topic            string `json:"topic"`
-	Symbol           string `json:"symbol"`
-	ClientID         int64  `json:"cid,string,omitempty"`
+// WsAccountUpdate contains account updates to balances
+type WsAccountUpdate struct {
+	Currency    string  `json:"currency"`
+	AccountID   int64   `json:"accountId"`
+	Balance     float64 `json:"balance,string"`
+	Available   float64 `json:"available,string"`
+	ChangeType  string  `json:"changeType"`
+	AccountType string  `json:"accountType"`
+	ChangeTime  int64   `json:"changeTime"`
+	SeqNum      int64   `json:"seqNum"`
 }
 
-// WsAuthenticatedOrderDetailsRequest request for order details authenticated connection
-type WsAuthenticatedOrderDetailsRequest struct {
-	Op               string `json:"op"`
-	AccessKeyID      string `json:"AccessKeyId"`
-	SignatureMethod  string `json:"SignatureMethod"`
-	SignatureVersion string `json:"SignatureVersion"`
-	Timestamp        string `json:"Timestamp"`
-	Signature        string `json:"Signature"`
-	Topic            string `json:"topic"`
-	OrderID          string `json:"order-id"`
-	ClientID         int64  `json:"cid,string,omitempty"`
+type wsOrderUpdateMsg struct {
+	Data WsOrderUpdate `json:"data"`
 }
 
-// WsAuthenticatedOrdersListRequest request for orderslist authenticated connection
-type WsAuthenticatedOrdersListRequest struct {
-	Op               string `json:"op"`
-	AccessKeyID      string `json:"AccessKeyId"`
-	SignatureMethod  string `json:"SignatureMethod"`
-	SignatureVersion string `json:"SignatureVersion"`
-	Timestamp        string `json:"Timestamp"`
-	Signature        string `json:"Signature"`
-	Topic            string `json:"topic"`
-	States           string `json:"states"`
-	AccountID        int64  `json:"account-id"`
-	Symbol           string `json:"symbol"`
-	ClientID         int64  `json:"cid,string,omitempty"`
+// WsOrderUpdate contains updates to orders
+type WsOrderUpdate struct {
+	EventType       string     `json:"eventType"`
+	Symbol          string     `json:"symbol"`
+	AccountID       int64      `json:"accountId"`
+	OrderID         int64      `json:"orderId"`
+	TradeID         int64      `json:"tradeId"`
+	ClientOrderID   string     `json:"clientOrderId"`
+	Source          string     `json:"orderSource"`
+	Price           float64    `json:"orderPrice,string"`
+	Size            float64    `json:"orderSize,string"`
+	Value           float64    `json:"orderValue,string"`
+	OrderType       string     `json:"type"`
+	TradePrice      float64    `json:"tradePrice,string"`
+	TradeVolume     float64    `json:"tradeVolume,string"`
+	RemainingAmount float64    `json:"remainAmt,string"`
+	ExecutedAmount  float64    `json:"execAmt,string"`
+	IsTaker         bool       `json:"aggressor"`
+	Side            order.Side `json:"orderSide"`
+	OrderStatus     string     `json:"orderStatus"`
+	LastActTime     int64      `json:"lastActTime"`
+	CreateTime      int64      `json:"orderCreateTime"`
+	TradeTime       int64      `json:"tradeTime"`
+	ErrCode         int64      `json:"errCode"`
+	ErrMessage      string     `json:"errMessage"`
 }
 
-// WsAuthenticatedAccountsResponse response from Accounts authenticated subscription
-type WsAuthenticatedAccountsResponse struct {
-	WsResponse
-	Data WsAuthenticatedAccountsResponseData `json:"data"`
+type wsTradeUpdateMsg struct {
+	Data WsTradeUpdate `json:"data"`
 }
 
-// WsAuthenticatedAccountsResponseData account data
-type WsAuthenticatedAccountsResponseData struct {
-	Event string                                    `json:"event"`
-	List  []WsAuthenticatedAccountsResponseDataList `json:"list"`
-}
-
-// WsAuthenticatedAccountsResponseDataList detailed account data
-type WsAuthenticatedAccountsResponseDataList struct {
-	AccountID int64   `json:"account-id"`
-	Currency  string  `json:"currency"`
-	Type      string  `json:"type"`
-	Balance   float64 `json:"balance,string"`
-}
-
-// WsAuthenticatedOrdersUpdateResponse response from OrdersUpdate authenticated subscription
-type WsAuthenticatedOrdersUpdateResponse struct {
-	WsResponse
-	Data WsAuthenticatedOrdersUpdateResponseData `json:"data"`
-}
-
-// WsAuthenticatedOrdersUpdateResponseData order  update data
-type WsAuthenticatedOrdersUpdateResponseData struct {
-	UnfilledAmount   float64 `json:"unfilled-amount,string"`
-	FilledAmount     float64 `json:"filled-amount,string"`
-	Price            float64 `json:"price,string"`
-	OrderID          int64   `json:"order-id"`
-	Symbol           string  `json:"symbol"`
-	MatchID          int64   `json:"match-id"`
-	FilledCashAmount float64 `json:"filled-cash-amount,string"`
-	Role             string  `json:"role"`
-	OrderState       string  `json:"order-state"`
-	OrderType        string  `json:"order-type"`
-}
-
-// WsAuthenticatedOrdersResponse response from Orders authenticated subscription
-type WsAuthenticatedOrdersResponse struct {
-	WsResponse
-	Data []WsAuthenticatedOrdersResponseData `json:"data"`
-}
-
-// WsOldOrderUpdate response from Orders authenticated subscription
-type WsOldOrderUpdate struct {
-	WsResponse
-	Data WsAuthenticatedOrdersResponseData `json:"data"`
-}
-
-// WsAuthenticatedOrdersResponseData order data
-type WsAuthenticatedOrdersResponseData struct {
-	SeqID            int64   `json:"seq-id"`
-	OrderID          int64   `json:"order-id"`
-	Symbol           string  `json:"symbol"`
-	AccountID        int64   `json:"account-id"`
-	OrderAmount      float64 `json:"order-amount,string"`
-	OrderPrice       float64 `json:"order-price,string"`
-	CreatedAt        int64   `json:"created-at"`
-	OrderType        string  `json:"order-type"`
-	OrderSource      string  `json:"order-source"`
-	OrderState       string  `json:"order-state"`
-	Role             string  `json:"role"`
-	Price            float64 `json:"price,string"`
-	FilledAmount     float64 `json:"filled-amount,string"`
-	UnfilledAmount   float64 `json:"unfilled-amount,string"`
-	FilledCashAmount float64 `json:"filled-cash-amount,string"`
-	FilledFees       float64 `json:"filled-fees,string"`
-}
-
-// WsAuthenticatedAccountsListResponse response from AccountsList authenticated endpoint
-type WsAuthenticatedAccountsListResponse struct {
-	WsResponse
-	Data []WsAuthenticatedAccountsListResponseData `json:"data"`
-}
-
-// WsAuthenticatedAccountsListResponseData account data
-type WsAuthenticatedAccountsListResponseData struct {
-	ID    int64                                         `json:"id"`
-	Type  string                                        `json:"type"`
-	State string                                        `json:"state"`
-	List  []WsAuthenticatedAccountsListResponseDataList `json:"list"`
-}
-
-// WsAuthenticatedAccountsListResponseDataList detailed account data
-type WsAuthenticatedAccountsListResponseDataList struct {
-	Currency string  `json:"currency"`
-	Type     string  `json:"type"`
-	Balance  float64 `json:"balance,string"`
-}
-
-// WsAuthenticatedOrdersListResponse response from OrdersList authenticated endpoint
-type WsAuthenticatedOrdersListResponse struct {
-	WsResponse
-	Data []OrderInfo `json:"data"`
-}
-
-// WsAuthenticatedOrderDetailResponse response from OrderDetail authenticated endpoint
-type WsAuthenticatedOrderDetailResponse struct {
-	WsResponse
-	Data OrderInfo `json:"data"`
-}
-
-// WsPong sent for pong messages
-type WsPong struct {
-	Pong int64 `json:"pong"`
-}
-
-type authenticationPing struct {
-	OP string `json:"op"`
-	TS int64  `json:"ts"`
+// WsTradeUpdate contains trade updates to orders
+type WsTradeUpdate struct {
+	EventType       string     `json:"eventType"`
+	Symbol          string     `json:"symbol"`
+	OrderID         int64      `json:"orderId"`
+	TradePrice      float64    `json:"tradePrice,string"`
+	TradeVolume     float64    `json:"tradeVolume,string"`
+	Side            order.Side `json:"orderSide"`
+	OrderType       string     `json:"orderType"`
+	IsTaker         bool       `json:"aggressor"`
+	TradeID         int64      `json:"tradeId"`
+	TradeTime       int64      `json:"tradeTime"`
+	TransactFee     float64    `json:"transactFee,string"`
+	FeeCurrency     string     `json:"feeCurrency"`
+	FeeDeduct       string     `json:"feeDeduct"`
+	FeeDeductType   string     `json:"feeDeductType"`
+	AccountID       int64      `json:"accountId"`
+	Source          string     `json:"orderSource"`
+	OrderPrice      float64    `json:"orderPrice,string"`
+	OrderSize       float64    `json:"orderSize,string"`
+	Value           float64    `json:"orderValue,string"`
+	ClientOrderID   string     `json:"clientOrderId"`
+	StopPrice       string     `json:"stopPrice"`
+	Operator        string     `json:"operator"`
+	OrderCreateTime int64      `json:"orderCreateTime"`
+	OrderStatus     string     `json:"orderStatus"`
 }
 
 // OrderVars stores side, status and type for any order/trade
