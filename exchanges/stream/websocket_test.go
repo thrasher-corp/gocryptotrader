@@ -65,6 +65,7 @@ type testSubKey struct {
 
 var defaultSetup = &WebsocketSetup{
 	ExchangeConfig: &config.Exchange{
+		WebsocketMetricsLogging: true,
 		Features: &config.FeaturesConfig{
 			Enabled: config.FeaturesEnabledConfig{Websocket: true},
 		},

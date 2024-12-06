@@ -8,7 +8,7 @@ import (
 )
 
 // ProcessReporterManager defines an interface for managing ProcessReporter instances across connections, this will
-// create a new ProcessReporter instance for each new connection reader.
+// create a new ProcessReporter instance for each new connection reader as they spawn.
 type ProcessReporterManager interface {
 	New(conn Connection) ProcessReporter
 }
@@ -32,19 +32,24 @@ func (w *Websocket) SetProcessReportManager(m ProcessReporterManager) {
 	w.processReporter = m
 }
 
-// DefaultProcessReporter is a default implementation of ProcessReporter
-type DefaultProcessReporterManager struct{}
+// NewDefaultProcessReporterManager returns a new defaultProcessReporterManager instance
+func NewDefaultProcessReporterManager() ProcessReporterManager {
+	return defaultProcessReporterManager{period: time.Minute}
+}
+
+// defaultProcessReporterManager is a default implementation of ProcessReporter
+type defaultProcessReporterManager struct{ period time.Duration }
 
 // New returns a new DefaultProcessReporter instance for a connection
-func (d DefaultProcessReporterManager) New(conn Connection) ProcessReporter {
-	reporter := &DefaultProcessReporter{ch: make(chan struct{})}
-	go reporter.collectMetrics(conn)
+func (d defaultProcessReporterManager) New(conn Connection) ProcessReporter {
+	reporter := &defaultProcessReporter{ch: make(chan struct{})}
+	go reporter.collectMetrics(conn, d.period)
 	return reporter
 }
 
 // DefaultProcessReporter provides a thread-safe implementation of the ProcessReporter interface.
 // It tracks operation metrics, including the number of operations, average processing time, and peak processing time.
-type DefaultProcessReporter struct {
+type defaultProcessReporter struct {
 	operations          int64
 	errors              int64
 	totalProcessingTime time.Duration
@@ -55,7 +60,7 @@ type DefaultProcessReporter struct {
 }
 
 // Report logs the processing time for a received data packet and updates metrics.
-func (r *DefaultProcessReporter) Report(read time.Time, data []byte, err error) {
+func (r *defaultProcessReporter) Report(read time.Time, data []byte, err error) {
 	processingDuration := time.Since(read)
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -71,15 +76,18 @@ func (r *DefaultProcessReporter) Report(read time.Time, data []byte, err error) 
 }
 
 // Close closes the process reporter
-func (r *DefaultProcessReporter) Close() {
+func (r *defaultProcessReporter) Close() {
 	r.m.Lock()
 	close(r.ch)
 	r.m.Unlock()
 }
 
 // collectMetrics runs in a separate goroutine to periodically log aggregated metrics.
-func (r *DefaultProcessReporter) collectMetrics(conn Connection) {
-	timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
+func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Duration) {
+	if period == 0 {
+		panic("period duration for collecting metrics must be greater than 0")
+	}
+	timer := time.NewTimer(time.Until(time.Now().Truncate(period).Add(period)))
 	defer timer.Stop()
 
 	for {
@@ -87,7 +95,7 @@ func (r *DefaultProcessReporter) collectMetrics(conn Connection) {
 		case <-r.ch:
 			return
 		case <-timer.C:
-			timer.Reset(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
+			timer.Reset(time.Until(time.Now().Truncate(period).Add(period)))
 			r.m.Lock()
 			if r.operations > 0 {
 				avgOperationsPerSecond := float64(r.operations) / 60

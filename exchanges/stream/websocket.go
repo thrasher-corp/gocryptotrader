@@ -205,7 +205,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.rateLimitDefinitions = s.RateLimitDefinitions
 
 	if s.ExchangeConfig.WebsocketMetricsLogging {
-		w.processReporter = &DefaultProcessReporterManager{}
+		w.processReporter = NewDefaultProcessReporterManager()
 	}
 	return nil
 }
