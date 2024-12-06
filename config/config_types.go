@@ -58,12 +58,8 @@ const (
 
 // Constants here hold some messages
 const (
-	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrNoEnabledExchanges                      = "no exchanges enabled"
-	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
-	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
-	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
-	WarningPairsLastUpdatedThresholdExceeded   = "exchange %s last manual update of available currency pairs has exceeded %d days. Manual update required!"
+	warningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
+	warningPairsLastUpdatedThresholdExceeded   = "exchange %s last manual update of available currency pairs has exceeded %d days. Manual update required!"
 )
 
 // Constants here define unset default values displayed in the config.json
@@ -78,19 +74,24 @@ const (
 
 // Public errors exported by this package
 var (
-	ErrExchangeNotFound = errors.New("exchange not found")
+	ErrExchangeNotFound     = errors.New("exchange not found")
+	ErrFailureOpeningConfig = errors.New("fatal error opening file")
 )
 
 var (
 	cfg Config
 	m   sync.Mutex
+
+	errNoEnabledExchanges   = errors.New("no exchanges enabled")
+	errCheckingConfigValues = errors.New("fatal error checking config values")
+	errExchangeNameEmpty    = errors.New("exchange name is empty")
 )
 
 // Config is the overarching object that holds all the information for
-// prestart management of Portfolio, Communications, Webserver and Enabled
-// Exchanges
+// prestart management of Portfolio, Communications, Webserver and Enabled Exchanges
 type Config struct {
 	Name                 string                    `json:"name"`
+	Version              int                       `json:"version"`
 	DataDirectory        string                    `json:"dataDirectory"`
 	EncryptConfig        int                       `json:"encryptConfig"`
 	GlobalHTTPTimeout    time.Duration             `json:"globalHTTPTimeout"`
@@ -118,9 +119,13 @@ type Config struct {
 	Cryptocurrencies    *currency.Currencies  `json:"cryptocurrencies,omitempty"`
 	SMS                 *base.SMSGlobalConfig `json:"smsGlobal,omitempty"`
 	// encryption session values
-	storedSalt []byte
-	sessionDK  []byte
+	storedSalt            []byte
+	sessionDK             []byte
+	EncryptionKeyProvider EncryptionKeyProvider `json:"-"`
 }
+
+// EncryptionKeyProvider is a function config can use to prompt the user for an encryption key
+type EncryptionKeyProvider func(confirmKey bool) ([]byte, error)
 
 // OrderManager holds settings used for the order manager
 type OrderManager struct {
@@ -197,24 +202,18 @@ type Exchange struct {
 	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
-	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
-	EnabledPairs                     *currency.Pairs      `json:"enabledPairs,omitempty"`
-	AssetTypes                       *string              `json:"assetTypes,omitempty"`
-	PairsLastUpdated                 *int64               `json:"pairsLastUpdated,omitempty"`
-	ConfigCurrencyPairFormat         *currency.PairFormat `json:"configCurrencyPairFormat,omitempty"`
-	RequestCurrencyPairFormat        *currency.PairFormat `json:"requestCurrencyPairFormat,omitempty"`
-	AuthenticatedAPISupport          *bool                `json:"authenticatedApiSupport,omitempty"`
-	AuthenticatedWebsocketAPISupport *bool                `json:"authenticatedWebsocketApiSupport,omitempty"`
-	APIKey                           *string              `json:"apiKey,omitempty"`
-	APISecret                        *string              `json:"apiSecret,omitempty"`
-	APIAuthPEMKeySupport             *bool                `json:"apiAuthPemKeySupport,omitempty"`
-	APIAuthPEMKey                    *string              `json:"apiAuthPemKey,omitempty"`
-	APIURL                           *string              `json:"apiUrl,omitempty"`
-	APIURLSecondary                  *string              `json:"apiUrlSecondary,omitempty"`
-	ClientID                         *string              `json:"clientId,omitempty"`
-	SupportsAutoPairUpdates          *bool                `json:"supportsAutoPairUpdates,omitempty"`
-	Websocket                        *bool                `json:"websocket,omitempty"`
-	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
+	AuthenticatedAPISupport          *bool   `json:"authenticatedApiSupport,omitempty"`
+	AuthenticatedWebsocketAPISupport *bool   `json:"authenticatedWebsocketApiSupport,omitempty"`
+	APIKey                           *string `json:"apiKey,omitempty"`
+	APISecret                        *string `json:"apiSecret,omitempty"`
+	APIAuthPEMKeySupport             *bool   `json:"apiAuthPemKeySupport,omitempty"`
+	APIAuthPEMKey                    *string `json:"apiAuthPemKey,omitempty"`
+	APIURL                           *string `json:"apiUrl,omitempty"`
+	APIURLSecondary                  *string `json:"apiUrlSecondary,omitempty"`
+	ClientID                         *string `json:"clientId,omitempty"`
+	SupportsAutoPairUpdates          *bool   `json:"supportsAutoPairUpdates,omitempty"`
+	Websocket                        *bool   `json:"websocket,omitempty"`
+	WebsocketURL                     *string `json:"websocketUrl,omitempty"`
 }
 
 // Profiler defines the profiler configuration to enable pprof
