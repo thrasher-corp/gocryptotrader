@@ -1638,7 +1638,6 @@
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
    "websocketTrafficTimeout": 30000000000,
-   "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
    "currencyPairs": {
     "requestFormat": {
@@ -1648,11 +1647,9 @@
      "uppercase": true
     },
     "useGlobalFormat": true,
-    "assetTypes": [
-     "spot"
-    ],
     "pairs": {
      "spot": {
+      "assetEnabled": true,
       "enabled": "BTCUSD",
       "available": "BTCUSD,ETHBTC,ETHUSD,BCHUSD,BCHBTC,BCHETH,LTCUSD,LTCBTC,LTCETH,LTCBCH,ZECUSD,ZECBTC,ZECETH,ZECBCH,ZECLTC"
      }
@@ -1703,7 +1700,13 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 5,
+    "websocketBufferEnabled": false,
+    "publishPeriod": 10000000000
+   }
   },
   {
    "name": "HitBTC",
