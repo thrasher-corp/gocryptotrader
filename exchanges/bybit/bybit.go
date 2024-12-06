@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -27,10 +28,7 @@ import (
 // Bybit is the overarching type across this package
 type Bybit struct {
 	exchange.Base
-
-	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
-	// 0: unified, and 1: for normal account
-	AccountType int64
+	account AccountTypeHolder
 }
 
 const (
@@ -45,8 +43,8 @@ const (
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
 
-	accountTypeNormal  = 0 // 0: regular account
-	accountTypeUnified = 1 // 1: unified trade account
+	accountTypeNormal  uint8 = 1 // 0: regular account
+	accountTypeUnified uint8 = 2 // 1: unified trade account
 
 	longDatedFormat = "02Jan06"
 )
@@ -1176,8 +1174,9 @@ func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var resp *TradeOrders
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/order/history", params, nil, &resp, defaultEPL)
@@ -1189,8 +1188,9 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if executionType != "" {
 		params.Set("executionType", executionType)
@@ -1205,8 +1205,9 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var resp *ClosedProfitAndLossResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
@@ -1218,8 +1219,9 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if transactionType != "" {
 		params.Set("type", transactionType)
@@ -1234,8 +1236,9 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if !expiryDate.IsZero() {
 		params.Set("expData", expiryDate.Format(longDatedFormat))
@@ -1250,8 +1253,9 @@ func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, categor
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var resp *SettlementSession
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/settlement-record", params, nil, &resp, defaultEPL)
@@ -2699,13 +2703,37 @@ func getSign(sign, secret string) (string, error) {
 	return crypto.HexEncodeToString(hmacSigned), nil
 }
 
-// RetrieveAndSetAccountType retrieve to set account type information
-func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) error {
-	accInfo, err := by.GetAPIKeyInformation(ctx)
-	if err != nil {
-		return err
+// AccountTypeHolder holds the account type associated with the loaded API key.
+type AccountTypeHolder struct {
+	accountType uint8
+	m           sync.Mutex
+}
+
+// FetchtAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
+func (by *Bybit) FetchtAccountType(ctx context.Context) (uint8, error) {
+	by.account.m.Lock()
+	defer by.account.m.Unlock()
+	if by.account.accountType == 0 {
+		accInfo, err := by.GetAPIKeyInformation(ctx)
+		if err != nil {
+			return 0, err
+		}
+		// From endpoint 0：regular account; 1：unified trade account
+		// + 1 to make it 1 and 2 so that a zero value can be used to check if the account type has been set or not.
+		by.account.accountType = uint8(accInfo.IsUnifiedTradeAccount) + 1
 	}
-	by.AccountType = accInfo.IsUnifiedTradeAccount // 0：regular account; 1：unified trade account
+	return by.account.accountType, nil
+}
+
+// RequiresUnifiedAccount checks if the account type is a unified account.
+func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
+	at, err := by.FetchtAccountType(ctx)
+	if err != nil {
+		return nil // if we can't get the account type, we can't check if it's unified or not
+	}
+	if at != accountTypeUnified {
+		return fmt.Errorf("%w, account type: %d", errAPIKeyIsNotUnified, at)
+	}
 	return nil
 }
 
