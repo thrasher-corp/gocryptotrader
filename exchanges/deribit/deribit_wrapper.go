@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,27 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	d.SetDefaults()
-	exchCfg, err := d.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if d.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := d.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Deribit
 func (d *Deribit) SetDefaults() {
@@ -148,6 +126,7 @@ func (d *Deribit) SetDefaults() {
 				GlobalResultLimit: 500,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -197,7 +176,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		Connector:             d.WsConnect,
 		Subscriber:            d.Subscribe,
 		Unsubscriber:          d.Unsubscribe,
-		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: d.generateSubscriptions,
 		Features:              &d.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
@@ -207,9 +186,6 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	// setup option decimal regex at startup to make constant checks more efficient
-	optionRegex = regexp.MustCompile(optionDecimalRegex)
 
 	return d.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
