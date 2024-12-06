@@ -108,8 +108,8 @@ func main() {
 	}
 
 	fmt.Println("GoCryptoTrader: Exchange templating tool service complete")
+	fmt.Println("Add appropriate exchange config settings, particularly enabled and available assets and pairs, to config_example.json for proper functionality (it will automatically be added to testdata/configtest.json)")
 	fmt.Println("When the exchange code implementation has been completed (REST/Websocket/wrappers and tests), please add the exchange to engine/exchange.go")
-	fmt.Println("Add the exchange config settings to config_example.json (it will automatically be added to testdata/configtest.json)")
 	fmt.Println("Increment the available exchanges counter in config/config_test.go")
 	fmt.Println("Add the exchange name to exchanges/support.go")
 	fmt.Println("Ensure go test ./... -race passes")
