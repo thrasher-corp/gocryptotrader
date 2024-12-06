@@ -12,7 +12,7 @@ type DummyConnection struct {
 }
 
 func (d *DummyConnection) ReadMessage() Response {
-	return Response{Raw: []byte(<-d.ch)}
+	return Response{Raw: <-d.ch}
 }
 
 func (d *DummyConnection) Push(data []byte) {
