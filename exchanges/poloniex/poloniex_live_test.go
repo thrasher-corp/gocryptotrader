@@ -34,8 +34,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Poloniex setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, p.Name)
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	err = p.Websocket.Enable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = populateTradablePairs()
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
