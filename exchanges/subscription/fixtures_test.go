@@ -31,9 +31,13 @@ func newMockEx() *mockEx {
 	}
 
 	return &mockEx{
-		assets: asset.Items{asset.Spot, asset.Futures},
+		assets: asset.Items{asset.Spot, asset.Futures, asset.Index},
 		pairs:  pairs,
 	}
+}
+
+func (m *mockEx) IsAssetWebsocketSupported(a asset.Item) bool {
+	return a != asset.Index
 }
 
 func (m *mockEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {

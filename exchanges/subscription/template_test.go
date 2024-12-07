@@ -60,9 +60,7 @@ func TestExpandTemplates(t *testing.T) {
 	e.auth = true
 	got, err = l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	exp = append(exp,
-		&Subscription{Channel: "single-channel", QualifiedChannel: "single-channel-authed"},
-	)
+	exp = append(exp, &Subscription{Channel: "single-channel", QualifiedChannel: "single-channel-authed"})
 	equalLists(t, exp, got)
 
 	// Test with just one asset to ensure asset.All works, and disabled assets don't error

@@ -20,6 +20,7 @@ type iExchange interface {
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
 	GetSubscriptionTemplate(*Subscription) (*template.Template, error)
 	CanUseAuthenticatedWebsocketEndpoints() bool
+	IsAssetWebsocketSupported(a asset.Item) bool
 }
 
 // Strings returns a sorted slice of subscriptions
@@ -44,6 +45,22 @@ func (l List) GroupPairs() (n List) {
 		}
 	}
 	return s.List()
+}
+
+// GroupByPairs groups subscriptions which have the same Pairs
+func (l List) GroupByPairs() []List {
+	n := []List{}
+outer:
+	for _, a := range l {
+		for i, b := range n {
+			if a.Pairs.Equal(b[0].Pairs) { // Note: b is guaranteed to have 1 element by the append(n) below
+				n[i] = append(n[i], a)
+				continue outer
+			}
+		}
+		n = append(n, List{a})
+	}
+	return n
 }
 
 // Clone returns a deep clone of the List
@@ -91,7 +108,12 @@ func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
 
 // assetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
 func (l List) assetPairs(e iExchange) (assetPairs, error) {
-	at := e.GetAssetTypes(true)
+	at := []asset.Item{}
+	for _, a := range e.GetAssetTypes(true) {
+		if e.IsAssetWebsocketSupported(a) {
+			at = append(at, a)
+		}
+	}
 	ap := assetPairs{}
 	for _, s := range l {
 		switch s.Asset {
