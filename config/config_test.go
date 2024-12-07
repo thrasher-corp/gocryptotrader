@@ -1569,7 +1569,7 @@ func TestReadConfigFromReader(t *testing.T) {
 	assert.Equal(t, "test", c.Name)
 
 	err = c.readConfig(strings.NewReader("{}"))
-	require.NoError(t, err, "Reading a config shorter than encryptionPrefix should not error EOF")
+	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
 }
 
 func TestLoadConfig(t *testing.T) {
