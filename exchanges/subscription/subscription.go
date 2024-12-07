@@ -32,6 +32,7 @@ const (
 	MyTradesChannel  = "myTrades"
 	MyOrdersChannel  = "myOrders"
 	MyWalletChannel  = "myWallet"
+	HeartbeatChannel = "heartbeat"
 	MyAccountChannel = "myAccount"
 	HeartbeatChannel = "heartbeat"
 )

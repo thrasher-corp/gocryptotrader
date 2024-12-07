@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -324,7 +325,7 @@ func TestDeployDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	require.NoError(t, err)
 	_, err = DeployDepth("", c, asset.Spot)
-	require.ErrorIs(t, err, errExchangeNameUnset)
+	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", c, asset.Empty)

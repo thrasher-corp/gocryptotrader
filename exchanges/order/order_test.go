@@ -38,7 +38,7 @@ func TestSubmit_Validate(t *testing.T) {
 			Submit:      nil,
 		}, // nil struct
 		{
-			ExpectedErr: errExchangeNameUnset,
+			ExpectedErr: common.ErrExchangeNameUnset,
 			Submit:      &Submit{},
 		}, // empty exchange
 		{
@@ -949,7 +949,7 @@ func TestStringToOrderType(t *testing.T) {
 		{"tRiGgEr", Trigger, nil},
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
-		{"woahMan", UnknownType, errUnrecognisedOrderType},
+		{"woahMan", UnknownType, ErrUnrecognisedOrderType},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -1412,8 +1412,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.Side = AnySide
 	err = getOrders.Validate()
-	if !errors.Is(err, errUnrecognisedOrderType) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderType)
+	if !errors.Is(err, ErrUnrecognisedOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrUnrecognisedOrderType)
 	}
 
 	var errTestError = errors.New("test error")
