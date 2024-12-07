@@ -359,6 +359,7 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
+	SOR             // smart-order-routine(SOR) used in Binance
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
 )

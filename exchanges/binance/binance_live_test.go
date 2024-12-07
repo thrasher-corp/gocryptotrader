@@ -5,12 +5,13 @@
 package binance
 
 import (
-	"context"
 	"log"
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -18,7 +19,6 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-
 	b = new(Binance)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
@@ -41,13 +41,18 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-
 	b.setupOrderbookManager()
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
-		log.Fatal("Binance setup error", err)
+	if err := b.populateTradablePairs(); err != nil {
+		log.Fatal(err)
 	}
-
+	assetToTradablePairMap = map[asset.Item]currency.Pair{
+		asset.Spot:                spotTradablePair,
+		asset.Options:             optionsTradablePair,
+		asset.USDTMarginedFutures: usdtmTradablePair,
+		asset.CoinMarginedFutures: coinmTradablePair,
+		asset.Margin:              spotTradablePair,
+	}
 	os.Exit(m.Run())
 }

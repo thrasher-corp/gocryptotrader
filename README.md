@@ -178,10 +178,13 @@ Binaries will be published once the codebase reaches a stable condition.
 | [herenow](https://github.com/herenow) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
+<<<<<<< HEAD
+=======
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [azhang](https://github.com/azhang) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+>>>>>>> afb6f75d8845f1de093ca5a7ba90f45962b1e3c9
 | [cornelk](https://github.com/cornelk) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
