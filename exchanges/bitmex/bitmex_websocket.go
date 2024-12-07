@@ -650,16 +650,16 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 
 const subTplText = `
 {{- if $.S.Asset }}
-	{{ range $asset, $pairs := $.AssetPairs }}
+	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S $asset }}
-			{{- range $i, $p := $pairs -}}
-				{{- $name -}} : {{- $p -}}
-				{{ $.PairSeparator }}
+			{{- range $i, $p := $pairs }}
+				{{- $name -}} : {{- $p }}
+				{{- $.PairSeparator }}
 			{{- end }}
 		{{- end }}
-		{{ $.AssetSeparator }}
+		{{- $.AssetSeparator }}
 	{{- end }}
-{{- else -}}
-	{{ channelName $.S $.S.Asset }}
+{{- else }}
+	{{- channelName $.S $.S.Asset }}
 {{- end }}
 `

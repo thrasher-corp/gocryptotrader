@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -2826,8 +2827,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
