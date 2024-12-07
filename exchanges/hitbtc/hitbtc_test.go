@@ -1126,3 +1126,33 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	testsubs.EqualLists(t, exp, subs)
 }
+
+func TestIsSymbolChannel(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isSymbolChannel(&subscription.Subscription{Channel: subscription.TickerChannel}))
+	assert.False(t, isSymbolChannel(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
+}
+
+func TestSubToReq(t *testing.T) {
+	t.Parallel()
+	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
+	r := subToReq(&subscription.Subscription{Channel: subscription.TickerChannel}, p)
+	assert.Equal(t, "Ticker", r.Method)
+	assert.Equal(t, "BTC-USD", (r.Params.Symbol))
+
+	r = subToReq(&subscription.Subscription{Channel: subscription.CandlesChannel, Levels: 4, Interval: kline.OneHour}, p)
+	assert.Equal(t, "Candles", r.Method)
+	assert.Equal(t, "H1", r.Params.Period)
+	assert.Equal(t, 4, r.Params.Limit)
+	assert.Equal(t, "BTC-USD", (r.Params.Symbol))
+
+	r = subToReq(&subscription.Subscription{Channel: subscription.AllTradesChannel, Levels: 150})
+	assert.Equal(t, "Trades", r.Method)
+	assert.Equal(t, 150, r.Params.Limit)
+
+	assert.PanicsWithError(t,
+		"subscription channel not supported: myTrades",
+		func() { subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p) },
+		"should panic on invalid channel",
+	)
+}
