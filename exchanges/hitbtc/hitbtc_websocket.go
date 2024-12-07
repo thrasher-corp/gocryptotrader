@@ -8,13 +8,16 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -30,6 +33,22 @@ const (
 	rpcVersion             = "2.0"
 	errAuthFailed          = 1002
 )
+
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    "Ticker",
+	subscription.OrderbookChannel: "Orderbook",
+	subscription.CandlesChannel:   "Candles",
+	subscription.AllTradesChannel: "Trades",
+	subscription.MyAccountChannel: "Reports",
+}
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.ThirtyMin, Levels: 100},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Levels: 100},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
+}
 
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
@@ -465,104 +484,54 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 	})
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HitBTC) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var channels = []string{
-		"Ticker",
-		"Orderbook",
-		"Trades",
-		"Candles",
-	}
-
-	var subscriptions subscription.List
-	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, &subscription.Subscription{Channel: "Reports"})
-	}
-	pairs, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	pairFmt, err := h.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
-	}
-	pairFmt.Delimiter = ""
-	pairs = pairs.Format(pairFmt)
-	for i := range channels {
-		for j := range pairs {
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[i],
-				Pairs:   currency.Pairs{pairs[j]},
-				Asset:   asset.Spot,
-			})
-		}
-	}
-	return subscriptions, nil
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (h *HitBTC) generateSubscriptions() (subscription.List, error) {
+	return h.Features.Subscriptions.ExpandTemplates(h)
 }
 
+// GetSubscriptionTemplate returns a subscription channel template
+func (h *HitBTC) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
+		"subToReq":        subToReq,
+		"isSymbolChannel": isSymbolChannel,
+	}).Parse(subTplText)
+}
+
+const (
+	subscribeOp   = "subscribe"
+	unsubscribeOp = "unsubscribe"
+)
+
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
-	var errs error
-	for _, s := range channelsToSubscribe {
-		if len(s.Pairs) != 1 {
-			return subscription.ErrNotSinglePair
-		}
-		pair := s.Pairs[0]
-
-		r := WsRequest{
-			Method: "subscribe" + s.Channel,
-			ID:     h.Websocket.Conn.GenerateMessageID(false),
-			Params: WsParams{
-				Symbol: pair.String(),
-			},
-		}
-		switch s.Channel {
-		case "Trades":
-			r.Params.Limit = 100
-		case "Candles":
-			r.Params.Period = "M30"
-			r.Params.Limit = 100
-		}
-
-		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
-		if err == nil {
-			err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, s)
-		}
-		if err != nil {
-			errs = common.AppendError(errs, err)
-		}
-	}
-	return errs
+func (h *HitBTC) Subscribe(subs subscription.List) error {
+	return h.ParallelChanOp(subs, func(subs subscription.List) error { return h.manageSubs(subscribeOp, subs) }, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) Unsubscribe(subs subscription.List) error {
+	return h.ParallelChanOp(subs, func(subs subscription.List) error { return h.manageSubs(unsubscribeOp, subs) }, 1)
+}
+
+func (h *HitBTC) manageSubs(op string, subs subscription.List) error {
 	var errs error
+	subs, errs = subs.ExpandTemplates(h)
 	for _, s := range subs {
-		if len(s.Pairs) != 1 {
-			return subscription.ErrNotSinglePair
-		}
-		pair := s.Pairs[0]
-
-		r := WsNotification{
+		r := WsRequest{
 			JSONRPCVersion: rpcVersion,
-			Method:         "unsubscribe" + s.Channel,
-			Params: WsParams{
-				Symbol: pair.String(),
-			},
+			ID:             h.Websocket.Conn.GenerateMessageID(false),
 		}
-
-		switch s.Channel {
-		case "Trades":
-			r.Params.Limit = 100
-		case "Candles":
-			r.Params.Period = "M30"
-			r.Params.Limit = 100
+		if err := json.Unmarshal([]byte(s.QualifiedChannel), &r); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
 		}
-
-		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+		r.Method = op + r.Method
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r) // v2 api does not return an ID with errors, so we don't use ReturnResponse
 		if err == nil {
-			err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, s)
+			if op == subscribeOp {
+				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, s)
+			} else {
+				err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, s)
+			}
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -838,3 +807,50 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 	}
 	return &response, nil
 }
+
+// subToReq returns the subscription as a map to populate WsRequest
+func subToReq(s *subscription.Subscription, maybePair ...currency.Pair) *WsRequest {
+	name, ok := subscriptionNames[s.Channel]
+	if !ok {
+		panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+	}
+	r := &WsRequest{
+		Method: name,
+	}
+	if len(maybePair) != 0 {
+		r.Params = &WsParams{
+			Symbol: maybePair[0].String(),
+			Limit:  s.Levels,
+		}
+		if s.Interval != 0 {
+			var err error
+			if r.Params.Period, err = formatExchangeKlineInterval(s.Interval); err != nil {
+				panic(err)
+			}
+		}
+	} else if s.Levels != 0 {
+		r.Params = &WsParams{
+			Limit: s.Levels,
+		}
+	}
+	return r
+}
+
+// isSymbolChannel returns if the channel expects receive a symbol
+func isSymbolChannel(s *subscription.Subscription) bool {
+	return s.Channel != subscription.MyAccountChannel
+}
+
+const subTplText = `
+{{- if isSymbolChannel $.S }} 
+	{{ range $asset, $pairs := $.AssetPairs }}
+		{{- range $p := $pairs -}}
+			{{- subToReq $.S $p | mustToJson }}
+			{{ $.PairSeparator }}
+		{{- end }}
+		{{ $.AssetSeparator }}
+	{{- end }}
+{{- else }}
+	{{- subToReq $.S | mustToJson }}
+{{- end }}
+`
