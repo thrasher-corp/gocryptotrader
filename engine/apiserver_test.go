@@ -276,10 +276,10 @@ func TestConfigAllJsonResponse(t *testing.T) {
 		// Using require here makes it much easier to isolate differences per-exchange than below
 		// We look into pointers separately
 		for a, p := range e.CurrencyPairs.Pairs {
-			require.Equalf(t, c.Exchanges[i].CurrencyPairs.Pairs[a], p, "%s exchange Config CurrencyManager Pairs for asset %s should match api response", e.Name, a)
+			require.Equalf(t, c.Exchanges[i].CurrencyPairs.Pairs[a], p, "%s exchange Config CurrencyManager Pairs for asset %s must match api response", e.Name, a)
 		}
-		require.Equalf(t, c.Exchanges[i].CurrencyPairs, e.CurrencyPairs, "%s exchange Config CurrencyManager should match api response", e.Name)
-		require.Equalf(t, c.Exchanges[i], e, "%s exchange Config should match api response", e.Name) // require here makes it much easier to isolate differences than below
+		require.Equalf(t, c.Exchanges[i].CurrencyPairs, e.CurrencyPairs, "%s exchange Config CurrencyManager must match api response", e.Name)
+		require.Equalf(t, c.Exchanges[i], e, "%s exchange Config must match api response", e.Name) // require here makes it much easier to isolate differences than below
 	}
 	assert.Equal(t, c, responseConfig, "Config should match api response")
 }
