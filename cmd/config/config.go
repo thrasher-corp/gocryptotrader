@@ -119,8 +119,9 @@ func decryptFile(in string, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to decrypt config data. Error: %w", err)
 	}
-	if json, err := jsonparser.Set(outData, []byte("-1"), "encryptConfig"); err == nil {
-		// err probably means it didn't decrypt, but we don't tell the user that for security
+	if json, err := jsonparser.Set(outData, []byte("-1"), "encryptConfig"); err != nil {
+		return nil, fmt.Errorf("unable to decrypt config data. Error: %w", err)
+	} else {
 		outData = json
 	}
 	return outData, nil
