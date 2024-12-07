@@ -26,7 +26,7 @@ func TestListStrings(t *testing.T) {
 		},
 	}
 	exp := []string{"orderbook  ETH/USDC", "ticker spot ETH/USDC,BTC/USDT"}
-	assert.ElementsMatch(t, exp, l.Strings(), "String must return correct sorted list")
+	assert.ElementsMatch(t, exp, l.Strings(), "String should return correct sorted list")
 }
 
 // TestQualifiedChannels exercises List.QualifiedChannels()
@@ -63,7 +63,7 @@ func TestListGroupPairs(t *testing.T) {
 	assert.Len(t, l, 5, "Orig list should not be changed")
 	assert.Len(t, n, 2, "New list should be grouped")
 	exp := []string{"ticker spot ETH/USDC,BTC/USDT", "orderbook spot ETH/USDC,BTC/USDT"}
-	assert.ElementsMatch(t, exp, n.Strings(), "String must return correct sorted list")
+	assert.ElementsMatch(t, exp, n.Strings(), "String should return correct sorted list")
 }
 
 // TestListSetStates exercises List.SetState()
@@ -99,9 +99,9 @@ func TestListClone(t *testing.T) {
 	t.Parallel()
 	l := List{{Channel: TickerChannel}, {Channel: OrderbookChannel}}
 	n := l.Clone()
-	assert.NotSame(t, n, l, "Slices must not be the same")
+	assert.NotSame(t, n, l, "Slices should not be the same")
 	require.NotEmpty(t, n, "List must not be empty")
-	assert.NotSame(t, n[0], l[0], "Subscriptions must be cloned")
+	assert.NotSame(t, n[0], l[0], "Subscriptions should be cloned")
 	assert.Equal(t, n[0], l[0], "Subscriptions should be equal")
 	l[0].Interval = kline.OneHour
 	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")

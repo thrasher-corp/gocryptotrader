@@ -202,8 +202,8 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 		require.NoError(t, err, "ReadConfigFromFile must not error")
 	})
 
-	assert.Equal(t, "myCustomName", readConf.Name, "Name must be correct")
-	assert.Equal(t, 1, readConf.EncryptConfig, "EncryptConfig must be set correctly")
+	assert.Equal(t, "myCustomName", readConf.Name, "Name should be correct")
+	assert.Equal(t, 1, readConf.EncryptConfig, "EncryptConfig should be set correctly")
 }
 
 func TestReadConfigWithPrompt(t *testing.T) {
