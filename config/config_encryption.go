@@ -8,29 +8,39 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"os"
 
+	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"golang.org/x/crypto/scrypt"
+	"golang.org/x/term"
 )
 
 const (
-	// EncryptConfirmString has a the general confirmation string to allow us to
-	// see if the file is correctly encrypted
-	EncryptConfirmString = "THORS-HAMMER"
-	// SaltPrefix string
-	SaltPrefix = "~GCT~SO~SALTY~"
-	// SaltRandomLength is the number of random bytes to append after the prefix string
-	SaltRandomLength = 12
+	saltRandomLength = 12
+)
 
-	errAESBlockSize = "config file data is too small for the AES required block size"
+// Public errors
+var (
+	ErrSettingEncryptConfig = errors.New("error setting EncryptConfig during encrypt config file")
+)
+
+var (
+	errAESBlockSize = errors.New("config file data is too small for the AES required block size")
+	errNoPrefix     = errors.New("data does not start with Encryption Prefix")
+	errKeyIsEmpty   = errors.New("key is empty")
+	errUserInput    = errors.New("error getting user input")
+
+	// encryptionPrefix is a prefix to tell us the file is encrypted
+	encryptionPrefix = []byte("THORS-HAMMER")
+	saltPrefix       = []byte("~GCT~SO~SALTY~")
 )
 
 // promptForConfigEncryption asks for encryption confirmation
 // returns true if encryption was desired, false otherwise
 func promptForConfigEncryption() (bool, error) {
-	log.Println("Would you like to encrypt your config file (y/n)?")
+	fmt.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	if _, err := fmt.Scanln(&input); err != nil {
@@ -40,52 +50,52 @@ func promptForConfigEncryption() (bool, error) {
 	return common.YesOrNo(input), nil
 }
 
-// Unencrypted provides the default key provider implementation for unencrypted files
-func Unencrypted() ([]byte, error) {
-	return nil, errors.New("encryption key was requested, no key provided")
-}
-
 // PromptForConfigKey asks for configuration key
-// if initialSetup is true, the password needs to be repeated
-func PromptForConfigKey(initialSetup bool) ([]byte, error) {
-	var cryptoKey []byte
-
-	for {
-		log.Println("Please enter in your password: ")
-		pwPrompt := func(i *[]byte) error {
-			_, err := fmt.Scanln(i)
-			return err
-		}
-
-		var p1 []byte
-		err := pwPrompt(&p1)
+func PromptForConfigKey(confirmKey bool) ([]byte, error) {
+	for range 3 {
+		key, err := getSensitiveInput("Please enter encryption key: ")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errUserInput, err)
 		}
 
-		if !initialSetup {
-			cryptoKey = p1
-			break
+		if len(key) == 0 {
+			continue
 		}
 
-		var p2 []byte
-		log.Println("Please re-enter your password: ")
-		err = pwPrompt(&p2)
+		if !confirmKey {
+			return key, nil
+		}
+
+		conf, err := getSensitiveInput("Please re-enter key: ")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errUserInput, err)
 		}
 
-		if bytes.Equal(p1, p2) {
-			cryptoKey = p1
-			break
+		if bytes.Equal(key, conf) {
+			return key, nil
 		}
-		log.Println("Passwords did not match, please try again.")
+		fmt.Println("Keys did not match, please try again.")
 	}
-	return cryptoKey, nil
+	return nil, fmt.Errorf("%w: %w", errUserInput, io.EOF)
 }
 
-// EncryptConfigFile encrypts configuration data that is parsed in with a key
-// and returns it as a byte array with an error
+// getSensitiveInput reads input from stdin, with echo off if stdin is a terminal
+func getSensitiveInput(prompt string) (resp []byte, err error) {
+	fmt.Print(prompt)
+	defer fmt.Println()
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		return term.ReadPassword(int(os.Stdin.Fd()))
+	}
+	// Can't use bufio.* because it consumes the whole input in one go, even with s.Buffer(1)
+	for buf := make([]byte, 1); err == nil && buf[0] != '\n'; {
+		if _, err = os.Stdin.Read(buf); err == nil {
+			resp = append(resp, buf[0])
+		}
+	}
+	return bytes.TrimRight(resp, "\r\n"), err
+}
+
+// EncryptConfigFile encrypts json config data with a key
 func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	sessionDK, salt, err := makeNewSessionDK(key)
 	if err != nil {
@@ -98,9 +108,14 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	return c.encryptConfigFile(configData)
 }
 
-// encryptConfigFile encrypts configuration data that is parsed in with a key
-// and returns it as a byte array with an error
+// encryptConfigFile encrypts json config data with a key
+// The EncryptConfig field is set to config enabled (1)
 func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
+	configData, err := jsonparser.Set(configData, []byte("1"), "encryptConfig")
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSettingEncryptConfig, err)
+	}
+
 	block, err := aes.NewCipher(c.sessionDK)
 	if err != nil {
 		return nil, err
@@ -115,42 +130,39 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
 
-	appendedFile := []byte(EncryptConfirmString)
-	appendedFile = append(appendedFile, c.storedSalt...)
+	appendedFile := append(bytes.Clone(encryptionPrefix), c.storedSalt...)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
 }
 
-// DecryptConfigFile decrypts configuration data with the supplied key and
-// returns the un-encrypted data as a byte array with an error
-func DecryptConfigFile(configData, key []byte) ([]byte, error) {
-	reader := bytes.NewReader(configData)
-	return (&Config{}).decryptConfigData(reader, key)
+// DecryptConfigFile decrypts config data with a key
+func DecryptConfigFile(d, key []byte) ([]byte, error) {
+	return (&Config{}).decryptConfigData(d, key)
 }
 
-// decryptConfigData decrypts configuration data with the supplied key and
-// returns the un-encrypted data as a byte array with an error
-func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, error) {
-	err := skipECS(configReader)
-	if err != nil {
-		return nil, err
+// decryptConfigData decrypts config data with a key
+func (c *Config) decryptConfigData(d, key []byte) ([]byte, error) {
+	if !bytes.HasPrefix(d, encryptionPrefix) {
+		return d, errNoPrefix
 	}
-	origKey := key
-	configData, err := io.ReadAll(configReader)
+
+	d = bytes.TrimPrefix(d, encryptionPrefix)
+
+	sessionDK, storedSalt, err := makeNewSessionDK(key)
 	if err != nil {
 		return nil, err
 	}
 
-	if ConfirmSalt(configData) {
-		salt := make([]byte, len(SaltPrefix)+SaltRandomLength)
-		salt = configData[0:len(salt)]
+	if bytes.HasPrefix(d, saltPrefix) {
+		salt := make([]byte, len(saltPrefix)+saltRandomLength)
+		salt = d[0:len(salt)]
 
 		key, err = getScryptDK(key, salt)
 		if err != nil {
 			return nil, err
 		}
 
-		configData = configData[len(salt):]
+		d = d[len(salt):]
 	}
 
 	blockDecrypt, err := aes.NewCipher(key)
@@ -158,58 +170,49 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 		return nil, err
 	}
 
-	if len(configData) < aes.BlockSize {
-		return nil, errors.New(errAESBlockSize)
+	if len(d) < aes.BlockSize {
+		return nil, errAESBlockSize
 	}
 
-	iv := configData[:aes.BlockSize]
-	configData = configData[aes.BlockSize:]
+	iv, d := d[:aes.BlockSize], d[aes.BlockSize:]
 
 	stream := cipher.NewCFBDecrypter(blockDecrypt, iv)
-	stream.XORKeyStream(configData, configData)
-	result := configData
+	stream.XORKeyStream(d, d)
 
-	sessionDK, storedSalt, err := makeNewSessionDK(origKey)
-	if err != nil {
-		return nil, err
-	}
 	c.sessionDK, c.storedSalt = sessionDK, storedSalt
 
-	return result, nil
+	return d, nil
 }
 
-// ConfirmSalt checks whether the encrypted data contains a salt
-func ConfirmSalt(file []byte) bool {
-	return bytes.Contains(file, []byte(SaltPrefix))
+// IsEncrypted returns if the data sequence is encrypted
+func IsEncrypted(data []byte) bool {
+	return bytes.HasPrefix(data, encryptionPrefix)
 }
 
-// ConfirmECS confirms that the encryption confirmation string is found
-func ConfirmECS(file []byte) bool {
-	return bytes.Contains(file, []byte(EncryptConfirmString))
-}
-
-// skipECS skips encryption confirmation string
-// or errors, if the prefix wasn't found
-func skipECS(file io.Reader) error {
-	buf := make([]byte, len(EncryptConfirmString))
-	if _, err := io.ReadFull(file, buf); err != nil {
-		return err
+// IsFileEncrypted returns if the file is encrypted
+// Returns false on error opening or reading
+func IsFileEncrypted(f string) bool {
+	r, err := os.Open(f)
+	if err != nil {
+		return false
 	}
-	if string(buf) != EncryptConfirmString {
-		return errors.New("data does not start with ECS")
+	defer r.Close()
+	prefix := make([]byte, len(encryptionPrefix))
+	if _, err = io.ReadFull(r, prefix); err != nil {
+		return false
 	}
-	return nil
+	return bytes.Equal(prefix, encryptionPrefix)
 }
 
 func getScryptDK(key, salt []byte) ([]byte, error) {
 	if len(key) == 0 {
-		return nil, errors.New("key is empty")
+		return nil, errKeyIsEmpty
 	}
 	return scrypt.Key(key, salt, 32768, 8, 1, 32)
 }
 
 func makeNewSessionDK(key []byte) (dk, storedSalt []byte, err error) {
-	storedSalt, err = crypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
+	storedSalt, err = crypto.GetRandomSalt(saltPrefix, saltRandomLength)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -30,9 +32,9 @@ import (
 )
 
 var (
-	// errExchangeConfigIsNil defines an error when the config is nil
 	errExchangeConfigIsNil = errors.New("exchange config is nil")
 	errPairsManagerIsNil   = errors.New("currency pairs manager is nil")
+	errDecryptFailed       = errors.New("failed to decrypt config after 3 attempts")
 )
 
 // GetCurrencyConfig returns currency configurations
@@ -40,28 +42,22 @@ func (c *Config) GetCurrencyConfig() currency.Config {
 	return c.Currency
 }
 
-// GetExchangeBankAccounts returns banking details associated with an exchange
-// for depositing funds
+// GetExchangeBankAccounts returns banking details associated with an exchange for depositing funds
 func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
-	m.Lock()
-	defer m.Unlock()
+	e, err := c.GetExchangeConfig(exchangeName)
+	if err != nil {
+		return nil, err
+	}
 
-	for x := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
-			for y := range c.Exchanges[x].BankAccounts {
-				if strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
-					if common.StringSliceCompareInsensitive(
-						strings.Split(c.Exchanges[x].BankAccounts[y].SupportedCurrencies, ","),
-						depositingCurrency) {
-						return &c.Exchanges[x].BankAccounts[y], nil
-					}
-				}
+	for y := range e.BankAccounts {
+		if strings.EqualFold(e.BankAccounts[y].ID, id) {
+			if common.StringSliceCompareInsensitive(strings.Split(e.BankAccounts[y].SupportedCurrencies, ","), depositingCurrency) {
+				return &e.BankAccounts[y], nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("exchange %s bank details not found for %s",
-		exchangeName,
-		depositingCurrency)
+
+	return nil, fmt.Errorf("exchange %s bank details not found for %s", exchangeName, depositingCurrency)
 }
 
 // UpdateExchangeBankAccounts updates the configuration for the associated
@@ -840,263 +836,207 @@ func (c *Config) UpdateExchangeConfig(e *Exchange) error {
 // exchanges
 func (c *Config) CheckExchangeConfigValues() error {
 	if len(c.Exchanges) == 0 {
-		return errors.New("no exchange configs found")
+		return errNoEnabledExchanges
 	}
 
 	exchanges := 0
 	for i := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
-			c.Exchanges[i].Name = "CoinbasePro"
-		}
+		e := &c.Exchanges[i]
 
 		// Check to see if the old API storage format is used
-		if c.Exchanges[i].APIKey != nil {
+		if e.APIKey != nil {
 			// It is, migrate settings to new format
-			c.Exchanges[i].API.AuthenticatedSupport = *c.Exchanges[i].AuthenticatedAPISupport
-			if c.Exchanges[i].AuthenticatedWebsocketAPISupport != nil {
-				c.Exchanges[i].API.AuthenticatedWebsocketSupport = *c.Exchanges[i].AuthenticatedWebsocketAPISupport
+			e.API.AuthenticatedSupport = *e.AuthenticatedAPISupport
+			if e.AuthenticatedWebsocketAPISupport != nil {
+				e.API.AuthenticatedWebsocketSupport = *e.AuthenticatedWebsocketAPISupport
 			}
-			c.Exchanges[i].API.Credentials.Key = *c.Exchanges[i].APIKey
-			c.Exchanges[i].API.Credentials.Secret = *c.Exchanges[i].APISecret
+			e.API.Credentials.Key = *e.APIKey
+			e.API.Credentials.Secret = *e.APISecret
 
-			if c.Exchanges[i].APIAuthPEMKey != nil {
-				c.Exchanges[i].API.Credentials.PEMKey = *c.Exchanges[i].APIAuthPEMKey
-			}
-
-			if c.Exchanges[i].APIAuthPEMKeySupport != nil {
-				c.Exchanges[i].API.PEMKeySupport = *c.Exchanges[i].APIAuthPEMKeySupport
+			if e.APIAuthPEMKey != nil {
+				e.API.Credentials.PEMKey = *e.APIAuthPEMKey
 			}
 
-			if c.Exchanges[i].ClientID != nil {
-				c.Exchanges[i].API.Credentials.ClientID = *c.Exchanges[i].ClientID
+			if e.APIAuthPEMKeySupport != nil {
+				e.API.PEMKeySupport = *e.APIAuthPEMKeySupport
+			}
+
+			if e.ClientID != nil {
+				e.API.Credentials.ClientID = *e.ClientID
 			}
 
 			// Flush settings
-			c.Exchanges[i].AuthenticatedAPISupport = nil
-			c.Exchanges[i].AuthenticatedWebsocketAPISupport = nil
-			c.Exchanges[i].APIKey = nil
-			c.Exchanges[i].APISecret = nil
-			c.Exchanges[i].ClientID = nil
-			c.Exchanges[i].APIAuthPEMKeySupport = nil
-			c.Exchanges[i].APIAuthPEMKey = nil
-			c.Exchanges[i].APIURL = nil
-			c.Exchanges[i].APIURLSecondary = nil
-			c.Exchanges[i].WebsocketURL = nil
+			e.AuthenticatedAPISupport = nil
+			e.AuthenticatedWebsocketAPISupport = nil
+			e.APIKey = nil
+			e.APISecret = nil
+			e.ClientID = nil
+			e.APIAuthPEMKeySupport = nil
+			e.APIAuthPEMKey = nil
+			e.APIURL = nil
+			e.APIURLSecondary = nil
+			e.WebsocketURL = nil
 		}
 
-		if c.Exchanges[i].Features == nil {
-			c.Exchanges[i].Features = &FeaturesConfig{}
+		if e.Features == nil {
+			e.Features = &FeaturesConfig{}
 		}
 
-		if c.Exchanges[i].SupportsAutoPairUpdates != nil {
-			c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
-			c.Exchanges[i].Features.Enabled.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
-			c.Exchanges[i].SupportsAutoPairUpdates = nil
+		if e.SupportsAutoPairUpdates != nil {
+			e.Features.Supports.RESTCapabilities.AutoPairUpdates = *e.SupportsAutoPairUpdates
+			e.Features.Enabled.AutoPairUpdates = *e.SupportsAutoPairUpdates
+			e.SupportsAutoPairUpdates = nil
 		}
 
-		if c.Exchanges[i].Websocket != nil {
-			c.Exchanges[i].Features.Enabled.Websocket = *c.Exchanges[i].Websocket
-			c.Exchanges[i].Websocket = nil
+		if e.Websocket != nil {
+			e.Features.Enabled.Websocket = *e.Websocket
+			e.Websocket = nil
 		}
 
-		// Check if see if the new currency pairs format is empty and flesh it out if so
-		if c.Exchanges[i].CurrencyPairs == nil {
-			c.Exchanges[i].CurrencyPairs = new(currency.PairsManager)
-			c.Exchanges[i].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+		if err := e.CurrencyPairs.SetDelimitersFromConfig(); err != nil {
+			return fmt.Errorf("%s: %w", e.Name, err)
+		}
 
-			if c.Exchanges[i].PairsLastUpdated != nil {
-				c.Exchanges[i].CurrencyPairs.LastUpdated = *c.Exchanges[i].PairsLastUpdated
-			}
+		assets := e.CurrencyPairs.GetAssetTypes(false)
+		if len(assets) == 0 {
+			e.Enabled = false
+			log.Warnf(log.ConfigMgr, "%s no assets found, disabling...", e.Name)
+			continue
+		}
 
-			c.Exchanges[i].CurrencyPairs.ConfigFormat = c.Exchanges[i].ConfigCurrencyPairFormat
-			c.Exchanges[i].CurrencyPairs.RequestFormat = c.Exchanges[i].RequestCurrencyPairFormat
-
-			var availPairs, enabledPairs currency.Pairs
-			if c.Exchanges[i].AvailablePairs != nil {
-				availPairs = *c.Exchanges[i].AvailablePairs
-			}
-
-			if c.Exchanges[i].EnabledPairs != nil {
-				enabledPairs = *c.Exchanges[i].EnabledPairs
-			}
-
-			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
-			err := c.Exchanges[i].CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-				AssetEnabled: convert.BoolPtr(true),
-				Available:    availPairs,
-				Enabled:      enabledPairs,
-			})
-			if err != nil {
-				return err
-			}
-
-			// flush old values
-			c.Exchanges[i].PairsLastUpdated = nil
-			c.Exchanges[i].ConfigCurrencyPairFormat = nil
-			c.Exchanges[i].RequestCurrencyPairFormat = nil
-			c.Exchanges[i].AssetTypes = nil
-			c.Exchanges[i].AvailablePairs = nil
-			c.Exchanges[i].EnabledPairs = nil
-		} else {
-			if err := c.Exchanges[i].CurrencyPairs.SetDelimitersFromConfig(); err != nil {
-				return fmt.Errorf("%s: %w", c.Exchanges[i].Name, err)
-			}
-
-			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
-			if len(assets) == 0 {
-				c.Exchanges[i].Enabled = false
-				log.Warnf(log.ConfigMgr, "%s no assets found, disabling...", c.Exchanges[i].Name)
-				continue
-			}
-
-			var atLeastOne bool
-			for index := range assets {
-				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
-				if err != nil {
-					if errors.Is(err, currency.ErrAssetIsNil) {
-						// Checks if we have an old config without the ability to
-						// enable disable the entire asset
-						log.Warnf(log.ConfigMgr,
-							"Exchange %s: upgrading config for asset type %s and setting enabled.\n",
-							c.Exchanges[i].Name,
-							assets[index])
-						err = c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[index], true)
-						if err != nil {
-							return err
-						}
-						atLeastOne = true
-					}
-					continue
-				}
-				atLeastOne = true
-			}
-
-			if !atLeastOne {
-				// turn on an asset if all disabled
-				log.Warnf(log.ConfigMgr,
-					"%s assets disabled, turning on asset %s",
-					c.Exchanges[i].Name,
-					assets[0])
-
-				err := c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[0], true)
-				if err != nil {
+		for _, a := range assets {
+			if err := e.CurrencyPairs.IsAssetEnabled(a); errors.Is(err, currency.ErrAssetIsNil) {
+				// Checks if we have an old config without the ability to enable disable the entire asset
+				log.Warnf(log.ConfigMgr, "Exchange %s: upgrading config for asset type %s and setting enabled.\n", e.Name, a)
+				if err := e.CurrencyPairs.SetAssetEnabled(a, true); err != nil {
 					return err
 				}
 			}
 		}
 
-		if c.Exchanges[i].Enabled {
-			if c.Exchanges[i].Name == "" {
-				log.Errorf(log.ConfigMgr, ErrExchangeNameEmpty, i)
-				c.Exchanges[i].Enabled = false
-				continue
+		if enabled := e.CurrencyPairs.GetAssetTypes(true); len(enabled) == 0 {
+			// turn on an asset if all disabled
+			log.Warnf(log.ConfigMgr, "%s assets disabled, turning on asset %s", e.Name, assets[0])
+			if err := e.CurrencyPairs.SetAssetEnabled(assets[0], true); err != nil {
+				return err
 			}
-			if (c.Exchanges[i].API.AuthenticatedSupport || c.Exchanges[i].API.AuthenticatedWebsocketSupport) &&
-				c.Exchanges[i].API.CredentialsValidator != nil {
-				var failed bool
-				if c.Exchanges[i].API.CredentialsValidator.RequiresKey &&
-					(c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
-					failed = true
-				}
-
-				if c.Exchanges[i].API.CredentialsValidator.RequiresSecret &&
-					(c.Exchanges[i].API.Credentials.Secret == "" || c.Exchanges[i].API.Credentials.Secret == DefaultAPISecret) {
-					failed = true
-				}
-
-				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID &&
-					(c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
-					failed = true
-				}
-
-				if failed {
-					c.Exchanges[i].API.AuthenticatedSupport = false
-					c.Exchanges[i].API.AuthenticatedWebsocketSupport = false
-					log.Warnf(log.ConfigMgr, WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
-				}
-			}
-			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
-				!c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
-				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
-				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(log.ConfigMgr,
-						WarningPairsLastUpdatedThresholdExceeded,
-						c.Exchanges[i].Name,
-						pairsLastUpdatedWarningThreshold)
-				}
-			}
-			if c.Exchanges[i].HTTPTimeout <= 0 {
-				log.Warnf(log.ConfigMgr,
-					"Exchange %s HTTP Timeout value not set, defaulting to %v.\n",
-					c.Exchanges[i].Name,
-					defaultHTTPTimeout)
-				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
-			}
-
-			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
-				log.Warnf(log.ConfigMgr,
-					"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
-					DefaultWebsocketResponseCheckTimeout)
-				c.Exchanges[i].WebsocketResponseCheckTimeout = DefaultWebsocketResponseCheckTimeout
-			}
-
-			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
-				log.Warnf(log.ConfigMgr,
-					"Exchange %s Websocket response max limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
-					DefaultWebsocketResponseMaxLimit)
-				c.Exchanges[i].WebsocketResponseMaxLimit = DefaultWebsocketResponseMaxLimit
-			}
-			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
-				log.Warnf(log.ConfigMgr,
-					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
-					DefaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
-			}
-			if c.Exchanges[i].Orderbook.WebsocketBufferLimit <= 0 {
-				log.Warnf(log.ConfigMgr,
-					"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
-					defaultWebsocketOrderbookBufferLimit)
-				c.Exchanges[i].Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
-			}
-			if c.Exchanges[i].Orderbook.PublishPeriod == nil || c.Exchanges[i].Orderbook.PublishPeriod.Nanoseconds() < 0 {
-				log.Warnf(log.ConfigMgr,
-					"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
-					DefaultOrderbookPublishPeriod)
-				publishPeriod := DefaultOrderbookPublishPeriod
-				c.Exchanges[i].Orderbook.PublishPeriod = &publishPeriod
-			}
-			err := c.CheckPairConsistency(c.Exchanges[i].Name)
-			if err != nil {
-				log.Errorf(log.ConfigMgr,
-					"Exchange %s: CheckPairConsistency error: %s\n",
-					c.Exchanges[i].Name,
-					err)
-				c.Exchanges[i].Enabled = false
-				continue
-			}
-			for x := range c.Exchanges[i].BankAccounts {
-				if !c.Exchanges[i].BankAccounts[x].Enabled {
-					continue
-				}
-				err := c.Exchanges[i].BankAccounts[x].Validate()
-				if err != nil {
-					c.Exchanges[i].BankAccounts[x].Enabled = false
-					log.Warnln(log.ConfigMgr, err.Error())
-				}
-			}
-			exchanges++
 		}
+
+		if !e.Enabled {
+			continue
+		}
+		if e.Name == "" {
+			log.Errorf(log.ConfigMgr, "%s: #%d", errExchangeNameEmpty, i)
+			e.Enabled = false
+			continue
+		}
+		if (e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport) &&
+			e.API.CredentialsValidator != nil {
+			var failed bool
+			if e.API.CredentialsValidator.RequiresKey &&
+				(e.API.Credentials.Key == "" || e.API.Credentials.Key == DefaultAPIKey) {
+				failed = true
+			}
+
+			if e.API.CredentialsValidator.RequiresSecret &&
+				(e.API.Credentials.Secret == "" || e.API.Credentials.Secret == DefaultAPISecret) {
+				failed = true
+			}
+
+			if e.API.CredentialsValidator.RequiresClientID &&
+				(e.API.Credentials.ClientID == DefaultAPIClientID || e.API.Credentials.ClientID == "") {
+				failed = true
+			}
+
+			if failed {
+				e.API.AuthenticatedSupport = false
+				e.API.AuthenticatedWebsocketSupport = false
+				log.Warnf(log.ConfigMgr, warningExchangeAuthAPIDefaultOrEmptyValues, e.Name)
+			}
+		}
+		if !e.Features.Supports.RESTCapabilities.AutoPairUpdates &&
+			!e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+			lastUpdated := convert.UnixTimestampToTime(e.CurrencyPairs.LastUpdated)
+			lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
+			if lastUpdated.Unix() <= time.Now().Unix() {
+				log.Warnf(log.ConfigMgr,
+					warningPairsLastUpdatedThresholdExceeded,
+					e.Name,
+					pairsLastUpdatedWarningThreshold)
+			}
+		}
+		if e.HTTPTimeout <= 0 {
+			log.Warnf(log.ConfigMgr,
+				"Exchange %s HTTP Timeout value not set, defaulting to %v.\n",
+				e.Name,
+				defaultHTTPTimeout)
+			e.HTTPTimeout = defaultHTTPTimeout
+		}
+
+		if e.WebsocketResponseCheckTimeout <= 0 {
+			log.Warnf(log.ConfigMgr,
+				"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
+				e.Name,
+				DefaultWebsocketResponseCheckTimeout)
+			e.WebsocketResponseCheckTimeout = DefaultWebsocketResponseCheckTimeout
+		}
+
+		if e.WebsocketResponseMaxLimit <= 0 {
+			log.Warnf(log.ConfigMgr,
+				"Exchange %s Websocket response max limit value not set, defaulting to %v.",
+				e.Name,
+				DefaultWebsocketResponseMaxLimit)
+			e.WebsocketResponseMaxLimit = DefaultWebsocketResponseMaxLimit
+		}
+		if e.WebsocketTrafficTimeout <= 0 {
+			log.Warnf(log.ConfigMgr,
+				"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
+				e.Name,
+				DefaultWebsocketTrafficTimeout)
+			e.WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
+		}
+		if e.Orderbook.WebsocketBufferLimit <= 0 {
+			log.Warnf(log.ConfigMgr,
+				"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
+				e.Name,
+				defaultWebsocketOrderbookBufferLimit)
+			e.Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
+		}
+		if e.Orderbook.PublishPeriod == nil || e.Orderbook.PublishPeriod.Nanoseconds() < 0 {
+			log.Warnf(log.ConfigMgr,
+				"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
+				e.Name,
+				DefaultOrderbookPublishPeriod)
+			publishPeriod := DefaultOrderbookPublishPeriod
+			e.Orderbook.PublishPeriod = &publishPeriod
+		}
+		err := c.CheckPairConsistency(e.Name)
+		if err != nil {
+			log.Errorf(log.ConfigMgr,
+				"Exchange %s: CheckPairConsistency error: %s\n",
+				e.Name,
+				err)
+			e.Enabled = false
+			continue
+		}
+		for x := range e.BankAccounts {
+			if !e.BankAccounts[x].Enabled {
+				continue
+			}
+			err := e.BankAccounts[x].Validate()
+			if err != nil {
+				e.BankAccounts[x].Enabled = false
+				log.Warnln(log.ConfigMgr, err.Error())
+			}
+		}
+
+		exchanges++
 	}
 
 	if exchanges == 0 {
-		return errors.New(ErrNoEnabledExchanges)
+		return errNoEnabledExchanges
 	}
+
 	return nil
 }
 
@@ -1350,8 +1290,8 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warnln(log.ConfigMgr, "Your system time is out of sync, this may cause issues with trading")
-	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable")
+	fmt.Println("Your system time is out of sync, this may cause issues with trading")
+	fmt.Println("How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable")
 
 	var resp string
 	answered := false
@@ -1376,8 +1316,7 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
 		default:
-			log.Warnln(log.ConfigMgr,
-				"Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
+			fmt.Println("Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
 		}
 	}
 	return resp, nil
@@ -1510,13 +1449,8 @@ func GetFilePath(configFile string) (configPath string, isImplicitDefaultPath bo
 // config directory as `File` or `EncryptedFile` depending on whether the config
 // is encrypted
 func migrateConfig(configFile, targetDir string) (string, error) {
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		return "", err
-	}
-
 	var target string
-	if ConfirmECS(data) {
+	if IsFileEncrypted(configFile) {
 		target = EncryptedFile
 	} else {
 		target = File
@@ -1530,115 +1464,96 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 		return configFile, nil
 	}
 
-	err = file.Move(configFile, target)
-	if err != nil {
+	if err := file.Move(configFile, target); err != nil {
 		return "", err
 	}
 
 	return target, nil
 }
 
-// ReadConfigFromFile reads the configuration from the given file
-// if target file is encrypted, prompts for encryption key
-// Also - if not in dryrun mode - it checks if the configuration needs to be encrypted
-// and stores the file as encrypted, if necessary (prompting for encryption key)
-func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
-	defaultPath, _, err := GetFilePath(configPath)
+// ReadConfigFromFile loads Config from the path
+// If encrypted, prompts for encryption key
+// Unless dryrun checks if the configuration needs to be encrypted and resaves, prompting for key
+func (c *Config) ReadConfigFromFile(path string, dryrun bool) error {
+	var err error
+	path, _, err = GetFilePath(path)
 	if err != nil {
 		return err
 	}
-	confFile, err := os.Open(defaultPath)
+	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	defer confFile.Close()
-	result, wasEncrypted, err := ReadConfig(confFile, func() ([]byte, error) { return PromptForConfigKey(false) })
-	if err != nil {
-		return fmt.Errorf("error reading config %w", err)
-	}
-	// Override values in the current config
-	*c = *result
+	defer f.Close()
 
-	if dryrun || wasEncrypted || c.EncryptConfig == fileEncryptionDisabled {
+	if err := c.readConfig(f); err != nil {
+		return err
+	}
+
+	if dryrun || c.EncryptConfig != fileEncryptionPrompt || IsFileEncrypted(path) {
 		return nil
 	}
 
-	if c.EncryptConfig == fileEncryptionPrompt {
-		confirm, err := promptForConfigEncryption()
-		if err != nil {
-			log.Errorf(log.ConfigMgr, "The encryption prompt failed, ignoring for now, next time we will prompt again. Error: %s\n", err)
-			return nil
-		}
-		if confirm {
-			c.EncryptConfig = fileEncryptionEnabled
-			return c.SaveConfigToFile(defaultPath)
-		}
-
-		c.EncryptConfig = fileEncryptionDisabled
-		err = c.SaveConfigToFile(defaultPath)
-		if err != nil {
-			log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
-		}
-	}
-	return nil
+	return c.saveWithEncryptPrompt(path)
 }
 
-// ReadConfig verifies and checks for encryption and loads the config from a JSON object.
-// Prompts for decryption key, if target data is encrypted.
-// Returns the loaded configuration and whether it was encrypted.
-func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
-	reader := bufio.NewReader(configReader)
-
-	pref, err := reader.Peek(len(EncryptConfirmString))
+// readConfig loads config from a io.Reader into the config object
+// versions manager will upgrade/downgrade if appropriate
+// If encrypted, prompts for encryption key
+func (c *Config) readConfig(d io.Reader) error {
+	j, err := io.ReadAll(d)
 	if err != nil {
-		return nil, false, err
+		return err
 	}
 
-	if !ConfirmECS(pref) {
-		// Read unencrypted configuration
-		decoder := json.NewDecoder(reader)
-		c := &Config{}
-		err = decoder.Decode(c)
-		return c, false, err
+	if IsEncrypted(j) {
+		if j, err = c.decryptConfig(j); err != nil {
+			return err
+		}
 	}
 
-	conf, err := readEncryptedConfWithKey(reader, keyProvider)
-	return conf, true, err
+	if j, err = versions.Manager.Deploy(context.Background(), j); err != nil {
+		return err
+	}
+
+	return json.Unmarshal(j, c)
 }
 
-// readEncryptedConf reads encrypted configuration and requests key from provider
-func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) (*Config, error) {
-	fileData, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
+// saveWithEncryptPrompt will prompt the user if they want to encrypt their config
+// If they agree, c.EncryptConfig is set to Enabled, the config is encrypted and saved
+// Otherwise, c.EncryptConfig is set to Disabled and the file is resaved
+func (c *Config) saveWithEncryptPrompt(path string) error {
+	if confirm, err := promptForConfigEncryption(); err != nil {
+		return nil //nolint:nilerr // Ignore encryption prompt failures; The user will be prompted again
+	} else if confirm {
+		c.EncryptConfig = fileEncryptionEnabled
+		return c.SaveConfigToFile(path)
 	}
+
+	c.EncryptConfig = fileEncryptionDisabled
+	return c.SaveConfigToFile(path)
+}
+
+// decryptConfig reads encrypted configuration and requests key from provider
+func (c *Config) decryptConfig(j []byte) ([]byte, error) {
 	for range maxAuthFailures {
-		key, err := keyProvider()
+		f := c.EncryptionKeyProvider
+		if f == nil {
+			f = PromptForConfigKey
+		}
+		key, err := f(false)
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
 			continue
 		}
-
-		var c *Config
-		c, err = readEncryptedConf(bytes.NewReader(fileData), key)
+		d, err := c.decryptConfigData(j, key)
 		if err != nil {
 			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
 			continue
 		}
-		return c, nil
+		return d, nil
 	}
-	return nil, errors.New("failed to decrypt config after 3 attempts")
-}
-
-func readEncryptedConf(reader io.Reader, key []byte) (*Config, error) {
-	c := &Config{}
-	data, err := c.decryptConfigData(reader, key)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(data, c)
-	return c, err
+	return nil, errDecryptFailed
 }
 
 // SaveConfigToFile saves your configuration to your desired path as a JSON object.
@@ -1661,13 +1576,12 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 			}
 		}
 	}()
-	return c.Save(provider, func() ([]byte, error) { return PromptForConfigKey(true) })
+	return c.Save(provider)
 }
 
-// Save saves your configuration to the writer as a JSON object
-// with encryption, if configured
+// Save saves your configuration to the writer as a JSON object with encryption, if configured
 // If there is an error when preparing the data to store, the writer is never requested
-func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func() ([]byte, error)) error {
+func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 	payload, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return err
@@ -1676,14 +1590,15 @@ func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func
 	if c.EncryptConfig == fileEncryptionEnabled {
 		// Ensure we have the key from session or from user
 		if len(c.sessionDK) == 0 {
-			var key []byte
-			key, err = keyProvider()
-			if err != nil {
+			f := c.EncryptionKeyProvider
+			if f == nil {
+				f = PromptForConfigKey
+			}
+			var key, sessionDK, storedSalt []byte
+			if key, err = f(true); err != nil {
 				return err
 			}
-			var sessionDK, storedSalt []byte
-			sessionDK, storedSalt, err = makeNewSessionDK(key)
-			if err != nil {
+			if sessionDK, storedSalt, err = makeNewSessionDK(key); err != nil {
 				return err
 			}
 			c.sessionDK, c.storedSalt = sessionDK, storedSalt
@@ -1746,30 +1661,20 @@ func (c *Config) CheckRemoteControlConfig() {
 
 // CheckConfig checks all config settings
 func (c *Config) CheckConfig() error {
-	err := c.CheckLoggerConfig()
-	if err != nil {
-		log.Errorf(log.ConfigMgr,
-			"Failed to configure logger, some logging features unavailable: %s\n",
-			err)
+	if err := c.CheckLoggerConfig(); err != nil {
+		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
 	}
 
-	err = c.checkDatabaseConfig()
-	if err != nil {
-		log.Errorf(log.DatabaseMgr,
-			"Failed to configure database: %v",
-			err)
+	if err := c.checkDatabaseConfig(); err != nil {
+		log.Errorf(log.DatabaseMgr, "Failed to configure database: %v", err)
 	}
 
-	err = c.CheckExchangeConfigValues()
-	if err != nil {
-		return fmt.Errorf(ErrCheckingConfigValues, err)
+	if err := c.CheckExchangeConfigValues(); err != nil {
+		return fmt.Errorf("%w: %w", errCheckingConfigValues, err)
 	}
 
-	err = c.checkGCTScriptConfig()
-	if err != nil {
-		log.Errorf(log.ConfigMgr,
-			"Failed to configure gctscript, feature has been disabled: %s\n",
-			err)
+	if err := c.checkGCTScriptConfig(); err != nil {
+		log.Errorf(log.ConfigMgr, "Failed to configure gctscript, feature has been disabled: %s\n", err)
 	}
 
 	c.CheckConnectionMonitorConfig()
@@ -1782,15 +1687,12 @@ func (c *Config) CheckConfig() error {
 	c.CheckRemoteControlConfig()
 	c.CheckSyncManagerConfig()
 
-	err = c.CheckCurrencyConfigValues()
-	if err != nil {
+	if err := c.CheckCurrencyConfigValues(); err != nil {
 		return err
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf(log.ConfigMgr,
-			"Global HTTP Timeout value not set, defaulting to %v.\n",
-			defaultHTTPTimeout)
+		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", defaultHTTPTimeout)
 		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
@@ -1805,7 +1707,7 @@ func (c *Config) CheckConfig() error {
 func (c *Config) LoadConfig(configPath string, dryrun bool) error {
 	err := c.ReadConfigFromFile(configPath, dryrun)
 	if err != nil {
-		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
+		return fmt.Errorf("%w (%s): %w", ErrFailureOpeningConfig, configPath, err)
 	}
 	return c.CheckConfig()
 }
