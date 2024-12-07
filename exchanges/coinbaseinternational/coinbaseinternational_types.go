@@ -34,50 +34,59 @@ type AssetInfoWithSupportedNetwork struct {
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
 type InstrumentInfo struct {
-	InstrumentID        string       `json:"instrument_id"`
-	InstrumentUUID      string       `json:"instrument_uuid"`
-	Symbol              string       `json:"symbol"`
-	Type                string       `json:"type"`
-	BaseAssetID         string       `json:"base_asset_id"`
-	BaseAssetUUID       string       `json:"base_asset_uuid"`
-	BaseAssetName       string       `json:"base_asset_name"`
-	QuoteAssetID        string       `json:"quote_asset_id"`
-	QuoteAssetUUID      string       `json:"quote_asset_uuid"`
-	QuoteAssetName      string       `json:"quote_asset_name"`
-	BaseIncrement       types.Number `json:"base_increment"`
-	QuoteIncrement      types.Number `json:"quote_increment"`
-	PriceBandPercent    float64      `json:"price_band_percent"`
-	MarketOrderPercent  float64      `json:"market_order_percent"`
-	Qty24Hr             types.Number `json:"qty_24hr"`
-	Notional24Hr        types.Number `json:"notional_24hr"`
-	AvgDailyQty         types.Number `json:"avg_daily_qty"`
-	AvgDailyNotional    types.Number `json:"avg_daily_notional"`
-	PreviousDayQty      types.Number `json:"previous_day_qty"`
-	OpenInterest        types.Number `json:"open_interest"`
-	PositionLimitQty    types.Number `json:"position_limit_qty"`
-	PositionLimitAdqPct float64      `json:"position_limit_adq_pct"`
-	ReplacementCost     types.Number `json:"replacement_cost"`
-	BaseImf             float64      `json:"base_imf"`
-	MinNotionalValue    string       `json:"min_notional_value"`
-	FundingInterval     string       `json:"funding_interval"`
-	TradingState        string       `json:"trading_state"`
-	PositionLimitAdv    float64      `json:"position_limit_adv"`
-	InitialMarginAdv    float64      `json:"initial_margin_adv"`
-	Quote               struct {
-		BestBidPrice     types.Number `json:"best_bid_price"`
-		BestBidSize      types.Number `json:"best_bid_size"`
-		BestAskPrice     types.Number `json:"best_ask_price"`
-		BestAskSize      types.Number `json:"best_ask_size"`
-		TradePrice       types.Number `json:"trade_price"`
-		TradeQty         types.Number `json:"trade_qty"`
-		IndexPrice       types.Number `json:"index_price"`
-		MarkPrice        types.Number `json:"mark_price"`
-		SettlementPrice  types.Number `json:"settlement_price"`
-		LimitUp          types.Number `json:"limit_up"`
-		LimitDown        types.Number `json:"limit_down"`
-		PredictedFunding types.Number `json:"predicted_funding"`
-		Timestamp        time.Time    `json:"timestamp"`
-	} `json:"quote"`
+	InstrumentID        string              `json:"instrument_id"`
+	InstrumentUUID      string              `json:"instrument_uuid"`
+	Symbol              string              `json:"symbol"`
+	Type                string              `json:"type"`
+	BaseAssetID         string              `json:"base_asset_id"`
+	BaseAssetUUID       string              `json:"base_asset_uuid"`
+	BaseAssetName       string              `json:"base_asset_name"`
+	QuoteAssetID        string              `json:"quote_asset_id"`
+	QuoteAssetUUID      string              `json:"quote_asset_uuid"`
+	QuoteAssetName      string              `json:"quote_asset_name"`
+	BaseIncrement       types.Number        `json:"base_increment"`
+	QuoteIncrement      types.Number        `json:"quote_increment"`
+	PriceBandPercent    float64             `json:"price_band_percent"`
+	MarketOrderPercent  float64             `json:"market_order_percent"`
+	Qty24Hr             types.Number        `json:"qty_24hr"`
+	Notional24Hr        types.Number        `json:"notional_24hr"`
+	AvgDailyQty         types.Number        `json:"avg_daily_qty"`
+	AvgDailyNotional    types.Number        `json:"avg_daily_notional"`
+	PreviousDayQty      types.Number        `json:"previous_day_qty"`
+	OpenInterest        types.Number        `json:"open_interest"`
+	PositionLimitQty    types.Number        `json:"position_limit_qty"`
+	PositionLimitAdqPct float64             `json:"position_limit_adq_pct"`
+	ReplacementCost     types.Number        `json:"replacement_cost"`
+	BaseImf             float64             `json:"base_imf"`
+	MinNotionalValue    string              `json:"min_notional_value"`
+	FundingInterval     string              `json:"funding_interval"`
+	TradingState        string              `json:"trading_state"`
+	PositionLimitAdv    float64             `json:"position_limit_adv"`
+	InitialMarginAdv    float64             `json:"initial_margin_adv"`
+	Mode                string              `json:"mode"`
+	Avg30DayNotional    string              `json:"avg_30day_notional"`
+	Avg30DayQty         string              `json:"avg_30day_qty"`
+	Quote               ContractQuoteDetail `json:"quote,omitempty"`
+	DefaultImf          float64             `json:"default_imf,omitempty"`
+	BaseAssetMultiplier string              `json:"base_asset_multiplier"`
+	UnderlyingType      string              `json:"underlying_type"`
+}
+
+// ContractQuoteDetail represents a contract quote detail
+type ContractQuoteDetail struct {
+	BestBidPrice     types.Number `json:"best_bid_price"`
+	BestBidSize      types.Number `json:"best_bid_size"`
+	BestAskPrice     types.Number `json:"best_ask_price"`
+	BestAskSize      types.Number `json:"best_ask_size"`
+	TradePrice       types.Number `json:"trade_price"`
+	TradeQty         types.Number `json:"trade_qty"`
+	IndexPrice       types.Number `json:"index_price"`
+	MarkPrice        types.Number `json:"mark_price"`
+	SettlementPrice  types.Number `json:"settlement_price"`
+	LimitUp          types.Number `json:"limit_up"`
+	LimitDown        types.Number `json:"limit_down"`
+	PredictedFunding types.Number `json:"predicted_funding"`
+	Timestamp        time.Time    `json:"timestamp"`
 }
 
 // IndexMetadata represents an index metadata detail

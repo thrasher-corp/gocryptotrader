@@ -2,11 +2,13 @@ package coinbaseinternational
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -60,10 +62,10 @@ func (co *CoinbaseInternational) SetDefaults() {
 	co.API.CredentialsValidator.RequiresClientID = true
 	co.API.CredentialsValidator.RequiresSecret = true
 	co.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	err := co.StoreAssetPairFormat(asset.Spot, currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	})
+	err := co.SetGlobalPairsManager(
+		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		asset.Spot, asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -211,6 +213,11 @@ func (co *CoinbaseInternational) FetchTradablePairs(ctx context.Context, a asset
 	}
 	pairs := make([]currency.Pair, 0, len(instruments))
 	for x := range instruments {
+		if a == asset.Spot && instruments[x].Type != "SPOT" {
+			continue
+		} else if a == asset.Futures && instruments[x].Type != "PERP" {
+			continue
+		}
 		if instruments[x].TradingState != "TRADING" {
 			continue
 		}
@@ -779,13 +786,85 @@ func (co *CoinbaseInternational) GetHistoricCandlesExtended(context.Context, cur
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (co *CoinbaseInternational) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrFunctionNotSupported
+func (co *CoinbaseInternational) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !co.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	contracts, err := co.GetInstruments(ctx)
+	if err != nil {
+		return nil, err
+	}
+	format, err := co.GetPairFormat(item, false)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, 0, len(contracts))
+	for a := range contracts {
+		if contracts[a].Type != "PERP" {
+			continue
+		}
+		cp, err := currency.NewPairFromString(contracts[a].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		underlying, err := currency.NewPairFromStrings(contracts[a].BaseAssetName, contracts[a].QuoteAssetName)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, futures.Contract{
+			Exchange:             co.Name,
+			Name:                 cp.Format(format),
+			Underlying:           underlying,
+			Asset:                item,
+			IsActive:             contracts[a].TradingState == "TRADING",
+			Status:               contracts[a].TradingState,
+			Type:                 futures.Perpetual,
+			SettlementCurrencies: currency.Currencies{currency.NewCode(contracts[a].QuoteAssetName)},
+		})
+	}
+	return resp, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (co *CoinbaseInternational) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+func (co *CoinbaseInternational) GetLatestFundingRates(ctx context.Context, fr *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if fr == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if fr.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	result, err := co.GetHistoricalFundingRate(ctx, fr.Pair.String(), 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]fundingrate.LatestRateResponse, len(result.Results))
+	for a := range result.Results {
+		var cp currency.Pair
+		var isEnabled bool
+		cp, isEnabled, err = co.MatchSymbolCheckEnabled(result.Results[a].InstrumentID, fr.Asset, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		} else if !isEnabled {
+			continue
+		}
+		resp[a] = fundingrate.LatestRateResponse{
+			Exchange:    co.Name,
+			TimeChecked: time.Now(),
+			Asset:       fr.Asset,
+			Pair:        cp,
+			LatestRate: fundingrate.Rate{
+				Time: result.Results[a].EventTime,
+				Rate: decimal.NewFromFloat(result.Results[a].FundingRate.Float64()),
+			},
+		}
+	}
+	if len(resp) == 0 {
+		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, fr.Asset, fr.Pair)
+	}
+	return resp, nil
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

@@ -14,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -955,5 +957,33 @@ func TestGetFeeRateTiers(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetFeeRateTiers(context.Background())
 	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	require.NoError(t, err)
+
+	result, err := co.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Pair:  cp,
+		Asset: asset.Futures,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetFuturesContractDetails(context.Background(), asset.Spot)
+	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
+	_, err = co.GetFuturesContractDetails(context.Background(), asset.FutureCombo)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := co.GetFuturesContractDetails(context.Background(), asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 	assert.NotEmpty(t, result)
 }
