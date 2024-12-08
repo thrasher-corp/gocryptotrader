@@ -45,7 +45,6 @@ func TestMain(m *testing.M) {
 	}
 
 	co.Enabled = true
-	co.Websocket.Enable()
 	if apiKey != "" && apiSecret != "" {
 		co.API.AuthenticatedSupport = true
 		co.API.AuthenticatedWebsocketSupport = true
@@ -145,7 +144,7 @@ func TestGetInstruments(t *testing.T) {
 func TestGetInstrumentDetails(t *testing.T) {
 	t.Parallel()
 	_, err := co.GetInstrumentDetails(context.Background(), "", "", "")
-	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+	require.ErrorIs(t, err, errInstrumentIDRequired)
 
 	result, err := co.GetInstrumentDetails(context.Background(), "BTC-PERP", "", "")
 	require.NoError(t, err)
@@ -155,7 +154,7 @@ func TestGetInstrumentDetails(t *testing.T) {
 func TestGetQuotePerInstrument(t *testing.T) {
 	t.Parallel()
 	_, err := co.GetQuotePerInstrument(context.Background(), "", "", "")
-	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+	require.ErrorIs(t, err, errInstrumentIDRequired)
 
 	result, err := co.GetQuotePerInstrument(context.Background(), "BTC-PERP", "", "")
 	require.NoError(t, err)
@@ -165,7 +164,7 @@ func TestGetQuotePerInstrument(t *testing.T) {
 func TestGetDailyTradingVolumes(t *testing.T) {
 	t.Parallel()
 	_, err := co.GetDailyTradingVolumes(context.Background(), []string{}, 10, 10, time.Now().Add(-time.Hour*100), true)
-	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+	require.ErrorIs(t, err, errInstrumentIDRequired)
 
 	result, err := co.GetDailyTradingVolumes(context.Background(), []string{"BTC-PERP"}, 10, 1, time.Now().Add(-time.Hour*100), true)
 	require.NoError(t, err)
@@ -175,7 +174,7 @@ func TestGetDailyTradingVolumes(t *testing.T) {
 func TestGetAggregatedCandlesDataPerInstrument(t *testing.T) {
 	t.Parallel()
 	_, err := co.GetAggregatedCandlesDataPerInstrument(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{})
-	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+	require.ErrorIs(t, err, errInstrumentIDRequired)
 	_, err = co.GetAggregatedCandlesDataPerInstrument(context.Background(), "BTC-PERP", kline.FiveMin, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errStartTimeRequired)
 	_, err = co.GetAggregatedCandlesDataPerInstrument(context.Background(), "BTC-PERP", kline.TenMin, time.Now().Add(-time.Hour*100), time.Time{})
@@ -189,7 +188,7 @@ func TestGetAggregatedCandlesDataPerInstrument(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := co.GetHistoricalFundingRate(context.Background(), "", 0, 10)
-	require.ErrorIs(t, err, errInstrumentIdentifierRequired)
+	require.ErrorIs(t, err, errInstrumentIDRequired)
 
 	result, err := co.GetHistoricalFundingRate(context.Background(), "BTC-PERP", 0, 10)
 	require.NoError(t, err)
@@ -288,6 +287,9 @@ func TestModifyOpenOrder(t *testing.T) {
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
+	_, err := co.GetOrderDetail(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetOrderDetail(context.Background(), "1234")
 	require.NoError(t, err)
@@ -732,7 +734,7 @@ func TestUpdateTickers(t *testing.T) {
 func TestGenerateSubscriptionPayload(t *testing.T) {
 	t.Parallel()
 	_, err := co.GenerateSubscriptionPayload(subscription.List{}, "SUBSCRIBE")
-	require.ErrorIs(t, err, errEmptyArgument)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	payload, err := co.GenerateSubscriptionPayload(subscription.List{
 		{Channel: cnlFunding, Pairs: currency.Pairs{{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}}},

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -299,7 +300,7 @@ func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
 // GenerateSubscriptionPayload generates a subscription payloads list.
 func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
 	if len(subscriptions) == 0 {
-		return nil, errEmptyArgument
+		return nil, common.ErrEmptyParams
 	}
 	channelPairsMap := make(map[string]currency.Pairs)
 	format, err := co.GetPairFormat(asset.Spot, true)

@@ -36,19 +36,18 @@ const (
 )
 
 var (
-	errArgumentMustBeInterface      = errors.New("argument must be an interface")
-	errMissingPortfolioID           = errors.New("missing portfolio identification")
-	errNetworkArnID                 = errors.New("identifies the blockchain network")
-	errMissingTransferID            = errors.New("missing transfer ID")
-	errAddressIsRequired            = errors.New("missing address")
-	errAssetIdentifierRequired      = errors.New("asset identified is required")
-	errIndexNameRequired            = errors.New("index name required")
-	errGranularityRequired          = errors.New("granularity value is required")
-	errStartTimeRequired            = errors.New("start time required")
-	errEmptyArgument                = errors.New("empty argument")
-	errTimeInForceRequired          = errors.New("time_in_force is required")
-	errInstrumentIdentifierRequired = errors.New("instrument information is required")
-	errInstrumentTypeRequired       = errors.New("instrument type required")
+	errArgumentMustBeInterface = errors.New("argument must be an interface")
+	errMissingPortfolioID      = errors.New("missing portfolio identification")
+	errNetworkArnID            = errors.New("identifies the blockchain network")
+	errMissingTransferID       = errors.New("missing transfer ID")
+	errAddressIsRequired       = errors.New("missing address")
+	errAssetIdentifierRequired = errors.New("asset identified is required")
+	errIndexNameRequired       = errors.New("index name required")
+	errGranularityRequired     = errors.New("granularity value is required")
+	errStartTimeRequired       = errors.New("start time required")
+	errTimeInForceRequired     = errors.New("time_in_force is required")
+	errInstrumentIDRequired    = errors.New("instrument information is required")
+	errInstrumentTypeRequired  = errors.New("instrument type required")
 )
 
 // ListAssets returns a list of all supported assets.
@@ -168,7 +167,7 @@ func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instr
 	case instrumentID != "":
 		path += instrumentID
 	default:
-		return nil, errInstrumentIdentifierRequired
+		return nil, errInstrumentIDRequired
 	}
 	var resp *InstrumentInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
@@ -185,7 +184,7 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 	case instrumentID != "":
 		path += instrumentID
 	default:
-		return nil, errInstrumentIdentifierRequired
+		return nil, errInstrumentIDRequired
 	}
 	var resp *QuoteInformation
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
@@ -194,7 +193,7 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 // GetDailyTradingVolumes retrieves the trading volumes for each instrument separated by day
 func (co *CoinbaseInternational) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumeInfo, error) {
 	if len(instruments) == 0 {
-		return nil, errInstrumentIdentifierRequired
+		return nil, errInstrumentIDRequired
 	}
 	params := url.Values{}
 	params.Set("instruments", strings.Join(instruments, ","))
@@ -217,7 +216,7 @@ func (co *CoinbaseInternational) GetDailyTradingVolumes(ctx context.Context, ins
 // GetAggregatedCandlesDataPerInstrument retrieves a list of aggregated candles data for a given instrument, granularity and time range
 func (co *CoinbaseInternational) GetAggregatedCandlesDataPerInstrument(ctx context.Context, instrument string, granularity kline.Interval, start, end time.Time) (*CandlestickDataHistory, error) {
 	if instrument == "" {
-		return nil, errInstrumentIdentifierRequired
+		return nil, errInstrumentIDRequired
 	}
 	if start.IsZero() {
 		return nil, errStartTimeRequired
@@ -252,7 +251,7 @@ func stringFromInterval(interval kline.Interval) (string, error) {
 // GetHistoricalFundingRate retrieves the historical funding rates for a specific instrument.
 func (co *CoinbaseInternational) GetHistoricalFundingRate(ctx context.Context, instrument string, resultOffset, resultLimit int64) (*FundingRateHistory, error) {
 	if instrument == "" {
-		return nil, errInstrumentIdentifierRequired
+		return nil, errInstrumentIDRequired
 	}
 	params := url.Values{}
 	if resultOffset > 0 {
@@ -361,6 +360,9 @@ func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID st
 
 // GetOrderDetail retrieves a single order. The order retrieved can be either active or inactive.
 func (co *CoinbaseInternational) GetOrderDetail(ctx context.Context, orderID string) (*OrderItem, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
 	var resp *OrderItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders/"+orderID, nil, nil, &resp, true)
 }
