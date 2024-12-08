@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -21,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -32,31 +32,29 @@ const (
 	canManipulateRealOrders = false
 )
 
-var co = &CoinbaseInternational{}
-var btcPerp = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.PERP}
+var (
+	co      = &CoinbaseInternational{}
+	btcPerp = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.PERP}
+	spotTP  = currency.NewPairWithDelimiter("BTC", "USDC", currency.DashDelimiter)
+)
 
 func TestMain(m *testing.M) {
-	co.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	co = new(CoinbaseInternational)
+	if err := testexch.Setup(co); err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Coinbaseinternational")
-	if err != nil {
-		log.Fatal(err)
+	co.Enabled = true
+	co.Websocket.Enable()
+	if apiKey != "" && apiSecret != "" {
+		co.API.AuthenticatedSupport = true
+		co.API.AuthenticatedWebsocketSupport = true
+		co.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		co.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	exchCfg.Enabled = true
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = passphrase
 	co.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = co.Setup(exchCfg)
-	if err != nil {
+	if err := co.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
@@ -694,7 +692,14 @@ func TestCreateCryptoAddress(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
+	_, err := co.FetchTradablePairs(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := co.FetchTradablePairs(context.Background(), asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.FetchTradablePairs(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -714,13 +719,13 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := co.UpdateTickers(context.Background(), asset.Spot)
-	assert.NoError(t, err)
-}
+	err := co.UpdateTickers(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := co.WsConnect()
+	err = co.UpdateTickers(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+
+	err = co.UpdateTickers(context.Background(), asset.Spot)
 	assert.NoError(t, err)
 }
 
@@ -743,33 +748,58 @@ func TestGenerateSubscriptionPayload(t *testing.T) {
 
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
-	result, err := co.FetchOrderbook(context.Background(), btcPerp, asset.Spot)
+	_, err := co.FetchOrderbook(context.Background(), spotTP, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := co.FetchOrderbook(context.Background(), spotTP, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.FetchOrderbook(context.Background(), btcPerp, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	result, err := co.UpdateOrderbook(context.Background(), btcPerp, asset.Spot)
+	_, err := co.UpdateOrderbook(context.Background(), spotTP, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := co.UpdateOrderbook(context.Background(), spotTP, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.UpdateOrderbook(context.Background(), btcPerp, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	_, err := co.UpdateAccountInfo(context.Background(), asset.Futures)
+	_, err := co.UpdateAccountInfo(context.Background(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.UpdateAccountInfo(context.Background(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = co.UpdateAccountInfo(context.Background(), asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestFetchAccountInfo(t *testing.T) {
 	t.Parallel()
+	_, err := co.FetchAccountInfo(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.FetchAccountInfo(context.Background(), asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.FetchAccountInfo(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -789,6 +819,10 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -871,9 +905,8 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	_, err := co.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.Spot})
-	assert.ErrorIs(t, err, errMissingPortfolioID, err)
+	_, err := co.CancelAllOrders(context.Background(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, errMissingPortfolioID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.CancelAllOrders(context.Background(),
@@ -914,9 +947,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
-	result, err := co.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
-		AssetType: asset.Spot,
-	})
+	result, err := co.GetActiveOrders(context.Background(), &order.MultiOrderRequest{AssetType: asset.Spot})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -986,4 +1017,35 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotEmpty(t, result)
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	startTime := time.Now().Add(-time.Hour * 24 * 3)
+	end := time.Now().Add(-time.Hour * 1)
+	_, err := co.GetHistoricCandlesExtended(context.Background(), btcPerp, asset.Options, kline.FifteenMin, startTime, end)
+	require.ErrorIs(t, err, asset.ErrNotEnabled)
+
+	result, err := co.GetHistoricCandlesExtended(context.Background(), currency.NewPair(currency.BTC, currency.USDC), asset.Spot, kline.OneMin, startTime, end)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.GetHistoricCandlesExtended(context.Background(), btcPerp, asset.Futures, kline.OneMin, startTime, end)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetHistoricCandles(context.Background(), btcPerp, asset.Options, kline.FifteenMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, asset.ErrNotEnabled)
+
+	co.Verbose = true
+	result, err := co.GetHistoricCandles(context.Background(), currency.NewPair(currency.BTC, currency.USDC), asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = co.GetHistoricCandles(context.Background(), btcPerp, asset.Futures, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -69,6 +68,7 @@ func (co *CoinbaseInternational) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+
 	co.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -99,13 +99,28 @@ func (co *CoinbaseInternational) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: kline.DeployExchangeIntervals(
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.OneMin},
+				),
+				GlobalResultLimit: 1000,
+			},
 		},
 	}
-	co.Requester, err = request.New(co.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	co.Requester, err = request.New(co.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -164,42 +179,6 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  coinbaseinternationalWSAPIURL,
 	})
-}
-
-// Start starts the CoinbaseInternational go routine
-func (co *CoinbaseInternational) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		co.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the CoinbaseInternational wrapper
-func (co *CoinbaseInternational) Run(ctx context.Context) {
-	if co.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			co.Name,
-			common.IsEnabled(co.Websocket.IsEnabled()))
-		co.PrintEnabledPairs()
-	}
-
-	if !co.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := co.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			co.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -286,7 +265,7 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (co *CoinbaseInternational) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	if assetType != asset.Spot {
+	if !co.SupportsAsset(assetType) {
 		return fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
 	}
 	var tick *QuoteInformation
@@ -342,6 +321,9 @@ func (co *CoinbaseInternational) FetchOrderbook(ctx context.Context, pair curren
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if !co.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	book := &orderbook.Base{
 		Exchange:        co.Name,
 		Pair:            pair,
@@ -376,8 +358,8 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (co *CoinbaseInternational) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	if assetType != asset.Spot {
-		return account.Holdings{}, asset.ErrNotSupported
+	if !co.SupportsAsset(assetType) {
+		return account.Holdings{}, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	portfolios, err := co.GetAllUserPortfolios(ctx)
 	if err != nil {
@@ -413,6 +395,9 @@ func (co *CoinbaseInternational) UpdateAccountInfo(ctx context.Context, assetTyp
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (co *CoinbaseInternational) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	if !co.SupportsAsset(assetType) {
+		return account.Holdings{}, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	creds, err := co.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
@@ -478,7 +463,7 @@ func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, _ cu
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (co *CoinbaseInternational) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+func (co *CoinbaseInternational) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -488,7 +473,7 @@ func (co *CoinbaseInternational) GetHistoricTrades(context.Context, currency.Pai
 }
 
 // GetServerTime returns the current exchange server time.
-func (co *CoinbaseInternational) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+func (co *CoinbaseInternational) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 
@@ -753,7 +738,7 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (co *CoinbaseInternational) GetOrderHistory(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (co *CoinbaseInternational) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -776,13 +761,61 @@ func (co *CoinbaseInternational) ValidateAPICredentials(ctx context.Context, ass
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (co *CoinbaseInternational) GetHistoricCandles(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
-	return nil, common.ErrFunctionNotSupported
+func (co *CoinbaseInternational) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	pair, err := co.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+	req, err := co.GetKlineRequest(pair, a, interval, start, end, false)
+	if err != nil {
+		return nil, err
+	}
+	result, err := co.GetAggregatedCandlesDataPerInstrument(ctx, req.Pair.String(), interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	timeSeries := make([]kline.Candle, len(result.Aggregations))
+	for a := range result.Aggregations {
+		timeSeries[a] = kline.Candle{
+			Time:   result.Aggregations[a].Start,
+			Open:   result.Aggregations[a].Open.Float64(),
+			High:   result.Aggregations[a].High.Float64(),
+			Low:    result.Aggregations[a].Low.Float64(),
+			Close:  result.Aggregations[a].Close.Float64(),
+			Volume: result.Aggregations[a].Volume.Float64(),
+		}
+	}
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (co *CoinbaseInternational) GetHistoricCandlesExtended(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
-	return nil, common.ErrFunctionNotSupported
+func (co *CoinbaseInternational) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	pair, err := co.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+	req, err := co.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.RangeHolder.Ranges {
+		result, err := co.GetAggregatedCandlesDataPerInstrument(ctx, req.Pair.String(), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+		if err != nil {
+			return nil, err
+		}
+		for a := range result.Aggregations {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   result.Aggregations[a].Start,
+				Open:   result.Aggregations[a].Open.Float64(),
+				High:   result.Aggregations[a].High.Float64(),
+				Low:    result.Aggregations[a].Low.Float64(),
+				Close:  result.Aggregations[a].Close.Float64(),
+				Volume: result.Aggregations[a].Volume.Float64(),
+			})
+		}
+	}
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
