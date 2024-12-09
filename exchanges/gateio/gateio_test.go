@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -332,7 +333,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -2826,8 +2827,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}

@@ -113,16 +113,19 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	switch s.Asset {
 	case asset.All:
+		if len(ap) == 0 {
+			return List{}, nil // No assets enabled; only asset.Empty subs may continue
+		}
 		subCtx.AssetPairs = ap
 	default:
+		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
+			return List{}, nil // No pairs enabled for this sub asset
+		}
 		// This deliberately includes asset.Empty to harmonise handling
 		subCtx.AssetPairs = assetPairs{
 			s.Asset: ap[s.Asset],
 		}
 		assets = asset.Items{s.Asset}
-		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
-			return List{}, nil // Nothing is enabled for this sub asset
-		}
 	}
 
 	buf := &bytes.Buffer{}

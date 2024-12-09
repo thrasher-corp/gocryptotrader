@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	usdtMarginedTradablePair = currency.Pair{Base: currency.NewCode("10000LADYS"), Quote: currency.USDT}
 	usdcMarginedTradablePair = currency.Pair{Base: currency.ETH, Quote: currency.PERP}
 	inverseTradablePair = currency.Pair{Base: currency.ADA, Quote: currency.USD}
-	optionsTradablePair = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("29DEC23-80000-C")}
+	optionsTradablePair = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("26NOV24-92000-C")}
 
 	setEnabledPair(asset.Spot, spotTradablePair)
 	setEnabledPair(asset.USDTMarginedFutures, usdtMarginedTradablePair)

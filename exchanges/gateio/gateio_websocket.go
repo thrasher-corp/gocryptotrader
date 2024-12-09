@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -32,8 +31,7 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120 * time.Millisecond
+	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -90,7 +88,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -645,7 +643,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 			if err != nil {
 				return err
 			}
-			result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+			result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 			if err != nil {
 				return err
 			}
@@ -756,7 +754,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	}
 	var errs error
 	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
