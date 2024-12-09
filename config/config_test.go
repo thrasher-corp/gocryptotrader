@@ -769,7 +769,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	pm.Pairs[asset.Spot].Enabled = nil
 	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error when adding a pair from available to enabled to fulfil atLeastOne")
-	assert.NotEmpty(t, pm.Pairs[asset.Spot].Enabled, "One pair must be enabled")
+	assert.NotEmpty(t, pm.Pairs[asset.Spot].Enabled, "One pair should be enabled")
 
 	pm.Pairs[asset.Spot].Enabled = currency.Pairs{p1, p2}
 	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with when removing an invalid pair")
