@@ -434,6 +434,13 @@ func (w *Websocket) connect() error {
 			break
 		}
 
+		if len(subs) != 0 {
+			if err = w.AddSuccessfulSubscriptions(conn, subs...); err != nil {
+				multiConnectFatalError = fmt.Errorf("%v Error adding successful subscriptions %w", w.exchangeName, err)
+				break
+			}
+		}
+
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
 				w.exchangeName,
@@ -643,10 +650,16 @@ func (w *Websocket) FlushChannels() error {
 			if err := w.UnsubscribeChannels(w.connectionManager[x].Connection, unsubs); err != nil {
 				return err
 			}
+			if err := w.RemoveSubscriptions(w.connectionManager[x].Connection, unsubs...); err != nil {
+				return fmt.Errorf("%v Error removing successful unsubscriptions %w", w.exchangeName, err)
+			}
 		}
 		if len(subs) != 0 {
 			if err := w.SubscribeToChannels(w.connectionManager[x].Connection, subs); err != nil {
 				return err
+			}
+			if err := w.AddSuccessfulSubscriptions(w.connectionManager[x].Connection, subs...); err != nil {
+				return fmt.Errorf("%v Error adding successful subscriptions %w", w.exchangeName, err)
 			}
 		}
 
