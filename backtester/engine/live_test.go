@@ -321,7 +321,7 @@ func TestFetchLatestData(t *testing.T) {
 	dataHandler.started = 1
 	_, err = dataHandler.FetchLatestData()
 	require.NoError(t, err)
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true})
+	cp := currency.NewBTCUSDT()
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
