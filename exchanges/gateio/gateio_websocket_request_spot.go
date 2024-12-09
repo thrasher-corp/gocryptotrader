@@ -2,128 +2,60 @@ package gateio
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha512"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var (
-	errBatchSliceEmpty  = errors.New("batch cannot be empty")
+	errOrdersEmpty      = errors.New("orders cannot be empty")
 	errNoOrdersToCancel = errors.New("no orders to cancel")
-	errEdgeCaseIssue    = errors.New("edge case issue")
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
 // authenticateSpot sends an authentication message to the websocket connection
 func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
-	_, err := g.websocketLogin(ctx, conn, "spot.login")
-	return err
-}
-
-// websocketLogin authenticates the websocket connection
-func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) (*WebsocketLoginResponse, error) {
-	if conn == nil {
-		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
-	}
-
-	if channel == "" {
-		return nil, errChannelEmpty
-	}
-
-	creds, err := g.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	tn := time.Now().Unix()
-	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn, 10)
-	mac := hmac.New(sha512.New, []byte(creds.Secret))
-	if _, err = mac.Write([]byte(msg)); err != nil {
-		return nil, err
-	}
-	signature := hex.EncodeToString(mac.Sum(nil))
-
-	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
-		APIKey:    creds.Key,
-		Signature: signature,
-		Timestamp: strconv.FormatInt(tn, 10),
-	}
-
-	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
-
-	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Payload.RequestID, req)
-	if err != nil {
-		return nil, err
-	}
-
-	var inbound WebsocketAPIResponse
-	if err := json.Unmarshal(resp, &inbound); err != nil {
-		return nil, err
-	}
-
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-			return nil, err
-		}
-		return nil, fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
-	}
-
-	var result WebsocketLoginResponse
-	return &result, json.Unmarshal(inbound.Data, &result)
+	return g.websocketLogin(ctx, conn, "spot.login")
 }
 
 // WebsocketOrderPlaceSpot places an order via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-// So this can only batch spot orders or futures orders, not both.
-func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, batch []CreateOrderRequestData) ([]WebsocketOrderResponse, error) {
-	if len(batch) == 0 {
-		return nil, errBatchSliceEmpty
+func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, orders []CreateOrderRequestData) ([]WebsocketOrderResponse, error) {
+	if len(orders) == 0 {
+		return nil, errOrdersEmpty
 	}
 
-	for i := range batch {
-		if batch[i].Text == "" {
-			// For some reason the API requires a text field, or it will be
-			// rejected in the second response. This is a workaround.
-			batch[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
+	for i := range orders {
+		if orders[i].Text == "" {
+			// API requires Text field, or it will be rejected
+			orders[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
 		}
-		if batch[i].CurrencyPair.IsEmpty() {
+		if orders[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if batch[i].Side == "" {
+		if orders[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if batch[i].Amount == 0 {
+		if orders[i].Amount == 0 {
 			return nil, errInvalidAmount
 		}
-		if batch[i].Type == "limit" && batch[i].Price == 0 {
+		if orders[i].Type == "limit" && orders[i].Price == 0 {
 			return nil, errInvalidPrice
 		}
 	}
 
-	if len(batch) == 1 {
+	if len(orders) == 1 {
 		var singleResponse WebsocketOrderResponse
-		err := g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch[0], &singleResponse, 2)
-		return []WebsocketOrderResponse{singleResponse}, err
+		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, spotPlaceOrderEPL, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
 	}
-
 	var resp []WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, batch, &resp, 2)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, spotBatchOrdersEPL, "spot.order_place", asset.Spot, orders, &resp, 2)
 }
 
 // WebsocketOrderCancelSpot cancels an order via the websocket connection
@@ -138,8 +70,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_cancel", asset.Spot, params, &resp, 1)
-	return &resp, err
+	return &resp, g.SendWebsocketRequest(ctx, spotCancelSingleOrderEPL, "spot.order_cancel", asset.Spot, params, &resp, 1)
 }
 
 // WebsocketOrderCancelAllByIDsSpot cancels multiple orders via the websocket
@@ -158,14 +89,14 @@ func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []Webso
 	}
 
 	var resp []WebsocketCancellAllResponse
-	err := g.SendWebsocketRequest(ctx, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
-	return resp, err
+	return resp, g.SendWebsocketRequest(ctx, spotCancelBatchOrdersEPL, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
 }
 
 // WebsocketOrderCancelAllByPairSpot cancels all orders for a specific pair
 func (g *Gateio) WebsocketOrderCancelAllByPairSpot(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]WebsocketOrderResponse, error) {
 	if !pair.IsEmpty() && side == order.UnknownSide {
-		return nil, fmt.Errorf("%w: side cannot be unknown when pair is set as this will purge *ALL* open orders", errEdgeCaseIssue)
+		// This case will cancel all orders for every pair, this can be introduced later
+		return nil, fmt.Errorf("'%v' %w while pair is set", side, order.ErrSideIsInvalid)
 	}
 
 	sideStr := ""
@@ -180,7 +111,7 @@ func (g *Gateio) WebsocketOrderCancelAllByPairSpot(ctx context.Context, pair cur
 	}
 
 	var resp []WebsocketOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
+	return resp, g.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
 }
 
 // WebsocketOrderAmendSpot amends an order via the websocket connection
@@ -202,7 +133,7 @@ func (g *Gateio) WebsocketOrderAmendSpot(ctx context.Context, amend *WebsocketAm
 	}
 
 	var resp WebsocketOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "spot.order_amend", asset.Spot, amend, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, spotAmendOrderEPL, "spot.order_amend", asset.Spot, amend, &resp, 1)
 }
 
 // WebsocketGetOrderStatusSpot gets the status of an order via the websocket connection
@@ -217,74 +148,10 @@ func (g *Gateio) WebsocketGetOrderStatusSpot(ctx context.Context, orderID string
 	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_status", asset.Spot, params, &resp, 1)
 }
 
-// SendWebsocketRequest sends a websocket request to the exchange
-func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connSignature, params, result any, expectedResponses int) error {
-	paramPayload, err := json.Marshal(params)
-	if err != nil {
-		return err
-	}
-
-	conn, err := g.Websocket.GetConnection(connSignature)
-	if err != nil {
-		return err
-	}
-
-	tn := time.Now().Unix()
-	req := &WebsocketRequest{
-		Time:    tn,
-		Channel: channel,
-		Event:   "api",
-		Payload: WebsocketPayload{
-			// This request ID associated with the payload is the match to the
-			// response.
-			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
-			RequestParam: paramPayload,
-			Timestamp:    strconv.FormatInt(tn, 10),
-		},
-	}
-
-	responses, err := conn.SendMessageReturnResponses(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, InspectPayloadForAck)
-	if err != nil {
-		return err
-	}
-
-	if len(responses) == 0 {
-		return errors.New("no responses received")
-	}
-
-	var inbound WebsocketAPIResponse
-	// The last response is the one we want to unmarshal, the other is just
-	// an ack. If the request fails on the ACK then we can unmarshal the error
-	// from that as the next response won't come anyway.
-	endResponse := responses[len(responses)-1]
-
-	if err := json.Unmarshal(endResponse, &inbound); err != nil {
-		return err
-	}
-
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
-	}
-
-	to := struct {
-		Result any `json:"result"`
-	}{
-		Result: result,
-	}
-
-	return json.Unmarshal(inbound.Data, &to)
-}
-
-// InspectPayloadForAck checks the payload for an ack, it returns true if the
-// payload does not contain an ack. This will force the cancellation of further
-// waiting for responses.
-func InspectPayloadForAck(data []byte) bool {
-	return !strings.Contains(string(data), "ack")
+// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
+type funnelResult struct {
+	Result any `json:"result"`
 }

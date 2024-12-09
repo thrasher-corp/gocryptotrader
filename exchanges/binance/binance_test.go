@@ -1192,11 +1192,14 @@ func TestGetPriceChangeStats(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetTickers(context.Background())
-	if err != nil {
-		t.Error("Binance TestGetTickers error", err)
-	}
+	require.NoError(t, err)
+
+	resp, err := b.GetTickers(context.Background(),
+		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewPair(currency.ETH, currency.USDT))
+	require.NoError(t, err)
+	require.Len(t, resp, 2)
 }
 
 func TestGetLatestSpotPrice(t *testing.T) {
@@ -2819,7 +2822,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestGetFundingRates(t *testing.T) {
+func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	s, e := getTime()
 	_, err := b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{

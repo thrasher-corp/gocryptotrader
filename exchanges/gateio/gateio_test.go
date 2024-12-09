@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -332,7 +333,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -2826,8 +2827,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
@@ -2877,13 +2879,14 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 }
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
-		t.Error(err)
-	}
-
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
-		t.Error(err)
-	}
+	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	subs, err = g.GenerateFuturesDefaultSubscriptions(currency.BTC)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
+	require.Error(t, err)
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -3011,8 +3014,8 @@ func TestGetSettlementFromCurrency(t *testing.T) {
 	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
 		availPairs, err := g.GetAvailablePairs(assetType)
 		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
-		for x, pair := range availPairs {
-			t.Run(strconv.Itoa(x)+":"+assetType.String(), func(t *testing.T) {
+		for i, pair := range availPairs {
+			t.Run(strconv.Itoa(i)+":"+assetType.String(), func(t *testing.T) {
 				t.Parallel()
 				_, err := getSettlementFromCurrency(pair)
 				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", pair, assetType)

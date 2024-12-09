@@ -26,7 +26,9 @@ type Connection interface {
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
 	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
-	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector ...Inspector) ([][]byte, error)
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
+	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
 	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
 	// SendJSONMessage sends a JSON encoded message over the connection
@@ -41,8 +43,11 @@ type Connection interface {
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
 
-// Inspector is a hook that allows for custom message inspection
-type Inspector func([]byte) bool
+// Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
+// It inspects the []bytes websocket message and returns true if the message is the final message in a sequence of expected messages
+type Inspector interface {
+	IsFinal([]byte) bool
+}
 
 // Response defines generalised data from the stream connection
 type Response struct {
@@ -84,15 +89,11 @@ type ConnectionSetup struct {
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
 	BespokeGenerateMessageID func(highPrecision bool) int64
-	// Authenticate is a function that will be called to authenticate the
-	// connection to the exchange's websocket server. This function should
-	// handle the authentication process and return an error if the
-	// authentication fails.
+	// Authenticate will be called to authenticate the connection
 	Authenticate func(ctx context.Context, conn Connection) error
-	// WrapperDefinedConnectionSignature is any type that will match to a specific connection. This could be an asset
-	// type `asset.Spot`, a string type denoting the individual URL, an authenticated or unauthenticated string or a
-	// mixture of these.
-	WrapperDefinedConnectionSignature any
+	// MessageFilter defines the criteria used to match messages to a specific connection.
+	// The filter enables precise routing and handling of messages for distinct connection contexts.
+	MessageFilter any
 	// ConnectionDoesNotRequireSubscriptions is for when this is a dedicated connection for only outbound requests.
 	// Subscription generation and handling is not required. Please use dummy functions `SubscriberNotRequired` &
 	// `SubscriptionGenerationNotRequired` for fields.
