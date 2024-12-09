@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -32,8 +31,7 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120 * time.Millisecond
+	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -53,12 +51,15 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
+
+	// subscriptionBatchCount is the number of subscriptions to send in a single batch
+	subscriptionBatchCount = 200
 )
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -68,8 +69,10 @@ var defaultSubscriptions = subscription.List{
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    spotTickerChannel,
-	subscription.OrderbookChannel: spotOrderbookUpdateChannel,
+	subscription.TickerChannel: spotTickerChannel,
+	// NOTE: Opted for `spot.order_book` as snapshot to ensure long term stability over higher processing cost. Also there
+	// is no latency difference between this and `spot.order_book_update` both being 100ms.
+	subscription.OrderbookChannel: spotOrderbookChannel,
 	subscription.CandlesChannel:   spotCandlesticksChannel,
 	subscription.AllTradesChannel: spotTradesChannel,
 }
@@ -90,7 +93,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -581,32 +584,34 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 		return errs
 	}
 
-	for _, s := range subs {
-		if err := func() error {
-			msg, err := g.manageSubReq(ctx, event, conn, s)
-			if err != nil {
-				return err
-			}
-			result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
-			if err != nil {
-				return err
-			}
-			var resp WsEventResponse
-			if err := json.Unmarshal(result, &resp); err != nil {
-				return err
-			}
-			if resp.Error != nil && resp.Error.Code != 0 {
-				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
-			}
-			if event == "unsubscribe" {
-				return g.Websocket.RemoveSubscriptions(conn, s)
-			}
-			return g.Websocket.AddSuccessfulSubscriptions(conn, s)
-		}(); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
+	return common.ProcessElementsByBatch(subscriptionBatchCount, subs, func(_ int, s *subscription.Subscription) error {
+		if err := g.manageTemplatePayload(ctx, conn, event, s); err != nil {
+			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
+		return nil
+	})
+}
+
+func (g *Gateio) manageTemplatePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription) error {
+	msg, err := g.manageSubReq(ctx, event, conn, s)
+	if err != nil {
+		return err
 	}
-	return errs
+	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
+	if err != nil {
+		return err
+	}
+	var resp WsEventResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return err
+	}
+	if resp.Error != nil && resp.Error.Code != 0 {
+		return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
+	}
+	if event == "unsubscribe" {
+		return g.Websocket.RemoveSubscriptions(conn, s)
+	}
+	return g.Websocket.AddSuccessfulSubscriptions(conn, s)
 }
 
 // manageSubReq constructs the subscription management message for a subscription
@@ -696,27 +701,29 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	if err != nil {
 		return err
 	}
-	var errs error
-	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
+
+	return common.ProcessElementsByBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
+		if err := g.managePayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
+			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
-			} else {
-				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
-			}
-		}
+		return nil
+	})
+}
+
+func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
+	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.ID, payload)
+	if err != nil {
+		return err
 	}
-	return errs
+	var resp WsEventResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return err
+	}
+	if resp.Error != nil && resp.Error.Code != 0 {
+		return fmt.Errorf("error while %s to channel %s error code: %d message: %s", event, payload.Channel, resp.Error.Code, resp.Error.Message)
+	}
+	if event == subscribeEvent {
+		return g.Websocket.AddSuccessfulSubscriptions(conn, s)
+	}
+	return g.Websocket.RemoveSubscriptions(conn, s)
 }
