@@ -117,6 +117,7 @@ func TestNew(t *testing.T) {
 		{Input: "Future", Error: ErrNotSupported},
 		{Input: "option_combo", Expected: OptionCombo},
 		{Input: "future_combo", Expected: FutureCombo},
+		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
 	}
 
