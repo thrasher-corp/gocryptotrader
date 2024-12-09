@@ -2702,8 +2702,8 @@ func getSign(sign, secret string) (string, error) {
 	return crypto.HexEncodeToString(hmacSigned), nil
 }
 
-// FetchtAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
-func (by *Bybit) FetchtAccountType(ctx context.Context) (AccountType, error) {
+// FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
+func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
 	by.account.m.Lock()
 	defer by.account.m.Unlock()
 	if by.account.accountType == 0 {
@@ -2720,12 +2720,12 @@ func (by *Bybit) FetchtAccountType(ctx context.Context) (AccountType, error) {
 
 // RequiresUnifiedAccount checks if the account type is a unified account.
 func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
-	at, err := by.FetchtAccountType(ctx)
+	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return nil //nolint:nilerr // if we can't get the account type, we can't check if it's unified or not, fail on call
 	}
 	if at != accountTypeUnified {
-		return fmt.Errorf("%w, account type: %d", errAPIKeyIsNotUnified, at)
+		return fmt.Errorf("%w, account type: %s", errAPIKeyIsNotUnified, at.String())
 	}
 	return nil
 }

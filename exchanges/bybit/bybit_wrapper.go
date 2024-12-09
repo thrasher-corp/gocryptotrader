@@ -562,7 +562,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var acc account.SubAccount
 	var accountType string
 	info.Exchange = by.Name
-	at, err := by.FetchtAccountType(ctx)
+	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return info, err
 	}

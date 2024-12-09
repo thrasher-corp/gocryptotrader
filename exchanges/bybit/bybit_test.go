@@ -3548,12 +3548,12 @@ func TestStringToOrderStatus(t *testing.T) {
 	}
 }
 
-func TestFetchtAccountType(t *testing.T) {
+func TestFetchAccountType(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	val, err := b.FetchtAccountType(context.Background())
+	val, err := b.FetchAccountType(context.Background())
 	require.NoError(t, err)
 	require.NotZero(t, val)
 }
