@@ -50,10 +50,10 @@ func (g *Gateio) WebsocketOrderPlaceSpot(ctx context.Context, orders []Websocket
 
 	if len(orders) == 1 {
 		var singleResponse WebsocketOrderResponse
-		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
+		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, spotPlaceOrderEPL, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
 	}
 	var resp []WebsocketOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "spot.order_place", asset.Spot, orders, &resp, 2)
+	return resp, g.SendWebsocketRequest(ctx, spotBatchOrdersEPL, "spot.order_place", asset.Spot, orders, &resp, 2)
 }
 
 // WebsocketOrderCancelSpot cancels an order via the websocket connection
@@ -68,7 +68,7 @@ func (g *Gateio) WebsocketOrderCancelSpot(ctx context.Context, orderID string, p
 	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "spot.order_cancel", asset.Spot, params, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, spotCancelSingleOrderEPL, "spot.order_cancel", asset.Spot, params, &resp, 1)
 }
 
 // WebsocketOrderCancelAllByIDsSpot cancels multiple orders via the websocket
@@ -87,7 +87,7 @@ func (g *Gateio) WebsocketOrderCancelAllByIDsSpot(ctx context.Context, o []Webso
 	}
 
 	var resp []WebsocketCancellAllResponse
-	return resp, g.SendWebsocketRequest(ctx, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
+	return resp, g.SendWebsocketRequest(ctx, spotCancelBatchOrdersEPL, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
 }
 
 // WebsocketOrderCancelAllByPairSpot cancels all orders for a specific pair
@@ -109,7 +109,7 @@ func (g *Gateio) WebsocketOrderCancelAllByPairSpot(ctx context.Context, pair cur
 	}
 
 	var resp []WebsocketOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
+	return resp, g.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
 }
 
 // WebsocketOrderAmendSpot amends an order via the websocket connection
@@ -131,7 +131,7 @@ func (g *Gateio) WebsocketOrderAmendSpot(ctx context.Context, amend *WebsocketAm
 	}
 
 	var resp WebsocketOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "spot.order_amend", asset.Spot, amend, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, spotAmendOrderEPL, "spot.order_amend", asset.Spot, amend, &resp, 1)
 }
 
 // WebsocketGetOrderStatusSpot gets the status of an order via the websocket connection
@@ -146,7 +146,7 @@ func (g *Gateio) WebsocketGetOrderStatusSpot(ctx context.Context, orderID string
 	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
 
 	var resp WebsocketOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "spot.order_status", asset.Spot, params, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_status", asset.Spot, params, &resp, 1)
 }
 
 // funnelResult is used to unmarshal the result of a websocket request back to the required caller type
@@ -155,7 +155,7 @@ type funnelResult struct {
 }
 
 // SendWebsocketRequest sends a websocket request to the exchange
-func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connSignature, params, result any, expectedResponses int) error {
+func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
 	paramPayload, err := json.Marshal(params)
 	if err != nil {
 		return err
@@ -180,7 +180,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, channel string, connS
 		},
 	}
 
-	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
+	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
 	if err != nil {
 		return err
 	}

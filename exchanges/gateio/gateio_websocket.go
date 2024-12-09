@@ -134,7 +134,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 
 	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
 
-	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, req.Payload.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.Time.Time())
+		return g.processTicker(push.Result, push.TimeMs.Time())
 	case spotTradesChannel:
 		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
