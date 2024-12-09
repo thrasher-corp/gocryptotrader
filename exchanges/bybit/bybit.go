@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -43,8 +42,8 @@ const (
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
 
-	accountTypeNormal  uint8 = 1 // 0: regular account
-	accountTypeUnified uint8 = 2 // 1: unified trade account
+	accountTypeNormal  accountType = 1
+	accountTypeUnified accountType = 2
 
 	longDatedFormat = "02Jan06"
 )
@@ -2703,14 +2702,8 @@ func getSign(sign, secret string) (string, error) {
 	return crypto.HexEncodeToString(hmacSigned), nil
 }
 
-// AccountTypeHolder holds the account type associated with the loaded API key.
-type AccountTypeHolder struct {
-	accountType uint8
-	m           sync.Mutex
-}
-
 // FetchtAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
-func (by *Bybit) FetchtAccountType(ctx context.Context) (uint8, error) {
+func (by *Bybit) FetchtAccountType(ctx context.Context) (accountType, error) {
 	by.account.m.Lock()
 	defer by.account.m.Unlock()
 	if by.account.accountType == 0 {
@@ -2720,7 +2713,7 @@ func (by *Bybit) FetchtAccountType(ctx context.Context) (uint8, error) {
 		}
 		// From endpoint 0：regular account; 1：unified trade account
 		// + 1 to make it 1 and 2 so that a zero value can be used to check if the account type has been set or not.
-		by.account.accountType = uint8(accInfo.IsUnifiedTradeAccount) + 1
+		by.account.accountType = accountType(accInfo.IsUnifiedTradeAccount + 1)
 	}
 	return by.account.accountType, nil
 }
@@ -2729,7 +2722,7 @@ func (by *Bybit) FetchtAccountType(ctx context.Context) (uint8, error) {
 func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
 	at, err := by.FetchtAccountType(ctx)
 	if err != nil {
-		return nil // if we can't get the account type, we can't check if it's unified or not
+		return nil //nolint:nilerr // if we can't get the account type, we can't check if it's unified or not, fail on call
 	}
 	if at != accountTypeUnified {
 		return fmt.Errorf("%w, account type: %d", errAPIKeyIsNotUnified, at)

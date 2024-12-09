@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -2034,4 +2035,27 @@ type Error struct {
 	ReturnMessageV5 string `json:"retMsg"`
 	ExtCode         string `json:"ext_code"`
 	ExtMsg          string `json:"ext_info"`
+}
+
+// AccountTypeHolder holds the account type associated with the loaded API key.
+type AccountTypeHolder struct {
+	accountType accountType
+	m           sync.Mutex
+}
+
+// accountType constants
+type accountType uint8
+
+// String returns the account type as a string
+func (a accountType) String() string {
+	switch a {
+	case 0:
+		return "unset"
+	case accountTypeNormal:
+		return "normal"
+	case accountTypeUnified:
+		return "unified"
+	default:
+		return "unknown"
+	}
 }

@@ -3558,6 +3558,14 @@ func TestFetchtAccountType(t *testing.T) {
 	require.NotZero(t, val)
 }
 
+func TestAccountTypeString(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "unset", accountType(0).String())
+	require.Equal(t, "unified", accountTypeUnified.String())
+	require.Equal(t, "normal", accountTypeNormal.String())
+	require.Equal(t, "unknown", accountType(3).String())
+}
+
 func TestRequiresUnifiedAccount(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
