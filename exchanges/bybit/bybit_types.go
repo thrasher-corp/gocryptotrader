@@ -2039,15 +2039,15 @@ type Error struct {
 
 // AccountTypeHolder holds the account type associated with the loaded API key.
 type AccountTypeHolder struct {
-	accountType accountType
+	accountType AccountType
 	m           sync.Mutex
 }
 
-// accountType constants
-type accountType uint8
+// AccountType constants
+type AccountType uint8
 
 // String returns the account type as a string
-func (a accountType) String() string {
+func (a AccountType) String() string {
 	switch a {
 	case 0:
 		return "unset"

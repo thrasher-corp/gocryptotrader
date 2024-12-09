@@ -42,8 +42,8 @@ const (
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
 
-	accountTypeNormal  accountType = 1
-	accountTypeUnified accountType = 2
+	accountTypeNormal  AccountType = 1
+	accountTypeUnified AccountType = 2
 
 	longDatedFormat = "02Jan06"
 )
@@ -2703,7 +2703,7 @@ func getSign(sign, secret string) (string, error) {
 }
 
 // FetchtAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
-func (by *Bybit) FetchtAccountType(ctx context.Context) (accountType, error) {
+func (by *Bybit) FetchtAccountType(ctx context.Context) (AccountType, error) {
 	by.account.m.Lock()
 	defer by.account.m.Unlock()
 	if by.account.accountType == 0 {
@@ -2713,7 +2713,7 @@ func (by *Bybit) FetchtAccountType(ctx context.Context) (accountType, error) {
 		}
 		// From endpoint 0：regular account; 1：unified trade account
 		// + 1 to make it 1 and 2 so that a zero value can be used to check if the account type has been set or not.
-		by.account.accountType = accountType(accInfo.IsUnifiedTradeAccount + 1)
+		by.account.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
 	}
 	return by.account.accountType, nil
 }
