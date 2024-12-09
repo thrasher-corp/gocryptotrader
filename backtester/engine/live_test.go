@@ -429,7 +429,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	dataHandler.started = 1
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true})
+	cp := currency.NewBTCUSDT()
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
