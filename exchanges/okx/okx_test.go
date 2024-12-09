@@ -5760,12 +5760,13 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
 	}
+	var pairs currency.Pairs
 	for _, s := range ok.Features.Subscriptions {
 		for _, a := range ok.GetAssetTypes(true) {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
-			pairs, err := ok.GetEnabledPairs(a)
+			pairs, err = ok.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "-"})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
@@ -5791,14 +5792,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
-}
 
-func TestGenerateGridSubscriptions(t *testing.T) {
-	t.Parallel()
 	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}}}
-	subs, err := ok.generateSubscriptions()
+	subs, err = ok.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
+	exp = subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
 	testsubs.EqualLists(t, exp, subs)
 
 	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions}}
