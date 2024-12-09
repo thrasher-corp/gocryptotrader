@@ -240,19 +240,28 @@ func (b *Bitstamp) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (b *Bitstamp) Subscribe(subs subscription.List) error {
+	return b.manageSubsWithCreds(subs, "sub")
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from a list of channels
+func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
+	return b.manageSubsWithCreds(subs, "unsub")
+}
+
+func (b *Bitstamp) manageSubsWithCreds(subs subscription.List, op string) error {
 	var errs error
 	var creds *WebsocketAuthResponse
 	if authed := subs.Private(); len(authed) > 0 {
 		creds, errs = b.FetchWSAuth(context.TODO())
 	}
-	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.subscribe(s, creds) }, 1))
+	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.manageSubs(s, op, creds) }, 1))
 }
 
-func (b *Bitstamp) subscribe(subs subscription.List, creds *WebsocketAuthResponse) error {
+func (b *Bitstamp) manageSubs(subs subscription.List, op string, creds *WebsocketAuthResponse) error {
 	subs, errs := subs.ExpandTemplates(b)
 	for _, s := range subs {
 		req := websocketEventRequest{
-			Event: "bts:subscribe",
+			Event: "bts:" + op + "scribe",
 			Data: websocketData{
 				Channel: s.QualifiedChannel,
 			},
@@ -264,40 +273,19 @@ func (b *Bitstamp) subscribe(subs subscription.List, creds *WebsocketAuthRespons
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(creds.UserID))
 			req.Data.Auth = creds.Token
 		}
-		_, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "sub:"+req.Data.Channel, req)
+		_, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, op+":"+req.Data.Channel, req)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
+			if op == "sub" {
+				err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
+			} else {
+				err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
+			}
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
 
-	return errs
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
-	return b.ParallelChanOp(subs, b.unsubscribe, 1)
-}
-
-func (b *Bitstamp) unsubscribe(subs subscription.List) error {
-	var errs error
-	for _, s := range subs {
-		req := websocketEventRequest{
-			Event: "bts:unsubscribe",
-			Data: websocketData{
-				Channel: s.QualifiedChannel,
-			},
-		}
-		_, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "unsub:"+req.Data.Channel, req)
-		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
-		}
-		if err != nil {
-			errs = common.AppendError(errs, err)
-		}
-	}
 	return errs
 }
 
