@@ -19,7 +19,7 @@ func TestVersion3Upgrade(t *testing.T) {
 	require.NotEmpty(t, out)
 
 	_, _, _, err = jsonparser.Get(out, "currencyPairs", "assetTypes") //nolint:dogsled // Ignored return values really not needed
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "assetTypes must be removed")
+	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "assetTypes should be removed")
 
 	e, err := jsonparser.GetBoolean(out, "currencyPairs", "pairs", "spot", "assetEnabled")
 	require.NoError(t, err, "Must find assetEnabled for spot")
