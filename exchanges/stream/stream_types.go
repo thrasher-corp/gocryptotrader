@@ -35,6 +35,10 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+
+	// RouteIncomingWebsocketData routes incoming websocket data to the correct handler.
+	// Returns true if a handler was found and data was passed to it.
+	RouteIncomingWebsocketData(signature any, incoming []byte) (matched bool)
 }
 
 // Response defines generalised data from the stream connection
@@ -71,7 +75,7 @@ type ConnectionSetup struct {
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
-	Handler func(ctx context.Context, incoming []byte) error
+	Handler func(ctx context.Context, conn Connection, incoming []byte) error
 	// BespokeGenerateMessageID is a function that returns a unique message ID.
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
