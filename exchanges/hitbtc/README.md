@@ -111,12 +111,24 @@ if err != nil {
 }
 ```
 
-### How to do Websocket public/private calls
+### Subscriptions
 
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
-```
+Subscriptions are for [v2 api](https://hitbtc-com.github.io/hitbtc-api/#socket-api-reference)
+
+All subscriptions are for spot.
+
+Default Public Subscriptions:
+- Ticker
+- Orderbook
+- Candles ( Interval: 30 minutes, History: 100 )
+- All Trades ( History: 100 )
+
+Default Authenticated Subscriptions:
+- My Account events
+
+Subscriptions are subject to enabled assets and pairs.
+
+Configure Levels for number of history entries to return for applicable APIs.
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
