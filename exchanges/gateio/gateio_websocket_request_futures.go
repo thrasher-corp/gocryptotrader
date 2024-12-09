@@ -21,49 +21,48 @@ var (
 
 // AuthenticateFutures sends an authentication message to the websocket connection
 func (g *Gateio) authenticateFutures(ctx context.Context, conn stream.Connection) error {
-	_, err := g.websocketLogin(ctx, conn, "futures.login")
-	return err
+	return g.websocketLogin(ctx, conn, "futures.login")
 }
 
 // WebsocketOrderPlaceFutures places an order via the websocket connection. You can
 // send multiple orders in a single request. NOTE: When sending multiple orders
 // the response will be an array of responses and a succeeded bool will be
 // returned in the response.
-func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, batch []OrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
-	if len(batch) == 0 {
-		return nil, errBatchSliceEmpty
+func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, orders []OrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+	if len(orders) == 0 {
+		return nil, errOrdersEmpty
 	}
 
 	var a asset.Item
-	for i := range batch {
-		if batch[i].Contract.IsEmpty() {
+	for i := range orders {
+		if orders[i].Contract.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 
-		if batch[i].Price == "" && batch[i].TimeInForce != "ioc" {
+		if orders[i].Price == "" && orders[i].TimeInForce != "ioc" {
 			return nil, fmt.Errorf("%w: cannot be zero when time in force is not IOC", errInvalidPrice)
 		}
 
-		if batch[i].Size == 0 && batch[i].AutoSize == "" {
+		if orders[i].Size == 0 && orders[i].AutoSize == "" {
 			return nil, fmt.Errorf("%w: size cannot be zero", errInvalidAmount)
 		}
 
-		if batch[i].AutoSize != "" {
-			if batch[i].AutoSize != "close_long" && batch[i].AutoSize != "close_short" {
-				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, batch[i].AutoSize)
+		if orders[i].AutoSize != "" {
+			if orders[i].AutoSize != "close_long" && orders[i].AutoSize != "close_short" {
+				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, orders[i].AutoSize)
 			}
-			if batch[i].Size != 0 {
+			if orders[i].Size != 0 {
 				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidAmount)
 			}
 		}
 
 		switch {
-		case batch[i].Contract.Quote.Equal(currency.USDT):
+		case orders[i].Contract.Quote.Equal(currency.USDT):
 			if a != asset.Empty && a != asset.USDTMarginedFutures {
 				return nil, fmt.Errorf("%w: either btc or usdt margined can only be batched as they are using different connections", errSettlementCurrencyConflict)
 			}
 			a = asset.USDTMarginedFutures
-		case batch[i].Contract.Quote.Equal(currency.USD):
+		case orders[i].Contract.Quote.Equal(currency.USD):
 			if a != asset.Empty && a != asset.CoinMarginedFutures {
 				return nil, fmt.Errorf("%w: either btc or usdt margined can only be batched as they are using different connections", errSettlementCurrencyConflict)
 			}
@@ -71,14 +70,14 @@ func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, batch []OrderCr
 		}
 	}
 
-	if len(batch) == 1 {
+	if len(orders) == 1 {
 		var singleResponse WebsocketFuturesOrderResponse
-		err := g.SendWebsocketRequest(ctx, "futures.order_place", a, batch[0], &singleResponse, 2)
+		err := g.SendWebsocketRequest(ctx, perpetualSubmitOrderEPL, "futures.order_place", a, orders[0], &singleResponse, 2)
 		return []WebsocketFuturesOrderResponse{singleResponse}, err
 	}
 
 	var resp []WebsocketFuturesOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "futures.order_batch_place", a, batch, &resp, 2)
+	return resp, g.SendWebsocketRequest(ctx, perpetualSubmitBatchOrdersEPL, "futures.order_batch_place", a, orders, &resp, 2)
 }
 
 // WebsocketOrderCancelFutures cancels an order via the websocket connection.
@@ -102,7 +101,7 @@ func (g *Gateio) WebsocketOrderCancelFutures(ctx context.Context, orderID string
 	}{OrderID: orderID}
 
 	var resp WebsocketFuturesOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "futures.order_cancel", a, params, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, perpetualCancelOrderEPL, "futures.order_cancel", a, params, &resp, 1)
 }
 
 // WebsocketOrderCancelAllOpenFuturesOrdersMatched cancels multiple orders via
@@ -127,7 +126,7 @@ func (g *Gateio) WebsocketOrderCancelAllOpenFuturesOrdersMatched(ctx context.Con
 	}
 
 	var resp []WebsocketFuturesOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "futures.order_cancel_cp", a, params, &resp, 2)
+	return resp, g.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_cp", a, params, &resp, 2)
 }
 
 // WebsocketOrderAmendFutures amends an order via the websocket connection
@@ -154,7 +153,7 @@ func (g *Gateio) WebsocketOrderAmendFutures(ctx context.Context, amend *Websocke
 	}
 
 	var resp WebsocketFuturesOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "futures.order_amend", a, amend, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, perpetualAmendOrderEPL, "futures.order_amend", a, amend, &resp, 1)
 }
 
 // WebsocketOrderListFutures fetches a list of orders via the websocket connection
@@ -177,7 +176,7 @@ func (g *Gateio) WebsocketOrderListFutures(ctx context.Context, list *WebsocketF
 	}
 
 	var resp []WebsocketFuturesOrderResponse
-	return resp, g.SendWebsocketRequest(ctx, "futures.order_list", a, list, &resp, 1)
+	return resp, g.SendWebsocketRequest(ctx, perpetualGetOrdersEPL, "futures.order_list", a, list, &resp, 1)
 }
 
 // WebsocketGetOrderStatusFutures gets the status of an order via the websocket
@@ -201,5 +200,5 @@ func (g *Gateio) WebsocketGetOrderStatusFutures(ctx context.Context, contract cu
 	}
 
 	var resp WebsocketFuturesOrderResponse
-	return &resp, g.SendWebsocketRequest(ctx, "futures.order_status", a, params, &resp, 1)
+	return &resp, g.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)
 }

@@ -46,7 +46,7 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		minPrice = action.ReferencePrice
 		maxPrice = action.TranchePositionPrice
 		amount = action.QuoteAmount
-		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
+		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			amount, b.Pair.Quote, b.Pair.Base, minPrice, maxPrice,
 			percent, len(action.Tranches), warning)
@@ -54,7 +54,7 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		minPrice = action.TranchePositionPrice
 		maxPrice = action.ReferencePrice
 		amount = action.BaseAmount
-		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
+		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			amount, b.Pair.Base, b.Pair.Quote, maxPrice, minPrice,
 			percent, len(action.Tranches), warning)
@@ -108,7 +108,7 @@ func (b *Base) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error)
 		warning = fullLiquidityUsageWarning
 	}
 
-	pct := math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
+	pct := math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 	status := fmt.Sprintf("%s using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
 		direction, soldAmount, sold, bought, action.ReferencePrice,
 		action.TranchePositionPrice, pct, len(action.Tranches), warning)

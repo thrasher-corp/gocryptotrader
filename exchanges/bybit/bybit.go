@@ -30,7 +30,7 @@ type Bybit struct {
 
 	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
 	// 0: unified, and 1: for normal account
-	AccountType uint8
+	AccountType int64
 }
 
 const (
@@ -2705,7 +2705,7 @@ func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	by.AccountType = uint8(accInfo.IsUnifiedTradeAccount) // 0：regular account; 1：unified trade account
+	by.AccountType = accInfo.IsUnifiedTradeAccount // 0：regular account; 1：unified trade account
 	return nil
 }
 

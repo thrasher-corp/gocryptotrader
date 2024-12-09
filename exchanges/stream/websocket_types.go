@@ -55,8 +55,8 @@ type Websocket struct {
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
 	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
 	connectionManager []*ConnectionWrapper
-	// connectionToWrapper holds a look up table for all connections to their corresponding ConnectionWrapper and subscription holder
-	connectionToWrapper map[Connection]*ConnectionWrapper
+	// connections holds a look up table for all connections to their corresponding ConnectionWrapper and subscription holder
+	connections map[Connection]*ConnectionWrapper
 
 	subscriptions *subscription.Store
 

@@ -18,10 +18,10 @@ import (
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	_, err := g.websocketLogin(context.Background(), nil, "")
+	err := g.websocketLogin(context.Background(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = g.websocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
+	err = g.websocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
 	require.ErrorIs(t, err, errChannelEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -32,15 +32,14 @@ func TestWebsocketLogin(t *testing.T) {
 	demonstrationConn, err := g.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 
-	got, err := g.websocketLogin(context.Background(), demonstrationConn, "spot.login")
+	err = g.websocketLogin(context.Background(), demonstrationConn, "spot.login")
 	require.NoError(t, err)
-	require.NotEmpty(t, got)
 }
 
 func TestWebsocketOrderPlaceSpot(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketOrderPlaceSpot(context.Background(), nil)
-	require.ErrorIs(t, err, errBatchSliceEmpty)
+	require.ErrorIs(t, err, errOrdersEmpty)
 	_, err = g.WebsocketOrderPlaceSpot(context.Background(), make([]CreateOrderRequestData, 1))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	pair, err := currency.NewPairFromString("BTC_USDT")
@@ -122,7 +121,7 @@ func TestWebsocketOrderCancelAllByPairSpot(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = g.WebsocketOrderCancelAllByPairSpot(context.Background(), pair, 0, "")
-	require.ErrorIs(t, err, errEdgeCaseIssue)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 

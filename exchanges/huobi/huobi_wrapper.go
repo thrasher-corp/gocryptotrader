@@ -187,6 +187,17 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
+// Bootstrap ensures that future contract expiry codes are loaded if AutoPairUpdates is not enabled
+func (h *HUOBI) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+	continueBootstrap = true
+
+	if !h.GetEnabledFeatures().AutoPairUpdates && h.SupportsAsset(asset.Futures) {
+		_, err = h.FetchTradablePairs(context.Background(), asset.Futures)
+	}
+
+	return
+}
+
 // Setup sets user configuration
 func (h *HUOBI) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
@@ -2105,21 +2116,24 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	return resp, nil
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	chains, err := h.GetCurrenciesIncludingChains(ctx, cryptocurrency)
+	resp, err := h.GetCurrenciesIncludingChains(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(chains) == 0 {
-		return nil, errors.New("chain data isn't populated")
+	if len(resp) == 0 {
+		return nil, errors.New("no chains returned from currencies API")
 	}
 
-	availableChains := make([]string, len(chains[0].ChainData))
-	for x := range chains[0].ChainData {
-		availableChains[x] = chains[0].ChainData[x].Chain
+	chains := resp[0].ChainData
+
+	availableChains := make([]string, 0, len(chains))
+	for _, c := range chains {
+		if c.DepositStatus == "allowed" || c.WithdrawStatus == "allowed" {
+			availableChains = append(availableChains, c.Chain)
+		}
 	}
 	return availableChains, nil
 }
