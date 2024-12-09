@@ -5,17 +5,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-const (
-	marketDataLevel2 = "l2"
-	candles1m        = "candles_1m"
-	candles5m        = "candles_5m"
-	candles15m       = "candles_15m"
-	candles30m       = "candles_30m"
-	candles1hr       = "candles_1h"
-	candles6hr       = "candles_6h"
-	candles1d        = "candles_1d"
-)
-
 // Ticker holds returned ticker data from the exchange
 type Ticker struct {
 	Ask    float64 `json:"ask,string"`

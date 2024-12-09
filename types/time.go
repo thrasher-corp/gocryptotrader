@@ -33,14 +33,15 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		if r == '.' {
 			return true
 		}
-		// As a mistake this type can be used instead of time.Time and parse int below will not fail.
+		// types.Time may only parse numbers. The below check ensures an error is thrown. time.Time should be used to
+		// parse RFC3339 strings instead.
 		badSyntax = r < '0' || r > '9'
-		return badSyntax // exit early
+		return badSyntax
 	})
 
 	if target != -1 {
 		if badSyntax {
-			return strconv.ErrSyntax
+			return fmt.Errorf("%w for `%v`", strconv.ErrSyntax, string(data))
 		}
 		s = s[:target] + s[target+1:]
 	}

@@ -224,7 +224,6 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 	ws.SetCanUseAuthenticatedEndpoints(true)
-	ws.verbose = true // NOTE: Intentional
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
@@ -467,7 +466,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.connectionToWrapper = map[Connection]*ConnectionWrapper{
+	multi.connections = map[Connection]*ConnectionWrapper{
 		amazingConn: multi.connectionManager[0],
 	}
 
@@ -765,7 +764,14 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	wc.ResponseMaxLimit = 1
 	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
+
+	_, err = wc.SendMessageReturnResponsesWithInspector(context.Background(), request.Unset, "123", req, 1, inspection{})
+	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
+
+type inspection struct{}
+
+func (inspection) IsFinal([]byte) bool { return false }
 
 type reporter struct {
 	name string
@@ -979,7 +985,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	w.connectionToWrapper = map[Connection]*ConnectionWrapper{
+	w.connections = map[Connection]*ConnectionWrapper{
 		sweetConn: {Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
 	}
 
@@ -992,7 +998,7 @@ func TestGetChannelDifference(t *testing.T) {
 	require.Equal(t, 1, len(subs))
 	require.Empty(t, unsubs, "Should get no unsubs")
 
-	err := w.connectionToWrapper[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	err := w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
 	require.NoError(t, err)
 
 	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
@@ -1233,11 +1239,11 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, []byte) error { return nil }
-	connSetup.WrapperDefinedConnectionSignature = []string{"slices are super naughty and not comparable"}
+	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errWrapperDefinedConnectionSignatureNotComparable)
+	require.ErrorIs(t, err, errMessageFilterNotComparable)
 
-	connSetup.WrapperDefinedConnectionSignature = "comparable string signature"
+	connSetup.MessageFilter = "comparable string signature"
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
@@ -1506,18 +1512,20 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, errConnectionSignatureNotSet)
 
 	_, err = ws.GetConnection("testURL")
-	require.ErrorIs(t, err, ErrNotConnected)
-
-	ws.setState(connectedState)
-	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
 
 	ws.useMultiConnectionManagement = true
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	ws.setState(connectedState)
+
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
 	ws.connectionManager = []*ConnectionWrapper{{
-		Setup: &ConnectionSetup{WrapperDefinedConnectionSignature: "testURL", URL: "testURL"},
+		Setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
 	}}
 
 	_, err = ws.GetConnection("testURL")

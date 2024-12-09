@@ -15,7 +15,7 @@ import (
 func TestWebsocketOrderPlaceFutures(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketOrderPlaceFutures(context.Background(), nil)
-	require.ErrorIs(t, err, errBatchSliceEmpty)
+	require.ErrorIs(t, err, errOrdersEmpty)
 	_, err = g.WebsocketOrderPlaceFutures(context.Background(), make([]OrderCreateParams, 1))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
