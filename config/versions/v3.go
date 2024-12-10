@@ -25,9 +25,9 @@ func (v *Version3) Exchanges() []string { return []string{"*"} }
 func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	toEnable := map[string]bool{}
 
-	assetTypesFn := func(v []byte, vT jsonparser.ValueType, _ int, _ error) {
-		if vT == jsonparser.String {
-			toEnable[string(v)] = true
+	assetTypesFn := func(asset []byte, valueType jsonparser.ValueType, _ int, _ error) {
+		if valueType == jsonparser.String {
+			toEnable[string(asset)] = true
 		}
 	}
 	_, err := jsonparser.ArrayEach(e, assetTypesFn, "currencyPairs", "assetTypes")
@@ -35,15 +35,15 @@ func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		return e, err
 	}
 
-	assetEnabledFn := func(kBytes []byte, v []byte, _ jsonparser.ValueType, _ int) error {
-		k := string(kBytes)
-		if toEnable[k] {
-			e, err = jsonparser.Set(e, []byte(`true`), "currencyPairs", "pairs", k, "assetEnabled")
+	assetEnabledFn := func(assetBytes []byte, v []byte, _ jsonparser.ValueType, _ int) error {
+		asset := string(assetBytes)
+		if toEnable[asset] {
+			e, err = jsonparser.Set(e, []byte(`true`), "currencyPairs", "pairs", asset, "assetEnabled")
 			return err
 		}
 		_, err = jsonparser.GetBoolean(v, "assetEnabled")
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			e, err = jsonparser.Set(e, []byte(`false`), "currencyPairs", "pairs", k, "assetEnabled")
+			e, err = jsonparser.Set(e, []byte(`false`), "currencyPairs", "pairs", asset, "assetEnabled")
 		}
 		return err
 	}
@@ -58,12 +58,12 @@ func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 func (v *Version3) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	assetTypes := []string{}
 
-	assetEnabledFn := func(k []byte, v []byte, _ jsonparser.ValueType, _ int) error {
+	assetEnabledFn := func(asset []byte, v []byte, _ jsonparser.ValueType, _ int) error {
 		if b, err := jsonparser.GetBoolean(v, "assetEnabled"); err == nil {
 			if b {
-				assetTypes = append(assetTypes, fmt.Sprintf("%q", k))
+				assetTypes = append(assetTypes, fmt.Sprintf("%q", asset))
 			}
-			e = jsonparser.Delete(e, "currencyPairs", "pairs", string(k), "assetEnabled")
+			e = jsonparser.Delete(e, "currencyPairs", "pairs", string(asset), "assetEnabled")
 		}
 		return nil
 	}
