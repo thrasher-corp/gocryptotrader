@@ -10,7 +10,7 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version3 implements ExchangeVersion
+// Version3 is an Exchange upgrade to move currencyPairs.assetTypes to currencyPairs.pairs.*.assetEnabled
 type Version3 struct {
 }
 
@@ -21,7 +21,7 @@ func init() {
 // Exchanges returns all exchanges: "*"
 func (v *Version3) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange sets AssetEnabed: true for all assets listed in assetTypes, and false for any with no field
+// UpgradeExchange sets AssetEnabled: true for all assets listed in assetTypes, and false for any with no field
 func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	toEnable := map[string]bool{}
 
