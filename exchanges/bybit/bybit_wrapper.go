@@ -348,18 +348,15 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	// Private - Dedicated private connection for all inbound private data.
 	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                   websocketPrivate,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:             by.WsConnect,
-		GenerateSubscriptions: by.generateAuthSubscriptions,
-		Subscriber:            by.authSubscribe,
-		Unsubscriber:          by.authUnsubscribe,
-		// Private websocket data is handled by the same function as the public data. Intentionally set asset as asset.All.
-		// As all asset type order execution, wallet and other data is centralised through the private websocket connection.
-		// TODO: Handle private websocket data to be asset specific.
-		Handler:                  func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.All) },
+		URL:                      websocketPrivate,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:                by.WsConnect,
+		GenerateSubscriptions:    by.generateAuthSubscriptions,
+		Subscriber:               by.authSubscribe,
+		Unsubscriber:             by.authUnsubscribe,
+		Handler:                  by.wsHandleAuthenticated,
 		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
 		Authenticate:             by.WebsocketAuthenticatePrivateConnection,
 		MessageFilter:            InboundPrivateConnection,
