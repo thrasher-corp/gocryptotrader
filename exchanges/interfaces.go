@@ -133,6 +133,13 @@ type OrderManagement interface {
 	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
+
+	// WebsocketSubmitOrder submits an order via the websocket connection
+	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	// WebsocketCancelOrder cancels an order via the websocket connection
+	WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
+	// WebsocketCancelOrder cancels an order via the websocket connection
+	WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error
 }
 
 // CurrencyStateManagement defines functionality for currency state management
