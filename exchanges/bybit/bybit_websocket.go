@@ -10,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -219,9 +220,7 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 			}
 		case "ping", "pong":
 		default:
-			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-				Message: string(respRaw),
-			}
+			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: string(respRaw)}
 			return nil
 		}
 		return nil
@@ -247,16 +246,51 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 		return by.wsProcessLeverageTokenTicker(assetType, &result)
 	case chanLeverageTokenNav:
 		return by.wsLeverageTokenNav(&result)
-		// TODO: The following cases are coming from the dedicated authenticated websocket connection, this is asset
-		// agnostic and will need an update in a future PR to handle asset specific data.
+	}
+	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+}
+
+func (by *Bybit) wsHandleAuthenticated(_ context.Context, respRaw []byte) error {
+	var result WebsocketResponse
+	if err := json.Unmarshal(respRaw, &result); err != nil {
+		return err
+	}
+	if result.Topic == "" {
+		switch result.Operation {
+		case "subscribe", "unsubscribe", "auth":
+			if result.RequestID != "" {
+				if !by.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
+					return fmt.Errorf("could not match subscription with id %s data %s", result.RequestID, respRaw)
+				}
+			}
+		case "ping", "pong":
+		default:
+			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: string(respRaw)}
+			return nil
+		}
+		return nil
+	}
+	topicSplit := strings.Split(result.Topic, ".")
+	if len(topicSplit) == 0 {
+		return errInvalidPushData
+	}
+
+	switch topicSplit[0] {
 	case chanPositions:
 		return by.wsProcessPosition(&result)
 	case chanExecution:
-		return by.wsProcessExecution(assetType, &result)
+		return by.wsProcessExecution(&result)
 	case chanOrder:
-		return by.wsProcessOrder(assetType, &result)
+		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
+		// so the first element will be used to match the order ID.
+		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderId"); err == nil {
+			if by.Websocket.Match.IncomingWithData(id, respRaw) {
+				return nil // If the data has been routed, return
+			}
+		}
+		return by.wsProcessOrder(&result)
 	case chanWallet:
-		return by.wsProcessWalletPushData(assetType, respRaw)
+		return by.wsProcessWalletPushData(respRaw)
 	case chanGreeks:
 		return by.wsProcessGreeks(respRaw)
 	case chanDCP:
@@ -275,10 +309,9 @@ func (by *Bybit) wsProcessGreeks(resp []byte) error {
 	return nil
 }
 
-func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) error {
+func (by *Bybit) wsProcessWalletPushData(resp []byte) error {
 	var result WebsocketWallet
-	err := json.Unmarshal(resp, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
 	accounts := []account.Change{}
@@ -287,7 +320,7 @@ func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) erro
 			accounts = append(accounts, account.Change{
 				Exchange: by.Name,
 				Currency: currency.NewCode(result.Data[x].Coin[y].Coin),
-				Asset:    assetType,
+				Asset:    asset.Spot,
 				Amount:   result.Data[x].Coin[y].WalletBalance.Float64(),
 			})
 		}
@@ -297,15 +330,14 @@ func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) erro
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
-func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Bybit) wsProcessOrder(resp *WebsocketResponse) error {
 	var result WsOrders
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
+		cp, a, err := by.getPairFromCategory(result[x].Category, result[x].Symbol)
 		if err != nil {
 			return err
 		}
@@ -318,35 +350,35 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 			return err
 		}
 		execution[x] = order.Detail{
-			Amount:         result[x].Qty.Float64(),
-			Exchange:       by.Name,
-			OrderID:        result[x].OrderID,
-			ClientOrderID:  result[x].OrderLinkID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           cp,
-			Cost:           result[x].CumExecQty.Float64() * result[x].AvgPrice.Float64(),
-			AssetType:      assetType,
-			Status:         StringToOrderStatus(result[x].OrderStatus),
-			Price:          result[x].Price.Float64(),
-			ExecutedAmount: result[x].CumExecQty.Float64(),
-			Date:           result[x].CreatedTime.Time(),
-			LastUpdated:    result[x].UpdatedTime.Time(),
+			Amount:               result[x].Qty.Float64(),
+			Exchange:             by.Name,
+			OrderID:              result[x].OrderID,
+			ClientOrderID:        result[x].OrderLinkID,
+			Side:                 side,
+			Type:                 orderType,
+			Pair:                 cp,
+			Cost:                 result[x].CumExecQty.Float64() * result[x].AvgPrice.Float64(),
+			AssetType:            a,
+			Status:               StringToOrderStatus(result[x].OrderStatus),
+			Price:                result[x].Price.Float64(),
+			ExecutedAmount:       result[x].CumExecQty.Float64(),
+			AverageExecutedPrice: result[x].AvgPrice.Float64(),
+			Date:                 result[x].CreatedTime.Time(),
+			LastUpdated:          result[x].UpdatedTime.Time(),
 		}
 	}
 	by.Websocket.DataHandler <- execution
 	return nil
 }
 
-func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Bybit) wsProcessExecution(resp *WebsocketResponse) error {
 	var result WsExecutions
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
+		cp, a, err := by.getPairFromCategory(result[x].Category, result[x].Symbol)
 		if err != nil {
 			return err
 		}
@@ -358,7 +390,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 			ID:            result[x].ExecID,
 			Timestamp:     result[x].ExecTime.Time(),
 			Exchange:      by.Name,
-			AssetType:     assetType,
+			AssetType:     a,
 			CurrencyPair:  cp,
 			Side:          side,
 			OrderID:       result[x].OrderID,
@@ -827,4 +859,30 @@ func (by *Bybit) authSubscribe(ctx context.Context, conn stream.Connection, chan
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
 func (by *Bybit) authUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
 	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
+}
+
+// getPairFromCategory returns the currency pair and asset type based on the category and symbol. Used with a dedicated
+// auth connection where multiple asset type changes are piped through a single connection.
+func (by *Bybit) getPairFromCategory(category, symbol string) (currency.Pair, asset.Item, error) {
+	assets := make([]asset.Item, 0, 2)
+	switch category {
+	case "spot":
+		assets = append(assets, asset.Spot)
+	case "inverse":
+		assets = append(assets, asset.CoinMarginedFutures)
+	case "linear":
+		assets = append(assets, asset.USDTMarginedFutures, asset.USDCMarginedFutures)
+	case "option":
+		assets = append(assets, asset.Options)
+	default:
+		return currency.EMPTYPAIR, 0, fmt.Errorf("category '%s' not supported for incoming symbol '%s'", category, symbol)
+	}
+	var err error
+	for _, a := range assets {
+		var cp currency.Pair
+		if cp, err = by.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a)); err == nil {
+			return cp, a, nil
+		}
+	}
+	return currency.EMPTYPAIR, 0, err
 }

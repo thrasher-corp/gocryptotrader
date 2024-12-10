@@ -8,6 +8,8 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -3150,7 +3152,7 @@ func TestWsConnect(t *testing.T) {
 	require.NoError(t, err)
 }
 
-var pushDataMap = map[string]string{
+var pushDataPublicMap = map[string]string{
 	"Orderbook Snapshot":   `{"topic":"orderbook.50.BTCUSDT","ts":1731035685326,"type":"snapshot","data":{"s":"BTCUSDT","b":[["75848.74","0.067669"],["75848.63","0.004772"],["75848.61","0.00659"],["75848.05","0.000329"],["75847.68","0.00159"],["75846.88","0.00159"],["75845.97","0.026366"],["75845.87","0.013185"],["75845.41","0.077259"],["75845.4","0.132228"],["75844.61","0.00159"],["75844.44","0.026367"],["75844.2","0.013185"],["75844","0.00039"],["75843.13","0.00159"],["75843.07","0.013185"],["75842.33","0.00159"],["75841.99","0.006"],["75841.75","0.019538"],["75841.74","0.04"],["75841.71","0.031817"],["75841.36","0.017336"],["75841.33","0.000072"],["75841.16","0.001872"],["75841.11","0.172641"],["75841.04","0.029772"],["75841","0.000065"],["75840.93","0.015244"],["75840.86","0.00159"],["75840.79","0.000072"],["75840.38","0.043333"],["75840.32","0.092539"],["75840.3","0.132228"],["75840.2","0.054966"],["75840.06","0.00159"],["75840","0.20726"],["75839.64","0.003744"],["75839.29","0.006592"],["75838.58","0.00159"],["75838.52","0.049778"],["75838.14","0.003955"],["75838","0.000065"],["75837.78","0.00159"],["75837.75","0.000587"],["75837.53","0.322245"],["75837.52","0.593323"],["75837.37","0.00384"],["75837.29","0.044335"],["75837.24","0.119228"],["75837.13","0.152844"]],"a":[["75848.75","0.747137"],["75848.89","0.060306"],["75848.9","0.1"],["75851.43","0.00159"],["75851.44","0.080754"],["75852.23","0.00159"],["75852.54","0.131067"],["75852.65","0.003955"],["75853.71","0.00159"],["75853.86","0.003955"],["75854.43","0.015684"],["75854.5","0.130389"],["75854.51","0.00159"],["75855.21","0.031168"],["75855.23","0.271494"],["75855.73","0.042698"],["75855.98","0.00159"],["75856.04","0.01346"],["75856.33","0.001872"],["75856.78","0.00159"],["75857.15","0.000072"],["75857.17","0.015127"],["75857.8","0.043322"],["75857.81","0.045305"],["75857.85","0.003792"],["75858.09","0.026344"],["75858.26","0.00159"],["75859.06","0.031618"],["75859.07","0.025"],["75859.1","0.006592"],["75859.98","0.013183"],["75860.12","0.00384"],["75860.54","0.00159"],["75860.74","0.051204"],["75860.75","0.065861"],["75861.18","0.031222"],["75861.33","0.00159"],["75861.64","0.003888"],["75861.96","0.042213"],["75862.28","0.000777"],["75862.79","0.013184"],["75862.81","0.00159"],["75862.84","0.027959"],["75863.16","0.003888"],["75863.51","0.043628"],["75863.52","0.002525"],["75863.61","0.00159"],["75864.2","0.003955"],["75864.76","0.000072"],["75864.81","0.002018"]],"u":2876700,"seq":47474967795},"cts":1731035685323}`,
 	"Orderbook Update":     `{"topic":"orderbook.50.BTCUSDT","ts":1731035685345,"type":"delta","data":{"s":"BTCUSDT","b":[["75848.62","0.014895"],["75837.13","0"]],"a":[["75848.89","0.088149"],["75851.44","0.078379"],["75852.65","0"],["75855.23","0.260219"],["75857.74","0.049778"]],"u":2876701,"seq":47474967823},"cts":1731035685342}`,
 	"Public Trade":         `{"topic":"publicTrade.BTCUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"BTCUSDT","BT":false}]}`,
@@ -3159,21 +3161,36 @@ var pushDataMap = map[string]string{
 	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.BTCUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393 } ], "ts": 1672325322393 }`,
 	"Public LT Ticker":     `{ "topic": "tickers_lt.BTCUSDT", "ts": 1672325446847, "type": "snapshot", "data": { "symbol": "BTCUSDT", "lastPrice": "0.41477848043290448", "highPrice24h": "0.435285472510871305", "lowPrice24h": "0.394601507960931382", "prevPrice24h": "0.431502290172376349", "price24hPcnt": "-0.0388" } }`,
 	"Public LT Navigation": `{ "topic": "lt.EOS3LUSDT", "ts": 1672325564669, "type": "snapshot", "data": { "symbol": "BTCUSDT", "time": 1672325564554, "nav": "0.413517419653406162", "basketPosition": "1.261060779498318641", "leverage": "2.656197506416192150", "basketLoan": "-0.684866519289629374", "circulation": "72767.309468460367138199", "basket": "91764.000000292013277472" } }`,
-	"Private Position":     `{"id": "59232430b58efe-5fc5-4470-9337-4ce293b68edd", "topic": "position", "creationTime": 1672364174455, "data": [ { "positionIdx": 0, "tradeMode": 0, "riskId": 41, "riskLimitValue": "200000", "symbol": "XRPUSDT", "side": "Buy", "size": "75", "entryPrice": "0.3615", "leverage": "10", "positionValue": "27.1125", "positionBalance": "0", "markPrice": "0.3374", "positionIM": "2.72589075", "positionMM": "0.28576575", "takeProfit": "0", "stopLoss": "0", "trailingStop": "0", "unrealisedPnl": "-1.8075", "cumRealisedPnl": "0.64782276", "createdTime": "1672121182216", "updatedTime": "1672364174449", "tpslMode": "Full", "liqPrice": "", "bustPrice": "", "category": "linear","positionStatus":"Normal","adlRankIndicator":2}]}`,
-	"Private Order":        `{ "id": "5923240c6880ab-c59f-420b-9adb-3639adc9dd90", "topic": "order", "creationTime": 1672364262474, "data": [ { "symbol": "BTCUSDT", "orderId": "5cf98598-39a7-459e-97bf-76ca765ee020", "side": "Sell", "orderType": "Market", "cancelType": "UNKNOWN", "price": "72.5", "qty": "1", "orderIv": "", "timeInForce": "IOC", "orderStatus": "Filled", "orderLinkId": "", "lastPriceOnCreated": "", "reduceOnly": false, "leavesQty": "", "leavesValue": "", "cumExecQty": "1", "cumExecValue": "75", "avgPrice": "75", "blockTradeId": "", "positionIdx": 0, "cumExecFee": "0.358635", "createdTime": "1672364262444", "updatedTime": "1672364262457", "rejectReason": "EC_NoError", "stopOrderType": "", "tpslMode": "", "triggerPrice": "", "takeProfit": "", "stopLoss": "", "tpTriggerBy": "", "slTriggerBy": "", "tpLimitPrice": "", "slLimitPrice": "", "triggerDirection": 0, "triggerBy": "", "closeOnTrigger": false, "category": "option", "placeType": "price", "smpType": "None", "smpGroup": 0, "smpOrderId": "" } ] }`,
-	"Private Wallet":       `{ "id": "5923242c464be9-25ca-483d-a743-c60101fc656f", "topic": "wallet", "creationTime": 1672364262482, "data": [ { "accountIMRate": "0.016", "accountMMRate": "0.003", "totalEquity": "12837.78330098", "totalWalletBalance": "12840.4045924", "totalMarginBalance": "12837.78330188", "totalAvailableBalance": "12632.05767702", "totalPerpUPL": "-2.62129051", "totalInitialMargin": "205.72562486", "totalMaintenanceMargin": "39.42876721", "coin": [ { "coin": "USDC", "equity": "200.62572554", "usdValue": "200.62572554", "walletBalance": "201.34882644", "availableToWithdraw": "0", "availableToBorrow": "1500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "202.99874213", "totalPositionMM": "39.14289747", "unrealisedPnl": "74.2768991", "cumRealisedPnl": "-209.1544627", "bonus": "0" }, { "coin": "BTC", "equity": "0.06488393", "usdValue": "1023.08402268", "walletBalance": "0.06488393", "availableToWithdraw": "0.06488393", "availableToBorrow": "2.5", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "ETH", "equity": "0", "usdValue": "0", "walletBalance": "0", "availableToWithdraw": "0", "availableToBorrow": "26", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "USDT", "equity": "11726.64664904", "usdValue": "11613.58597018", "walletBalance": "11728.54414904", "availableToWithdraw": "11723.92075829", "availableToBorrow": "2500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "2.72589075", "totalPositionMM": "0.28576575", "unrealisedPnl": "-1.8975", "cumRealisedPnl": "0.64782276", "bonus": "0" }, { "coin": "EOS3L", "equity": "215.0570412", "usdValue": "0", "walletBalance": "215.0570412", "availableToWithdraw": "215.0570412", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "BIT", "equity": "1.82", "usdValue": "0.48758257", "walletBalance": "1.82", "availableToWithdraw": "1.82", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" } ], "accountType": "UNIFIED", "accountLTV": "0.017" } ] }`,
-	"Private Greek":        `{ "id": "592324fa945a30-2603-49a5-b865-21668c29f2a6", "topic": "greeks", "creationTime": 1672364262482, "data": [ { "baseCoin": "ETH", "totalDelta": "0.06999986", "totalGamma": "-0.00000001", "totalVega": "-0.00000024", "totalTheta": "0.00001314" } ] }`,
-	"Execution":            `{"id": "592324803b2785-26fa-4214-9963-bdd4727f07be", "topic": "execution", "creationTime": 1672364174455, "data": [ { "category": "linear", "symbol": "XRPUSDT", "execFee": "0.005061", "execId": "7e2ae69c-4edf-5800-a352-893d52b446aa", "execPrice": "0.3374", "execQty": "25", "execType": "Trade", "execValue": "8.435", "isMaker": false, "feeRate": "0.0006", "tradeIv": "", "markIv": "", "blockTradeId": "", "markPrice": "0.3391", "indexPrice": "", "underlyingPrice": "", "leavesQty": "0", "orderId": "f6e324ff-99c2-4e89-9739-3086e47f9381", "orderLinkId": "", "orderPrice": "0.3207", "orderQty":"25","orderType":"Market","stopOrderType":"UNKNOWN","side":"Sell","execTime":"1672364174443","isLeverage": "0","closedSize": "","seq":4688002127}]}`,
 }
 
-func TestPushData(t *testing.T) {
+func TestPushDataPublic(t *testing.T) {
 	t.Parallel()
 
-	keys := slices.Collect(maps.Keys(pushDataMap))
+	keys := slices.Collect(maps.Keys(pushDataPublicMap))
 	slices.Sort(keys)
 
 	for x := range keys {
-		err := b.wsHandleData(context.Background(), []byte(pushDataMap[keys[x]]), asset.Spot)
+		err := b.wsHandleData(context.Background(), []byte(pushDataPublicMap[keys[x]]), asset.Spot)
+		assert.NoError(t, err, "wsHandleData should not error")
+	}
+}
+
+var pushDataPrivateMap = map[string]string{
+	"Private Position": `{"id": "59232430b58efe-5fc5-4470-9337-4ce293b68edd", "topic": "position", "creationTime": 1672364174455, "data": [ { "positionIdx": 0, "tradeMode": 0, "riskId": 41, "riskLimitValue": "200000", "symbol": "XRPUSDT", "side": "Buy", "size": "75", "entryPrice": "0.3615", "leverage": "10", "positionValue": "27.1125", "positionBalance": "0", "markPrice": "0.3374", "positionIM": "2.72589075", "positionMM": "0.28576575", "takeProfit": "0", "stopLoss": "0", "trailingStop": "0", "unrealisedPnl": "-1.8075", "cumRealisedPnl": "0.64782276", "createdTime": "1672121182216", "updatedTime": "1672364174449", "tpslMode": "Full", "liqPrice": "", "bustPrice": "", "category": "linear","positionStatus":"Normal","adlRankIndicator":2}]}`,
+	"Private Order":    `{ "id": "5923240c6880ab-c59f-420b-9adb-3639adc9dd90", "topic": "order", "creationTime": 1672364262474, "data": [ { "symbol": "%s", "orderId": "5cf98598-39a7-459e-97bf-76ca765ee020", "side": "Sell", "orderType": "Market", "cancelType": "UNKNOWN", "price": "72.5", "qty": "1", "orderIv": "", "timeInForce": "IOC", "orderStatus": "Filled", "orderLinkId": "", "lastPriceOnCreated": "", "reduceOnly": false, "leavesQty": "", "leavesValue": "", "cumExecQty": "1", "cumExecValue": "75", "avgPrice": "75", "blockTradeId": "", "positionIdx": 0, "cumExecFee": "0.358635", "createdTime": "1672364262444", "updatedTime": "1672364262457", "rejectReason": "EC_NoError", "stopOrderType": "", "tpslMode": "", "triggerPrice": "", "takeProfit": "", "stopLoss": "", "tpTriggerBy": "", "slTriggerBy": "", "tpLimitPrice": "", "slLimitPrice": "", "triggerDirection": 0, "triggerBy": "", "closeOnTrigger": false, "category": "option", "placeType": "price", "smpType": "None", "smpGroup": 0, "smpOrderId": "" } ] }`,
+	"Private Wallet":   `{ "id": "5923242c464be9-25ca-483d-a743-c60101fc656f", "topic": "wallet", "creationTime": 1672364262482, "data": [ { "accountIMRate": "0.016", "accountMMRate": "0.003", "totalEquity": "12837.78330098", "totalWalletBalance": "12840.4045924", "totalMarginBalance": "12837.78330188", "totalAvailableBalance": "12632.05767702", "totalPerpUPL": "-2.62129051", "totalInitialMargin": "205.72562486", "totalMaintenanceMargin": "39.42876721", "coin": [ { "coin": "USDC", "equity": "200.62572554", "usdValue": "200.62572554", "walletBalance": "201.34882644", "availableToWithdraw": "0", "availableToBorrow": "1500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "202.99874213", "totalPositionMM": "39.14289747", "unrealisedPnl": "74.2768991", "cumRealisedPnl": "-209.1544627", "bonus": "0" }, { "coin": "BTC", "equity": "0.06488393", "usdValue": "1023.08402268", "walletBalance": "0.06488393", "availableToWithdraw": "0.06488393", "availableToBorrow": "2.5", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "ETH", "equity": "0", "usdValue": "0", "walletBalance": "0", "availableToWithdraw": "0", "availableToBorrow": "26", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "USDT", "equity": "11726.64664904", "usdValue": "11613.58597018", "walletBalance": "11728.54414904", "availableToWithdraw": "11723.92075829", "availableToBorrow": "2500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "2.72589075", "totalPositionMM": "0.28576575", "unrealisedPnl": "-1.8975", "cumRealisedPnl": "0.64782276", "bonus": "0" }, { "coin": "EOS3L", "equity": "215.0570412", "usdValue": "0", "walletBalance": "215.0570412", "availableToWithdraw": "215.0570412", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "BIT", "equity": "1.82", "usdValue": "0.48758257", "walletBalance": "1.82", "availableToWithdraw": "1.82", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" } ], "accountType": "UNIFIED", "accountLTV": "0.017" } ] }`,
+	"Private Greek":    `{ "id": "592324fa945a30-2603-49a5-b865-21668c29f2a6", "topic": "greeks", "creationTime": 1672364262482, "data": [ { "baseCoin": "ETH", "totalDelta": "0.06999986", "totalGamma": "-0.00000001", "totalVega": "-0.00000024", "totalTheta": "0.00001314" } ] }`,
+	"Execution":        `{"id": "592324803b2785-26fa-4214-9963-bdd4727f07be", "topic": "execution", "creationTime": 1672364174455, "data": [ { "category": "linear", "symbol": "XRPUSDT", "execFee": "0.005061", "execId": "7e2ae69c-4edf-5800-a352-893d52b446aa", "execPrice": "0.3374", "execQty": "25", "execType": "Trade", "execValue": "8.435", "isMaker": false, "feeRate": "0.0006", "tradeIv": "", "markIv": "", "blockTradeId": "", "markPrice": "0.3391", "indexPrice": "", "underlyingPrice": "", "leavesQty": "0", "orderId": "f6e324ff-99c2-4e89-9739-3086e47f9381", "orderLinkId": "", "orderPrice": "0.3207", "orderQty":"25","orderType":"Market","stopOrderType":"UNKNOWN","side":"Sell","execTime":"1672364174443","isLeverage": "0","closedSize": "","seq":4688002127}]}`,
+}
+
+func TestPushDataPrivate(t *testing.T) {
+	t.Parallel()
+
+	for _, payload := range pushDataPrivateMap {
+		if strings.Contains(payload, "%s") {
+			payload = fmt.Sprintf(payload, optionsTradablePair.String())
+		}
+		err := b.wsHandleAuthenticated(context.Background(), []byte(payload))
 		assert.NoError(t, err, "wsHandleData should not error")
 	}
 }
@@ -3817,4 +3834,86 @@ func TestTransformSymbol(t *testing.T) {
 			assert.Equal(t, tests[i].expectedSymbol, ii.transformSymbol(tests[i].item), "expected symbols to match")
 		})
 	}
+}
+
+func TestWswsProcessOrder(t *testing.T) {
+	t.Parallel()
+	b := new(Bybit)
+	require.NoError(t, testexch.Setup(b))
+
+	var wsOrderResponse WebsocketResponse
+	err := b.wsProcessOrder(&wsOrderResponse)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "unexpected end of JSON input")
+
+	wsOrderResponse = WebsocketResponse{
+		Data: []byte(`[{"category":"linear","symbol":"BTCUSDT","orderId":"c1956690-b731-4191-97c0-94b00422231b","orderLinkId":"","blockTradeId":"","side":"Sell","positionIdx":0,"orderStatus":"Filled","cancelType":"UNKNOWN","rejectReason":"EC_NoError","timeInForce":"IOC","isLeverage":"","price":"4.033","qty":"1.7","avgPrice":"4.24","leavesQty":"0","leavesValue":"0","cumExecQty":"1.7","cumExecValue":"7.2086","cumExecFee":"0.00288344","orderType":"Market","stopOrderType":"","orderIv":"","triggerPrice":"","takeProfit":"","stopLoss":"","triggerBy":"","tpTriggerBy":"","slTriggerBy":"","triggerDirection":0,"placeType":"","lastPriceOnCreated":"4.245","closeOnTrigger":false,"reduceOnly":false,"smpGroup":0,"smpType":"None","smpOrderId":"","slLimitPrice":"0","tpLimitPrice":"0","tpslMode":"UNKNOWN","createType":"CreateByUser","marketUnit":"","createdTime":"1733778525913","updatedTime":"1733778525917","feeCurrency":"","closedPnl":"0"}]`),
+	}
+
+	var o []order.Detail
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		data := <-b.Websocket.DataHandler
+		var ok bool
+		o, ok = data.([]order.Detail)
+		require.True(t, ok)
+		wg.Done()
+	}()
+	require.NoError(t, b.wsProcessOrder(&wsOrderResponse))
+	wg.Wait()
+	require.Len(t, o, 1)
+	require.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", o[0].OrderID)
+	require.Equal(t, "BTC_USDT", o[0].Pair.String())
+	require.Equal(t, order.Sell, o[0].Side)
+	require.Equal(t, order.Filled, o[0].Status)
+	require.Equal(t, 1.7, o[0].Amount)
+	require.Equal(t, 4.033, o[0].Price)
+	require.Equal(t, 4.24, o[0].AverageExecutedPrice)
+	require.Equal(t, 0., o[0].RemainingAmount)
+	require.Equal(t, asset.USDTMarginedFutures, o[0].AssetType)
+}
+
+func TestGetPairFromCategory(t *testing.T) {
+	t.Parallel()
+
+	exp := spotTradablePair
+	exp.Delimiter = ""
+	p, a, err := b.getPairFromCategory("spot", exp.String())
+	require.NoError(t, err)
+	require.True(t, exp.Equal(p))
+	require.Equal(t, asset.Spot, a)
+
+	exp = usdtMarginedTradablePair
+	exp.Delimiter = ""
+	p, a, err = b.getPairFromCategory("linear", exp.String())
+	require.NoError(t, err)
+	require.True(t, exp.Equal(p))
+	require.Equal(t, asset.USDTMarginedFutures, a)
+
+	exp = usdcMarginedTradablePair
+	exp.Delimiter = ""
+	p, a, err = b.getPairFromCategory("linear", exp.String())
+	require.NoError(t, err)
+	require.True(t, exp.Equal(p))
+	require.Equal(t, asset.USDCMarginedFutures, a)
+
+	exp = inverseTradablePair
+	exp.Delimiter = ""
+	p, a, err = b.getPairFromCategory("inverse", exp.String())
+	require.NoError(t, err)
+	require.True(t, exp.Equal(p))
+	require.Equal(t, asset.CoinMarginedFutures, a)
+
+	exp = optionsTradablePair
+	p, a, err = b.getPairFromCategory("option", exp.String())
+	require.NoError(t, err)
+	require.True(t, exp.Equal(p))
+	require.Equal(t, asset.Options, a)
+
+	p, a, err = b.getPairFromCategory("silly", exp.String())
+	require.Error(t, err)
+
+	p, a, err = b.getPairFromCategory("spot", "bad pair")
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 }
