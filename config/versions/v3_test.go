@@ -10,8 +10,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestVersion3ExchangeType(t *testing.T) {
+	t.Parallel()
+	assert.Implements(t, (*ExchangeVersion)(nil), new(Version3))
+}
+
+func TestVersion3Exchanges(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, []string{"*"}, new(Version3).Exchanges())
+}
+
 func TestVersion3Upgrade(t *testing.T) {
 	t.Parallel()
+
+	_, err := new(Version3).UpgradeExchange(context.Background(), []byte{})
+	require.ErrorIs(t, err, errUpgradingAssetTypes)
+
+	_, err = new(Version3).UpgradeExchange(context.Background(), []byte(`{}`))
+	require.ErrorIs(t, err, errUpgradingCurrencyPairs)
 
 	in := []byte(`{"name":"Cracken","currencyPairs":{"assetTypes":["spot"],"pairs":{"spot":{"enabled":"BTC-AUD","available":"BTC-AUD"},"futures":{"assetEnabled":true},"options":{}}}}`)
 	out, err := new(Version3).UpgradeExchange(context.Background(), in)
