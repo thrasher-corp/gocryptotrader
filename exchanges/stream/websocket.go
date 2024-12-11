@@ -205,7 +205,11 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.rateLimitDefinitions = s.RateLimitDefinitions
 
 	if s.ExchangeConfig.WebsocketMetricsLogging {
-		w.processReporter = NewDefaultProcessReporterManager()
+		if s.UseMultiConnectionManagement {
+			w.processReporter = NewDefaultProcessReporterManager()
+		} else {
+			log.Warnf(log.WebsocketMgr, "%s websocket: metrics logging is only supported with multi connection management supported exchanges", w.exchangeName)
+		}
 	}
 	return nil
 }
