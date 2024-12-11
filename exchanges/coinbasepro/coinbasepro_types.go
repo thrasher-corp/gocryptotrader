@@ -15,9 +15,9 @@ import (
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	jwt          string
-	jwtLastRegen time.Time
-	mut          sync.RWMutex
+	jwt       string
+	jwtExpire time.Time
+	mut       sync.RWMutex
 }
 
 // Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality

@@ -465,7 +465,7 @@ func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
 func (c *CoinbasePro) GetWSJWT() (string, error) {
 	c.mut.RLock()
-	if c.jwtLastRegen.Add(time.Minute * 2).After(time.Now()) {
+	if c.jwtExpire.After(time.Now()) {
 		retStr := c.jwt
 		c.mut.RUnlock()
 		return retStr, nil
@@ -474,7 +474,7 @@ func (c *CoinbasePro) GetWSJWT() (string, error) {
 	c.mut.Lock()
 	defer c.mut.Unlock()
 	var err error
-	c.jwt, c.jwtLastRegen, err = c.GetJWT(context.Background(), "")
+	c.jwt, c.jwtExpire, err = c.GetJWT(context.Background(), "")
 	return c.jwt, err
 }
 

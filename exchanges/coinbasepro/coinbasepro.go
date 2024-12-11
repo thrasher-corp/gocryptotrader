@@ -1520,7 +1520,7 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, time.Time
 	tok.Header["kid"] = creds.Key
 	tok.Header["nonce"] = nonce
 	sign, err := tok.SignedString(key)
-	return sign, regTime, err
+	return sign, regTime.Add(time.Minute * 2), err
 	// The code below mostly works, but seems to lead to bad results on the signature step. Deferring until later
 	// head := map[string]any{"kid": creds.Key, "typ": "JWT", "alg": "ES256", "nonce": nonce}
 	// headJSON, err := json.Marshal(head)
@@ -1544,7 +1544,7 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, time.Time
 	// 	return "", time.Time{}, err
 	// }
 	// sigEncode := base64URLEncode(sig)
-	// return headEncode + "." + bodyEncode + "." + sigEncode, regTime, nil
+	// return headEncode + "." + bodyEncode + "." + sigEncode, regTime.Add(time.Minute * 2), nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction
