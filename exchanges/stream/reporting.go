@@ -110,7 +110,7 @@ func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Dur
 					peakCause = append(peakCause[:100], []byte("...")...)
 				}
 				// Log metrics outside of the critical section to avoid blocking other threads.
-				log.Debugf(log.WebsocketMgr, "Connection: %v Operations/Second: %.2f, Avg Processing/Operation: %v, Errors: %v Peak: %v Cause: %v...", conn.GetURL(), avgOperationsPerSecond, avgProcessingTime, errors, peakTime, string(peakCause))
+				log.Debugf(log.WebsocketMgr, "Connection: %v Operations/Second: %.2f, Avg Processing/Operation: %v, Errors: %v Peak: %v Cause: %v", conn.GetURL(), avgOperationsPerSecond, avgProcessingTime, errors, peakTime, string(peakCause))
 			} else {
 				r.m.Unlock()
 			}
