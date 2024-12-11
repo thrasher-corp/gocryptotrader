@@ -2718,7 +2718,7 @@ func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
 	return by.account.accountType, nil
 }
 
-// RequiresUnifiedAccount checks if the account type is a unified account.
+// RequiresUnifiedAccount checks account type and returns error if not unified
 func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
 	at, err := by.FetchAccountType(ctx)
 	if err != nil {
