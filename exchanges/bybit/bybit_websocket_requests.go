@@ -128,8 +128,14 @@ type WebsocketGeneralPayload struct {
 	Arguments []any             `json:"args"`
 }
 
+// IDLoader is an interface to load an ID that is generated from the request. If the ID is loaded by a client then it
+// will be returned and that ID will be used.
+type IDLoader interface {
+	LoadID(generated string) (stored string)
+}
+
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument any) (*WebsocketOrderDetails, error) {
+func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument IDLoader) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
 	outbound, err := by.Websocket.GetConnection(OutboundTradeConnection)
@@ -141,14 +147,28 @@ func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument a
 		return nil, err
 	}
 
-	out := WebsocketGeneralPayload{
-		RequestID: strconv.FormatInt(outbound.GenerateMessageID(false), 10),
-		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(time.Now().UnixMilli(), 10)},
-		Operation: op,
-		Arguments: []any{argument},
+	tn := time.Now()
+	id := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
+	nanoTs := strconv.FormatInt(tn.UnixNano(), 10) // UnixNano is used to ensure the ID is unique.
+
+	// Sets OrderLinkID to the outbound payload so that the response can be matched to the request in the inbound connection.
+	argumentID := argument.LoadID(nanoTs + id)
+
+	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
+	// the outbound trade connection, the response can come back through the inbound private connection before the
+	// outbound connection sends its acknowledgement.
+	wait, err := inbound.MatchReturnResponses(ctx, argumentID, 1)
+	if err != nil {
+		return nil, err
 	}
 
-	outResp, err := outbound.SendMessageReturnResponse(ctx, request.Unset, out.RequestID, out)
+	// TODO: Create new function to return a channel so that we can select on multiple connections, this is a slight potential optimisation.
+	outResp, err := outbound.SendMessageReturnResponse(ctx, request.Unset, id, WebsocketGeneralPayload{
+		RequestID: id,
+		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
+		Operation: op,
+		Arguments: []any{argument},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +180,6 @@ func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument a
 
 	if confirmation.RetCode != 0 {
 		return nil, fmt.Errorf("code:%d, info:%v message:%s", confirmation.RetCode, retCode[confirmation.RetCode], confirmation.RetMsg)
-	}
-
-	wait, err := inbound.MatchReturnResponses(ctx, confirmation.RequestAcknowledgement.OrderID, 1)
-	if err != nil {
-		return nil, err
 	}
 
 	// Wait for the response to come back from the inbound connection.

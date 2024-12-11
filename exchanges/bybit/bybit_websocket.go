@@ -339,8 +339,8 @@ func (by *Bybit) wsHandleAuthenticated(_ context.Context, respRaw []byte) error 
 		return by.wsProcessExecution(&result)
 	case chanOrder:
 		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
-		// so the first element will be used to match the order ID.
-		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderId"); err == nil {
+		// so the first element will be used to match the order link ID.
+		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderLinkId"); err == nil {
 			if by.Websocket.Match.IncomingWithData(id, respRaw) {
 				return nil // If the data has been routed, return
 			}

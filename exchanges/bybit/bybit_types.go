@@ -395,6 +395,14 @@ func (p *PlaceOrderParams) Validate() error {
 	return nil
 }
 
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (p *PlaceOrderParams) LoadID(id string) string {
+	if p.OrderLinkID == "" {
+		p.OrderLinkID = id
+	}
+	return p.OrderLinkID
+}
+
 // OrderResponse holds newly placed order information.
 type OrderResponse struct {
 	OrderID     string `json:"orderId"`
@@ -465,6 +473,14 @@ func (p *AmendOrderParams) Validate() error {
 	return nil
 }
 
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (p *AmendOrderParams) LoadID(id string) string {
+	if p.OrderLinkID == "" {
+		p.OrderLinkID = id
+	}
+	return p.OrderLinkID
+}
+
 // AllZero checks if all the arguments are a zero value
 func AllZero(args ...any) bool {
 	for _, v := range args {
@@ -519,6 +535,14 @@ func (p *CancelOrderParams) Validate() error {
 	}
 
 	return nil
+}
+
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (p *CancelOrderParams) LoadID(id string) string {
+	if p.OrderLinkID == "" {
+		p.OrderLinkID = id
+	}
+	return p.OrderLinkID
 }
 
 // TradeOrders represents category and list of trade orders of the category.
