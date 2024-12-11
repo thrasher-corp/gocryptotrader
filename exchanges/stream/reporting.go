@@ -20,7 +20,7 @@ type ProcessReporter interface {
 	// data is the raw data received from the connection.
 	// err is any error that occurred while processing the data.
 	Report(read time.Time, data []byte, err error)
-	// close closes the process reporter and handles any cleanup.
+	// Close closes the process reporter and handles any cleanup.
 	Close()
 }
 
