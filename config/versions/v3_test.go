@@ -51,7 +51,7 @@ func TestVersion3Upgrade(t *testing.T) {
 
 	out2, err := new(Version3).UpgradeExchange(context.Background(), out)
 	require.NoError(t, err, "Must not error on re-upgrading")
-	assert.Equal(t, out, out2, "Should not effect an already upgraded config")
+	assert.Equal(t, out, out2, "Should not affect an already upgraded config")
 }
 
 func TestVersion3Downgrade(t *testing.T) {
