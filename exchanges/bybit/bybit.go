@@ -2725,7 +2725,7 @@ func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
 		return nil //nolint:nilerr // if we can't get the account type, we can't check if it's unified or not, fail on call
 	}
 	if at != accountTypeUnified {
-		return fmt.Errorf("%w, account type: %s", errAPIKeyIsNotUnified, at.String())
+		return fmt.Errorf("%w, account type: %s", errAPIKeyIsNotUnified, at)
 	}
 	return nil
 }
