@@ -27,7 +27,7 @@ import (
 // Bybit is the overarching type across this package
 type Bybit struct {
 	exchange.Base
-	account AccountTypeHolder
+	account accountTypeHolder
 }
 
 const (

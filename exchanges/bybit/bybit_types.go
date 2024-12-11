@@ -2037,8 +2037,8 @@ type Error struct {
 	ExtMsg          string `json:"ext_info"`
 }
 
-// AccountTypeHolder holds the account type associated with the loaded API key.
-type AccountTypeHolder struct {
+// accountTypeHolder holds the account type associated with the loaded API key.
+type accountTypeHolder struct {
 	accountType AccountType
 	m           sync.Mutex
 }
