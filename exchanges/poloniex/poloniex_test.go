@@ -24,9 +24,9 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = true
+	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
+	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
+	canManipulateRealOrders = false
 )
 
 var (
@@ -1327,13 +1327,27 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := p.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	err := p.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
 	require.NoError(t, err)
-	instruments, err := p.GetSymbolInformation(context.Background(), currency.EMPTYPAIR)
+
+	pair, err := currency.NewPairFromString("ETH_USDTPERP")
 	require.NoError(t, err)
-	cp, err := currency.NewPairFromString(instruments[0].Symbol)
+
+	instruments, err := p.GetSymbolInformation(context.Background(), pair)
 	require.NoError(t, err)
-	limits, err := p.GetOrderExecutionLimits(asset.Spot, cp)
+
+	var instrument *SymbolDetail
+	for a := range instruments {
+		print(instruments[a].Symbol + ",")
+		if instruments[a].Symbol == "ETH_USDTPERP" {
+			instrument = &instruments[a]
+		}
+	}
+	require.NotNil(t, instrument)
+	// println("instruments[0].Symbol: ", instruments[0].Symbol)
+	cp, err := currency.NewPairFromString("ETH_USDTPERP")
+	require.NoError(t, err)
+	limits, err := p.GetOrderExecutionLimits(asset.Futures, cp)
 	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
 	require.Equal(t, limits.PriceStepIncrementSize, instruments[0].SymbolTradeLimit.PriceScale)
 	require.Equal(t, limits.MinimumBaseAmount, instruments[0].SymbolTradeLimit.MinQuantity.Float64())
@@ -1984,4 +1998,173 @@ func populateTradablePairs() error {
 	}
 	futuresTradablePair = tradablePairs[0]
 	return nil
+}
+
+func TestGetAccountBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetAccountBalance(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountBills(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	p.Verbose = true
+	result, err := p.GetAccountBills(context.Background(), time.Time{}, time.Time{}, 0, 0, "NEXT", "PNL")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceV3FuturesOrder(t *testing.T) {
+	t.Parallel()
+	arg := &FuturesV2Params{}
+	_, err := p.PlaceV3FuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg.ReduceOnly = true
+	_, err = p.PlaceV3FuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	arg.Symbol = "BTC_USDT_PERP"
+	_, err = p.PlaceV3FuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = "buy"
+	_, err = p.PlaceV3FuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.PositionSide = "LONG"
+	_, err = p.PlaceV3FuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = "limit_maker"
+	_, err = p.PlaceV3FuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.PlaceV3FuturesOrder(context.Background(), &FuturesV2Params{
+		ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
+		Symbol:                  "BTC_USDT_PERP",
+		Side:                    "buy",
+		MarginMode:              "CROSS",
+		PositionSide:            "LONG",
+		OrderType:               "limit_maker",
+		Price:                   46050,
+		Size:                    10,
+		TimeInForce:             "GTC",
+		SelfTradePreventionMode: "EXPIRE_TAKER",
+		ReduceOnly:              false,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceMultipleOrders(t *testing.T) {
+	t.Parallel()
+	arg := FuturesV2Params{}
+	_, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg.ReduceOnly = true
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	arg.Symbol = "BTC_USDT_PERP"
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = "buy"
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.PositionSide = "LONG"
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = "limit_maker"
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{
+		{
+			ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
+			Symbol:                  "BTC_USDT_PERP",
+			Side:                    "buy",
+			MarginMode:              "CROSS",
+			PositionSide:            "LONG",
+			OrderType:               "limit_maker",
+			Price:                   46050,
+			Size:                    10,
+			TimeInForce:             "GTC",
+			SelfTradePreventionMode: "EXPIRE_TAKER",
+			ReduceOnly:              false,
+		},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelV3FuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{OrderID: "1234"})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{Symbol: futuresTradablePair.String()})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelMultipleV3FuturesOrders(t *testing.T) {
+	t.Parallel()
+	_, err := p.CancelMultipleV3FuturesOrders(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = p.CancelMultipleV3FuturesOrders(context.Background(), &CancelOrdersParams{})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CancelMultipleV3FuturesOrders(context.Background(), &CancelOrdersParams{Symbol: futuresTradablePair.String()})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllV3FuturesOrders(t *testing.T) {
+	t.Parallel()
+	_, err := p.CancelAllV3FuturesOrders(context.Background(), "", "BUY")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CancelAllV3FuturesOrders(context.Background(), futuresTradablePair.String(), "BUY")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCloseAtMarketPrice(t *testing.T) {
+	t.Parallel()
+	_, err := p.CloseAtMarketPrice(context.Background(), "", "", "", "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = p.CloseAtMarketPrice(context.Background(), futuresTradablePair.String(), "", "", "")
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+	_, err = p.CloseAtMarketPrice(context.Background(), futuresTradablePair.String(), "CROSS", "", "")
+	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CloseAtMarketPrice(context.Background(), futuresTradablePair.String(), "CROSS", "", "123123")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCloseAllAtMarketPrice(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.CloseAllAtMarketPrice(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

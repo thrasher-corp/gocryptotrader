@@ -134563,6 +134563,38 @@
      "headers": {}
     }
    ]
+  },
+  "/v3/account/balance": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "msg": ""
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "CoKxd3OS4t7vOiffEcgz1KCM8MV1u48SKYY4gMOLsMM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734008690771"
+      ]
+     }
+    }
+   ]
   }
  }
 }

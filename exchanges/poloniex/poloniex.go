@@ -1024,7 +1024,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result interface{}) error {
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result interface{}, useAsData ...bool) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1074,11 +1074,22 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signature"] = crypto.Base64Encode(hmac)
 		headers["signTimestamp"] = strconv.FormatInt(timestamp.UnixMilli(), 10)
 		values.Del("signTimestamp")
+		resp := result
+		if len(useAsData) > 0 && useAsData[0] {
+			resp = &struct {
+				Code int64       `json:"code"`
+				Msg  string      `json:"msg"`
+				Data interface{} `json:"data"`
+			}{
+				Data: result,
+			}
+		}
+
 		path := common.EncodeURLValues(ePoint+endpoint, values)
 		req := &request.Item{
 			Method:        method,
 			Path:          path,
-			Result:        result,
+			Result:        resp,
 			Headers:       headers,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,

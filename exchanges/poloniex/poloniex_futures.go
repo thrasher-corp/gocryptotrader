@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -761,3 +762,173 @@ func (p *Poloniex) GetFuturesFundingHistory(ctx context.Context, symbol string, 
 	var resp *FuturesFundingHistory
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetFundingRateEPL, http.MethodGet, "/api/v1/funding-history", params, nil, &resp)
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+// GetAccountBalance get information about your Futures account.
+func (p *Poloniex) GetAccountBalance(ctx context.Context) (*FuturesAccountBalance, error) {
+	var resp *FuturesAccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Unset, http.MethodGet, "/v3/account/balance", nil, nil, &resp, true)
+}
+
+// GetAccountBills retrieve the account’s bills.
+func (p *Poloniex) GetAccountBills(ctx context.Context, startTime, endTime time.Time, offset, limit int64, direction, billType string) ([]BillDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if offset > 0 {
+		params.Set("from", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if billType != "" {
+		params.Set("type", billType)
+	}
+	var resp []BillDetail
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Unset, http.MethodGet, "/v3/account/bills", params, nil, &resp, true)
+}
+
+// PlaceV3FuturesOrder place an order in futures trading.
+func (p *Poloniex) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesV2Params) (*FuturesV3OrderIDResponse, error) {
+	if arg == nil || *arg == (FuturesV2Params{}) {
+		return nil, common.ErrEmptyParams
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.PositionSide == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.Size <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp *FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/order", nil, arg, &resp, true)
+}
+
+// PlaceV3FuturesMultipleOrders place orders in a batch. A maximum of 10 orders can be placed per request.
+func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesV2Params) ([]FuturesV3OrderIDResponse, error) {
+	if len(args) == 0 {
+		return nil, common.ErrEmptyParams
+	}
+	for x := range args {
+		err := validationOrderCreationParam(&args[x])
+		if err != nil {
+			return nil, err
+		}
+	}
+	var resp []FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/orders", nil, args, &resp, true)
+}
+
+func validationOrderCreationParam(arg *FuturesV2Params) error {
+	if *arg == (FuturesV2Params{}) {
+		return common.ErrEmptyParams
+	}
+	if arg.Symbol == "" {
+		return currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.PositionSide == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return order.ErrTypeIsInvalid
+	}
+	if arg.Size <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	return nil
+}
+
+// CancelV3FuturesOrder cancels an order in futures trading.
+func (p *Poloniex) CancelV3FuturesOrder(ctx context.Context, arg *CancelOrderParams) (*FuturesV3OrderIDResponse, error) {
+	if arg == nil || *arg == (CancelOrderParams{}) {
+		return nil, common.ErrEmptyParams
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/order", nil, arg, &resp, true)
+}
+
+// CancelMultipleV3FuturesOrders cancel orders in a batch. A maximum of 10 orders can be cancelled per request.
+func (p *Poloniex) CancelMultipleV3FuturesOrders(ctx context.Context, args *CancelOrdersParams) ([]FuturesV3OrderIDResponse, error) {
+	if args == nil {
+		return nil, common.ErrEmptyParams
+	}
+	if args.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp []FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/batchOrders", nil, args, &resp, true)
+}
+
+// CancelAllV3FuturesOrders cancel all current pending orders.
+func (p *Poloniex) CancelAllV3FuturesOrders(ctx context.Context, symbol, side string) ([]FuturesV3OrderIDResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	arg := &struct {
+		Symbol string `json:"symbol"`
+		Side   string `json:"side,omitempty"`
+	}{
+		Symbol: symbol,
+		Side:   side,
+	}
+	var resp []FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/allOrders", nil, arg, &resp, true)
+}
+
+// CloseAtMarketPrice close orders at market price.
+func (p *Poloniex) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, positionSide, clientOrderID string) (*FuturesV3OrderIDResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if marginMode == "" {
+		return nil, margin.ErrInvalidMarginType
+	}
+	if clientOrderID == "" {
+		return nil, order.ErrClientOrderIDMustBeSet
+	}
+	arg := &struct {
+		Symbol       string `json:"symbol"`
+		MgnMode      string `json:"mgnMode"`
+		ClOrdID      string `json:"clOrdId"`
+		PositionSide string `json:"posSide,omitempty"`
+	}{
+		Symbol:       symbol,
+		MgnMode:      marginMode,
+		ClOrdID:      clientOrderID,
+		PositionSide: positionSide,
+	}
+	var resp *FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/position", nil, arg, &resp, true)
+}
+
+// CloseAllAtMarketPrice close all orders at market price.
+func (p *Poloniex) CloseAllAtMarketPrice(ctx context.Context) ([]FuturesV3OrderIDResponse, error) {
+	var resp []FuturesV3OrderIDResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/positionAll", nil, nil, &resp, true)
+}
+
+// func (p *Poloniex) GetCurrentOrders(ctx context.Context)

@@ -269,3 +269,85 @@ type KlineChartData struct {
 	ClosePrice    float64
 	TradingVolume float64
 }
+
+// FuturesAccountBalance represents a futures account balance detail
+type FuturesAccountBalance struct {
+	State                   string       `json:"state"`
+	Equity                  types.Number `json:"eq"`
+	IsoEquity               types.Number `json:"isoEq"`
+	InitialMargin           types.Number `json:"im"`
+	MaintenanceMargin       types.Number `json:"mm"`
+	MaintenanceMarginRate   types.Number `json:"mmr"`
+	UnrealizedProfitAndLoss types.Number `json:"upl"`
+	AvailMargin             types.Number `json:"availMgn"`
+	CreationTime            types.Time   `json:"cTime"`
+	UpdateTime              types.Time   `json:"uTime"`
+	Details                 []struct {
+		Currency              string       `json:"ccy"`
+		Equity                types.Number `json:"eq"`
+		IsoEquity             types.Number `json:"isoEq"`
+		Available             types.Number `json:"avail"`
+		TrdHold               types.Number `json:"trdHold"`
+		UnrealisedPNL         types.Number `json:"upl"`
+		IsoAvailable          types.Number `json:"isoAvail"`
+		IsoHold               string       `json:"isoHold"`
+		IsoUpl                string       `json:"isoUpl"`
+		InitialMargin         types.Number `json:"im"`
+		MaintenanceMargin     types.Number `json:"mm"`
+		MaintenanceMarginRate types.Number `json:"mmr"`
+		InitialMarginRate     types.Number `json:"imr"`
+		CreationTime          types.Time   `json:"cTime"`
+		UpdateTime            types.Time   `json:"uTime"`
+	} `json:"details"`
+}
+
+// BillDetail represents a bill type detail information
+type BillDetail struct {
+	ID           string       `json:"id"`
+	AccountType  string       `json:"actType"`
+	BillType     string       `json:"type"`
+	Currency     string       `json:"ccy"`
+	CreationTime types.Time   `json:"cTime"`
+	Size         types.Number `json:"sz"`
+	Symbol       string       `json:"symbol"`
+	MarginMode   string       `json:"mgnMode"`
+	PositionSide string       `json:"posSide"`
+}
+
+// FuturesV2Params represents a futures order parameters
+type FuturesV2Params struct {
+	Symbol                  string  `json:"symbol"`
+	Side                    string  `json:"side"`
+	MarginMode              string  `json:"mgnMode"`
+	PositionSide            string  `json:"posSide"`
+	OrderType               string  `json:"type,omitempty"`
+	ClientOrderID           string  `json:"clOrdId,omitempty,string"`
+	Price                   float64 `json:"px,omitempty,string"`
+	Size                    float64 `json:"sz,omitempty"`
+	ReduceOnly              bool    `json:"reduceOnly,omitempty"`
+	TimeInForce             string  `json:"timeInForce,omitempty"`
+	SelfTradePreventionMode string  `json:"stpMode,omitempty"`
+}
+
+// FuturesV3OrderIDResponse represents a futures order creation response
+type FuturesV3OrderIDResponse struct {
+	ClOrdID string `json:"clOrdId"`
+	OrdID   string `json:"ordId"`
+
+	Code    int64  `json:"code"`
+	Message string `json:"msg"`
+}
+
+// CancelOrderParams represents a single order cancellation parameters
+type CancelOrderParams struct {
+	Symbol        string `json:"symbol"`
+	OrderID       string `json:"ordId,omitempty"`
+	ClientOrderID string `json:"clOrdId,omitempty"`
+}
+
+// CancelOrdersParams represents multiple order cancellation parameters
+type CancelOrdersParams struct {
+	Symbol         string   `json:"symbol"`
+	OrderIDs       []string `json:"ordIds,omitempty"`
+	ClientOrderIDs []string `json:"clOrdIds,omitempty"`
+}
