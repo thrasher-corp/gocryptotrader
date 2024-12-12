@@ -1509,7 +1509,7 @@ func TestGetConnection(t *testing.T) {
 	ws = &Websocket{}
 
 	_, err = ws.GetConnection(nil)
-	require.ErrorIs(t, err, errConnectionSignatureNotSet)
+	require.ErrorIs(t, err, errMessageFilterNotSet)
 
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, errCannotObtainOutboundConnection)

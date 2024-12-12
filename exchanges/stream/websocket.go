@@ -68,7 +68,7 @@ var (
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
-	errConnectionSignatureNotSet            = errors.New("connection signature not set")
+	errMessageFilterNotSet                  = errors.New("message filter not set")
 	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 )
 
@@ -1263,15 +1263,15 @@ func signalReceived(ch chan struct{}) bool {
 	}
 }
 
-// GetConnection returns a connection by connection signature (defined in wrapper setup) for request and response
-// handling in a multi connection context.
-func (w *Websocket) GetConnection(connSignature any) (Connection, error) {
+// GetConnection returns a connection by message filter (defined in exchange package _wrapper.go websocket connection)
+// for request and response handling in a multi connection context.
+func (w *Websocket) GetConnection(messageFilter any) (Connection, error) {
 	if w == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, w)
 	}
 
-	if connSignature == nil {
-		return nil, errConnectionSignatureNotSet
+	if messageFilter == nil {
+		return nil, errMessageFilterNotSet
 	}
 
 	w.m.Lock()
@@ -1286,13 +1286,13 @@ func (w *Websocket) GetConnection(connSignature any) (Connection, error) {
 	}
 
 	for _, wrapper := range w.connectionManager {
-		if wrapper.Setup.MessageFilter == connSignature {
+		if wrapper.Setup.MessageFilter == messageFilter {
 			if wrapper.Connection == nil {
-				return nil, fmt.Errorf("%s: %s %w: %v", w.exchangeName, wrapper.Setup.URL, ErrNotConnected, connSignature)
+				return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", w.exchangeName, wrapper.Setup.URL, ErrNotConnected, messageFilter)
 			}
 			return wrapper.Connection, nil
 		}
 	}
 
-	return nil, fmt.Errorf("%s: %w: %v", w.exchangeName, ErrRequestRouteNotFound, connSignature)
+	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", w.exchangeName, ErrRequestRouteNotFound, messageFilter)
 }
