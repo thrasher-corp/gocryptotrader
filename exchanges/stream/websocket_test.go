@@ -789,7 +789,7 @@ func TestWaitForResponses(t *testing.T) {
 	ctx = request.WithVerbose(context.Background())
 	dummy.ResponseMaxLimit = time.Second
 	got, err := dummy.waitForResponses(ctx, "silly", ch, 2, inspection{breakEarly: true})
-	require.NoError(t, err, context.Canceled)
+	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, "hello", string(got[0]))
 }
