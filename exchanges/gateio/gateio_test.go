@@ -333,7 +333,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -3014,11 +3014,11 @@ func TestGetSettlementFromCurrency(t *testing.T) {
 	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
 		availPairs, err := g.GetAvailablePairs(assetType)
 		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
-		for x := range availPairs {
-			t.Run(strconv.Itoa(x), func(t *testing.T) {
+		for i, pair := range availPairs {
+			t.Run(strconv.Itoa(i)+":"+assetType.String(), func(t *testing.T) {
 				t.Parallel()
-				_, err = getSettlementFromCurrency(availPairs[x])
-				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", availPairs[x], assetType)
+				_, err := getSettlementFromCurrency(pair)
+				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", pair, assetType)
 			})
 		}
 	}
