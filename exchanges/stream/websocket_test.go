@@ -769,9 +769,36 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
-type inspection struct{}
+func TestWaitForResponses(t *testing.T) {
+	t.Parallel()
+	dummy := &WebsocketConnection{
+		ResponseMaxLimit: time.Nanosecond,
+		Match:            NewMatch(),
+	}
+	_, err := dummy.waitForResponses(context.Background(), "silly", nil, 1, inspection{})
+	require.ErrorIs(t, err, ErrSignatureTimeout)
 
-func (inspection) IsFinal([]byte) bool { return false }
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = dummy.waitForResponses(ctx, "silly", nil, 1, inspection{})
+	require.ErrorIs(t, err, context.Canceled)
+
+	// test break early and hit verbose path
+	ch := make(chan []byte, 1)
+	ch <- []byte("hello")
+	ctx = request.WithVerbose(context.Background())
+	dummy.ResponseMaxLimit = time.Second
+	got, err := dummy.waitForResponses(ctx, "silly", ch, 2, inspection{breakEarly: true})
+	require.NoError(t, err, context.Canceled)
+	require.Len(t, got, 1)
+	assert.Equal(t, "hello", string(got[0]))
+}
+
+type inspection struct {
+	breakEarly bool
+}
+
+func (i inspection) IsFinal([]byte) bool { return i.breakEarly }
 
 type reporter struct {
 	name string

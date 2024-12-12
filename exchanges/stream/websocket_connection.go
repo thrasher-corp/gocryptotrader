@@ -344,6 +344,7 @@ func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature an
 	defer timeout.Stop()
 
 	resps := make([][]byte, 0, expected)
+inspection:
 	for range expected {
 		select {
 		case resp := <-ch:
@@ -351,7 +352,7 @@ func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature an
 			// Checks recently received message to determine if this is in fact the final message in a sequence of messages.
 			if messageInspector != nil && messageInspector.IsFinal(resp) {
 				w.Match.RemoveSignature(signature)
-				return resps, nil
+				break inspection
 			}
 		case <-timeout.C:
 			w.Match.RemoveSignature(signature)
