@@ -3344,11 +3344,18 @@ func TestWsAuth(t *testing.T) {
 	time.Sleep(sharedtestvalues.WebsocketResponseDefaultTimeout)
 }
 
-func TestWsReadData(t *testing.T) {
-	// wsTest := testexch.MockWsInstance[Bitget](t, mockws.wsmock)
-	// Implement internal/testing/websocket mockws stuff after merging
-	// See: https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/kraken/kraken_test.go#L1169
-}
+// func TestWsReadData(t *testing.T) {
+// 	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+// 		tb.Helper()
+// 		return w.WriteMessage(websocket.TextMessage, msg)
+// 	}
+// 	wsTest := testexch.MockWsInstance[Bitget](t, mockws.CurryWsMockUpgrader(t, mock))
+// 	wsTest.Websocket.Enable()
+// 	err := wsTest.Subscribe(defaultSubscriptions)
+// 	require.NoError(t, err)
+// 	// Implement internal/testing/websocket mockws stuff after merging
+// 	// See: https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/kraken/kraken_test.go#L1169
+// }
 
 func TestWsHandleData(t *testing.T) {
 	ch := make(chan struct{})

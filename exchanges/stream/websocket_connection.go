@@ -112,6 +112,7 @@ func (w *WebsocketConnection) writeToConn(ctx context.Context, epl request.Endpo
 	}
 
 	if rl != nil {
+		fmt.Printf("\n\nRL that's about to be passed: %+v\n\n", rl)
 		if err := request.RateLimit(ctx, rl); err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", w.ExchangeName, err)
 		}

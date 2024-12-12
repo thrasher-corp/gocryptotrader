@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
@@ -121,8 +124,40 @@ func (bi *Bitget) SetDefaults() {
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
+var serverAlreadyStarted bool
+
 // Setup takes in the supplied exchange configuration details and sets params
 func (bi *Bitget) Setup(exch *config.Exchange) error {
+	if !serverAlreadyStarted {
+		go func() {
+			f1, err := os.Create("blockprofile")
+			if err != nil {
+				panic(err)
+			}
+			f2, err := os.Create("mutexprofile")
+			if err != nil {
+				panic(err)
+			}
+			runtime.SetBlockProfileRate(1)
+			runtime.SetMutexProfileFraction(1)
+			block := pprof.Lookup("block")
+			mutex := pprof.Lookup("mutex")
+			time.Sleep(time.Second * 20)
+			block.WriteTo(f1, 0)
+			mutex.WriteTo(f2, 0)
+			fmt.Printf("\n\nPROFILES GENERATED, YOU CAN CLOSE THIS DOWN NOW\n\n")
+			err = f1.Close()
+			if err != nil {
+				log.Errorf(log.Global, "Failed to close profile file: %v", err)
+			}
+			err = f2.Close()
+			if err != nil {
+				log.Errorf(log.Global, "Failed to close profile file: %v", err)
+			}
+		}()
+		serverAlreadyStarted = true
+	}
+
 	err := exch.Validate()
 	if err != nil {
 		return err
@@ -139,20 +174,20 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = bi.Websocket.Setup(
-		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            bitgetPublicWSURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             bi.WsConnect,
-			Subscriber:            bi.Subscribe,
-			Unsubscriber:          bi.Unsubscribe,
-			GenerateSubscriptions: bi.generateDefaultSubscriptions,
-			Features:              &bi.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				Checksum: bi.CalculateUpdateOrderbookChecksum,
-			},
-		})
+	err = bi.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:                         exch,
+		DefaultURL:                             bitgetPublicWSURL,
+		RunningURL:                             wsRunningEndpoint,
+		Connector:                              bi.WsConnect,
+		Subscriber:                             bi.Subscribe,
+		Unsubscriber:                           bi.Unsubscribe,
+		GenerateSubscriptions:                  bi.generateDefaultSubscriptions,
+		Features:                               &bi.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 240,
+		OrderbookBufferConfig: buffer.Config{
+			Checksum: bi.CalculateUpdateOrderbookChecksum,
+		},
+	})
 	if err != nil {
 		return err
 	}

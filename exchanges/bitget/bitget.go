@@ -5058,56 +5058,6 @@ func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnsetStar
 	return nil
 }
 
-// UnmarshalJSON unmarshals the JSON input into a UnixTimestamp type
-func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
-	var timestampStr string
-	err := json.Unmarshal(b, &timestampStr)
-	if err != nil {
-		return err
-	}
-	if timestampStr == "" {
-		*t = UnixTimestamp(time.Time{})
-		return nil
-	}
-	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
-	if err != nil {
-		return err
-	}
-	*t = UnixTimestamp(time.UnixMilli(timestamp).UTC())
-	return nil
-}
-
-// String implements the stringer interface
-func (t *UnixTimestamp) String() string {
-	return t.Time().String()
-}
-
-// Time returns the time.Time representation of the UnixTimestamp
-func (t *UnixTimestamp) Time() time.Time {
-	return time.Time(*t)
-}
-
-// UnmarshalJSON unmarshals the JSON input into a UnixTimestampNumber type
-func (t *UnixTimestampNumber) UnmarshalJSON(b []byte) error {
-	var timestampNum uint64
-	err := json.Unmarshal(b, &timestampNum)
-	if err != nil {
-		return err
-	}
-	*t = UnixTimestampNumber(time.UnixMilli(int64(timestampNum)).UTC())
-	return nil
-}
-
-// String implements the stringer interface
-func (t *UnixTimestampNumber) String() string {
-	return t.Time().String()
-}
-
-// Time returns the time.Time representation of the UnixTimestampNumber
-func (t *UnixTimestampNumber) Time() time.Time {
-	return time.Time(*t)
-}
-
 // UnmarshalJSON unmarshals the JSON input into a YesNoBool type
 func (y *YesNoBool) UnmarshalJSON(b []byte) error {
 	var yn string
@@ -5245,7 +5195,7 @@ func (bi *Bitget) candlestickHelper(ctx context.Context, pair currency.Pair, gra
 			if !ok {
 				return nil, errTypeAssertUSDTVolume
 			}
-			data.SpotCandles[i].Timestamp = time.Time(UnixTimestamp(time.UnixMilli(timeTemp2).UTC()))
+			data.SpotCandles[i].Timestamp = time.Time(time.UnixMilli(timeTemp2).UTC())
 			data.SpotCandles[i].Open, err = strconv.ParseFloat(openTemp, 64)
 			if err != nil {
 				return nil, err
@@ -5275,7 +5225,7 @@ func (bi *Bitget) candlestickHelper(ctx context.Context, pair currency.Pair, gra
 				return nil, err
 			}
 		} else {
-			data.FuturesCandles[i].Timestamp = time.Time(UnixTimestamp(time.UnixMilli(timeTemp2).UTC()))
+			data.FuturesCandles[i].Timestamp = time.Time(time.UnixMilli(timeTemp2).UTC())
 			data.FuturesCandles[i].Entry, err = strconv.ParseFloat(openTemp, 64)
 			if err != nil {
 				return nil, err
