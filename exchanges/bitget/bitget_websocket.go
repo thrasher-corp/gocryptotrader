@@ -131,7 +131,7 @@ func (bi *Bitget) WsConnect() error {
 // WsAuth sends an authentication message to the websocket
 func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if !bi.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf(errAuthenticatedWebsocketDisabled, bi.Name)
+		return fmt.Errorf("%v %w", bi.Name, errAuthenticatedWebsocketDisabled)
 	}
 	err := bi.Websocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {

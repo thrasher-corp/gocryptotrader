@@ -44,9 +44,7 @@ func (bi *Bitget) GetDefaultConfig(ctx context.Context) (*config.Exchange, error
 	exchCfg.Name = bi.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = bi.BaseCurrencies
-
 	bi.SetupDefaults(exchCfg)
-
 	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := bi.UpdateTradablePairs(ctx, true)
 		if err != nil {
@@ -64,23 +62,12 @@ func (bi *Bitget) SetDefaults() {
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
 	bi.API.CredentialsValidator.RequiresClientID = true
-
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
-
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
 	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures, asset.Margin, asset.CrossMargin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// Fill out the capabilities/features that the exchange supports
 	bi.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -119,13 +106,10 @@ func (bi *Bitget) SetDefaults() {
 			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	bi.Requester, err = request.New(bi.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimits()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// NOTE: SET THE URLs HERE
 	bi.API.Endpoints = bi.NewEndpoints()
 	bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      bitgetAPIURL,
@@ -249,8 +233,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 	return nil, asset.ErrNotSupported
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assetTypes := bi.GetAssetTypes(false)
 	for x := range assetTypes {
@@ -643,8 +626,7 @@ func (bi *Bitget) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
-// withdrawals
+// GetFundingHistory returns funding history, deposits and withdrawals
 func (bi *Bitget) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	// This exchange only allows requests covering the last 90 days
 	resp, err := bi.withdrawalHistGrabber(ctx, currency.Code{})
@@ -879,8 +861,7 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (bi *Bitget) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	err := action.Validate()
 	if err != nil {
@@ -1186,8 +1167,7 @@ func (bi *Bitget) GetDepositAddress(ctx context.Context, c currency.Code, _ stri
 	return add, nil
 }
 
-// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (bi *Bitget) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	err := withdrawRequest.Validate()
 	if err != nil {
@@ -1203,14 +1183,12 @@ func (bi *Bitget) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	return ret, nil
 }
 
-// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 func (bi *Bitget) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 func (bi *Bitget) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
@@ -2492,7 +2470,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 func (bi *Bitget) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
 	var pagination int64
 	for {
-		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now().Add(-time.Second), 100, pagination)
+		genOrds, err := bi.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now() /*.Add(-time.Second)*/, 100, pagination)
 		if err != nil {
 			return nil, err
 		}

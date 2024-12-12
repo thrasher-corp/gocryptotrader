@@ -122,12 +122,27 @@ func TestSetup(t *testing.T) {
 	cfg, err := bi.GetStandardConfig()
 	assert.NoError(t, err)
 	exch := &Bitget{}
+	err = exch.Setup(nil)
+	assert.ErrorIs(t, err, config.ErrExchangeConfigIsNil)
 	exch.SetDefaults()
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
+	cfg.Enabled = false
+	err = exch.Setup(cfg)
+	assert.NoError(t, err)
+	assert.False(t, exch.IsEnabled())
+	cfg.Enabled = true
 	cfg.ProxyAddress = string(rune(0x7f))
 	err = exch.Setup(cfg)
 	assert.ErrorIs(t, err, exchange.ErrSettingProxyAddress)
+	cfg.ProxyAddress = ""
+	oldEP := exch.API.Endpoints
+	exch.API.Endpoints = nil
+	err = exch.Setup(cfg)
+	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound)
+	exch.API.Endpoints = oldEP
+	err = exch.Setup(cfg)
+	assert.ErrorIs(t, err, stream.ErrWebsocketAlreadyInitialised)
 }
 
 func TestWsConnect(t *testing.T) {
@@ -158,6 +173,9 @@ func TestQueryAnnouncements(t *testing.T) {
 func TestGetTime(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, bi.GetTime)
+	resp, err := bi.GetTime(context.Background())
+	require.NoError(t, err)
+	fmt.Printf("Server time: %s\nComputer time: %s\n", resp.ServerTime.Time(), time.Now())
 }
 
 func TestGetTradeRate(t *testing.T) {
@@ -2464,6 +2482,8 @@ func TestFetchTicker(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = bi.FetchTicker(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
+	_, err = bi.FetchTicker(context.Background(), fakePair, asset.Spot)
+	assert.Error(t, err)
 }
 
 func TestFetchOrderbook(t *testing.T) {
@@ -2472,6 +2492,8 @@ func TestFetchOrderbook(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = bi.FetchOrderbook(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
+	_, err = bi.FetchOrderbook(context.Background(), fakePair, asset.Spot)
+	assert.Error(t, err)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -2525,6 +2547,8 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err := bi.GetWithdrawalsHistory(context.Background(), testCrypto, 0)
 	assert.NoError(t, err)
+	_, err = bi.GetWithdrawalsHistory(context.Background(), fakeCurrency, 0)
+	assert.Error(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -3151,22 +3175,23 @@ func TestCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.GetUnfilledOrders(context.Background(), testPair, "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
 	require.NoError(t, err)
-	if len(resp) == 0 {
-		t.Skip(skipInsufficientOrders)
+	if len(resp) != 0 {
+		ord.OrderID = strconv.FormatInt(int64(resp[0].OrderID), 10)
+		ord.Pair = testPair
+		ord.AssetType = asset.Spot
+		ord.ClientOrderID = resp[0].ClientOrderID
+		err = bi.CancelOrder(context.Background(), ord)
+		assert.NoError(t, err)
 	}
-	ord.OrderID = strconv.FormatInt(int64(resp[0].OrderID), 10)
-	ord.Pair = testPair
-	ord.AssetType = asset.Spot
-	ord.ClientOrderID = resp[0].ClientOrderID
-	err = bi.CancelOrder(context.Background(), ord)
-	assert.NoError(t, err)
-	oID := getFuturesOrdIDHelper(t, true, true)
-	ord.OrderID = strconv.FormatInt(int64(oID.OrderID), 10)
-	ord.Pair = testPair2
-	ord.AssetType = asset.Futures
-	ord.ClientOrderID = oID.ClientOrderID
-	err = bi.CancelOrder(context.Background(), ord)
-	assert.NoError(t, err)
+	oID := getFuturesOrdIDHelper(t, true, false)
+	if oID.ClientOrderID != ordersNotFound {
+		ord.OrderID = strconv.FormatInt(int64(oID.OrderID), 10)
+		ord.Pair = testPair2
+		ord.AssetType = asset.Futures
+		ord.ClientOrderID = oID.ClientOrderID
+		err = bi.CancelOrder(context.Background(), ord)
+		assert.NoError(t, err)
+	}
 	oID = getIsoOrdIDHelper(t, true)
 	ord.OrderID = strconv.FormatInt(int64(oID.OrderID), 10)
 	ord.AssetType = asset.CrossMargin
@@ -3294,10 +3319,13 @@ func TestBatchCancelIsolatedOrders(t *testing.T) {
 }
 
 func TestWsAuth(t *testing.T) {
-	// t.Parallel()
+	bi.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	err := bi.WsAuth(context.Background(), nil)
+	assert.ErrorIs(t, err, errAuthenticatedWebsocketDisabled)
 	if bi.Websocket.IsEnabled() && !bi.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(bi) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
+	bi.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	var dialer websocket.Dialer
 	go func() {
 		timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
@@ -3311,7 +3339,7 @@ func TestWsAuth(t *testing.T) {
 			<-bi.Websocket.DataHandler
 		}
 	}()
-	err := bi.WsAuth(context.TODO(), &dialer)
+	err = bi.WsAuth(context.Background(), &dialer)
 	require.NoError(t, err)
 	time.Sleep(sharedtestvalues.WebsocketResponseDefaultTimeout)
 }

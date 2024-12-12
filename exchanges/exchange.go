@@ -54,6 +54,7 @@ var (
 	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
 	ErrSettingProxyAddress   = errors.New("setting proxy address error")
 	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
 )
 
 var (
@@ -1316,7 +1317,7 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[key.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
+		return "", fmt.Errorf("%w: %v", ErrEndpointPathNotFound, key)
 	}
 	return val, nil
 }

@@ -8,8 +8,7 @@ import (
 
 // Bitget rate limit constants
 const (
-	// There's a global rate limit of 6000/minute across all endpoints, but with this setup we'll be stopped by the
-	// individual limits first
+	// There's a global rate limit of 6000/minute across all endpoints, but with this setup we'll be stopped by the individual limits first
 	bitgetRateInterval         = time.Second
 	bitgetRate20               = 20
 	bitgetRate10               = 10
