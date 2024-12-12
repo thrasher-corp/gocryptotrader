@@ -135,10 +135,7 @@ func (b *Bitstamp) handleWSSubscription(event string, respRaw []byte) error {
 		return fmt.Errorf("%w `channel`: %w", errParsingWSField, err)
 	}
 	event = strings.TrimSuffix(event, "scription_succeeded")
-	if !b.Websocket.Match.IncomingWithData(event+":"+channel, respRaw) {
-		return fmt.Errorf("%w: %s", stream.ErrSignatureNotMatched, event+":"+channel)
-	}
-	return nil
+	return b.Websocket.Match.RequireMatchWithData(event+":"+channel, respRaw)
 }
 
 func (b *Bitstamp) handleWSTrade(msg []byte) error {
