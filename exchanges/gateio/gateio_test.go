@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -2826,8 +2827,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
@@ -2877,13 +2879,14 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 }
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
-		t.Error(err)
-	}
-
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
-		t.Error(err)
-	}
+	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	subs, err = g.GenerateFuturesDefaultSubscriptions(currency.BTC)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
+	require.Error(t, err)
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()

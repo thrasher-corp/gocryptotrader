@@ -55,7 +55,7 @@ func TestSubmit_Validate(t *testing.T) {
 			Submit: &Submit{
 				Exchange:  "test",
 				Pair:      testPair,
-				AssetType: 255,
+				AssetType: asset.All,
 			},
 		}, // valid pair but invalid asset
 		{
@@ -2121,6 +2121,16 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+}
+
+func TestSideMarshalJSON(t *testing.T) {
+	t.Parallel()
+	b, err := Buy.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, `"BUY"`, string(b))
+	b, err = UnknownSide.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, `"UNKNOWN"`, string(b))
 }
 
 func TestGetTradeAmount(t *testing.T) {

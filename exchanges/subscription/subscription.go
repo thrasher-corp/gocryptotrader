@@ -34,6 +34,7 @@ const (
 	MyWalletChannel  = "myWallet"
 	HeartbeatChannel = "heartbeat"
 	MyAccountChannel = "myAccount"
+	HeartbeatChannel = "heartbeat"
 )
 
 // Public errors

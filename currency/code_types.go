@@ -40,7 +40,7 @@ type Code struct {
 	// TODO: Below will force the use of the Equal method for comparison. Big
 	// job to update all maps and instances through the code base.
 	// _         []struct{}
-	UpperCase bool
+	upperCase bool
 }
 
 // Item defines a sub type containing the main attributes of a designated

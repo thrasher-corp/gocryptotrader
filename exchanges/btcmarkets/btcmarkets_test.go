@@ -19,7 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
 
 var b = &BTCMarkets{}
@@ -1133,4 +1135,34 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	b := new(BTCMarkets)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "_"), currency.NewPairWithDelimiter("ETH", "BTC", "_")}
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, false))
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, true))
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	exp := subscription.List{}
+	for _, baseSub := range b.Features.Subscriptions {
+		s := baseSub.Clone()
+		if !s.Authenticated && s.Channel != subscription.HeartbeatChannel {
+			s.Pairs = pairs
+		}
+		s.QualifiedChannel = channelName(s)
+		exp = append(exp, s)
+	}
+	testsubs.EqualLists(t, exp, subs)
+	assert.PanicsWithError(t,
+		"subscription channel not supported: wibble",
+		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
+		"should panic on invalid channel",
+	)
 }

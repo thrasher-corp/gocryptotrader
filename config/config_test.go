@@ -93,13 +93,9 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 		}},
 	}
 	_, err := cfg.GetExchangeBankAccounts(bfx, "", "USD")
-	if err != nil {
-		t.Error("GetExchangeBankAccounts error", err)
-	}
+	require.NoError(t, err)
 	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", "Not a currency")
-	if err == nil {
-		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
-	}
+	require.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestCheckBankAccountConfig(t *testing.T) {
@@ -1310,18 +1306,8 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg.Exchanges[0].Name = "GDAX"
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-	if cfg.Exchanges[0].Name != "CoinbasePro" {
-		t.Error("exchange name should have been updated from GDAX to CoinbasePRo")
-	}
-
 	// Test API settings migration
 	sptr := func(s string) *string { return &s }
-	int64ptr := func(i int64) *int64 { return &i }
 
 	cfg.Exchanges[0].APIKey = sptr("awesomeKey")
 	cfg.Exchanges[0].APISecret = sptr("meowSecret")
@@ -1376,96 +1362,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].Features.Enabled.Websocket ||
 		!cfg.Exchanges[0].Features.Supports.RESTCapabilities.AutoPairUpdates {
 		t.Error("unexpected values")
-	}
-
-	p1, err := currency.NewPairDelimiter(testPair, "-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test currency pair migration
-	setupPairs := func(emptyAssets bool) {
-		cfg.Exchanges[0].CurrencyPairs = nil
-		p := currency.Pairs{
-			p1,
-		}
-		cfg.Exchanges[0].PairsLastUpdated = int64ptr(1234567)
-
-		if !emptyAssets {
-			cfg.Exchanges[0].AssetTypes = sptr("spot")
-		}
-
-		cfg.Exchanges[0].AvailablePairs = &p
-		cfg.Exchanges[0].EnabledPairs = &p
-		cfg.Exchanges[0].ConfigCurrencyPairFormat = &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-		}
-		cfg.Exchanges[0].RequestCurrencyPairFormat = &currency.PairFormat{
-			Uppercase: false,
-			Delimiter: "~",
-		}
-	}
-
-	setupPairs(false)
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-
-	setupPairs(true)
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if cfg.Exchanges[0].CurrencyPairs.LastUpdated != 1234567 {
-		t.Error("last updated has wrong value")
-	}
-
-	pFmt := cfg.Exchanges[0].CurrencyPairs.ConfigFormat
-	if pFmt.Delimiter != "-" ||
-		!pFmt.Uppercase {
-		t.Error("unexpected config format values")
-	}
-
-	pFmt = cfg.Exchanges[0].CurrencyPairs.RequestFormat
-	if pFmt.Delimiter != "~" ||
-		pFmt.Uppercase {
-		t.Error("unexpected request format values")
-	}
-
-	if !cfg.Exchanges[0].CurrencyPairs.GetAssetTypes(false).Contains(asset.Spot) ||
-		!cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat {
-		t.Error("unexpected results")
-	}
-
-	pairs, err := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(pairs) == 0 || pairs.Join() != testPair {
-		t.Error("pairs not set properly")
-	}
-
-	pairs, err = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(pairs) == 0 || pairs.Join() != testPair {
-		t.Error("pairs not set properly")
-	}
-
-	// Ensure that all old settings are flushed
-	if cfg.Exchanges[0].PairsLastUpdated != nil ||
-		cfg.Exchanges[0].ConfigCurrencyPairFormat != nil ||
-		cfg.Exchanges[0].RequestCurrencyPairFormat != nil ||
-		cfg.Exchanges[0].AssetTypes != nil ||
-		cfg.Exchanges[0].AvailablePairs != nil ||
-		cfg.Exchanges[0].EnabledPairs != nil {
-		t.Error("unexpected results")
 	}
 
 	// Test AutoPairUpdates
@@ -1644,15 +1540,11 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
 	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
 	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	cfg.Exchanges[0].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = cfg.CheckExchangeConfigValues()
-	if err == nil {
-		t.Error("err cannot be nil")
-	}
+	assert.ErrorIs(t, err, errNoEnabledExchanges, "Exchanges without any pairs should be disabled")
 }
 
 func TestReadConfigFromFile(t *testing.T) {
@@ -1670,22 +1562,14 @@ func TestReadConfigFromFile(t *testing.T) {
 
 func TestReadConfigFromReader(t *testing.T) {
 	t.Parallel()
+	c := &Config{}
 	confString := `{"name":"test"}`
-	conf, encrypted, err := ReadConfig(strings.NewReader(confString), Unencrypted)
-	if err != nil {
-		t.Errorf("TestReadConfig %s", err)
-	}
-	if encrypted {
-		t.Errorf("Expected unencrypted config %s", err)
-	}
-	if conf.Name != "test" {
-		t.Errorf("Conf not properly loaded %s", err)
-	}
+	err := c.readConfig(strings.NewReader(confString))
+	require.NoError(t, err)
+	assert.Equal(t, "test", c.Name)
 
-	_, _, err = ReadConfig(strings.NewReader("{}"), Unencrypted)
-	if err == nil {
-		t.Error("TestReadConfig error cannot be nil")
-	}
+	err = c.readConfig(strings.NewReader("{}"))
+	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -2057,10 +1941,8 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 
 func TestPreengineConfigUpgrade(t *testing.T) {
 	t.Parallel()
-	var c Config
-	if err := c.LoadConfig("../testdata/preengine_config.json", false); err != nil {
-		t.Fatal(err)
-	}
+	err := new(Config).LoadConfig("../testdata/preengine_config.json", false)
+	require.NoError(t, err)
 }
 
 func TestRemoveExchange(t *testing.T) {
@@ -2138,75 +2020,59 @@ func TestMigrateConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		setup   func(t *testing.T)
-		cleanup func(t *testing.T)
 		args    args
 		want    string
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "nonexisting",
 			args: args{
 				configFile: "not-exists.json",
 			},
-			wantErr: true,
+			wantErr: os.ErrNotExist,
 		},
 		{
 			name: "source present, no target dir",
 			setup: func(t *testing.T) {
 				t.Helper()
-				test, err := os.Create("test.json")
-				if err != nil {
-					t.Fatal(err)
-				}
-				test.Close()
-			},
-			cleanup: func(t *testing.T) {
-				t.Helper()
-				os.Remove("test.json")
+				test, err := os.Create(filepath.Join(dir, "test.json"))
+				require.NoError(t, err, "os.Create must not error")
+				require.NoError(t, test.Close(), "file Close must not error")
 			},
 			args: args{
-				configFile: "test.json",
+				configFile: filepath.Join(dir, "test.json"),
 				targetDir:  filepath.Join(dir, "new"),
 			},
-			want:    filepath.Join(dir, "new", File),
-			wantErr: false,
+			want: filepath.Join(dir, "new", File),
 		},
 		{
 			name: "source same as target",
 			setup: func(t *testing.T) {
 				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 			},
 			args: args{
 				configFile: filepath.Join(dir, File),
 				targetDir:  dir,
 			},
-			want:    filepath.Join(dir, File),
-			wantErr: false,
+			want: filepath.Join(dir, File),
 		},
 		{
 			name: "source and target present",
 			setup: func(t *testing.T) {
 				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 				err = file.Write(filepath.Join(dir, "src", EncryptedFile), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 			},
 			args: args{
 				configFile: filepath.Join(dir, "src", EncryptedFile),
 				targetDir:  dir,
 			},
-			want: filepath.Join(dir, "src", EncryptedFile),
-			// We only expect warning
-			wantErr: false,
+			want:    filepath.Join(dir, "src", EncryptedFile),
+			wantErr: nil, // We only expect warning
 		},
 	}
 
@@ -2215,19 +2081,13 @@ func TestMigrateConfig(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(t)
 			}
-			if tt.cleanup != nil {
-				defer tt.cleanup(t)
-			}
 			got, err := migrateConfig(tt.args.configFile, tt.args.targetDir)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("migrateConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("migrateConfig() = %v, want %v", got, tt.want)
-			}
-			if err == nil && !file.Exists(got) {
-				t.Errorf("migrateConfig: %v should exist", got)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr, "migrateConfig must error correctly")
+			} else {
+				require.NoError(t, err, "migrateConfig must not error")
+				require.Equal(t, tt.want, got, "migrateConfig must return the correct file")
+				require.Truef(t, file.Exists(got), "migrateConfig return file `%s` must exist", got)
 			}
 		})
 	}

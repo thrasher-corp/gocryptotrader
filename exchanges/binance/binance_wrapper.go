@@ -378,15 +378,15 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 				}
 
 				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BidPrice,
-					Ask:          tick[y].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
+					Last:         tick[y].LastPrice.Float64(),
+					High:         tick[y].HighPrice.Float64(),
+					Low:          tick[y].LowPrice.Float64(),
+					Bid:          tick[y].BidPrice.Float64(),
+					Ask:          tick[y].AskPrice.Float64(),
+					Volume:       tick[y].Volume.Float64(),
+					QuoteVolume:  tick[y].QuoteVolume.Float64(),
+					Open:         tick[y].OpenPrice.Float64(),
+					Close:        tick[y].PrevClosePrice.Float64(),
 					Pair:         pairFmt,
 					ExchangeName: b.Name,
 					AssetType:    a,
@@ -435,13 +435,13 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice,
-				High:         tick[y].HighPrice,
-				Low:          tick[y].LowPrice,
-				Volume:       tick[y].Volume,
-				QuoteVolume:  tick[y].QuoteVolume,
-				Open:         tick[y].OpenPrice,
-				Close:        tick[y].PrevClosePrice,
+				Last:         tick[y].LastPrice.Float64(),
+				High:         tick[y].HighPrice.Float64(),
+				Low:          tick[y].LowPrice.Float64(),
+				Volume:       tick[y].Volume.Float64(),
+				QuoteVolume:  tick[y].QuoteVolume.Float64(),
+				Open:         tick[y].OpenPrice.Float64(),
+				Close:        tick[y].PrevClosePrice.Float64(),
 				Pair:         cp,
 				ExchangeName: b.Name,
 				AssetType:    a,
@@ -468,15 +468,15 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			return nil, err
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick.LastPrice,
-			High:         tick.HighPrice,
-			Low:          tick.LowPrice,
-			Bid:          tick.BidPrice,
-			Ask:          tick.AskPrice,
-			Volume:       tick.Volume,
-			QuoteVolume:  tick.QuoteVolume,
-			Open:         tick.OpenPrice,
-			Close:        tick.PrevClosePrice,
+			Last:         tick.LastPrice.Float64(),
+			High:         tick.HighPrice.Float64(),
+			Low:          tick.LowPrice.Float64(),
+			Bid:          tick.BidPrice.Float64(),
+			Ask:          tick.AskPrice.Float64(),
+			Volume:       tick.Volume.Float64(),
+			QuoteVolume:  tick.QuoteVolume.Float64(),
+			Open:         tick.OpenPrice.Float64(),
+			Close:        tick.PrevClosePrice.Float64(),
 			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
@@ -510,13 +510,13 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			return nil, err
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick[0].LastPrice,
-			High:         tick[0].HighPrice,
-			Low:          tick[0].LowPrice,
-			Volume:       tick[0].Volume,
-			QuoteVolume:  tick[0].QuoteVolume,
-			Open:         tick[0].OpenPrice,
-			Close:        tick[0].PrevClosePrice,
+			Last:         tick[0].LastPrice.Float64(),
+			High:         tick[0].HighPrice.Float64(),
+			Low:          tick[0].LowPrice.Float64(),
+			Volume:       tick[0].Volume.Float64(),
+			QuoteVolume:  tick[0].QuoteVolume.Float64(),
+			Open:         tick[0].OpenPrice.Float64(),
+			Close:        tick[0].PrevClosePrice.Float64(),
 			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
@@ -2002,7 +2002,6 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if err != nil {
 			return nil, err
 		}
-
 		mp, err = b.UGetMarkPrice(ctx, fPair)
 		if err != nil {
 			return nil, err
@@ -2026,7 +2025,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if !isPerp {
 				continue
 			}
-			var fundingRateFrequency int64
+			var fundingRateFrequency int64 = 8
 			for x := range fri {
 				if fri[x].Symbol != mp[i].Symbol {
 					continue
@@ -2034,14 +2033,15 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 				fundingRateFrequency = fri[x].FundingIntervalHours
 				break
 			}
-			nft := time.UnixMilli(mp[i].NextFundingTime)
+			nft := mp[i].NextFundingTime.Time()
+			cft := nft.Add(-time.Hour * time.Duration(fundingRateFrequency))
 			rate := fundingrate.LatestRateResponse{
 				TimeChecked: time.Now(),
 				Exchange:    b.Name,
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: time.UnixMilli(mp[i].Time).Truncate(time.Hour * time.Duration(fundingRateFrequency)),
+					Time: cft,
 					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
 				},
 			}
@@ -2055,17 +2055,16 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
-		var mp []IndexMarkPrice
-		mp, err = b.GetIndexAndMarkPrice(ctx, fPair.String(), "")
-		if err != nil {
-			return nil, err
-		}
 		var fri []FundingRateInfoResponse
 		fri, err = b.GetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-
+		var mp []IndexMarkPrice
+		mp, err = b.GetIndexAndMarkPrice(ctx, fPair.String(), "")
+		if err != nil {
+			return nil, err
+		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
@@ -2081,7 +2080,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if !isPerp {
 				continue
 			}
-			var fundingRateFrequency int64
+			var fundingRateFrequency int64 = 8
 			for x := range fri {
 				if fri[x].Symbol != mp[i].Symbol {
 					continue
@@ -2089,14 +2088,15 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 				fundingRateFrequency = fri[x].FundingIntervalHours
 				break
 			}
-			nft := time.UnixMilli(mp[i].NextFundingTime)
+			nft := mp[i].NextFundingTime.Time()
+			cft := nft.Add(-time.Hour * time.Duration(fundingRateFrequency))
 			rate := fundingrate.LatestRateResponse{
 				TimeChecked: time.Now(),
 				Exchange:    b.Name,
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: time.UnixMilli(mp[i].Time).Truncate(time.Duration(fundingRateFrequency) * time.Hour),
+					Time: cft,
 					Rate: mp[i].LastFundingRate.Decimal(),
 				},
 			}
@@ -2148,7 +2148,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		if err != nil {
 			return nil, err
 		}
-		var fundingRateFrequency int64
+		var fundingRateFrequency int64 = 8
 		fps := fPair.String()
 		for x := range fri {
 			if fri[x].Symbol != fps {
@@ -2180,10 +2180,10 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			return nil, err
 		}
 		pairRate.LatestRate = fundingrate.Rate{
-			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(time.Duration(fundingRateFrequency) * time.Hour),
+			Time: mp[len(mp)-1].Time.Time().Truncate(time.Duration(fundingRateFrequency) * time.Hour),
 			Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
 		}
-		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
 			var income []UAccountIncomeHistory
 			income, err = b.UAccountIncomeHistory(ctx, fPair, "FUNDING_FEE", int64(requestLimit), r.StartDate, r.EndDate)
@@ -2214,7 +2214,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		if err != nil {
 			return nil, err
 		}
-		var fundingRateFrequency int64
+		var fundingRateFrequency int64 = 8
 		fps := fPair.String()
 		for x := range fri {
 			if fri[x].Symbol != fps {
@@ -2246,10 +2246,10 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			return nil, err
 		}
 		pairRate.LatestRate = fundingrate.Rate{
-			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(time.Duration(fundingRateFrequency) * time.Hour),
+			Time: mp[len(mp)-1].NextFundingTime.Time().Add(-time.Hour * time.Duration(fundingRateFrequency)),
 			Rate: mp[len(mp)-1].LastFundingRate.Decimal(),
 		}
-		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
 			var income []FuturesIncomeHistoryData
 			income, err = b.FuturesIncomeHistory(ctx, fPair, "FUNDING_FEE", r.StartDate, r.EndDate, int64(requestLimit))
@@ -2259,7 +2259,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			for j := range income {
 				for x := range pairRate.FundingRates {
 					tt := time.UnixMilli(income[j].Timestamp)
-					tt = tt.Truncate(time.Duration(fundingRateFrequency) * time.Hour)
+					tt = tt.Truncate(8 * time.Hour)
 					if !tt.Equal(pairRate.FundingRates[x].Time) {
 						continue
 					}
@@ -2897,7 +2897,6 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		if err != nil {
 			return nil, err
 		}
-
 		ei, err := b.UExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
