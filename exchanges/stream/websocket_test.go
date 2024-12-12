@@ -778,6 +778,7 @@ func TestWaitForResponses(t *testing.T) {
 	_, err := dummy.waitForResponses(context.Background(), "silly", nil, 1, inspection{})
 	require.ErrorIs(t, err, ErrSignatureTimeout)
 
+	dummy.ResponseMaxLimit = time.Second
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err = dummy.waitForResponses(ctx, "silly", nil, 1, inspection{})
@@ -787,7 +788,7 @@ func TestWaitForResponses(t *testing.T) {
 	ch := make(chan []byte, 1)
 	ch <- []byte("hello")
 	ctx = request.WithVerbose(context.Background())
-	dummy.ResponseMaxLimit = time.Second
+
 	got, err := dummy.waitForResponses(ctx, "silly", ch, 2, inspection{breakEarly: true})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
