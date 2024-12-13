@@ -931,4 +931,227 @@ func (p *Poloniex) CloseAllAtMarketPrice(ctx context.Context) ([]FuturesV3OrderI
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/positionAll", nil, nil, &resp, true)
 }
 
-// func (p *Poloniex) GetCurrentOrders(ctx context.Context)
+// GetCurrentOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
+func (p *Poloniex) GetCurrentOrders(ctx context.Context, symbol, side, orderID, clientOrderID, direction string, offset, limit int64) ([]FuturesV3Order, error) {
+	params := url.Values{}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if offset > 0 {
+		params.Set("from", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FuturesV3Order
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/opens", params, nil, &resp, true)
+}
+
+// GetOrderExecutionDetails retrieves detailed information about your executed futures order
+func (p *Poloniex) GetOrderExecutionDetails(ctx context.Context, symbol, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3Order, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if offset > 0 {
+		params.Set("from", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FuturesV3Order
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/trades", params, nil, &resp, true)
+}
+
+// GetV3FuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
+func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3Order, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if orderState != "" {
+		params.Set("state", orderState)
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if offset > 0 {
+		params.Set("from", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FuturesV3Order
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/history", params, nil, &resp, true)
+}
+
+// ------------------------------------------------- Position Endpoints ----------------------------------------------------
+
+// GetV3FuturesCurrentPosition retrieves  information about your current position.
+func (p *Poloniex) GetV3FuturesCurrentPosition(ctx context.Context, symbol string) ([]V3FuturesPosition, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []V3FuturesPosition
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/position/opens", params, nil, &resp, true)
+}
+
+// GetV3FuturesPositionHistory get information about previous positions.
+func (p *Poloniex) GetV3FuturesPositionHistory(ctx context.Context, symbol, marginMode, positionSide, direction string, startTime, endTime time.Time, offset, limit int64) ([]V3FuturesPosition, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if marginMode != "" {
+		params.Set("mgnMode", marginMode)
+	}
+	if positionSide != "" {
+		params.Set("posSide", positionSide)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if offset > 0 {
+		params.Set("from", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []V3FuturesPosition
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/position/history", params, nil, &resp, true)
+}
+
+// AdjustMarginForIsolatedMarginTradingPositions add or reduce margin for positions in isolated margin mode.
+func (p *Poloniex) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Context, symbol, positionSide, adjustType string, amount float64) (*AdjustV3FuturesMarginResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if adjustType == "" {
+		return nil, errMarginAdjustTypeMissing
+	}
+	arg := &struct {
+		Symbol       string  `json:"symbol"`
+		PositionSide string  `json:"posSide,omitempty"`
+		Amount       float64 `json:"amt,string"`
+		Type         string  `json:"type"`
+	}{
+		Symbol:       symbol,
+		PositionSide: positionSide,
+		Amount:       amount,
+		Type:         adjustType,
+	}
+	var resp *AdjustV3FuturesMarginResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/position/margin", nil, arg, &resp, true)
+}
+
+// GetV3FuturesLeverage retrieves the list of leverage.
+func (p *Poloniex) GetV3FuturesLeverage(ctx context.Context, symbol, marginMode string) ([]V3FuturesLeverage, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if marginMode != "" {
+		params.Set("mgnMode", marginMode)
+	}
+	var resp []V3FuturesLeverage
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/position/leverages", params, nil, &resp, true)
+}
+
+// SetV3FuturesLeverage change leverage
+func (p *Poloniex) SetV3FuturesLeverage(ctx context.Context, symbol, marginMode, positionSide string, leverage int64) (*V3FuturesLeverage, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if marginMode == "" {
+		return nil, margin.ErrInvalidMarginType
+	}
+	if positionSide == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if leverage <= 0 {
+		return nil, order.ErrSubmitLeverageNotSupported
+	}
+	var resp *V3FuturesLeverage
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/position/leverage", nil, map[string]string{
+		"symbol":  symbol,
+		"mgnMode": marginMode,
+		"posSide": positionSide,
+		"lever":   strconv.FormatInt(leverage, 10),
+	}, &resp, true)
+}
+
+// SwitchPositionMode switch the current position mode. Please ensure you do not have open positions and open orders under this mode before the switch.
+// Position mode, HEDGE: LONG/SHORT, ONE_WAY: BOTH
+func (p *Poloniex) SwitchPositionMode(ctx context.Context, positionMode string) error {
+	if positionMode == "" {
+		return errPositionModeInvalid
+	}
+	return p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/position/mode", nil, map[string]string{"posMode": positionMode}, &struct{}{}, true)
+}
+
+// GetPositionMode get the current position mode.
+func (p *Poloniex) GetPositionMode(ctx context.Context) (string, error) {
+	resp := &struct {
+		PositionMode string `json:"posMode"`
+	}{}
+	return resp.PositionMode, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/position/mode", nil, nil, &resp, true)
+}

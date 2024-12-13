@@ -134595,6 +134595,357 @@
      }
     }
    ]
+  },
+  "/v3/position/leverage": {
+   "POST": [
+    {
+     "data": {
+      "code": 30003,
+      "msg": "Account not exists"
+     },
+     "queryString": "",
+     "bodyParams": "{\"lever\":\"10\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"symbol\":\"BTC_USDT_PERP\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "OOtRKbzb3Oa3cgCwG+FA1meYqHO1ivX1L/2V7IQLmbY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734093248799"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/position/leverages": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "lever": "20",
+        "mgnMode": "ISOLATED",
+        "posSide": "BOTH",
+        "symbol": "BTC_USDT_PERP"
+       }
+      ],
+      "msg": ""
+     },
+     "queryString": "mgnMode=ISOLATED\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "2N8qHz+lJ9gc7LAG4I5npZXv4PKJGqQfrC/g32GQuRA="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734090134658"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/trade/order/history": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=PREV\u0026limit=100\u0026state=PARTIALLY_CANCELED",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "/bCkyeQ0PdAUnjhtPKPmWqKJPddaVmvyl5Mtnn0lNgw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734072945304"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/trade/order/trades": {
+   "GET": [
+    {
+     "data": {
+      "code": 400,
+      "data": [],
+      "msg": "Param error symbol:ETH_USDTPERP"
+     },
+     "queryString": "direct=NEXT\u0026eTime=1734073047188\u0026limit=100\u0026sTime=1733986647188\u0026symbol=ETH_USDTPERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "rI7EosKqFwBz6knrnYkUrcIpBLZHwLQ4ZndlvXVmWCw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734073047188"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 400,
+      "data": [],
+      "msg": "Param error symbol:ETH_USDTPERP"
+     },
+     "queryString": "direct=NEXT\u0026eTime=1734073088055\u0026limit=100\u0026sTime=1733986688055\u0026symbol=ETH_USDTPERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "aZvpznBViYntqu883KssU4wmYWRZJ6FgNOXDmS3CK9c="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734073088055"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026eTime=1734073127962\u0026limit=100\u0026sTime=1733986727962",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "TfWEeJY2rBP2x+Y4mbsmdFrCsqjdBLvtHZfZ6GMPnF0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734073127962"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026eTime=1734073166289\u0026limit=100\u0026sTime=1733986766289",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "NnWGMSeEG8QPopaws6lcfEgGexlKWdpEMKCNLcGcL2Y="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734073166289"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/trade/position/history": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026limit=100\u0026mgnMode=ISOLATED\u0026posSide=LONG",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "bAAe2xuVKCyR8vI9NJPntYCLkR8PJXeR7ZX0ZINwlfc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734075592859"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/trade/position/margin": {
+   "POST": [
+    {
+     "data": {
+      "code": 400,
+      "msg": "Param error symbol"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"DOT_USDT_PERP\",\"amt\":\"123\",\"type\":\"ADD\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "YohCDmE0F1fX8uppWnznMC8GscF8/8PsrlmtO8qVkpw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734076349302"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 500,
+      "msg": "Internal System Error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"amt\":\"123\",\"type\":\"ADD\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "4hR542OTAJ9+5g2qOG3WyXg82Po02B8XNuqV98mY2Mg="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734076413907"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/trade/position/opens": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "xEEhdaall5eyvPKLrPu+0QJlAEQ8kb0+ymB1cvONmqU="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1734074797611"
+      ]
+     }
+    }
+   ]
   }
  }
 }

@@ -2168,3 +2168,109 @@ func TestCloseAllAtMarketPrice(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetCurrentOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetCurrentOrders(context.Background(), futuresTradablePair.String(), "SELL", "", "", "NEXT", 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderExecutionDetails(t *testing.T) {
+	t.Parallel()
+	var startTime, endTime time.Time = time.Now().Add(-time.Hour * 24), time.Now()
+	if mockTests {
+		startTime = time.UnixMilli(1733986766289)
+		endTime = time.UnixMilli(1734073166289)
+	} else {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
+	result, err := p.GetOrderExecutionDetails(context.Background(), "", "", "", "NEXT", startTime, endTime, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetV3FuturesOrderHistory(context.Background(), "", "", "PARTIALLY_CANCELED", "", "", "PREV", time.Time{}, time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesCurrentPosition(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetV3FuturesCurrentPosition(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesPositionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetV3FuturesPositionHistory(context.Background(), "", "ISOLATED", "LONG", "NEXT", time.Time{}, time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAdjustMarginForIsolatedMarginTradingPositions(t *testing.T) {
+	t.Parallel()
+	_, err := p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "", "", "ADD", 123)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "DOT_USDT_PERP", "", "ADD", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "DOT_USDT_PERP", "", "", 123)
+	require.ErrorIs(t, err, errMarginAdjustTypeMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "BTC_USDT_PERP", "", "ADD", 123)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesLeverage(context.Background(), "", "ISOLATED")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
+	result, err := p.GetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "ISOLATED")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetV3FuturesLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := p.SetV3FuturesLeverage(context.Background(), "", "CROSS", "LONG", 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "", "LONG", 10)
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+	_, err = p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "CROSS", "", 10)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "CROSS", "LONG", 0)
+	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	result, err := p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "CROSS", "LONG", 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSwitchPositionMode(t *testing.T) {
+	t.Parallel()
+	err := p.SwitchPositionMode(context.Background(), "")
+	require.ErrorIs(t, err, errPositionModeInvalid)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	err = p.SwitchPositionMode(context.Background(), "HEDGE")
+	require.NoError(t, err)
+}
+
+func TestGetPositionMode(t *testing.T) {
+	t.Parallel()
+	// sharedtestvalues.
+}

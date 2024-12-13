@@ -351,3 +351,92 @@ type CancelOrdersParams struct {
 	OrderIDs       []string `json:"ordIds,omitempty"`
 	ClientOrderIDs []string `json:"clOrdIds,omitempty"`
 }
+
+// FuturesV3Order represents a futures v3 order detail
+type FuturesV3Order struct {
+	OrderID                    string       `json:"ordId"`
+	AveragePrice               types.Number `json:"avgPx"`
+	CreationTime               types.Time   `json:"cTime"`
+	ClientOrderID              string       `json:"clOrdId"`
+	DeductAmount               types.Number `json:"deductAmt"`
+	ExecutedAmount             types.Number `json:"execAmt"`
+	DeductCurrency             string       `json:"deductCcy"`
+	ExecQuantity               types.Number `json:"execQty"`
+	FeeAmount                  types.Number `json:"feeAmt"`
+	FeeCurrency                string       `json:"feeCcy"`
+	PositionSide               string       `json:"posSide"`
+	Leverage                   string       `json:"lever"`
+	MarginMode                 string       `json:"mgnMode"`
+	Price                      types.Number `json:"px"`
+	ReduceOnly                 bool         `json:"reduceOnly"`
+	StopLossPrice              types.Number `json:"slPx"`
+	Side                       string       `json:"side"`
+	StopLossTriggerPrice       string       `json:"slTrgPx"`
+	StopLossTriggerPriceType   string       `json:"slTrgPxType"`
+	Source                     string       `json:"source"`
+	State                      string       `json:"state"`
+	SelfTradePreventionMode    string       `json:"stpMode"`
+	Symbol                     string       `json:"symbol"`
+	Size                       types.Number `json:"sz"`
+	TimeInForce                string       `json:"timeInForce"`
+	TakeProfitPrice            types.Number `json:"tpPx"`
+	TakeProfitTriggerPrice     types.Number `json:"tpTrgPx"`
+	TakeProfitTriggerPriceType string       `json:"tpTrgPxType"`
+	Type                       string       `json:"type"`
+	UpdateTime                 types.Time   `json:"uTime"`
+	FeeRate                    types.Number `json:"feeRate"`
+	ID                         string       `json:"id"`
+	OrderType                  string       `json:"ordType"`
+	Quantity                   types.Number `json:"qty"`
+	Role                       string       `json:"role"`
+	TradeID                    string       `json:"trdId"`
+	CancelReason               string       `json:"cancelReason"`
+}
+
+// V3FuturesPosition represents a v3 futures position detail
+type V3FuturesPosition struct {
+	AutoDeleveraging       string       `json:"adl"`
+	AvailQuantity          types.Number `json:"availQty"`
+	CreationTime           types.Time   `json:"cTime"`
+	InitialMargin          types.Number `json:"im"`
+	Leverage               types.Number `json:"lever"`
+	LiqudiationPrice       types.Number `json:"liqPx"`
+	MarkPrice              types.Number `json:"markPx"`
+	IsolatedPositionMargin string       `json:"mgn"`
+	MarginMode             string       `json:"mgnMode"`
+	PositionSide           string       `json:"posSide"`
+	MarginRatio            types.Number `json:"mgnRatio"`
+	MaintenanceMargin      string       `json:"mm"`
+	OpenAveragePrice       types.Number `json:"openAvgPx"`
+	ProfitAndLoss          types.Number `json:"pnl"`
+	Quantity               types.Number `json:"qty"`
+	Side                   string       `json:"side"`
+	State                  string       `json:"state"`
+	Symbol                 string       `json:"symbol"`
+	UpdateTime             types.Time   `json:"uTime"`
+	UnrealizedPNL          types.Number `json:"upl"`
+	UnrealizedPNLRatio     types.Number `json:"uplRatio"`
+
+	CloseAvgPx string `json:"closeAvgPx"`
+	ClosedQty  string `json:"closedQty"`
+	FFee       string `json:"fFee"`
+	Fee        string `json:"fee"`
+	ID         string `json:"id"`
+}
+
+// AdjustV3FuturesMarginResponse represents a response data after adjusting futures margin positions
+type AdjustV3FuturesMarginResponse struct {
+	Amount       types.Number `json:"amt"`
+	Leverage     types.Number `json:"lever"`
+	Symbol       string       `json:"symbol"`
+	PositionSide string       `json:"posSide"`
+	OrderType    string       `json:"type"`
+}
+
+// V3FuturesLeverage represents futures symbols leverage information
+type V3FuturesLeverage struct {
+	Leverage     types.Number `json:"lever"`
+	MarginMode   string       `json:"mgnMode"`
+	PositionSide string       `json:"posSide"`
+	Symbol       string       `json:"symbol"`
+}

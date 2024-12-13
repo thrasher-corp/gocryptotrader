@@ -43,6 +43,8 @@ var (
 	errGranularityRequired             = errors.New("granularity is required")
 	errBizNoRequired                   = errors.New("bizNo is required")
 	errInvalidSequenceNumber           = errors.New("invalid sequence number")
+	errMarginAdjustTypeMissing         = errors.New("margin adjust type invalid")
+	errPositionModeInvalid             = errors.New("invalid position mode")
 )
 
 // Poloniex is the overarching type across the poloniex package
