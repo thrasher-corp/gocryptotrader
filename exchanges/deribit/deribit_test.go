@@ -3280,6 +3280,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := subscription.List{}
 	for _, s := range d.Features.Subscriptions {
 		for _, a := range d.GetAssetTypes(true) {
+			if !d.IsAssetWebsocketSupported(a) {
+				continue
+			}
 			pairs, err := d.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
