@@ -200,6 +200,7 @@ var updatePairsOnce = make(map[string]*currency.PairsManager)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
 // A clone of the cache of the updated pairs is used to populate duplicate requests
+// Any pairs enabled after this is called will be lost on the next call
 func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 

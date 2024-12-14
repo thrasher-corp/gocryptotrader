@@ -345,7 +345,7 @@ func TestFCancelOrder(t *testing.T) {
 func TestFCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
-	updatePairsOnce(t)
+	updatePairsOnce(t, h)
 	_, err := h.FCancelAllOrders(context.Background(), btcFutureDatedPair, "", "")
 	require.NoError(t, err)
 }
@@ -483,7 +483,7 @@ func TestUpdateOrderbookFuture(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
-	updatePairsOnce(t)
+	updatePairsOnce(t, h)
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
@@ -562,6 +562,7 @@ func TestGetTieredAjustmentFactorInfo(t *testing.T) {
 
 func TestGetOpenInterestInfo(t *testing.T) {
 	t.Parallel()
+	updatePairsOnce(t, h)
 	_, err := h.GetOpenInterestInfo(context.Background(), btcusdPair, "5min", "cryptocurrency", 50)
 	require.NoError(t, err)
 }
@@ -861,7 +862,9 @@ func TestGetSpotKline(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	updatePairsOnce(t)
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
+	updatePairsOnce(t, h)
 
 	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
 	_, err := h.GetHistoricCandles(context.Background(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
@@ -880,7 +883,9 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 
-	updatePairsOnce(t)
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
+	updatePairsOnce(t, h)
 
 	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
 	_, err := h.GetHistoricCandlesExtended(context.Background(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
@@ -1615,7 +1620,8 @@ func TestGetAvailableTransferChains(t *testing.T) {
 }
 
 func TestFormatFuturesPair(t *testing.T) {
-	updatePairsOnce(t)
+	t.Parallel()
+	updatePairsOnce(t, h)
 
 	r, err := h.formatFuturesPair(btccwPair, false)
 	require.NoError(t, err)
@@ -1686,6 +1692,10 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
+	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
+	updatePairsOnce(t, h)
+
 	_, err := h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.BTC, currency.USD),
@@ -1750,7 +1760,7 @@ func TestGetBatchFuturesContracts(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	updatePairsOnce(t, h)
 	for _, a := range h.GetAssetTypes(false) {
 		err := h.UpdateTickers(context.Background(), a)
 		require.NoErrorf(t, err, "asset %s", a)
@@ -1803,7 +1813,7 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	updatePairsOnce(t, h)
 
 	_, err := h.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
@@ -1859,7 +1869,7 @@ func TestContractOpenInterestUSDT(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	updatePairsOnce(t, h)
 	for _, a := range h.GetAssetTypes(false) {
 		pairs, err := h.CurrencyPairs.GetPairs(a, false)
 		require.NoError(t, err, "cannot get pairs for %s", a)
@@ -1962,7 +1972,7 @@ func TestSubscribe(t *testing.T) {
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 	subCfg := h.Features.Subscriptions
-	h := testexch.MockWsInstance[HUOBI](t, mockws.CurryWsMockUpgrader(t, wsFixture)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := testexch.MockWsInstance[HUOBI](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := subCfg.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -2002,7 +2012,7 @@ func TestGetErrResp(t *testing.T) {
 
 func TestBootstrap(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(HUOBI)
 	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
 
 	c, err := h.Bootstrap(context.Background())
@@ -2018,7 +2028,8 @@ func TestBootstrap(t *testing.T) {
 
 var updatePairsMutex sync.Mutex
 
-func updatePairsOnce(tb testing.TB) {
+// updatePairsOnce updates the pairs once, and ensures a future dated contract is enabled
+func updatePairsOnce(tb testing.TB, h *HUOBI) {
 	tb.Helper()
 
 	updatePairsMutex.Lock()
@@ -2026,9 +2037,12 @@ func updatePairsOnce(tb testing.TB) {
 
 	testexch.UpdatePairsOnce(tb, h)
 
-	p, err := h.pairFromContractExpiryCode(btccwPair)
-	require.NoError(tb, err, "pairFromContractCode must not error")
-	err = h.CurrencyPairs.EnablePair(asset.Futures, p)
+	if btcFutureDatedPair == currency.EMPTYPAIR {
+		p, err := h.pairFromContractExpiryCode(btccwPair)
+		require.NoError(tb, err, "pairFromContractCode must not error")
+		btcFutureDatedPair = p
+	}
+
+	err := h.CurrencyPairs.EnablePair(asset.Futures, btcFutureDatedPair) // Must enable every time we refresh the CurrencyPairs from cache
 	require.NoError(tb, common.ExcludeError(err, currency.ErrPairAlreadyEnabled))
-	btcFutureDatedPair = p
 }
