@@ -562,6 +562,7 @@ func TestGetTieredAjustmentFactorInfo(t *testing.T) {
 
 func TestGetOpenInterestInfo(t *testing.T) {
 	t.Parallel()
+	updatePairsOnce(t, h)
 	_, err := h.GetOpenInterestInfo(context.Background(), btcusdPair, "5min", "cryptocurrency", 50)
 	require.NoError(t, err)
 }
