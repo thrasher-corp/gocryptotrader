@@ -88,10 +88,8 @@ func (h *HUOBI) WsConnect() error {
 	}
 	ctx := context.Background()
 
-	ch := make(chan []byte)
-	h.Websocket.Wg.Add(2)
-	go h.wsReadMsgs(ch)
-	go h.wsFunnelMsgs(h.Websocket.Conn, ch)
+	h.Websocket.Wg.Add(1)
+	go h.wsReadMsgs(h.Websocket.Conn)
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	if h.IsWebsocketAuthenticationSupported() {
@@ -99,35 +97,23 @@ func (h *HUOBI) WsConnect() error {
 			return fmt.Errorf("error authenticating websocket: %w", err)
 		}
 		h.Websocket.Wg.Add(1)
-		go h.wsFunnelMsgs(h.Websocket.AuthConn, ch)
+		go h.wsReadMsgs(h.Websocket.AuthConn)
 	}
 
 	return nil
 }
 
-// wsFunnelMsgs relays messages from a websocket to a channel for central processing
-func (h *HUOBI) wsFunnelMsgs(s stream.Connection, ch chan []byte) {
+// wsReadMsgs reads and processes messages from a websocket connection
+func (h *HUOBI) wsReadMsgs(s stream.Connection) {
 	defer h.Websocket.Wg.Done()
 	for {
 		msg := s.ReadMessage()
 		if msg.Raw == nil {
 			return
 		}
-		ch <- msg.Raw
-	}
-}
 
-// wsReadMsgs receives messages from a message funnel and processes them
-func (h *HUOBI) wsReadMsgs(ch chan []byte) {
-	defer h.Websocket.Wg.Done()
-	for {
-		select {
-		case <-h.Websocket.ShutdownC:
-			return
-		case msg := <-ch:
-			if err := h.wsHandleData(msg); err != nil {
-				h.Websocket.DataHandler <- err
-			}
+		if err := h.wsHandleData(msg.Raw); err != nil {
+			h.Websocket.DataHandler <- err
 		}
 	}
 }
