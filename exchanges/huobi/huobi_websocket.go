@@ -138,6 +138,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			if !h.Websocket.Match.IncomingWithData(op+":"+ch, respRaw) {
 				return fmt.Errorf("%w: %s:%s", stream.ErrNoMessageListener, op, ch)
 			}
+			return nil
 		}
 	}
 
