@@ -125,17 +125,14 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		}
 	}
 
-	if ping, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		if err := h.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(int(ping))+`}`)); err != nil {
-			return fmt.Errorf("error sending pong response: %w", err)
-		}
-		return nil
+	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
+		return h.wsHandleV1ping(int(pingValue))
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
 		switch action {
 		case "ping":
-			return h.wsHandleV2ping(action, respRaw)
+			return h.wsHandleV2ping(respRaw)
 		case wsSubOp, wsUnsubOp:
 			return h.wsHandleV2subResp(action, respRaw)
 		}
@@ -160,7 +157,16 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (h *HUOBI) wsHandleV2ping(_ string, respRaw []byte) error {
+// wsHandleV1ping handles v1 style pings, currently only used with public connections
+func (h *HUOBI) wsHandleV1ping(pingValue int) error {
+	if err := h.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+		return fmt.Errorf("error sending pong response: %w", err)
+	}
+	return nil
+}
+
+// wsHandleV2ping handles v2 style pings, currently only used with private connections
+func (h *HUOBI) wsHandleV2ping(respRaw []byte) error {
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
