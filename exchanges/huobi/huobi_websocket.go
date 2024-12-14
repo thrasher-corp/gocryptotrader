@@ -213,7 +213,7 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 		return err
 	}
 	h.Websocket.DataHandler <- stream.KlineData{
-		Timestamp:  time.UnixMilli(c.Timestamp),
+		Timestamp:  c.Timestamp.Time(),
 		Exchange:   h.Name,
 		AssetType:  s.Asset,
 		Pair:       s.Pairs[0],
@@ -248,7 +248,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 			Exchange:     h.Name,
 			AssetType:    s.Asset,
 			CurrencyPair: s.Pairs[0],
-			Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
+			Timestamp:    t.Tick.Data[i].Timestamp.Time(),
 			Amount:       t.Tick.Data[i].Amount,
 			Price:        t.Tick.Data[i].Price,
 			Side:         side,
@@ -274,7 +274,7 @@ func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) 
 		QuoteVolume:  wsTicker.Tick.Volume,
 		High:         wsTicker.Tick.High,
 		Low:          wsTicker.Tick.Low,
-		LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
+		LastUpdated:  wsTicker.Timestamp.Time(),
 		AssetType:    s.Asset,
 		Pair:         s.Pairs[0],
 	}
@@ -328,7 +328,7 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = h.Name
 	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
-	newOrderBook.LastUpdated = time.UnixMilli(update.Timestamp)
+	newOrderBook.LastUpdated = update.Timestamp.Time()
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -359,11 +359,11 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 	}
 	switch o.EventType {
 	case "trigger", "deletion", "cancellation":
-		d.LastUpdated = time.Unix(o.LastActTime*1000, 0)
+		d.LastUpdated = o.LastActTime.Time()
 	case "creation":
-		d.LastUpdated = time.Unix(o.CreateTime*1000, 0)
+		d.LastUpdated = o.CreateTime.Time()
 	case "trade":
-		d.LastUpdated = time.Unix(o.TradeTime*1000, 0)
+		d.LastUpdated = o.TradeTime.Time()
 	}
 	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
 		return &order.ClassificationError{
@@ -417,8 +417,8 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 		Side:          t.Side,
 		AssetType:     s.Asset,
 		Pair:          p,
-		Date:          time.Unix(t.OrderCreateTime*1000, 0),
-		LastUpdated:   time.Unix(t.TradeTime*1000, 0),
+		Date:          t.OrderCreateTime.Time(),
+		LastUpdated:   t.TradeTime.Time(),
 		OrderID:       strconv.FormatInt(t.OrderID, 10),
 	}
 	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
@@ -458,7 +458,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 			Type:      d.Type,
 			Side:      d.Side,
 			IsMaker:   !t.IsTaker,
-			Timestamp: time.Unix(t.TradeTime*1000, 0),
+			Timestamp: t.TradeTime.Time(),
 		},
 	}
 	h.Websocket.DataHandler <- d

@@ -301,7 +301,8 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 		}
 		pairs = make([]currency.Pair, 0, len(symbols.Data))
 		expiryCodeDates := map[string]currency.Code{}
-		for _, c := range symbols.Data {
+		for i := range symbols.Data {
+			c := symbols.Data[i]
 			if c.ContractStatus != 1 {
 				continue
 			}
@@ -397,7 +398,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				}
 				continue
 			}
-			tt := time.UnixMilli(ticks[i].Timestamp)
+			tt := ticks[i].Timestamp.Time()
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
@@ -465,7 +466,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
-				LastUpdated:  time.UnixMilli(ticks[i].Timestamp),
+				LastUpdated:  ticks[i].Timestamp.Time(),
 			})
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -845,7 +846,7 @@ func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Data[i].State,
 			TransferID:      withdrawals.Data[i].TransactionHash,
-			Timestamp:       time.UnixMilli(withdrawals.Data[i].CreatedAt),
+			Timestamp:       withdrawals.Data[i].CreatedAt.Time(),
 			Currency:        withdrawals.Data[i].Currency.String(),
 			Amount:          withdrawals.Data[i].Amount,
 			Fee:             withdrawals.Data[i].Fee,
@@ -889,7 +890,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Side:         side,
 					Price:        sTrades[i].Trades[j].Price,
 					Amount:       sTrades[i].Trades[j].Amount,
-					Timestamp:    time.UnixMilli(sTrades[i].Timestamp),
+					Timestamp:    sTrades[i].Timestamp.Time(),
 				})
 			}
 		}
@@ -916,7 +917,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Side:         side,
 					Price:        fTrades.Data[i].Data[j].Price,
 					Amount:       fTrades.Data[i].Data[j].Amount,
-					Timestamp:    time.UnixMilli(fTrades.Data[i].Data[j].Timestamp),
+					Timestamp:    fTrades.Data[i].Data[j].Timestamp.Time(),
 				})
 			}
 		}
@@ -942,7 +943,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 				Side:         side,
 				Price:        cTrades.Data[i].Price,
 				Amount:       cTrades.Data[i].Amount,
-				Timestamp:    time.UnixMilli(cTrades.Data[i].Timestamp),
+				Timestamp:    cTrades.Data[i].Timestamp.Time(),
 			})
 		}
 	}
@@ -1835,7 +1836,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		}
 
 		for x := range candles {
-			timestamp := time.Unix(candles[x].IDTimestamp, 0)
+			timestamp := candles[x].IDTimestamp.Time()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1856,7 +1857,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+			timestamp := candles.Data[x].IDTimestamp.Time()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1877,7 +1878,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+			timestamp := candles.Data[x].IDTimestamp.Time()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1917,7 +1918,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			}
 			for x := range candles.Data {
 				// align response data
-				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0).UTC()
+				timestamp := candles.Data[x].IDTimestamp.Time()
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -1942,7 +1943,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			}
 			for x := range candles.Data {
 				// align response data
-				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+				timestamp := candles.Data[x].IDTimestamp.Time()
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -2097,10 +2098,10 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 			if err != nil {
 				return nil, err
 			}
-			if result.Data[x].DeliveryTime > 0 {
-				e = time.UnixMilli(result.Data[x].DeliveryTime)
+			if result.Data[x].DeliveryTime.Time().IsZero() {
+				e = result.Data[x].DeliveryTime.Time()
 			} else {
-				e = time.UnixMilli(result.Data[x].SettlementTime)
+				e = result.Data[x].SettlementTime.Time()
 			}
 			contractLength := e.Sub(s)
 			var ct futures.ContractType
