@@ -157,7 +157,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		s := h.Websocket.GetSubscription(ch)
 		if s == nil {
-			return subscription.ErrNotFound
+			return fmt.Errorf("%w: `%s`", subscription.ErrNotFound, ch)
 		}
 		return h.wsHandleChannelMsgs(s, respRaw)
 	}
