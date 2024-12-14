@@ -564,7 +564,7 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string
 	values.Set("signatureMethod", signatureMethod)
 	values.Set("signatureVersion", signatureVersion)
 	values.Set("timestamp", timestamp)
-	payload := fmt.Sprintf("%s\n%s\n%s\n%s", http.MethodGet, wsSpotHost, wsPrivatePath, values.Encode())
+	payload := http.MethodGet + "\n" + wsSpotHost + "\n" + wsPrivatePath + "\n" + values.Encode()
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
