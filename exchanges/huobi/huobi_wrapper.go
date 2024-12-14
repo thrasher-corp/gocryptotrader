@@ -301,7 +301,8 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 		}
 		pairs = make([]currency.Pair, 0, len(symbols.Data))
 		expiryCodeDates := map[string]currency.Code{}
-		for _, c := range symbols.Data {
+		for i := range symbols.Data {
+			c := symbols.Data[i]
 			if c.ContractStatus != 1 {
 				continue
 			}
