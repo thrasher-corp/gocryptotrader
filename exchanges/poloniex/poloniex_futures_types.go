@@ -514,3 +514,37 @@ type InstrumentIndexPrice struct {
 	Symbol     string       `json:"symbol"`
 	IndexPrice types.Number `json:"iPx"`
 }
+
+// IndexPriceComponent represents an index price component detail
+type IndexPriceComponent []struct {
+	Symbol string       `json:"s"`
+	Price  types.Number `json:"px"`
+	Cs     []struct {
+		Exchange              string       `json:"e"`
+		WeightFactor          types.Number `json:"w"`
+		TradingPairPrice      types.Number `json:"sPx"`
+		TradingPairIndexPrice types.Number `json:"cPx"`
+	} `json:"cs"`
+}
+
+// V3FuturesIndexPriceData represents a futures index price data detail
+type V3FuturesIndexPriceData struct {
+	OpenPrice    types.Number
+	HighPrice    types.Number
+	LowestPrice  types.Number
+	ClosingPrice types.Number
+	StartTime    types.Time
+	EndTime      types.Time
+}
+
+// UnmarshalJSON deserializes candlestick data into a V3FuturesIndexPriceData instance
+func (v *V3FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
+	target := [6]any{&v.OpenPrice, &v.HighPrice, &v.LowestPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime}
+	return json.Unmarshal(data, &target)
+}
+
+// V3FuturesMarkPrice represents a mark price instance
+type V3FuturesMarkPrice struct {
+	MarkPrice types.Number `json:"mPx"`
+	Symbol    string       `json:"symbol"`
+}

@@ -1186,10 +1186,10 @@ func IntervalString(interval kline.Interval) (string, error) {
 
 // GetV3FuturesKlineData retrieves K-line data of the designated trading pair
 func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]V3FuturesCandle, error) {
-	params := url.Values{}
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := url.Values{}
 	intervalString, err := IntervalString(interval)
 	if err != nil {
 		return nil, err
@@ -1270,4 +1270,52 @@ func (p *Poloniex) GetV3FuturesIndexPrice(ctx context.Context, symbol string) (*
 	}
 	var resp *InstrumentIndexPrice
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/indexPrice", params), &resp, true)
+}
+
+// GetV3IndexPriceComponents get the index price components for a trading pair.
+func (p *Poloniex) GetV3IndexPriceComponents(ctx context.Context, symbol string) (*IndexPriceComponent, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *IndexPriceComponent
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/indexPriceComponents", params), &resp, true)
+}
+
+// GetIndexPriceKlineData obtain the K-line data for the index price.
+func (p *Poloniex) GetIndexPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	intervalString, err := IntervalString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []V3FuturesIndexPriceData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/indexPriceCandlesticks", params), &resp, true)
+}
+
+// GetV3FuturesMarkPrice get the current mark price.
+func (p *Poloniex) GetV3FuturesMarkPrice(ctx context.Context, symbol string) (*V3FuturesMarkPrice, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *V3FuturesMarkPrice
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/markPrice", params), &resp, true)
 }

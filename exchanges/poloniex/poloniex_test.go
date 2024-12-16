@@ -25,8 +25,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
-	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -2333,6 +2333,36 @@ func TestGetV3FuturesMarketInfo(t *testing.T) {
 func TestGetV3FuturesIndexPrice(t *testing.T) {
 	t.Parallel()
 	result, err := p.GetV3FuturesIndexPrice(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3IndexPriceComponents(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3IndexPriceComponents(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := p.GetV3IndexPriceComponents(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexPriceKlineData(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetIndexPriceKlineData(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = p.GetIndexPriceKlineData(context.Background(), "BTC_USDT_PERP", kline.SixHour, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
+	result, err := p.GetIndexPriceKlineData(context.Background(), "BTC_USDT_PERP", kline.FourHour, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesMarkPrice(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetV3FuturesMarkPrice(context.Background(), "BTC_USDT_PERP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
