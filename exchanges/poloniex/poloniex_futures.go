@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -236,7 +237,7 @@ func (p *Poloniex) GetFuturesKlineDataOfContract(ctx context.Context, symbol str
 // GetPublicFuturesWebsocketServerInstances retrieves the server list and temporary public token.
 func (p *Poloniex) GetPublicFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
 	var resp *FuturesWebsocketServerInstances
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/bullet-public", &resp, http.MethodPost)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/bullet-public", &resp)
 }
 
 // GetPrivateFuturesWebsocketServerInstances retrieves authenticated list of servers and temporary token.
@@ -1154,4 +1155,119 @@ func (p *Poloniex) GetPositionMode(ctx context.Context) (string, error) {
 		PositionMode string `json:"posMode"`
 	}{}
 	return resp.PositionMode, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/position/mode", nil, nil, &resp, true)
+}
+
+// GetV3FuturesOrderBook get market depth data of the designated trading pair
+func (p *Poloniex) GetV3FuturesOrderBook(ctx context.Context, symbol string, depth, limit int64) (*FuturesV3Orderbook, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if depth > 0 {
+		params.Set("scale", strconv.FormatInt(depth, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *FuturesV3Orderbook
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/orderBook", params), &resp, true)
+}
+
+var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "MINUTE_1", kline.FiveMin: "MINUTE_5", kline.FifteenMin: "MINUTE_15", kline.ThirtyMin: "MINUTE_30", kline.OneHour: "HOUR_1", kline.TwoHour: "HOUR_2", kline.FourHour: "HOUR_4", kline.TwelveHour: "HOUR_12", kline.OneDay: "DAY_1", kline.ThreeDay: "DAY_3", kline.OneWeek: "WEEK_1"}
+
+func IntervalString(interval kline.Interval) (string, error) {
+	intervalString, ok := intervalToStringMap[interval]
+	if !ok {
+		return "", kline.ErrUnsupportedInterval
+	}
+	return intervalString, nil
+}
+
+// GetV3FuturesKlineData retrieves K-line data of the designated trading pair
+func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]V3FuturesCandle, error) {
+	params := url.Values{}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	intervalString, err := IntervalString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []V3FuturesCandle
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp, true)
+}
+
+// GetV3FuturesExecutionInfo get the latest execution information. The default limit is 500, with a maximum of 1,000.
+func (p *Poloniex) GetV3FuturesExecutionInfo(ctx context.Context, symbol string, limit int64) ([]V3FuturesExecutionInfo, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []V3FuturesExecutionInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/trades", params), &resp, true)
+}
+
+// GetV3LiquidiationOrder get Liquidation Order Interface
+func (p *Poloniex) GetV3LiquidiationOrder(ctx context.Context, symbol, direction string, startTime, endTime time.Time, offset, limit int64) ([]LiquidiationPriceInfo, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if offset > 0 {
+		params.Set("from", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []LiquidiationPriceInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/liquidationOrder", params), &resp, true)
+}
+
+// GetV3FuturesMarketInfo get the market information of trading pairs in the past 24 hours.
+func (p *Poloniex) GetV3FuturesMarketInfo(ctx context.Context, symbol string) ([]V3FuturesTickerDetail, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []V3FuturesTickerDetail
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/tickers", params), &resp, true)
+}
+
+// GetV3FuturesIndexPrice get the current index price.
+func (p *Poloniex) GetV3FuturesIndexPrice(ctx context.Context, symbol string) (*InstrumentIndexPrice, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *InstrumentIndexPrice
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/indexPrice", params), &resp, true)
 }

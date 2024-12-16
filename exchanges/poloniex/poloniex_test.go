@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -24,8 +25,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
+	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
 	canManipulateRealOrders = false
 )
 
@@ -554,9 +555,13 @@ func TestGetOrderbook(t *testing.T) {
 	_, err := p.GetOrderbook(context.Background(), currency.EMPTYPAIR, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	p.Verbose = true
 	result, err := p.GetOrderbook(context.Background(), spotTradablePair, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	val, _ := json.Marshal(result)
+	println(string(val))
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -2272,5 +2277,62 @@ func TestSwitchPositionMode(t *testing.T) {
 
 func TestGetPositionMode(t *testing.T) {
 	t.Parallel()
-	// sharedtestvalues.
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetPositionMode(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderBook(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesOrderBook(context.Background(), "", 100, 100)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := p.GetV3FuturesOrderBook(context.Background(), "BTC_USDT_PERP", 100, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesKlineData(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesKlineData(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 100)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = p.GetV3FuturesKlineData(context.Background(), "BTC_USDT_PERP", kline.SixHour, time.Time{}, time.Time{}, 100)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
+	result, err := p.GetV3FuturesKlineData(context.Background(), "BTC_USDT_PERP", kline.FiveMin, time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesExecutionInfo(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesExecutionInfo(context.Background(), "", 0)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := p.GetV3FuturesExecutionInfo(context.Background(), "BTC_USDT_PERP", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3LiquidiationOrder(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetV3LiquidiationOrder(context.Background(), "BTC_USDT_PERP", "NEXT", time.Time{}, time.Time{}, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesMarketInfo(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetV3FuturesMarketInfo(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesIndexPrice(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetV3FuturesIndexPrice(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

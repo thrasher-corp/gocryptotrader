@@ -1002,19 +1002,25 @@ func (p *Poloniex) GetTradesByOrderID(ctx context.Context, orderID string) ([]Tr
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}, methods ...string) error {
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}, useAsItIs ...bool) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
-	method := http.MethodGet
-	if len(methods) == 1 {
-		method = methods[0]
+	var resp = result
+	if len(useAsItIs) > 0 && useAsItIs[0] {
+		resp = &struct {
+			Code int64       `json:"code"`
+			Msg  string      `json:"msg"`
+			Data interface{} `json:"data"`
+		}{
+			Data: result,
+		}
 	}
 	item := &request.Item{
-		Method:        method,
+		Method:        http.MethodGet,
 		Path:          endpoint + path,
-		Result:        &result,
+		Result:        &resp,
 		Verbose:       p.Verbose,
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,

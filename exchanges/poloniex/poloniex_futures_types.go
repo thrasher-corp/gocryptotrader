@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -439,4 +440,77 @@ type V3FuturesLeverage struct {
 	MarginMode   string       `json:"mgnMode"`
 	PositionSide string       `json:"posSide"`
 	Symbol       string       `json:"symbol"`
+}
+
+// FuturesV3Orderbook represents an orderbook data for v3 futures instruments
+type FuturesV3Orderbook struct {
+	Asks      [][]types.Number `json:"asks"`
+	Bids      [][]types.Number `json:"bids"`
+	Depth     types.Number     `json:"s"`
+	Timestamp types.Time       `json:"ts"`
+}
+
+// V3FuturesCandle represents a kline data for v3 futures instrument
+type V3FuturesCandle struct {
+	LowestPrice  types.Number
+	HighestPrice types.Number
+	OpeningPrice types.Number
+	ClosingPrice types.Number
+	QuoteAmount  types.Number
+	BaseAmount   types.Number
+	Trades       types.Number
+	StartTime    types.Time
+	EndTime      types.Time
+}
+
+// UnmarshalJSON deserializes JSON data into a kline.Candle instance
+func (v *V3FuturesCandle) UnmarshalJSON(data []byte) error {
+	target := [11]any{&v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.QuoteAmount, &v.BaseAmount, &v.Trades, &v.StartTime, &v.EndTime}
+	return json.Unmarshal(data, &target)
+}
+
+// V3FuturesExecutionInfo represents a V3 futures instruments execution information
+type V3FuturesExecutionInfo struct {
+	ID           int64        `json:"id"`
+	Price        types.Number `json:"px"`
+	Quantity     types.Number `json:"qty"`
+	Amount       types.Number `json:"amt"`
+	Side         string       `json:"side"`
+	CreationTime types.Time   `json:"cT"`
+}
+
+// LiquidiationPriceInfo represents a liquidiation price detail for an instrument
+type LiquidiationPriceInfo struct {
+	Symbol                         string       `json:"symbol"`
+	PositionSide                   string       `json:"posSide"`
+	Side                           string       `json:"side"`
+	Size                           types.Number `json:"sz"`
+	PriceOfCommissionedTransaction types.Number `json:"bkPx"`
+	UpdateTime                     types.Time   `json:"uTime"`
+}
+
+// V3FuturesTickerDetail represents a v3 futures instrument ticker detail
+type V3FuturesTickerDetail struct {
+	Symbol       string       `json:"s"`
+	OpeningPrice types.Number `json:"o"`
+	LowPrice     types.Number `json:"l"`
+	HighPrice    types.Number `json:"h"`
+	ClosingPrice types.Number `json:"c"`
+	Quantity     types.Number `json:"qty"`
+	Amount       types.Number `json:"amt"`
+	TradeCount   int64        `json:"tC"`
+	StartTime    types.Time   `json:"sT"`
+	EndTime      types.Time   `json:"cT"`
+	DailyPrice   types.Number `json:"dC"`
+	BestBidPrice types.Number `json:"bPx"`
+	BestBidSize  types.Number `json:"bSz"`
+	BestAskPrice types.Number `json:"aPx"`
+	BestAskSize  types.Number `json:"aSz"`
+	MarkPrice    types.Number `json:"mPx"`
+}
+
+// InstrumentIndexPrice represents a symbols index price
+type InstrumentIndexPrice struct {
+	Symbol     string       `json:"symbol"`
+	IndexPrice types.Number `json:"iPx"`
 }
