@@ -80,6 +80,12 @@ func (h *HUOBI) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
+		if err = h.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", h.Name, a, err)
+		}
+	}
+
 	h.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
