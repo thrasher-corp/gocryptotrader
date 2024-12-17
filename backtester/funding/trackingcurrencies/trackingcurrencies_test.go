@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -55,7 +54,7 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	eba := exchB.CurrencyPairs.Pairs[a]
 	eba.Available = eba.Available.Add(cp, cp2, cp3)
 	eba.Enabled = eba.Enabled.Add(cp, cp2, cp3)
-	eba.AssetEnabled = convert.BoolPtr(true)
+	eba.AssetEnabled = true
 
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
