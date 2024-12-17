@@ -604,28 +604,24 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			Asset:           assetType,
 			VerifyOrderbook: ok.CanVerifyOrderbook,
 		}
-		var orderbookNew *OrderBookResponse
-		orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
+		var orderBookD *OrderBookResponseDetail
+		orderBookD, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
 		if err != nil {
 			return book, err
 		}
 
-		orderBookD, err := orderbookNew.GetOrderBookResponseDetail()
-		if err != nil {
-			return nil, err
-		}
 		book.Bids = make(orderbook.Tranches, len(orderBookD.Bids))
 		for x := range orderBookD.Bids {
 			book.Bids[x] = orderbook.Tranche{
-				Amount: orderBookD.Bids[x].Amount,
-				Price:  orderBookD.Bids[x].DepthPrice,
+				Amount: orderBookD.Bids[x].Amount.Float64(),
+				Price:  orderBookD.Bids[x].DepthPrice.Float64(),
 			}
 		}
 		book.Asks = make(orderbook.Tranches, len(orderBookD.Asks))
 		for x := range orderBookD.Asks {
 			book.Asks[x] = orderbook.Tranche{
-				Amount: orderBookD.Asks[x].Amount,
-				Price:  orderBookD.Asks[x].DepthPrice,
+				Amount: orderBookD.Asks[x].Amount.Float64(),
+				Price:  orderBookD.Asks[x].DepthPrice.Float64(),
 			}
 		}
 		err = book.Process()

@@ -85,6 +85,7 @@ var (
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
 	errInvalidPriceLimit                    = errors.New("invalid price limit value")
 	errMissingIntervalValue                 = errors.New("missing interval value")
+	errPriceChaseTypeOrValueRequired        = errors.New("price chase type or chase value required")
 	errMissingSizeLimit                     = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState           = errors.New("either algo ID or order state is required")
 	errAlgoIDRequired                       = errors.New("algo ID is required")
@@ -153,6 +154,7 @@ var (
 	errPaymentMethodRequired                = errors.New("payment method required")
 	errIDNotSet                             = errors.New("ID is not set")
 	errMonthNameRequired                    = errors.New("month name is required")
+	errTrailingPriceCallbackRatioRequired   = errors.New("trailing price callback ratio required")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -210,13 +212,6 @@ type IndexTicker struct {
 	Timestamp types.Time   `json:"ts"`
 }
 
-// OrderBookResponse stores the ask and bid orders at a specific timestamp.
-type OrderBookResponse struct {
-	Asks                [][4]types.Number `json:"asks"`
-	Bids                [][4]types.Number `json:"bids"`
-	GenerationTimeStamp types.Time        `json:"ts"`
-}
-
 // OrderBookResponseDetail contains the ask and bid orders, structured with fields that include the timestamp of order generation.
 type OrderBookResponseDetail struct {
 	Asks                []OrderbookItemDetail
@@ -226,41 +221,16 @@ type OrderBookResponseDetail struct {
 
 // OrderbookItemDetail represents detailed information about currency bids.
 type OrderbookItemDetail struct {
-	DepthPrice        float64
-	Amount            float64
-	LiquidationOrders int64
-	NumberOfOrders    int64
+	DepthPrice        types.Number
+	Amount            types.Number
+	LiquidationOrders types.Number
+	NumberOfOrders    types.Number
 }
 
-// GetOrderBookResponseDetail returns the OrderBookResponseDetail instance from OrderBookResponse object.
-func (a *OrderBookResponse) GetOrderBookResponseDetail() (*OrderBookResponseDetail, error) {
-	asks, er := GetItems(a.Asks)
-	if er != nil {
-		return nil, er
-	}
-	bids, er := GetItems(a.Bids)
-	if er != nil {
-		return nil, er
-	}
-	return &OrderBookResponseDetail{
-		Asks:                asks,
-		Bids:                bids,
-		GenerationTimestamp: a.GenerationTimeStamp.Time(),
-	}, nil
-}
-
-// GetItems returns a list of OrderbookItemDetail instances.
-func GetItems(data [][4]types.Number) ([]OrderbookItemDetail, error) {
-	items := make([]OrderbookItemDetail, len(data))
-	for x := range data {
-		items[x] = OrderbookItemDetail{
-			DepthPrice:        data[x][0].Float64(),
-			Amount:            data[x][1].Float64(), // The quantity at the price represents the number of contracts for derivatives or the quantity in base currency for Spot and Spot Margin trading.
-			LiquidationOrders: data[x][2].Int64(),
-			NumberOfOrders:    data[x][3].Int64(),
-		}
-	}
-	return items, nil
+// UnmarshalJSON deserializes byte data into OrderbookItemDetail instance
+func (o *OrderbookItemDetail) UnmarshalJSON(data []byte) error {
+	target := [4]any{&o.DepthPrice, &o.Amount, &o.LiquidationOrders, &o.NumberOfOrders}
+	return json.Unmarshal(data, &target)
 }
 
 // CandlestickHistoryItem retrieves historical candlestick charts for the index or mark price from recent years.
@@ -673,8 +643,8 @@ func (t *TakerVolume) UnmarshalJSON(data []byte) error {
 
 // MarginLendRatioItem represents margin lend ration information and creation timestamp
 type MarginLendRatioItem struct {
-	Timestamp       types.Time   `json:"ts"`
-	MarginLendRatio types.Number `json:"ratio"`
+	Timestamp       types.Time
+	MarginLendRatio types.Number
 }
 
 // UnmarshalJSON deserializes a slice of data into MarginLendRatio
@@ -685,8 +655,8 @@ func (m *MarginLendRatioItem) UnmarshalJSON(data []byte) error {
 
 // LongShortRatio represents the ratio of users with net long vs net short positions for futures and perpetual swaps
 type LongShortRatio struct {
-	Timestamp       types.Time   `json:"ts"`
-	MarginLendRatio types.Number `json:"ratio"`
+	Timestamp       types.Time
+	MarginLendRatio types.Number
 }
 
 // UnmarshalJSON deserializes a slice of data into LongShortRatio
@@ -697,9 +667,9 @@ func (l *LongShortRatio) UnmarshalJSON(data []byte) error {
 
 // OpenInterestVolume represents open interest and trading volume item for currencies of futures and perpetual swaps
 type OpenInterestVolume struct {
-	Timestamp    types.Time   `json:"ts"`
-	OpenInterest types.Number `json:"oi"`
-	Volume       types.Number `json:"vol"`
+	Timestamp    types.Time
+	OpenInterest types.Number
+	Volume       types.Number
 }
 
 // UnmarshalJSON deserializes json data into OpenInterestVolume struct
@@ -710,9 +680,9 @@ func (p *OpenInterestVolume) UnmarshalJSON(data []byte) error {
 
 // OpenInterestVolumeRatio represents open interest and trading volume ratio for currencies of futures and perpetual swaps
 type OpenInterestVolumeRatio struct {
-	Timestamp         types.Time   `json:"ts"`
-	OpenInterestRatio types.Number `json:"oiRatio"`
-	VolumeRatio       types.Number `json:"volRatio"`
+	Timestamp         types.Time
+	OpenInterestRatio types.Number
+	VolumeRatio       types.Number
 }
 
 // UnmarshalJSON deserializes json data into OpenInterestVolumeRatio
@@ -1102,17 +1072,17 @@ type TransactionDetail struct {
 
 // AlgoOrderParams holds algo order information
 type AlgoOrderParams struct {
-	InstrumentID string  `json:"instId"` // Required
-	TradeMode    string  `json:"tdMode"` // Required
-	Currency     string  `json:"ccy,omitempty"`
-	Side         string  `json:"side"` // Required
-	PositionSide string  `json:"posSide,omitempty"`
-	OrderType    string  `json:"ordType"`   // Required
-	Size         float64 `json:"sz,string"` // Required
-	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
-	OrderTag     string  `json:"tag,omitempty"`
-	QuantityType string  `json:"tgtCcy,omitempty"`
-	AlgoClOrdID  string  `json:"algoClOrdId,omitempty"`
+	InstrumentID      string  `json:"instId"` // Required
+	TradeMode         string  `json:"tdMode"` // Required
+	Currency          string  `json:"ccy,omitempty"`
+	Side              string  `json:"side"` // Required
+	PositionSide      string  `json:"posSide,omitempty"`
+	OrderType         string  `json:"ordType"`   // Required
+	Size              float64 `json:"sz,string"` // Required
+	ReduceOnly        bool    `json:"reduceOnly,omitempty"`
+	OrderTag          string  `json:"tag,omitempty"`
+	QuantityType      string  `json:"tgtCcy,omitempty"`
+	AlgoClientOrderID string  `json:"algoClOrdId,omitempty"`
 
 	// Place Stop Order params
 	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
@@ -1136,10 +1106,16 @@ type AlgoOrderParams struct {
 	PriceVariance string  `json:"pxVar,omitempty"`          // Optional
 	PriceSpread   string  `json:"pxSpread,omitempty"`       // Optional
 	SizeLimit     float64 `json:"szLimit,string,omitempty"` // Required
-	PriceLimit    float64 `json:"pxLimit,string,omitempty"` // Required
+	LimitPrice    float64 `json:"pxLimit,string,omitempty"` // Required
 
 	// TWAPOrder
 	TimeInterval kline.Interval `json:"interval,omitempty"` // Required
+
+	// Chase order
+	ChaseType     string  `json:"chaseType,omitempty"` // Possible values: "distance" and "ratio"
+	ChaseValue    float64 `json:"chaseVal,omitempty,string"`
+	MaxChaseType  string  `json:"maxChaseType,omitempty"`
+	MaxChaseValue float64 `json:"maxChaseVal,omitempty,string"`
 }
 
 // AlgoOrder algo order requests response

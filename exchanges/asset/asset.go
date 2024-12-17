@@ -29,7 +29,6 @@ const (
 	MarginFunding
 	Index
 	Binary
-	Spread
 	// Futures asset consts must come below this comment for method `IsFutures`
 	Futures
 	PerpetualContract
@@ -42,6 +41,7 @@ const (
 	USDCMarginedFutures
 	FutureCombo
 	LinearContract
+	Spread
 	// Options asset consts must come below this comment for method `IsOptions`
 	Options
 	OptionCombo

@@ -70,7 +70,7 @@ func TestIsValid(t *testing.T) {
 
 func TestIsFutures(t *testing.T) {
 	t.Parallel()
-	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract}
+	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract, Spread}
 	for a := range All {
 		if slices.Contains(valid, a) {
 			require.Truef(t, a.IsFutures(), "IsFutures must return true for %s", a)

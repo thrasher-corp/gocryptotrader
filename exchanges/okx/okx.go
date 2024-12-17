@@ -65,6 +65,7 @@ const (
 
 // OrderTypeFromString returns order.Type instance from string
 func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
+	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case OkxOrderMarket:
 		return order.Market, nil
@@ -78,6 +79,10 @@ func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
 		return order.ImmediateOrCancel, nil
 	case OkxOrderOptimalLimitIOC:
 		return order.OptimalLimitIOC, nil
+	case "mmp":
+		return order.MarketMakerProtection, nil
+	case "mmp_and_post_only":
+		return order.MarketMakerProtectionAndPostOnly, nil
 	default:
 		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
@@ -97,9 +102,6 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 
 // PlaceOrder place an order only if you have sufficient funds.
 func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
-	if *arg == (PlaceOrderRequestParam{}) {
-		return nil, common.ErrEmptyParams
-	}
 	err := ok.validatePlaceOrderParams(arg)
 	if err != nil {
 		return nil, err
@@ -453,7 +455,8 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// PlaceAlgoOrder order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
+// PlaceAlgoOrder order includes trigger, oco, chase, conditional, iceberg, twap and trailing orders.
+// chase order only applicable to futures and swap orders
 func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
@@ -483,13 +486,10 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 }
 
 // PlaceStopOrder to place stop order
+// currently expected value is 'conditional'
 func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
-	}
-	if arg.OrderType == "" {
-		// currently expected value is 'conditional'
-		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.TakeProfitTriggerPrice <= 0 {
 		return nil, fmt.Errorf("%w, take profit trigger price is required", order.ErrPriceBelowMin)
@@ -506,10 +506,10 @@ func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *AlgoOrderParams)
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "move_order_stop" {
-		return nil, order.ErrTypeIsInvalid
+		return nil, fmt.Errorf("%w: order type value 'move_order_stop' is only supported for move_order_stop orders", order.ErrTypeIsInvalid)
 	}
 	if arg.CallbackRatio == 0 && arg.CallbackSpreadVariance == "" {
-		return nil, errors.New("either \"callbackRatio\" or \"callbackSpread\" is allowed to be passed")
+		return nil, fmt.Errorf(" %w \"callbackRatio\" or \"callbackSpread\" required", errTrailingPriceCallbackRatioRequired)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
@@ -520,12 +520,12 @@ func (ok *Okx) PlaceIcebergOrder(ctx context.Context, arg *AlgoOrderParams) (*Al
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "iceberg" {
-		return nil, order.ErrTypeIsInvalid
+		return nil, fmt.Errorf("%w: order type value 'iceberg' is only supported for iceberg orders", order.ErrTypeIsInvalid)
 	}
 	if arg.SizeLimit <= 0 {
 		return nil, errMissingSizeLimit
 	}
-	if arg.PriceLimit <= 0 {
+	if arg.LimitPrice <= 0 {
 		return nil, errInvalidPriceLimit
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
@@ -537,16 +537,30 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "twap" {
-		return nil, order.ErrTypeIsInvalid
+		return nil, fmt.Errorf("%w: order type value 'twap' is only supported for twap orders", order.ErrTypeIsInvalid)
 	}
 	if arg.SizeLimit <= 0 {
 		return nil, errMissingSizeLimit
 	}
-	if arg.PriceLimit <= 0 {
+	if arg.LimitPrice <= 0 {
 		return nil, errInvalidPriceLimit
 	}
 	if ok.GetIntervalEnum(arg.TimeInterval, true) == "" {
 		return nil, errMissingIntervalValue
+	}
+	return ok.PlaceAlgoOrder(ctx, arg)
+}
+
+// PlaceChaseAlgoOrder places an order that adjusts the price of an open limit order to match the current market price
+func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if *arg == (AlgoOrderParams{}) {
+		return nil, common.ErrEmptyParams
+	}
+	if arg.OrderType != "chase" {
+		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
+	}
+	if arg.MaxChaseType == "" || arg.MaxChaseValue <= 0 {
+		return nil, errPriceChaseTypeOrValueRequired
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
@@ -768,10 +782,10 @@ func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string
 // TradeOneClickRepay trade one-click repay to repay cross debts. Isolated debts are not applicable. The maximum repayment amount is based on the remaining available balance of funding and trading accounts.
 func (ok *Okx) TradeOneClickRepay(ctx context.Context, arg TradeOneClickRepayParam) ([]CurrencyOneClickRepay, error) {
 	if len(arg.DebtCurrency) == 0 {
-		return nil, fmt.Errorf("%w, missing 'debtCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'debtCcy'", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.RepayCurrency == "" {
-		return nil, fmt.Errorf("%w, missing 'repayCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'repayCcy'", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp []CurrencyOneClickRepay
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, "trade/one-click-repay", &arg, &resp, request.AuthenticatedRequest)
@@ -2823,7 +2837,7 @@ func (ok *Okx) ViewSubAccountList(ctx context.Context, enable bool, subaccountNa
 // ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses.
 func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyParam) (*SubAccountAPIKeyResponse, error) {
 	if arg == nil {
-		return nil, common.ErrEmptyParams
+		return nil, common.ErrNilPointer
 	}
 	if arg.SubAccountName == "" {
 		return nil, errInvalidSubAccountName
@@ -3006,6 +3020,9 @@ func (ok *Okx) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubAccou
 		return false, common.ErrEmptyParams
 	}
 	for a := range arg.Alloc {
+		if arg.Alloc[a] == (subAccountVIPLoanAllocationInfo{}) {
+			return false, common.ErrEmptyParams
+		}
 		if arg.Alloc[a].SubAcct == "" {
 			return false, errInvalidSubAccountName
 		}
@@ -4134,7 +4151,7 @@ func (ok *Okx) Purchase(ctx context.Context, arg *PurchaseRequestParam) (*OrderI
 	}
 	for x := range arg.InvestData {
 		if arg.InvestData[x].Currency.IsEmpty() {
-			return nil, fmt.Errorf("%w, currency information for investment is required", errMissingRequiredParameter)
+			return nil, fmt.Errorf("%w, currency information for investment is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.InvestData[x].Amount <= 0 {
 			return nil, order.ErrAmountBelowMin
@@ -4166,7 +4183,7 @@ func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg *CancelFundin
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderID == "" {
-		return nil, fmt.Errorf("%w, missing 'orderId'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'orderId'", order.ErrOrderIDNotSet)
 	}
 	if arg.ProtocolType != "staking" && arg.ProtocolType != "defi" {
 		return nil, errInvalidProtocolType
@@ -4266,7 +4283,7 @@ func (ok *Okx) GetBETHAssetsBalance(ctx context.Context) (*BETHAssetsBalance, er
 // Status 'pending' 'success' 'failed'
 func (ok *Okx) GetPurchaseAndRedeemHistory(ctx context.Context, kind, status string, after, before time.Time, limit int64) ([]PurchaseRedeemHistory, error) {
 	if kind == "" {
-		return nil, errors.New("kind is required: possible values are 'purchase' and 'redeem'")
+		return nil, fmt.Errorf("%w, possible values are 'purchase' and 'redeem'", errLendingTermIsRequired)
 	}
 	params := url.Values{}
 	params.Set("type", kind)
@@ -4396,7 +4413,7 @@ func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, erro
 }
 
 // GetOrderBookDepth returns the recent order asks and bids before specified timestamp.
-func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth int64) (*OrderBookResponse, error) {
+func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth int64) (*OrderBookResponseDetail, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -4405,7 +4422,7 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 	if depth > 0 {
 		params.Set("sz", strconv.FormatInt(depth, 10))
 	}
-	var resp *OrderBookResponse
+	var resp *OrderBookResponseDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookEPL, http.MethodGet, common.EncodeURLValues("market/books", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
