@@ -223,12 +223,15 @@ func TestConnectionMessageErrors(t *testing.T) {
 	assert.ErrorIs(t, err, errNoPendingConnections, "Connect should error correctly")
 
 	ws.useMultiConnectionManagement = true
+	ws.SetCanUseAuthenticatedEndpoints(true)
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
+
+	ws.connectionManager[0].Setup.Authenticate = func(context.Context, Connection) error { return errDastardlyReason }
 
 	ws.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) {
 		return nil, errDastardlyReason
@@ -371,7 +374,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -464,7 +467,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
 	multi.connections = map[Connection]*ConnectionWrapper{
-		amazingConn: &multi.connectionManager[0],
+		amazingConn: multi.connectionManager[0],
 	}
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
@@ -761,7 +764,42 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	wc.ResponseMaxLimit = 1
 	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
+
+	_, err = wc.SendMessageReturnResponsesWithInspector(context.Background(), request.Unset, "123", req, 1, inspection{})
+	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
+
+func TestWaitForResponses(t *testing.T) {
+	t.Parallel()
+	dummy := &WebsocketConnection{
+		ResponseMaxLimit: time.Nanosecond,
+		Match:            NewMatch(),
+	}
+	_, err := dummy.waitForResponses(context.Background(), "silly", nil, 1, inspection{})
+	require.ErrorIs(t, err, ErrSignatureTimeout)
+
+	dummy.ResponseMaxLimit = time.Second
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = dummy.waitForResponses(ctx, "silly", nil, 1, inspection{})
+	require.ErrorIs(t, err, context.Canceled)
+
+	// test break early and hit verbose path
+	ch := make(chan []byte, 1)
+	ch <- []byte("hello")
+	ctx = request.WithVerbose(context.Background())
+
+	got, err := dummy.waitForResponses(ctx, "silly", ch, 2, inspection{breakEarly: true})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "hello", string(got[0]))
+}
+
+type inspection struct {
+	breakEarly bool
+}
+
+func (i inspection) IsFinal([]byte) bool { return i.breakEarly }
 
 type reporter struct {
 	name string
@@ -1229,6 +1267,11 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errMessageFilterNotComparable)
+
+	connSetup.MessageFilter = "comparable string signature"
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
@@ -1483,4 +1526,43 @@ func TestMonitorTraffic(t *testing.T) {
 	ws.setState(connectedState)
 	ws.TrafficAlert <- struct{}{}
 	require.False(t, innerShell())
+}
+
+func TestGetConnection(t *testing.T) {
+	t.Parallel()
+	var ws *Websocket
+	_, err := ws.GetConnection(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	ws = &Websocket{}
+
+	_, err = ws.GetConnection(nil)
+	require.ErrorIs(t, err, errMessageFilterNotSet)
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
+
+	ws.useMultiConnectionManagement = true
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	ws.setState(connectedState)
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrRequestRouteNotFound)
+
+	ws.connectionManager = []*ConnectionWrapper{{
+		Setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
+	}}
+
+	_, err = ws.GetConnection("testURL")
+	require.ErrorIs(t, err, ErrNotConnected)
+
+	expected := &WebsocketConnection{}
+	ws.connectionManager[0].Connection = expected
+
+	conn, err := ws.GetConnection("testURL")
+	require.NoError(t, err)
+	assert.Same(t, expected, conn)
 }
