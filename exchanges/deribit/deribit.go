@@ -2837,7 +2837,7 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
 	initialDelimiter := currency.DashDelimiter
 	q := pair.Quote.String()
-	if q[:4] == "USDC" && len(q) > 11 { // Linear option
+	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
 		initialDelimiter = currency.UnderscoreDelimiter
 		// Replace a capital D with d for decimal place in Strike price
 		// Char 11 is either the hyphen before Strike price or first digit
