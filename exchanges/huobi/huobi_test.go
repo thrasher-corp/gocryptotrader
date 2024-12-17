@@ -35,6 +35,7 @@ import (
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -1404,8 +1405,8 @@ func TestWsAccountUpdate(t *testing.T) {
 	close(h.Websocket.DataHandler)
 	require.Len(t, h.Websocket.DataHandler, 3, "Must see correct number of records")
 	exp := []WsAccountUpdate{
-		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: 1568601800000, SeqNum: 1},
-		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: 1574393385167, SeqNum: 2},
+		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000)), SeqNum: 1},
+		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167)), SeqNum: 2},
 		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade", SeqNum: 3},
 	}
 	for _, e := range exp {
@@ -1436,7 +1437,7 @@ func TestWsOrderUpdate(t *testing.T) {
 			Status:        order.Rejected,
 			ClientOrderID: "test1",
 			AssetType:     asset.Spot,
-			LastUpdated:   time.Unix(1583853365586000, 0),
+			LastUpdated:   time.UnixMicro(1583853365586000),
 		},
 		{
 			Exchange:      h.Name,
@@ -1445,7 +1446,7 @@ func TestWsOrderUpdate(t *testing.T) {
 			Status:        order.Cancelled,
 			ClientOrderID: "test2",
 			AssetType:     asset.Spot,
-			LastUpdated:   time.Unix(1583853365586000, 0),
+			LastUpdated:   time.UnixMicro(1583853365586000),
 		},
 		{
 			Exchange:      h.Name,
@@ -1458,7 +1459,7 @@ func TestWsOrderUpdate(t *testing.T) {
 			Amount:        2,
 			Type:          order.Limit,
 			OrderID:       "27163533",
-			LastUpdated:   time.Unix(1583853365586000, 0),
+			LastUpdated:   time.UnixMicro(1583853365586000),
 		},
 		{
 			Exchange:    h.Name,
@@ -1470,7 +1471,7 @@ func TestWsOrderUpdate(t *testing.T) {
 			Amount:      0.000157,
 			Type:        order.Limit,
 			OrderID:     "1199329381585359",
-			LastUpdated: time.Unix(1731039387696000, 0),
+			LastUpdated: time.UnixMicro(1731039387696000),
 		},
 	}
 	for _, e := range exp {
@@ -1500,8 +1501,8 @@ func TestWsMyTrades(t *testing.T) {
 		ClientOrderID: "a001",
 		OrderID:       "99998888",
 		AssetType:     asset.Spot,
-		Date:          time.Unix(1583853365586000, 0),
-		LastUpdated:   time.Unix(1583853365996000, 0),
+		Date:          time.UnixMicro(1583853365586000),
+		LastUpdated:   time.UnixMicro(1583853365996000),
 		Price:         10000,
 		Amount:        1,
 		Trades: []order.TradeHistory{
@@ -1513,7 +1514,7 @@ func TestWsMyTrades(t *testing.T) {
 				TID:       "919219323232",
 				Side:      order.Buy,
 				IsMaker:   false,
-				Timestamp: time.Unix(1583853365996000, 0),
+				Timestamp: time.UnixMicro(1583853365996000),
 			},
 		},
 	}
@@ -2037,7 +2038,7 @@ func updatePairsOnce(tb testing.TB, h *HUOBI) {
 
 	testexch.UpdatePairsOnce(tb, h)
 
-	if btcFutureDatedPair == currency.EMPTYPAIR {
+	if btcFutureDatedPair.Equal(currency.EMPTYPAIR) {
 		p, err := h.pairFromContractExpiryCode(btccwPair)
 		require.NoError(tb, err, "pairFromContractCode must not error")
 		btcFutureDatedPair = p

@@ -877,7 +877,7 @@ func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Data[i].State,
 			TransferID:      withdrawals.Data[i].TransactionHash,
-			Timestamp:       time.UnixMilli(withdrawals.Data[i].CreatedAt),
+			Timestamp:       withdrawals.Data[i].CreatedAt.Time(),
 			Currency:        withdrawals.Data[i].Currency.String(),
 			Amount:          withdrawals.Data[i].Amount,
 			Fee:             withdrawals.Data[i].Fee,

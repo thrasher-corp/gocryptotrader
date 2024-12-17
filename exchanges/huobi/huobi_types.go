@@ -905,14 +905,14 @@ type wsAccountUpdateMsg struct {
 
 // WsAccountUpdate contains account updates to balances
 type WsAccountUpdate struct {
-	Currency    string  `json:"currency"`
-	AccountID   int64   `json:"accountId"`
-	Balance     float64 `json:"balance,string"`
-	Available   float64 `json:"available,string"`
-	ChangeType  string  `json:"changeType"`
-	AccountType string  `json:"accountType"`
-	ChangeTime  int64   `json:"changeTime"`
-	SeqNum      int64   `json:"seqNum"`
+	Currency    string     `json:"currency"`
+	AccountID   int64      `json:"accountId"`
+	Balance     float64    `json:"balance,string"`
+	Available   float64    `json:"available,string"`
+	ChangeType  string     `json:"changeType"`
+	AccountType string     `json:"accountType"`
+	ChangeTime  types.Time `json:"changeTime"`
+	SeqNum      int64      `json:"seqNum"`
 }
 
 type wsOrderUpdateMsg struct {
@@ -939,9 +939,9 @@ type WsOrderUpdate struct {
 	IsTaker         bool       `json:"aggressor"`
 	Side            order.Side `json:"orderSide"`
 	OrderStatus     string     `json:"orderStatus"`
-	LastActTime     int64      `json:"lastActTime"`
-	CreateTime      int64      `json:"orderCreateTime"`
-	TradeTime       int64      `json:"tradeTime"`
+	LastActTime     types.Time `json:"lastActTime"`
+	CreateTime      types.Time `json:"orderCreateTime"`
+	TradeTime       types.Time `json:"tradeTime"`
 	ErrCode         int64      `json:"errCode"`
 	ErrMessage      string     `json:"errMessage"`
 }
@@ -961,7 +961,7 @@ type WsTradeUpdate struct {
 	OrderType       string     `json:"orderType"`
 	IsTaker         bool       `json:"aggressor"`
 	TradeID         int64      `json:"tradeId"`
-	TradeTime       int64      `json:"tradeTime"`
+	TradeTime       types.Time `json:"tradeTime"`
 	TransactFee     float64    `json:"transactFee,string"`
 	FeeCurrency     string     `json:"feeCurrency"`
 	FeeDeduct       string     `json:"feeDeduct"`
@@ -974,7 +974,7 @@ type WsTradeUpdate struct {
 	ClientOrderID   string     `json:"clientOrderId"`
 	StopPrice       string     `json:"stopPrice"`
 	Operator        string     `json:"operator"`
-	OrderCreateTime int64      `json:"orderCreateTime"`
+	OrderCreateTime types.Time `json:"orderCreateTime"`
 	OrderStatus     string     `json:"orderStatus"`
 }
 
@@ -1169,6 +1169,6 @@ type WithdrawalData struct {
 	State           string        `json:"state"`
 	ErrorCode       string        `json:"error-code"`
 	ErrorMessage    string        `json:"error-message"`
-	CreatedAt       int64         `json:"created-at"`
-	UpdatedAt       int64         `json:"updated-at"`
+	CreatedAt       types.Time    `json:"created-at"`
+	UpdatedAt       types.Time    `json:"updated-at"`
 }

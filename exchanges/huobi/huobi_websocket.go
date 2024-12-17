@@ -370,11 +370,11 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 	}
 	switch o.EventType {
 	case "trigger", "deletion", "cancellation":
-		d.LastUpdated = time.Unix(o.LastActTime*1000, 0)
+		d.LastUpdated = o.LastActTime.Time()
 	case "creation":
-		d.LastUpdated = time.Unix(o.CreateTime*1000, 0)
+		d.LastUpdated = o.CreateTime.Time()
 	case "trade":
-		d.LastUpdated = time.Unix(o.TradeTime*1000, 0)
+		d.LastUpdated = o.TradeTime.Time()
 	}
 	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
 		return &order.ClassificationError{
@@ -428,8 +428,8 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 		Side:          t.Side,
 		AssetType:     s.Asset,
 		Pair:          p,
-		Date:          time.Unix(t.OrderCreateTime*1000, 0),
-		LastUpdated:   time.Unix(t.TradeTime*1000, 0),
+		Date:          t.OrderCreateTime.Time(),
+		LastUpdated:   t.TradeTime.Time(),
 		OrderID:       strconv.FormatInt(t.OrderID, 10),
 	}
 	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
@@ -469,7 +469,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 			Type:      d.Type,
 			Side:      d.Side,
 			IsMaker:   !t.IsTaker,
-			Timestamp: time.Unix(t.TradeTime*1000, 0),
+			Timestamp: t.TradeTime.Time(),
 		},
 	}
 	h.Websocket.DataHandler <- d
