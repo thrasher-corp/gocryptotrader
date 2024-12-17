@@ -135,6 +135,9 @@ func (i Interval) Duration() time.Duration {
 
 // Short returns short string version of interval
 func (i Interval) Short() string {
+	if i == Raw {
+		return "raw"
+	}
 	s := i.String()
 	if strings.HasSuffix(s, "m0s") {
 		s = s[:len(s)-2]
@@ -149,6 +152,10 @@ func (i Interval) Short() string {
 // It does not validate the duration is aligned, only that it is a parsable duration
 func (i *Interval) UnmarshalJSON(text []byte) error {
 	text = bytes.Trim(text, `"`)
+	if string(text) == "raw" {
+		*i = Raw
+		return nil
+	}
 	if len(bytes.TrimLeft(text, `0123456789`)) > 0 { // contains non-numerics, ParseDuration can handle errors
 		d, err := time.ParseDuration(string(text))
 		if err != nil {
