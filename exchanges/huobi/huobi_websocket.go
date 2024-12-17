@@ -465,7 +465,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 			Amount:    t.TradeVolume,
 			Fee:       t.TransactFee,
 			Exchange:  h.Name,
-			TID:       strconv.Itoa(int(t.TradeID)),
+			TID:       strconv.FormatInt(t.TradeID, 10),
 			Type:      d.Type,
 			Side:      d.Side,
 			IsMaker:   !t.IsTaker,
