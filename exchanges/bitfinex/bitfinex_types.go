@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -495,6 +496,11 @@ type wsTrade struct {
 	Amount    float64
 	Price     float64
 	Period    int64 // Funding offer period in days
+}
+
+// UnmarshalJSON unmarshals json bytes into a wsTrade
+func (t *wsTrade) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[5]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period})
 }
 
 // Candle holds OHLC data
