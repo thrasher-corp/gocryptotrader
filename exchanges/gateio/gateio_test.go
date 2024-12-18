@@ -1142,22 +1142,18 @@ func TestCancelMultipleDeliveryOrders(t *testing.T) {
 
 func TestGetSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSingleDeliveryOrder(context.Background(), currency.USD, "123456")
+	_, err := g.GetSingleDeliveryOrder(context.Background(), currency.EMPTYCODE, "123456")
 	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "GetSingleDeliveryOrder should return errEmptyOrInvalidSettlementCurrency")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	for _, settle := range settlementCurrencies {
-		_, err := g.GetSingleDeliveryOrder(context.Background(), settle, "123456")
-		assert.NoErrorf(t, err, "GetSingleDeliveryOrder %s should not error", settle)
-	}
+	_, err = g.GetSingleDeliveryOrder(context.Background(), currency.USDT, "123456")
+	assert.NoError(t, err, "GetSingleDeliveryOrder should not error")
 }
 
 func TestCancelSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	for _, settle := range settlementCurrencies {
-		_, err := g.CancelSingleDeliveryOrder(context.Background(), settle, "123456")
-		assert.NoErrorf(t, err, "CancelSingleDeliveryOrder %s should not error", settle)
-	}
+	_, err := g.CancelSingleDeliveryOrder(context.Background(), currency.USDT, "123456")
+	assert.NoError(t, err, "CancelSingleDeliveryOrder should not error")
 }
 
 func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
@@ -1225,7 +1221,7 @@ func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), currency.BTC, "12345")
+	_, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), currency.USDT, "12345")
 	assert.NoError(t, err, "GetSingleDeliveryPriceTriggeredOrder should not error")
 }
 
@@ -1450,8 +1446,12 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
-	assert.NoError(t, err, "GetAllDeliveryContracts should not error")
+	r, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
+	r, err = g.GetAllDeliveryContracts(context.Background(), currency.BTC)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	assert.Empty(t, r, "GetAllDeliveryContracts shouldn't return data")
 }
 
 func TestGetSingleDeliveryContracts(t *testing.T) {
@@ -1527,6 +1527,8 @@ func TestGetSingleDeliveryPosition(t *testing.T) {
 
 func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionMargin(context.Background(), currency.EMPTYCODE, 0.001, currency.Pair{})
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
@@ -1536,15 +1538,19 @@ func TestUpdateDeliveryPositionMargin(t *testing.T) {
 
 func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionLeverage(context.Background(), currency.EMPTYCODE, currency.Pair{}, 0.001)
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.UpdateDeliveryPositionLeverage(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
+	_, err = g.UpdateDeliveryPositionLeverage(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
 	assert.NoError(t, err, "UpdateDeliveryPositionLeverage should not error")
 }
 
 func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.EMPTYCODE, currency.Pair{}, 0)
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
+	_, err = g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
 	assert.NoError(t, err, "UpdateDeliveryPositionRiskLimit should not error")
 }
 
