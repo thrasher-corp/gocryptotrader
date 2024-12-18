@@ -1260,11 +1260,10 @@ func TestSubToMap(t *testing.T) {
 	assert.Equal(t, "tBTCLTC", r["symbol"], "symbol should not use colon delimiter if both currencies < 3 chars")
 }
 
-// TestWSPlaceOrder dials websocket, sends order request.
-func TestWSPlaceOrder(t *testing.T) {
+// TestWSNewOrder exercises WsNewOrder
+func TestWSNewOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
-
 	_, err := b.WsNewOrder(&WsNewOrderRequest{
 		GroupID: 1,
 		Type:    "EXCHANGE LIMIT",
@@ -1272,22 +1271,19 @@ func TestWSPlaceOrder(t *testing.T) {
 		Amount:  -20,
 		Price:   1000,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
-// TestWSCancelOrder dials websocket, sends cancel request.
+// TestWSCancelOrder exercises WsCancelOrder
 func TestWSCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
-	if err := b.WsCancelOrder(1234); err != nil {
-		t.Error(err)
-	}
+	err := b.WsCancelOrder(1234)
+	assert.NoError(t, err)
 }
 
-// TestWSCancelOrder dials websocket, sends modify request.
-func TestWSUpdateOrder(t *testing.T) {
+// TestWSModifyOrder exercises WsModifyOrder
+func TestWSModifyOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
 	err := b.WsModifyOrder(&WsUpdateOrderRequest{
@@ -1295,31 +1291,26 @@ func TestWSUpdateOrder(t *testing.T) {
 		Price:   -111,
 		Amount:  111,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
-// TestWSCancelAllOrders dials websocket, sends cancel all request.
+// TestWSCancelAllOrders exercises WsCancelAllOrders
 func TestWSCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
-	if err := b.WsCancelAllOrders(); err != nil {
-		t.Error(err)
-	}
+	err := b.WsCancelAllOrders()
+	assert.NoError(t, err)
 }
 
-// TestWSCancelAllOrders dials websocket, sends cancel all request.
+// TestWSCancelMultiOrders exercises WsCancelMultiOrders
 func TestWSCancelMultiOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
 	err := b.WsCancelMultiOrders([]int64{1, 2, 3, 4})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
-// TestWSNewOffer dials websocket, sends new offer request.
+// TestWSNewOffer exercises WsNewOffer
 func TestWSNewOffer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
@@ -1330,18 +1321,15 @@ func TestWSNewOffer(t *testing.T) {
 		Rate:   10,
 		Period: 30,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
-// TestWSCancelOffer dials websocket, sends cancel offer request.
+// TestWSCancelOffer exercises WsCancelOffer
 func TestWSCancelOffer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	testexch.SetupWs(t, b)
-	if err := b.WsCancelOffer(1234); err != nil {
-		t.Error(err)
-	}
+	err := b.WsCancelOffer(1234)
+	assert.NoError(t, err)
 }
 
 func TestWSSubscribedResponse(t *testing.T) {
