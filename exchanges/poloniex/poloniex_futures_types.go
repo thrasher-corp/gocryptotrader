@@ -548,3 +548,76 @@ type V3FuturesMarkPrice struct {
 	MarkPrice types.Number `json:"mPx"`
 	Symbol    string       `json:"symbol"`
 }
+
+// V3FuturesMarkPriceCandle represents a k-line data for mark price
+type V3FuturesMarkPriceCandle struct {
+	OpeningPrice types.Number
+	HighestPrice types.Number
+	LowestPrice  types.Number
+	ClosingPrice types.Number
+	StartTime    types.Time
+	EndTime      types.Time
+}
+
+// UnmarshalJSON deserializes byte data into V3FuturesMarkPriceCandle instance
+func (v *V3FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
+	target := [6]any{&v.OpeningPrice, &v.HighestPrice, &v.LowestPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime}
+	return json.Unmarshal(data, &target)
+}
+
+// ProductInfo represents basic information of the all product
+type ProductInfo struct {
+	Alias                 string       `json:"alias"`
+	BaseAsset             string       `json:"bAsset"`
+	BaseCcy               string       `json:"bCcy"`
+	ContractType          string       `json:"ctType"`
+	ContractValue         types.Number `json:"ctVal"`
+	InitialMarginRate     types.Number `json:"iM"`
+	Leverage              string       `json:"lever"`
+	LotSize               types.Number `json:"lotSz"`
+	MaintenanceMarginRate types.Number `json:"mM"`
+	MaximumRiskLimit      types.Number `json:"mR"`
+	MaxLeverage           string       `json:"maxLever"`
+	MaxPrice              types.Number `json:"maxPx"`
+	MaxQuantity           types.Number `json:"maxQty"`
+	MinPrice              types.Number `json:"minPx"`
+	MinQuantity           types.Number `json:"minQty"`
+	MinSize               types.Number `json:"minSz"`
+	ListingDate           types.Time   `json:"oDate"`
+	PriceScale            string       `json:"pxScale"`
+	QCurrency             string       `json:"qCcy"`
+	SCurrency             string       `json:"sCcy"`
+	Status                string       `json:"status"`
+	Symbol                string       `json:"symbol"`
+	TickSize              types.Number `json:"tSz"`
+	TradableStartTime     types.Time   `json:"tradableStartTime"`
+	VisibleStartTime      types.Time   `json:"visibleStartTime"`
+}
+
+// V3FuturesFundingRate represents symbols funding rate information
+type V3FuturesFundingRate struct {
+	Symbol                   string       `json:"s"`
+	FundingRate              types.Number `json:"fR"`
+	FundingRateSettleTime    types.Time   `json:"fT"`
+	NextPredictedFundingRate types.Number `json:"nFR"`
+	NextFundingTime          types.Time   `json:"nFT"`
+}
+
+// OpenInterestData represents an open interest data
+type OpenInterestData struct {
+	CurrentOpenInterest types.Number `json:"oInterest"`
+	Symbol              string       `json:"s"`
+}
+
+// InsuranceFundInfo represents an insurance fund information of a currency
+type InsuranceFundInfo struct {
+	Amount     types.Number `json:"amt"`
+	Currency   string       `json:"ccy"`
+	UpdateTime types.Time   `json:"uTime"`
+}
+
+// RiskLimit represents a risk limit of futures instrument
+type RiskLimit struct {
+	NotionalCap types.Number `json:"notionalCap"`
+	Symbol      string       `json:"symbol"`
+}

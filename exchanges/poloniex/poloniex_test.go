@@ -2366,3 +2366,74 @@ func TestGetV3FuturesMarkPrice(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetMarkPriceKlineData(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetMarkPriceKlineData(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = p.GetMarkPriceKlineData(context.Background(), "BTC_USDT_PERP", kline.SixHour, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
+	result, err := p.GetMarkPriceKlineData(context.Background(), "BTC_USDT_PERP", kline.FourHour, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllProductInfo(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetAllProductInfo(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesProductInfo(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesProductInfo(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := p.GetV3FuturesProductInfo(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesCurrentFundingRate(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesCurrentFundingRate(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := p.GetV3FuturesCurrentFundingRate(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetV3FuturesHistoricalFundingRates(context.Background(), "", time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesCurrentOpenPositions(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV3FuturesCurrentOpenPositions(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := p.GetV3FuturesCurrentOpenPositions(context.Background(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetInsuranceFundInformation(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetInsuranceFundInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetV3FuturesRiskLimit(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetV3FuturesRiskLimit(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

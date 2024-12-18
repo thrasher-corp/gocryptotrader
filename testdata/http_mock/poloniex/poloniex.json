@@ -134732,6 +134732,398 @@
     }
    ]
   },
+  "/v3/market/allInstruments": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "alias": "",
+        "bAsset": ".PBNBUSDT",
+        "bCcy": "BNB",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.1",
+        "iM": "0.02",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.0115",
+        "mR": "2000",
+        "maxLever": "50",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1620287590000",
+        "pxScale": "0.001,0.01,0.1,1,10",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "BNB_USDT_PERP",
+        "tSz": "0.001",
+        "tradableStartTime": "1620390600000",
+        "visibleStartTime": "1620390600000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PTRXUSDT",
+        "bCcy": "TRX",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "100",
+        "iM": "0.02",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.0115",
+        "mR": "10000",
+        "maxLever": "50",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.00001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1607328129000",
+        "pxScale": "0.00001,0.0001,0.001,0.01,0.1",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "TRX_USDT_PERP",
+        "tSz": "0.00001",
+        "tradableStartTime": "1607430600000",
+        "visibleStartTime": "1607430600000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PLTCUSDT",
+        "bCcy": "LTC",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.01",
+        "iM": "0.02",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.0115",
+        "mR": "30000",
+        "maxLever": "50",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.01",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1614781681000",
+        "pxScale": "0.01,0.1,1,10,100",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "LTC_USDT_PERP",
+        "tSz": "0.01",
+        "tradableStartTime": "1614861000000",
+        "visibleStartTime": "1614861000000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PAPTUSDT",
+        "bCcy": "APT",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "1",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.027",
+        "mR": "20000",
+        "maxLever": "20",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1666681959000",
+        "pxScale": "0.001,0.01,0.1,1,10",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "APT_USDT_PERP",
+        "tSz": "0.001",
+        "tradableStartTime": "1666701000000",
+        "visibleStartTime": "1666701000000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".P1000PEPEUSDT",
+        "bCcy": "1000PEPE",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "1000",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.027",
+        "mR": "50000",
+        "maxLever": "20",
+        "maxPx": "100000000",
+        "maxQty": "100000000",
+        "minPx": "0.0000001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1683536085000",
+        "pxScale": "0.0000001,0.000001,0.00001,0.0001,0.001",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "1000PEPE_USDT_PERP",
+        "tSz": "0.0000001",
+        "tradableStartTime": "1683549000000",
+        "visibleStartTime": "1683549000000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".P1000SHIBUSDT",
+        "bCcy": "1000SHIB",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "100",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.027",
+        "mR": "5000",
+        "maxLever": "20",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.000001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1621415267000",
+        "pxScale": "0.000001,0.00001,0.0001,0.001,0.01",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "1000SHIB_USDT_PERP",
+        "tSz": "0.000001",
+        "tradableStartTime": "1621513800000",
+        "visibleStartTime": "1621513800000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PXBTUSDT",
+        "bCcy": "BTC",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.001",
+        "iM": "0.0133",
+        "lever": "20",
+        "lotSz": 1,
+        "mM": "0.006",
+        "mR": "5000",
+        "maxLever": "75",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.01",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1547435912000",
+        "pxScale": "0.01,0.1,1,10,100",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "BTC_USDT_PERP",
+        "tSz": "0.01",
+        "tradableStartTime": "1584721775000",
+        "visibleStartTime": "1584721775000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PDOGEUSDT",
+        "bCcy": "DOGE",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "100",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.027",
+        "mR": "6000",
+        "maxLever": "20",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.00001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1615965597000",
+        "pxScale": "0.00001,0.0001,0.001,0.01,0.1",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "DOGE_USDT_PERP",
+        "tSz": "0.00001",
+        "tradableStartTime": "1616070600000",
+        "visibleStartTime": "1616070600000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PAVAXUSDT",
+        "bCcy": "AVAX",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.1",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.027",
+        "mR": "10000",
+        "maxLever": "20",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1637138636000",
+        "pxScale": "0.001,0.01,0.1,1,10",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "AVAX_USDT_PERP",
+        "tSz": "0.001",
+        "tradableStartTime": "1637238600000",
+        "visibleStartTime": "1637238600000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PXRPUSDT",
+        "bCcy": "XRP",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "10",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.025",
+        "mR": "8000",
+        "maxLever": "20",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.0001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1609915541000",
+        "pxScale": "0.0001,0.001,0.01,0.1,1",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "XRP_USDT_PERP",
+        "tSz": "0.0001",
+        "tradableStartTime": "1699524000000",
+        "visibleStartTime": "1699524000000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PSOLUSDT",
+        "bCcy": "SOL",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.1",
+        "iM": "0.05",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.025",
+        "mR": "10000",
+        "maxLever": "20",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.001",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1630486991000",
+        "pxScale": "0.001,0.01,0.1,1,10",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "SOL_USDT_PERP",
+        "tSz": "0.001",
+        "tradableStartTime": "1630585800000",
+        "visibleStartTime": "1630585800000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PETHUSDT",
+        "bCcy": "ETH",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.01",
+        "iM": "0.0133",
+        "lever": "20",
+        "lotSz": 1,
+        "mM": "0.006",
+        "mR": "5000",
+        "maxLever": "75",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.01",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1598599725000",
+        "pxScale": "0.01,0.1,1,10,100",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "ETH_USDT_PERP",
+        "tSz": "0.01",
+        "tradableStartTime": "1599040800000",
+        "visibleStartTime": "1599040800000"
+       },
+       {
+        "alias": "",
+        "bAsset": ".PBCHUSDT",
+        "bCcy": "BCH",
+        "buyLmt": "",
+        "ctType": "LINEAR",
+        "ctVal": "0.01",
+        "iM": "0.02",
+        "lever": "10",
+        "lotSz": 1,
+        "mM": "0.0115",
+        "mR": "30000",
+        "maxLever": "50",
+        "maxPx": "1000000",
+        "maxQty": "1000000",
+        "minPx": "0.01",
+        "minQty": "1",
+        "minSz": 1,
+        "oDate": "1601190636000",
+        "pxScale": "0.01,0.1,1,10,100",
+        "qCcy": "USDT",
+        "sCcy": "USDT",
+        "sellLmt": "",
+        "status": "OPEN",
+        "symbol": "BCH_USDT_PERP",
+        "tSz": "0.01",
+        "tradableStartTime": "1601290800000",
+        "visibleStartTime": "1601290800000"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/v3/market/candles": {
    "GET": [
     {
@@ -135847,6 +136239,40 @@
     }
    ]
   },
+  "/v3/market/fundingRate": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "fR": "0.0001",
+       "fT": "1734552000000",
+       "nFR": "0.0001",
+       "nFT": "1734580800000",
+       "s": "BTC_USDT_PERP"
+      },
+      "msg": "Success"
+     },
+     "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v3/market/fundingRate/history": {
+   "GET": [
+    {
+     "data": {
+      "code": 400,
+      "data": [],
+      "msg": "Param error symbol"
+     },
+     "queryString": "limit=100",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/v3/market/indexPrice": {
    "GET": [
     {
@@ -136010,6 +136436,68 @@
     }
    ]
   },
+  "/v3/market/instruments": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "alias": "",
+       "bAsset": ".PXBTUSDT",
+       "bCcy": "BTC",
+       "buyLmt": "",
+       "ctType": "LINEAR",
+       "ctVal": "0.001",
+       "iM": "0.0133",
+       "lever": "20",
+       "lotSz": 1,
+       "mM": "0.006",
+       "mR": "5000",
+       "maxLever": "75",
+       "maxPx": "1000000",
+       "maxQty": "1000000",
+       "minPx": "0.01",
+       "minQty": "1",
+       "minSz": 1,
+       "oDate": "1547435912000",
+       "pxScale": "0.01,0.1,1,10,100",
+       "qCcy": "USDT",
+       "sCcy": "USDT",
+       "sellLmt": "",
+       "status": "OPEN",
+       "symbol": "BTC_USDT_PERP",
+       "tSz": "0.01",
+       "tradableStartTime": "1584721775000",
+       "visibleStartTime": "1584721775000"
+      },
+      "msg": "Success"
+     },
+     "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v3/market/insurance": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "amt": "4004044.982470137850115523",
+        "ccy": "USDT",
+        "uTime": "1734552540132"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/v3/market/liquidationOrder": {
    "GET": [
     {
@@ -136112,6 +136600,118 @@
       "code": 200,
       "data": {
        "mPx": "105817.02",
+       "s": "BTC_USDT_PERP"
+      },
+      "msg": "Success"
+     },
+     "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v3/market/markPriceCandlesticks": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       [
+        "106289.42",
+        "107102.34",
+        "106791.24",
+        "106733.69",
+        "1734408000000",
+        "1734422399999"
+       ],
+       [
+        "106666.92",
+        "107431.6",
+        "106733.69",
+        "106801.33",
+        "1734422400000",
+        "1734436799999"
+       ],
+       [
+        "104942.01",
+        "108216.99",
+        "106801.33",
+        "105548.82",
+        "1734436800000",
+        "1734451199999"
+       ],
+       [
+        "105537.07",
+        "107578.57",
+        "105548.82",
+        "106230",
+        "1734451200000",
+        "1734465599999"
+       ],
+       [
+        "105268.08",
+        "106866.84",
+        "106230",
+        "106040.62",
+        "1734465600000",
+        "1734479999999"
+       ],
+       [
+        "104524.07",
+        "106393.54",
+        "106040.62",
+        "104729.57",
+        "1734480000000",
+        "1734494399999"
+       ],
+       [
+        "103087.37",
+        "104729.57",
+        "104729.57",
+        "104235.99",
+        "1734494400000",
+        "1734508799999"
+       ],
+       [
+        "103669.39",
+        "104918.76",
+        "104210.84",
+        "104906.46",
+        "1734508800000",
+        "1734523199999"
+       ],
+       [
+        "103618.83",
+        "105286.63",
+        "104897.96",
+        "104323.24",
+        "1734523200000",
+        "1734537599999"
+       ],
+       [
+        "103272.46",
+        "104882.89",
+        "104334.29",
+        "103955.09",
+        "1734537600000",
+        "1734551999999"
+       ]
+      ],
+      "msg": "Success"
+     },
+     "queryString": "interval=HOUR_4\u0026limit=10\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v3/market/openInterest": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "oInterest": "43907.000000000000000000",
        "s": "BTC_USDT_PERP"
       },
       "msg": "Success"
@@ -136719,6 +137319,73 @@
       "msg": "Success"
      },
      "queryString": "limit=100\u0026scale=100\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v3/market/riskLimit": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "notionalCap": "5000",
+        "symbol": "1000SHIBUSDTPERP"
+       },
+       {
+        "notionalCap": "6000",
+        "symbol": "DOGEUSDTPERP"
+       },
+       {
+        "notionalCap": "5000",
+        "symbol": "BTCUSDTPERP"
+       },
+       {
+        "notionalCap": "30000",
+        "symbol": "LTCUSDTPERP"
+       },
+       {
+        "notionalCap": "2000",
+        "symbol": "BNBUSDTPERP"
+       },
+       {
+        "notionalCap": "8000",
+        "symbol": "XRPUSDTPERP"
+       },
+       {
+        "notionalCap": "10000",
+        "symbol": "SOLUSDTPERP"
+       },
+       {
+        "notionalCap": "30000",
+        "symbol": "BCHUSDTPERP"
+       },
+       {
+        "notionalCap": "5000",
+        "symbol": "ETHUSDTPERP"
+       },
+       {
+        "notionalCap": "50000",
+        "symbol": "1000PEPEUSDTPERP"
+       },
+       {
+        "notionalCap": "10000",
+        "symbol": "TRXUSDTPERP"
+       },
+       {
+        "notionalCap": "20000",
+        "symbol": "APTUSDTPERP"
+       },
+       {
+        "notionalCap": "10000",
+        "symbol": "AVAXUSDTPERP"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }

@@ -1319,3 +1319,110 @@ func (p *Poloniex) GetV3FuturesMarkPrice(ctx context.Context, symbol string) (*V
 	var resp *V3FuturesMarkPrice
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/markPrice", params), &resp, true)
 }
+
+// GetMarkPriceKlineData obtain the K-line data for the mark price.
+func (p *Poloniex) GetMarkPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]V3FuturesMarkPriceCandle, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	intervalString, err := IntervalString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []V3FuturesMarkPriceCandle
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/markPriceCandlesticks", params), &resp, true)
+}
+
+// GetAllProductInfo inquire about the basic information of the all product.
+func (p *Poloniex) GetAllProductInfo(ctx context.Context, symbol string) ([]ProductInfo, error) {
+	params := url.Values{}
+	if symbol == "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []ProductInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/allInstruments", params), &resp, true)
+}
+
+// GetV3FuturesProductInfo inquire about the basic information of the product.
+func (p *Poloniex) GetV3FuturesProductInfo(ctx context.Context, symbol string) (*ProductInfo, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *ProductInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/instruments", params), &resp, true)
+}
+
+// GetV3FuturesCurrentFundingRate retrieve the current funding rate of the contract.
+func (p *Poloniex) GetV3FuturesCurrentFundingRate(ctx context.Context, symbol string) (*V3FuturesFundingRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *V3FuturesFundingRate
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/fundingRate", params), &resp, true)
+}
+
+// GetV3FuturesHistoricalFundingRates retrieve the previous funding rates of a contract.
+func (p *Poloniex) GetV3FuturesHistoricalFundingRates(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]V3FuturesFundingRate, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []V3FuturesFundingRate
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/fundingRate/history", params), &resp, true)
+}
+
+// GetV3FuturesCurrentOpenPositions retrieve all current open interest in the market.
+func (p *Poloniex) GetV3FuturesCurrentOpenPositions(ctx context.Context, symbol string) (*OpenInterestData, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *OpenInterestData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/openInterest", params), &resp, true)
+}
+
+// GetInsuranceFundInformation query insurance fund information
+func (p *Poloniex) GetInsuranceFundInformation(ctx context.Context) ([]InsuranceFundInfo, error) {
+	var resp []InsuranceFundInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "/v3/market/insurance", &resp, true)
+}
+
+// GetV3FuturesRiskLimit retrieve information from the Futures Risk Limit Table.
+func (p *Poloniex) GetV3FuturesRiskLimit(ctx context.Context, symbol string) ([]RiskLimit, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []RiskLimit
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/riskLimit", params), &resp, true)
+}
