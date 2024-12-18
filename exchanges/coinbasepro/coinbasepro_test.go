@@ -98,6 +98,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Skip("API is deprecated")
 	_, err := c.GetTrades(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetTrades() error", err)
@@ -130,6 +131,7 @@ func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestGetStats(t *testing.T) {
+	t.Skip("API is deprecated")
 	_, err := c.GetStats(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetStats() error", err)
@@ -137,6 +139,7 @@ func TestGetStats(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
+	t.Skip("API is deprecated")
 	_, err := c.GetCurrencies(context.Background())
 	if err != nil {
 		t.Error("GetCurrencies() error", err)
@@ -1036,6 +1039,7 @@ func TestParseTime(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
+	t.Skip("API is deprecated")
 	t.Parallel()
 	_, err := c.GetRecentTrades(context.Background(), testPair, asset.Spot)
 	if err != nil {
@@ -1045,11 +1049,8 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetHistoricTrades(context.Background(),
-		testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := c.GetHistoricTrades(context.Background(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetTransfers(t *testing.T) {
@@ -1062,6 +1063,7 @@ func TestGetTransfers(t *testing.T) {
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Skip("API is deprecated")
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, c)
 	for _, a := range c.GetAssetTypes(false) {
