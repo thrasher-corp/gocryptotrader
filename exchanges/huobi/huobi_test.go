@@ -2028,6 +2028,7 @@ func TestBootstrap(t *testing.T) {
 }
 
 var updatePairsMutex sync.Mutex
+var futureContractCodesCache map[string]currency.Code
 
 // updatePairsOnce updates the pairs once, and ensures a future dated contract is enabled
 func updatePairsOnce(tb testing.TB, h *HUOBI) {
@@ -2037,6 +2038,16 @@ func updatePairsOnce(tb testing.TB, h *HUOBI) {
 	defer updatePairsMutex.Unlock()
 
 	testexch.UpdatePairsOnce(tb, h)
+
+	h.futureContractCodesMutex.Lock()
+	if len(h.futureContractCodes) == 0 {
+		// Restored pairs from cache, so haven't populated futureContract Codes
+		require.NotEmpty(tb, futureContractCodesCache, "futureContractCodesCache must not be empty")
+		h.futureContractCodes = futureContractCodesCache
+	} else {
+		futureContractCodesCache = h.futureContractCodes
+	}
+	h.futureContractCodesMutex.Unlock()
 
 	if btcFutureDatedPair.Equal(currency.EMPTYPAIR) {
 		p, err := h.pairFromContractExpiryCode(btccwPair)
