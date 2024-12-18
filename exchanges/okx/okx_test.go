@@ -222,6 +222,9 @@ func TestGetOrderBookDepth(t *testing.T) {
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetCandlesticks(contextGenerate(), "", kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	result, err := ok.GetCandlesticks(contextGenerate(), spotTP.String(), kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -306,6 +309,9 @@ func TestGetExchangeRate(t *testing.T) {
 
 func TestGetIndexComponents(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetIndexComponents(contextGenerate(), "")
+	require.ErrorIs(t, err, errIndexComponentNotFound)
+
 	result, err := ok.GetIndexComponents(contextGenerate(), "ETH-USDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -313,6 +319,9 @@ func TestGetIndexComponents(t *testing.T) {
 
 func TestGetBlockTickers(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetBlockTickers(contextGenerate(), "", "")
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+
 	result, err := ok.GetBlockTickers(contextGenerate(), "SWAP", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -320,6 +329,9 @@ func TestGetBlockTickers(t *testing.T) {
 
 func TestGetBlockTicker(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetBlockTicker(contextGenerate(), "")
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	result, err := ok.GetBlockTicker(contextGenerate(), "BTC-USDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2825,6 +2837,9 @@ func TestGetGridAlgoOrdersList(t *testing.T) {
 
 func TestGetGridAlgoOrderHistory(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetGridAlgoOrderHistory(contextGenerate(), "abc", "", "", "", "", "", 1)
+	require.ErrorIs(t, err, errMissingAlgoOrderType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderHistory(contextGenerate(), "contract_grid", "", "", "", "", "", 1)
 	require.NoError(t, err)
@@ -3275,6 +3290,11 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
+	_, err := ok.CancelBatchOrders(contextGenerate(), make([]order.Cancel, 21))
+	require.ErrorIs(t, err, errExceedLimit)
+	_, err = ok.CancelBatchOrders(contextGenerate(), nil)
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	var orderCancellationParams = []order.Cancel{
 		{
@@ -3934,12 +3954,24 @@ func TestWsCancelOrder(t *testing.T) {
 
 func TestWsCancleMultipleOrder(t *testing.T) {
 	t.Parallel()
+	arg := CancelOrderRequestParam{
+		OrderID: "2510789768709120",
+	}
+	_, err := ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{arg})
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.InstrumentID = "DCR-BTC"
+	arg.OrderID = ""
+	_, err = ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{arg})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	_, err := ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{{
+	result, err := ok.WsCancelMultipleOrder(context.Background(), []CancelOrderRequestParam{{
 		InstrumentID: "DCR-BTC",
 		OrderID:      "2510789768709120",
 	}})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestWsAmendOrder(t *testing.T) {
@@ -3971,6 +4003,20 @@ func TestWsAmendOrder(t *testing.T) {
 
 func TestWsAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
+	arg := AmendOrderRequestParams{
+		CancelOnFail: true,
+	}
+	_, err := ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{arg})
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.InstrumentID = "DCR-BTC"
+	_, err = ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{arg})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	arg.OrderID = "2510789768709120"
+	_, err = ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{arg})
+	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.WsAmendMultipleOrders(context.Background(), []AmendOrderRequestParams{
 		{
@@ -3986,6 +4032,15 @@ func TestWsAmendMultipleOrders(t *testing.T) {
 
 func TestWsMassCancelOrders(t *testing.T) {
 	t.Parallel()
+	_, err := ok.WsMassCancelOrders(context.Background(), []CancelMassReqParam{{}})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = ok.WsMassCancelOrders(context.Background(), []CancelMassReqParam{{InstrumentFamily: "BTC-USD"}})
+	require.ErrorIs(t, err, errInvalidInstrumentType)
+
+	_, err = ok.WsMassCancelOrders(context.Background(), []CancelMassReqParam{{InstrumentType: "OPTION"}})
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.WsMassCancelOrders(context.Background(), []CancelMassReqParam{
 		{
@@ -5669,33 +5724,21 @@ func TestPlaceLendingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := ok.PlaceLendingOrder(context.Background(), &LendingOrderParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.PlaceLendingOrder(context.Background(), &LendingOrderParam{
-		Amount:      1,
-		Rate:        0.01,
-		Term:        "30D",
-		AutoRenewal: true,
-	})
+
+	arg := &LendingOrderParam{AutoRenewal: true}
+	_, err = ok.PlaceLendingOrder(context.Background(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = ok.PlaceLendingOrder(context.Background(), &LendingOrderParam{
-		Currency:    currency.USDT,
-		Rate:        0.01,
-		Term:        "30D",
-		AutoRenewal: true,
-	})
+
+	arg.Currency = currency.USDT
+	_, err = ok.PlaceLendingOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
-	_, err = ok.PlaceLendingOrder(context.Background(), &LendingOrderParam{
-		Currency:    currency.USDT,
-		Amount:      1,
-		Term:        "30D",
-		AutoRenewal: true,
-	})
+
+	arg.Amount = 1
+	_, err = ok.PlaceLendingOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errLendingRateRequired)
-	_, err = ok.PlaceLendingOrder(context.Background(), &LendingOrderParam{
-		Currency:    currency.USDT,
-		Amount:      1,
-		Rate:        0.01,
-		AutoRenewal: true,
-	})
+
+	arg.Rate = 0.01
+	_, err = ok.PlaceLendingOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errLendingTermIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)

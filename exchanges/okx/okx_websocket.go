@@ -1880,6 +1880,9 @@ func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
 func (ok *Okx) WsMassCancelOrders(ctx context.Context, args []CancelMassReqParam) (bool, error) {
 	for x := range args {
+		if args[x] == (CancelMassReqParam{}) {
+			return false, common.ErrEmptyParams
+		}
 		if args[x].InstrumentType == "" {
 			return false, fmt.Errorf("%w, instrument type can not be empty", errInvalidInstrumentType)
 		}

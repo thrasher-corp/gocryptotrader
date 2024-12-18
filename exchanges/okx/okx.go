@@ -4474,11 +4474,9 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 	default:
 		return duration
 	}
-
 	if appendUTC {
 		duration += "utc"
 	}
-
 	return duration
 }
 
