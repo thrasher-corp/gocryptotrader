@@ -793,7 +793,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {
 		err = exch.DisableRateLimiter()
 		if err != nil {
-			gctlog.Errorf(gctlog.ExchangeSys, "error disabling rate limiter for %s: %v", exch.GetName(), err)
+			gctlog.Errorf(gctlog.ExchangeSys, "%s error disabling rate limiter: %v", exch.GetName(), err)
 		} else {
 			gctlog.Warnf(gctlog.ExchangeSys, "%s rate limiting has been turned off", exch.GetName())
 		}
