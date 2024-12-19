@@ -18,6 +18,9 @@ func TestValidCollateralType(t *testing.T) {
 	if !PortfolioMode.Valid() {
 		t.Fatal("expected 'true', received 'false'")
 	}
+	if !SpotFuturesMode.Valid() {
+		t.Fatal("expected 'true', received 'false'")
+	}
 	if UnsetMode.Valid() {
 		t.Fatal("expected 'false', received 'true'")
 	}
