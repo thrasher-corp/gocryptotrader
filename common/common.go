@@ -653,24 +653,14 @@ type ElementProcessor[E any] func(index int, element E) error
 // For example, if batchSize = 10 and list has 100 elements, 10 goroutines will process 10 elements concurrently
 // in each batch. Each batch completes before the next batch begins.
 // `process` is a function called for each individual element with its index and value.
-func ProcessElementsByBatch[S ~[]E, E any](batchSize int, list S, process ElementProcessor[E]) (errs error) {
-	var wg sync.WaitGroup
-	errC := make(chan error, len(list))
+func ProcessElementsByBatch[S ~[]E, E any](batchSize int, list S, process ElementProcessor[E]) error {
+	var errs error
 	for i, s := range Batch(list, batchSize) {
-		wg.Add(len(s))
+		err := CollectErrors(len(s))
 		for j, e := range s {
-			go func(index int, element E) {
-				defer wg.Done()
-				if err := process(index, element); err != nil {
-					errC <- err
-				}
-			}((i*batchSize)+j, e)
+			go func(index int, element E) { err.C <- process(index, element); err.Wg.Done() }((i*batchSize)+j, e)
 		}
-		wg.Wait()
-	}
-	close(errC)
-	for err := range errC {
-		errs = AppendError(errs, err)
+		errs = AppendError(errs, err.Collect())
 	}
 	return errs
 }
@@ -678,26 +668,15 @@ func ProcessElementsByBatch[S ~[]E, E any](batchSize int, list S, process Elemen
 // BatchProcessor defines the function signature for processing a batch of elements.
 type BatchProcessor[S ~[]E, E any] func(batch S) error
 
-// ProcessBatches takes a slice of elements and processes them in batches of `batchSize` concurrently.
+// ProcessBatches processes `S` concurrently in batches of `batchSize`
 // For example, if batchSize = 10 and list has 100 elements, 10 goroutines will be created to process
 // 10 batches. Each batch is processed sequentially by the `process` function, and batches are processed
 // in parallel.
-func ProcessBatches[S ~[]E, E any](batchSize int, list S, process BatchProcessor[S, E]) (errs error) {
-	var wg sync.WaitGroup
-	errC := make(chan error, len(list))
-	for _, s := range Batch(list, batchSize) {
-		wg.Add(1)
-		go func(s S) {
-			defer wg.Done()
-			if err := process(s); err != nil {
-				errC <- err
-			}
-		}(s)
+func ProcessBatches[S ~[]E, E any](batchSize int, list S, process BatchProcessor[S, E]) error {
+	batches := Batch(list, batchSize)
+	errs := CollectErrors(len(batches))
+	for _, s := range batches {
+		go func(s S) { errs.C <- process(s); errs.Wg.Done() }(s)
 	}
-	wg.Wait()
-	close(errC)
-	for err := range errC {
-		errs = AppendError(errs, err)
-	}
-	return errs
+	return errs.Collect()
 }
