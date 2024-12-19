@@ -83,6 +83,12 @@ func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
 		return order.MarketMakerProtection, nil
 	case "mmp_and_post_only":
 		return order.MarketMakerProtectionAndPostOnly, nil
+	case "twap":
+		return order.TWAP, nil
+	case "move_order_stop":
+		return order.TrailingStop, nil
+	case "chase":
+		return order.Chase, nil
 	default:
 		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
@@ -93,8 +99,13 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 	switch orderType {
 	case order.ImmediateOrCancel:
 		return "ioc", nil
-	case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.Market, order.Limit,
+		order.PostOnly, order.FillOrKill, order.OptimalLimitIOC,
+		order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly,
+		order.Chase, order.TWAP:
 		return orderType.Lower(), nil
+	case order.TrailingStop:
+		return "move_order_stop", nil
 	default:
 		return "", fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, orderType)
 	}
@@ -144,7 +155,8 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	arg.OrderType = strings.ToLower(arg.OrderType)
 	switch arg.OrderType {
 	case OkxOrderMarket, OkxOrderLimit, OkxOrderPostOnly,
-		OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC:
+		OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC,
+		"mmp", "mmp_and_post_only":
 	default:
 		return fmt.Errorf("%w %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
@@ -154,7 +166,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	switch arg.QuantityType {
 	case "", "base_ccy", "quote_ccy":
 	default:
-		return errors.New("only base_ccy and quote_ccy quantity types are supported")
+		return errCurrencyQuantitTypeRequired
 	}
 	return nil
 }
@@ -551,6 +563,27 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
+// PlaceTakeProfitStopLossOrder places conditional and oco orders orders
+// When placing net TP/SL order (ordType=conditional) and both take-profit and stop-loss parameters are sent,
+// only stop-loss logic will be performed and take-profit logic will be ignored.
+func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if *arg == (AlgoOrderParams{}) {
+		return nil, common.ErrEmptyParams
+	}
+	if arg.OrderType != "conditional" {
+		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
+	}
+	if arg.StopLossTriggerPrice <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	switch arg.StopLossTriggerPriceType {
+	case "", "last", "index", "mark":
+	default:
+		return nil, fmt.Errorf("%w, only 'last', 'index', and 'mark' are supported", order.ErrUnknownPriceType)
+	}
+	return ok.PlaceAlgoOrder(ctx, arg)
+}
+
 // PlaceChaseAlgoOrder places an order that adjusts the price of an open limit order to match the current market price
 func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
@@ -559,8 +592,9 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	if arg.OrderType != "chase" {
 		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
 	}
-	if arg.MaxChaseType == "" || arg.MaxChaseValue <= 0 {
-		return nil, errPriceChaseTypeOrValueRequired
+	if (arg.MaxChaseType == "" && arg.MaxChaseValue == 0) ||
+		(arg.MaxChaseType != "" && arg.MaxChaseValue != 0) {
+		return nil, fmt.Errorf("%w, either non or both maxChaseType and macChaseValue has to be provided", errPriceChaseTypeAndValueRequired)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }

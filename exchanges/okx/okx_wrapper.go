@@ -58,6 +58,7 @@ func (ok *Okx) SetDefaults() {
 		Uppercase: true,
 	}
 
+	// In this exchange, we represent deliverable futures contracts as 'FUTURES'(asset.Futures) and perpetual futures as 'SWAP'/asset.PerpetualSwap
 	err := ok.SetGlobalPairsManager(cpf, cpf, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin, asset.Spread)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -901,13 +902,13 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
 	}
-	var sideType string
-	if s.Side.IsLong() {
-		sideType = order.Buy.Lower()
-	} else {
-		sideType = order.Sell.Lower()
+	var sideType, positionSide string
+	switch s.AssetType {
+	case asset.Spot, asset.Margin, asset.Spread:
+		sideType = s.Side.String()
+	case asset.Futures, asset.PerpetualSwap, asset.Options:
+		positionSide = s.Side.Lower()
 	}
-
 	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
@@ -946,45 +947,144 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	var orderRequest = &PlaceOrderRequestParam{
-		InstrumentID:  pairString,
-		TradeMode:     tradeMode,
-		Side:          sideType,
-		OrderType:     orderTypeString,
-		Amount:        amount,
-		ClientOrderID: s.ClientOrderID,
-		Price:         s.Price,
-		QuantityType:  targetCurrency,
-		AssetType:     s.AssetType,
-	}
-	switch s.Type.Lower() {
-	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
-		orderRequest.Price = s.Price
-	}
-	if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
-		if s.Type.Lower() == "" {
-			orderRequest.OrderType = OkxOrderOptimalLimitIOC
-		}
-		// TODO: handle positionSideLong while side is Short and positionSideShort while side is Long
-		if s.Side.IsLong() {
-			orderRequest.PositionSide = positionSideLong
-		} else {
-			orderRequest.PositionSide = positionSideShort
-		}
-	}
 	var placeOrderResponse *OrderData
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		placeOrderResponse, err = ok.WsPlaceOrder(ctx, orderRequest)
-		if err != nil {
-			return nil, err
+	var result *AlgoOrder
+	switch orderTypeString {
+	case OkxOrderLimit, OkxOrderMarket, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC, "mmp", "mmp_and_post_only":
+		var orderRequest = &PlaceOrderRequestParam{
+			InstrumentID:  pairString,
+			TradeMode:     tradeMode,
+			Side:          sideType,
+			PositionSide:  positionSide,
+			OrderType:     orderTypeString,
+			Amount:        amount,
+			ClientOrderID: s.ClientOrderID,
+			Price:         s.Price,
+			QuantityType:  targetCurrency,
+			AssetType:     s.AssetType,
 		}
-	} else {
-		placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest)
-		if err != nil {
-			return nil, err
+		switch s.Type.Lower() {
+		case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
+			orderRequest.Price = s.Price
 		}
+		if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
+			if s.Type.Lower() == "" {
+				orderRequest.OrderType = OkxOrderOptimalLimitIOC
+			}
+			// TODO: handle positionSideLong while side is Short and positionSideShort while side is Long
+			if s.Side.IsLong() {
+				orderRequest.PositionSide = positionSideLong
+			} else {
+				orderRequest.PositionSide = positionSideShort
+			}
+		}
+		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			placeOrderResponse, err = ok.WsPlaceOrder(ctx, orderRequest)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
+	case "trigger":
+		result, err = ok.TriggerAlgoOrder(ctx, &AlgoOrderParams{
+			InstrumentID:     pairString,
+			TradeMode:        tradeMode,
+			Side:             s.Side.Lower(),
+			PositionSide:     positionSide,
+			OrderType:        orderTypeString,
+			Size:             s.Amount,
+			ReduceOnly:       s.ReduceOnly,
+			TriggerPrice:     s.TriggerPrice,
+			TriggerPriceType: s.TriggerPriceType.String(),
+		})
+	case "conditional":
+		var stopLossPrice float64
+		if s.TriggerPrice > 0 {
+			stopLossPrice = s.TriggerPrice
+		}
+		// Trigger Price and type are used as a stop losss trigger price and type.
+		result, err = ok.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
+			InstrumentID:             pairString,
+			TradeMode:                tradeMode,
+			Side:                     s.Side.Lower(),
+			PositionSide:             positionSide,
+			OrderType:                orderTypeString,
+			Size:                     s.Amount,
+			ReduceOnly:               s.ReduceOnly,
+			StopLossTriggerPrice:     stopLossPrice,
+			StopLossOrderPrice:       s.Price,
+			StopLossTriggerPriceType: s.TriggerPriceType.String(),
+		})
+	case "chase":
+		if s.TrackingMode == order.UnknownTrackingMode {
+			return nil, order.ErrUnknownTrackingRate
+		}
+		result, err = ok.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
+			InstrumentID:  pairString,
+			TradeMode:     tradeMode,
+			Side:          s.Side.Lower(),
+			PositionSide:  positionSide,
+			OrderType:     orderTypeString,
+			Size:          s.Amount,
+			ReduceOnly:    s.ReduceOnly,
+			MaxChaseType:  s.TrackingMode.String(),
+			MaxChaseValue: s.TrackingValue,
+		})
+	case "move_order_stop":
+		result, err = ok.PlaceTrailingStopOrder(ctx, &AlgoOrderParams{
+			InstrumentID:  pairString,
+			TradeMode:     tradeMode,
+			Side:          sideType,
+			PositionSide:  positionSide,
+			OrderType:     orderTypeString,
+			Size:          s.Amount,
+			ReduceOnly:    s.ReduceOnly,
+			CallbackRatio: s.TrackingValue,
+		})
+	case "twap":
+		result, err = ok.PlaceTWAPOrder(ctx, &AlgoOrderParams{
+			InstrumentID: pairString,
+			TradeMode:    tradeMode,
+			Side:         sideType,
+			PositionSide: positionSide,
+			OrderType:    orderTypeString,
+			Size:         s.Amount,
+			ReduceOnly:   s.ReduceOnly,
+		})
+	case "oco":
+		switch {
+		case !s.RiskManagementModes.TakeProfit.Enabled || s.RiskManagementModes.TakeProfit.Price <= 0:
+			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
+		case !s.RiskManagementModes.StopLoss.Enabled || s.RiskManagementModes.StopLoss.Price <= 0:
+			return nil, fmt.Errorf("%w, stop loss price is required", order.ErrPriceBelowMin)
+		}
+		result, err = ok.PlaceAlgoOrder(ctx, &AlgoOrderParams{
+			InstrumentID: pairString,
+			TradeMode:    tradeMode,
+			Side:         sideType,
+			PositionSide: positionSide,
+			OrderType:    orderTypeString,
+			Size:         s.Amount,
+			ReduceOnly:   s.ReduceOnly,
+
+			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
+			TakeProfitTriggerPriceType: s.TriggerPriceType.String(),
+
+			StopLossTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
+			StopLossTriggerPriceType: s.TriggerPriceType.String(),
+		})
+	default:
+		return nil, order.ErrTypeIsInvalid
 	}
-	return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	return s.DeriveSubmitResponse(result.AlgoID)
 }
 
 func (ok *Okx) marginTypeToString(m margin.Type) string {

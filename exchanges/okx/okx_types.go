@@ -80,12 +80,13 @@ var (
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
 	errInvalidTradeModeValue                = errors.New("invalid trade mode value")
+	errCurrencyQuantitTypeRequired          = errors.New("only base_ccy and quote_ccy quantity types are supported")
 	errWebsocketStreamNotAuthenticated      = errors.New("websocket stream not authenticated")
 	errInvalidNewSizeOrPriceInformation     = errors.New("invalid the new size or price information")
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
 	errInvalidPriceLimit                    = errors.New("invalid price limit value")
 	errMissingIntervalValue                 = errors.New("missing interval value")
-	errPriceChaseTypeOrValueRequired        = errors.New("price chase type or chase value required")
+	errPriceChaseTypeAndValueRequired       = errors.New("price chase type or chase value required")
 	errMissingSizeLimit                     = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState           = errors.New("either algo ID or order state is required")
 	errAlgoIDRequired                       = errors.New("algo ID is required")
@@ -1085,14 +1086,15 @@ type AlgoOrderParams struct {
 	AlgoClientOrderID string  `json:"algoClOrdId,omitempty"`
 
 	// Place Stop Order params
-	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
 	TakeProfitOrderPrice       float64 `json:"tpOrdPx,string,omitempty"`
+	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
+	TakeProfitTriggerPriceType string  `json:"tpTriggerPxType,omitempty"`
 	StopLossTriggerPrice       float64 `json:"slTriggerPx,string,omitempty"`
 	StopLossOrderPrice         float64 `json:"slOrdPx,string,omitempty"`
 	StopLossTriggerPriceType   string  `json:"slTriggerPxType,omitempty"`
-	TakeProfitTriggerPriceType string  `json:"tpTriggerPxType,omitempty"`
+	CancelOnClosePosition      bool    `json:"cxlOnClosePos,omitempty"`
 
-	// Trigger Price  Or TrailingStopOrderRequestParam
+	// For trigger and trailing stop order
 	CallbackRatio          float64 `json:"callbackRatio,omitempty,string"`
 	ActivePrice            float64 `json:"activePx,string,omitempty"`
 	CallbackSpreadVariance string  `json:"callbackSpread,omitempty"`

@@ -747,6 +747,15 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = ok.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	arg.PositionSide = "long"
+	_, err = ok.PlaceOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.Amount = 1
+	arg.QuantityType = "abcd"
+	_, err = ok.PlaceOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errCurrencyQuantitTypeRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceOrder(contextGenerate(), &PlaceOrderRequestParam{
 		InstrumentID: "BTC-USDC",
@@ -1159,7 +1168,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 	_, err = ok.PlaceTWAPOrder(contextGenerate(), &AlgoOrderParams{ReduceOnly: true})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = ok.PlaceChaseAlgoOrder(context.Background(), &AlgoOrderParams{OrderType: "chase"})
-	require.ErrorIs(t, err, errPriceChaseTypeOrValueRequired)
+	require.ErrorIs(t, err, errPriceChaseTypeAndValueRequired)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -5871,15 +5880,18 @@ func TestOrderTypeString(t *testing.T) {
 		Expected string
 		Error    error
 	}{
-		order.Market:                           {Expected: OkxOrderMarket, Error: nil},
-		order.Limit:                            {Expected: OkxOrderLimit, Error: nil},
-		order.PostOnly:                         {Expected: OkxOrderPostOnly, Error: nil},
-		order.FillOrKill:                       {Expected: OkxOrderFOK, Error: nil},
-		order.ImmediateOrCancel:                {Expected: OkxOrderIOC, Error: nil},
-		order.OptimalLimitIOC:                  {Expected: OkxOrderOptimalLimitIOC, Error: nil},
-		order.MarketMakerProtection:            {Expected: "mmp", Error: nil},
-		order.MarketMakerProtectionAndPostOnly: {Expected: "mmp_and_post_only", Error: nil},
+		order.Market:                           {Expected: OkxOrderMarket},
+		order.Limit:                            {Expected: OkxOrderLimit},
+		order.PostOnly:                         {Expected: OkxOrderPostOnly},
+		order.FillOrKill:                       {Expected: OkxOrderFOK},
+		order.ImmediateOrCancel:                {Expected: OkxOrderIOC},
+		order.OptimalLimitIOC:                  {Expected: OkxOrderOptimalLimitIOC},
+		order.MarketMakerProtection:            {Expected: "mmp"},
+		order.MarketMakerProtectionAndPostOnly: {Expected: "mmp_and_post_only"},
 		order.OCO:                              {Error: order.ErrUnsupportedOrderType},
+		order.TrailingStop:                     {Expected: "move_order_stop"},
+		order.Chase:                            {Expected: "chase"},
+		order.TWAP:                             {Expected: "twap"},
 	}
 	for oType, val := range orderTypesToStringMap {
 		orderTypeString, err := ok.OrderTypeString(oType)

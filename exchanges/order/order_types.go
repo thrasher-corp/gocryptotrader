@@ -31,6 +31,8 @@ var (
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
+
+	ErrUnknownTrackingRate = errors.New("unknown tracking mode")
 )
 
 // Submit contains all properties of an order that may be required
@@ -92,6 +94,11 @@ type Submit struct {
 
 	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
 	Iceberg bool
+
+	// TrackingMode specifies the way trailing stop and chase orders follow the market price or ask/bid prices.
+	// See: https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	TrackingMode  TrackingMode
+	TrackingValue float64
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -128,6 +135,15 @@ type SubmitResponse struct {
 	LoanApplyID string
 	MarginType  margin.Type
 }
+
+// TrackingMode defines how the stop price follows the market price.
+type TrackingMode uint8
+
+const (
+	UnknownTrackingMode TrackingMode = iota
+	Distance                         // fixed amount away from the market price
+	Percentage                       // fixed percentage away from the market price
+)
 
 // Modify contains all properties of an order
 // that may be updated after it has been created
@@ -363,6 +379,8 @@ const (
 	ConditionalStop                  // One-way stop order
 	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
 	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
+	TWAP                             // time-weighted average price.
+	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
 )
 
 // Side enforces a standard for order sides across the code base
