@@ -1451,6 +1451,7 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
 	r, err = g.GetAllDeliveryContracts(context.Background(), currency.BTC)
 	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	// The test below will fail if support for BTC settlement is added. This is intentional, as it ensures we are alerted when it's time to reintroduce support
 	assert.Empty(t, r, "GetAllDeliveryContracts should not return any data with unsupported settlement currency BTC")
 }
 
