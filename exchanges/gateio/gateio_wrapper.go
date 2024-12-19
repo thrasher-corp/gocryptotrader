@@ -633,6 +633,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var tickers []FuturesTicker
 		var ticks []FuturesTicker
 		for _, settle := range settlementCurrencies {
+			// All delivery futures are settled in USDT only, despite the API accepting a settlement currency parameter for all delivery futures endpoints
 			if a == asset.DeliveryFutures && !settle.Equal(currency.USDT) {
 				continue
 			}
@@ -832,6 +833,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 	case asset.Futures, asset.DeliveryFutures:
 		currencies := make([]account.Balance, 0, 2)
 		for x := range settlementCurrencies {
+			// All delivery futures are settled in USDT only, despite the API accepting a settlement currency parameter for all delivery futures endpoints
 			if a == asset.DeliveryFutures && !settlementCurrencies[x].Equal(currency.USDT) {
 				continue
 			}
@@ -1729,6 +1731,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		}
 
 		for settlement := range settlements {
+			// All delivery futures are settled in USDT only, despite the API accepting a settlement currency parameter for all delivery futures endpoints
 			if req.AssetType == asset.DeliveryFutures && !settlement.Equal(currency.USDT) {
 				continue
 			}

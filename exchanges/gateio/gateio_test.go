@@ -1451,7 +1451,7 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
 	r, err = g.GetAllDeliveryContracts(context.Background(), currency.BTC)
 	require.NoError(t, err, "GetAllDeliveryContracts must not error")
-	assert.Empty(t, r, "GetAllDeliveryContracts shouldn't return data")
+	assert.Empty(t, r, "GetAllDeliveryContracts should not return any data with unsupported settlement currency BTC")
 }
 
 func TestGetSingleDeliveryContracts(t *testing.T) {
