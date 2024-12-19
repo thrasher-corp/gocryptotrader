@@ -584,15 +584,17 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 		return errs
 	}
 
+	// This will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
+	// This will decrease the amount of time it takes to subscribe to a large number of subscriptions.
 	return common.ProcessElementsByBatch(subscriptionBatchCount, subs, func(_ int, s *subscription.Subscription) error {
-		if err := g.manageTemplatePayload(ctx, conn, event, s); err != nil {
+		if err := g.manageSubPayload(ctx, conn, event, s); err != nil {
 			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
 		return nil
 	})
 }
 
-func (g *Gateio) manageTemplatePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription) error {
+func (g *Gateio) manageSubPayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription) error {
 	msg, err := g.manageSubReq(ctx, event, conn, s)
 	if err != nil {
 		return err
@@ -702,15 +704,17 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		return err
 	}
 
+	// This will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
+	// This will decrease the amount of time it takes to subscribe to a large number of subscriptions.
 	return common.ProcessElementsByBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
-		if err := g.managePayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
+		if err := g.sendSubPayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
 			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}
 		return nil
 	})
 }
 
-func (g *Gateio) managePayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
+func (g *Gateio) sendSubPayload(ctx context.Context, conn stream.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
 	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.ID, payload)
 	if err != nil {
 		return err
