@@ -92,8 +92,10 @@ func TestWebsocketOrderCancelSpot(t *testing.T) {
 
 func TestWebsocketOrderCancelAllByIDsSpot(t *testing.T) {
 	t.Parallel()
+	_, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{})
+	require.ErrorIs(t, err, errNoOrdersToCancel)
 	out := WebsocketOrderBatchRequest{}
-	_, err := g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
+	_, err = g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	out.OrderID = "1337"
 	_, err = g.WebsocketOrderCancelAllByIDsSpot(context.Background(), []WebsocketOrderBatchRequest{out})
