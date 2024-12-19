@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -2826,8 +2827,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
@@ -3012,11 +3014,11 @@ func TestGetSettlementFromCurrency(t *testing.T) {
 	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
 		availPairs, err := g.GetAvailablePairs(assetType)
 		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
-		for x := range availPairs {
-			t.Run(strconv.Itoa(x), func(t *testing.T) {
+		for i, pair := range availPairs {
+			t.Run(strconv.Itoa(i)+":"+assetType.String(), func(t *testing.T) {
 				t.Parallel()
-				_, err = getSettlementFromCurrency(availPairs[x])
-				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", availPairs[x], assetType)
+				_, err := getSettlementFromCurrency(pair)
+				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", pair, assetType)
 			})
 		}
 	}

@@ -69,6 +69,8 @@ var (
 	ErrNoResponse             = errors.New("no response")
 	ErrTypeAssertFailure      = errors.New("type assert failure")
 	ErrUnknownError           = errors.New("unknown error")
+	ErrGettingField           = errors.New("error getting field")
+	ErrSettingField           = errors.New("error setting field")
 )
 
 var (
