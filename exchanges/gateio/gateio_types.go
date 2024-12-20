@@ -2008,12 +2008,13 @@ type WsEventResponse struct {
 
 // WsResponse represents generalized websocket push data from the server.
 type WsResponse struct {
-	ID      int64           `json:"id"`
-	Time    types.Time      `json:"time"`
-	TimeMs  types.Time      `json:"time_ms"`
-	Channel string          `json:"channel"`
-	Event   string          `json:"event"`
-	Result  json.RawMessage `json:"result"`
+	ID        int64           `json:"id"`
+	Time      types.Time      `json:"time"`
+	TimeMs    types.Time      `json:"time_ms"`
+	Channel   string          `json:"channel"`
+	Event     string          `json:"event"`
+	Result    json.RawMessage `json:"result"`
+	RequestID string          `json:"request_id"`
 }
 
 // WsTicker websocket ticker information.

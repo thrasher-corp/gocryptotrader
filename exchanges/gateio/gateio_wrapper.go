@@ -218,6 +218,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.Unsubscribe,
 		GenerateSubscriptions:    g.generateSubscriptionsSpot,
 		Connector:                g.WsConnectSpot,
+		Authenticate:             g.authenticateSpot,
+		MessageFilter:            asset.Spot,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
@@ -235,6 +237,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.FuturesUnsubscribe,
 		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
 		Connector:                g.WsFuturesConnect,
+		MessageFilter:            asset.USDTMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
@@ -253,6 +256,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.FuturesUnsubscribe,
 		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.BTC) },
 		Connector:                g.WsFuturesConnect,
+		MessageFilter:            asset.CoinMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
@@ -272,6 +276,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
 		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:                g.WsDeliveryFuturesConnect,
+		MessageFilter:            asset.DeliveryFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 	if err != nil {
@@ -288,6 +293,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.OptionsUnsubscribe,
 		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
 		Connector:                g.WsOptionsConnect,
+		MessageFilter:            asset.Options,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
 }
