@@ -21,7 +21,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1007,7 +1009,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			ret, err := h.FormatExchangeKlineInterval(test.interval)
+			ret, err := formatExchangeKlineInterval(test.interval)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1089,4 +1091,68 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	h := new(HitBTC)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, h.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+	subs, err := h.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	pairs, err := h.GetEnabledPairs(asset.Spot)
+	require.NoErrorf(t, err, "GetEnabledPairs must not error")
+	for _, s := range h.Features.Subscriptions {
+		for _, p := range pairs.Format(currency.PairFormat{Uppercase: true}) {
+			s = s.Clone()
+			s.Pairs = currency.Pairs{p}
+			n := subscriptionNames[s.Channel]
+			switch s.Channel {
+			case subscription.MyAccountChannel:
+				s.QualifiedChannel = `{"method":"` + n + `"}`
+			case subscription.CandlesChannel:
+				s.QualifiedChannel = `{"method":"` + n + `","params":{"symbol":"` + p.String() + `","period":"M30","limit":100}}`
+			case subscription.AllTradesChannel:
+				s.QualifiedChannel = `{"method":"` + n + `","params":{"symbol":"` + p.String() + `","limit":100}}`
+			default:
+				s.QualifiedChannel = `{"method":"` + n + `","params":{"symbol":"` + p.String() + `"}}`
+			}
+			exp = append(exp, s)
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestIsSymbolChannel(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isSymbolChannel(&subscription.Subscription{Channel: subscription.TickerChannel}))
+	assert.False(t, isSymbolChannel(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
+}
+
+func TestSubToReq(t *testing.T) {
+	t.Parallel()
+	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
+	r := subToReq(&subscription.Subscription{Channel: subscription.TickerChannel}, p)
+	assert.Equal(t, "Ticker", r.Method)
+	assert.Equal(t, "BTC-USD", (r.Params.Symbol))
+
+	r = subToReq(&subscription.Subscription{Channel: subscription.CandlesChannel, Levels: 4, Interval: kline.OneHour}, p)
+	assert.Equal(t, "Candles", r.Method)
+	assert.Equal(t, "H1", r.Params.Period)
+	assert.Equal(t, 4, r.Params.Limit)
+	assert.Equal(t, "BTC-USD", (r.Params.Symbol))
+
+	r = subToReq(&subscription.Subscription{Channel: subscription.AllTradesChannel, Levels: 150})
+	assert.Equal(t, "Trades", r.Method)
+	assert.Equal(t, 150, r.Params.Limit)
+
+	assert.PanicsWithError(t,
+		"subscription channel not supported: myTrades",
+		func() { subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p) },
+		"should panic on invalid channel",
+	)
 }
