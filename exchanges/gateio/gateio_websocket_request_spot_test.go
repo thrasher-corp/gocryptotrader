@@ -38,9 +38,9 @@ func TestWebsocketLogin(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotSubmitOrder(context.Background(), WebsocketOrder{})
+	_, err := g.WebsocketSpotSubmitOrder(context.Background(), &WebsocketOrder{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := WebsocketOrder{CurrencyPair: "BTC_USDT"}
+	out := &WebsocketOrder{CurrencyPair: "BTC_USDT"}
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())

@@ -23,8 +23,8 @@ var (
 )
 
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
-func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order WebsocketOrder) ([]WebsocketOrderResponse, error) {
-	return g.WebsocketSpotSubmitOrders(ctx, []WebsocketOrder{order})
+func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *WebsocketOrder) ([]WebsocketOrderResponse, error) {
+	return g.WebsocketSpotSubmitOrders(ctx, []WebsocketOrder{*order})
 }
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
