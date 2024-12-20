@@ -1119,7 +1119,7 @@ func TestPlaceIcebergOrder(t *testing.T) {
 	result, err := ok.PlaceIcebergOrder(contextGenerate(), &AlgoOrderParams{
 		AlgoClientOrderID: "681096944655273984",
 		LimitPrice:        100.22, SizeLimit: 9999.9,
-		PriceSpread: "0.04", InstrumentID: "BTC-USDT",
+		PriceSpread: 0.04, InstrumentID: "BTC-USDT",
 		OrderType: "iceberg", Side: order.Buy.Lower(),
 		TradeMode: "isolated", Size: 6,
 	})
@@ -1152,11 +1152,12 @@ func TestPlaceTWAPOrder(t *testing.T) {
 		LimitPrice:        100.22,
 		SizeLimit:         9999.9,
 		OrderType:         "twap",
-		PriceSpread:       "0.4",
+		PriceSpread:       0.4,
 		TradeMode:         "cross",
 		Side:              order.Sell.Lower(),
 		Size:              6,
-		TimeInterval:      kline.ThreeDay})
+		TimeInterval:      kline.ThreeDay,
+	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1168,7 +1169,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 	_, err = ok.PlaceTWAPOrder(contextGenerate(), &AlgoOrderParams{ReduceOnly: true})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = ok.PlaceChaseAlgoOrder(context.Background(), &AlgoOrderParams{OrderType: "chase"})
-	require.ErrorIs(t, err, errPriceChaseTypeAndValueRequired)
+	require.ErrorIs(t, err, errPriceTrackingNotSet)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -1224,7 +1225,7 @@ func TestPlaceTrailingStopOrder(t *testing.T) {
 	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2})
 	assert.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2, OrderType: "move_order_stop"})
-	assert.ErrorIs(t, err, errTrailingPriceCallbackRatioRequired)
+	assert.ErrorIs(t, err, errPriceTrackingNotSet)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)

@@ -86,7 +86,6 @@ var (
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
 	errInvalidPriceLimit                    = errors.New("invalid price limit value")
 	errMissingIntervalValue                 = errors.New("missing interval value")
-	errPriceChaseTypeAndValueRequired       = errors.New("price chase type or chase value required")
 	errMissingSizeLimit                     = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState           = errors.New("either algo ID or order state is required")
 	errAlgoIDRequired                       = errors.New("algo ID is required")
@@ -155,7 +154,7 @@ var (
 	errPaymentMethodRequired                = errors.New("payment method required")
 	errIDNotSet                             = errors.New("ID is not set")
 	errMonthNameRequired                    = errors.New("month name is required")
-	errTrailingPriceCallbackRatioRequired   = errors.New("trailing price callback ratio required")
+	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1096,8 +1095,8 @@ type AlgoOrderParams struct {
 
 	// For trigger and trailing stop order
 	CallbackRatio          float64 `json:"callbackRatio,omitempty,string"`
-	ActivePrice            float64 `json:"activePx,string,omitempty"`
-	CallbackSpreadVariance string  `json:"callbackSpread,omitempty"`
+	ActivePrice            float64 `json:"activePx,string,omitempty,string"`
+	CallbackSpreadVariance float64 `json:"callbackSpread,omitempty,string"`
 
 	// trigger algo orders params.
 	// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
@@ -1105,10 +1104,10 @@ type AlgoOrderParams struct {
 	OrderPrice       float64 `json:"orderPx,string,omitempty"` // if the price i -1, then the order will be executed on the market.
 	TriggerPriceType string  `json:"triggerPxType,omitempty"`  // last, index, and mark
 
-	PriceVariance string  `json:"pxVar,omitempty"`          // Optional
-	PriceSpread   string  `json:"pxSpread,omitempty"`       // Optional
-	SizeLimit     float64 `json:"szLimit,string,omitempty"` // Required
-	LimitPrice    float64 `json:"pxLimit,string,omitempty"` // Required
+	PriceVariance float64 `json:"pxVar,omitempty,string"`    // Optional
+	PriceSpread   float64 `json:"pxSpread,omitempty,string"` // Optional
+	SizeLimit     float64 `json:"szLimit,string,omitempty"`  // Required
+	LimitPrice    float64 `json:"pxLimit,string,omitempty"`  // Required
 
 	// TWAPOrder
 	TimeInterval kline.Interval `json:"interval,omitempty"` // Required
@@ -1132,12 +1131,31 @@ type AlgoOrder struct {
 
 // AmendAlgoOrderParam request parameter to amend an algo order
 type AmendAlgoOrderParam struct {
-	InstrumentID                  string  `json:"instId"`
-	AlgoID                        string  `json:"algoId,omitempty"`
-	ClientSuppliedAlgoOrderID     string  `json:"algoClOrdId,omitempty"`
-	CancelOrderWhenFail           bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically canceled when the order amendment fails Valid options: false or true, the default is false.
-	RequestID                     string  `json:"reqId,omitempty"`
-	NewSize                       float64 `json:"newSz,omitempty,string"`
+	InstrumentID              string  `json:"instId"`
+	AlgoID                    string  `json:"algoId,omitempty"`
+	ClientSuppliedAlgoOrderID string  `json:"algoClOrdId,omitempty"`
+	CancelOrderWhenFail       bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically canceled when the order amendment fails Valid options: false or true, the default is false.
+	RequestID                 string  `json:"reqId,omitempty"`
+	NewSize                   float64 `json:"newSz,omitempty,string"`
+
+	// Take Profit Stop Loss Orders
+	NewTakeProfitTriggerPrice     float64 `json:"newTpTriggerPx,omitempty,string"`
+	NewTakeProfitOrderPrice       float64 `json:"newTpOrdPx,omitempty,string"`
+	NewStopLossTriggerPrice       float64 `json:"newSlTriggerPx,omitempty,string"`
+	NewStopLossOrderPrice         float64 `json:"newSlOrdPx,omitempty,string"`  // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
+	NewTakeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
+	NewStopLossTriggerPriceType   string  `json:"newSlTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
+
+	// Trigger Order parameters
+	NewTriggerPrice     float64 `json:"newTriggerPx,omitempty"`
+	NewOrderPrice       float64 `json:"newOrdPx,omitempty"`
+	NewTriggerPriceType string  `json:"newTriggerPxType,omitempty"`
+
+	AttachAlgoOrders []SubTPSLParams `json:"attachAlgoOrds,omitempty"`
+}
+
+// SubTPSLParams represents take-profit and stop-loss price parameters to be used by algo orders
+type SubTPSLParams struct {
 	NewTakeProfitTriggerPrice     float64 `json:"newTpTriggerPx,omitempty,string"`
 	NewTakeProfitOrderPrice       float64 `json:"newTpOrdPx,omitempty,string"`
 	NewStopLossTriggerPrice       float64 `json:"newSlTriggerPx,omitempty,string"`
@@ -3887,16 +3905,18 @@ type InvestmentData struct {
 
 // ComputeInvestmentDataParam holds parameter values for computing investment data
 type ComputeInvestmentDataParam struct {
-	InstrumentID   string           `json:"instId"`
-	AlgoOrderType  string           `json:"algoOrdType"` // Algo order type 'grid': Spot grid 'contract_grid': Contract grid
-	GridNumber     float64          `json:"gridNum,string"`
-	Direction      string           `json:"direction"` // Contract grid type 'long','short', 'neutral' Only applicable to contract grid
-	MaxPrice       float64          `json:"maxPx,string"`
-	MinPrice       float64          `json:"minPx,string"`
-	RunType        string           `json:"runType"` // Grid type 1: Arithmetic, 2: Geometric
-	Leverage       float64          `json:"lever,omitempty,string"`
-	BasePosition   bool             `json:"basePos"`
-	InvestmentData []InvestmentData `json:"investmentData"`
+	InstrumentID    string           `json:"instId"`
+	AlgoOrderType   string           `json:"algoOrdType"` // Algo order type 'grid': Spot grid 'contract_grid': Contract grid
+	GridNumber      float64          `json:"gridNum,string"`
+	Direction       string           `json:"direction,omitempty"` // Contract grid type 'long','short', 'neutral' Only applicable to contract grid
+	MaxPrice        float64          `json:"maxPx,string"`
+	MinPrice        float64          `json:"minPx,string"`
+	RunType         string           `json:"runType"` // Grid type 1: Arithmetic, 2: Geometric
+	Leverage        float64          `json:"lever,omitempty,string"`
+	BasePosition    bool             `json:"basePos,omitempty"`
+	InvestmentType  string           `json:"investmentType,omitempty"`
+	TriggerStrategy string           `json:"triggerStrategy,omitempty"` // TriggerStrategy possible values are 'instant', 'price', 'rsi'
+	InvestmentData  []InvestmentData `json:"investmentData,omitempty"`
 }
 
 // InvestmentResult holds investment response

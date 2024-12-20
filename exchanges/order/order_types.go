@@ -139,10 +139,11 @@ type SubmitResponse struct {
 // TrackingMode defines how the stop price follows the market price.
 type TrackingMode uint8
 
+// Defined package tracking modes
 const (
 	UnknownTrackingMode TrackingMode = iota
-	Distance                         // fixed amount away from the market price
-	Percentage                       // fixed percentage away from the market price
+	Distance                         // Distance fixed amount away from the market price
+	Percentage                       // Percentage fixed percentage away from the market price
 )
 
 // Modify contains all properties of an order

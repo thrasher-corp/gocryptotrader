@@ -1036,7 +1036,40 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			MaxChaseValue: s.TrackingValue,
 		})
 	case "move_order_stop":
+		if s.TrackingMode == order.UnknownTrackingMode {
+			return nil, order.ErrUnknownTrackingRate
+		}
+		var callbackSpread, callbackRatio float64
+		switch s.TrackingMode {
+		case order.Distance:
+			callbackSpread = s.TrackingValue
+		case order.Percentage:
+			callbackRatio = s.TrackingValue
+		}
 		result, err = ok.PlaceTrailingStopOrder(ctx, &AlgoOrderParams{
+			InstrumentID:           pairString,
+			TradeMode:              tradeMode,
+			Side:                   sideType,
+			PositionSide:           positionSide,
+			OrderType:              orderTypeString,
+			Size:                   s.Amount,
+			ReduceOnly:             s.ReduceOnly,
+			CallbackRatio:          callbackRatio,
+			CallbackSpreadVariance: callbackSpread,
+			ActivePrice:            s.TriggerPrice,
+		})
+	case "twap":
+		if s.TrackingMode == order.UnknownTrackingMode {
+			return nil, order.ErrUnknownTrackingRate
+		}
+		var priceVar, priceSpread float64
+		switch s.TrackingMode {
+		case order.Distance:
+			priceSpread = s.TrackingValue
+		case order.Percentage:
+			priceVar = s.TrackingValue
+		}
+		result, err = ok.PlaceTWAPOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
 			TradeMode:     tradeMode,
 			Side:          sideType,
@@ -1044,23 +1077,17 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			OrderType:     orderTypeString,
 			Size:          s.Amount,
 			ReduceOnly:    s.ReduceOnly,
-			CallbackRatio: s.TrackingValue,
-		})
-	case "twap":
-		result, err = ok.PlaceTWAPOrder(ctx, &AlgoOrderParams{
-			InstrumentID: pairString,
-			TradeMode:    tradeMode,
-			Side:         sideType,
-			PositionSide: positionSide,
-			OrderType:    orderTypeString,
-			Size:         s.Amount,
-			ReduceOnly:   s.ReduceOnly,
+			PriceVariance: priceVar,
+			PriceSpread:   priceSpread,
+			SizeLimit:     s.Amount,
+			LimitPrice:    s.Price,
+			TimeInterval:  kline.FifteenMin,
 		})
 	case "oco":
 		switch {
-		case !s.RiskManagementModes.TakeProfit.Enabled || s.RiskManagementModes.TakeProfit.Price <= 0:
+		case s.RiskManagementModes.TakeProfit.Price <= 0:
 			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
-		case !s.RiskManagementModes.StopLoss.Enabled || s.RiskManagementModes.StopLoss.Price <= 0:
+		case s.RiskManagementModes.StopLoss.Price <= 0:
 			return nil, fmt.Errorf("%w, stop loss price is required", order.ErrPriceBelowMin)
 		}
 		result, err = ok.PlaceAlgoOrder(ctx, &AlgoOrderParams{
@@ -1134,19 +1161,85 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if action.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	amendRequest := AmendOrderRequestParams{
-		InstrumentID:  pairFormat.Format(action.Pair),
-		NewQuantity:   action.Amount,
-		OrderID:       action.OrderID,
-		ClientOrderID: action.ClientOrderID,
-	}
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = ok.WsAmendOrder(ctx, &amendRequest)
-	} else {
-		_, err = ok.AmendOrder(ctx, &amendRequest)
-	}
-	if err != nil {
-		return nil, err
+	switch action.Type {
+	case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
+		order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+		amendRequest := AmendOrderRequestParams{
+			InstrumentID:  pairFormat.Format(action.Pair),
+			NewQuantity:   action.Amount,
+			OrderID:       action.OrderID,
+			ClientOrderID: action.ClientOrderID,
+		}
+		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			_, err = ok.WsAmendOrder(ctx, &amendRequest)
+		} else {
+			_, err = ok.AmendOrder(ctx, &amendRequest)
+		}
+		if err != nil {
+			return nil, err
+		}
+	case order.Trigger:
+		if action.TriggerPrice == 0 {
+			return nil, fmt.Errorf("%w, trigger price required", order.ErrPriceBelowMin)
+		}
+		var postTriggerTPSLOrders []SubTPSLParams
+		if action.RiskManagementModes.StopLoss.Price > 0 && action.RiskManagementModes.TakeProfit.Price > 0 {
+			postTriggerTPSLOrders = []SubTPSLParams{
+				{
+					NewTakeProfitTriggerPrice:     action.RiskManagementModes.TakeProfit.Price,
+					NewTakeProfitOrderPrice:       action.RiskManagementModes.TakeProfit.LimitPrice,
+					NewStopLossTriggerPrice:       action.RiskManagementModes.StopLoss.Price,
+					NewStopLossOrderPrice:         action.RiskManagementModes.StopLoss.Price,
+					NewTakeProfitTriggerPriceType: action.RiskManagementModes.TakeProfit.TriggerPriceType.String(),
+					NewStopLossTriggerPriceType:   action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
+				},
+			}
+		}
+		_, err = ok.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
+			InstrumentID:              pairFormat.Format(action.Pair),
+			AlgoID:                    action.OrderID,
+			ClientSuppliedAlgoOrderID: action.ClientOrderID,
+			NewSize:                   action.Amount,
+
+			NewTriggerPrice:     action.TriggerPrice,
+			NewOrderPrice:       action.Price,
+			NewTriggerPriceType: action.TriggerPriceType.String(),
+
+			// An one-cancel-other order to be placed after executing the trigger order
+			AttachAlgoOrders: postTriggerTPSLOrders,
+		})
+		if err != nil {
+			return nil, err
+		}
+	case order.OCO:
+		switch {
+		case action.RiskManagementModes.TakeProfit.Price <= 0 &&
+			action.RiskManagementModes.TakeProfit.LimitPrice <= 0:
+			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", order.ErrPriceBelowMin)
+		case action.RiskManagementModes.StopLoss.Price <= 0 &&
+			action.RiskManagementModes.StopLoss.LimitPrice <= 0:
+			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", order.ErrPriceBelowMin)
+		}
+		_, err = ok.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
+			InstrumentID:              pairFormat.Format(action.Pair),
+			AlgoID:                    action.OrderID,
+			ClientSuppliedAlgoOrderID: action.ClientOrderID,
+			NewSize:                   action.Amount,
+
+			NewTakeProfitTriggerPrice: action.RiskManagementModes.TakeProfit.Price,
+			NewTakeProfitOrderPrice:   action.RiskManagementModes.TakeProfit.LimitPrice,
+
+			NewStopLossTriggerPrice: action.RiskManagementModes.StopLoss.Price,
+			NewStopLossOrderPrice:   action.RiskManagementModes.StopEntry.LimitPrice,
+
+			NewTakeProfitTriggerPriceType: action.RiskManagementModes.TakeProfit.TriggerPriceType.String(),
+			NewStopLossTriggerPriceType:   action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("%w, could not amend order of type %v", order.ErrUnsupportedOrderType, action.Type)
 	}
 	return action.DeriveModifyResponse()
 }
@@ -1172,19 +1265,40 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if ord.Pair.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
-	}
 	instrumentID := pairFormat.Format(ord.Pair)
-	req := CancelOrderRequestParam{
-		InstrumentID:  instrumentID,
-		OrderID:       ord.OrderID,
-		ClientOrderID: ord.ClientOrderID,
-	}
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = ok.WsCancelOrder(ctx, &req)
-	} else {
-		_, err = ok.CancelSingleOrder(ctx, &req)
+	switch ord.Type {
+	case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
+		order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+		if ord.Pair.IsEmpty() {
+			return currency.ErrCurrencyPairEmpty
+		}
+		req := CancelOrderRequestParam{
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
+		}
+		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			_, err = ok.WsCancelOrder(ctx, &req)
+		} else {
+			_, err = ok.CancelSingleOrder(ctx, &req)
+		}
+	case order.Trigger, order.OCO, order.ConditionalStop,
+		order.TWAP, order.TrailingStop, order.Chase:
+		response, err := ok.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
+			{
+				AlgoOrderID:  ord.OrderID,
+				InstrumentID: instrumentID,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		if response.StatusCode != "0" {
+			return fmt.Errorf("sCode: %s sMessage: %s", response.StatusCode, response.StatusMsg)
+		}
+		return nil
+	default:
+		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
 	}
 	return err
 }
@@ -1196,7 +1310,8 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	} else if len(o) == 0 {
 		return nil, fmt.Errorf("%w, must have at least 1 cancel order", order.ErrCancelOrderIsNil)
 	}
-	cancelOrderParams := make([]CancelOrderRequestParam, len(o))
+	cancelOrderParams := make([]CancelOrderRequestParam, 0, len(o))
+	cancelAlgoOrderParams := make([]AlgoOrderCancelParams, 0, len(o))
 	var err error
 	for x := range o {
 		ord := o[x]
@@ -1215,29 +1330,63 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ord.Pair.IsPopulated() {
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
-		cancelOrderParams[x] = CancelOrderRequestParam{
-			InstrumentID:  pairFormat.Format(ord.Pair),
-			OrderID:       ord.OrderID,
-			ClientOrderID: ord.ClientOrderID,
+		switch ord.Type {
+		case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
+			order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
+				InstrumentID:  pairFormat.Format(ord.Pair),
+				OrderID:       ord.OrderID,
+				ClientOrderID: ord.ClientOrderID,
+			})
+		case order.Trigger, order.OCO, order.ConditionalStop,
+			order.TWAP, order.TrailingStop, order.Chase:
+			if o[x].OrderID == "" {
+				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
+			}
+			cancelAlgoOrderParams = append(cancelAlgoOrderParams, AlgoOrderCancelParams{
+				AlgoOrderID:  o[x].OrderID,
+				InstrumentID: pairFormat.Format(ord.Pair),
+			})
+		default:
+			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
 		}
 	}
-	var canceledOrders []OrderData
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		canceledOrders, err = ok.WsCancelMultipleOrder(ctx, cancelOrderParams)
-	} else {
-		canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
-	}
-	if err != nil {
-		return nil, err
-	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
-	for x := range canceledOrders {
-		resp.Status[canceledOrders[x].OrderID] = func() string {
-			if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
-				return ""
+	if len(cancelOrderParams) > 0 {
+		var canceledOrders []OrderData
+		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			canceledOrders, err = ok.WsCancelMultipleOrder(ctx, cancelOrderParams)
+		} else {
+			canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
+		}
+		if err != nil {
+			return nil, err
+		}
+		for x := range canceledOrders {
+			resp.Status[canceledOrders[x].OrderID] = func() string {
+				if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
+					return ""
+				}
+				return order.Cancelled.String()
+			}()
+		}
+	}
+	if len(cancelAlgoOrderParams) > 0 {
+		cancelationResponse, err := ok.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
+		if err != nil {
+			if len(resp.Status) > 0 {
+				return resp, nil
 			}
-			return order.Cancelled.String()
-		}()
+			return nil, err
+		} else if cancelationResponse.StatusCode != "0" {
+			if len(resp.Status) > 0 {
+				return resp, nil
+			}
+			return resp, fmt.Errorf("sCode: %s sMessage: %s", cancelationResponse.StatusCode, cancelationResponse.StatusMsg)
+		}
+		for x := range cancelAlgoOrderParams {
+			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()
+		}
 	}
 	return resp, nil
 }

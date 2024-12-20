@@ -520,8 +520,8 @@ func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *AlgoOrderParams)
 	if arg.OrderType != "move_order_stop" {
 		return nil, fmt.Errorf("%w: order type value 'move_order_stop' is only supported for move_order_stop orders", order.ErrTypeIsInvalid)
 	}
-	if arg.CallbackRatio == 0 && arg.CallbackSpreadVariance == "" {
-		return nil, fmt.Errorf(" %w \"callbackRatio\" or \"callbackSpread\" required", errTrailingPriceCallbackRatioRequired)
+	if arg.CallbackRatio == 0 && arg.CallbackSpreadVariance == 0 {
+		return nil, fmt.Errorf(" %w \"callbackRatio\" or \"callbackSpread\" required", errPriceTrackingNotSet)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
@@ -563,7 +563,7 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// PlaceTakeProfitStopLossOrder places conditional and oco orders orders
+// PlaceTakeProfitStopLossOrder places conditional and oco orders
 // When placing net TP/SL order (ordType=conditional) and both take-profit and stop-loss parameters are sent,
 // only stop-loss logic will be performed and take-profit logic will be ignored.
 func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
@@ -594,7 +594,7 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	}
 	if (arg.MaxChaseType == "" && arg.MaxChaseValue == 0) ||
 		(arg.MaxChaseType != "" && arg.MaxChaseValue != 0) {
-		return nil, fmt.Errorf("%w, either non or both maxChaseType and macChaseValue has to be provided", errPriceChaseTypeAndValueRequired)
+		return nil, fmt.Errorf("%w, either non or both maxChaseType and macChaseValue has to be provided", errPriceTrackingNotSet)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
@@ -664,7 +664,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 // AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
 // Only applicable to Futures and Perpetual swap.
 func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*AmendAlgoResponse, error) {
-	if *arg == (AmendAlgoOrderParam{}) {
+	if arg == nil {
 		return nil, common.ErrEmptyParams
 	}
 	if arg.InstrumentID == "" {
@@ -3438,7 +3438,7 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 	}
 	if arg.AlgoOrderType == "contract_grid" {
 		switch arg.Direction {
-		case "long", "short", "neutral":
+		case positionSideLong, positionSideShort, "neutral":
 		default:
 			return nil, fmt.Errorf("%w, invalid grid direction %s", errMissingRequiredArgumentDirection, arg.Direction)
 		}
