@@ -22,9 +22,14 @@ var (
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
-// WebsocketSpotSubmitOrder submits an order via the websocket connection. You can
+// WebsocketSpotSubmitOrder submits an order via the websocket connection
+func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order WebsocketOrder) ([]WebsocketOrderResponse, error) {
+	return g.WebsocketSpotSubmitOrders(ctx, []WebsocketOrder{order})
+}
+
+// WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, orders []WebsocketOrder) ([]WebsocketOrderResponse, error) {
+func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders []WebsocketOrder) ([]WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}

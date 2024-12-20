@@ -38,19 +38,45 @@ func TestWebsocketLogin(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotSubmitOrder(context.Background(), nil)
-	require.ErrorIs(t, err, errOrdersEmpty)
-	_, err = g.WebsocketSpotSubmitOrder(context.Background(), make([]WebsocketOrder, 1))
+	_, err := g.WebsocketSpotSubmitOrder(context.Background(), WebsocketOrder{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	out := WebsocketOrder{CurrencyPair: "BTC_USDT"}
-	_, err = g.WebsocketSpotSubmitOrder(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
-	_, err = g.WebsocketSpotSubmitOrder(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
 	out.Amount = "0.0003"
 	out.Type = "limit"
-	_, err = g.WebsocketSpotSubmitOrder(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
+	require.ErrorIs(t, err, errInvalidPrice)
+	out.Price = "20000"
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
+	testexch.UpdatePairsOnce(t, g)
+	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
+	got, err := g.WebsocketSpotSubmitOrder(context.Background(), out)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+func TestWebsocketSpotSubmitOrders(t *testing.T) {
+	t.Parallel()
+	_, err := g.WebsocketSpotSubmitOrders(context.Background(), nil)
+	require.ErrorIs(t, err, errOrdersEmpty)
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), make([]WebsocketOrder, 1))
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	out := WebsocketOrder{CurrencyPair: "BTC_USDT"}
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	out.Side = strings.ToLower(order.Buy.String())
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
+	require.ErrorIs(t, err, errInvalidAmount)
+	out.Amount = "0.0003"
+	out.Type = "limit"
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = "20000"
 
@@ -60,12 +86,12 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
-	got, err := g.WebsocketSpotSubmitOrder(context.Background(), []WebsocketOrder{out})
+	got, err := g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	// test batch orders
-	got, err = g.WebsocketSpotSubmitOrder(context.Background(), []WebsocketOrder{out, out})
+	got, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out, out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
