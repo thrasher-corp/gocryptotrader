@@ -56,7 +56,7 @@ func TestRequireMatchWithData(t *testing.T) {
 	t.Parallel()
 	match := NewMatch()
 	err := match.RequireMatchWithData("hello", []byte("world"))
-	require.ErrorIs(t, err, ErrSignatureNotMatched, "Should error on unmatched signature")
+	require.ErrorIs(t, err, ErrSignatureNotMatched, "Must error on unmatched signature")
 	assert.Contains(t, err.Error(), "world", "Should contain the data in the error message")
 	assert.Contains(t, err.Error(), "hello", "Should contain the signature in the error message")
 
