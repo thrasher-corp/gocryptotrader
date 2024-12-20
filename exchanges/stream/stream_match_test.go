@@ -63,6 +63,6 @@ func TestRequireMatchWithData(t *testing.T) {
 	ch, err := match.Set("hello", 1)
 	require.NoError(t, err, "Set must not error")
 	err = match.RequireMatchWithData("hello", []byte("world"))
-	require.NoError(t, err, "Should not error on matched signature")
+	require.NoError(t, err, "Must not error on matched signature")
 	assert.Equal(t, "world", string(<-ch))
 }
