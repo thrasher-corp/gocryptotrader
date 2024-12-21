@@ -215,18 +215,14 @@ func (ku *Kucoin) wsReadData() {
 // wsHandleData processes a websocket incoming data.
 func (ku *Kucoin) wsHandleData(respData []byte) error {
 	resp := WsPushData{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
 	if resp.Type == "pong" || resp.Type == "welcome" {
 		return nil
 	}
 	if resp.ID != "" {
-		if !ku.Websocket.Match.IncomingWithData("msgID:"+resp.ID, respData) {
-			return fmt.Errorf("%w: %s", stream.ErrNoMessageListener, resp.ID)
-		}
-		return nil
+		return ku.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {

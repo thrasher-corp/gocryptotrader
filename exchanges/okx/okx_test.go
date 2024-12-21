@@ -4321,48 +4321,34 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
+
+	ok := new(Okx) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ok), "Setup must not error")
+
 	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
-	require.ErrorIs(t, err, errMissingInstrumentID)
+	assert.ErrorIs(t, err, errMissingInstrumentID)
 
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID(okxInstTypeSpot, "")
-	require.NoError(t, err)
-	require.Len(t, assets, 1)
-	require.Equal(t, asset.Spot, assets[0])
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0].String())
-	require.NoError(t, err)
-	require.Len(t, assets, 1)
-	require.Equal(t, asset.Futures, assets[0])
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0].String())
-	require.NoError(t, err)
-	require.Len(t, assets, 1)
-	require.Equal(t, asset.PerpetualSwap, assets[0])
+	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
+		symbol := ""
+		if a != asset.Spot {
+			symbol = ok.CurrencyPairs.Pairs[a].Enabled[0].String()
+		}
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID(a.String(), symbol)
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		require.Len(t, assets, 1)
+		assert.Equalf(t, a, assets[0], "Should contain asset: %s", a)
+	}
 
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test-test")
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Margin].Enabled[0].String())
-	require.NoError(t, err)
-	var found bool
-	for i := range assets {
-		if assets[i] == asset.Margin {
-			found = true
-		}
+	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		assert.Contains(t, assets, a)
 	}
-	require.Truef(t, found, "received %v expected %v", assets, asset.Margin)
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Spot].Enabled[0].String())
-	require.NoError(t, err)
-	found = false
-	for i := range assets {
-		if assets[i] == asset.Spot {
-			found = true
-		}
-	}
-	assert.True(t, found, "received %v expected %v", assets, asset.Spot)
 }
 
 func TestSetMarginType(t *testing.T) {
@@ -4778,11 +4764,10 @@ func TestOrderPreCheck(t *testing.T) {
 
 func TestAmendAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{})
+	_, err := ok.AmendAlgoOrder(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
-		NewSize: 2,
-	})
+
+	_, err = ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{NewSize: 2})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 	_, err = ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
 		InstrumentID: perpetualSwapTP.String(),

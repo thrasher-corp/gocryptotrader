@@ -791,17 +791,11 @@ func (bot *Engine) LoadExchange(name string) error {
 
 	localWG.Wait()
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {
-		gctlog.Warnf(gctlog.ExchangeSys,
-			"Loaded exchange %s rate limiting has been turned off.\n",
-			exch.GetName(),
-		)
 		err = exch.DisableRateLimiter()
 		if err != nil {
-			gctlog.Errorf(gctlog.ExchangeSys,
-				"Loaded exchange %s rate limiting cannot be turned off: %s.\n",
-				exch.GetName(),
-				err,
-			)
+			gctlog.Errorf(gctlog.ExchangeSys, "%s error disabling rate limiter: %v", exch.GetName(), err)
+		} else {
+			gctlog.Warnf(gctlog.ExchangeSys, "%s rate limiting has been turned off", exch.GetName())
 		}
 	}
 
@@ -820,29 +814,18 @@ func (bot *Engine) LoadExchange(name string) error {
 		return err
 	}
 
-	base := exch.GetBase()
-	if base.API.AuthenticatedSupport ||
-		base.API.AuthenticatedWebsocketSupport {
-		assetTypes := base.GetAssetTypes(false)
-		var useAsset asset.Item
-		for a := range assetTypes {
-			err = base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
-			if err != nil {
-				continue
-			}
-			useAsset = assetTypes[a]
-			break
-		}
-		err = exch.ValidateAPICredentials(context.TODO(), useAsset)
+	b := exch.GetBase()
+	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
+		err = exch.ValidateAPICredentials(context.TODO(), asset.Spot)
 		if err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys,
-				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
-				base.Name,
-				err)
-			base.API.AuthenticatedSupport = false
-			base.API.AuthenticatedWebsocketSupport = false
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v", b.Name, err)
+			b.API.AuthenticatedSupport = false
+			b.API.AuthenticatedWebsocketSupport = false
 			exchCfg.API.AuthenticatedSupport = false
 			exchCfg.API.AuthenticatedWebsocketSupport = false
+			if b.Websocket != nil {
+				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			}
 		}
 	}
 
@@ -854,10 +837,7 @@ func (bot *Engine) dryRunParamInteraction(param string) {
 		return
 	}
 
-	gctlog.Warnf(gctlog.Global,
-		"Command line argument '-%s' induces dry run mode."+
-			" Set -dryrun=false if you wish to override this.",
-		param)
+	gctlog.Warnf(gctlog.Global, "Command line argument '-%s' induces dry run mode. Set -dryrun=false if you wish to override this.", param)
 
 	if !bot.Settings.EnableDryRun {
 		bot.Settings.EnableDryRun = true

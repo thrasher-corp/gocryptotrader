@@ -170,8 +170,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		if e2 != nil {
 			return fmt.Errorf("%w parsing stream", e2)
 		}
-		if !b.Websocket.Match.IncomingWithData(op+":"+streamID, msg) {
-			return fmt.Errorf("%w: %s:%s", stream.ErrNoMessageListener, op, streamID)
+		err = b.Websocket.Match.RequireMatchWithData(op+":"+streamID, msg)
+		if err != nil {
+			return fmt.Errorf("%w: %s:%s", err, op, streamID)
 		}
 		return nil
 	}
