@@ -111,7 +111,7 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 	}
 }
 
-// PlaceOrder place an order only if you have sufficient funds.
+// PlaceOrder place an order only if you have sufficient funds
 func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	err := ok.validatePlaceOrderParams(arg)
 	if err != nil {
@@ -171,7 +171,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	return nil
 }
 
-// PlaceMultipleOrders  to place orders in batches. Maximum 20 orders can be placed at a time. Request parameters should be passed in the form of an array.
+// PlaceMultipleOrders  to place orders in batches. Maximum 20 orders can be placed at a time. Request parameters should be passed in the form of an array
 func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
@@ -198,7 +198,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 	return resp, nil
 }
 
-// CancelSingleOrder cancel an incomplete order.
+// CancelSingleOrder cancel an incomplete order
 func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
 	if *arg == (CancelOrderRequestParam{}) {
 		return nil, common.ErrEmptyParams
@@ -221,7 +221,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 }
 
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
-// Request parameters should be passed in the form of an array.
+// Request parameters should be passed in the form of an array
 func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -253,7 +253,7 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 	return resp, nil
 }
 
-// AmendOrder an incomplete order.
+// AmendOrder an incomplete order
 func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -271,7 +271,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
 
-// AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array.
+// AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array
 func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -291,7 +291,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }
 
-// ClosePositions close all positions of an instrument via a market order.
+// ClosePositions close all positions of an instrument via a market order
 func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestParams) (*ClosePositionResponse, error) {
 	if *arg == (ClosePositionsRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -330,7 +330,7 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues("trade/order", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetOrderList retrieves all incomplete orders under the current account.
+// GetOrderList retrieves all incomplete orders under the current account
 func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]OrderDetail, error) {
 	if *arg == (OrderListRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -364,12 +364,12 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// Get7DayOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours.
+// Get7DayOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours
 func (ok *Okx) Get7DayOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]OrderDetail, error) {
 	return ok.getOrderHistory(ctx, arg, "trade/orders-history", getOrderHistory7DaysEPL)
 }
 
-// Get3MonthOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours.
+// Get3MonthOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours
 func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]OrderDetail, error) {
 	return ok.getOrderHistory(ctx, arg, "trade/orders-history-archive", getOrderHistory3MonthsEPL)
 }
@@ -418,17 +418,17 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetTransactionDetailsLast3Days retrieves recently-filled transaction details in the last 3 day.
+// GetTransactionDetailsLast3Days retrieves recently-filled transaction details in the last 3 day
 func (ok *Okx) GetTransactionDetailsLast3Days(ctx context.Context, arg *TransactionDetailRequestParams) ([]TransactionDetail, error) {
 	return ok.getTransactionDetails(ctx, arg, "trade/fills", getTransactionDetail3DaysEPL)
 }
 
-// GetTransactionDetailsLast3Months retrieve recently-filled transaction details in the last 3 months.
+// GetTransactionDetailsLast3Months retrieve recently-filled transaction details in the last 3 months
 func (ok *Okx) GetTransactionDetailsLast3Months(ctx context.Context, arg *TransactionDetailRequestParams) ([]TransactionDetail, error) {
 	return ok.getTransactionDetails(ctx, arg, "trade/fills-history", getTransactionDetail3MonthsEPL)
 }
 
-// GetTransactionDetails retrieves recently-filled transaction details.
+// GetTransactionDetails retrieves recently-filled transaction details
 func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetailRequestParams, route string, rateLimit request.EndpointLimit) ([]TransactionDetail, error) {
 	if *arg == (TransactionDetailRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -565,7 +565,7 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 
 // PlaceTakeProfitStopLossOrder places conditional and oco orders
 // When placing net TP/SL order (ordType=conditional) and both take-profit and stop-loss parameters are sent,
-// only stop-loss logic will be performed and take-profit logic will be ignored.
+// only stop-loss logic will be performed and take-profit logic will be ignored
 func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
@@ -599,7 +599,7 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// TriggerAlgoOrder fetches algo trigger orders for SWAP market types.
+// TriggerAlgoOrder fetches algo trigger orders for SWAP market types
 func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
@@ -620,7 +620,7 @@ func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*Alg
 
 // CancelAdvanceAlgoOrder Cancel unfilled algo orders
 // A maximum of 10 orders can be canceled at a time.
-// Request parameters should be passed in the form of an array.
+// Request parameters should be passed in the form of an array
 func (ok *Okx) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -630,7 +630,7 @@ func (ok *Okx) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCance
 
 // CancelAlgoOrder to cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
 // A maximum of 10 orders can be canceled at a time.
-// Request parameters should be passed in the form of an array.
+// Request parameters should be passed in the form of an array
 func (ok *Okx) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -638,7 +638,7 @@ func (ok *Okx) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	return ok.cancelAlgoOrder(ctx, args, "trade/cancel-algos", cancelAlgoOrderEPL)
 }
 
-// cancelAlgoOrder to cancel unfilled algo orders.
+// cancelAlgoOrder to cancel unfilled algo orders
 func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) (*AlgoOrder, error) {
 	for x := range args {
 		if args[x] == (AlgoOrderCancelParams{}) {
@@ -662,7 +662,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 }
 
 // AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
-// Only applicable to Futures and Perpetual swap.
+// Only applicable to Futures and Perpetual swap
 func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*AmendAlgoResponse, error) {
 	if arg == nil {
 		return nil, common.ErrEmptyParams
@@ -677,7 +677,7 @@ func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*A
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodPost, "trade/amend-algos", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetAlgoOrderDetail retrieves algo order details.
+// GetAlgoOrderDetail retrieves algo order details
 func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID string) (*AlgoOrderDetail, error) {
 	if algoID == "" && algoClientOrderID == "" {
 		return nil, fmt.Errorf("%w either 'algoId' or 'algoClOrdId' is required", order.ErrOrderIDNotSet)
@@ -689,7 +689,7 @@ func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
+// GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account
 func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	orderType = strings.ToLower(orderType)
 	if orderType == "" {
@@ -723,7 +723,7 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetAlgoOrderHistory load a list of all algo orders under the current account in the last 3 months.
+// GetAlgoOrderHistory load a list of all algo orders under the current account in the last 3 months
 func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	if orderType == "" {
 		return nil, order.ErrTypeIsInvalid
@@ -761,7 +761,7 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10.
+// GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10
 func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context, source string) (*EasyConvertDetail, error) {
 	params := url.Values{}
 	if source != "" {
@@ -772,7 +772,7 @@ func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context, source string) (*
 		common.EncodeURLValues("trade/easy-convert-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10.
+// PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10
 func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) ([]EasyConvertItem, error) {
 	if len(arg.FromCurrency) == 0 {
 		return nil, fmt.Errorf("%w, missing 'fromCcy'", errMissingRequiredParameter)
@@ -784,7 +784,7 @@ func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, "trade/easy-convert", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetEasyConvertHistory retrieves the history and status of easy convert trades.
+// GetEasyConvertHistory retrieves the history and status of easy convert trades
 func (ok *Okx) GetEasyConvertHistory(ctx context.Context, after, before time.Time, limit int64) ([]EasyConvertItem, error) {
 	params := url.Values{}
 	if !before.IsZero() {
@@ -813,7 +813,7 @@ func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string
 		common.EncodeURLValues("trade/one-click-repay-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// TradeOneClickRepay trade one-click repay to repay cross debts. Isolated debts are not applicable. The maximum repayment amount is based on the remaining available balance of funding and trading accounts.
+// TradeOneClickRepay trade one-click repay to repay cross debts. Isolated debts are not applicable. The maximum repayment amount is based on the remaining available balance of funding and trading accounts
 func (ok *Okx) TradeOneClickRepay(ctx context.Context, arg TradeOneClickRepayParam) ([]CurrencyOneClickRepay, error) {
 	if len(arg.DebtCurrency) == 0 {
 		return nil, fmt.Errorf("%w, missing 'debtCcy'", currency.ErrCurrencyCodeEmpty)
@@ -825,7 +825,7 @@ func (ok *Okx) TradeOneClickRepay(ctx context.Context, arg TradeOneClickRepayPar
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, "trade/one-click-repay", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetOneClickRepayHistory get the history and status of one-click repay trades.
+// GetOneClickRepayHistory get the history and status of one-click repay trades
 func (ok *Okx) GetOneClickRepayHistory(ctx context.Context, after, before time.Time, limit int64) ([]CurrencyOneClickRepay, error) {
 	params := url.Values{}
 	if !before.IsZero() {
@@ -842,7 +842,7 @@ func (ok *Okx) GetOneClickRepayHistory(ctx context.Context, after, before time.T
 }
 
 // MassCancelOrder cancel all the MMP pending orders of an instrument family.
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
 func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFamily string, lockInterval int64) (*CancelMMPResponse, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -867,7 +867,7 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 }
 
 // CancelAllMMPOrdersAfterCountdown cancel all MMP pending orders after the countdown timeout.
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
 func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int64, orderTag string) (*CancelResponse, error) {
 	if (timeout != 0) && (timeout < 10 || timeout > 120) {
 		return nil, fmt.Errorf("%w, Range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
@@ -884,14 +884,14 @@ func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int
 }
 
 // GetTradeAccountRateLimit get account rate limit related information.
-// Only new order requests and amendment order requests will be counted towards this limit. For batch order requests consisting of multiple orders, each order will be counted individually.
+// Only new order requests and amendment order requests will be counted towards this limit. For batch order requests consisting of multiple orders, each order will be counted individually
 func (ok *Okx) GetTradeAccountRateLimit(ctx context.Context) (*AccountRateLimit, error) {
 	var resp *AccountRateLimit
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradeAccountRateLimitEPL, http.MethodGet, "trade/account-rate-limit", nil, &resp, request.AuthenticatedRequest)
 }
 
 // OrderPreCheck precheck the account information before and after placing the order.
-// Only applicable to Multi-currency margin mode, and Portfolio margin mode.
+// Only applicable to Multi-currency margin mode, and Portfolio margin mode
 func (ok *Okx) OrderPreCheck(ctx context.Context, arg *OrderPreCheckParams) (*OrderPreCheckResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -917,7 +917,7 @@ func (ok *Okx) OrderPreCheck(ctx context.Context, arg *OrderPreCheckParams) (*Or
 
 /*************************************** Block trading ********************************/
 
-// GetCounterparties retrieves the list of counterparties that the user has permissions to trade with.
+// GetCounterparties retrieves the list of counterparties that the user has permissions to trade with
 func (ok *Okx) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse, error) {
 	var resp []CounterpartiesResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, "rfq/counterparties", nil, &resp, request.AuthenticatedRequest)
@@ -935,7 +935,7 @@ func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelRfq Cancel an existing active Rfq that you has previously created.
+// CancelRfq Cancel an existing active Rfq that you has previously created
 func (ok *Okx) CancelRfq(ctx context.Context, rfqID, clientRfqID string) (*CancelRfqResponse, error) {
 	if rfqID == "" && clientRfqID == "" {
 		return nil, errMissingOrderIDAndClientSuppliedID
@@ -947,7 +947,7 @@ func (ok *Okx) CancelRfq(ctx context.Context, rfqID, clientRfqID string) (*Cance
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time.
+// CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time
 func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg *CancelRfqRequestsParam) ([]CancelRfqResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -961,7 +961,7 @@ func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg *CancelRfqRequestsPar
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRfqEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllRfqs cancels all active Rfqs.
+// CancelAllRfqs cancels all active Rfqs
 func (ok *Okx) CancelAllRfqs(ctx context.Context) (types.Time, error) {
 	var resp types.Time
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &struct {
@@ -981,13 +981,13 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, rfqID, quoteID string) (*Execut
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// GetQuoteProducts retrieve the products which makers want to quote and receive RFQs for, and the corresponding price and size limit.
+// GetQuoteProducts retrieve the products which makers want to quote and receive RFQs for, and the corresponding price and size limit
 func (ok *Okx) GetQuoteProducts(ctx context.Context) ([]QuoteProduct, error) {
 	var resp []QuoteProduct
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuoteProductsEPL, http.MethodGet, "rfq/maker-instrument-settings", nil, &resp, request.AuthenticatedRequest)
 }
 
-// SetQuoteProducts customize the products which makers want to quote and receive Rfqs for, and the corresponding price and size limit.
+// SetQuoteProducts customize the products which makers want to quote and receive Rfqs for, and the corresponding price and size limit
 func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam) (*SetQuoteProductsResult, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -1018,7 +1018,7 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, "rfq/maker-instrument-settings", &args, &resp, request.AuthenticatedRequest)
 }
 
-// ResetRFQMMPStatus reset the MMP status to be inactive.
+// ResetRFQMMPStatus reset the MMP status to be inactive
 func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 	resp := &struct {
 		Timestamp types.Time `json:"ts"`
@@ -1027,7 +1027,7 @@ func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 }
 
 // CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
-// the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
+// the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed
 func (ok *Okx) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*QuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -1069,7 +1069,7 @@ func (ok *Okx) CancelQuote(ctx context.Context, quoteID, clientQuoteID string) (
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleQuote cancels multiple active quotes in a single batch, with a maximum of 100 quote orders cancellable at once.
+// CancelMultipleQuote cancels multiple active quotes in a single batch, with a maximum of 100 quote orders cancellable at once
 func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestParams) ([]CancelQuoteResponse, error) {
 	if len(arg.QuoteIDs) == 0 && len(arg.ClientQuoteIDs) == 0 {
 		return nil, errMissingOrderIDAndClientSuppliedID
@@ -1078,7 +1078,7 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllQuotes cancels all active quote orders.
+// CancelAllQuotes cancels all active quote orders
 func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
 	var resp types.Time
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil,
@@ -1087,7 +1087,7 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
 		}{Timestamp: &resp}, request.AuthenticatedRequest)
 }
 
-// GetRfqs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient.
+// GetRfqs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
 func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqResponse, error) {
 	if *arg == (RfqRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1115,7 +1115,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqRespons
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRfqsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetQuotes retrieves all Quotes where the user is a counterparty, either as the creator or the receiver.
+// GetQuotes retrieves all Quotes where the user is a counterparty, either as the creator or the receiver
 func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteResponse, error) {
 	if *arg == (QuoteRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1149,7 +1149,7 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRfqTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver.
+// GetRfqTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
 func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([]RfqTradeResponse, error) {
 	if *arg == (RfqTradesRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -1186,7 +1186,7 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPublicRFQTrades retrieves recent executed block trades.
+// GetPublicRFQTrades retrieves recent executed block trades
 func (ok *Okx) GetPublicRFQTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
@@ -1204,7 +1204,7 @@ func (ok *Okx) GetPublicRFQTrades(ctx context.Context, beginID, endID string, li
 
 /*************************************** Funding Tradings ********************************/
 
-// GetFundingCurrencies retrieve a list of all currencies.
+// GetFundingCurrencies retrieve a list of all currencies
 func (ok *Okx) GetFundingCurrencies(ctx context.Context, ccy currency.Code) ([]CurrencyResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1215,7 +1215,7 @@ func (ok *Okx) GetFundingCurrencies(ctx context.Context, ccy currency.Code) ([]C
 		common.EncodeURLValues("asset/currencies", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold.
+// GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold
 func (ok *Okx) GetBalance(ctx context.Context, ccy currency.Code) ([]AssetBalance, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1225,7 +1225,7 @@ func (ok *Okx) GetBalance(ctx context.Context, ccy currency.Code) ([]AssetBalanc
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBalanceEPL, http.MethodGet, common.EncodeURLValues("asset/balances", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetNonTradableAssets retrieves non tradable assets.
+// GetNonTradableAssets retrieves non tradable assets
 func (ok *Okx) GetNonTradableAssets(ctx context.Context, ccy currency.Code) ([]NonTradableAsset, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1246,7 +1246,7 @@ func (ok *Okx) GetAccountAssetValuation(ctx context.Context, ccy currency.Code) 
 }
 
 // FundingTransfer transfer of funds between your funding account and trading account,
-// and from the master account to sub-accounts.
+// and from the master account to sub-accounts
 func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestInput) ([]FundingTransferResponse, error) {
 	if *arg == (FundingTransferRequestInput{}) {
 		return nil, common.ErrEmptyParams
@@ -1267,7 +1267,7 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, fundsTransferEPL, http.MethodPost, "asset/transfer", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetFundsTransferState get funding rate response.
+// GetFundsTransferState get funding rate response
 func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID string, transferType int64) ([]TransferFundRateResponse, error) {
 	if transferID == "" && clientID == "" {
 		return nil, fmt.Errorf("%w, 'transfer id' or 'client id' is required", order.ErrOrderIDNotSet)
@@ -1313,7 +1313,7 @@ func (ok *Okx) GetAssetBillsDetails(ctx context.Context, ccy currency.Code, clie
 }
 
 // GetLightningDeposits users can create up to 10 thousand different invoices within 24 hours.
-// this method fetches list of lightning deposits filtered by a currency and amount.
+// this method fetches list of lightning deposits filtered by a currency and amount
 func (ok *Okx) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to int64) ([]LightningDepositItem, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1331,7 +1331,7 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, ccy currency.Code, amou
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-lightning", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCurrencyDepositAddress retrieve the deposit addresses of currencies, including previously-used addresses.
+// GetCurrencyDepositAddress retrieve the deposit addresses of currencies, including previously-used addresses
 func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, ccy currency.Code) ([]CurrencyDepositResponseItem, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1375,7 +1375,7 @@ func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, ccy currency.Code,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// Withdrawal to perform a withdrawal action. Sub-account does not support withdrawal.
+// Withdrawal to perform a withdrawal action. Sub-account does not support withdrawal
 func (ok *Okx) Withdrawal(ctx context.Context, arg *WithdrawalInput) (*WithdrawalResponse, error) {
 	if *arg == (WithdrawalInput{}) {
 		return nil, common.ErrEmptyParams
@@ -1398,7 +1398,7 @@ func (ok *Okx) Withdrawal(ctx context.Context, arg *WithdrawalInput) (*Withdrawa
  This API function service is only open to some users. If you need this function service, please send an email to `liz.jensen@okg.com` to apply
 */
 
-// LightningWithdrawal to withdraw a currency from an invoice.
+// LightningWithdrawal to withdraw a currency from an invoice
 func (ok *Okx) LightningWithdrawal(ctx context.Context, arg *LightningWithdrawalRequestInput) (*LightningWithdrawalResponse, error) {
 	if *arg == (LightningWithdrawalRequestInput{}) {
 		return nil, common.ErrEmptyParams
@@ -1412,7 +1412,7 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg *LightningWithdrawal
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelWithdrawal you can cancel normal withdrawal, but can not cancel the withdrawal on Lightning.
+// CancelWithdrawal you can cancel normal withdrawal, but can not cancel the withdrawal on Lightning
 func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
 	if withdrawalID == "" {
 		return "", errMissingValidWithdrawalID
@@ -1428,7 +1428,7 @@ func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (strin
 }
 
 // GetWithdrawalHistory retrieves the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order.
-// The 100 most recent records are returned by default.
+// The 100 most recent records are returned by default
 func (ok *Okx) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, withdrawalID, clientID, transactionID, state string, after, before time.Time, limit int64) ([]WithdrawalHistoryResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1459,7 +1459,7 @@ func (ok *Okx) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, with
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/withdrawal-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetDepositWithdrawalStatus retrieve deposit's and withdrawal's detailed status and estimated complete time.
+// GetDepositWithdrawalStatus retrieve deposit's and withdrawal's detailed status and estimated complete time
 func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.Code, withdrawalID, transactionID, addressTo, chain string) ([]DepositWithdrawStatus, error) {
 	if withdrawalID == "" && transactionID == "" {
 		return nil, fmt.Errorf("%w, either withdrawal id or transaction id is required", order.ErrOrderIDNotSet)
@@ -1485,7 +1485,7 @@ func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.Code
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositWithdrawalStatusEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-withdraw-status", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours.
+// SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours
 func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
 	var resp *SmallAssetConvertResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currency}, &resp, request.AuthenticatedRequest)
@@ -1497,7 +1497,7 @@ func (ok *Okx) GetPublicExchangeList(ctx context.Context) ([]ExchangeInfo, error
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicExchangeListEPL, http.MethodGet, "asset/exchange-list", nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetSavingBalance returns saving balance, and only assets in the funding account can be used for saving.
+// GetSavingBalance returns saving balance, and only assets in the funding account can be used for saving
 func (ok *Okx) GetSavingBalance(ctx context.Context, ccy currency.Code) ([]SavingBalanceResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1560,7 +1560,7 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg *LendingRate) (*LendingRa
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, "finance/savings/set-lending-rate", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetPublicBorrowInfo returns the public borrow info.
+// GetPublicBorrowInfo returns the public borrow info
 func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, ccy currency.Code) ([]PublicBorrowInfo, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1570,7 +1570,7 @@ func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, ccy currency.Code) ([]Pu
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicBorrowInfoEPL, http.MethodGet, common.EncodeURLValues("finance/savings/lending-rate-summary", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetPublicBorrowHistory return list of publix borrow history.
+// GetPublicBorrowHistory return list of publix borrow history
 func (ok *Okx) GetPublicBorrowHistory(ctx context.Context, ccy currency.Code, before, after time.Time, limit int64) ([]PublicBorrowHistory, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1591,7 +1591,7 @@ func (ok *Okx) GetPublicBorrowHistory(ctx context.Context, ccy currency.Code, be
 
 /***********************************Convert Endpoints | Authenticated s*****************************************/
 
-// ApplyForMonthlyStatement apply for monthly statement in the past year.
+// ApplyForMonthlyStatement apply for monthly statement in the past year
 func (ok *Okx) ApplyForMonthlyStatement(ctx context.Context, month string) (types.Time, error) {
 	if month == "" {
 		return types.Time{}, errMonthNameRequired
@@ -1616,7 +1616,7 @@ func (ok *Okx) GetMonthlyStatement(ctx context.Context, month string) ([]Monthly
 		common.EncodeURLValues("asset/monthly-statement", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetConvertCurrencies retrieves the currency conversion information.
+// GetConvertCurrencies retrieves the currency conversion information
 func (ok *Okx) GetConvertCurrencies(ctx context.Context) ([]ConvertCurrency, error) {
 	var resp []ConvertCurrency
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrenciesEPL, http.MethodGet, "asset/convert/currencies", nil, &resp, request.AuthenticatedRequest)
@@ -1637,7 +1637,7 @@ func (ok *Okx) GetConvertCurrencyPair(ctx context.Context, fromCcy, toCcy curren
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrencyPairEPL, http.MethodGet, common.EncodeURLValues("asset/convert/currency-pair", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// EstimateQuote retrieves quote estimation detail result given the base and quote currency.
+// EstimateQuote retrieves quote estimation detail result given the base and quote currency
 func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput) (*EstimateQuoteResponse, error) {
 	if *arg == (EstimateQuoteRequestInput{}) {
 		return nil, common.ErrEmptyParams
@@ -1664,7 +1664,7 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, "asset/convert/estimate-quote", arg, &resp, request.AuthenticatedRequest)
 }
 
-// ConvertTrade converts a base currency to quote currency.
+// ConvertTrade converts a base currency to quote currency
 func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*ConvertTradeResponse, error) {
 	if *arg == (ConvertTradeInput{}) {
 		return nil, common.ErrEmptyParams
@@ -1695,7 +1695,7 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, convertTradeEPL, http.MethodPost, "asset/convert/trade", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetConvertHistory gets the recent history.
+// GetConvertHistory gets the recent history
 func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, limit int64, tag string) ([]ConvertHistory, error) {
 	params := url.Values{}
 	if !before.IsZero() {
@@ -1738,7 +1738,7 @@ func AssetTypeString(assetType asset.Item) (string, error) {
 	}
 }
 
-// GetAccountInstruments retrieve available instruments info of current account.
+// GetAccountInstruments retrieve available instruments info of current account
 func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType asset.Item, underlying, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
 	if instrumentType == asset.Empty {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -1774,7 +1774,7 @@ func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType asset.I
 }
 
 // AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
-// Interest-free quota and discount rates are public data and not displayed on the account interface.
+// Interest-free quota and discount rates are public data and not displayed on the account interface
 func (ok *Okx) AccountBalance(ctx context.Context, ccy currency.Code) ([]Account, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1784,7 +1784,7 @@ func (ok *Okx) AccountBalance(ctx context.Context, ccy currency.Code) ([]Account
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountBalanceEPL, http.MethodGet, common.EncodeURLValues("account/balance", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPositions retrieves information on your positions. When the account is in net mode, net positions will be displayed, and when the account is in long/short mode, long or short positions will be displayed.
+// GetPositions retrieves information on your positions. When the account is in net mode, net positions will be displayed, and when the account is in long/short mode, long or short positions will be displayed
 func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, positionID string) ([]AccountPosition, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -1800,7 +1800,7 @@ func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, p
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPositionsEPL, http.MethodGet, common.EncodeURLValues("account/positions", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPositionsHistory retrieves the updated position data for the last 3 months.
+// GetPositionsHistory retrieves the updated position data for the last 3 months
 func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrumentID, marginMode, positionID string, closePositionType, limit int64, after, before time.Time) ([]AccountPositionHistory, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -1834,7 +1834,7 @@ func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrume
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPositionsHistoryEPL, http.MethodGet, common.EncodeURLValues("account/positions-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetAccountAndPositionRisk  get account and position risks.
+// GetAccountAndPositionRisk  get account and position risks
 func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType string) ([]AccountAndPositionRisk, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -1844,7 +1844,7 @@ func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType str
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountAndPositionRiskEPL, http.MethodGet, common.EncodeURLValues("account/account-position-risk", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days.
+// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days
 func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
 	return ok.GetBillsDetail(ctx, arg, "account/bills", getBillsDetailsEPL)
 }
@@ -1852,7 +1852,7 @@ func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQuer
 // GetBillsDetail3Months retrieves the account’s bills.
 // The bill refers to all transaction records that result in changing the balance of an account.
 // Pagination is supported, and the response is sorted with most recent first.
-// This endpoint can retrieve data from the last 3 months.
+// This endpoint can retrieve data from the last 3 months
 func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
 	return ok.GetBillsDetail(ctx, arg, "account/bills-archive", getBillsDetailArchiveEPL)
 }
@@ -1885,7 +1885,7 @@ func (ok *Okx) GetBillsHistoryArchive(ctx context.Context, year, quarter string)
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest, true)
 }
 
-// GetBillsDetail retrieves the bills of the account.
+// GetBillsDetail retrieves the bills of the account
 func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParameter, route string, epl request.EndpointLimit) ([]BillsDetailResponse, error) {
 	if *arg == (BillsDetailQueryParameter{}) {
 		return nil, common.ErrEmptyParams
@@ -1931,7 +1931,7 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetAccountConfiguration retrieves current account configuration.
+// GetAccountConfiguration retrieves current account configuration
 func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurationResponse, error) {
 	var resp []AccountConfigurationResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest, true)
@@ -1949,7 +1949,7 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (*Posit
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// SetLeverageRate sets a leverage setting for instrument id.
+// SetLeverageRate sets a leverage setting for instrument id
 func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*SetLeverageResponse, error) {
 	if *arg == (SetLeverageInput{}) {
 		return nil, common.ErrEmptyParams
@@ -2028,7 +2028,7 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, ccy curren
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumAvailableTradableAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-avail-size", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// IncreaseDecreaseMargin Increase or decrease the margin of the isolated position. Margin reduction may result in the change of the actual leverage.
+// IncreaseDecreaseMargin Increase or decrease the margin of the isolated position. Margin reduction may result in the change of the actual leverage
 func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecreaseMarginInput) (*IncreaseDecreaseMargin, error) {
 	if *arg == (IncreaseDecreaseMarginInput{}) {
 		return nil, common.ErrEmptyParams
@@ -2051,7 +2051,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecrease
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, "account/position/margin-balance", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetLeverageRate retrieves leverage data for different instrument id or margin mode.
+// GetLeverageRate retrieves leverage data for different instrument id or margin mode
 func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode string, ccy currency.Code) ([]LeverageResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -2103,7 +2103,7 @@ func (ok *Okx) GetLeverageEstimatedInfo(ctx context.Context, instrumentType, mar
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverateEstimatedInfoEPL, http.MethodGet, common.EncodeURLValues("account/adjust-leverage-info", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumLoanOfInstrument returns list of maximum loan of instruments.
+// GetMaximumLoanOfInstrument returns list of maximum loan of instruments
 func (ok *Okx) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID, marginMode string, mgnCurrency currency.Code) ([]MaximumLoanInstrument, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -2160,7 +2160,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 	return fee, nil
 }
 
-// GetTradeFee queries the trade fee rates for various instrument types and their respective IDs.
+// GetTradeFee queries the trade fee rates for various instrument types and their respective IDs
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying, instrumentFamily, ruleType string) ([]TradeFeeRate, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -2183,7 +2183,7 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues("account/trade-fee", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetInterestAccruedData retrieves data on accrued interest.
+// GetInterestAccruedData retrieves data on accrued interest
 func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType, limit int64, ccy currency.Code, instrumentID, marginMode string, after, before time.Time) ([]InterestAccruedData, error) {
 	params := url.Values{}
 	if loanType == 1 || loanType == 2 {
@@ -2234,7 +2234,7 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, "account/set-greeks", input, &resp, request.AuthenticatedRequest)
 }
 
-// IsolatedMarginTradingSettings configures the currency margin and sets the isolated margin trading mode for futures or perpetual contracts.
+// IsolatedMarginTradingSettings configures the currency margin and sets the isolated margin trading mode for futures or perpetual contracts
 func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg *IsolatedMode) (*IsolatedMode, error) {
 	if *arg == (IsolatedMode{}) {
 		return nil, common.ErrEmptyParams
@@ -2252,7 +2252,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg *IsolatedM
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, "account/set-isolated-mode", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// ManualBorrowAndRepayInQuickMarginMode initiates a new manual borrow and repayment process in Quick Margin mode.
+// ManualBorrowAndRepayInQuickMarginMode initiates a new manual borrow and repayment process in Quick Margin mode
 func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *BorrowAndRepay) (*BorrowAndRepay, error) {
 	if *arg == (BorrowAndRepay{}) {
 		return nil, common.ErrEmptyParams
@@ -2273,7 +2273,7 @@ func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *B
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick margin mode.
+// GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick margin mode
 func (ok *Okx) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, instrumentID currency.Pair, ccy currency.Code, side, afterPaginationID, beforePaginationID string, beginTime, endTime time.Time, limit int64) ([]BorrowRepayHistoryItem, error) {
 	params := url.Values{}
 	if !instrumentID.IsEmpty() {
@@ -2304,7 +2304,7 @@ func (ok *Okx) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, in
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumWithdrawals retrieves the maximum transferable amount from a trading account to a funding account for quick margin borrowing and repayment.
+// GetMaximumWithdrawals retrieves the maximum transferable amount from a trading account to a funding account for quick margin borrowing and repayment
 func (ok *Okx) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2321,7 +2321,7 @@ func (ok *Okx) GetAccountRiskState(ctx context.Context) ([]AccountRiskState, err
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountRiskStateEPL, http.MethodGet, "account/risk-state", nil, &resp, request.AuthenticatedRequest)
 }
 
-// VIPLoansBorrowAndRepay creates VIP borrow or repay for a currency.
+// VIPLoansBorrowAndRepay creates VIP borrow or repay for a currency
 func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg *LoanBorrowAndReplayInput) (*LoanBorrowAndReplay, error) {
 	if *arg == (LoanBorrowAndReplayInput{}) {
 		return nil, common.ErrEmptyParams
@@ -2339,7 +2339,7 @@ func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg *LoanBorrowAndRep
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, "account/borrow-repay", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetBorrowAndRepayHistoryForVIPLoans retrieves borrow and repay history for VIP loans.
+// GetBorrowAndRepayHistoryForVIPLoans retrieves borrow and repay history for VIP loans
 func (ok *Okx) GetBorrowAndRepayHistoryForVIPLoans(ctx context.Context, ccy currency.Code, after, before time.Time, limit int64) ([]BorrowRepayHistory, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2428,7 +2428,7 @@ func (ok *Okx) GetVIPLoanOrderList(ctx context.Context, orderID, state string, c
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderListEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetVIPLoanOrderDetail retrieves list of loan order details.
+// GetVIPLoanOrderDetail retrieves list of loan order details
 func (ok *Okx) GetVIPLoanOrderDetail(ctx context.Context, orderID string, ccy currency.Code, after, before time.Time, limit int64) (*VIPLoanOrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -2514,7 +2514,7 @@ func (ok *Okx) GetFixedLoanBorrowQuote(ctx context.Context, borrowingCurrency cu
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowQuoteEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-quote", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// PlaceFixedLoanBorrowingOrder for new borrowing orders, they belong to the IOC (immediately close and cancel the remaining) type. For renewal orders, they belong to the FOK (Fill-or-kill) type.
+// PlaceFixedLoanBorrowingOrder for new borrowing orders, they belong to the IOC (immediately close and cancel the remaining) type. For renewal orders, they belong to the FOK (Fill-or-kill) type
 func (ok *Okx) PlaceFixedLoanBorrowingOrder(ctx context.Context, ccy currency.Code, amount, maxRate, reborrowRate float64, term string, reborrow bool) (*OrderIDResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -2602,7 +2602,7 @@ func (ok *Okx) ConvertFixedLoanToMarketLoan(ctx context.Context, orderID string)
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, convertFixedLoanToMarketLoanEPL, http.MethodPost, "account/fixed-loan/convert-to-market-loan", nil, &resp, request.AuthenticatedRequest)
 }
 
-// ReduceLiabilitiesForFixedLoan provide the function of "setting pending repay state / canceling pending repay state" for fixed loan order.
+// ReduceLiabilitiesForFixedLoan provide the function of "setting pending repay state / canceling pending repay state" for fixed loan order
 func (ok *Okx) ReduceLiabilitiesForFixedLoan(ctx context.Context, orderID string, pendingRepay bool) (*ReduceLiabilities, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -2707,7 +2707,7 @@ func (ok *Okx) GetBorrowRepayHistory(ctx context.Context, ccy currency.Code, eve
 }
 
 // NewPositionBuilder calculates portfolio margin information for virtual position/assets or current position of the user.
-// You can add up to 200 virtual positions and 200 virtual assets in one request.
+// You can add up to 200 virtual positions and 200 virtual assets in one request
 func (ok *Okx) NewPositionBuilder(ctx context.Context, arg *PositionBuilderParam) (*PositionBuilderDetail, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -2716,7 +2716,7 @@ func (ok *Okx) NewPositionBuilder(ctx context.Context, arg *PositionBuilderParam
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, newPositionBuilderEPL, http.MethodPost, "account/position-builder", arg, &resp, request.AuthenticatedRequest)
 }
 
-// SetRiskOffsetAmount set risk offset amount. This does not represent the actual spot risk offset amount. Only applicable to Portfolio Margin Mode.
+// SetRiskOffsetAmount set risk offset amount. This does not represent the actual spot risk offset amount. Only applicable to Portfolio Margin Mode
 func (ok *Okx) SetRiskOffsetAmount(ctx context.Context, ccy currency.Code, clientSpotInUseAmount float64) (*RiskOffsetAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -2735,7 +2735,7 @@ func (ok *Okx) SetRiskOffsetAmount(ctx context.Context, ccy currency.Code, clien
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetAmountEPL, http.MethodPost, "account/set-riskOffset-amt", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetGreeks retrieves a greeks list of all assets in the account.
+// GetGreeks retrieves a greeks list of all assets in the account
 func (ok *Okx) GetGreeks(ctx context.Context, ccy currency.Code) ([]GreeksItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2745,7 +2745,7 @@ func (ok *Okx) GetGreeks(ctx context.Context, ccy currency.Code) ([]GreeksItem, 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGreeksEPL, http.MethodGet, common.EncodeURLValues("account/greeks", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPMPositionLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode.
+// GetPMPositionLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode
 func (ok *Okx) GetPMPositionLimitation(ctx context.Context, instrumentType, underlying, instrumentFamily string) ([]PMLimitationResponse, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -2801,7 +2801,7 @@ func (ok *Okx) SetAccountMode(ctx context.Context, accountLevel string) (*Accoun
 
 // ResetMMPStatus reset the MMP status to be inactive.
 // you can unfreeze by this endpoint once MMP is triggered.
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
 func (ok *Okx) ResetMMPStatus(ctx context.Context, instrumentType, instrumentFamily string) (*MMPStatusResponse, error) {
 	if instrumentFamily == "" {
 		return nil, errInstrumentFamilyRequired
@@ -2818,7 +2818,7 @@ func (ok *Okx) ResetMMPStatus(ctx context.Context, instrumentType, instrumentFam
 }
 
 // SetMMP set MMP configure
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
 func (ok *Okx) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, error) {
 	if *arg == (MMPConfig{}) {
 		return nil, common.ErrEmptyParams
@@ -2834,7 +2834,7 @@ func (ok *Okx) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, error) {
 }
 
 // GetMMPConfig retrieves MMP configure information
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
 func (ok *Okx) GetMMPConfig(ctx context.Context, instrumentFamily string) ([]MMPConfigDetail, error) {
 	params := url.Values{}
 	if instrumentFamily != "" {
@@ -2868,7 +2868,7 @@ func (ok *Okx) ViewSubAccountList(ctx context.Context, enable bool, subaccountNa
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, viewSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/subaccount/list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses.
+// ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses
 func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyParam) (*SubAccountAPIKeyResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -2928,7 +2928,7 @@ func (ok *Okx) GetSubaccountFundingBalance(ctx context.Context, subaccountName s
 		common.EncodeURLValues("asset/subaccount/balances", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetSubAccountMaximumWithdrawal retrieve the maximum withdrawal information of a sub-account via the master account (applies to master accounts only). If no currency is specified, the transferable amount of all owned currencies will be returned.
+// GetSubAccountMaximumWithdrawal retrieve the maximum withdrawal information of a sub-account via the master account (applies to master accounts only). If no currency is specified, the transferable amount of all owned currencies will be returned
 func (ok *Okx) GetSubAccountMaximumWithdrawal(ctx context.Context, subAccountName string, ccy currency.Code) ([]SubAccountMaximumWithdrawal, error) {
 	if subAccountName == "" {
 		return nil, errInvalidSubAccountName
@@ -2944,7 +2944,7 @@ func (ok *Okx) GetSubAccountMaximumWithdrawal(ctx context.Context, subAccountNam
 }
 
 // HistoryOfSubaccountTransfer retrieves subaccount transfer histories; applies to master accounts only.
-// retrieve the transfer data for the last 3 months.
+// retrieve the transfer data for the last 3 months
 func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, ccy currency.Code, subaccountType, subaccountName string, before, after time.Time, limit int64) ([]SubaccountBillItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2970,7 +2970,7 @@ func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, ccy currency.Cod
 }
 
 // GetHistoryOfManagedSubAccountTransfer retrieves managed sub-account transfers.
-// nly applicable to the trading team's master account to getting transfer records of managed sub accounts entrusted to oneself.
+// nly applicable to the trading team's master account to getting transfer records of managed sub accounts entrusted to oneself
 func (ok *Okx) GetHistoryOfManagedSubAccountTransfer(ctx context.Context, ccy currency.Code, transferType, subAccountName, subAccountUID string, after, before time.Time, limit int64) ([]SubAccountTransfer, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -3025,7 +3025,7 @@ func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Conte
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodPost, "asset/subaccount/transfer", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// SetPermissionOfTransferOut set permission of transfer out for sub-account(only applicable to master account). Sub-account can transfer out to master account by default.
+// SetPermissionOfTransferOut set permission of transfer out for sub-account(only applicable to master account). Sub-account can transfer out to master account by default
 func (ok *Okx) SetPermissionOfTransferOut(ctx context.Context, arg *PermissionOfTransfer) ([]PermissionOfTransfer, error) {
 	if *arg == (PermissionOfTransfer{}) {
 		return nil, common.ErrEmptyParams
@@ -3048,7 +3048,7 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCustodyTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/entrust-subaccount-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SetSubAccountVIPLoanAllocation set the VIP loan allocation of sub-accounts. Only Applicable to master account API keys with Trade access.
+// SetSubAccountVIPLoanAllocation set the VIP loan allocation of sub-accounts. Only Applicable to master account API keys with Trade access
 func (ok *Okx) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubAccountLoanAllocationParam) (bool, error) {
 	if len(arg.Alloc) == 0 {
 		return false, common.ErrEmptyParams
@@ -3087,7 +3087,7 @@ func (ok *Okx) GetSubAccountBorrowInterestAndLimit(ctx context.Context, subAccou
 
 /*************************************** Grid Trading Endpoints ***************************************************/
 
-// PlaceGridAlgoOrder place spot grid algo order.
+// PlaceGridAlgoOrder place spot grid algo order
 func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*GridAlgoOrderIDResponse, error) {
 	if *arg == (GridAlgoOrder{}) {
 		return nil, common.ErrEmptyParams
@@ -3135,7 +3135,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	return resp, nil
 }
 
-// AmendGridAlgoOrder supported contract grid algo order amendment.
+// AmendGridAlgoOrder supported contract grid algo order amendment
 func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAmend) (*GridAlgoOrderIDResponse, error) {
 	if *arg == (GridAlgoOrderAmend{}) {
 		return nil, common.ErrEmptyParams
@@ -3192,7 +3192,7 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 	return resp, nil
 }
 
-// ClosePositionForContractID close position when the contract grid stop type is 'keep position'.
+// ClosePositionForContractID close position when the contract grid stop type is 'keep position'
 func (ok *Okx) ClosePositionForContractID(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
 	if *arg == (ClosePositionParams{}) {
 		return nil, common.ErrEmptyParams
@@ -3231,7 +3231,7 @@ func (ok *Okx) InstantTriggerGridAlgoOrder(ctx context.Context, algoID string) (
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, instantTriggerGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/order-instant-trigger", &map[string]string{"algoId": algoID}, &resp, request.AuthenticatedRequest)
 }
 
-// GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data.
+// GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data
 func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
@@ -3240,7 +3240,7 @@ func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 		after, before, "tradingBot/grid/orders-algo-pending", limit)
 }
 
-// GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stopped orders.
+// GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stopped orders
 func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
@@ -3249,7 +3249,7 @@ func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoI
 		after, before, "tradingBot/grid/orders-algo-history", limit)
 }
 
-// getGridAlgoOrderList retrieves list of grid algo orders with the complete data.
+// getGridAlgoOrderList retrieves list of grid algo orders with the complete data
 func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before, route string, limit int64) ([]GridAlgoOrderResponse, error) {
@@ -3333,7 +3333,7 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetGridAlgoOrderPositions retrieves grid algo order positions.
+// GetGridAlgoOrderPositions retrieves grid algo order positions
 func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, algoID string) ([]AlgoOrderPosition, error) {
 	if algoOrderType != AlgoOrdTypeGrid && algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errInvalidAlgoOrderType
@@ -3348,7 +3348,7 @@ func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, alg
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/positions", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SpotGridWithdrawProfit returns the spot grid orders withdrawal profit given an instrument id.
+// SpotGridWithdrawProfit returns the spot grid orders withdrawal profit given an instrument id
 func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*AlgoOrderWithdrawalProfit, error) {
 	if algoID == "" {
 		return nil, errAlgoIDRequired
@@ -3495,7 +3495,7 @@ func (ok *Okx) RSIBackTesting(ctx context.Context, instrumentID, triggerConditio
 // ****************************************** Signal bot trading **************************************************
 
 // GetSignalBotOrderDetail create and customize your own signals while gaining access to a diverse selection of signals from top providers.
-// Empower your trading strategies and stay ahead of the game with our comprehensive signal trading platform.
+// Empower your trading strategies and stay ahead of the game with our comprehensive signal trading platform
 func (ok *Okx) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, algoID string) (*SignalBotOrderDetail, error) {
 	if algoOrderType == "" {
 		return nil, errInvalidAlgoOrderType
@@ -3587,7 +3587,7 @@ func (ok *Okx) GetSignalBotEventHistory(ctx context.Context, algoID string, afte
 
 // PlaceRecurringBuyOrder recurring buy is a strategy for investing a fixed amount in crypto at fixed intervals.
 // An appropriate recurring approach in volatile markets allows you to buy crypto at lower costs. Learn more
-// The API endpoints of Recurring buy require authentication.
+// The API endpoints of Recurring buy require authentication
 func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBuyOrderParam) (*RecurringOrderResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -3631,7 +3631,7 @@ func (ok *Okx) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurringOr
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
-// StopRecurringBuyOrder stops recurring buy order. A maximum of 10 orders can be stopped per request.
+// StopRecurringBuyOrder stops recurring buy order. A maximum of 10 orders can be stopped per request
 func (ok *Okx) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurringBuyOrder) ([]RecurringOrderResponse, error) {
 	if len(arg) == 0 {
 		return nil, common.ErrEmptyParams
@@ -3645,7 +3645,7 @@ func (ok *Okx) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurringBuy
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringBuyOrderList retrieves recurring buy order list.
+// GetRecurringBuyOrderList retrieves recurring buy order list
 func (ok *Okx) GetRecurringBuyOrderList(ctx context.Context, algoID, algoOrderState string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
 	params := url.Values{}
 	if algoOrderState != "" {
@@ -3667,7 +3667,7 @@ func (ok *Okx) GetRecurringBuyOrderList(ctx context.Context, algoID, algoOrderSt
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderListEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringBuyOrderHistory retrieves recurring buy order history.
+// GetRecurringBuyOrderHistory retrieves recurring buy order history
 func (ok *Okx) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
 	params := url.Values{}
 	if algoID != "" {
@@ -3686,7 +3686,7 @@ func (ok *Okx) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, a
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringOrderDetails retrieves a single recurring order detail.
+// GetRecurringOrderDetails retrieves a single recurring order detail
 func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrderState string) (*RecurringOrderDeail, error) {
 	if algoID == "" {
 		return nil, errAlgoIDRequired
@@ -3700,7 +3700,7 @@ func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrderSt
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRecurringSubOrders retrieves recurring buy sub orders.
+// GetRecurringSubOrders retrieves recurring buy sub orders
 func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string, after, before time.Time, limit int64) ([]RecurringBuySubOrder, error) {
 	if algoID == "" {
 		return nil, errAlgoIDRequired
@@ -3725,7 +3725,7 @@ func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string
 
 // ****************************************** Earn **************************************************
 
-// GetExistingLeadingPositions retrieves leading positions that are not closed.
+// GetExistingLeadingPositions retrieves leading positions that are not closed
 func (ok *Okx) GetExistingLeadingPositions(ctx context.Context, instrumentType, instrumentID string, before, after time.Time, limit int64) ([]PositionInfo, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -3748,7 +3748,7 @@ func (ok *Okx) GetExistingLeadingPositions(ctx context.Context, instrumentType, 
 }
 
 // GetLeadingPositionsHistory leading trader retrieves the completed leading position of the last 3 months.
-// Returns reverse chronological order with subPosId.
+// Returns reverse chronological order with subPosId
 func (ok *Okx) GetLeadingPositionsHistory(ctx context.Context, instrumentType, instrumentID string, before, after time.Time, limit int64) ([]PositionInfo, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -3770,7 +3770,7 @@ func (ok *Okx) GetLeadingPositionsHistory(ctx context.Context, instrumentType, i
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadingPositionHistoryEPL, http.MethodGet, common.EncodeURLValues("copytrading/subpositions-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// PlaceLeadingStopOrder holds leading trader sets TP/SL for the current leading position that are not closed.
+// PlaceLeadingStopOrder holds leading trader sets TP/SL for the current leading position that are not closed
 func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (*PositionIDInfo, error) {
 	if *arg == (TPSLOrderParam{}) {
 		return nil, common.ErrEmptyParams
@@ -3782,7 +3782,7 @@ func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLeadingStopOrderEPL, http.MethodPost, "copytrading/algo-order", arg, &resp, request.AuthenticatedRequest)
 }
 
-// CloseLeadingPosition close a leading position once a time.
+// CloseLeadingPosition close a leading position once a time
 func (ok *Okx) CloseLeadingPosition(ctx context.Context, arg *CloseLeadingPositionParam) (*PositionIDInfo, error) {
 	if *arg == (CloseLeadingPositionParam{}) {
 		return nil, common.ErrEmptyParams
@@ -3805,7 +3805,7 @@ func (ok *Okx) GetLeadingInstrument(ctx context.Context, instrumentType string) 
 }
 
 // AmendLeadingInstruments amend current leading instruments, need to set initial leading instruments while applying to become a leading trader.
-// All non-leading contracts can't have position or pending orders for the current request when setting non-leading contracts as leading contracts.
+// All non-leading contracts can't have position or pending orders for the current request when setting non-leading contracts as leading contracts
 func (ok *Okx) AmendLeadingInstruments(ctx context.Context, instrumentID, instrumentType string) ([]LeadingInstrumentItem, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -3820,7 +3820,7 @@ func (ok *Okx) AmendLeadingInstruments(ctx context.Context, instrumentID, instru
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// GetProfitSharingDetails gets profits shared details for the last 3 months.
+// GetProfitSharingDetails gets profits shared details for the last 3 months
 func (ok *Okx) GetProfitSharingDetails(ctx context.Context, instrumentType string, before, after time.Time, limit int64) ([]ProfitSharingItem, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -3840,7 +3840,7 @@ func (ok *Okx) GetProfitSharingDetails(ctx context.Context, instrumentType strin
 }
 
 // GetTotalProfitSharing gets the total amount of profit shared since joining the platform.
-// Instrument type 'SPOT' 'SWAP' It returns all types by default.
+// Instrument type 'SPOT' 'SWAP' It returns all types by default
 func (ok *Okx) GetTotalProfitSharing(ctx context.Context, instrumentType string) ([]TotalProfitSharing, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -3851,7 +3851,7 @@ func (ok *Okx) GetTotalProfitSharing(ctx context.Context, instrumentType string)
 }
 
 // GetUnrealizedProfitSharingDetails gets leading trader gets the profit sharing details that are expected to be shared in the next settlement cycle.
-// The unrealized profit sharing details will update once there copy position is closed.
+// The unrealized profit sharing details will update once there copy position is closed
 func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrumentType string) ([]ProfitSharingItem, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -3861,7 +3861,7 @@ func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrument
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTotalProfitSharingEPL, http.MethodGet, common.EncodeURLValues("copytrading/unrealized-profit-sharing-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SetFirstCopySettings set first copy settings for the certain lead trader. You need to first copy settings after stopping copying.
+// SetFirstCopySettings set first copy settings for the certain lead trader. You need to first copy settings after stopping copying
 func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
 	err := validateFirstCopySettings(arg)
 	if err != nil {
@@ -3915,7 +3915,7 @@ func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*Res
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopCopyingEPL, http.MethodPost, "copytrading/stop-copy-trading", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetCopySettings retrieve the copy settings about certain lead trader.
+// GetCopySettings retrieve the copy settings about certain lead trader
 func (ok *Okx) GetCopySettings(ctx context.Context, instrumentType, uniqueCode string) (*CopySetting, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -3929,7 +3929,7 @@ func (ok *Okx) GetCopySettings(ctx context.Context, instrumentType, uniqueCode s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCopySettingsEPL, http.MethodGet, common.EncodeURLValues("copytrading/copy-settings", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetMultipleLeverages retrieve leverages that belong to the lead trader and you.
+// GetMultipleLeverages retrieve leverages that belong to the lead trader and you
 func (ok *Okx) GetMultipleLeverages(ctx context.Context, marginMode, uniqueCode, instrumentID string) ([]Leverages, error) {
 	if marginMode == "" {
 		return nil, margin.ErrInvalidMarginType
@@ -3965,7 +3965,7 @@ func (ok *Okx) SetMultipleLeverages(ctx context.Context, arg *SetLeveragesParam)
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setBatchLeverageEPL, http.MethodPost, "copytrading/batch-set-leverage", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetMyLeadTraders retrieve my lead traders.
+// GetMyLeadTraders retrieve my lead traders
 func (ok *Okx) GetMyLeadTraders(ctx context.Context, instrumentType string) ([]CopyTradingLeadTrader, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -3975,7 +3975,7 @@ func (ok *Okx) GetMyLeadTraders(ctx context.Context, instrumentType string) ([]C
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/current-lead-traders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetHistoryLeadTraders retrieve my history lead traders.
+// GetHistoryLeadTraders retrieve my history lead traders
 func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after, before string, limit int64) ([]CopyTradingLeadTrader, error) {
 	params := url.Values{}
 	if instrumentType != "" {
@@ -4040,7 +4040,7 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetWeeklyTraderProfitAndLoss retrieve lead trader weekly pnl. Results are returned in counter chronological order.
+// GetWeeklyTraderProfitAndLoss retrieve lead trader weekly pnl. Results are returned in counter chronological order
 func (ok *Okx) GetWeeklyTraderProfitAndLoss(ctx context.Context, instrumentType, uniqueCode string) ([]TraderWeeklyProfitAndLoss, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -4073,7 +4073,7 @@ func (ok *Okx) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, unique
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetLeadTraderStats retrieves key data related to lead trader performance.
+// GetLeadTraderStats retrieves key data related to lead trader performance
 func (ok *Okx) GetLeadTraderStats(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]LeadTraderStat, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -4091,7 +4091,7 @@ func (ok *Okx) GetLeadTraderStats(ctx context.Context, instrumentType, uniqueCod
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderStatsEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-stats", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetLeadTraderCurrencyPreferences retrieves the most frequently traded crypto of this lead trader. Results are sorted by ratio from large to small.
+// GetLeadTraderCurrencyPreferences retrieves the most frequently traded crypto of this lead trader. Results are sorted by ratio from large to small
 func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]LeadTraderCurrencyPreference, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -4134,7 +4134,7 @@ func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrument
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTraderCurrentLeadPositionsEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-current-subpositions", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetLeadTraderLeadPositionHistory retrieve the lead trader completed leading position of the last 3 months. Returns reverse chronological order with subPosId.
+// GetLeadTraderLeadPositionHistory retrieve the lead trader completed leading position of the last 3 months. Returns reverse chronological order with subPosId
 func (ok *Okx) GetLeadTraderLeadPositionHistory(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID, beforeSubPositionID string, limit int64) ([]LeadPosition, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
@@ -4159,7 +4159,7 @@ func (ok *Okx) GetLeadTraderLeadPositionHistory(ctx context.Context, instrumentT
 
 // ****************************************** Earn **************************************************
 
-// GetOffers retrieves list of offers for different protocols.
+// GetOffers retrieves list of offers for different protocols
 func (ok *Okx) GetOffers(ctx context.Context, productID, protocolType string, ccy currency.Code) ([]Offer, error) {
 	params := url.Values{}
 	if productID != "" {
@@ -4211,7 +4211,7 @@ func (ok *Okx) Redeem(ctx context.Context, arg *RedeemRequestParam) (*OrderIDRes
 }
 
 // CancelPurchaseOrRedemption cancels Purchases or Redemptions
-// after cancelling, returning funds will go to the funding account.
+// after cancelling, returning funds will go to the funding account
 func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg *CancelFundingParam) (*OrderIDResponse, error) {
 	if *arg == (CancelFundingParam{}) {
 		return nil, common.ErrEmptyParams
@@ -4226,7 +4226,7 @@ func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg *CancelFundin
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, "finance/staking-defi/cancel", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetEarnActiveOrders retrieves active orders.
+// GetEarnActiveOrders retrieves active orders
 func (ok *Okx) GetEarnActiveOrders(ctx context.Context, productID, protocolType, state string, ccy currency.Code) ([]ActiveFundingOrder, error) {
 	params := url.Values{}
 	if productID != "" {
@@ -4286,7 +4286,7 @@ func (ok *Okx) GetProductInfo(ctx context.Context) (*ProductInfo, error) {
 }
 
 // PurchaseETHStaking staking ETH for BETH
-// Only the assets in the funding account can be used.
+// Only the assets in the funding account can be used
 func (ok *Okx) PurchaseETHStaking(ctx context.Context, amount float64) error {
 	if amount <= 0 {
 		return order.ErrAmountBelowMin
@@ -4295,7 +4295,7 @@ func (ok *Okx) PurchaseETHStaking(ctx context.Context, amount float64) error {
 	return ok.SendHTTPRequest(ctx, exchange.RestSpot, purchaseETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/purchase", map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
 }
 
-// RedeemETHStaking only the assets in the funding account can be used. If your BETH is in your trading account, you can make funding transfer first.
+// RedeemETHStaking only the assets in the funding account can be used. If your BETH is in your trading account, you can make funding transfer first
 func (ok *Okx) RedeemETHStaking(ctx context.Context, amount float64) error {
 	if amount <= 0 {
 		return order.ErrAmountBelowMin
@@ -4305,7 +4305,7 @@ func (ok *Okx) RedeemETHStaking(ctx context.Context, amount float64) error {
 		map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
 }
 
-// GetBETHAssetsBalance balance is a snapshot summarized all BETH assets in trading and funding accounts. Also, the snapshot updates hourly.
+// GetBETHAssetsBalance balance is a snapshot summarized all BETH assets in trading and funding accounts. Also, the snapshot updates hourly
 func (ok *Okx) GetBETHAssetsBalance(ctx context.Context) (*BETHAssetsBalance, error) {
 	var resp *BETHAssetsBalance
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBETHBalanceEPL, http.MethodGet,
@@ -4347,7 +4347,7 @@ func (ok *Okx) GetAPYHistory(ctx context.Context, days int64) ([]APYItem, error)
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAPYHistoryEPL, http.MethodGet, fmt.Sprintf("finance/staking-defi/eth/apy-history?days=%d", days), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetTickers retrieves the latest price snapshots best bid/ ask price, and trading volume in the last 24 hours.
+// GetTickers retrieves the latest price snapshots best bid/ ask price, and trading volume in the last 24 hours
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instFamily string) ([]TickerResponse, error) {
 	if instType == "" {
 		return nil, errInvalidInstrumentType
@@ -4364,7 +4364,7 @@ func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instFamily string)
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues("market/tickers", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetTicker retrieves the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
+// GetTicker retrieves the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours
 func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4397,7 +4397,7 @@ func (ok *Okx) GetPremiumHistory(ctx context.Context, instrumentID string, after
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPremiumHistoryEPL, http.MethodGet, common.EncodeURLValues("public/premium-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetIndexTickers Retrieves index tickers.
+// GetIndexTickers Retrieves index tickers
 func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency currency.Code, instID string) ([]IndexTicker, error) {
 	if instID == "" && quoteCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, quoteCcy or instId is required", errEitherInstIDOrCcyIsRequired)
@@ -4413,7 +4413,7 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency currency.Code,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexTickersEPL, http.MethodGet, common.EncodeURLValues("market/index-tickers", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
+// GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange
 func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) string {
 	switch a {
 	case asset.PerpetualSwap:
@@ -4437,7 +4437,7 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
 
-// GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
+// GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type
 func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
 	codes := strings.Split(instrumentID, currency.DashDelimiter)
 	if len(codes) >= 2 {
@@ -4446,7 +4446,7 @@ func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, erro
 	return currency.NewPairFromString(instrumentID)
 }
 
-// GetOrderBookDepth returns the recent order asks and bids before specified timestamp.
+// GetOrderBookDepth returns the recent order asks and bids before specified timestamp
 func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth int64) (*OrderBookResponseDetail, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4514,33 +4514,33 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 	return duration
 }
 
-// GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
+// GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar
 func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, "market/candles", getCandlesticksEPL)
 }
 
-// GetCandlesticksHistory retrieve history candlestick charts from recent years.
+// GetCandlesticksHistory retrieve history candlestick charts from recent years
 func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, "market/history-candles", getCandlestickHistoryEPL)
 }
 
 // GetIndexCandlesticks retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
-// the response is a list of Candlestick data.
+// the response is a list of Candlestick data
 func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, "market/index-candles", getIndexCandlesticksEPL)
 }
 
-// GetMarkPriceCandlesticks retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
+// GetMarkPriceCandlesticks retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar
 func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, "market/mark-price-candles", getCandlestickHistoryEPL)
 }
 
-// GetHistoricIndexCandlesticksHistory retrieve the candlestick charts of the index from recent years.
+// GetHistoricIndexCandlesticksHistory retrieve the candlestick charts of the index from recent years
 func (ok *Okx) GetHistoricIndexCandlesticksHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickHistoryItem, error) {
 	return ok.getHistoricCandlesticks(ctx, instrumentID, "market/history-index-candles", after, before, bar, limit, getIndexCandlesticksHistoryEPL)
 }
 
-// GetMarkPriceCandlestickHistory retrieve the candlestick charts of the mark price from recent years.
+// GetMarkPriceCandlestickHistory retrieve the candlestick charts of the mark price from recent years
 func (ok *Okx) GetMarkPriceCandlestickHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickHistoryItem, error) {
 	return ok.getHistoricCandlesticks(ctx, instrumentID, "market/history-mark-price-candles", after, before, bar, limit, getMarkPriceCandlesticksHistoryEPL)
 }
@@ -4568,7 +4568,7 @@ func (ok *Okx) getHistoricCandlesticks(ctx context.Context, instrumentID, path s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, common.EncodeURLValues(path, params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetEconomicCalendarData retrieves the macro-economic calendar data within 3 months. Historical data from 3 months ago is only available to users with trading fee tier VIP1 and above.
+// GetEconomicCalendarData retrieves the macro-economic calendar data within 3 months. Historical data from 3 months ago is only available to users with trading fee tier VIP1 and above
 func (ok *Okx) GetEconomicCalendarData(ctx context.Context, region, importance string, before, after time.Time, limit int64) ([]EconomicCalendar, error) {
 	params := url.Values{}
 	if region != "" {
@@ -4590,7 +4590,7 @@ func (ok *Okx) GetEconomicCalendarData(ctx context.Context, region, importance s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEconomicCalendarEPL, http.MethodGet, common.EncodeURLValues("public/economic-calendar", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods.
+// GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods
 func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]CandleStick, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4612,7 +4612,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetTrades retrieve the recent transactions of an instrument.
+// GetTrades retrieve the recent transactions of an instrument
 func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit int64) ([]TradeResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4626,7 +4626,7 @@ func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit int64) 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesRequestEPL, http.MethodGet, common.EncodeURLValues("market/trades", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetTradesHistory retrieves the recent transactions of an instrument from the last 3 months with pagination.
+// GetTradesHistory retrieves the recent transactions of an instrument from the last 3 months with pagination
 func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after string, limit int64) ([]TradeResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4646,7 +4646,7 @@ func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesHistoryEPL, http.MethodGet, common.EncodeURLValues("market/history-trades", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetOptionTradesByInstrumentFamily retrieve the recent transactions of an instrument under same instFamily. The maximum is 100.
+// GetOptionTradesByInstrumentFamily retrieve the recent transactions of an instrument under same instFamily. The maximum is 100
 func (ok *Okx) GetOptionTradesByInstrumentFamily(ctx context.Context, instrumentFamily string) ([]InstrumentFamilyTrade, error) {
 	if instrumentFamily == "" {
 		return nil, errInstrumentFamilyRequired
@@ -4675,13 +4675,13 @@ func (ok *Okx) GetOptionTrades(ctx context.Context, instrumentID, instrumentFami
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, optionTradesEPL, http.MethodGet, common.EncodeURLValues("public/option-trades", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// Get24HTotalVolume The 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.
+// Get24HTotalVolume The 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit
 func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumeIn24HR, error) {
 	var resp *TradingVolumeIn24HR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, get24HTotalVolumeEPL, http.MethodGet, "market/platform-24-volume", nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetOracle Get the crypto price of signing using Open Oracle smart contract.
+// GetOracle Get the crypto price of signing using Open Oracle smart contract
 func (ok *Okx) GetOracle(ctx context.Context) (*OracleSmartContractResponse, error) {
 	var resp *OracleSmartContractResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOracleEPL, http.MethodGet, "market/open-oracle", nil, &resp, request.UnauthenticatedRequest)
@@ -4713,7 +4713,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 }
 
 // GetBlockTickers retrieves the latest block trading volume in the last 24 hours.
-// Instrument Type Is Mandatory, and Underlying is Optional.
+// Instrument Type Is Mandatory, and Underlying is Optional
 func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying string) ([]BlockTicker, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
@@ -4728,7 +4728,7 @@ func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues("market/block-tickers", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetBlockTicker retrieves the latest block trading volume in the last 24 hours.
+// GetBlockTicker retrieves the latest block trading volume in the last 24 hours
 func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockTicker, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4739,7 +4739,7 @@ func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockT
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues("market/block-ticker", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetPublicBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId.
+// GetPublicBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId
 func (ok *Okx) GetPublicBlockTrades(ctx context.Context, instrumentID string) ([]BlockTrade, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4754,7 +4754,7 @@ func (ok *Okx) GetPublicBlockTrades(ctx context.Context, instrumentID string) ([
 
 // Spread Trading: As Introduced in the Okx exchange. URL: https://www.okx.com/docs-v5/en/#spread-trading-introduction
 
-// PlaceSpreadOrder places new spread order.
+// PlaceSpreadOrder places new spread order
 func (ok *Okx) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
 	err := ok.validatePlaceSpreadOrderParam(arg)
 	if err != nil {
@@ -4834,7 +4834,7 @@ func (ok *Okx) AmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam)
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetSpreadOrderDetails retrieves spread order details.
+// GetSpreadOrderDetails retrieves spread order details
 func (ok *Okx) GetSpreadOrderDetails(ctx context.Context, orderID, clientOrderID string) (*SpreadOrder, error) {
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -4850,7 +4850,7 @@ func (ok *Okx) GetSpreadOrderDetails(ctx context.Context, orderID, clientOrderID
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderDetailsEPL, http.MethodGet, common.EncodeURLValues("sprd/order", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetActiveSpreadOrders retrieves list of incomplete spread orders.
+// GetActiveSpreadOrders retrieves list of incomplete spread orders
 func (ok *Okx) GetActiveSpreadOrders(ctx context.Context, spreadID, orderType, state, beginID, endID string, limit int64) ([]SpreadOrder, error) {
 	params := url.Values{}
 	if spreadID != "" {
@@ -4875,7 +4875,7 @@ func (ok *Okx) GetActiveSpreadOrders(ctx context.Context, spreadID, orderType, s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getActiveSpreadOrdersEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been canceled are only reserved for 2 hours. Results are returned in counter chronological order.
+// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been canceled are only reserved for 2 hours. Results are returned in counter chronological order
 func (ok *Okx) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
 	params := url.Values{}
 	if spreadID != "" {
@@ -4906,7 +4906,7 @@ func (ok *Okx) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrders7DaysEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetSpreadTradesOfLast7Days retrieve historical transaction details for the last 7 days. Results are returned in counter chronological order.
+// GetSpreadTradesOfLast7Days retrieve historical transaction details for the last 7 days. Results are returned in counter chronological order
 func (ok *Okx) GetSpreadTradesOfLast7Days(ctx context.Context, spreadID, tradeID, orderID, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadTrade, error) {
 	params := url.Values{}
 	if spreadID != "" {
@@ -4937,7 +4937,7 @@ func (ok *Okx) GetSpreadTradesOfLast7Days(ctx context.Context, spreadID, tradeID
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPublicSpreads retrieve all available spreads based on the request parameters.
+// GetPublicSpreads retrieve all available spreads based on the request parameters
 func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID, spreadID, state string) ([]SpreadInstrument, error) {
 	params := url.Values{}
 	if baseCurrency != "" {
@@ -4956,7 +4956,7 @@ func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadsEPL, http.MethodGet, common.EncodeURLValues("sprd/spreads", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetPublicSpreadOrderBooks retrieve the order book of the spread.
+// GetPublicSpreadOrderBooks retrieve the order book of the spread
 func (ok *Okx) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, orderbookSize int64) ([]SpreadOrderbook, error) {
 	if spreadID == "" {
 		return nil, fmt.Errorf("%w, spread ID missing", errMissingInstrumentID)
@@ -4970,7 +4970,7 @@ func (ok *Okx) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, o
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderbookEPL, http.MethodGet, common.EncodeURLValues("sprd/books", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetPublicSpreadTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
+// GetPublicSpreadTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours
 func (ok *Okx) GetPublicSpreadTickers(ctx context.Context, spreadID string) ([]SpreadTicker, error) {
 	if spreadID == "" {
 		return nil, fmt.Errorf("%w, spread ID is required", errMissingInstrumentID)
@@ -4981,7 +4981,7 @@ func (ok *Okx) GetPublicSpreadTickers(ctx context.Context, spreadID string) ([]S
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadTickerEPL, http.MethodGet, common.EncodeURLValues("sprd/ticker", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetPublicSpreadTrades retrieve the recent transactions of an instrument (at most 500 records per request). Results are returned in counter chronological order.
+// GetPublicSpreadTrades retrieve the recent transactions of an instrument (at most 500 records per request). Results are returned in counter chronological order
 func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]SpreadPublicTradeItem, error) {
 	params := url.Values{}
 	if spreadID != "" {
@@ -4991,7 +4991,7 @@ func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]Sp
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadPublicTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/public-trades", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// CancelAllSpreadOrdersAfterCountdown cancel all pending orders after the countdown timeout. Only applicable to spread trading.
+// CancelAllSpreadOrdersAfterCountdown cancel all pending orders after the countdown timeout. Only applicable to spread trading
 func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutDuration int64) (*SpreadOrderCancellationResponse, error) {
 	if (timeoutDuration != 0) && (timeoutDuration < 10 || timeoutDuration > 120) {
 		return nil, fmt.Errorf("%w, range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
@@ -5007,7 +5007,7 @@ func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutD
 
 /************************************ Public Data Endpoints *************************************************/
 
-// GetInstruments retrieve a list of instruments with open contracts.
+// GetInstruments retrieve a list of instruments with open contracts
 func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) ([]Instrument, error) {
 	if arg.InstrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -5033,7 +5033,7 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 		common.EncodeURLValues("public/instruments", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetDeliveryHistory retrieves the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise.
+// GetDeliveryHistory retrieves the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise
 func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlying, instrumentFamily string, after, before time.Time, limit int64) ([]DeliveryHistory, error) {
 	if instrumentType == "" {
 		return nil, errInvalidInstrumentType
@@ -5104,7 +5104,7 @@ func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, common.EncodeURLValues("public/funding-rate", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months.
+// GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months
 func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, before, after time.Time, limit int64) ([]FundingRateResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5124,7 +5124,7 @@ func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, b
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingRateHistoryEPL, http.MethodGet, common.EncodeURLValues("public/funding-rate-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetLimitPrice retrieves the highest buy limit and lowest sell limit of the instrument.
+// GetLimitPrice retrieves the highest buy limit and lowest sell limit of the instrument
 func (ok *Okx) GetLimitPrice(ctx context.Context, instrumentID string) (*LimitPriceResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5135,7 +5135,7 @@ func (ok *Okx) GetLimitPrice(ctx context.Context, instrumentID string) (*LimitPr
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLimitPriceEPL, http.MethodGet, common.EncodeURLValues("public/price-limit", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetOptionMarketData retrieves option market data.
+// GetOptionMarketData retrieves option market data
 func (ok *Okx) GetOptionMarketData(ctx context.Context, underlying, instrumentFamily string, expTime time.Time) ([]OptionMarketDataResponse, error) {
 	if underlying == "" && instrumentFamily == "" {
 		return nil, errInstrumentFamilyOrUnderlyingRequired
@@ -5154,7 +5154,7 @@ func (ok *Okx) GetOptionMarketData(ctx context.Context, underlying, instrumentFa
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOptionMarketDateEPL, http.MethodGet, common.EncodeURLValues("public/opt-summary", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetEstimatedDeliveryPrice retrieves the estimated delivery price which will only have a return value one hour before the delivery/exercise.
+// GetEstimatedDeliveryPrice retrieves the estimated delivery price which will only have a return value one hour before the delivery/exercise
 func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID string) ([]DeliveryEstimatedPrice, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5165,7 +5165,7 @@ func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID strin
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryPriceEPL, http.MethodGet, common.EncodeURLValues("public/estimated-price", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetDiscountRateAndInterestFreeQuota retrieves discount rate level and interest-free quota.
+// GetDiscountRateAndInterestFreeQuota retrieves discount rate level and interest-free quota
 func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, ccy currency.Code, discountLevel int8) ([]DiscountRate, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5178,13 +5178,13 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, ccy curr
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDiscountRateAndInterestFreeQuotaEPL, http.MethodGet, common.EncodeURLValues("public/discount-rate-interest-free-quota", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetSystemTime retrieve API server time.
+// GetSystemTime retrieve API server time
 func (ok *Okx) GetSystemTime(ctx context.Context) (types.Time, error) {
 	resp := &ServerTime{}
 	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, "public/time", nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetLiquidationOrders retrieves information on liquidation orders in the last day.
+// GetLiquidationOrders retrieves information on liquidation orders in the last day
 func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == "" {
@@ -5223,7 +5223,7 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, common.EncodeURLValues("public/liquidation-orders", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetMarkPrice  retrieve mark price.
+// GetMarkPrice  retrieve mark price
 func (ok *Okx) GetMarkPrice(ctx context.Context, instrumentType, underlying, instrumentFamily, instrumentID string) ([]MarkPrice, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -5243,7 +5243,7 @@ func (ok *Okx) GetMarkPrice(ctx context.Context, instrumentType, underlying, ins
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMarkPriceEPL, http.MethodGet, common.EncodeURLValues("public/mark-price", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetPositionTiers retrieves position tiers information，maximum leverage depends on your borrowings and margin ratio.
+// GetPositionTiers retrieves position tiers information，maximum leverage depends on your borrowings and margin ratio
 func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentFamily, instrumentID, tiers string, ccy currency.Code) ([]PositionTiers, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
@@ -5290,19 +5290,19 @@ func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, 
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPositionTiersEPL, http.MethodGet, common.EncodeURLValues("public/position-tiers", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetInterestRateAndLoanQuota retrieves an interest rate and loan quota information for various currencies.
+// GetInterestRateAndLoanQuota retrieves an interest rate and loan quota information for various currencies
 func (ok *Okx) GetInterestRateAndLoanQuota(ctx context.Context) ([]InterestRateLoanQuotaItem, error) {
 	var resp []InterestRateLoanQuotaItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getInterestRateAndLoanQuotaEPL, http.MethodGet, "public/interest-rate-loan-quota", nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetInterestRateAndLoanQuotaForVIPLoans retrieves an interest rate and loan quota information for VIP users of various currencies.
+// GetInterestRateAndLoanQuotaForVIPLoans retrieves an interest rate and loan quota information for VIP users of various currencies
 func (ok *Okx) GetInterestRateAndLoanQuotaForVIPLoans(ctx context.Context) ([]VIPInterestRateAndLoanQuotaInformation, error) {
 	var response []VIPInterestRateAndLoanQuotaInformation
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getInterestRateAndLoanQuoteForVIPLoansEPL, http.MethodGet, "public/vip-interest-rate-loan-quota", nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetPublicUnderlyings returns list of underlyings for various instrument types.
+// GetPublicUnderlyings returns list of underlyings for various instrument types
 func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) ([]string, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
@@ -5314,7 +5314,7 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues("public/underlying", params), nil, &resp, request.UnauthenticatedRequest, false)
 }
 
-// GetInsuranceFundInformation returns insurance fund balance information.
+// GetInsuranceFundInformation returns insurance fund balance information
 func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
 	if *arg == (InsuranceFundInformationRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -5356,7 +5356,7 @@ func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFu
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getInsuranceFundEPL, http.MethodGet, common.EncodeURLValues("public/insurance-fund", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// CurrencyUnitConvert convert currency to contract, or contract to currency.
+// CurrencyUnitConvert convert currency to contract, or contract to currency
 func (ok *Okx) CurrencyUnitConvert(ctx context.Context, instrumentID string, quantity, orderPrice float64, convertType uint, unitOfCcy currency.Code, operationTypeOpen bool) (*UnitConvertResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5414,7 +5414,7 @@ func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error)
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &response, request.UnauthenticatedRequest, true)
 }
 
-// GetTakerVolume retrieves the taker volume for both buyers and sellers.
+// GetTakerVolume retrieves the taker volume for both buyers and sellers
 func (ok *Okx) GetTakerVolume(ctx context.Context, ccy currency.Code, instrumentType, instrumentFamily string, begin, end time.Time, period kline.Interval) ([]TakerVolume, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -5441,7 +5441,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, ccy currency.Code, instrument
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/taker-volume", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetMarginLendingRatio retrieves the ratio of cumulative amount between currency margin quote currency and base currency.
+// GetMarginLendingRatio retrieves the ratio of cumulative amount between currency margin quote currency and base currency
 func (ok *Okx) GetMarginLendingRatio(ctx context.Context, ccy currency.Code, begin, end time.Time, period kline.Interval) ([]MarginLendRatioItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5461,7 +5461,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, ccy currency.Code, beg
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMarginLendingRatioEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/margin/loan-ratio", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetLongShortRatio retrieves the ratio of users with net long vs net short positions for futures and perpetual swaps.
+// GetLongShortRatio retrieves the ratio of users with net long vs net short positions for futures and perpetual swaps
 func (ok *Okx) GetLongShortRatio(ctx context.Context, ccy currency.Code, begin, end time.Time, period kline.Interval) ([]LongShortRatio, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5481,7 +5481,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, ccy currency.Code, begin, 
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLongShortRatioEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/contracts/long-short-account-ratio", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetContractsOpenInterestAndVolume retrieves the open interest and trading volume for futures and perpetual swaps.
+// GetContractsOpenInterestAndVolume retrieves the open interest and trading volume for futures and perpetual swaps
 func (ok *Okx) GetContractsOpenInterestAndVolume(ctx context.Context, ccy currency.Code, begin, end time.Time, period kline.Interval) ([]OpenInterestVolume, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5501,7 +5501,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(ctx context.Context, ccy curren
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getContractsOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/contracts/open-interest-volume", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetOptionsOpenInterestAndVolume retrieves the open interest and trading volume for options.
+// GetOptionsOpenInterestAndVolume retrieves the open interest and trading volume for options
 func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, ccy currency.Code, period kline.Interval) ([]OpenInterestVolume, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5515,7 +5515,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, ccy currency
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOptionsOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetPutCallRatio retrieves the open interest ration and trading volume ratio of calls vs puts.
+// GetPutCallRatio retrieves the open interest ration and trading volume ratio of calls vs puts
 func (ok *Okx) GetPutCallRatio(ctx context.Context, ccy currency.Code, period kline.Interval) ([]OpenInterestVolumeRatio, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5529,7 +5529,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, ccy currency.Code, period kl
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPutCallRatioEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume-ratio", params), nil, &response, request.UnauthenticatedRequest)
 }
 
-// GetOpenInterestAndVolumeExpiry retrieves the open interest and trading volume of calls and puts for each upcoming expiration.
+// GetOpenInterestAndVolumeExpiry retrieves the open interest and trading volume of calls and puts for each upcoming expiration
 func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, ccy currency.Code, period kline.Interval) ([]ExpiryOpenInterestAndVolume, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -5543,7 +5543,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, ccy currency.
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume-expiry", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetOpenInterestAndVolumeStrike retrieves the taker volume for both buyers and sellers of calls and puts.
+// GetOpenInterestAndVolumeStrike retrieves the taker volume for both buyers and sellers of calls and puts
 func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.Code,
 	expTime time.Time, period kline.Interval) ([]StrikeOpenInterestAndVolume, error) {
 	if expTime.IsZero() {
@@ -5584,7 +5584,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline
 // If you have additional data requirements regarding the Affiliate API, please don't hesitate to contact your BD
 // We will reach out to you through your BD to provide more comprehensive API support
 
-// GetInviteesDetail retrieves affiliate invitees details.
+// GetInviteesDetail retrieves affiliate invitees details
 func (ok *Okx) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
 	if uid == "" {
 		return nil, errUserIDRequired
@@ -5593,7 +5593,7 @@ func (ok *Okx) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInvi
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetUserAffiliateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate.
+// GetUserAffiliateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate
 func (ok *Okx) GetUserAffiliateRebateInformation(ctx context.Context, apiKey string) (*AffilateRebateInfo, error) {
 	if apiKey == "" {
 		return nil, errInvalidAPIKey
@@ -5705,7 +5705,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 // Status
 
 // SystemStatusResponse retrieves the system status.
-// state supports valid values 'scheduled', 'ongoing', 'pre_open', 'completed', and 'canceled'.
+// state supports valid values 'scheduled', 'ongoing', 'pre_open', 'completed', and 'canceled'
 func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]SystemStatusResponse, error) {
 	params := url.Values{}
 	if state != "" {
@@ -5715,7 +5715,7 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, common.EncodeURLValues("system/status", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.
+// GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
 func GetAssetTypeFromInstrumentType(instrumentType string) asset.Item {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
@@ -5733,7 +5733,7 @@ func GetAssetTypeFromInstrumentType(instrumentType string) asset.Item {
 }
 
 // GetAssetsFromInstrumentTypeOrID parses an instrument type and instrument ID and returns a list of assets
-// that the currency pair is associated with.
+// that the currency pair is associated with
 func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([]asset.Item, error) {
 	if instType != "" {
 		a := GetAssetTypeFromInstrumentType(instType)
@@ -5881,7 +5881,7 @@ func (ok *Okx) GetLendingOrders(ctx context.Context, orderID, state string, ccy 
 		common.EncodeURLValues("finance/fixed-loan/lending-orders-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetLendingSubOrderList retrieves a lending sub-orders list.
+// GetLendingSubOrderList retrieves a lending sub-orders list
 func (ok *Okx) GetLendingSubOrderList(ctx context.Context, orderID, state string, startAt, endAt time.Time, limit int64) ([]LendingSubOrder, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -5908,7 +5908,7 @@ func (ok *Okx) GetLendingSubOrderList(ctx context.Context, orderID, state string
 
 // Trading Statistics endpoints
 
-// GetFuturesContractsOpenInterestHistory retrieve the contract open interest statistics of futures and perp. This endpoint returns a maximum of 1440 records.
+// GetFuturesContractsOpenInterestHistory retrieve the contract open interest statistics of futures and perp. This endpoint returns a maximum of 1440 records
 func (ok *Okx) GetFuturesContractsOpenInterestHistory(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]ContractOpenInterestHistoryItem, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5959,19 +5959,19 @@ func (ok *Okx) GetFuturesContractTakerVolume(ctx context.Context, instrumentID s
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rubikContractTakerVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/taker-volume-contract", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetFuturesContractLongShortAccountRatio retrieve the account long/short ratio of a contract. This endpoint returns a maximum of 1440 records.
+// GetFuturesContractLongShortAccountRatio retrieve the account long/short ratio of a contract. This endpoint returns a maximum of 1440 records
 func (ok *Okx) GetFuturesContractLongShortAccountRatio(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
 	return ok.getTopTradersFuturesContractLongShortRatio(ctx, instrumentID, "rubik/stat/contracts/long-short-account-ratio-contract", period, startAt, endAt, limit)
 }
 
 // GetTopTradersFuturesContractLongShortAccountRatio retrieve the account net long/short ratio of a contract for top traders.
 // Top traders refer to the top 5% of traders with the largest open position value.
-// This endpoint returns a maximum of 1440 records.
+// This endpoint returns a maximum of 1440 records
 func (ok *Okx) GetTopTradersFuturesContractLongShortAccountRatio(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
 	return ok.getTopTradersFuturesContractLongShortRatio(ctx, instrumentID, "rubik/stat/contracts/long-short-account-ratio-contract-top-trader", period, startAt, endAt, limit)
 }
 
-// GetTopTradersFuturesContractLongShortPositionRatio retrieve the position long/short ratio of a contract for top traders. Top traders refer to the top 5% of traders with the largest open position value. This endpoint returns a maximum of 1440 records.
+// GetTopTradersFuturesContractLongShortPositionRatio retrieve the position long/short ratio of a contract for top traders. Top traders refer to the top 5% of traders with the largest open position value. This endpoint returns a maximum of 1440 records
 func (ok *Okx) GetTopTradersFuturesContractLongShortPositionRatio(ctx context.Context, instrumentID string, period kline.Interval, startAt, endAt time.Time, limit int64) ([]TopTraderContractsLongShortRatio, error) {
 	return ok.getTopTradersFuturesContractLongShortRatio(ctx, instrumentID, "rubik/stat/contracts/long-short-position-ratio-contract-top-trader", period, startAt, endAt, limit)
 }
@@ -6002,7 +6002,7 @@ func (ok *Okx) getTopTradersFuturesContractLongShortRatio(ctx context.Context, i
 //
 // There are differences between public endpoint and private endpoint.
 // For public endpoint, the response is restricted based on your request IP.
-// For private endpoint, the response is restricted based on your country of residence.
+// For private endpoint, the response is restricted based on your country of residence
 func (ok *Okx) GetAnnouncements(ctx context.Context, announcementType string, page int64) (*AnnouncementDetail, error) {
 	params := url.Values{}
 	if announcementType != "" {

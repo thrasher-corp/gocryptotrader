@@ -1095,7 +1095,7 @@ type AlgoOrderParams struct {
 
 	// For trigger and trailing stop order
 	CallbackRatio          float64 `json:"callbackRatio,omitempty,string"`
-	ActivePrice            float64 `json:"activePx,string,omitempty,string"`
+	ActivePrice            float64 `json:"activePx,omitempty,string"`
 	CallbackSpreadVariance float64 `json:"callbackSpread,omitempty,string"`
 
 	// trigger algo orders params.
@@ -1301,14 +1301,14 @@ type NonTradableAsset struct {
 	Currency         string       `json:"ccy"`
 	Chain            string       `json:"chain"`
 	CtAddr           string       `json:"ctAddr"`
-	Fee              types.Number `json:"fee"`
 	LogoLink         string       `json:"logoLink"`
-	MinWithdrawal    types.Number `json:"minWd"`
 	Name             string       `json:"name"`
 	NeedTag          bool         `json:"needTag"`
 	WithdrawAll      bool         `json:"wdAll"`
-	WithdrawTickSize types.Number `json:"wdTickSz"`
 	FeeCurrency      string       `json:"feeCcy"`
+	Fee              types.Number `json:"fee"`
+	MinWithdrawal    types.Number `json:"minWd"`
+	WithdrawTickSize types.Number `json:"wdTickSz"`
 	BurningFeeRate   types.Number `json:"burningFeeRate"`
 }
 

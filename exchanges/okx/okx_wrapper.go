@@ -58,7 +58,7 @@ func (ok *Okx) SetDefaults() {
 		Uppercase: true,
 	}
 
-	// In this exchange, we represent deliverable futures contracts as 'FUTURES'(asset.Futures) and perpetual futures as 'SWAP'/asset.PerpetualSwap
+	// In this exchange, we represent deliverable futures contracts as 'FUTURES'/asset.Futures and perpetual futures as 'SWAP'/asset.PerpetualSwap
 	err := ok.SetGlobalPairsManager(cpf, cpf, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin, asset.Spread)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -888,7 +888,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, errors.New("amount, or size (sz) of quantity to buy or sell hast to be greater than zero")
+		return nil, order.ErrAmountBelowMin
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -918,7 +918,6 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			targetCurrency = "quote_ccy"
 		}
 	}
-
 	// If asset type is spread
 	if s.AssetType == asset.Spread {
 		spreadParam := &SpreadOrderParam{
@@ -1022,7 +1021,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		})
 	case "chase":
 		if s.TrackingMode == order.UnknownTrackingMode {
-			return nil, order.ErrUnknownTrackingRate
+			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingRate)
 		}
 		result, err = ok.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
@@ -1037,7 +1036,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		})
 	case "move_order_stop":
 		if s.TrackingMode == order.UnknownTrackingMode {
-			return nil, order.ErrUnknownTrackingRate
+			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingRate)
 		}
 		var callbackSpread, callbackRatio float64
 		switch s.TrackingMode {
@@ -1060,7 +1059,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		})
 	case "twap":
 		if s.TrackingMode == order.UnknownTrackingMode {
-			return nil, order.ErrUnknownTrackingRate
+			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingRate)
 		}
 		var priceVar, priceSpread float64
 		switch s.TrackingMode {
@@ -1132,7 +1131,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	}
 	var err error
 	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("okx contract amount can not be decimal")
+		return nil, errors.New("contract amount can not be decimal")
 	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
@@ -1265,13 +1264,13 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
+	if ord.Pair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
+	case order.UnknownType, order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
 		order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
-		if ord.Pair.IsEmpty() {
-			return currency.ErrCurrencyPairEmpty
-		}
 		req := CancelOrderRequestParam{
 			InstrumentID:  instrumentID,
 			OrderID:       ord.OrderID,
@@ -1284,7 +1283,8 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 	case order.Trigger, order.OCO, order.ConditionalStop,
 		order.TWAP, order.TrailingStop, order.Chase:
-		response, err := ok.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
+		var response *AlgoOrder
+		response, err = ok.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
 			{
 				AlgoOrderID:  ord.OrderID,
 				InstrumentID: instrumentID,
@@ -1331,8 +1331,11 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		switch ord.Type {
-		case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
+		case order.UnknownType, order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
 			order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+			if o[x].ClientID == "" && o[x].OrderID == "" {
+				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
+			}
 			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
 				InstrumentID:  pairFormat.Format(ord.Pair),
 				OrderID:       ord.OrderID,
@@ -2425,7 +2428,6 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	if err != nil {
 		return nil, err
 	}
-
 	return &margin.PositionChangeResponse{
 		Exchange:        ok.Name,
 		Pair:            req.Pair,

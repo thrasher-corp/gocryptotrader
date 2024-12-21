@@ -3230,7 +3230,35 @@ func TestSubmitOrder(t *testing.T) {
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)
-	var orderSubmission = &order.Submit{
+
+	arg := &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.LTC,
+			Quote: currency.BTC,
+		},
+		Exchange:  ok.Name,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1000000000,
+		ClientID:  "yeneOrder",
+		AssetType: asset.Binary,
+	}
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.AssetType = asset.Spot
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	arg = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
 			Quote: currency.BTC,
@@ -3243,16 +3271,14 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.SubmitOrder(contextGenerate(), orderSubmission)
+	result, err := ok.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
 	cp, err := currency.NewPairFromString("BTC-USDT-230630")
 	require.NoError(t, err)
 
-	orderSubmission = &order.Submit{
+	arg = &order.Submit{
 		Pair:       cp,
 		Exchange:   ok.Name,
 		Side:       order.Buy,
@@ -3262,7 +3288,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType:  asset.Futures,
 		MarginType: margin.Multi,
 	}
-	result, err = ok.SubmitOrder(contextGenerate(), orderSubmission)
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -3286,7 +3312,6 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
@@ -3295,6 +3320,22 @@ func TestCancelOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 	err := ok.CancelOrder(contextGenerate(), orderCancellation)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = ok.CancelOrder(contextGenerate(), orderCancellation)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	err = ok.CancelOrder(contextGenerate(), orderCancellation)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
+		OrderID:       "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		AssetType:     asset.Spot,
+	})
 	assert.NoError(t, err)
 }
 
@@ -3305,20 +3346,45 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = ok.CancelBatchOrders(contextGenerate(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 
+	arg := order.Cancel{
+		OrderID:       "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		AssetType:     asset.Binary,
+	}
+	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.AssetType = asset.Spot
+	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
+	arg.Pair = spotTP
+	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.Type = order.Trigger
+	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	arg.Type = order.Limit
+	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	var orderCancellationParams = []order.Cancel{
 		{
 			OrderID:       "1",
 			WalletAddress: core.BitcoinDonationAddress,
 			AccountID:     "1",
-			Pair:          currency.NewPair(currency.LTC, currency.BTC),
+			Pair:          spotTP,
 			AssetType:     asset.Spot,
 		},
 		{
 			OrderID:       "1",
 			WalletAddress: core.BitcoinDonationAddress,
 			AccountID:     "1",
-			Pair:          currency.NewPair(currency.LTC, currency.BTC),
+			Pair:          perpetualSwapTP,
 			AssetType:     asset.PerpetualSwap,
 		},
 	}
