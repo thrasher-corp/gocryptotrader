@@ -1110,7 +1110,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
+	_, err = g.PlaceDeliveryOrder(context.Background(), &ContractOrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1279,7 +1279,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.PlaceFuturesOrder(context.Background(), &OrderCreateParams{
+	_, err = g.PlaceFuturesOrder(context.Background(), &ContractOrderCreateParams{
 		Contract:    getPair(t, asset.Futures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1324,7 +1324,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.PlaceBatchFuturesOrders(context.Background(), currency.BTC, []OrderCreateParams{
+	_, err = g.PlaceBatchFuturesOrders(context.Background(), currency.BTC, []ContractOrderCreateParams{
 		{
 			Contract:    getPair(t, asset.Futures),
 			Size:        6024,

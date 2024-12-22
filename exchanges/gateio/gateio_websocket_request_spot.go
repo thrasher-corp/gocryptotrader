@@ -155,8 +155,3 @@ func (g *Gateio) WebsocketSpotGetOrderStatus(ctx context.Context, orderID string
 	var resp WebsocketOrderResponse
 	return &resp, g.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_status", asset.Spot, params, &resp, 1)
 }
-
-// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
-type funnelResult struct {
-	Result any `json:"result"`
-}

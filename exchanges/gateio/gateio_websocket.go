@@ -773,6 +773,11 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	return errs
 }
 
+// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
+type funnelResult struct {
+	Result any `json:"result"`
+}
+
 // SendWebsocketRequest sends a websocket request to the exchange
 func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
 	paramPayload, err := json.Marshal(params)

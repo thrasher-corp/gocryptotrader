@@ -1813,8 +1813,8 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
-// OrderCreateParams represents future order creation parameters
-type OrderCreateParams struct {
+// ContractOrderCreateParams represents future order creation parameters
+type ContractOrderCreateParams struct {
 	Contract      currency.Pair `json:"contract"`
 	Size          float64       `json:"size"`    // positive long, negative short
 	Iceberg       int64         `json:"iceberg"` // required; can be zero

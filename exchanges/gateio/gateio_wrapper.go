@@ -1119,7 +1119,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
+		fOrder, err := g.PlaceFuturesOrder(ctx, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
@@ -1165,7 +1165,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
+		newOrder, err := g.PlaceDeliveryOrder(ctx, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
@@ -2674,17 +2674,15 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		out := OrderCreateParams{
+		var got []WebsocketFuturesOrderResponse
+		got, err = g.WebsocketFuturesSubmitOrder(ctx, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForce,
 			Text:        s.ClientOrderID,
-		}
-
-		var got []WebsocketFuturesOrderResponse
-		got, err = g.WebsocketOrderPlaceFutures(ctx, []OrderCreateParams{out})
+		})
 		if err != nil {
 			return nil, err
 		}

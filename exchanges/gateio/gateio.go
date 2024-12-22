@@ -2264,7 +2264,7 @@ func (g *Gateio) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle c
 // Set reduce_only to true can keep the position from changing side when reducing position size
 // In single position mode, to close a position, you need to set size to 0 and close to true
 // In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
-func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) (*Order, error) {
+func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2352,7 +2352,7 @@ func (g *Gateio) CancelMultipleFuturesOpenOrders(ctx context.Context, contract c
 // In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
 // If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
 // In the rate limiting, each order is counted individually
-func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []OrderCreateParams) ([]Order, error) {
+func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2840,7 +2840,7 @@ func (g *Gateio) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle cur
 
 // PlaceDeliveryOrder create a futures order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams) (*Order, error) {
+func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
