@@ -155,17 +155,11 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	}
 
 	if push.RequestID != "" {
-		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
-			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {
