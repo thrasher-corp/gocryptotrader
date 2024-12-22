@@ -308,7 +308,7 @@ func TestGetSpotAccounts(t *testing.T) {
 func TestCreateBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CreateBatchOrders(context.Background(), []CreateOrderRequestData{
+	if _, err := g.CreateBatchOrders(context.Background(), []CreateOrderRequest{
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
@@ -353,7 +353,7 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 func TestCreateSpotOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.PlaceSpotOrder(context.Background(), &CreateOrderRequestData{
+	if _, err := g.PlaceSpotOrder(context.Background(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
 		Amount:       1,
@@ -368,7 +368,7 @@ func TestCreateSpotOrder(t *testing.T) {
 func TestGetSpotOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSpotOrders(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "open", 0, 0); err != nil {
+	if _, err := g.GetSpotOrders(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, statusOpen, 0, 0); err != nil {
 		t.Errorf("%s GetSpotOrders() error %v", g.Name, err)
 	}
 }
@@ -490,7 +490,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 func TestGetPriceTriggeredOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetPriceTriggeredOrderList(context.Background(), "open", currency.EMPTYPAIR, asset.Empty, 0, 0); err != nil {
+	if _, err := g.GetPriceTriggeredOrderList(context.Background(), statusOpen, currency.EMPTYPAIR, asset.Empty, 0, 0); err != nil {
 		t.Errorf("%s GetPriceTriggeredOrderList() error %v", g.Name, err)
 	}
 }
@@ -564,7 +564,7 @@ func TestMarginLoan(t *testing.T) {
 func TestGetMarginAllLoans(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetMarginAllLoans(context.Background(), "open", "lend", "", currency.BTC, currency.Pair{Base: currency.BTC, Delimiter: currency.UnderscoreDelimiter, Quote: currency.USDT}, false, 0, 0); err != nil {
+	if _, err := g.GetMarginAllLoans(context.Background(), statusOpen, "lend", "", currency.BTC, currency.Pair{Base: currency.BTC, Delimiter: currency.UnderscoreDelimiter, Quote: currency.USDT}, false, 0, 0); err != nil {
 		t.Errorf("%s GetMarginAllLoans() error %v", g.Name, err)
 	}
 }
@@ -1110,7 +1110,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
+	_, err = g.PlaceDeliveryOrder(context.Background(), &ContractOrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1127,7 +1127,7 @@ func TestGetDeliveryOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetDeliveryOrders(context.Background(), getPair(t, asset.DeliveryFutures), "open", settle, "", 0, 0, 1)
+	_, err = g.GetDeliveryOrders(context.Background(), getPair(t, asset.DeliveryFutures), statusOpen, settle, "", 0, 0, 1)
 	assert.NoError(t, err, "GetDeliveryOrders should not error")
 }
 
@@ -1205,7 +1205,7 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDeliveryAllAutoOrder(context.Background(), "open", currency.USDT, getPair(t, asset.DeliveryFutures), 0, 1)
+	_, err := g.GetDeliveryAllAutoOrder(context.Background(), statusOpen, currency.USDT, getPair(t, asset.DeliveryFutures), 0, 1)
 	assert.NoError(t, err, "GetDeliveryAllAutoOrder should not error")
 }
 
@@ -1279,7 +1279,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.PlaceFuturesOrder(context.Background(), &OrderCreateParams{
+	_, err = g.PlaceFuturesOrder(context.Background(), &ContractOrderCreateParams{
 		Contract:    getPair(t, asset.Futures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1294,7 +1294,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", "", currency.BTC, 0, 0, 1)
+	_, err := g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), statusOpen, "", currency.BTC, 0, 0, 1)
 	assert.NoError(t, err, "GetFuturesOrders should not error")
 }
 
@@ -1324,7 +1324,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.PlaceBatchFuturesOrders(context.Background(), currency.BTC, []OrderCreateParams{
+	_, err = g.PlaceBatchFuturesOrders(context.Background(), currency.BTC, []ContractOrderCreateParams{
 		{
 			Contract:    getPair(t, asset.Futures),
 			Size:        6024,
@@ -1431,7 +1431,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 func TestListAllFuturesAutoOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.ListAllFuturesAutoOrders(context.Background(), "open", currency.BTC, currency.EMPTYPAIR, 0, 0)
+	_, err := g.ListAllFuturesAutoOrders(context.Background(), statusOpen, currency.BTC, currency.EMPTYPAIR, 0, 0)
 	assert.NoError(t, err, "ListAllFuturesAutoOrders should not error")
 }
 
@@ -2611,7 +2611,7 @@ func TestFuturesPositionsNotification(t *testing.T) {
 	}
 }
 
-const wsFuturesAutoOrdersPushDataJSON = `{"time": 1596798126,"channel": "futures.autoorders",	"event": "update",	"error": null,	"result": [	  {		"user": 123456,		"trigger": {		  "strategy_type": 0,		  "price_type": 0,		  "price": "10000",		  "rule": 2,		  "expiration": 86400		},		"initial": {		  "contract": "BTC_USDT",		  "size": 10,		  "price": "10000",		  "tif": "gtc",		  "text": "web",		  "iceberg": 0,		  "is_close": false,		  "is_reduce_only": false		},		"id": 9256,		"trade_id": 0,		"status": "open",		"reason": "",		"create_time": 1596798126,		"name": "price_autoorders",		"is_stop_order": false,		"stop_trigger": {		  "rule": 0,		  "trigger_price": "",		  "order_price": ""		}	  }	]}`
+const wsFuturesAutoOrdersPushDataJSON = `{"time": 1596798126,"channel": "futures.autoorders",	"event": "update",	"error": null,	"result": [	  {		"user": 123456,		"trigger": {		  "strategy_type": 0,		  "price_type": 0,		  "price": "10000",		  "rule": 2,		  "expiration": 86400		},		"initial": {		  "contract": "BTC_USDT",		  "size": 10,		  "price": "10000",		  "tif": "gtc",		  "text": "web",		  "iceberg": 0,		  "is_close": false,		  "is_reduce_only": false		},		"id": 9256,		"trade_id": 0,		"status": "OPEN",		"reason": "",		"create_time": 1596798126,		"name": "price_autoorders",		"is_stop_order": false,		"stop_trigger": {		  "rule": 0,		  "trigger_price": "",		  "order_price": ""		}	  }	]}`
 
 func TestFuturesAutoOrderPushData(t *testing.T) {
 	t.Parallel()
@@ -3451,7 +3451,7 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 		incoming string
 		status   order.Status
 	}{
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"OPEN","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Filled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Liquidated},

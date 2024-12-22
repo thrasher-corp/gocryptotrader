@@ -1943,3 +1943,8 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 	}
 	return b.Features.TradingRequirements
 }
+
+// WebsocketSubmitOrder submits an order to the exchange via a websocket connection
+func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
