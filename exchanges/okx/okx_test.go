@@ -846,7 +846,7 @@ func TestCancelSingleOrder(t *testing.T) {
 	_, err = ok.CancelSingleOrder(contextGenerate(), &CancelOrderRequestParam{OrderID: "12321312312"})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 	_, err = ok.CancelSingleOrder(contextGenerate(), &CancelOrderRequestParam{InstrumentID: "BTC-USDT"})
-	require.ErrorIs(t, err, errMissingOrderIDAndClientSuppliedID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelSingleOrder(contextGenerate(),
@@ -1392,7 +1392,7 @@ func TestCreateRfq(t *testing.T) {
 func TestCancelRfq(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CancelRfq(contextGenerate(), "", "")
-	require.ErrorIs(t, err, errMissingOrderIDAndClientSuppliedID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelRfq(context.Background(), "", "somersdjskfjsdkfjxvxv")
@@ -1403,7 +1403,7 @@ func TestCancelRfq(t *testing.T) {
 func TestMultipleCancelRfq(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CancelMultipleRfqs(contextGenerate(), &CancelRfqRequestsParam{})
-	require.ErrorIs(t, err, errMissingOrderIDAndClientSuppliedID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelMultipleRfqs(contextGenerate(), &CancelRfqRequestsParam{ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"}})
@@ -1531,7 +1531,7 @@ func TestCreateQuote(t *testing.T) {
 func TestCancelQuote(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CancelQuote(contextGenerate(), "", "")
-	require.ErrorIs(t, err, errMissingOrderIDAndClientSuppliedID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelQuote(contextGenerate(), "1234", "")
@@ -1546,7 +1546,7 @@ func TestCancelQuote(t *testing.T) {
 func TestCancelMultipleQuote(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{})
-	require.ErrorIs(t, err, errMissingOrderIDAndClientSuppliedID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{
@@ -3232,15 +3232,10 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	arg := &order.Submit{
-		Pair: currency.Pair{
-			Base:  currency.LTC,
-			Quote: currency.BTC,
-		},
 		Exchange:  ok.Name,
 		Side:      order.Buy,
 		Type:      order.Limit,
 		Price:     1,
-		Amount:    1000000000,
 		ClientID:  "yeneOrder",
 		AssetType: asset.Binary,
 	}
@@ -3251,9 +3246,13 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = ok.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
+	arg.Amount = 1000000000
 	_, err = ok.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	arg.Pair = spotTP
+	arg.AssetType = asset.Futures
+	arg.Leverage = -1
 	_, err = ok.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
@@ -3312,30 +3311,31 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+	var arg = &order.Cancel{
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		Pair:          currency.NewPair(currency.LTC, currency.BTC),
-		AssetType:     asset.Spot,
+		AssetType:     asset.Binary,
 	}
-	err := ok.CancelOrder(contextGenerate(), orderCancellation)
+	err := ok.CancelOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	err = ok.CancelOrder(contextGenerate(), orderCancellation)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	err = ok.CancelOrder(contextGenerate(), orderCancellation)
+	arg.AssetType = asset.Spot
+	err = ok.CancelOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.Pair = spotTP
+	err = ok.CancelOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currency.NewPair(currency.LTC, currency.BTC),
-		AssetType:     asset.Spot,
-	})
+		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
+		AccountID: "1", Pair: spotTP, AssetType: asset.Spot})
+	assert.NoError(t, err)
+
+	err = ok.CancelOrder(contextGenerate(), &order.Cancel{OrderID: "1",
+		WalletAddress: core.BitcoinDonationAddress, AccountID: "1",
+		Pair: spreadTP, AssetType: asset.Spread})
 	assert.NoError(t, err)
 }
 
@@ -3347,7 +3347,6 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 
 	arg := order.Cancel{
-		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		AssetType:     asset.Binary,
@@ -3360,6 +3359,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
 	arg.Pair = spotTP
+	arg.Type = order.Liquidation
 	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
@@ -3395,6 +3395,9 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	_, err := ok.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
 	assert.NoError(t, err)
@@ -3407,15 +3410,26 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	arg := &order.Modify{}
+	_, err := ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	arg.Pair = spotTP
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrAssetNotSet)
+
+	arg.AssetType = asset.Spot
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.ModifyOrder(contextGenerate(),
-		&order.Modify{
-			AssetType: asset.Spot,
-			Pair:      spotTP,
-			OrderID:   "1234",
-			Price:     123456.44,
-			Amount:    123,
-		})
+	result, err := ok.ModifyOrder(contextGenerate(), &order.Modify{
+		AssetType: asset.Spot,
+		Pair:      spotTP,
+		OrderID:   "1234",
+		Price:     123456.44,
+		Amount:    123,
+	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 

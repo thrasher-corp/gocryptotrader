@@ -98,7 +98,6 @@ var (
 	errMissingValidGreeksType               = errors.New("missing valid greeks type")
 	errMissingIsolatedMarginTradingSetting  = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
 	errInvalidCounterParties                = errors.New("missing counter parties")
-	errMissingOrderIDAndClientSuppliedID    = errors.New("order ID or client supplied ID is required")
 	errMissingRfqIDOrQuoteID                = errors.New("either Rfq ID or Quote ID is missing")
 	errMissingRfqID                         = errors.New("error missing rfq ID")
 	errMissingLegs                          = errors.New("missing legs")

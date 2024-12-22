@@ -207,7 +207,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, errMissingOrderIDAndClientSuppliedID
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
@@ -938,7 +938,7 @@ func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse,
 // CancelRfq Cancel an existing active Rfq that you has previously created
 func (ok *Okx) CancelRfq(ctx context.Context, rfqID, clientRfqID string) (*CancelRfqResponse, error) {
 	if rfqID == "" && clientRfqID == "" {
-		return nil, errMissingOrderIDAndClientSuppliedID
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelRfqResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRfqRequestParam{
@@ -953,7 +953,7 @@ func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg *CancelRfqRequestsPar
 		return nil, common.ErrNilPointer
 	}
 	if len(arg.RfqIDs) == 0 && len(arg.ClientRfqIDs) == 0 {
-		return nil, errMissingOrderIDAndClientSuppliedID
+		return nil, order.ErrOrderIDNotSet
 	} else if len(arg.RfqIDs)+len(arg.ClientRfqIDs) > 100 {
 		return nil, errMaxRfqOrdersToCancel
 	}
@@ -1060,7 +1060,7 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*QuoteR
 // CancelQuote cancels an existing active quote you have created in response to an Rfq
 func (ok *Okx) CancelQuote(ctx context.Context, quoteID, clientQuoteID string) (*CancelQuoteResponse, error) {
 	if clientQuoteID == "" && quoteID == "" {
-		return nil, errMissingOrderIDAndClientSuppliedID
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, "rfq/cancel-quote", &CancelQuoteRequestParams{
@@ -1072,7 +1072,7 @@ func (ok *Okx) CancelQuote(ctx context.Context, quoteID, clientQuoteID string) (
 // CancelMultipleQuote cancels multiple active quotes in a single batch, with a maximum of 100 quote orders cancellable at once
 func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestParams) ([]CancelQuoteResponse, error) {
 	if len(arg.QuoteIDs) == 0 && len(arg.ClientQuoteIDs) == 0 {
-		return nil, errMissingOrderIDAndClientSuppliedID
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []CancelQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)

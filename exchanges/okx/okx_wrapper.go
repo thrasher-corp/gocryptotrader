@@ -881,9 +881,6 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(ok.GetTradingRequirements()); err != nil {
-		return nil, err
-	}
 	if !ok.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
@@ -899,7 +896,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	}
 	pairString := pairFormat.Format(s.Pair)
 	tradeMode := ok.marginTypeToString(s.MarginType)
-	if s.Leverage != 0 && s.Leverage != 1 {
+	if s.AssetType.IsFutures() && s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
 	}
 	var sideType, positionSide string
@@ -1245,9 +1242,6 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 
 // CancelOrder cancels an order by its corresponding ID number
 func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	if err := ord.Validate(ord.StandardCancel()); err != nil {
-		return err
-	}
 	if !ok.SupportsAsset(ord.AssetType) {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
@@ -1315,10 +1309,6 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	var err error
 	for x := range o {
 		ord := o[x]
-		err = ord.Validate(ord.StandardCancel())
-		if err != nil {
-			return nil, err
-		}
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
