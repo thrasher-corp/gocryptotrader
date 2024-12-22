@@ -168,11 +168,11 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	}
 
 	if push.RequestID != "" {
-		return g.Websocket.Match.EnsureMatchWithData(push.RequestID, respRaw)
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return g.Websocket.Match.EnsureMatchWithData(push.ID, respRaw)
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
@@ -771,6 +771,11 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		}
 	}
 	return errs
+}
+
+// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
+type funnelResult struct {
+	Result any `json:"result"`
 }
 
 // SendWebsocketRequest sends a websocket request to the exchange

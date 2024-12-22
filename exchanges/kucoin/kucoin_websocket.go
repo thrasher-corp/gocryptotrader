@@ -222,7 +222,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return nil
 	}
 	if resp.ID != "" {
-		return ku.Websocket.Match.EnsureMatchWithData("msgID:"+resp.ID, respData)
+		return ku.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {

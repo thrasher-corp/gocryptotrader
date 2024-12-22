@@ -52,31 +52,6 @@ type WebsocketErrors struct {
 	} `json:"errs"`
 }
 
-// WebsocketLoginResponse defines a websocket login response when authenticating
-// the connection.
-type WebsocketLoginResponse struct {
-	Result struct {
-		APIKey string `json:"api_key"`
-		UID    string `json:"uid"`
-	} `json:"result"`
-}
-
-// WebsocketOrder defines a websocket order
-type WebsocketOrder struct {
-	Text         string `json:"text"`
-	CurrencyPair string `json:"currency_pair,omitempty"`
-	Type         string `json:"type,omitempty"`
-	Account      string `json:"account,omitempty"`
-	Side         string `json:"side,omitempty"`
-	Amount       string `json:"amount,omitempty"`
-	Price        string `json:"price,omitempty"`
-	TimeInForce  string `json:"time_in_force,omitempty"`
-	Iceberg      string `json:"iceberg,omitempty"`
-	AutoBorrow   bool   `json:"auto_borrow,omitempty"`
-	AutoRepay    bool   `json:"auto_repay,omitempty"`
-	StpAct       string `json:"stp_act,omitempty"`
-}
-
 // WebsocketOrderResponse defines a websocket order response
 type WebsocketOrderResponse struct {
 	Left               types.Number  `json:"left"`

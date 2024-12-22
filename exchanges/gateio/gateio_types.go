@@ -1372,8 +1372,8 @@ type SpotAccount struct {
 	Locked    types.Number `json:"locked"`
 }
 
-// CreateOrderRequestData represents a single order creation param.
-type CreateOrderRequestData struct {
+// CreateOrderRequest represents a single order creation param.
+type CreateOrderRequest struct {
 	Text         string        `json:"text,omitempty"`
 	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
 	Type         string        `json:"type,omitempty"`
@@ -1813,8 +1813,8 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
-// OrderCreateParams represents future order creation parameters
-type OrderCreateParams struct {
+// ContractOrderCreateParams represents future order creation parameters
+type ContractOrderCreateParams struct {
 	Contract      currency.Pair `json:"contract"`
 	Size          float64       `json:"size"`    // positive long, negative short
 	Iceberg       int64         `json:"iceberg"` // required; can be zero

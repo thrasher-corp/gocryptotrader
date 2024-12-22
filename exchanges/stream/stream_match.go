@@ -51,9 +51,9 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 	return true
 }
 
-// EnsureMatchWithData validates that incoming data matches a request's signature.
+// RequireMatchWithData validates that incoming data matches a request's signature.
 // If a match is found, the data is processed; otherwise, it returns an error.
-func (m *Match) EnsureMatchWithData(signature any, data []byte) error {
+func (m *Match) RequireMatchWithData(signature any, data []byte) error {
 	if m.IncomingWithData(signature, data) {
 		return nil
 	}

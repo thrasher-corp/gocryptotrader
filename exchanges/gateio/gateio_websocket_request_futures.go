@@ -19,16 +19,21 @@ var (
 	errStatusNotSet               = errors.New("status not set")
 )
 
-// AuthenticateFutures sends an authentication message to the websocket connection
+// authenticateFutures sends an authentication message to the websocket connection
 func (g *Gateio) authenticateFutures(ctx context.Context, conn stream.Connection) error {
 	return g.websocketLogin(ctx, conn, "futures.login")
 }
 
-// WebsocketOrderPlaceFutures places an order via the websocket connection. You can
+// WebsocketFuturesSubmitOrder submits an order via the websocket connection
+func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, order *ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+	return g.WebsocketFuturesSubmitOrders(ctx, []ContractOrderCreateParams{*order})
+}
+
+// WebsocketFuturesSubmitOrders places an order via the websocket connection. You can
 // send multiple orders in a single request. NOTE: When sending multiple orders
 // the response will be an array of responses and a succeeded bool will be
 // returned in the response.
-func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, orders []OrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, orders []ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -80,9 +85,8 @@ func (g *Gateio) WebsocketOrderPlaceFutures(ctx context.Context, orders []OrderC
 	return resp, g.SendWebsocketRequest(ctx, perpetualSubmitBatchOrdersEPL, "futures.order_batch_place", a, orders, &resp, 2)
 }
 
-// WebsocketOrderCancelFutures cancels an order via the websocket connection.
-// Contract is used for routing the request internally to the correct connection.
-func (g *Gateio) WebsocketOrderCancelFutures(ctx context.Context, orderID string, contract currency.Pair) (*WebsocketFuturesOrderResponse, error) {
+// WebsocketFuturesCancelOrder cancels an order via the websocket connection.
+func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string, contract currency.Pair) (*WebsocketFuturesOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -104,9 +108,8 @@ func (g *Gateio) WebsocketOrderCancelFutures(ctx context.Context, orderID string
 	return &resp, g.SendWebsocketRequest(ctx, perpetualCancelOrderEPL, "futures.order_cancel", a, params, &resp, 1)
 }
 
-// WebsocketOrderCancelAllOpenFuturesOrdersMatched cancels multiple orders via
-// the websocket.
-func (g *Gateio) WebsocketOrderCancelAllOpenFuturesOrdersMatched(ctx context.Context, contract currency.Pair, side string) ([]WebsocketFuturesOrderResponse, error) {
+// WebsocketFuturesCancelAllOpenFuturesOrders cancels multiple orders via the websocket.
+func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, side string) ([]WebsocketFuturesOrderResponse, error) {
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -129,8 +132,8 @@ func (g *Gateio) WebsocketOrderCancelAllOpenFuturesOrdersMatched(ctx context.Con
 	return resp, g.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_cp", a, params, &resp, 2)
 }
 
-// WebsocketOrderAmendFutures amends an order via the websocket connection
-func (g *Gateio) WebsocketOrderAmendFutures(ctx context.Context, amend *WebsocketFuturesAmendOrder) (*WebsocketFuturesOrderResponse, error) {
+// WebsocketFuturesAmendOrder amends an order via the websocket connection
+func (g *Gateio) WebsocketFuturesAmendOrder(ctx context.Context, amend *WebsocketFuturesAmendOrder) (*WebsocketFuturesOrderResponse, error) {
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
@@ -156,8 +159,8 @@ func (g *Gateio) WebsocketOrderAmendFutures(ctx context.Context, amend *Websocke
 	return &resp, g.SendWebsocketRequest(ctx, perpetualAmendOrderEPL, "futures.order_amend", a, amend, &resp, 1)
 }
 
-// WebsocketOrderListFutures fetches a list of orders via the websocket connection
-func (g *Gateio) WebsocketOrderListFutures(ctx context.Context, list *WebsocketFutureOrdersList) ([]WebsocketFuturesOrderResponse, error) {
+// WebsocketFuturesOrderList fetches a list of orders via the websocket connection
+func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersList) ([]WebsocketFuturesOrderResponse, error) {
 	if list == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
@@ -179,9 +182,8 @@ func (g *Gateio) WebsocketOrderListFutures(ctx context.Context, list *WebsocketF
 	return resp, g.SendWebsocketRequest(ctx, perpetualGetOrdersEPL, "futures.order_list", a, list, &resp, 1)
 }
 
-// WebsocketGetOrderStatusFutures gets the status of an order via the websocket
-// connection.
-func (g *Gateio) WebsocketGetOrderStatusFutures(ctx context.Context, contract currency.Pair, orderID string) (*WebsocketFuturesOrderResponse, error) {
+// WebsocketFuturesGetOrderStatus gets the status of an order via the websocket connection.
+func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract currency.Pair, orderID string) (*WebsocketFuturesOrderResponse, error) {
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
