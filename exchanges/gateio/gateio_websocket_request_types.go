@@ -52,15 +52,6 @@ type WebsocketErrors struct {
 	} `json:"errs"`
 }
 
-// WebsocketLoginResponse defines a websocket login response when authenticating
-// the connection.
-type WebsocketLoginResponse struct {
-	Result struct {
-		APIKey string `json:"api_key"`
-		UID    string `json:"uid"`
-	} `json:"result"`
-}
-
 // WebsocketOrderResponse defines a websocket order response
 type WebsocketOrderResponse struct {
 	Left               types.Number  `json:"left"`

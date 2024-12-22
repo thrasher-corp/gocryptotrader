@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -39,7 +40,7 @@ func TestMain(m *testing.M) {
 }
 
 // singleExchangeOverride enter an exchange name to only test that exchange
-var singleExchangeOverride = ""
+var singleExchangeOverride = "gateio"
 
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
@@ -641,6 +642,7 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
+	stream.ErrNotConnected,               // Is thrown when attempting to send a message to a websocket that is not connected
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
