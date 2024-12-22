@@ -562,7 +562,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var acc account.SubAccount
 	var accountType string
 	info.Exchange = by.Name
-	err := by.RetrieveAndSetAccountType(ctx)
+	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -570,7 +570,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	case asset.Spot, asset.Options,
 		asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures:
-		switch by.AccountType {
+		switch at {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
 		case accountTypeNormal:
