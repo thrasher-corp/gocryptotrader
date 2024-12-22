@@ -1372,8 +1372,8 @@ type SpotAccount struct {
 	Locked    types.Number `json:"locked"`
 }
 
-// CreateOrderRequestData represents a single order creation param.
-type CreateOrderRequestData struct {
+// CreateOrderRequest represents a single order creation param.
+type CreateOrderRequest struct {
 	Text         string        `json:"text,omitempty"`
 	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
 	Type         string        `json:"type,omitempty"`
