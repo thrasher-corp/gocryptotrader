@@ -186,7 +186,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		if !ok {
 			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
 		}
-		exchangeAsset.AssetEnabled = convert.BoolPtr(true)
+		exchangeAsset.AssetEnabled = true
 		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(*exchangeAsset.RequestFormat)
 		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
 		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
