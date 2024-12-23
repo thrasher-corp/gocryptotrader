@@ -24,20 +24,23 @@ const (
 	PortfolioMode
 	// UnknownMode has collateral allocated in an unknown manner at present, but is not unset
 	UnknownMode
+	// SpotFuturesMode has collateral allocated across spot and futures accounts
+	SpotFuturesMode
 )
 
 const (
-	unsetCollateralStr     = "unset"
-	singleCollateralStr    = "single"
-	multiCollateralStr     = "multi"
-	portfolioCollateralStr = "portfolio"
-	unknownCollateralStr   = "unknown"
+	unsetCollateralStr       = "unset"
+	singleCollateralStr      = "single"
+	multiCollateralStr       = "multi"
+	portfolioCollateralStr   = "portfolio"
+	spotFuturesCollateralStr = "spot_futures"
+	unknownCollateralStr     = "unknown"
 )
 
 // ErrInvalidCollateralMode is returned when converting invalid string to collateral mode
 var ErrInvalidCollateralMode = errors.New("invalid collateral mode")
 
-var supportedCollateralModes = SingleMode | MultiMode | PortfolioMode
+var supportedCollateralModes = SingleMode | MultiMode | PortfolioMode | SpotFuturesMode
 
 // ByPosition shows how much collateral is used
 // from positions
