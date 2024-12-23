@@ -996,13 +996,9 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			Size:             s.Amount,
 			ReduceOnly:       s.ReduceOnly,
 			TriggerPrice:     s.TriggerPrice,
-			TriggerPriceType: s.TriggerPriceType.String(),
+			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	case "conditional":
-		var stopLossPrice float64
-		if s.TriggerPrice > 0 {
-			stopLossPrice = s.TriggerPrice
-		}
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = ok.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
@@ -1012,13 +1008,16 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			OrderType:                orderTypeString,
 			Size:                     s.Amount,
 			ReduceOnly:               s.ReduceOnly,
-			StopLossTriggerPrice:     stopLossPrice,
+			StopLossTriggerPrice:     s.TriggerPrice,
 			StopLossOrderPrice:       s.Price,
-			StopLossTriggerPriceType: s.TriggerPriceType.String(),
+			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	case "chase":
 		if s.TrackingMode == order.UnknownTrackingMode {
-			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingRate)
+			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
+		}
+		if s.TrackingValue == 0 {
+			return nil, fmt.Errorf("%w, tracking value required", order.ErrAmountBelowMin)
 		}
 		result, err = ok.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
@@ -1033,7 +1032,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		})
 	case "move_order_stop":
 		if s.TrackingMode == order.UnknownTrackingMode {
-			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingRate)
+			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
 		var callbackSpread, callbackRatio float64
 		switch s.TrackingMode {
@@ -1056,7 +1055,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		})
 	case "twap":
 		if s.TrackingMode == order.UnknownTrackingMode {
-			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingRate)
+			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
 		var priceVar, priceSpread float64
 		switch s.TrackingMode {
@@ -1096,10 +1095,12 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			ReduceOnly:   s.ReduceOnly,
 
 			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
-			TakeProfitTriggerPriceType: s.TriggerPriceType.String(),
+			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
+			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
 			StopLossTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
-			StopLossTriggerPriceType: s.TriggerPriceType.String(),
+			StopLossOrderPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
+			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	default:
 		return nil, order.ErrTypeIsInvalid
@@ -1108,6 +1109,19 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, err
 	}
 	return s.DeriveSubmitResponse(result.AlgoID)
+}
+
+func priceTypeString(pt order.PriceType) string {
+	switch pt {
+	case order.LastPrice:
+		return "last"
+	case order.IndexPrice:
+		return "index"
+	case order.MarkPrice:
+		return "mark"
+	default:
+		return ""
+	}
 }
 
 func (ok *Okx) marginTypeToString(m margin.Type) string {
@@ -1158,7 +1172,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	switch action.Type {
-	case order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
+	case order.UnknownType, order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
 		order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
@@ -1186,8 +1200,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 					NewTakeProfitOrderPrice:       action.RiskManagementModes.TakeProfit.LimitPrice,
 					NewStopLossTriggerPrice:       action.RiskManagementModes.StopLoss.Price,
 					NewStopLossOrderPrice:         action.RiskManagementModes.StopLoss.Price,
-					NewTakeProfitTriggerPriceType: action.RiskManagementModes.TakeProfit.TriggerPriceType.String(),
-					NewStopLossTriggerPriceType:   action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
+					NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
+					NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
 				},
 			}
 		}
@@ -1199,7 +1213,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 
 			NewTriggerPrice:     action.TriggerPrice,
 			NewOrderPrice:       action.Price,
-			NewTriggerPriceType: action.TriggerPriceType.String(),
+			NewTriggerPriceType: priceTypeString(action.TriggerPriceType),
 
 			// An one-cancel-other order to be placed after executing the trigger order
 			AttachAlgoOrders: postTriggerTPSLOrders,
@@ -1228,8 +1242,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 			NewStopLossTriggerPrice: action.RiskManagementModes.StopLoss.Price,
 			NewStopLossOrderPrice:   action.RiskManagementModes.StopEntry.LimitPrice,
 
-			NewTakeProfitTriggerPriceType: action.RiskManagementModes.TakeProfit.TriggerPriceType.String(),
-			NewStopLossTriggerPriceType:   action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
+			NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
+			NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
 		})
 		if err != nil {
 			return nil, err

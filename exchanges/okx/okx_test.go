@@ -1166,10 +1166,33 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 	t.Parallel()
 	_, err := ok.PlaceChaseAlgoOrder(context.Background(), &AlgoOrderParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.PlaceTWAPOrder(contextGenerate(), &AlgoOrderParams{ReduceOnly: true})
+	arg := &AlgoOrderParams{
+		ReduceOnly: true,
+	}
+	_, err = ok.PlaceTWAPOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
-	_, err = ok.PlaceChaseAlgoOrder(context.Background(), &AlgoOrderParams{OrderType: "chase"})
+
+	arg.OrderType = "chase"
+	arg.MaxChaseType = "percentage"
+	_, err = ok.PlaceChaseAlgoOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errPriceTrackingNotSet)
+
+	arg.MaxChaseType = "percentage"
+	arg.MaxChaseValue = .5
+	_, err = ok.PlaceChaseAlgoOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.InstrumentID = "BTC-USDT"
+	_, err = ok.PlaceChaseAlgoOrder(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidTradeModeValue)
+
+	arg.TradeMode = "cross"
+	_, err = ok.PlaceChaseAlgoOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell.Lower()
+	_, err = ok.PlaceChaseAlgoOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -3263,14 +3286,69 @@ func TestSubmitOrder(t *testing.T) {
 			Quote: currency.BTC,
 		},
 		Exchange:  ok.Name,
-		Side:      order.Buy,
+		Side:      order.Sell,
 		Type:      order.Limit,
-		Price:     1,
+		Price:     120000,
 		Amount:    1000000000,
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
 	result, err := ok.SubmitOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.Trigger
+	arg.TriggerPrice = 11999
+	arg.TriggerPriceType = order.LastPrice
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.ConditionalStop
+	arg.TriggerPrice = 11999
+	arg.TriggerPriceType = order.IndexPrice
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.Chase
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.ErrorIs(t, err, order.ErrUnknownTrackingMode)
+
+	arg.TrackingMode = order.Percentage
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.TrackingValue = .5
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.TWAP
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.TrailingStop
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.OCO
+	_, err = ok.SubmitOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.RiskManagementModes = order.RiskManagementModes{
+		TakeProfit: order.RiskManagement{
+			Price:      11999,
+			LimitPrice: 12000,
+		},
+		StopLoss: order.RiskManagement{
+			Price:      10999,
+			LimitPrice: 11000,
+		},
+	}
+	result, err = ok.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -3280,7 +3358,7 @@ func TestSubmitOrder(t *testing.T) {
 	arg = &order.Submit{
 		Pair:       cp,
 		Exchange:   ok.Name,
-		Side:       order.Buy,
+		Side:       order.Long,
 		Type:       order.Market,
 		Amount:     1,
 		ClientID:   "hellomoto",
@@ -3297,9 +3375,9 @@ func TestSubmitOrder(t *testing.T) {
 	result, err = ok.SubmitOrder(contextGenerate(), &order.Submit{
 		Pair:       pair,
 		Exchange:   ok.Name,
-		Side:       order.Buy,
+		Side:       order.Sell,
 		Type:       order.Limit,
-		Price:      1234,
+		Price:      120000,
 		Amount:     1,
 		ClientID:   "hellomoto",
 		AssetType:  asset.Spread,
@@ -3329,6 +3407,12 @@ func TestCancelOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
+		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
+		AccountID: "1", Pair: spotTP, AssetType: asset.Spot})
+	assert.NoError(t, err)
+
+	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
+		Type:    order.OCO,
 		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
 		AccountID: "1", Pair: spotTP, AssetType: asset.Spot})
 	assert.NoError(t, err)
@@ -3387,6 +3471,14 @@ func TestCancelBatchOrders(t *testing.T) {
 			Pair:          perpetualSwapTP,
 			AssetType:     asset.PerpetualSwap,
 		},
+		{
+			OrderID:       "1",
+			WalletAddress: core.BitcoinDonationAddress,
+			AccountID:     "1",
+			Type:          order.Trigger,
+			Pair:          spotTP,
+			AssetType:     asset.Spot,
+		},
 	}
 	result, err := ok.CancelBatchOrders(contextGenerate(), orderCancellationParams)
 	require.NoError(t, err)
@@ -3403,15 +3495,22 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
+	result, err = ok.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
 	result, err = ok.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	_, err := ok.ModifyOrder(contextGenerate(), nil)
+	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
+
 	arg := &order.Modify{}
-	_, err := ok.ModifyOrder(contextGenerate(), arg)
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	arg.Pair = spotTP
@@ -3422,14 +3521,58 @@ func TestModifyOrder(t *testing.T) {
 	_, err = ok.ModifyOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	arg.OrderID = "1234"
+	arg.Type = order.Liquidation
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.Type = order.Limit
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
+
+	arg.Type = order.Trigger
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.Type = order.OCO
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.ModifyOrder(contextGenerate(), &order.Modify{
+	arg = &order.Modify{
 		AssetType: asset.Spot,
 		Pair:      spotTP,
 		OrderID:   "1234",
 		Price:     123456.44,
 		Amount:    123,
-	})
+	}
+	result, err := ok.ModifyOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.Limit
+	result, err = ok.ModifyOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.Trigger
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.TriggerPrice = 12345678
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.OCO
+	_, err = ok.ModifyOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.RiskManagementModes = order.RiskManagementModes{
+		TakeProfit: order.RiskManagement{Price: 12345677},
+		StopLoss:   order.RiskManagement{Price: 12345667},
+	}
+	result, err = ok.ModifyOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -5932,10 +6075,12 @@ func TestGetAccountInstruments(t *testing.T) {
 	result, err := ok.GetAccountInstruments(context.Background(), asset.Spot, "", "", spotTP.String())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
 	result, err = ok.GetAccountInstruments(context.Background(), asset.Options, "", "BTC-USD", optionsTP.String())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	result, err = ok.GetAccountInstruments(context.Background(), asset.Futures, "BTC-USD", "", optionsTP.String())
+
+	result, err = ok.GetAccountInstruments(context.Background(), asset.Futures, "BTC-USD", "", futuresTP.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5954,10 +6099,13 @@ func TestOrderTypeString(t *testing.T) {
 		order.OptimalLimitIOC:                  {Expected: OkxOrderOptimalLimitIOC},
 		order.MarketMakerProtection:            {Expected: "mmp"},
 		order.MarketMakerProtectionAndPostOnly: {Expected: "mmp_and_post_only"},
-		order.OCO:                              {Error: order.ErrUnsupportedOrderType},
+		order.Liquidation:                      {Error: order.ErrUnsupportedOrderType},
+		order.OCO:                              {Expected: "oco"},
 		order.TrailingStop:                     {Expected: "move_order_stop"},
 		order.Chase:                            {Expected: "chase"},
 		order.TWAP:                             {Expected: "twap"},
+		order.ConditionalStop:                  {Expected: "conditional"},
+		order.Trigger:                          {Expected: "trigger"},
 	}
 	for oType, val := range orderTypesToStringMap {
 		orderTypeString, err := ok.OrderTypeString(oType)

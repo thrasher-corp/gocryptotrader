@@ -82,7 +82,7 @@ var (
 	errInvalidTradeModeValue                = errors.New("invalid trade mode value")
 	errCurrencyQuantitTypeRequired          = errors.New("only base_ccy and quote_ccy quantity types are supported")
 	errWebsocketStreamNotAuthenticated      = errors.New("websocket stream not authenticated")
-	errInvalidNewSizeOrPriceInformation     = errors.New("invalid the new size or price information")
+	errInvalidNewSizeOrPriceInformation     = errors.New("invalid new size or price information")
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
 	errInvalidPriceLimit                    = errors.New("invalid price limit value")
 	errMissingIntervalValue                 = errors.New("missing interval value")

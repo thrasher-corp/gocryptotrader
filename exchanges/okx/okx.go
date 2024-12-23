@@ -99,11 +99,13 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 	switch orderType {
 	case order.ImmediateOrCancel:
 		return "ioc", nil
-	case order.Market, order.Limit,
+	case order.Market, order.Limit, order.Trigger,
 		order.PostOnly, order.FillOrKill, order.OptimalLimitIOC,
 		order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly,
-		order.Chase, order.TWAP:
+		order.Chase, order.TWAP, order.OCO:
 		return orderType.Lower(), nil
+	case order.ConditionalStop:
+		return "conditional", nil
 	case order.TrailingStop:
 		return "move_order_stop", nil
 	default:
@@ -139,7 +141,11 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	switch arg.Side {
 	case order.Buy.Lower(), order.Sell.Lower():
 	default:
-		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
+		switch arg.AssetType {
+		case asset.Futures, asset.PerpetualSwap, asset.Options:
+		default:
+			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
+		}
 	}
 	switch arg.TradeMode {
 	case "", TradeModeCross, TradeModeIsolated, TradeModeCash:
@@ -592,8 +598,8 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	if arg.OrderType != "chase" {
 		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
 	}
-	if (arg.MaxChaseType == "" && arg.MaxChaseValue == 0) ||
-		(arg.MaxChaseType != "" && arg.MaxChaseValue != 0) {
+	if (arg.MaxChaseType == "" || arg.MaxChaseValue == 0) &&
+		(arg.MaxChaseType != "" || arg.MaxChaseValue != 0) {
 		return nil, fmt.Errorf("%w, either non or both maxChaseType and macChaseValue has to be provided", errPriceTrackingNotSet)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)

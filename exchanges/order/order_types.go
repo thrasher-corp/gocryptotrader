@@ -32,7 +32,7 @@ var (
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
 
-	ErrUnknownTrackingRate = errors.New("unknown tracking mode")
+	ErrUnknownTrackingMode = errors.New("unknown tracking mode")
 )
 
 // Submit contains all properties of an order that may be required
