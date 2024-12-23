@@ -339,6 +339,9 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetPublicBlockTrades(contextGenerate(), "")
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
 	trades, err := ok.GetPublicBlockTrades(contextGenerate(), "BTC-USDT")
 	require.NoError(t, err)
 	if assert.NotEmpty(t, trades, "Should get some block trades") {
@@ -589,10 +592,11 @@ func TestGetPublicUnderlyings(t *testing.T) {
 
 func TestGetInsuranceFundInformation(t *testing.T) {
 	t.Parallel()
-	arg := &InsuranceFundInformationRequestParams{
-		Limit: 2,
-	}
-	_, err := ok.GetInsuranceFundInformation(contextGenerate(), arg)
+	_, err := ok.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg := &InsuranceFundInformationRequestParams{Limit: 2}
+	_, err = ok.GetInsuranceFundInformation(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	arg.InstrumentType = okxInstTypeSwap
@@ -1349,11 +1353,14 @@ func TestGetOneClickRepayCurrencyList(t *testing.T) {
 
 func TestPlaceEasyConvert(t *testing.T) {
 	t.Parallel()
+	_, err := ok.PlaceEasyConvert(contextGenerate(), PlaceEasyConvertParam{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = ok.PlaceEasyConvert(contextGenerate(), PlaceEasyConvertParam{FromCurrency: []string{"BTC"}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.PlaceEasyConvert(contextGenerate(),
-		PlaceEasyConvertParam{
-			FromCurrency: []string{"BTC"},
-			ToCurrency:   "USDT"})
+	result, err := ok.PlaceEasyConvert(contextGenerate(), PlaceEasyConvertParam{FromCurrency: []string{"BTC"}, ToCurrency: "USDT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1402,12 +1409,18 @@ const createRfqInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trad
 
 func TestCreateRfq(t *testing.T) {
 	t.Parallel()
-	var input CreateRfqInput
+	var input *CreateRfqInput
 	err := json.Unmarshal([]byte(createRfqInputJSON), &input)
 	require.NoError(t, err)
 
+	_, err = ok.CreateRFQ(contextGenerate(), &CreateRfqInput{CounterParties: []string{}})
+	require.ErrorIs(t, err, errInvalidCounterParties)
+
+	_, err = ok.CreateRFQ(contextGenerate(), &CreateRfqInput{CounterParties: []string{"Trader1"}})
+	require.ErrorIs(t, err, errMissingLegs)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CreateRfq(contextGenerate(), input)
+	result, err := ok.CreateRFQ(contextGenerate(), input)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1425,11 +1438,17 @@ func TestCancelRfq(t *testing.T) {
 
 func TestMultipleCancelRfq(t *testing.T) {
 	t.Parallel()
-	_, err := ok.CancelMultipleRfqs(contextGenerate(), &CancelRfqRequestsParam{})
+	_, err := ok.CancelMultipleRFQs(contextGenerate(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = ok.CancelMultipleRFQs(contextGenerate(), &CancelRFQRequestsParam{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	_, err = ok.CancelMultipleRFQs(contextGenerate(), &CancelRFQRequestsParam{RfqIDs: make([]string, 100), ClientRfqIDs: make([]string, 100)})
+	require.ErrorIs(t, err, errMaxRfqOrdersToCancel)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CancelMultipleRfqs(contextGenerate(), &CancelRfqRequestsParam{ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"}})
+	result, err := ok.CancelMultipleRFQs(contextGenerate(), &CancelRFQRequestsParam{ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1527,6 +1546,26 @@ func TestCreateQuote(t *testing.T) {
 	arg.QuoteSide = "sell"
 	_, err = ok.CreateQuote(contextGenerate(), arg)
 	require.ErrorIs(t, err, errMissingLegs)
+
+	subArg := QuoteLeg{}
+	arg.Legs = []QuoteLeg{subArg}
+	_, err = ok.CreateQuote(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	subArg.InstrumentID = "SOL-USD-220909"
+	arg.Legs = []QuoteLeg{subArg}
+	_, err = ok.CreateQuote(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingSizeOfQuote)
+
+	subArg.SizeOfQuoteLeg = 2
+	arg.Legs = []QuoteLeg{subArg}
+	_, err = ok.CreateQuote(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingLegsQuotePrice)
+
+	subArg.Price = 1234
+	arg.Legs = []QuoteLeg{subArg}
+	_, err = ok.CreateQuote(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CreateQuote(contextGenerate(), &CreateQuoteParams{
@@ -1670,23 +1709,23 @@ func TestFundingTransfer(t *testing.T) {
 	_, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{})
 	assert.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		FundingRecipientAddress: "6", FundingSourceAddress: "18", Currency: currency.BTC})
+		BeneficiaryAccountType: "6", RemittingAccountType: "18", Currency: currency.BTC})
 	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount: 12.000, FundingRecipientAddress: "6",
-		FundingSourceAddress: "18", Currency: currency.EMPTYCODE})
+		Amount: 12.000, BeneficiaryAccountType: "6",
+		RemittingAccountType: "18", Currency: currency.EMPTYCODE})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount: 12.000, FundingRecipientAddress: "6",
-		FundingSourceAddress: "", Currency: currency.BTC})
+		Amount: 12.000, BeneficiaryAccountType: "6",
+		RemittingAccountType: "", Currency: currency.BTC})
 	assert.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount:                  12.000,
-		FundingRecipientAddress: "6",
-		FundingSourceAddress:    "18",
-		Currency:                currency.BTC,
+		Amount:                 12.000,
+		BeneficiaryAccountType: "6",
+		RemittingAccountType:   "18",
+		Currency:               currency.BTC,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1787,6 +1826,9 @@ func TestLightningWithdrawal(t *testing.T) {
 	_, err = ok.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{
 		Invoice: "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz", Currency: currency.EMPTYCODE})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = ok.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{Invoice: "", Currency: currency.BTC})
+	require.ErrorIs(t, err, errInvoiceTextMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{
@@ -2188,8 +2230,11 @@ func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 
 func TestIncreaseDecreaseMargin(t *testing.T) {
 	t.Parallel()
+	_, err := ok.IncreaseDecreaseMargin(contextGenerate(), &IncreaseDecreaseMarginInput{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
 	arg := &IncreaseDecreaseMarginInput{Currency: "USD"}
-	_, err := ok.IncreaseDecreaseMargin(contextGenerate(), arg)
+	_, err = ok.IncreaseDecreaseMargin(contextGenerate(), arg)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	arg.InstrumentID = "BTC-USDT"
@@ -2643,10 +2688,32 @@ func TestGetHistoryOfManagedSubAccountTransfer(t *testing.T) {
 
 func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
-	_, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: currency.BTC, Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true})
+	_, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg := &SubAccountAssetTransferParams{LoanTransfer: true}
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.Currency = currency.BTC
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.Amount = 1234
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidSubaccount)
-	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: currency.BTC, Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true})
+
+	arg.From = 1
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidSubaccount)
+
+	arg.To = 7
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidSubaccount)
+
+	arg.To = 6
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidSubAccountName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: currency.BTC, Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true})
@@ -2782,6 +2849,42 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 	var input GridAlgoOrder
 	err := json.Unmarshal([]byte(gridTradingPlaceOrder), &input)
 	require.NoError(t, err)
+
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), &GridAlgoOrder{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg := &GridAlgoOrder{BasePosition: true}
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	arg.InstrumentID = spotTP.String()
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingAlgoOrderType)
+
+	arg.AlgoOrdType = "contract_grid"
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.MaxPrice = 1000
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.MinPrice = 1200
+	arg.GridQuantity = -1
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidGridQuantity)
+
+	arg.GridQuantity = 123
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
+
+	arg.Size = 123
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errMissingRequiredArgumentDirection)
+
+	arg.Direction = positionSideLong
+	_, err = ok.PlaceGridAlgoOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidLeverage)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceGridAlgoOrder(contextGenerate(), &input)
@@ -4761,11 +4864,12 @@ func TestGetLeverateEstimatedInfo(t *testing.T) {
 
 func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 	t.Parallel()
-	_, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
+	_, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
 		InstrumentID: "BTC-USDT",
 		LoanCcy:      currency.USDT,
-		Side:         "borrow",
-	})
+		Side:         "borrow"})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
 		Amount:       1,
@@ -6136,6 +6240,9 @@ func TestGetHistoricIndexCandlesticksHistory(t *testing.T) {
 
 func TestAssetTypeString(t *testing.T) {
 	t.Parallel()
+	_, err := AssetTypeString(asset.LinearContract)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	assetTypes := ok.GetAssetTypes(false)
 	for a := range assetTypes {
 		_, err := AssetTypeString(assetTypes[a])

@@ -272,7 +272,6 @@ func (ok *Okx) WsConnect() error {
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		err = ok.WsAuth(context.TODO())
 		if err != nil {

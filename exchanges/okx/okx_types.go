@@ -154,6 +154,7 @@ var (
 	errIDNotSet                             = errors.New("ID is not set")
 	errMonthNameRequired                    = errors.New("month name is required")
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
+	errInvoiceTextMissing                   = errors.New("missing invoice text")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1325,15 +1326,15 @@ type AccountAssetValuation struct {
 
 // FundingTransferRequestInput represents funding account request input
 type FundingTransferRequestInput struct {
-	Currency                currency.Code `json:"ccy"`
-	Type                    int64         `json:"type,string"`
-	Amount                  float64       `json:"amt,string"`
-	FundingSourceAddress    string        `json:"from"` // "6": Funding account, "18": Trading account
-	FundingRecipientAddress string        `json:"to"`
-	SubAccount              string        `json:"subAcct"`
-	LoanTransfer            bool          `json:"loanTrans,string"`
-	OmitPositionRisk        bool          `json:"omitPosRisk,omitempty,string"`
-	ClientID                string        `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
+	Currency               currency.Code `json:"ccy"`
+	TransferType           int64         `json:"type,string"`
+	Amount                 float64       `json:"amt,string"`
+	RemittingAccountType   string        `json:"from"` // "6": Funding account, "18": Trading account
+	BeneficiaryAccountType string        `json:"to"`
+	SubAccount             string        `json:"subAcct"`
+	LoanTransfer           bool          `json:"loanTrans,string"`
+	OmitPositionRisk       bool          `json:"omitPosRisk,omitempty,string"`
+	ClientID               string        `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
 }
 
 // FundingTransferResponse represents funding transfer and trading account transfer response
@@ -2344,14 +2345,14 @@ type CancelRfqRequestParam struct {
 	ClientRfqID string `json:"clRfqId,omitempty"`
 }
 
-// CancelRfqRequestsParam represents cancel multiple Rfq orders request params
-type CancelRfqRequestsParam struct {
+// CancelRFQRequestsParam represents cancel multiple Rfq orders request params
+type CancelRFQRequestsParam struct {
 	RfqIDs       []string `json:"rfqIds"`
 	ClientRfqIDs []string `json:"clRfqIds"`
 }
 
-// CancelRfqResponse represents cancel Rfq orders response
-type CancelRfqResponse struct {
+// CancelRFQResponse represents cancel Rfq orders response
+type CancelRFQResponse struct {
 	RfqID       string `json:"rfqId"`
 	ClientRfqID string `json:"clRfqId"`
 	StatusCode  string `json:"sCode"`
@@ -2490,8 +2491,8 @@ type RfqRequestParams struct {
 	Limit       int64
 }
 
-// RfqResponse Rfq response detail
-type RfqResponse struct {
+// RFQResponse Rfq response detail
+type RFQResponse struct {
 	CreateTime     types.Time `json:"cTime"`
 	UpdateTime     types.Time `json:"uTime"`
 	ValidUntil     types.Time `json:"validUntil"`

@@ -781,10 +781,10 @@ func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context, source string) (*
 // PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10
 func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) ([]EasyConvertItem, error) {
 	if len(arg.FromCurrency) == 0 {
-		return nil, fmt.Errorf("%w, missing 'fromCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'fromCcy'", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.ToCurrency == "" {
-		return nil, fmt.Errorf("%w, missing 'toCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'toCcy'", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp []EasyConvertItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, "trade/easy-convert", &arg, &resp, request.AuthenticatedRequest)
@@ -929,32 +929,32 @@ func (ok *Okx) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, "rfq/counterparties", nil, &resp, request.AuthenticatedRequest)
 }
 
-// CreateRfq Creates a new Rfq
-func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse, error) {
+// CreateRFQ Creates a new Rfq
+func (ok *Okx) CreateRFQ(ctx context.Context, arg *CreateRfqInput) (*RFQResponse, error) {
 	if len(arg.CounterParties) == 0 {
 		return nil, errInvalidCounterParties
 	}
 	if len(arg.Legs) == 0 {
 		return nil, errMissingLegs
 	}
-	var resp *RfqResponse
+	var resp *RFQResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelRfq Cancel an existing active Rfq that you has previously created
-func (ok *Okx) CancelRfq(ctx context.Context, rfqID, clientRfqID string) (*CancelRfqResponse, error) {
-	if rfqID == "" && clientRfqID == "" {
+func (ok *Okx) CancelRfq(ctx context.Context, rfqID, clientRFQID string) (*CancelRFQResponse, error) {
+	if rfqID == "" && clientRFQID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp *CancelRfqResponse
+	var resp *CancelRFQResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRfqRequestParam{
 		RfqID:       rfqID,
-		ClientRfqID: clientRfqID,
+		ClientRfqID: clientRFQID,
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time
-func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg *CancelRfqRequestsParam) ([]CancelRfqResponse, error) {
+// CancelMultipleRFQs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time
+func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -963,7 +963,7 @@ func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg *CancelRfqRequestsPar
 	} else if len(arg.RfqIDs)+len(arg.ClientRfqIDs) > 100 {
 		return nil, errMaxRfqOrdersToCancel
 	}
-	var resp []CancelRfqResponse
+	var resp []CancelRFQResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRfqEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
 }
 
@@ -1094,7 +1094,7 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
 }
 
 // GetRfqs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
-func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqResponse, error) {
+func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQResponse, error) {
 	if *arg == (RfqRequestParams{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -1117,7 +1117,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqRespons
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp []RfqResponse
+	var resp []RFQResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRfqsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -1263,11 +1263,11 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.FundingSourceAddress != "6" && arg.FundingSourceAddress != "18" {
-		return nil, fmt.Errorf("%w sending address is required", errAddressRequired)
+	if arg.RemittingAccountType != "6" && arg.RemittingAccountType != "18" {
+		return nil, fmt.Errorf("%w, remitting account type 6: Funding account 18: Trading account", errAddressRequired)
 	}
-	if arg.FundingRecipientAddress == "" {
-		return nil, fmt.Errorf("%w receipent address is required", errAddressRequired)
+	if arg.BeneficiaryAccountType != "6" && arg.BeneficiaryAccountType != "18" {
+		return nil, fmt.Errorf("%w, beneficiary account type 6: Funding account 18: Trading account", errAddressRequired)
 	}
 	var resp []FundingTransferResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, fundsTransferEPL, http.MethodPost, "asset/transfer", arg, &resp, request.AuthenticatedRequest)
@@ -1412,7 +1412,7 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg *LightningWithdrawal
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	} else if arg.Invoice == "" {
-		return nil, errors.New("missing invoice text")
+		return nil, errInvoiceTextMissing
 	}
 	var resp *LightningWithdrawalResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
@@ -1737,8 +1737,6 @@ func AssetTypeString(assetType asset.Item) (string, error) {
 		return "SWAP", nil
 	case asset.Spread:
 		return "SPREAD", nil
-	case asset.LinearContract:
-		return "CONTRACTS", nil
 	default:
 		return "", asset.ErrNotSupported
 	}
@@ -3098,9 +3096,6 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	if *arg == (GridAlgoOrder{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if *arg == (GridAlgoOrder{}) {
-		return nil, common.ErrEmptyParams
-	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -3111,7 +3106,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	if arg.MaxPrice <= 0 {
 		return nil, order.ErrPriceBelowMin
 	}
-	if arg.MinPrice < 0 {
+	if arg.MinPrice <= 0 {
 		return nil, order.ErrPriceBelowMin
 	}
 	if arg.GridQuantity < 0 {
