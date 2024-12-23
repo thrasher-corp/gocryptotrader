@@ -25,7 +25,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.31.0
-	golang.org/x/net v0.32.0
+	golang.org/x/net v0.33.0
 	golang.org/x/term v0.27.0
 	golang.org/x/text v0.21.0
 	golang.org/x/time v0.8.0
