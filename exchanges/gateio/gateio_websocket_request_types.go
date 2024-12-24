@@ -52,22 +52,6 @@ type WebsocketErrors struct {
 	} `json:"errs"`
 }
 
-// WebsocketOrder defines a websocket order
-type WebsocketOrder struct {
-	Text         string `json:"text"`
-	CurrencyPair string `json:"currency_pair,omitempty"`
-	Type         string `json:"type,omitempty"`
-	Account      string `json:"account,omitempty"`
-	Side         string `json:"side,omitempty"`
-	Amount       string `json:"amount,omitempty"`
-	Price        string `json:"price,omitempty"`
-	TimeInForce  string `json:"time_in_force,omitempty"`
-	Iceberg      string `json:"iceberg,omitempty"`
-	AutoBorrow   bool   `json:"auto_borrow,omitempty"`
-	AutoRepay    bool   `json:"auto_repay,omitempty"`
-	StpAct       string `json:"stp_act,omitempty"`
-}
-
 // WebsocketOrderResponse defines a websocket order response
 type WebsocketOrderResponse struct {
 	Left               types.Number  `json:"left"`
@@ -103,9 +87,31 @@ type WebsocketOrderResponse struct {
 	STPAct             string        `json:"stp_act"`
 }
 
+// WebsocketFuturesOrderResponse defines a websocket futures order response
+type WebsocketFuturesOrderResponse struct {
+	Text        string        `json:"text"`
+	Price       types.Number  `json:"price"`
+	BizInfo     string        `json:"biz_info"`
+	TimeInForce string        `json:"tif"`
+	AmendText   string        `json:"amend_text"`
+	Status      string        `json:"status"`
+	Contract    currency.Pair `json:"contract"`
+	STPAct      string        `json:"stp_act"`
+	FinishAs    string        `json:"finish_as"`
+	FillPrice   types.Number  `json:"fill_price"`
+	ID          int64         `json:"id"`
+	CreateTime  types.Time    `json:"create_time"`
+	UpdateTime  types.Time    `json:"update_time"`
+	FinishTime  types.Time    `json:"finish_time"`
+	Size        int64         `json:"size"`
+	Left        int64         `json:"left"`
+	User        int64         `json:"user"`
+	Succeeded   *bool         `json:"succeeded"` // Nil if not present in returned response.
+}
+
 // WebsocketOrderBatchRequest defines a websocket order batch request
 type WebsocketOrderBatchRequest struct {
-	OrderID string        `json:"id"` // This require id tag not order_id
+	OrderID string        `json:"id"` // This requires id tag not order_id
 	Pair    currency.Pair `json:"currency_pair"`
 	Account string        `json:"account,omitempty"`
 }
@@ -140,4 +146,22 @@ type WebsocketAmendOrder struct {
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
 	Amount    string        `json:"amount,omitempty"`
+}
+
+// WebsocketFuturesAmendOrder defines a websocket amend order
+type WebsocketFuturesAmendOrder struct {
+	OrderID   string        `json:"order_id"`
+	Contract  currency.Pair `json:"-"` // This is not required in the payload, it is used to determine the asset type.
+	AmendText string        `json:"amend_text,omitempty"`
+	Price     string        `json:"price,omitempty"`
+	Size      int64         `json:"size,omitempty"`
+}
+
+// WebsocketFutureOrdersList defines a websocket future orders list
+type WebsocketFutureOrdersList struct {
+	Contract currency.Pair `json:"contract,omitempty"`
+	Status   string        `json:"status"`
+	Limit    int64         `json:"limit,omitempty"`
+	Offset   int64         `json:"offset,omitempty"`
+	LastID   string        `json:"last_id,omitempty"`
 }

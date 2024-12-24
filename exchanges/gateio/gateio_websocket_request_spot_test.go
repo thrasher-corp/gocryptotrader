@@ -38,19 +38,19 @@ func TestWebsocketLogin(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotSubmitOrder(context.Background(), &WebsocketOrder{})
+	_, err := g.WebsocketSpotSubmitOrder(context.Background(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := &WebsocketOrder{CurrencyPair: "BTC_USDT"}
+	out := &CreateOrderRequest{CurrencyPair: currency.NewBTCUSDT()}
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = "0.0003"
+	out.Amount = 0.0003
 	out.Type = "limit"
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = "20000"
+	out.Price = 20000
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
@@ -66,19 +66,19 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketSpotSubmitOrders(context.Background(), nil)
 	require.ErrorIs(t, err, errOrdersEmpty)
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), make([]WebsocketOrder, 1))
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), make([]CreateOrderRequest, 1))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := WebsocketOrder{CurrencyPair: "BTC_USDT"}
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
+	out := CreateOrderRequest{CurrencyPair: currency.NewBTCUSDT()}
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = "0.0003"
+	out.Amount = 0.0003
 	out.Type = "limit"
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = "20000"
+	out.Price = 20000
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
@@ -86,12 +86,12 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
-	got, err := g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out})
+	got, err := g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	// test batch orders
-	got, err = g.WebsocketSpotSubmitOrders(context.Background(), []WebsocketOrder{out, out})
+	got, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out, out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -231,15 +231,31 @@ func getWebsocketInstance(t *testing.T, g *Gateio) *Gateio {
 	require.NoError(t, cpy.Setup(gConf), "Test instance Setup must not error")
 	cpy.CurrencyPairs.Load(&g.CurrencyPairs)
 
+assetLoader:
 	for _, a := range cpy.GetAssetTypes(true) {
-		if a != asset.Spot {
+		var avail currency.Pairs
+		switch a {
+		case asset.Spot:
+			avail, err = cpy.GetAvailablePairs(a)
+			require.NoError(t, err)
+			if len(avail) > 1 { // reduce pairs to 1 to speed up tests
+				avail = avail[:1]
+			}
+		case asset.Futures:
+			avail, err = cpy.GetAvailablePairs(a)
+			require.NoError(t, err)
+			usdtPairs, err := avail.GetPairsByQuote(currency.USDT) // Get USDT margin pairs
+			require.NoError(t, err)
+			btcPairs, err := avail.GetPairsByQuote(currency.USD) // Get BTC margin pairs
+			require.NoError(t, err)
+			// below makes sure there is both a USDT and BTC pair available
+			// so that allows two connections to be made.
+			avail[0] = usdtPairs[0]
+			avail[1] = btcPairs[0]
+			avail = avail[:2]
+		default:
 			require.NoError(t, cpy.CurrencyPairs.SetAssetEnabled(a, false))
-			continue
-		}
-		avail, err := cpy.GetAvailablePairs(a)
-		require.NoError(t, err)
-		if len(avail) > 1 {
-			avail = avail[:1]
+			continue assetLoader
 		}
 		require.NoError(t, cpy.SetPairs(avail, a, true))
 	}
