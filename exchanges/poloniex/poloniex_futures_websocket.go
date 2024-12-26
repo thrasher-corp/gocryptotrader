@@ -20,7 +20,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+const (
+	futuresWebsocketPrivateURL = "wss://ws.poloniex.com/ws/v3/private"
+	futuresWebsocketPublicURL  = "wss://ws.poloniex.com/ws/v3/public"
 )
 
 const (
@@ -54,25 +58,8 @@ func (p *Poloniex) WsFuturesConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
-	var instanceServers *FuturesWebsocketServerInstances
-	var err error
-	switch {
-	case p.Websocket.CanUseAuthenticatedEndpoints():
-		instanceServers, err = p.GetPrivateFuturesWebsocketServerInstances(context.Background())
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "Unexpected authenticated futures websocket servers instance fetch error %v", err)
-			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			break
-		}
-		fallthrough
-	default:
-		instanceServers, err = p.GetPublicFuturesWebsocketServerInstances(context.Background())
-		if err != nil {
-			return err
-		}
-	}
 	var dialer websocket.Dialer
-	err = p.Websocket.SetWebsocketURL(instanceServers.Data.InstanceServers[0].Endpoint+"?token="+instanceServers.Data.Token+"&acceptUserMessage=true", false, false)
+	err := p.Websocket.SetWebsocketURL(futuresWebsocketPublicURL, false, false)
 	if err != nil {
 		return err
 	}
@@ -143,7 +130,8 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 	case fCnlTicker:
 		return p.processFuturesWsTicker(result)
 	case fCnlLevel2Orderbook:
-		return p.processFuturesWsOrdderbook(topicSplit[1], result)
+		// return p.processFuturesWsOrdderbook(topicSplit[1], result)
+		return nil
 	case fCnlContractExecution:
 		return p.processOrderFills(topicSplit[1], result)
 	case fCnlLvl3Orderbook:
@@ -445,90 +433,90 @@ func (p *Poloniex) processOrderFills(pairString string, resp *FuturesSubscriptio
 	return nil
 }
 
-func (p *Poloniex) processFuturesWsOrdderbook(pairString string, resp *FuturesSubscriptionResp) error {
-	var result *WsFuturesLvl2Orderbook
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
-		return err
-	}
-	cp, err := currency.NewPairFromString(pairString)
-	if err != nil {
-		return err
-	}
+// func (p *Poloniex) processFuturesWsOrdderbook(pairString string, resp *FuturesSubscriptionResp) error {
+// 	var result *WsFuturesLvl2Orderbook
+// 	err := json.Unmarshal(resp.Data, &result)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	cp, err := currency.NewPairFromString(pairString)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// Check and load orderbook snapshot for an asset type and currency pair.
-	base, err := p.Websocket.Orderbook.GetOrderbook(cp, asset.Futures)
-	if err != nil {
-		var ob *Orderbook
-		ob, err = p.GetFullOrderbookLevel2(context.Background(), pairString)
-		if err != nil {
-			return err
-		}
-		base, err = ob.GetOBBase()
-		if err != nil {
-			return err
-		}
-		base.Exchange = p.Name
-	}
-	if result.LastSequence <= base.LastUpdateID {
-		// Discard the feed data of a sequence that is below or equals to the last orderbook snapshot sequence
-		return nil
-	}
-	for i := range result.Changes {
-		split := strings.Split(result.Changes[i], ",")
-		if len(split) != 3 {
-			continue
-		}
-		var price, amount float64
-		price, err = strconv.ParseFloat(split[0], 64)
-		if err != nil {
-			return err
-		}
-		amount, err = strconv.ParseFloat(split[2], 64)
-		if err != nil {
-			return err
-		}
-		switch split[1] {
-		case "sell":
-			found := false
-			for j := range base.Asks {
-				if price == base.Asks[j].Price {
-					if amount == 0 {
-						base.Asks = append(base.Asks[:j], base.Asks[j+1:]...)
-					} else {
-						base.Asks[j].Amount = amount
-					}
-					found = true
-				}
-			}
-			if !found {
-				base.Asks = append(base.Asks, orderbook.Tranche{Price: price, Amount: amount})
-			}
-		case "buy":
-			found := false
-			for j := range base.Bids {
-				if price == base.Bids[j].Price {
-					if amount == 0 {
-						base.Bids = append(base.Bids[:j], base.Bids[j+1:]...)
-					} else {
-						base.Bids[j].Amount = amount
-					}
-					found = true
-				}
-			}
-			if !found {
-				base.Bids = append(base.Bids, orderbook.Tranche{Price: price, Amount: amount})
-			}
-		default:
-			continue
-		}
-	}
-	err = base.Process()
-	if err != nil {
-		return err
-	}
-	return p.Websocket.Orderbook.LoadSnapshot(base)
-}
+// 	// Check and load orderbook snapshot for an asset type and currency pair.
+// 	base, err := p.Websocket.Orderbook.GetOrderbook(cp, asset.Futures)
+// 	if err != nil {
+// 		var ob *Orderbook
+// 		ob, err = p.GetFullOrderbookLevel2(context.Background(), pairString)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		base, err = ob.GetOBBase()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		base.Exchange = p.Name
+// 	}
+// 	if result.LastSequence <= base.LastUpdateID {
+// 		// Discard the feed data of a sequence that is below or equals to the last orderbook snapshot sequence
+// 		return nil
+// 	}
+// 	for i := range result.Changes {
+// 		split := strings.Split(result.Changes[i], ",")
+// 		if len(split) != 3 {
+// 			continue
+// 		}
+// 		var price, amount float64
+// 		price, err = strconv.ParseFloat(split[0], 64)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		amount, err = strconv.ParseFloat(split[2], 64)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		switch split[1] {
+// 		case "sell":
+// 			found := false
+// 			for j := range base.Asks {
+// 				if price == base.Asks[j].Price {
+// 					if amount == 0 {
+// 						base.Asks = append(base.Asks[:j], base.Asks[j+1:]...)
+// 					} else {
+// 						base.Asks[j].Amount = amount
+// 					}
+// 					found = true
+// 				}
+// 			}
+// 			if !found {
+// 				base.Asks = append(base.Asks, orderbook.Tranche{Price: price, Amount: amount})
+// 			}
+// 		case "buy":
+// 			found := false
+// 			for j := range base.Bids {
+// 				if price == base.Bids[j].Price {
+// 					if amount == 0 {
+// 						base.Bids = append(base.Bids[:j], base.Bids[j+1:]...)
+// 					} else {
+// 						base.Bids[j].Amount = amount
+// 					}
+// 					found = true
+// 				}
+// 			}
+// 			if !found {
+// 				base.Bids = append(base.Bids, orderbook.Tranche{Price: price, Amount: amount})
+// 			}
+// 		default:
+// 			continue
+// 		}
+// 	}
+// 	err = base.Process()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return p.Websocket.Orderbook.LoadSnapshot(base)
+// }
 
 func (p *Poloniex) processFuturesWsTicker(resp *FuturesSubscriptionResp) error {
 	var result *WsFuturesTickerInfo

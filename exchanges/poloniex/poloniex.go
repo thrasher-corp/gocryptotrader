@@ -39,10 +39,6 @@ var (
 	errAccountTypeRequired             = errors.New("account type required")
 	errInvalidResponse                 = errors.New("invalid response data")
 	errUnexpectedIncomingDataType      = errors.New("unexpected incoming data type")
-	errOrderbookDepthRequired          = errors.New("depth is required")
-	errGranularityRequired             = errors.New("granularity is required")
-	errBizNoRequired                   = errors.New("bizNo is required")
-	errInvalidSequenceNumber           = errors.New("invalid sequence number")
 	errMarginAdjustTypeMissing         = errors.New("margin adjust type invalid")
 	errPositionModeInvalid             = errors.New("invalid position mode")
 )
@@ -83,8 +79,8 @@ func (p *Poloniex) GetV2CurrencyInformations(ctx context.Context) ([]CurrencyV2I
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
-// GetV2CurrencyInformation retrieves currency details for V2 API.
-func (p *Poloniex) GetV2CurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyV2Information, error) {
+// GetV2FuturesCurrencyInformation retrieves currency details for V2 API.
+func (p *Poloniex) GetV2FuturesCurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyV2Information, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
