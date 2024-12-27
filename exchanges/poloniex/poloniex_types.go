@@ -823,11 +823,12 @@ type TradeHistoryItem struct {
 
 // SubscriptionPayload represents a subscriptions request instance structure.
 type SubscriptionPayload struct {
-	Event      string   `json:"event"`
-	Channel    []string `json:"channel"`
-	Symbols    []string `json:"symbols,omitempty"`
-	Currencies []string `json:"currencies,omitempty"`
-	Depth      int64    `json:"depth,omitempty"`
+	Event      string         `json:"event"`
+	Channel    []string       `json:"channel"`
+	Symbols    []string       `json:"symbols,omitempty"`
+	Currencies []string       `json:"currencies,omitempty"`
+	Depth      int64          `json:"depth,omitempty"`
+	Params     map[string]any `json:"params,omitempty"`
 }
 
 // SubscriptionResponse represents a subscription response instance.
@@ -1063,110 +1064,8 @@ type FuturesSubscriptionInput struct {
 
 // FuturesSubscriptionResp represents a subscription response item.
 type FuturesSubscriptionResp struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-
-	// detailed information of incoming message.
-	Subject string          `json:"subject"`
-	Topic   string          `json:"topic"`
+	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
-}
-
-// WsFuturesTickerInfo represents a futures ticker information push data through the websocket stream.
-type WsFuturesTickerInfo struct {
-	Symbol       string     `json:"symbol"`   // Market of the symbol
-	Sequence     int        `json:"sequence"` // Sequence number which is used to judge the continuity of the pushed messages
-	Side         string     `json:"side"`     // Transaction side of the last traded taker order
-	Price        float64    `json:"price"`    // Filled price
-	Size         float64    `json:"size"`     // Filled quantity
-	TradeID      string     `json:"tradeId"`  // Order ID
-	BestBidSize  float64    `json:"bestBidSize"`
-	BestBidPrice float64    `json:"bestBidPrice"`
-	BestAskPrice float64    `json:"bestAskPrice"`
-	BestAskSize  float64    `json:"bestAskSize"`
-	FilledTime   types.Time `json:"ts"` // Filled time - nanosecond
-}
-
-// WsFuturesLvl2Orderbook represents an orderbook data with 2 levels.
-type WsFuturesLvl2Orderbook struct {
-	LastSequence int64    `json:"lastSequence"`
-	Sequence     int64    `json:"sequence"`
-	Change       string   `json:"change"`  // [deprecated]Price, side, quantity
-	Changes      []string `json:"changes"` // Price, side, quantity。incremental change in multiple gears
-	Timestamp    int64    `json:"timestamp"`
-}
-
-// WsOrderFill represents an orderbook fill.
-type WsOrderFill struct {
-	Symbol       string     `json:"symbol"`
-	Sequence     int64      `json:"sequence"`
-	Side         string     `json:"side"`
-	MatchSize    float64    `json:"matchSize"`
-	UnfilledSize float64    `json:"size"`
-	Price        float64    `json:"price"`
-	TakerOrderID string     `json:"takerOrderId"`
-	FilledTime   types.Time `json:"ts"`
-	MakerOrderID string     `json:"makerOrderId"`
-	TradeID      string     `json:"tradeId"`
-}
-
-// WsOrderbookLevel3V2 represents an orderbook level 3 v2.
-type WsOrderbookLevel3V2 struct {
-	Symbol    string     `json:"symbol"`
-	Sequence  int64      `json:"sequence"`
-	OrderID   string     `json:"orderId"`
-	ClientOid string     `json:"clientOid"`
-	Timestamp types.Time `json:"ts"`
-}
-
-// WsOrderbookOpen represents level 3 orderbook data entry to the orderbook.
-type WsOrderbookOpen struct {
-	Symbol    string       `json:"symbol"`
-	Sequence  int64        `json:"sequence"`
-	Side      string       `json:"side"`
-	Price     types.Number `json:"price"`
-	Size      types.Number `json:"size"`
-	OrderID   string       `json:"orderId"`
-	OrderTime types.Time   `json:"orderTime"`
-	Timestamp types.Time   `json:"ts"`
-}
-
-// WsOrderbookUpdateOrder represents an update on the orderbook of level 3.
-type WsOrderbookUpdateOrder struct {
-	Symbol      string       `json:"symbol"`
-	Sequence    int64        `json:"sequence"`
-	OrderID     string       `json:"orderId"`
-	UpdatedSize types.Number `json:"size"`
-	Timestamp   types.Time   `json:"ts"`
-}
-
-// WsOrderbookMatch represents an order match in the orderbook
-type WsOrderbookMatch struct {
-	Symbol          string       `json:"symbol"`
-	Sequence        int64        `json:"sequence"`
-	Side            string       `json:"side"`
-	FilledPrice     types.Number `json:"price"`
-	FilledSize      types.Number `json:"size"`
-	MakerOrderID    string       `json:"makerOrderId"`
-	TakerOrderID    string       `json:"takerOrderId"`
-	TradeID         string       `json:"tradeId"`
-	TransactionTime types.Time   `json:"ts"`
-}
-
-// WsOrderbookMatchDone represents a notification when matching cycle of an order ends.
-type WsOrderbookMatchDone struct {
-	Symbol             string     `json:"symbol"`
-	Sequence           int64      `json:"sequence"`
-	CancellationReason string     `json:"reason"`
-	OrderID            string     `json:"orderId"`
-	CompletionTime     types.Time `json:"ts"`
-}
-
-// WsFuturesLevel2Depth5OB represents a level 2 orderbook with depth of 5
-type WsFuturesLevel2Depth5OB struct {
-	Asks      [][]types.Number `json:"asks"`
-	Bids      [][]types.Number `json:"bids"`
-	Timestamp types.Time       `json:"ts"`
 }
 
 // InstrumentMarkAndIndexPrice represents index and mark price information of an instrument.
@@ -1175,142 +1074,6 @@ type InstrumentMarkAndIndexPrice struct {
 	IndexPrice  float64    `json:"indexPrice"`
 	MarkPrice   float64    `json:"markPrice"`
 	Timestamp   types.Time `json:"timestamp"`
-}
-
-// WsFuturesInstrumentFundingRate represents a futures instrument funding rate information.
-type WsFuturesInstrumentFundingRate struct {
-	Granularity int64      `json:"granularity"`
-	FundingRate float64    `json:"fundingRate"`
-	Timestamp   types.Time `json:"timestamp"`
-}
-
-// WsSystemAnnouncement represents a funding system announcement.
-type WsSystemAnnouncement struct {
-	Symbol      string     `json:"symbol"`
-	FundingTime types.Time `json:"fundingTime"`
-	FundingRate float64    `json:"fundingRate"`
-	Timestamp   types.Time `json:"timestamp"`
-}
-
-// WsFuturesTicker represents a futures ticker information.
-type WsFuturesTicker struct {
-	Volume24Hr   float64    `json:"volume"`
-	Turnover24Hr float64    `json:"turnover"`
-	LastPrice    float64    `json:"lastPrice"`
-	PriceChgPct  float64    `json:"priceChgPct"`
-	SnapshotTime types.Time `json:"ts"`
-}
-
-// WsFuturesTradeOrders represents a trade order
-type WsFuturesTradeOrders struct {
-	OrderID      string       `json:"orderId"`
-	Symbol       string       `json:"symbol"`
-	MesageType   string       `json:"type"`
-	MarginType   int64        `json:"marginType"`
-	Status       string       `json:"status"`
-	MatchSize    types.Number `json:"matchSize"`
-	MatchPrice   types.Number `json:"matchPrice"`
-	OrderType    string       `json:"orderType"`
-	Side         string       `json:"side"`
-	Price        types.Number `json:"price"`
-	Size         types.Number `json:"size"`
-	RemainSize   types.Number `json:"remainSize"`
-	FilledSize   types.Number `json:"filledSize"`
-	CanceledSize types.Number `json:"canceledSize"`
-	TradeID      string       `json:"tradeId"`
-	ClientOid    string       `json:"clientOid"`
-	OrderTime    types.Time   `json:"orderTime"`
-	OldSize      types.Number `json:"oldSize "`
-	Liquidity    string       `json:"liquidity"`
-	Timestamp    types.Time   `json:"ts"`
-}
-
-// WsFuturesStopOrderLifecycleEvent represents an advanced orders stop order lifecycle
-type WsFuturesStopOrderLifecycleEvent struct {
-	OrderID        string       `json:"orderId"`
-	Symbol         string       `json:"symbol"`
-	MessageType    string       `json:"type"`
-	MarginType     int64        `json:"marginType"`
-	OrderType      string       `json:"orderType"`
-	Side           string       `json:"side"`
-	Size           types.Number `json:"size"`
-	OrderPrice     types.Number `json:"orderPrice"`
-	Stop           string       `json:"stop"`
-	StopPrice      types.Number `json:"stopPrice"`
-	StopPriceType  string       `json:"stopPriceType"`
-	TriggerSuccess bool         `json:"triggerSuccess"`
-	Error          string       `json:"error"`
-	CreatedAt      types.Time   `json:"createdAt"`
-	Timestamp      types.Time   `json:"ts"`
-}
-
-// WsFuturesAccountBalance represents a futures account balance.
-type WsFuturesAccountBalance struct {
-	OrderMargin float64 `json:"orderMargin"`
-
-	AvailableBalance float64    `json:"availableBalance"`
-	Currency         string     `json:"currency"`
-	Timestamp        types.Time `json:"timestamp"`
-}
-
-// WsFuturesPositionChange represents a futures position change information.
-type WsFuturesPositionChange struct {
-	Symbol            currency.Pair `json:"symbol"`
-	RealisedGrossPnl  float64       `json:"realisedGrossPnl"`
-	MarginType        int64         `json:"marginType"`
-	LiquidationPrice  float64       `json:"liquidationPrice"`
-	PosLoss           float64       `json:"posLoss"`
-	AvgEntryPrice     float64       `json:"avgEntryPrice"`
-	UnrealisedPnl     float64       `json:"unrealisedPnl"`
-	MarkPrice         float64       `json:"markPrice"`
-	PosMargin         float64       `json:"posMargin"`
-	RiskLimit         float64       `json:"riskLimit"`
-	UnrealisedCost    float64       `json:"unrealisedCost"`
-	PosComm           float64       `json:"posComm"`
-	PosMaint          float64       `json:"posMaint"`
-	PosCost           float64       `json:"posCost"`
-	MaintMarginReq    float64       `json:"maintMarginReq"`
-	BankruptPrice     float64       `json:"bankruptPrice"`
-	RealisedCost      float64       `json:"realisedCost"`
-	MarkValue         float64       `json:"markValue"`
-	PosInit           float64       `json:"posInit"`
-	RealisedPnl       float64       `json:"realisedPnl"`
-	MaintMargin       float64       `json:"maintMargin"`
-	RealLeverage      float64       `json:"realLeverage"`
-	CurrentCost       float64       `json:"currentCost"`
-	OpeningTimestamp  types.Time    `json:"openingTimestamp"`
-	CurrentQty        float64       `json:"currentQty"`
-	DelevPercentage   float64       `json:"delevPercentage"`
-	CurrentComm       float64       `json:"currentComm"`
-	RealisedGrossCost float64       `json:"realisedGrossCost"`
-	IsOpen            bool          `json:"isOpen"`
-	PosCross          float64       `json:"posCross"`
-	CurrentTimestamp  types.Time    `json:"currentTimestamp"`
-	UnrealisedRoePcnt float64       `json:"unrealisedRoePcnt"`
-	UnrealisedPnlPcnt float64       `json:"unrealisedPnlPcnt"`
-	SettleCurrency    string        `json:"settleCurrency"`
-}
-
-// WsFuturesFundingSettlement represents a futures settlement
-type WsFuturesFundingSettlement struct {
-	Symbol         currency.Pair
-	FundingTime    types.Time `json:"fundingTime"`
-	Qty            float64    `json:"qty"`
-	MarkPrice      float64    `json:"markPrice"`
-	FundingRate    float64    `json:"fundingRate"`
-	FundingFee     float64    `json:"fundingFee"`
-	Timestamp      types.Time `json:"ts"`
-	SettleCurrency string     `json:"settleCurrency"`
-}
-
-// WsFuturesPositionInfo represents a position cross change information.
-type WsFuturesPositionInfo struct {
-	MaintainMargin   float64 `json:"maintainMargin"`
-	MarginAvailable  float64 `json:"marginAvailable"`
-	MaintainRate     float64 `json:"maintainRate"`
-	UnreleaseSum     float64 `json:"unreleaseSum"`
-	FundingSum       float64 `json:"fundingSum"`
-	AccountAvailable float64 `json:"accountAvailable"`
 }
 
 // FuturesAccountOverview represents an account overview information.
@@ -1578,4 +1341,14 @@ type FuturesFundingItem struct {
 	PositionCost   float64 `json:"positionCost"`
 	Funding        float64 `json:"funding"`
 	SettleCurrency string  `json:"settleCurrency"`
+}
+
+// AuthenticationResponse represents an authentication response for futures websocket connection
+type AuthenticationResponse struct {
+	Data struct {
+		Success   bool       `json:"success"`
+		Message   string     `json:"message"`
+		Timestamp types.Time `json:"ts"`
+	} `json:"data"`
+	Channel string `json:"channel"`
 }
