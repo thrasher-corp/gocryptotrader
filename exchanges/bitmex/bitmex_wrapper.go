@@ -49,7 +49,7 @@ func (b *Bitmex) SetDefaults() {
 			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		}
 		if a == asset.Spot {
-			ps.RequestFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
 		}
 		if err := b.StoreAssetPairStore(a, ps); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
