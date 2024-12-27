@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -919,7 +920,7 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 		}
 		if t.Amount < 0 {
 			t.Side = order.Sell
-			t.Amount *= -1
+			t.Amount = math.Abs(t.Amount)
 		}
 		if feedEnabled {
 			b.Websocket.DataHandler <- &t
