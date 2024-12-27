@@ -939,7 +939,7 @@ func (b *Bitfinex) handleWSPublicTradesSnapshot(respRaw []byte) (trades []*wsTra
 			errs = common.AppendError(errs, fmt.Errorf("%w `tradesSnapshot[1][*]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType))
 		} else {
 			t := &wsTrade{}
-			if err := json.Unmarshal(v, &[]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period}); err != nil {
+			if err := json.Unmarshal(v, t); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w `tradesSnapshot[1][*]`: %w", errParsingWSField, err))
 			} else {
 				trades = append(trades, t)
@@ -962,7 +962,7 @@ func (b *Bitfinex) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
 		return nil, fmt.Errorf("%w `tradesUpdate[2]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType)
 	}
 	t := &wsTrade{}
-	if err := json.Unmarshal(v, &[]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period}); err != nil {
+	if err := json.Unmarshal(v, t); err != nil {
 		return nil, fmt.Errorf("%w `tradeUpdate[2]`: %w", errParsingWSField, err)
 	}
 	return t, nil
