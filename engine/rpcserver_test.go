@@ -1547,19 +1547,19 @@ func TestCheckVars(t *testing.T) {
 	b := e.GetBase()
 
 	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
-		fmt := currency.PairStore{
+		ps := currency.PairStore{
 			AssetEnabled:  true,
 			RequestFormat: &currency.PairFormat{Uppercase: true},
 			ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
 		}
 		switch a {
 		case asset.CoinMarginedFutures:
-			fmt.RequestFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-			fmt.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+			ps.RequestFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
 		case asset.USDTMarginedFutures:
-			fmt.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 		}
-		require.NoError(t, b.StoreAssetPairStore(a, fmt), "StoreAssetPairStore must not error")
+		require.NoError(t, b.StoreAssetPairStore(a, ps), "StoreAssetPairStore must not error")
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
