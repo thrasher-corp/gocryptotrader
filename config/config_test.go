@@ -759,7 +759,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	pm.Pairs[asset.Spot].Available = currency.Pairs{p1}
 
 	// LTC_USD is only found in the available pairs list and should therefore
-	// be added to the enabled pairs list due to the atLestOneEnabled code
+	// be added to the enabled pairs list due to the atLeastOneEnabled code
 	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error when adding a pair from available to enabled")
 	require.Equal(t, 1, len(pm.Pairs[asset.Spot].Enabled), "One pair must be enabled")
 	assert.True(t, slices.Contains(pm.Pairs[asset.Spot].Enabled, p1), "Newly enabled pair should be in Enabled")
