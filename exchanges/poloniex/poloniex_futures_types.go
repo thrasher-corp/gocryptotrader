@@ -211,6 +211,10 @@ type FuturesV3Orderbook struct {
 	Bids      [][]types.Number `json:"bids"`
 	Depth     types.Number     `json:"s"`
 	Timestamp types.Time       `json:"ts"`
+
+	ID           types.Number `json:"id"`
+	Symbol       string       `json:"symbol"`
+	CreationTime types.Time   `json:"cT"`
 }
 
 // V3FuturesCandle represents a kline data for v3 futures instrument
@@ -270,11 +274,13 @@ type V3FuturesTickerDetail struct {
 	BestAskPrice types.Number `json:"aPx"`
 	BestAskSize  types.Number `json:"aSz"`
 	MarkPrice    types.Number `json:"mPx"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // InstrumentIndexPrice represents a symbols index price
 type InstrumentIndexPrice struct {
 	Symbol     string       `json:"symbol"`
+	Timestamp  types.Time   `json:"ts"`
 	IndexPrice types.Number `json:"iPx"`
 }
 
@@ -310,6 +316,7 @@ func (v *V3FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
 type V3FuturesMarkPrice struct {
 	MarkPrice types.Number `json:"mPx"`
 	Symbol    string       `json:"symbol"`
+	Timestamp types.Time   `json:"ts"`
 }
 
 // V3FuturesMarkPriceCandle represents a k-line data for mark price
@@ -364,6 +371,7 @@ type V3FuturesFundingRate struct {
 	FundingRateSettleTime    types.Time   `json:"fT"`
 	NextPredictedFundingRate types.Number `json:"nFR"`
 	NextFundingTime          types.Time   `json:"nFT"`
+	Timestamp                types.Time   `json:"ts"`
 }
 
 // OpenInterestData represents an open interest data
@@ -383,4 +391,56 @@ type InsuranceFundInfo struct {
 type RiskLimit struct {
 	NotionalCap types.Number `json:"notionalCap"`
 	Symbol      string       `json:"symbol"`
+}
+
+// WsFuturesCandlesctick represents a kline data for futures instrument
+type WsFuturesCandlesctick struct {
+	Symbol       string
+	LowestPrice  types.Number
+	HighestPrice types.Number
+	OpenPrice    types.Number
+	ClosePrice   types.Number
+	Amount       types.Number
+	Quantity     types.Number
+	Trades       types.Number
+	StartTime    types.Time
+	EndTime      types.Time
+	PushTime     types.Time
+}
+
+// UnmarshalJSON deserializes byte data into futures candlesticks into *WsFuturesCandlesctick
+func (o *WsFuturesCandlesctick) UnmarshalJSON(data []byte) error {
+	target := [11]any{&o.Symbol, &o.LowestPrice, &o.HighestPrice, &o.OpenPrice, &o.ClosePrice, &o.Amount, &o.Quantity, &o.Trades, &o.StartTime, &o.EndTime, &o.PushTime}
+	return json.Unmarshal(data, &target)
+}
+
+// FuturesTrades represents a futures trades detail
+type FuturesTrades struct {
+	ID           int          `json:"id"`
+	Timestamp    types.Time   `json:"ts"`
+	Symbol       string       `json:"s"`
+	Price        types.Number `json:"px"`
+	Quantity     types.Number `json:"qty"`
+	Amount       types.Number `json:"amt"`
+	Side         string       `json:"side"`
+	CreationTime types.Time   `json:"cT"`
+}
+
+// V3WsFuturesMarkAndIndexPriceCandle represents a websocket k-line data for mark/index candlestick data
+type V3WsFuturesMarkAndIndexPriceCandle struct {
+	OpeningPrice types.Number
+	HighestPrice types.Number
+	LowestPrice  types.Number
+	ClosingPrice types.Number
+	StartTime    types.Time
+	EndTime      types.Time
+
+	Symbol        string
+	PushTimestamp types.Time
+}
+
+// UnmarshalJSON deserializes byte data into V3WsFuturesMarkAndIndexPriceCandle instance
+func (v *V3WsFuturesMarkAndIndexPriceCandle) UnmarshalJSON(data []byte) error {
+	target := [8]any{&v.Symbol, &v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime, &v.PushTimestamp}
+	return json.Unmarshal(data, &target)
 }

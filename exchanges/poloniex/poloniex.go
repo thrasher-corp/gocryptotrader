@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -156,7 +157,7 @@ func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	intervalString, err := intervalToString(interval)
+	intervalString, err := IntervalString(interval)
 	if err != nil {
 		return nil, err
 	} else if intervalString == "" {
@@ -505,30 +506,6 @@ func (p *Poloniex) NewCurrencyDepositAddress(ctx context.Context, ccy currency.C
 	return resp.Address, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
 }
 
-func intervalToString(interval kline.Interval) (string, error) {
-	intervalMap := map[kline.Interval]string{
-		kline.OneMin:     "MINUTE_1",
-		kline.FiveMin:    "MINUTE_5",
-		kline.TenMin:     "MINUTE_10",
-		kline.FifteenMin: "MINUTE_15",
-		kline.ThirtyMin:  "MINUTE_30",
-		kline.OneHour:    "HOUR_1",
-		kline.TwoHour:    "HOUR_2",
-		kline.FourHour:   "HOUR_4",
-		kline.SixHour:    "HOUR_6",
-		kline.TwelveHour: "HOUR_12",
-		kline.OneDay:     "DAY_1",
-		kline.ThreeDay:   "DAY_3",
-		kline.SevenDay:   "WEEK_1",
-		kline.OneMonth:   "MONTH_1",
-	}
-	intervalString, okay := intervalMap[interval]
-	if okay {
-		return intervalString, nil
-	}
-	return "", kline.ErrUnsupportedInterval
-}
-
 func stringToInterval(interval string) (kline.Interval, error) {
 	intervalMap := map[string]kline.Interval{
 		"MINUTE_1":  kline.OneMin,
@@ -546,7 +523,7 @@ func stringToInterval(interval string) (kline.Interval, error) {
 		"WEEK_1":    kline.SevenDay,
 		"MONTH_1":   kline.OneMonth,
 	}
-	intervalInstance, okay := intervalMap[interval]
+	intervalInstance, okay := intervalMap[strings.ToUpper(interval)]
 	if okay {
 		return intervalInstance, nil
 	}

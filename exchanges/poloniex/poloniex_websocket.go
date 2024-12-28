@@ -557,7 +557,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.Lis
 			if !okay {
 				interval = kline.FiveMin
 			}
-			intervalString, err := intervalToString(interval)
+			intervalString, err := IntervalString(interval)
 			if err != nil {
 				return nil, err
 			}

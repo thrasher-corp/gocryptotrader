@@ -1066,6 +1066,7 @@ type FuturesSubscriptionInput struct {
 type FuturesSubscriptionResp struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
+	Action  string          `json:"action"`
 }
 
 // InstrumentMarkAndIndexPrice represents index and mark price information of an instrument.
