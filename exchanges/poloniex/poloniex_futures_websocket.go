@@ -12,7 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -216,17 +218,123 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 	case cnlFuturesFundingRate:
 		return p.processFuturesFundingRate(result.Data)
 	case cnlFuturesPrivatePositions:
-		return nil
+		var resp []V3FuturesPosition
+		return p.processData(result.Data, &resp)
 	case cnlFuturesPrivateOrders:
-		return nil
+		return p.processFuturesOrders(result.Data)
 	case cnlFuturesPrivateTrades:
-		return nil
+		return p.processFuturesTradeFills(result.Data)
 	case cnlFuturesAccount:
-		return nil
+		return p.processFuturesAccountData(result.Data)
 	default:
 		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
+}
+
+func (p *Poloniex) processFuturesAccountData(data []byte) error {
+	var resp []FuturesAccountBalance
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	accChanges := []account.Change{}
+	for a := range resp {
+		for b := range resp[a].Details {
+			accChanges = append(accChanges, account.Change{
+				Exchange: p.Name,
+				Currency: currency.NewCode(resp[a].Details[b].Currency),
+				Asset:    asset.Futures,
+				Amount:   resp[a].Details[b].Available.Float64(),
+			})
+		}
+	}
+	p.Websocket.DataHandler <- accChanges
+	return nil
+}
+
+func (p *Poloniex) processFuturesTradeFills(data []byte) error {
+	var resp []FuturesTradeFill
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	tfills := make([]fill.Data, len(resp))
+	for a := range resp {
+		pair, err := currency.NewPairFromString(resp[a].Symbol)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(resp[a].Side)
+		if err != nil {
+			return err
+		}
+		tfills[a] = fill.Data{
+			CurrencyPair:  pair,
+			Side:          oSide,
+			Exchange:      p.Name,
+			AssetType:     asset.Futures,
+			OrderID:       resp[a].OrderID,
+			ID:            resp[a].TradeID,
+			TradeID:       resp[a].TradeID,
+			ClientOrderID: resp[a].ClientOrderID,
+			Timestamp:     resp[a].UpdateTime.Time(),
+			Price:         resp[a].FillPrice.Float64(),
+			Amount:        resp[a].FillQuantity.Float64(),
+		}
+	}
+	p.Websocket.DataHandler <- tfills
+	return nil
+}
+
+func (p *Poloniex) processFuturesOrders(data []byte) error {
+	var resp []FuturesV3Order
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	orders := make([]order.Detail, len(resp))
+	for o := range resp {
+		oType, err := order.StringToOrderType(resp[o].Type)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(resp[o].Side)
+		if err != nil {
+			return err
+		}
+		oStatus, err := order.StringToOrderStatus(resp[o].State)
+		if err != nil {
+			return err
+		}
+		pair, err := currency.NewPairFromString(resp[o].Symbol)
+		if err != nil {
+			return err
+		}
+		orders[o] = order.Detail{
+			ReduceOnly:           resp[o].ReduceOnly,
+			Leverage:             resp[o].Leverage.Float64(),
+			Price:                resp[o].Price.Float64(),
+			Amount:               resp[o].Size.Float64(),
+			TriggerPrice:         resp[o].TakeProfitTriggerPrice.Float64(),
+			AverageExecutedPrice: resp[o].AveragePrice.Float64(),
+			ExecutedAmount:       resp[o].ExecQuantity.Float64(),
+			RemainingAmount:      resp[o].Size.Float64() - resp[o].ExecQuantity.Float64(),
+			Fee:                  resp[o].FeeAmount.Float64(),
+			FeeAsset:             currency.NewCode(resp[o].FeeCurrency),
+			Exchange:             p.Name,
+			OrderID:              resp[o].OrderID,
+			ClientOrderID:        resp[o].ClientOrderID,
+			Type:                 oType,
+			Side:                 oSide,
+			Status:               oStatus,
+			AssetType:            asset.Futures,
+			Date:                 resp[o].CreationTime.Time(),
+			Pair:                 pair,
+		}
+	}
+	p.Websocket.DataHandler <- orders
+	return nil
 }
 
 func (p *Poloniex) processFuturesFundingRate(data []byte) error {

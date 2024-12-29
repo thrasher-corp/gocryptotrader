@@ -396,7 +396,7 @@ func (p *Poloniex) GetCurrentOrders(ctx context.Context, symbol, side, orderID, 
 }
 
 // GetOrderExecutionDetails retrieves detailed information about your executed futures order
-func (p *Poloniex) GetOrderExecutionDetails(ctx context.Context, symbol, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3Order, error) {
+func (p *Poloniex) GetOrderExecutionDetails(ctx context.Context, symbol, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesTradeFill, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -424,7 +424,7 @@ func (p *Poloniex) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []FuturesV3Order
+	var resp []FuturesTradeFill
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/trades", params, nil, &resp, true)
 }
 

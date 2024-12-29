@@ -116,6 +116,23 @@ type CancelOrdersParams struct {
 	ClientOrderIDs []string `json:"clOrdIds,omitempty"`
 }
 
+// FuturesTradeFill represents a trade executions
+type FuturesTradeFill struct {
+	Symbol         string       `json:"symbol"`
+	Side           string       `json:"side"`
+	OrderID        string       `json:"ordId"`
+	ClientOrderID  string       `json:"clOrdId"`
+	Role           string       `json:"role"`
+	TradeID        string       `json:"trdId"`
+	FeeCurrency    string       `json:"feeCcy"`
+	FeeAmount      types.Number `json:"feeAmt"`
+	DeductCurrency string       `json:"deductCcy"`
+	DeductAmount   types.Number `json:"deductAmt"`
+	FillPrice      types.Number `json:"fpx"`
+	FillQuantity   types.Number `json:"fqty"`
+	UpdateTime     types.Time   `json:"uTime"`
+}
+
 // FuturesV3Order represents a futures v3 order detail
 type FuturesV3Order struct {
 	OrderID                    string       `json:"ordId"`
