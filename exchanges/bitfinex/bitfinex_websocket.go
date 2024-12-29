@@ -922,10 +922,10 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 			t.Side = order.Sell
 			t.Amount = math.Abs(t.Amount)
 		}
-		if feedEnabled {
-			b.Websocket.DataHandler <- &t
-		}
 		trades[i] = t
+	}
+	if feedEnabled {
+		b.Websocket.DataHandler <- trades
 	}
 	if b.IsSaveTradeDataEnabled() {
 		err = trade.AddTradesToBuffer(b.GetName(), trades...)
