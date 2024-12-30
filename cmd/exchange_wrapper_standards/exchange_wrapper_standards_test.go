@@ -42,6 +42,7 @@ func TestMain(m *testing.M) {
 var singleExchangeOverride = ""
 
 func TestAllExchangeWrappers(t *testing.T) {
+	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -233,7 +234,7 @@ func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchang
 					Start:       s,
 					End:         e,
 				}
-				for z := 0; z < method.Type().NumIn(); z++ {
+				for z := range method.Type().NumIn() {
 					argGenerator.MethodInputType = method.Type().In(z)
 					generatedArg := generateMethodArg(ctx, t, argGenerator)
 					inputs[z] = *generatedArg
