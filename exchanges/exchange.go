@@ -51,16 +51,17 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
+// Public Errors
 var (
-	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
-	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+)
 
+var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
-	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
-	errBatchSizeZero                     = errors.New("batch size cannot be 0")
 )
 
 // SetRequester sets the instance of the requester
@@ -250,7 +251,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -976,8 +977,7 @@ func (b *Base) SupportsAsset(a asset.Item) bool {
 // PrintEnabledPairs prints the exchanges enabled asset pairs
 func (b *Base) PrintEnabledPairs() {
 	for k, v := range b.CurrencyPairs.Pairs {
-		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
-			b.Name, strings.ToUpper(k.String()), v.Enabled)
+		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v", b.Name, strings.ToUpper(k.String()), v.Enabled)
 	}
 }
 
@@ -988,10 +988,7 @@ func (b *Base) GetBase() *Base { return b }
 // for validation of API credentials
 func (b *Base) CheckTransientError(err error) error {
 	if _, ok := err.(net.Error); ok {
-		log.Warnf(log.ExchangeSys,
-			"%s net error captured, will not disable authentication %s",
-			b.Name,
-			err)
+		log.Warnf(log.ExchangeSys, "%s net error captured, will not disable authentication %s", b.Name, err)
 		return nil
 	}
 	return err
@@ -1813,9 +1810,6 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
-	if batchSize == 0 {
-		return errBatchSizeZero
-	}
 
 	for _, b := range common.Batch(channels, batchSize) {
 		wg.Add(1)

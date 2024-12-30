@@ -108,6 +108,7 @@ func (h *HitBTC) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	h.Requester, err = request.New(h.Name,
@@ -157,7 +158,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
 		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: h.generateSubscriptions,
 		Features:              &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
@@ -748,8 +749,8 @@ func (h *HitBTC) ValidateAPICredentials(ctx context.Context, assetType asset.Ite
 	return h.CheckTransientError(err)
 }
 
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) (string, error) {
+// formatExchangeKlineInterval returns Interval to exchange formatted string
+func formatExchangeKlineInterval(in kline.Interval) (string, error) {
 	switch in {
 	case kline.OneMin:
 		return "M1", nil
@@ -782,7 +783,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return nil, err
 	}
 
-	formattedInterval, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
+	formattedInterval, err := formatExchangeKlineInterval(req.ExchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -818,7 +819,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return nil, err
 	}
 
-	formattedInterval, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
+	formattedInterval, err := formatExchangeKlineInterval(req.ExchangeInterval)
 	if err != nil {
 		return nil, err
 	}

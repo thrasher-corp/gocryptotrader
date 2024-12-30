@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -137,19 +136,7 @@ func (b *Bitmex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 		},
-		Subscriptions: subscription.List{
-			{Enabled: true, Channel: bitmexWSAnnouncement},
-			{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
-			{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
-			{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
-			{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
-			{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
-			{Enabled: true, Channel: bitmexWSPrivateNotifications, Authenticated: true},
-			{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
-			{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
-			{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
-			{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
-		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	b.Requester, err = request.New(b.Name,

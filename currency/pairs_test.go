@@ -715,35 +715,40 @@ func TestValidateAndConform(t *testing.T) {
 
 func TestPairs_GetFormatting(t *testing.T) {
 	t.Parallel()
-	p := Pairs{NewPair(BTC, USDT)}
-	pFmt, err := p.GetFormatting()
-	if err != nil {
-		t.Error(err)
-	}
-	if !pFmt.Uppercase || pFmt.Delimiter != "" {
-		t.Error("incorrect formatting")
-	}
+	pFmt, err := Pairs{NewPair(BTC, USDT)}.GetFormatting()
+	require.NoError(t, err)
+	assert.True(t, pFmt.Uppercase)
+	assert.Empty(t, pFmt.Delimiter)
 
-	p = Pairs{NewPairWithDelimiter("eth", "usdt", "/")}
-	pFmt, err = p.GetFormatting()
-	if err != nil {
-		t.Error(err)
-	}
-	if pFmt.Uppercase || pFmt.Delimiter != "/" {
-		t.Error("incorrect formatting")
-	}
+	pFmt, err = Pairs{NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	require.NoError(t, err)
+	assert.False(t, pFmt.Uppercase)
+	assert.Equal(t, "/", pFmt.Delimiter)
 
-	p = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}
-	_, err = p.GetFormatting()
-	if !errors.Is(err, errPairFormattingInconsistent) {
-		t.Error(err)
-	}
+	_, err = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
 
-	p = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}
-	_, err = p.GetFormatting()
-	if !errors.Is(err, errPairFormattingInconsistent) {
-		t.Error(err)
-	}
+	_, err = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}.GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
+
+	_, err = Pairs{NewPairWithDelimiter("eth", "usdt", "/"), NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	require.NoError(t, err)
+
+	_, err = Pairs{NewPairWithDelimiter("eth", "usdt", "/"), NewPairWithDelimiter("eth", "usdt", "|")}.GetFormatting()
+	require.ErrorIs(t, err, errPairFormattingInconsistent)
+
+	_, err = Pairs{NewPairWithDelimiter("eth", "420", "/"), NewPairWithDelimiter("eth", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("ETH", "420", "/"), NewPairWithDelimiter("ETH", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "ETH", "/"), NewPairWithDelimiter("420", "ETH", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "eth", "/"), NewPairWithDelimiter("420", "eth", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "eth", "/"), NewPairWithDelimiter("eth", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
+	_, err = Pairs{NewPairWithDelimiter("420", "ETH", "/"), NewPairWithDelimiter("ETH", "420", "/")}.GetFormatting()
+	require.NoError(t, err)
 }
 
 func TestGetPairsByQuote(t *testing.T) {
@@ -835,4 +840,84 @@ func TestPairsEqual(t *testing.T) {
 	assert.True(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)}), "Equal Pairs should return true")
 	assert.Equal(t, "USDT-BTC", orig[0].String(), "Equal Pairs should not effect original order or format")
 	assert.False(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USD, LTC)}), "UnEqual Pairs should return false")
+}
+
+func TestFindPairDifferences(t *testing.T) {
+	pairList, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD"})
+	require.NoError(t, err)
+
+	dash, err := NewPairsFromStrings([]string{"DASH-USD"})
+	require.NoError(t, err)
+
+	// Test new pair update
+	diff, err := pairList.FindDifferences(dash, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	require.NoError(t, err)
+	assert.Len(t, diff.New, 1)
+	assert.Len(t, diff.Remove, 3)
+
+	diff, err = pairList.FindDifferences(Pairs{}, EMPTYFORMAT)
+	require.NoError(t, err)
+	assert.Empty(t, diff.New)
+	assert.Len(t, diff.Remove, 3)
+	assert.True(t, diff.FormatDifference)
+
+	diff, err = Pairs{}.FindDifferences(pairList, EMPTYFORMAT)
+	require.NoError(t, err)
+	assert.Len(t, diff.New, 3)
+	assert.Empty(t, diff.Remove)
+	assert.True(t, diff.FormatDifference)
+
+	// Test that the supplied pair lists are the same, so
+	// no newPairs or removedPairs
+	diff, err = pairList.FindDifferences(pairList, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	require.NoError(t, err)
+	assert.Empty(t, diff.New)
+	assert.Empty(t, diff.Remove)
+	assert.False(t, diff.FormatDifference)
+
+	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, EMPTYFORMAT)
+	require.ErrorIs(t, err, ErrCurrencyPairEmpty)
+
+	_, err = Pairs{EMPTYPAIR}.FindDifferences(pairList, EMPTYFORMAT)
+	require.ErrorIs(t, err, ErrCurrencyPairEmpty)
+
+	// Test duplication
+	duplication, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD", "ETH-USD"})
+	require.NoError(t, err)
+
+	_, err = pairList.FindDifferences(duplication, EMPTYFORMAT)
+	require.ErrorIs(t, err, ErrPairDuplication)
+
+	// This will allow for the removal of the duplicated item to be returned if
+	// contained in the original list.
+	diff, err = duplication.FindDifferences(pairList, EMPTYFORMAT)
+	require.NoError(t, err)
+	require.Len(t, diff.Remove, 1)
+	require.True(t, diff.Remove[0].Equal(pairList[1]))
+
+	original, err := NewPairsFromStrings([]string{"ETH-USD", "LTC-USD", "ETH-USD"})
+	require.NoError(t, err)
+
+	compare, err := NewPairsFromStrings([]string{"ETH-123", "LTC-123", "MEOW-123"})
+	require.NoError(t, err)
+
+	diff, err = original.FindDifferences(compare, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	require.NoError(t, err)
+	require.False(t, diff.FormatDifference)
+}
+
+// 2208139	       509.3 ns/op	     288 B/op	       2 allocs/op (current)
+//
+// 1614865	       712.5 ns/op	     336 B/op	       8 allocs/op (prev)
+func BenchmarkFindDifferences(b *testing.B) {
+	original, err := NewPairsFromStrings([]string{"ETH-USD", "LTC-USD", "ETH-USD"})
+	require.NoError(b, err)
+
+	compare, err := NewPairsFromStrings([]string{"ETH-123", "LTC-123", "MEOW-123"})
+	require.NoError(b, err)
+
+	for i := 0; i < b.N; i++ {
+		_, err = original.FindDifferences(compare, EMPTYFORMAT)
+		require.NoError(b, err)
+	}
 }

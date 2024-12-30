@@ -16,10 +16,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1298,4 +1301,35 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	g := new(Gemini)
+	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
+	require.NoError(t, g.CurrencyPairs.StorePairs(asset.Spot, p, false))
+	require.NoError(t, g.CurrencyPairs.StorePairs(asset.Spot, p, true))
+	subs, err := g.generateSubscriptions()
+	require.NoError(t, err)
+	exp := subscription.List{
+		{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, QualifiedChannel: "candles_1d", Interval: kline.OneDay},
+		{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: p, QualifiedChannel: "l2"},
+	}
+	testsubs.EqualLists(t, exp, subs)
+
+	for _, i := range []kline.Interval{kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.SixHour} {
+		subs, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(g)
+		assert.NoErrorf(t, err, "ExpandTemplates should not error on interval %s", i)
+		require.NotEmpty(t, subs)
+		assert.Equal(t, "candles_"+i.Short(), subs[0].QualifiedChannel)
+	}
+	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(g)
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "ExpandTemplates should error on invalid interval")
+
+	assert.PanicsWithError(t,
+		"subscription channel not supported: wibble",
+		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
+		"should panic on invalid channel",
+	)
 }

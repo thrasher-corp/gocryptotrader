@@ -11,20 +11,13 @@ import (
 )
 
 const (
-	// Settles
-	settleBTC  = "btc"
-	settleUSD  = "usd"
-	settleUSDT = "usdt"
-
-	// types.Time time in force variables
-
+	// Order time in force variables
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
 	pocTIF = "poc"
 	fokTIF = "fok" // fill-or-kill
 
-	// frequently used order Status
-
+	// Frequently used order Status
 	statusOpen     = "open"
 	statusLoaned   = "loaned"
 	statusFinished = "finished"
@@ -33,6 +26,8 @@ const (
 	sideLend   = "lend"
 	sideBorrow = "borrow"
 )
+
+var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
@@ -708,6 +703,7 @@ type FuturesCandlestick struct {
 	HighestPrice types.Number `json:"h"`
 	LowestPrice  types.Number `json:"l"`
 	OpenPrice    types.Number `json:"o"`
+	Sum          types.Number `json:"sum"` // Trading volume (unit: Quote currency)
 
 	// Added for websocket push data
 	Name string `json:"n,omitempty"`
@@ -1822,11 +1818,11 @@ type OrderCreateParams struct {
 	Iceberg       int64         `json:"iceberg"`
 	Price         string        `json:"price"` // NOTE: Market orders require string "0"
 	TimeInForce   string        `json:"tif"`
-	Text          string        `json:"text"`
-	ClosePosition bool          `json:"close,omitempty"`
+	Text          string        `json:"text,omitempty"`  // Omitempty required as payload sent as `text:""` will return error message: Text content not starting with `t-`"
+	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
 	AutoSize      string        `json:"auto_size,omitempty"`
-	Settle        string        `json:"-"` // Used in URL.
+	Settle        currency.Code `json:"-"` // Used in URL.
 }
 
 // Order represents future order response
@@ -2012,12 +2008,13 @@ type WsEventResponse struct {
 
 // WsResponse represents generalized websocket push data from the server.
 type WsResponse struct {
-	ID      int64           `json:"id"`
-	Time    types.Time      `json:"time"`
-	TimeMs  types.Time      `json:"time_ms"`
-	Channel string          `json:"channel"`
-	Event   string          `json:"event"`
-	Result  json.RawMessage `json:"result"`
+	ID        int64           `json:"id"`
+	Time      types.Time      `json:"time"`
+	TimeMs    types.Time      `json:"time_ms"`
+	Channel   string          `json:"channel"`
+	Event     string          `json:"event"`
+	Result    json.RawMessage `json:"result"`
+	RequestID string          `json:"request_id"`
 }
 
 // WsTicker websocket ticker information.
@@ -2068,23 +2065,23 @@ type WsOrderbookTickerData struct {
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTimeMs            types.Time    `json:"t"`
-	IgnoreField             string        `json:"e"`
-	UpdateTime              types.Time    `json:"E"`
-	CurrencyPair            currency.Pair `json:"s"`
-	FirstOrderbookUpdatedID int64         `json:"U"` // First update order book id in this event since last update
-	LastOrderbookUpdatedID  int64         `json:"u"`
-	Bids                    [][2]string   `json:"b"`
-	Asks                    [][2]string   `json:"a"`
+	UpdateTimeMs            types.Time        `json:"t"`
+	IgnoreField             string            `json:"e"`
+	UpdateTime              types.Time        `json:"E"`
+	CurrencyPair            currency.Pair     `json:"s"`
+	FirstOrderbookUpdatedID int64             `json:"U"` // First update order book id in this event since last update
+	LastOrderbookUpdatedID  int64             `json:"u"`
+	Bids                    [][2]types.Number `json:"b"`
+	Asks                    [][2]types.Number `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
 type WsOrderbookSnapshot struct {
-	UpdateTimeMs types.Time    `json:"t"`
-	LastUpdateID int64         `json:"lastUpdateId"`
-	CurrencyPair currency.Pair `json:"s"`
-	Bids         [][2]string   `json:"bids"`
-	Asks         [][2]string   `json:"asks"`
+	UpdateTimeMs types.Time        `json:"t"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	CurrencyPair currency.Pair     `json:"s"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // WsSpotOrder represents an order push data through the websocket channel.

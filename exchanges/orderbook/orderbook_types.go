@@ -140,7 +140,7 @@ type options struct {
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool
-	VerifyOrderbook        bool
+	verifyOrderbook        bool
 	restSnapshot           bool
 	idAligned              bool
 	checksumStringRequired bool

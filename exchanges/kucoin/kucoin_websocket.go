@@ -88,6 +88,19 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
+var subscriptionNames = map[asset.Item]map[string]string{
+	asset.Futures: {
+		subscription.TickerChannel:    futuresTickerChannel,
+		subscription.OrderbookChannel: futuresOrderbookDepth5Channel, // This does not require a REST request to get the orderbook.
+	},
+	asset.All: {
+		subscription.TickerChannel:    marketTickerChannel,
+		subscription.OrderbookChannel: marketOrderbookDepth5Channel, // This does not require a REST request to get the orderbook.
+		subscription.CandlesChannel:   marketCandlesChannel,
+		subscription.AllTradesChannel: marketMatchChannel,
+	},
+}
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
@@ -202,18 +215,14 @@ func (ku *Kucoin) wsReadData() {
 // wsHandleData processes a websocket incoming data.
 func (ku *Kucoin) wsHandleData(respData []byte) error {
 	resp := WsPushData{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
 	if resp.Type == "pong" || resp.Type == "welcome" {
 		return nil
 	}
 	if resp.ID != "" {
-		if !ku.Websocket.Match.IncomingWithData("msgID:"+resp.ID, respData) {
-			return fmt.Errorf("%w: %s", stream.ErrNoMessageListener, resp.ID)
-		}
-		return nil
+		return ku.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {
@@ -1664,21 +1673,15 @@ func (ku *Kucoin) checkSubscriptions() {
 
 // channelName returns the correct channel name for the asset
 func channelName(s *subscription.Subscription, a asset.Item) string {
-	switch s.Channel {
-	case subscription.TickerChannel:
-		if a == asset.Futures {
-			return futuresTickerChannel
+	if byAsset, hasAsset := subscriptionNames[a]; hasAsset {
+		if name, ok := byAsset[s.Channel]; ok {
+			return name
 		}
-		return marketTickerChannel
-	case subscription.OrderbookChannel:
-		if a == asset.Futures {
-			return futuresOrderbookDepth5Channel
+	}
+	if allAssets, hasAll := subscriptionNames[asset.All]; hasAll {
+		if name, ok := allAssets[s.Channel]; ok {
+			return name
 		}
-		return marketOrderbookDepth5Channel // This does not require a REST request to get the orderbook.
-	case subscription.CandlesChannel:
-		return marketCandlesChannel // No support in GCT yet for Futures candles
-	case subscription.AllTradesChannel:
-		return marketMatchChannel // No support in GCT yet for Futures all trades
 	}
 	return s.Channel
 }

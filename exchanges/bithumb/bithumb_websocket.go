@@ -5,11 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -24,9 +29,14 @@ const (
 )
 
 var (
-	wsDefaultTickTypes = []string{"30M"} // alternatives "1H", "12H", "24H", "MID"
-	location           *time.Location
+	location *time.Location
 )
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.ThirtyMin}, // alternatives "1H", "12H", "24H"
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+}
 
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
@@ -171,41 +181,19 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 
 // generateSubscriptions generates the default subscription set
 func (b *Bithumb) generateSubscriptions() (subscription.List, error) {
-	var channels = []string{"ticker", "transaction", "orderbookdepth"}
-	var subscriptions subscription.List
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
+	return b.Features.Subscriptions.ExpandTemplates(b)
+}
 
-	pFmt, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
-	}
-	pairs = pairs.Format(pFmt)
-
-	for y := range channels {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: channels[y],
-			Pairs:   pairs,
-			Asset:   asset.Spot,
-		})
-	}
-	return subscriptions, nil
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *Bithumb) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToReq": subToReq}).Parse(subTplText)
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
+func (b *Bithumb) Subscribe(subs subscription.List) error {
 	var errs error
-	for _, s := range channelsToSubscribe {
-		req := &WsSubscribe{
-			Type:    s.Channel,
-			Symbols: s.Pairs,
-		}
-		if s.Channel == "ticker" {
-			req.TickTypes = wsDefaultTickTypes
-		}
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	for _, s := range subs {
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, json.RawMessage(s.QualifiedChannel))
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}
@@ -215,3 +203,32 @@ func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
 	}
 	return errs
 }
+
+// subToReq returns the subscription as a map to populate WsSubscribe
+func subToReq(s *subscription.Subscription, p currency.Pairs) *WsSubscribe {
+	req := &WsSubscribe{
+		Type:    s.Channel,
+		Symbols: common.SortStrings(p),
+	}
+	switch s.Channel {
+	case subscription.TickerChannel:
+		// As-is
+	case subscription.OrderbookChannel:
+		req.Type = "orderbookdepth"
+	case subscription.AllTradesChannel:
+		req.Type = "transaction"
+	default:
+		panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+	}
+	if s.Interval > 0 {
+		req.TickTypes = []string{strings.ToUpper(s.Interval.Short())}
+	}
+	return req
+}
+
+const subTplText = `
+{{ range $asset, $pairs := $.AssetPairs }}
+	{{- subToReq $.S $pairs | mustToJson }}
+	{{- $.AssetSeparator }}
+{{- end }}
+`
