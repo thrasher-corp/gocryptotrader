@@ -266,7 +266,7 @@ func TestExecuteOrder(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	_, err = exch.FetchOrderbook(context.Background(), p, a)
+	_, err = exch.UpdateOrderbook(context.Background(), p, a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -400,7 +400,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	p := currency.NewPair(currency.BTC, currency.AUD)
 	a := asset.Spot
-	_, err = exch.FetchOrderbook(context.Background(), p, a)
+	_, err = exch.UpdateOrderbook(context.Background(), p, a)
 	if err != nil {
 		t.Fatal(err)
 	}

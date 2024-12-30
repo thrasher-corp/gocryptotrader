@@ -349,20 +349,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		log.Printf("Executing wrappers for %v %v %v", base.GetName(), assetTypes[i], p)
 
 		if !authenticatedOnly {
-			var fetchTickerResponse *ticker.Price
-			fetchTickerResponse, err = e.FetchTicker(context.TODO(), p, assetTypes[i])
-			msg = ""
-			if err != nil {
-				msg = err.Error()
-				responseContainer.ErrorCount++
-			}
-			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
-				Function:   "FetchTicker",
-				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{fetchTickerResponse}),
-			})
-
 			var updateTickerResponse *ticker.Price
 			updateTickerResponse, err = e.UpdateTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
@@ -377,8 +363,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{updateTickerResponse}),
 			})
 
-			var fetchOrderbookResponse *orderbook.Base
-			fetchOrderbookResponse, err = e.FetchOrderbook(context.TODO(), p, assetTypes[i])
+			var fetchTickerResponse *ticker.Price
+			fetchTickerResponse, err = e.FetchTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -386,9 +372,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
-				Function:   "FetchOrderbook",
+				Function:   "FetchTicker",
 				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{fetchOrderbookResponse}),
+				Response:   jsonifyInterface([]interface{}{fetchTickerResponse}),
 			})
 
 			var updateOrderbookResponse *orderbook.Base
@@ -403,6 +389,20 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Function:   "UpdateOrderbook",
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{updateOrderbookResponse}),
+			})
+
+			var fetchOrderbookResponse *orderbook.Base
+			fetchOrderbookResponse, err = e.FetchOrderbook(context.TODO(), p, assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+				Function:   "FetchOrderbook",
+				Error:      msg,
+				Response:   jsonifyInterface([]interface{}{fetchOrderbookResponse}),
 			})
 
 			var fetchTradablePairsResponse []currency.Pair

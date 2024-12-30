@@ -26,8 +26,8 @@ func TestMain(m *testing.M) {
 
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	_, err := SubscribeToExchangeOrderbooks("")
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expected: %v but received: %v", errCannotFindOrderbook, err)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("expected: %v but received: %v", ErrCannotFindOrderbook, err)
 	}
 
 	p := currency.NewPair(currency.BTC, currency.USD)
@@ -202,14 +202,14 @@ func TestGetOrderbook(t *testing.T) {
 	}
 
 	_, err = Get("nonexistent", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("received '%v', expected '%v'", err, errCannotFindOrderbook)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("received '%v', expected '%v'", err, ErrCannotFindOrderbook)
 	}
 
 	c.Base = currency.NewCode("blah")
 	_, err = Get("Exchange", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("received '%v', expected '%v', using invalid first currency", err, errCannotFindOrderbook)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("received '%v', expected '%v', using invalid first currency", err, ErrCannotFindOrderbook)
 	}
 
 	newCurrency, err := currency.NewPairFromStrings("BTC", "AUD")
@@ -217,8 +217,8 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = Get("Exchange", newCurrency, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("received '%v', expected '%v', using invalid second currency", err, errCannotFindOrderbook)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("received '%v', expected '%v', using invalid second currency", err, ErrCannotFindOrderbook)
 	}
 
 	base.Pair = newCurrency
@@ -261,14 +261,14 @@ func TestGetDepth(t *testing.T) {
 	}
 
 	_, err = GetDepth("nonexistent", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("expecting %s error but received %v", ErrCannotFindOrderbook, err)
 	}
 
 	c.Base = currency.NewCode("blah")
 	_, err = GetDepth("Exchange", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("expecting %s error but received %v", ErrCannotFindOrderbook, err)
 	}
 
 	newCurrency, err := currency.NewPairFromStrings("BTC", "DOGE")
@@ -276,8 +276,8 @@ func TestGetDepth(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = GetDepth("Exchange", newCurrency, asset.Futures)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("expecting %s error but received %v", ErrCannotFindOrderbook, err)
 	}
 
 	base.Pair = newCurrency
@@ -287,8 +287,8 @@ func TestGetDepth(t *testing.T) {
 	}
 
 	_, err = GetDepth("Exchange", newCurrency, asset.Empty)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
+	if !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Fatalf("expecting %s error but received %v", ErrCannotFindOrderbook, err)
 	}
 }
 
@@ -305,8 +305,8 @@ func TestBaseGetDepth(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 
-	if _, err = base.GetDepth(); !errors.Is(err, errCannotFindOrderbook) {
-		t.Errorf("expecting %s error but received %v", errCannotFindOrderbook, err)
+	if _, err = base.GetDepth(); !errors.Is(err, ErrCannotFindOrderbook) {
+		t.Errorf("expecting %s error but received %v", ErrCannotFindOrderbook, err)
 	}
 
 	if err = base.Process(); err != nil {

@@ -156,18 +156,6 @@ func TestCheckFXString(t *testing.T) {
 	}
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	testexch.UpdatePairsOnce(t, b)
-	currencies, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	require.GreaterOrEqual(t, len(currencies), 1)
-	_, err = b.FetchTicker(context.Background(), currencies[0], asset.Spot)
-	assert.NoError(t, err)
-}
-
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:              1,
