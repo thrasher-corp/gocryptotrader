@@ -1692,9 +1692,11 @@ func (ku *Kucoin) mergeMarginPairs(s *subscription.Subscription, ap map[asset.It
 	wantKey := &subscription.IgnoringAssetKey{Subscription: s}
 	switch s.Asset {
 	case asset.All:
-		marginPairs, _ := ku.GetEnabledPairs(asset.Margin)
-		ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
-		ap[asset.Margin] = currency.Pairs{}
+		if _, marginEnabled := ap[asset.Margin]; marginEnabled {
+			marginPairs, _ := ku.GetEnabledPairs(asset.Margin)
+			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
+			ap[asset.Margin] = currency.Pairs{}
+		}
 	case asset.Spot:
 		// If there's a margin sub then we should merge the pairs into spot
 		hasMarginSub := slices.ContainsFunc(ku.Features.Subscriptions, func(sB *subscription.Subscription) bool {
