@@ -2127,28 +2127,26 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.DeliveryFutures:
-		var resp []futures.Contract
 		contracts, err := g.GetAllDeliveryContracts(ctx, currency.USDT)
 		if err != nil {
 			return nil, err
 		}
-		contractsToAdd := make([]futures.Contract, len(contracts))
-		for j := range contracts {
-			var name, underlying currency.Pair
-			name, err = currency.NewPairFromString(contracts[j].Name)
+		resp := make([]futures.Contract, len(contracts))
+		for i := range contracts {
+			name, err := currency.NewPairFromString(contracts[i].Name)
 			if err != nil {
 				return nil, err
 			}
-			underlying, err = currency.NewPairFromString(contracts[j].Underlying)
+			underlying, err := currency.NewPairFromString(contracts[i].Underlying)
 			if err != nil {
 				return nil, err
 			}
-			var ct futures.ContractType
 			// no start information, inferring it based on contract type
 			// gateio also reuses contracts for kline data, cannot use a lookup to see the first trade
-			var s, e time.Time
-			e = contracts[j].ExpireTime.Time()
-			switch contracts[j].Cycle {
+			var s time.Time
+			e := contracts[i].ExpireTime.Time()
+			ct := futures.LongDated
+			switch contracts[i].Cycle {
 			case "WEEKLY":
 				ct = futures.Weekly
 				s = e.Add(-kline.OneWeek.Duration())
@@ -2161,10 +2159,8 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			case "BI-QUARTERLY":
 				ct = futures.HalfYearly
 				s = e.Add(-kline.SixMonth.Duration())
-			default:
-				ct = futures.LongDated
 			}
-			contractsToAdd[j] = futures.Contract{
+			resp[i] = futures.Contract{
 				Exchange:             g.Name,
 				Name:                 name,
 				Underlying:           underlying,
@@ -2172,14 +2168,13 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				StartDate:            s,
 				EndDate:              e,
 				SettlementType:       futures.Linear,
-				IsActive:             !contracts[j].InDelisting,
+				IsActive:             !contracts[i].InDelisting,
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDT},
 				MarginCurrency:       currency.Code{},
-				Multiplier:           contracts[j].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[j].LeverageMax.Float64(),
+				Multiplier:           contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:          contracts[i].LeverageMax.Float64(),
 			}
-			resp = append(resp, contractsToAdd...)
 		}
 		return resp, nil
 	}

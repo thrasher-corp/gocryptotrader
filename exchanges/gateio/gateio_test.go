@@ -3186,22 +3186,20 @@ func TestForceFileStandard(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetFuturesContractDetails(context.Background(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	exp, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	c, err := g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.Equal(t, len(exp), len(c), "GetFuturesContractDetails should return same number of Delivery contracts as exist")
+
+	c, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.NotEmpty(t, c, "GetFuturesContractDetails should return same number of Future contracts as exist")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
