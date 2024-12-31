@@ -1823,7 +1823,7 @@ type ContractOrderCreateParams struct {
 	Text          string        `json:"text,omitempty"`  // Omitempty required as payload sent as `text:""` will return error message: Text content not starting with `t-`"
 	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
-	AutoSize      string        `json:"auto_size,omitempty"` // either close_long or close_short, size needs to be zero.
+	AutoSize      string        `json:"auto_size,omitempty"` // either close_long or close_short, requires zero in size field
 	Settle        currency.Code `json:"-"`                   // Used in URL. REST Calls only.
 	StpAct        string        `json:"stp_act,omitempty"`
 }
