@@ -353,6 +353,7 @@ const (
 	TakeProfit
 	TakeProfitMarket
 	TrailingStop
+	TrailingStopLimit
 	FillOrKill
 	IOS
 	AnyType
@@ -361,6 +362,7 @@ const (
 	OptimalLimitIOC
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
+	LimitMaker
 )
 
 // Side enforces a standard for order sides across the code base

@@ -5,11 +5,14 @@
 package poloniex
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -34,8 +37,38 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Poloniex setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, p.Name)
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	err = p.Websocket.Enable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = populateTradablePairs()
+	if err != nil {
+		log.Fatal(err)
+	}
+	p.HTTPRecording = true
 	os.Exit(m.Run())
+}
+
+func populateTradablePairs() error {
+	err := p.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err := p.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	spotTradablePair = tradablePairs[0]
+	tradablePairs, err = p.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	futuresTradablePair = tradablePairs[0]
+	return nil
 }
