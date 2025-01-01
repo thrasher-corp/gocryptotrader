@@ -401,13 +401,6 @@ type AccountTransferResponse struct {
 	TransferID string `json:"transferId"`
 }
 
-// ResponseResult represents a generic response structure of an API call response.
-type ResponseResult struct {
-	Code    types.Number    `json:"code"`
-	Message string          `json:"message"`
-	Data    json.RawMessage `json:"data"`
-}
-
 // AccountTransferRecord represents an account transfer record.
 type AccountTransferRecord struct {
 	ID          string       `json:"id"`
@@ -1017,7 +1010,7 @@ type WebsocketTradeOrder struct {
 }
 
 // WsTradeBalance represents a balance information through the websocket channel
-type WsTradeBalance []struct {
+type WsTradeBalance struct {
 	ID          int64        `json:"id"`
 	UserID      int64        `json:"userId"`
 	ChangeTime  types.Time   `json:"changeTime"`
@@ -1036,23 +1029,6 @@ type WebsocketResponse struct {
 	Data interface{} `json:"data"`
 }
 
-// FuturesWebsocketServerInstances represents websocket server instances detailed information.
-type FuturesWebsocketServerInstances struct {
-	Code string `json:"code"`
-	Msg  string `json:"msg"`
-	Data struct {
-		Code            int    `json:"code"`
-		Token           string `json:"token"`
-		InstanceServers []struct {
-			Endpoint     string `json:"endpoint"`
-			Encrypt      bool   `json:"encrypt"`
-			Protocol     string `json:"protocol"`
-			PingInterval string `json:"pingInterval"`
-			PingTimeout  string `json:"pingTimeout"`
-		} `json:"instanceServers"`
-	} `json:"data"`
-}
-
 // FuturesSubscriptionInput represents a subscription input through the futures stream.
 type FuturesSubscriptionInput struct {
 	ID             string `json:"id"`
@@ -1067,61 +1043,6 @@ type FuturesSubscriptionResp struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 	Action  string          `json:"action"`
-}
-
-// InstrumentMarkAndIndexPrice represents index and mark price information of an instrument.
-type InstrumentMarkAndIndexPrice struct {
-	Granularity int64      `json:"granularity"`
-	IndexPrice  float64    `json:"indexPrice"`
-	MarkPrice   float64    `json:"markPrice"`
-	Timestamp   types.Time `json:"timestamp"`
-}
-
-// FuturesAccountOverview represents an account overview information.
-type FuturesAccountOverview struct {
-	AccountEquity    float64 `json:"accountEquity"`
-	UnrealisedPNL    float64 `json:"unrealisedPNL"`
-	MarginBalance    float64 `json:"marginBalance"`
-	PositionMargin   float64 `json:"positionMargin"`
-	OrderMargin      float64 `json:"orderMargin"`
-	FrozenFunds      float64 `json:"frozenFunds"`
-	AvailableBalance float64 `json:"availableBalance"`
-	Currency         string  `json:"currency"`
-	PNL              float64 `json:"pnl"`
-}
-
-// FuturesTransactionHistory represents a futures account transaction history information.
-type FuturesTransactionHistory struct {
-	HasMore  bool `json:"hasMore"`
-	DataList []struct {
-		EventTime       types.Time `json:"ts"`
-		TransactionType string     `json:"type"`
-		Amount          float64    `json:"amount"`
-		Fee             float64    `json:"fee"`
-		AccountEquity   float64    `json:"accountEquity"`
-		Status          string     `json:"status"`
-		Remark          string     `json:"remark"`
-		Offset          int64      `json:"offset"`
-		Currency        string     `json:"currency"`
-	} `json:"dataList"`
-}
-
-// MaxActiveOrderLimit represents futures max active orders count information.
-type MaxActiveOrderLimit struct {
-	MaxOrder     int64 `json:"maxOrder"`
-	MaxStopOrder int64 `json:"maxStopOrder"`
-}
-
-// FuturesMaxRiskLimit represents a futures maximum risk limit response.
-type FuturesMaxRiskLimit []struct {
-	MaxLot float64 `json:"maxLot"`
-	Symbol string  `json:"symbol"`
-}
-
-// FuturesUserFeeRate represents user fee rate information.
-type FuturesUserFeeRate struct {
-	MakerFeeRate float64 `json:"makerFeeRate"` // in ratio
-	TakerFeeRate float64 `json:"takerFeeRate"` // in ratio
 }
 
 // FuturesOrderParams represents a request parameter for futures order.
@@ -1214,134 +1135,6 @@ type FuturesOrder struct {
 		FeePay  float64 `json:"feePay"`
 		TradeID string  `json:"tradeId"`
 	} `json:"trades"`
-}
-
-// FuturesOrdersV2 represents a paginated list of Futures orders.
-type FuturesOrdersV2 struct {
-	BeforeID string         `json:"beforeId"`
-	HasMore  bool           `json:"hasMore"`
-	NextID   string         `json:"nextId"`
-	Items    []FuturesOrder `json:"items"`
-}
-
-// FuturesOrderFill represents a futures order fill information.
-type FuturesOrderFill struct {
-	Symbol         string       `json:"symbol"`
-	TradeID        string       `json:"tradeId"`
-	OrderID        string       `json:"orderId"`
-	Side           string       `json:"side"`
-	Liquidity      string       `json:"liquidity"`
-	Price          types.Number `json:"price"`
-	Size           float64      `json:"size"`
-	Value          string       `json:"value"`
-	FeeRate        types.Number `json:"feeRate"`
-	FixFee         types.Number `json:"fixFee"`
-	FeeCurrency    string       `json:"feeCurrency"`
-	Stop           string       `json:"stop"`
-	Fee            types.Number `json:"fee"`
-	OrderType      string       `json:"orderType"`
-	TradeType      string       `json:"tradeType"`
-	CreatedAt      types.Time   `json:"createdAt"`
-	SettleCurrency string       `json:"settleCurrency"`
-	TradeTime      types.Time   `json:"tradeTime"`
-}
-
-// FuturesOrderFills represents a futures order fill information as a list.
-type FuturesOrderFills struct {
-	CurrentPage int64              `json:"currentPage"`
-	PageSize    int64              `json:"pageSize"`
-	TotalNum    int64              `json:"totalNum"`
-	TotalPage   int64              `json:"totalPage"`
-	Items       []FuturesOrderFill `json:"items"`
-}
-
-// FuturesActiveOrdersValue represents active orders total value.
-type FuturesActiveOrdersValue struct {
-	OpenOrderBuySize  int64        `json:"openOrderBuySize"`
-	OpenOrderSellSize int64        `json:"openOrderSellSize"`
-	OpenOrderBuyCost  types.Number `json:"openOrderBuyCost"`
-	OpenOrderSellCost types.Number `json:"openOrderSellCost"`
-	SettleCurrency    string       `json:"settleCurrency"`
-}
-
-// FuturesOrderFillsV2 represents a futures order fill data for v2 api.
-type FuturesOrderFillsV2 struct {
-	BeforeID string              `json:"beforeId"`
-	HasMore  bool                `json:"hasMore"`
-	NextID   string              `json:"nextId"`
-	Items    []FuturesOrderFills `json:"items"`
-}
-
-// FuturesPositionDetail represents a futures position detail.
-type FuturesPositionDetail struct {
-	PositionID        string     `json:"id"`
-	Symbol            string     `json:"symbol"`
-	AutoDeposit       bool       `json:"autoDeposit"`
-	MaintMarginReq    float64    `json:"maintMarginReq"`
-	RiskLimit         int64      `json:"riskLimit"`
-	RealLeverage      float64    `json:"realLeverage"`
-	MarginType        int64      `json:"marginType"`
-	DelevPercentage   float64    `json:"delevPercentage"`
-	OpeningTimestamp  types.Time `json:"openingTimestamp"`
-	CurrentTimestamp  types.Time `json:"currentTimestamp"`
-	CurrentQty        float64    `json:"currentQty"`
-	CurrentCost       float64    `json:"currentCost"`
-	CurrentComm       float64    `json:"currentComm"`
-	UnrealisedCost    float64    `json:"unrealisedCost"`
-	RealisedGrossCost float64    `json:"realisedGrossCost"`
-	RealisedCost      float64    `json:"realisedCost"`
-	IsOpen            bool       `json:"isOpen"`
-	MarkPrice         float64    `json:"markPrice"`
-	MarkValue         float64    `json:"markValue"`
-	PosCost           float64    `json:"posCost"`
-	PosCross          float64    `json:"posCross"`
-	PosInit           float64    `json:"posInit"`
-	PosComm           float64    `json:"posComm"`
-	PosLoss           float64    `json:"posLoss"`
-	PosMargin         float64    `json:"posMargin"`
-	PosMaint          float64    `json:"posMaint"`
-	MaintMargin       float64    `json:"maintMargin"`
-	RealisedGrossPNL  float64    `json:"realisedGrossPnl"`
-	RealisedPnl       float64    `json:"realisedPnl"`
-	UnrealisedPnl     float64    `json:"unrealisedPnl"`
-	UnrealisedPnlPcnt float64    `json:"unrealisedPnlPcnt"`
-	UnrealisedRoePcnt float64    `json:"unrealisedRoePcnt"`
-	AvgEntryPrice     float64    `json:"avgEntryPrice"`
-	LiquidationPrice  float64    `json:"liquidationPrice"`
-	BankruptPrice     float64    `json:"bankruptPrice"`
-	SettleCurrency    string     `json:"settleCurrency"`
-}
-
-// AlterMarginManuallyParams represents a request parameter to add/remove a margin parameter manually.
-type AlterMarginManuallyParams struct {
-	Symbol       currency.Pair `json:"symbol"`
-	MarginAmount float64       `json:"margin"`
-	BizNo        string        `json:"bizNo"`
-}
-
-// FuturesLeverageResp represents a futures leverage response.
-type FuturesLeverageResp struct {
-	Symbol   string  `json:"symbol"`
-	Leverage float64 `json:"leverage"`
-}
-
-// FuturesFundingHistory represents a futures funding history list.
-type FuturesFundingHistory struct {
-	DataList []FuturesFundingItem `json:"dataList"`
-	HasMore  bool                 `json:"hasMore"`
-}
-
-// FuturesFundingItem represents a futures account funding item information.
-type FuturesFundingItem struct {
-	ID             int64   `json:"id"`
-	Symbol         string  `json:"symbol"`
-	TimePoint      int64   `json:"timePoint"`
-	FundingRate    float64 `json:"fundingRate"`
-	MarkPrice      float64 `json:"markPrice"`
-	PositionQty    float64 `json:"positionQty"`
-	PositionCost   float64 `json:"positionCost"`
-	Funding        float64 `json:"funding"`
-	SettleCurrency string  `json:"settleCurrency"`
 }
 
 // AuthenticationResponse represents an authentication response for futures websocket connection

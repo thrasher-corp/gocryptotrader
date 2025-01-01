@@ -6,27 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// TickerInfo represents a ticker information for a single symbol.
-type TickerInfo struct {
-	Sequence     int64        `json:"sequence"`
-	Symbol       string       `json:"symbol"`
-	Side         string       `json:"side"`
-	Size         float64      `json:"size"`
-	Price        types.Number `json:"price"`
-	BestBidSize  float64      `json:"bestBidSize"`
-	BestBidPrice types.Number `json:"bestBidPrice"`
-	BestAskSize  float64      `json:"bestAskSize"`
-	BestAskPrice types.Number `json:"bestAskPrice"`
-	TradeID      string       `json:"tradeId"`
-	Timestamp    types.Time   `json:"ts"`
-}
-
-// TickerDetail represents a ticker detail information.
-type TickerDetail struct {
-	Code string     `json:"code"`
-	Data TickerInfo `json:"data"`
-}
-
 // ServerTimeResponse represents a server time response.
 type ServerTimeResponse struct {
 	Code string     `json:"code"`

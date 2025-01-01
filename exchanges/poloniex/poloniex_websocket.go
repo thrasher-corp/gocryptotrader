@@ -222,7 +222,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 }
 
 func (p *Poloniex) processBalance(result *SubscriptionResponse) error {
-	var resp WsTradeBalance
+	var resp []WsTradeBalance
 	err := json.Unmarshal(result.Data, &resp)
 	if err != nil {
 		return err
