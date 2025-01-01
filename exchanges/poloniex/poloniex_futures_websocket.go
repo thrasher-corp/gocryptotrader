@@ -350,7 +350,7 @@ func (p *Poloniex) processFuturesFundingRate(data []byte) error {
 			return err
 		}
 		p.Websocket.DataHandler <- stream.FundingData{
-			Timestamp:    resp[0].Timestamp.Time(),
+			Timestamp:    resp[a].Timestamp.Time(),
 			CurrencyPair: pair,
 			AssetType:    asset.Futures,
 			Exchange:     p.Name,
@@ -427,7 +427,7 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
 			onceFuturesOrderbook[resp[x].Symbol] = true
-			err := p.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = p.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Bids:         bids,
 				Asks:         asks,
 				Exchange:     p.Name,

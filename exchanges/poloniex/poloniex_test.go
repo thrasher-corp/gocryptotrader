@@ -1987,3 +1987,31 @@ func TestGetV3FuturesRiskLimit(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestIntervalString(t *testing.T) {
+	t.Parallel()
+	params := map[kline.Interval]struct {
+		IntervalString string
+		Error          error
+	}{
+		kline.OneMin:     {IntervalString: "MINUTE_1"},
+		kline.FiveMin:    {IntervalString: "MINUTE_5"},
+		kline.FifteenMin: {IntervalString: "MINUTE_15"},
+		kline.ThirtyMin:  {IntervalString: "MINUTE_30"},
+		kline.OneHour:    {IntervalString: "HOUR_1"},
+		kline.TwoHour:    {IntervalString: "HOUR_2"},
+		kline.FourHour:   {IntervalString: "HOUR_4"},
+		kline.TwelveHour: {IntervalString: "HOUR_12"},
+		kline.OneDay:     {IntervalString: "DAY_1"},
+		kline.ThreeDay:   {IntervalString: "DAY_3"},
+		kline.OneWeek:    {IntervalString: "WEEK_1"},
+		kline.TwoWeek:    {Error: kline.ErrUnsupportedInterval},
+	}
+	var err error
+	var is string
+	for key, val := range params {
+		is, err = IntervalString(key)
+		require.Equal(t, val.IntervalString, is)
+		require.ErrorIs(t, err, val.Error, err)
+	}
+}

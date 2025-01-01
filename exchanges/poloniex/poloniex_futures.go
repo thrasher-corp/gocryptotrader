@@ -611,6 +611,7 @@ func (p *Poloniex) GetV3FuturesOrderBook(ctx context.Context, symbol string, dep
 
 var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "MINUTE_1", kline.FiveMin: "MINUTE_5", kline.FifteenMin: "MINUTE_15", kline.ThirtyMin: "MINUTE_30", kline.OneHour: "HOUR_1", kline.TwoHour: "HOUR_2", kline.FourHour: "HOUR_4", kline.TwelveHour: "HOUR_12", kline.OneDay: "DAY_1", kline.ThreeDay: "DAY_3", kline.OneWeek: "WEEK_1"}
 
+// IntervalString returns a string representation of kline.Interval instance.
 func IntervalString(interval kline.Interval) (string, error) {
 	intervalString, ok := intervalToStringMap[interval]
 	if !ok {
