@@ -3380,80 +3380,33 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
+
+	ok := new(Okx) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ok), "Setup must not error")
+
 	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
-	if !errors.Is(err, errEmptyArgument) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errEmptyArgument)
 
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID("SPOT", "")
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	if len(assets) != 1 {
-		t.Errorf("received %v expected %v", len(assets), 1)
-	}
-	if assets[0] != asset.Spot {
-		t.Errorf("received %v expected %v", assets[0], asset.Spot)
-	}
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	if len(assets) != 1 {
-		t.Errorf("received %v expected %v", len(assets), 1)
-	}
-	if assets[0] != asset.Futures {
-		t.Errorf("received %v expected %v", assets[0], asset.Futures)
-	}
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	if len(assets) != 1 {
-		t.Errorf("received %v expected %v", len(assets), 1)
-	}
-	if assets[0] != asset.PerpetualSwap {
-		t.Errorf("received %v expected %v", assets[0], asset.PerpetualSwap)
+	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
+		symbol := ""
+		if a != asset.Spot {
+			symbol = ok.CurrencyPairs.Pairs[a].Enabled[0].String()
+		}
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID(a.String(), symbol)
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		require.Len(t, assets, 1)
+		assert.Equalf(t, a, assets[0], "Should contain asset: %s", a)
 	}
 
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
-	if !errors.Is(err, currency.ErrCurrencyNotSupported) {
-		t.Error(err)
-	}
-
+	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test-test")
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Margin].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	var found bool
-	for i := range assets {
-		if assets[i] == asset.Margin {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("received %v expected %v", assets, asset.Margin)
-	}
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Spot].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	found = false
-	for i := range assets {
-		if assets[i] == asset.Spot {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("received %v expected %v", assets, asset.Spot)
+	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		assert.Contains(t, assets, a)
 	}
 }
 

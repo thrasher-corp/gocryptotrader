@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -21,14 +22,18 @@ const jobBuffer = 5000
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
-	ErrSubscriptionFailure     = errors.New("subscription failure")
-	ErrUnsubscribeFailure      = errors.New("unsubscribe failure")
-	ErrAlreadyDisabled         = errors.New("websocket already disabled")
-	ErrNotConnected            = errors.New("websocket is not connected")
-	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
-	ErrNoMessageListener       = errors.New("websocket listener not found for message")
-	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
+	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
+	ErrSubscriptionFailure      = errors.New("subscription failure")
+	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
+	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
+	ErrAlreadyDisabled          = errors.New("websocket already disabled")
+	ErrNotConnected             = errors.New("websocket is not connected")
+	ErrWebsocketAlreadyEnabled  = errors.New("websocket already enabled")
+	ErrNoMessageListener        = errors.New("websocket listener not found for message")
+	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound     = errors.New("request route not found")
+	ErrSignatureNotSet          = errors.New("signature not set")
+	ErrRequestPayloadNotSet     = errors.New("request payload not set")
 )
 
 // Private websocket errors
@@ -63,6 +68,9 @@ var (
 	errConnectionWrapperDuplication         = errors.New("connection wrapper duplication")
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
+	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
+	errMessageFilterNotSet                  = errors.New("message filter not set")
+	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 )
 
 var globalReporter Reporter
@@ -258,13 +266,19 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
 		}
 
+		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
+			return errMessageFilterNotComparable
+		}
+
 		for x := range w.connectionManager {
-			if w.connectionManager[x].Setup.URL == c.URL {
+			// Below allows for multiple connections to the same URL with different outbound request signatures. This
+			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
+			// a spot connection.
+			if w.connectionManager[x].Setup.URL == c.URL && c.MessageFilter == w.connectionManager[x].Setup.MessageFilter {
 				return fmt.Errorf("%w: %w", errConnSetup, errConnectionWrapperDuplication)
 			}
 		}
-
-		w.connectionManager = append(w.connectionManager, ConnectionWrapper{
+		w.connectionManager = append(w.connectionManager, &ConnectionWrapper{
 			Setup:         c,
 			Subscriptions: subscription.NewStore(),
 		})
@@ -421,11 +435,20 @@ func (w *Websocket) connect() error {
 			break
 		}
 
-		w.connections[conn] = &w.connectionManager[i]
+		w.connections[conn] = w.connectionManager[i]
 		w.connectionManager[i].Connection = conn
 
 		w.Wg.Add(1)
 		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
+
+		if w.connectionManager[i].Setup.Authenticate != nil && w.CanUseAuthenticatedEndpoints() {
+			err = w.connectionManager[i].Setup.Authenticate(context.TODO(), conn)
+			if err != nil {
+				// Opted to not fail entirely here for POC. This should be
+				// revisited and handled more gracefully.
+				log.Errorf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] failed to authenticate %v", w.exchangeName, i+1, conn.URL, err)
+			}
+		}
 
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
@@ -632,7 +655,7 @@ func (w *Websocket) FlushChannels() error {
 			}
 			w.Wg.Add(1)
 			go w.Reader(context.TODO(), conn, w.connectionManager[x].Setup.Handler)
-			w.connections[conn] = &w.connectionManager[x]
+			w.connections[conn] = w.connectionManager[x]
 			w.connectionManager[x].Connection = conn
 		}
 
@@ -1063,7 +1086,7 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 		if s.State() == subscription.ResubscribingState {
 			continue
 		}
-		if found := w.subscriptions.Get(s); found != nil {
+		if found := subscriptionStore.Get(s); found != nil {
 			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
 		}
 	}
@@ -1239,4 +1262,38 @@ func signalReceived(ch chan struct{}) bool {
 	default:
 		return false
 	}
+}
+
+// GetConnection returns a connection by message filter (defined in exchange package _wrapper.go websocket connection)
+// for request and response handling in a multi connection context.
+func (w *Websocket) GetConnection(messageFilter any) (Connection, error) {
+	if w == nil {
+		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, w)
+	}
+
+	if messageFilter == nil {
+		return nil, errMessageFilterNotSet
+	}
+
+	w.m.Lock()
+	defer w.m.Unlock()
+
+	if !w.useMultiConnectionManagement {
+		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", w.exchangeName, errCannotObtainOutboundConnection)
+	}
+
+	if !w.IsConnected() {
+		return nil, ErrNotConnected
+	}
+
+	for _, wrapper := range w.connectionManager {
+		if wrapper.Setup.MessageFilter == messageFilter {
+			if wrapper.Connection == nil {
+				return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", w.exchangeName, wrapper.Setup.URL, ErrNotConnected, messageFilter)
+			}
+			return wrapper.Connection, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", w.exchangeName, ErrRequestRouteNotFound, messageFilter)
 }
