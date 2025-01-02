@@ -14,7 +14,8 @@ type List []*Subscription
 
 type assetPairs map[asset.Item]currency.Pairs
 
-type iExchange interface {
+// IExchange provides method requirements for exchanges to use subscription templating
+type IExchange interface {
 	GetAssetTypes(enabled bool) asset.Items
 	GetEnabledPairs(asset.Item) (currency.Pairs, error)
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
@@ -93,7 +94,7 @@ func (l List) SetStates(state State) error {
 	return err
 }
 
-func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
+func fillAssetPairs(ap assetPairs, a asset.Item, e IExchange) error {
 	p, err := e.GetEnabledPairs(a)
 	if err != nil {
 		return err
@@ -107,7 +108,7 @@ func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
 }
 
 // assetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
-func (l List) assetPairs(e iExchange) (assetPairs, error) {
+func (l List) assetPairs(e IExchange) (assetPairs, error) {
 	at := []asset.Item{}
 	for _, a := range e.GetAssetTypes(true) {
 		if e.IsAssetWebsocketSupported(a) {
