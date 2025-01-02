@@ -227,7 +227,7 @@ func getWebsocketInstance(t *testing.T, g *Gateio) *Gateio {
 	root, err := testutils.RootPathFromCWD()
 	require.NoError(t, err)
 
-	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
+	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true))
 
 	cpy := new(Gateio)
 	cpy.SetDefaults()

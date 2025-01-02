@@ -3677,6 +3677,7 @@ func TestDeriveSpotSubmitOrderResponses(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var resp WebsocketOrderResponse
 			require.NoError(t, json.Unmarshal(tc.order, &resp))
 
@@ -3808,6 +3809,7 @@ func TestDeriveFuturesSubmitOrderResponses(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var resp WebsocketFuturesOrderResponse
 			require.NoError(t, json.Unmarshal(tc.order, &resp))
 

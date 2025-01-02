@@ -2700,7 +2700,7 @@ func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderRespon
 				return nil, err
 			}
 		}
-		ot, err := order.StringToOrderType(response.Type)
+		oType, err := order.StringToOrderType(response.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -2729,7 +2729,7 @@ func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderRespon
 			Amount:               response.Amount.Float64(),
 			Price:                response.Price.Float64(),
 			AverageExecutedPrice: response.AverageDealPrice.Float64(),
-			Type:                 ot,
+			Type:                 oType,
 			Side:                 side,
 			Status:               status,
 			ImmediateOrCancel:    response.TimeInForce == "ioc",
@@ -2761,9 +2761,9 @@ func (g *Gateio) DeriveFuturesSubmitOrderResponses(responses []WebsocketFuturesO
 			}
 		}
 
-		ot := order.Market
+		oType := order.Market
 		if response.Price != 0 {
-			ot = order.Limit
+			oType = order.Limit
 		}
 
 		side := order.Long
@@ -2796,7 +2796,7 @@ func (g *Gateio) DeriveFuturesSubmitOrderResponses(responses []WebsocketFuturesO
 			Amount:               math.Abs(response.Size),
 			Price:                response.Price.Float64(),
 			AverageExecutedPrice: response.FillPrice.Float64(),
-			Type:                 ot,
+			Type:                 oType,
 			Side:                 side,
 			Status:               status,
 			ImmediateOrCancel:    response.TimeInForce == "ioc",
