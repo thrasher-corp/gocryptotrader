@@ -2419,7 +2419,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			return nil, err
 		}
 		if !isEnabled {
-			return nil, fmt.Errorf("%w %v", asset.ErrNotEnabled, k[0].Pair())
+			return nil, fmt.Errorf("%w: %v", currency.ErrPairNotEnabled, k[0].Pair())
 		}
 		switch k[0].Asset {
 		case asset.DeliveryFutures:
