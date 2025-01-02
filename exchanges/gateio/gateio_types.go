@@ -14,7 +14,7 @@ const (
 	// Order time in force variables
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
-	pocTIF = "poc"
+	pocTIF = "poc" // pending-or-cancel - post only
 	fokTIF = "fok" // fill-or-kill
 
 	// Frequently used order Status

@@ -1763,7 +1763,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Type:                 order.Limit,
 					SettlementCurrency:   settlement,
 					ReduceOnly:           futuresOrders[x].IsReduceOnly,
-					PostOnly:             futuresOrders[x].TimeInForce == "poc",
+					PostOnly:             futuresOrders[x].TimeInForce == pocTIF,
 					AverageExecutedPrice: futuresOrders[x].FillPrice.Float64(),
 				})
 			}
@@ -2539,11 +2539,11 @@ func getClientOrderIDFromText(text string) string {
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string) (orderType order.Type, postOnly bool) {
 	switch tif {
-	case "ioc":
+	case iocTIF:
 		return order.Market, false
-	case "fok":
+	case fokTIF:
 		return order.Market, false
-	case "poc":
+	case pocTIF:
 		return order.Limit, true
 	default:
 		return order.Limit, false
@@ -2577,16 +2577,16 @@ var errPostOnlyOrderTypeUnsupported = errors.New("post only is only supported fo
 func getTimeInForce(s *order.Submit) (string, error) {
 	timeInForce := "gtc" // limit order taker/maker
 	if s.Type == order.Market || s.ImmediateOrCancel {
-		timeInForce = "ioc" // market taker only
+		timeInForce = iocTIF // market taker only
 	}
 	if s.PostOnly {
 		if s.Type != order.Limit {
 			return "", fmt.Errorf("%w not for %v", errPostOnlyOrderTypeUnsupported, s.Type)
 		}
-		timeInForce = "poc" // limit order maker only
+		timeInForce = pocTIF // limit order maker only
 	}
 	if s.FillOrKill {
-		timeInForce = "fok" // limit order entire fill or kill
+		timeInForce = fokTIF // limit order entire fill or kill
 	}
 	return timeInForce, nil
 }
@@ -2688,57 +2688,57 @@ func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderRespon
 	}
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
-	for _, response := range responses {
-		side, err := order.StringToOrderSide(response.Side)
+	for x := range responses {
+		side, err := order.StringToOrderSide(responses[x].Side)
 		if err != nil {
 			return nil, err
 		}
 		status := order.Open
-		if response.FinishAs != "" && response.FinishAs != statusOpen {
-			status, err = order.StringToOrderStatus(response.FinishAs)
+		if responses[x].FinishAs != "" && responses[x].FinishAs != statusOpen {
+			status, err = order.StringToOrderStatus(responses[x].FinishAs)
 			if err != nil {
 				return nil, err
 			}
 		}
-		oType, err := order.StringToOrderType(response.Type)
+		oType, err := order.StringToOrderType(responses[x].Type)
 		if err != nil {
 			return nil, err
 		}
 
 		var cost float64
 		var purchased float64
-		if response.AverageDealPrice != 0 {
+		if responses[x].AverageDealPrice != 0 {
 			if side.IsLong() {
-				cost = response.FilledTotal.Float64()
-				purchased = response.FilledTotal.Decimal().Div(response.AverageDealPrice.Decimal()).InexactFloat64()
+				cost = responses[x].FilledTotal.Float64()
+				purchased = responses[x].FilledTotal.Decimal().Div(responses[x].AverageDealPrice.Decimal()).InexactFloat64()
 			} else {
-				cost = response.Amount.Float64()
-				purchased = response.FilledTotal.Float64()
+				cost = responses[x].Amount.Float64()
+				purchased = responses[x].FilledTotal.Float64()
 			}
 		}
 
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
-			OrderID:              response.ID,
-			AssetType:            response.Account,
-			Pair:                 response.CurrencyPair,
-			ClientOrderID:        response.Text,
-			Date:                 response.CreateTimeMs.Time(),
-			LastUpdated:          response.UpdateTimeMs.Time(),
-			RemainingAmount:      response.Left.Float64(),
-			Amount:               response.Amount.Float64(),
-			Price:                response.Price.Float64(),
-			AverageExecutedPrice: response.AverageDealPrice.Float64(),
+			OrderID:              responses[x].ID,
+			AssetType:            responses[x].Account,
+			Pair:                 responses[x].CurrencyPair,
+			ClientOrderID:        responses[x].Text,
+			Date:                 responses[x].CreateTimeMs.Time(),
+			LastUpdated:          responses[x].UpdateTimeMs.Time(),
+			RemainingAmount:      responses[x].Left.Float64(),
+			Amount:               responses[x].Amount.Float64(),
+			Price:                responses[x].Price.Float64(),
+			AverageExecutedPrice: responses[x].AverageDealPrice.Float64(),
 			Type:                 oType,
 			Side:                 side,
 			Status:               status,
-			ImmediateOrCancel:    response.TimeInForce == "ioc",
-			FillOrKill:           response.TimeInForce == "fok",
-			PostOnly:             response.TimeInForce == "poc",
+			ImmediateOrCancel:    responses[x].TimeInForce == iocTIF,
+			FillOrKill:           responses[x].TimeInForce == fokTIF,
+			PostOnly:             responses[x].TimeInForce == pocTIF,
 			Cost:                 cost,
 			Purchased:            purchased,
-			Fee:                  response.Fee.Float64(),
-			FeeAsset:             response.FeeCurrency,
+			Fee:                  responses[x].Fee.Float64(),
+			FeeAsset:             responses[x].FeeCurrency,
 		})
 	}
 	return out, nil
@@ -2751,27 +2751,27 @@ func (g *Gateio) DeriveFuturesSubmitOrderResponses(responses []WebsocketFuturesO
 	}
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
-	for _, response := range responses {
+	for x := range responses {
 		status := order.Open
-		if response.FinishAs != "" && response.FinishAs != statusOpen {
+		if responses[x].FinishAs != "" && responses[x].FinishAs != statusOpen {
 			var err error
-			status, err = order.StringToOrderStatus(response.FinishAs)
+			status, err = order.StringToOrderStatus(responses[x].FinishAs)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		oType := order.Market
-		if response.Price != 0 {
+		if responses[x].Price != 0 {
 			oType = order.Limit
 		}
 
 		side := order.Long
-		if response.Size < 0 {
+		if responses[x].Size < 0 {
 			side = order.Short
 		}
 
-		if response.IsReduceOnly {
+		if responses[x].IsReduceOnly {
 			if side.IsLong() {
 				side = order.Short
 			} else {
@@ -2780,29 +2780,29 @@ func (g *Gateio) DeriveFuturesSubmitOrderResponses(responses []WebsocketFuturesO
 		}
 
 		var clientOrderID string
-		if response.Text != "" && strings.HasPrefix(response.Text, "t-") {
-			clientOrderID = response.Text
+		if responses[x].Text != "" && strings.HasPrefix(responses[x].Text, "t-") {
+			clientOrderID = responses[x].Text
 		}
 
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
-			OrderID:              strconv.FormatInt(response.ID, 10),
+			OrderID:              strconv.FormatInt(responses[x].ID, 10),
 			AssetType:            asset.Futures,
-			Pair:                 response.Contract,
+			Pair:                 responses[x].Contract,
 			ClientOrderID:        clientOrderID,
-			Date:                 response.CreateTime.Time(),
-			LastUpdated:          response.UpdateTime.Time(),
-			RemainingAmount:      math.Abs(response.Left),
-			Amount:               math.Abs(response.Size),
-			Price:                response.Price.Float64(),
-			AverageExecutedPrice: response.FillPrice.Float64(),
+			Date:                 responses[x].CreateTime.Time(),
+			LastUpdated:          responses[x].UpdateTime.Time(),
+			RemainingAmount:      math.Abs(responses[x].Left),
+			Amount:               math.Abs(responses[x].Size),
+			Price:                responses[x].Price.Float64(),
+			AverageExecutedPrice: responses[x].FillPrice.Float64(),
 			Type:                 oType,
 			Side:                 side,
 			Status:               status,
-			ImmediateOrCancel:    response.TimeInForce == "ioc",
-			FillOrKill:           response.TimeInForce == "fok",
-			PostOnly:             response.TimeInForce == "poc",
-			ReduceOnly:           response.IsReduceOnly,
+			ImmediateOrCancel:    responses[x].TimeInForce == iocTIF,
+			FillOrKill:           responses[x].TimeInForce == fokTIF,
+			PostOnly:             responses[x].TimeInForce == pocTIF,
+			ReduceOnly:           responses[x].IsReduceOnly,
 		})
 	}
 	return out, nil
