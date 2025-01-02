@@ -976,8 +976,7 @@ func (b *Base) SupportsAsset(a asset.Item) bool {
 // PrintEnabledPairs prints the exchanges enabled asset pairs
 func (b *Base) PrintEnabledPairs() {
 	for k, v := range b.CurrencyPairs.Pairs {
-		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
-			b.Name, strings.ToUpper(k.String()), v.Enabled)
+		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v", b.Name, strings.ToUpper(k.String()), v.Enabled)
 	}
 }
 
@@ -988,10 +987,7 @@ func (b *Base) GetBase() *Base { return b }
 // for validation of API credentials
 func (b *Base) CheckTransientError(err error) error {
 	if _, ok := err.(net.Error); ok {
-		log.Warnf(log.ExchangeSys,
-			"%s net error captured, will not disable authentication %s",
-			b.Name,
-			err)
+		log.Warnf(log.ExchangeSys, "%s net error captured, will not disable authentication %s", b.Name, err)
 		return nil
 	}
 	return err
