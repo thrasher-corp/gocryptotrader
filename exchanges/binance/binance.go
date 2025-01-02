@@ -95,7 +95,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 // limit: Up to 500 results returned
 func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr *RecentTradeRequestParams) ([]RecentTrade, error) {
 	if *rtr == (RecentTradeRequestParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	symbol, err := b.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
@@ -446,11 +446,9 @@ func (b *Binance) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderRes
 	if err := b.newOrder(ctx, "/api/v3/order", o, &resp, false); err != nil {
 		return resp, err
 	}
-
 	if resp.Code != 0 {
 		return resp, errors.New(resp.Msg)
 	}
-
 	return resp, nil
 }
 
@@ -484,19 +482,15 @@ func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, 
 	if o.TimeInForce != "" {
 		params.Set("timeInForce", string(o.TimeInForce))
 	}
-
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderId", o.NewClientOrderID)
 	}
-
 	if o.StopPrice != 0 {
 		params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
 	}
-
 	if o.IcebergQty != 0 {
 		params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
 	}
-
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
@@ -583,7 +577,7 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 // NewOCOOrder places a new one-cancel-other trade order.
 func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrder, error) {
 	if *arg == (OCOOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -619,7 +613,7 @@ func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrde
 // OCO counts as 2 orders against the order rate limit.
 func (b *Binance) NewOCOOrderList(ctx context.Context, arg *OCOOrderListParams) (*OCOListOrderResponse, error) {
 	if *arg == (OCOOrderListParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -721,7 +715,7 @@ func (b *Binance) NewOrderUsingSORTest(ctx context.Context, arg *SOROrderRequest
 
 func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams, path string) (*SOROrderResponse, error) {
 	if *arg == (SOROrderRequestParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -783,7 +777,7 @@ func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClie
 // A new order that was not attempted (i.e. when newOrderResult: NOT_ATTEMPTED), will still increase the order count by 1.
 func (b *Binance) CancelExistingOrderAndSendNewOrder(ctx context.Context, arg *CancelReplaceOrderParams) (*CancelAndReplaceResponse, error) {
 	if *arg == (CancelReplaceOrderParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -1025,7 +1019,7 @@ func (b *Binance) GetMarginPriceIndex(ctx context.Context, symbol string) (*Marg
 // autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
 func (b *Binance) PostMarginAccountOrder(ctx context.Context, arg *MarginAccountOrderParam) (*MarginAccountOrder, error) {
 	if *arg == (MarginAccountOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1264,7 +1258,7 @@ func (b *Binance) GetMarginAccountAllOrders(ctx context.Context, symbol string, 
 // autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
 func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOrderParam) (*OCOOrder, error) {
 	if *arg == (MarginOCOOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -3209,7 +3203,7 @@ func (b *Binance) SubAccountTransferHistoryForSubAccount(ctx context.Context, as
 // UniversalTransferForMasterAccount submits a universal transfer using the master account.
 func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *UniversalTransferParams) (*UniversalTransferResponse, error) {
 	if *arg == (UniversalTransferParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.FromAccountType == "" {
 		return nil, fmt.Errorf("%w, fromAccountType=%s", errInvalidAccountType, arg.FromAccountType)
@@ -3513,7 +3507,7 @@ func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, 
 		return nil, errLoanTermMustBeSet
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
-		return nil, errEitherLoanOrCollateralAmountsMustBeSet
+		return nil, fmt.Errorf("%w, either loan or collateral amounts must be set", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3751,7 +3745,7 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 		return nil, errCollateralCoinMustBeSet
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
-		return nil, errEitherLoanOrCollateralAmountsMustBeSet
+		return nil, fmt.Errorf("%w, either loan or collateral amounts must be set", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -4481,7 +4475,7 @@ func (b *Binance) GetSourceAssetList(ctx context.Context, targetAsset currency.C
 // InvestmentPlanCreation creates an investment plan
 func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPlanParams) (*InvestmentPlanResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.SourceType == "" {
 		return nil, errSourceTypeRequired
@@ -4522,7 +4516,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 // InvestmentPlanAdjustment query Source Asset to be used for investment
 func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInvestmentPlan) (*InvestmentPlanResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.PlanID == 0 {
 		return nil, errPlanIDRequired
@@ -4654,7 +4648,7 @@ func (b *Binance) GetIndexLinkedPlanPositionDetails(ctx context.Context, indexID
 // sourceType possible values are "MAIN_SITE" for Binance,“TR” for Binance Turkey
 func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactionParams) (*OneTimeTransactionResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.SourceType == "" {
 		return nil, errSourceTypeRequired
@@ -5274,7 +5268,7 @@ func (b *Binance) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx cont
 // Base URL: https://api.binance.com
 func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeParticipationOrderParams) (*AlgoOrderResponse, error) {
 	if *arg == (VolumeParticipationOrderParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -5296,7 +5290,7 @@ func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumePa
 // FuturesTWAPOrder placed futures time-weighted average price(TWAP) order.
 func (b *Binance) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (*AlgoOrderResponse, error) {
 	if *arg == (TWAPOrderParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -5404,7 +5398,7 @@ func (b *Binance) getSubOrders(ctx context.Context, algoID, page, pageSize int64
 // SpotTWAPNewOrder puts spot Time-Weighted Average Price(TWAP) orders
 func (b *Binance) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam) (*AlgoOrderResponse, error) {
 	if *arg == (SpotTWAPOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -6037,7 +6031,7 @@ func (b *Binance) GetConvertOrderStatus(ctx context.Context, orderID, quoteID st
 // PlaceLimitOrder enable users to place a limit order
 func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrderParam) (*OrderStatusResponse, error) {
 	if *arg == (ConvertPlaceLimitOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.BaseAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w, baseAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -6193,27 +6187,27 @@ func (b *Binance) GetNFTAsset(ctx context.Context, limit, page int64) (*NFTAsset
 //
 // Daily creation volume: 2 BTC / 24H / account
 // Daily creation quantity: 200 Gift Cards / 24H / account
-func (b *Binance) CreateSingleTokenGiftCard(ctx context.Context, token string, amount float64) (*GiftCard, error) {
-	if token == "" {
-		return nil, errTokenRequired
+func (b *Binance) CreateSingleTokenGiftCard(ctx context.Context, token currency.Code, amount float64) (*GiftCard, error) {
+	if token.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("token", token)
+	params.Set("token", token.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *GiftCard
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/createCode", params, sapiDefaultRate, nil, &resp)
 }
 
 // CreateDualTokenGiftCard creating a dual-token ( stablecoin-denominated) Binance Gift Card.
-func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceToken string, baseTokenAmount, discount float64) (*DualTokenGiftCard, error) {
-	if baseToken == "" {
-		return nil, fmt.Errorf("%w, baseToken is empty", errTokenRequired)
+func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceToken currency.Code, baseTokenAmount, discount float64) (*DualTokenGiftCard, error) {
+	if baseToken.IsEmpty() {
+		return nil, fmt.Errorf("%w, baseToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
-	if faceToken == "" {
-		return nil, fmt.Errorf("%w, faceToken is empty", errTokenRequired)
+	if faceToken.IsEmpty() {
+		return nil, fmt.Errorf("%w, faceToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	if baseTokenAmount <= 0 {
 		return nil, fmt.Errorf("%w, baseTokenAmount is %f", order.ErrAmountBelowMin, baseTokenAmount)
@@ -6222,8 +6216,8 @@ func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceTo
 		return nil, fmt.Errorf("%w, discount must be greater than zero", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
-	params.Set("baseToken", baseToken)
-	params.Set("faceToken", faceToken)
+	params.Set("baseToken", baseToken.String())
+	params.Set("faceToken", faceToken.String())
 	params.Set("baseTokenAmount", strconv.FormatFloat(baseTokenAmount, 'f', -1, 64))
 	params.Set("discount", strconv.FormatFloat(discount, 'f', -1, 64))
 	var resp *DualTokenGiftCard
@@ -6267,12 +6261,12 @@ func (b *Binance) FetchRSAPublicKey(ctx context.Context) (*RSAPublicKeyResponse,
 
 // FetchTokenLimit this API is to help you verify which tokens are available for
 // you to create Stablecoin-Denominated gift cards as mentioned in section 2 and its’ limitation.
-func (b *Binance) FetchTokenLimit(ctx context.Context, baseToken string) (*TokenLimitInfo, error) {
-	if baseToken == "" {
-		return nil, fmt.Errorf("%w, baseToken is empty", errTokenRequired)
+func (b *Binance) FetchTokenLimit(ctx context.Context, baseToken currency.Code) (*TokenLimitInfo, error) {
+	if baseToken.IsEmpty() {
+		return nil, fmt.Errorf("%w, baseToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
-	params.Set("baseToken", baseToken)
+	params.Set("baseToken", baseToken.String())
 	var resp *TokenLimitInfo
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/buyCode/token-limit", params, sapiDefaultRate, nil, &resp)
 }

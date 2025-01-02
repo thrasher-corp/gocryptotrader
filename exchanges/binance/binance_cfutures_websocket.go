@@ -109,7 +109,7 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() (subscription.List, err
 				subscriptions = append(subscriptions, chSubscription)
 			}
 		default:
-			return nil, errors.New("unsupported subscription")
+			return nil, subscription.ErrNotSupported
 		}
 	}
 	return subscriptions, nil

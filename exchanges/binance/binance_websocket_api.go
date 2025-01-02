@@ -166,7 +166,7 @@ func (b *Binance) SendWsRequest(method string, param, result interface{}) error 
 // limit: returned limit amount
 func (b *Binance) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, error) {
 	if obd == nil || *obd == (OrderBookDataRequestParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if err := b.CheckLimit(obd.Limit); err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func (b *Binance) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, e
 // limit: Up to 500 results returned
 func (b *Binance) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]RecentTrade, error) {
 	if rtr == nil || *rtr == (RecentTradeRequestParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if rtr.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -191,7 +191,7 @@ func (b *Binance) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]Recent
 // GetWsAggregatedTrades retrieves aggregated trade activity.
 func (b *Binance) GetWsAggregatedTrades(arg *WsAggregateTradeRequestParams) ([]AggregatedTrade, error) {
 	if *arg == (WsAggregateTradeRequestParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	var resp []AggregatedTrade
 	return resp, b.SendWsRequest("trades.aggregate", arg, &resp)
@@ -210,7 +210,7 @@ func (b *Binance) GetWsOptimizedCandlestick(arg *KlinesRequestParams) ([]CandleS
 // getWsKlines retrieves spot kline data through the websocket connection.
 func (b *Binance) getWsKlines(method string, arg *KlinesRequestParams) ([]CandleStick, error) {
 	if *arg == (KlinesRequestParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -259,7 +259,7 @@ func (b *Binance) GetWsTradingDayTickers(arg *PriceChangeRequestParam) ([]PriceC
 // tickerDataChange unifying method to make price change requests through the websocket stream.
 func (b *Binance) tickerDataChange(method string, arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" && len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
@@ -428,7 +428,7 @@ func (b *Binance) WsPlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderRespo
 // ValidatePlaceNewOrderRequest tests whether the request order is valid or not.
 func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) error {
 	if arg == nil {
-		return errNilArgument
+		return common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return currency.ErrCurrencyPairEmpty
@@ -452,7 +452,7 @@ func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) erro
 // WsQueryOrder to query a trade order
 func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -474,7 +474,7 @@ func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 // WsCancelOrder cancel an active order.
 func (b *Binance) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -496,7 +496,7 @@ func (b *Binance) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 // WsCancelAndReplaceTradeOrder cancel an existing order and immediately place a new order instead of the canceled one.
 func (b *Binance) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*WsCancelAndReplaceTradeOrderResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -581,7 +581,7 @@ func (b *Binance) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([]
 // Response format for orderReports is selected using the newOrderRespType parameter. The following example is for RESULT response type. See order.place for more examples.
 func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
 	if arg == nil || *arg == (PlaceOCOOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -683,7 +683,7 @@ func (b *Binance) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
 // WsPlaceNewSOROrder places an order using smart order routing (SOR).
 func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, error) {
 	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -712,7 +712,7 @@ func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, er
 // Creates and validates a new order but does not send it into the matching engine.
 func (b *Binance) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
 	if *arg == (WsOSRPlaceOrderParams{}) {
-		return errNilArgument
+		return common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return currency.ErrCurrencyPairEmpty
@@ -786,7 +786,7 @@ func (b *Binance) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitIt
 // Status reports for orders are identical to order.status.
 func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]TradeOrder, error) {
 	if arg == nil || *arg == (AccountOrderRequestParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -840,7 +840,7 @@ func (b *Binance) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64,
 // WsAccountTradeHistory query information about all your trades, filtered by time range.
 func (b *Binance) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]TradeHistory, error) {
 	if arg == nil || *arg == (AccountOrderRequestParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty

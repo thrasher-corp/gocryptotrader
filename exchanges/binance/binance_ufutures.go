@@ -676,7 +676,7 @@ func (b *Binance) GetIndexPriceConstituents(ctx context.Context, symbol string) 
 // UFuturesNewOrder sends a new order for USDTMarginedFutures
 func (b *Binance) UFuturesNewOrder(ctx context.Context, data *UFuturesNewOrderRequest) (*UOrderData, error) {
 	if *data == (UFuturesNewOrderRequest{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	var err error
 	data.Symbol, err = b.FormatExchangeCurrency(data.Symbol, asset.USDTMarginedFutures)
@@ -720,7 +720,7 @@ func (b *Binance) validatePlaceOrder(arg *USDTOrderUpdateParams) error {
 // PriceMatch: only available for LIMIT/STOP/TAKE_PROFIT order; can be set to OPPONENT/ OPPONENT_5/ OPPONENT_10/ OPPONENT_20: /QUEUE/ QUEUE_5/ QUEUE_10/ QUEUE_20; Can't be passed together with price
 func (b *Binance) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams) (*UOrderData, error) {
 	if *arg == (USDTOrderUpdateParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	err := b.validatePlaceOrder(arg)
 	if err != nil {
@@ -737,7 +737,7 @@ func (b *Binance) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams) 
 // UPlaceBatchOrders places batch orders
 func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderData) ([]UOrderData, error) {
 	if len(data) == 0 {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	var err error
 	for x := range data {
@@ -774,7 +774,7 @@ func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderD
 // UModifyMultipleOrders applies a modification to a batch of usdt margined futures orders.
 func (b *Binance) UModifyMultipleOrders(ctx context.Context, args []USDTOrderUpdateParams) ([]UOrderData, error) {
 	if len(args) == 0 {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	for a := range args {
 		err := b.validatePlaceOrder(&args[a])

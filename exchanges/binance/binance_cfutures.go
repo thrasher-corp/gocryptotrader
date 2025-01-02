@@ -590,7 +590,7 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 // FuturesBatchOrder sends a batch order request
 func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
 	if len(data) == 0 {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	var err error
 	for x := range data {

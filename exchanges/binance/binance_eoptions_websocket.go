@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -104,7 +105,7 @@ func (b *Binance) WsOptionsConnect() error {
 
 func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscription.List) error {
 	if len(subscs) == 0 {
-		return errNilArgument
+		return common.ErrEmptyParams
 	}
 	params := &EOptionSubscriptionParam{
 		Method: operation,

@@ -187,7 +187,7 @@ func (b *Binance) GetOptionsAccountInformation(ctx context.Context) (*EOptionsAc
 // NewOptionsOrder places a new european options order instance.
 func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) (*OptionOrder, error) {
 	if *arg == (OptionsOrderParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -238,11 +238,11 @@ func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) 
 // PlaceBatchEOptionsOrder send multiple option orders.
 func (b *Binance) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOrderParams) ([]OptionOrder, error) {
 	if len(args) == 0 {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	for a := range args {
 		if args[a] == (OptionsOrderParams{}) {
-			return nil, errNilArgument
+			return nil, common.ErrEmptyParams
 		}
 		if args[a].Symbol.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
@@ -513,7 +513,7 @@ func (b *Binance) GetOptionMarginAccountInformation(ctx context.Context) (*Optio
 // Market maker can use this time to reevaluate market and modify order price.
 func (b *Binance) SetOptionsMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionConfig) (*MarketMakerProtection, error) {
 	if *arg == (MarketMakerProtectionConfig{}) {
-		return nil, errNilArgument
+		return nil, common.ErrEmptyParams
 	}
 	if arg.Underlying == "" {
 		return nil, errUnderlyingIsRequired
