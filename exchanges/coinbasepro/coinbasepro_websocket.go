@@ -419,7 +419,7 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs("unsubscribe", subs) }, 1)
 }
 
-// manageSub subscribes or unsubscribes from a list of websocket channels
+// manageSubs subscribes or unsubscribes from a list of websocket channels
 func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(c)
