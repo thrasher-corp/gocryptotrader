@@ -198,6 +198,9 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 		if products.Products[x].TradingDisabled {
 			continue
 		}
+		if products.Products[x].Price == 0 {
+			continue
+		}
 		pairs = append(pairs, products.Products[x].ID)
 	}
 	return pairs, nil
@@ -996,7 +999,7 @@ func (c *CoinbasePro) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp cu
 	return tradeBaseURL + cp.Upper().String(), nil
 }
 
-// fetchFutures is a helper function for FetchTradablePairs, GetLatestFundingRates, GetFuturesContractDetails, and UpdateOrderExecutionLimits that calls the List Products endpoint twice, to get both expiring futures and perpetual futures
+// fetchFutures is a helper function for GetLatestFundingRates and GetFuturesContractDetails that calls the List Products endpoint twice, to get both expiring futures and perpetual futures
 func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProducts, int, error) {
 	products, err := c.GetAllProducts(ctx, 0, 0, "FUTURE", "", "", nil, verified)
 	if err != nil {

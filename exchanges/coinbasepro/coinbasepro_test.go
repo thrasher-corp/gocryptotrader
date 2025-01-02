@@ -1392,7 +1392,7 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 		EditHistory: []EditHistory{(EditHistory{})},
 	}
 	resp := c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
-	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x2, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPair}
+	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x1, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPair}
 	assert.EqualValues(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"
