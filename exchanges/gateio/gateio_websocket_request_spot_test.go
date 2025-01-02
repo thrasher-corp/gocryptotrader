@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 
 func TestWebsocketLogin(t *testing.T) {
@@ -40,17 +42,17 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketSpotSubmitOrder(context.Background(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := &CreateOrderRequest{CurrencyPair: currency.NewBTCUSDT()}
+	out := &CreateOrderRequest{CurrencyPair: currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})}
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	out.Side = strings.ToLower(order.Buy.String())
+	out.Side = strings.ToLower(order.Sell.String())
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = 0.0003
+	out.Amount = 1
 	out.Type = "limit"
 	_, err = g.WebsocketSpotSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = 20000
+	out.Price = 100
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
@@ -64,19 +66,20 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotSubmitOrders(context.Background(), nil)
+	_, err := g.WebsocketSpotSubmitOrders(context.Background())
 	require.ErrorIs(t, err, errOrdersEmpty)
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), make([]CreateOrderRequest, 1))
+	out := &CreateOrderRequest{}
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), out)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := CreateOrderRequest{CurrencyPair: currency.NewBTCUSDT()}
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
+	out.CurrencyPair = currency.NewBTCUSDT()
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
 	out.Amount = 0.0003
 	out.Type = "limit"
-	_, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
+	_, err = g.WebsocketSpotSubmitOrders(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = 20000
 
@@ -86,12 +89,12 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
-	got, err := g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out})
+	got, err := g.WebsocketSpotSubmitOrders(context.Background(), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	// test batch orders
-	got, err = g.WebsocketSpotSubmitOrders(context.Background(), []CreateOrderRequest{out, out})
+	got, err = g.WebsocketSpotSubmitOrders(context.Background(), out, out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -219,9 +222,16 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 func getWebsocketInstance(t *testing.T, g *Gateio) *Gateio {
 	t.Helper()
 
+	cfg := &config.Config{}
+
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err)
+
+	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
+
 	cpy := new(Gateio)
 	cpy.SetDefaults()
-	gConf, err := config.GetConfig().GetExchangeConfig("GateIO")
+	gConf, err := cfg.GetExchangeConfig("GateIO")
 	require.NoError(t, err)
 	gConf.API.AuthenticatedSupport = true
 	gConf.API.AuthenticatedWebsocketSupport = true

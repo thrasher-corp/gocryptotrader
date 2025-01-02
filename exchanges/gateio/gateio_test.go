@@ -3451,7 +3451,7 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 		incoming string
 		status   order.Status
 	}{
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"OPEN","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Filled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Liquidated},
@@ -3527,4 +3527,297 @@ func TestHandleSubscriptions(t *testing.T) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
+}
+
+func TestDeriveSpotSubmitOrderResponses(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		order    []byte
+		error    error
+		expected []*order.SubmitResponse
+	}{
+		{
+			name:  "sell order market",
+			order: []byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "766075454481",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1735720637181634009",
+					Date:                 time.UnixMilli(1735720637188),
+					LastUpdated:          time.UnixMilli(1735720637188),
+					RemainingAmount:      0,
+					Amount:               0.0001,
+					Price:                0,
+					AverageExecutedPrice: 93503.3,
+					Type:                 order.Market,
+					Side:                 order.Sell,
+					Status:               order.Filled,
+					ImmediateOrCancel:    true,
+					FillOrKill:           false,
+					PostOnly:             false,
+					Cost:                 0.0001,
+					Purchased:            9.35033,
+				},
+			},
+		},
+		{
+			name:  "buy order market",
+			order: []byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "766075454188",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewPair(currency.HNS, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1735720637126962151",
+					Date:                 time.UnixMilli(1735720637142),
+					LastUpdated:          time.UnixMilli(1735720637142),
+					RemainingAmount:      0.000008,
+					Amount:               9.99152,
+					Price:                0,
+					AverageExecutedPrice: 0.01224,
+					Type:                 order.Market,
+					Side:                 order.Buy,
+					Status:               order.Filled,
+					ImmediateOrCancel:    true,
+					FillOrKill:           false,
+					PostOnly:             false,
+					Cost:                 9.991512,
+					Purchased:            816.3,
+				},
+			},
+		},
+		{
+			name:  "buy order limit - FOK",
+			order: []byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "766488882062",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewPair(currency.NewCode("REX"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1364",
+					Date:                 time.UnixMilli(1735778597363),
+					LastUpdated:          time.UnixMilli(1735778597363),
+					RemainingAmount:      0,
+					Amount:               200,
+					Price:                0.03673,
+					AverageExecutedPrice: 0.03673,
+					Type:                 order.Limit,
+					Side:                 order.Buy,
+					Status:               order.Filled,
+					ImmediateOrCancel:    false,
+					FillOrKill:           true,
+					PostOnly:             false,
+					Cost:                 7.346,
+					Purchased:            200,
+				},
+			},
+		},
+		{
+			name:  "buy order limit - POC",
+			order: []byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "766504537761",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1735780321603944400",
+					Date:                 time.UnixMilli(1735780321729),
+					LastUpdated:          time.UnixMilli(1735780321729),
+					RemainingAmount:      0.0003,
+					Amount:               0.0003,
+					Price:                20000,
+					AverageExecutedPrice: 0,
+					Type:                 order.Limit,
+					Side:                 order.Buy,
+					Status:               order.Open,
+					ImmediateOrCancel:    false,
+					FillOrKill:           false,
+					PostOnly:             true,
+					Cost:                 0,
+					Purchased:            0,
+				},
+			},
+		},
+		{
+			name:  "sell order limit - GTC",
+			order: []byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "766536556747",
+					AssetType:            asset.Spot,
+					Pair:                 currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1735784754905434100",
+					Date:                 time.UnixMilli(1735784755068),
+					LastUpdated:          time.UnixMilli(1735784755068),
+					RemainingAmount:      1,
+					Amount:               1,
+					Price:                100,
+					AverageExecutedPrice: 0,
+					Type:                 order.Limit,
+					Side:                 order.Sell,
+					Status:               order.Open,
+					ImmediateOrCancel:    false,
+					FillOrKill:           false,
+					PostOnly:             false,
+					Cost:                 0,
+					Purchased:            0,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp WebsocketOrderResponse
+			require.NoError(t, json.Unmarshal(tc.order, &resp))
+
+			got, err := g.DeriveSpotSubmitOrderResponses([]WebsocketOrderResponse{resp})
+			require.ErrorIs(t, err, tc.error)
+
+			require.Len(t, got, len(tc.expected))
+			for i := range got {
+				assert.Equal(t, tc.expected[i], got[i])
+			}
+		})
+	}
+}
+
+func TestDeriveFuturesSubmitOrderResponses(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		order    []byte
+		error    error
+		expected []*order.SubmitResponse
+	}{
+		{
+			name:  "short order market - reduce only",
+			order: []byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "596729318437",
+					AssetType:            asset.Futures,
+					Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1337",
+					Date:                 time.UnixMilli(1735787107449),
+					LastUpdated:          time.UnixMilli(1735787107450),
+					RemainingAmount:      0,
+					Amount:               2,
+					Price:                0,
+					AverageExecutedPrice: 0.0000002625,
+					Type:                 order.Market,
+					Side:                 order.Short,
+					Status:               order.Filled,
+					ImmediateOrCancel:    true,
+					FillOrKill:           false,
+					PostOnly:             false,
+					ReduceOnly:           true,
+				},
+			},
+		},
+		{
+			name:  "short order market",
+			order: []byte(`{"text":"t-1336","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"REX_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.03654","id":596662040388,"create_time":1735778597.374,"size":-2,"finish_time":1735778597.374,"update_time":1735778597.374,"left":0,"user":12870774}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "596662040388",
+					AssetType:            asset.Futures,
+					Pair:                 currency.NewPair(currency.NewCode("REX"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "t-1336",
+					Date:                 time.UnixMilli(1735778597374),
+					LastUpdated:          time.UnixMilli(1735778597374),
+					RemainingAmount:      0,
+					Amount:               2,
+					Price:                0,
+					AverageExecutedPrice: 0.03654,
+					Type:                 order.Market,
+					Side:                 order.Short,
+					Status:               order.Filled,
+					ImmediateOrCancel:    true,
+					FillOrKill:           false,
+					PostOnly:             false,
+					ReduceOnly:           false,
+				},
+			},
+		},
+		{
+			name:  "long order limit",
+			order: []byte(`{"text":"apiv4-ws","price":"40000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596746193678,"create_time":1735789790.476,"size":1,"update_time":1735789790.476,"left":1,"user":2365748}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "596746193678",
+					AssetType:            asset.Futures,
+					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "",
+					Date:                 time.UnixMilli(1735789790476),
+					LastUpdated:          time.UnixMilli(1735789790476),
+					RemainingAmount:      1,
+					Amount:               1,
+					Price:                40000,
+					AverageExecutedPrice: 0,
+					Type:                 order.Limit,
+					Side:                 order.Long,
+					Status:               order.Open,
+					ImmediateOrCancel:    false,
+					FillOrKill:           false,
+					PostOnly:             false,
+					ReduceOnly:           false,
+				},
+			},
+		},
+		{
+			name:  "short order limit",
+			order: []byte(`{"text":"apiv4-ws","price":"200000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596748780649,"create_time":1735790222.185,"size":-1,"update_time":1735790222.185,"left":-1,"user":2365748}`),
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:             g.Name,
+					OrderID:              "596748780649",
+					AssetType:            asset.Futures,
+					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:        "",
+					Date:                 time.UnixMilli(1735790222185),
+					LastUpdated:          time.UnixMilli(1735790222185),
+					RemainingAmount:      1,
+					Amount:               1,
+					Price:                200000,
+					AverageExecutedPrice: 0,
+					Type:                 order.Limit,
+					Side:                 order.Short,
+					Status:               order.Open,
+					ImmediateOrCancel:    false,
+					FillOrKill:           false,
+					PostOnly:             false,
+					ReduceOnly:           false,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp WebsocketFuturesOrderResponse
+			require.NoError(t, json.Unmarshal(tc.order, &resp))
+
+			got, err := g.DeriveFuturesSubmitOrderResponses([]WebsocketFuturesOrderResponse{resp})
+			require.ErrorIs(t, err, tc.error)
+
+			require.Len(t, got, len(tc.expected))
+			for i := range got {
+				assert.Equal(t, tc.expected[i], got[i])
+			}
+		})
+	}
 }

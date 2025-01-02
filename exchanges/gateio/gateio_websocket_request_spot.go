@@ -26,12 +26,12 @@ func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) e
 
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
 func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) ([]WebsocketOrderResponse, error) {
-	return g.WebsocketSpotSubmitOrders(ctx, []CreateOrderRequest{*order})
+	return g.WebsocketSpotSubmitOrders(ctx, order)
 }
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders []CreateOrderRequest) ([]WebsocketOrderResponse, error) {
+func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}

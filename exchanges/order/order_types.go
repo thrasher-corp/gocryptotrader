@@ -111,6 +111,7 @@ type SubmitResponse struct {
 	AverageExecutedPrice float64
 	Amount               float64
 	QuoteAmount          float64
+	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string
 	ClientOrderID        string
@@ -122,7 +123,10 @@ type SubmitResponse struct {
 	Trades      []TradeHistory
 	Fee         float64
 	FeeAsset    currency.Code
-	Cost        float64
+	// Cost is the total cost of the order if hitting the bids it will be the base amount else lifting the asks quote amount
+	Cost float64
+	// Purchased is the amount of purchased currency hitting the bids will quote amount else lifting asks base amount
+	Purchased float64
 
 	BorrowSize  float64
 	LoanApplyID string

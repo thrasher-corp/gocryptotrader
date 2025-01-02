@@ -26,14 +26,14 @@ func (g *Gateio) authenticateFutures(ctx context.Context, conn stream.Connection
 
 // WebsocketFuturesSubmitOrder submits an order via the websocket connection
 func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, order *ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
-	return g.WebsocketFuturesSubmitOrders(ctx, []ContractOrderCreateParams{*order})
+	return g.WebsocketFuturesSubmitOrders(ctx, order)
 }
 
 // WebsocketFuturesSubmitOrders places an order via the websocket connection. You can
 // send multiple orders in a single request. NOTE: When sending multiple orders
 // the response will be an array of responses and a succeeded bool will be
 // returned in the response.
-func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, orders []ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, orders ...*ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}

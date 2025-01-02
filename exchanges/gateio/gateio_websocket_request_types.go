@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -63,7 +64,7 @@ type WebsocketOrderResponse struct {
 	TimeInForce        string        `json:"time_in_force"`
 	CurrencyPair       currency.Pair `json:"currency_pair"`
 	Type               string        `json:"type"`
-	Account            string        `json:"account"`
+	Account            asset.Item    `json:"account"`
 	Side               string        `json:"side"`
 	AmendText          string        `json:"amend_text"`
 	Text               string        `json:"text"`
@@ -85,28 +86,30 @@ type WebsocketOrderResponse struct {
 	RebatedFeeCurrency currency.Code `json:"rebated_fee_currency"`
 	STPID              int           `json:"stp_id"`
 	STPAct             string        `json:"stp_act"`
+	AverageDealPrice   types.Number  `json:"avg_deal_price"`
 }
 
 // WebsocketFuturesOrderResponse defines a websocket futures order response
 type WebsocketFuturesOrderResponse struct {
-	Text        string        `json:"text"`
-	Price       types.Number  `json:"price"`
-	BizInfo     string        `json:"biz_info"`
-	TimeInForce string        `json:"tif"`
-	AmendText   string        `json:"amend_text"`
-	Status      string        `json:"status"`
-	Contract    currency.Pair `json:"contract"`
-	STPAct      string        `json:"stp_act"`
-	FinishAs    string        `json:"finish_as"`
-	FillPrice   types.Number  `json:"fill_price"`
-	ID          int64         `json:"id"`
-	CreateTime  types.Time    `json:"create_time"`
-	UpdateTime  types.Time    `json:"update_time"`
-	FinishTime  types.Time    `json:"finish_time"`
-	Size        int64         `json:"size"`
-	Left        int64         `json:"left"`
-	User        int64         `json:"user"`
-	Succeeded   *bool         `json:"succeeded"` // Nil if not present in returned response.
+	Text         string        `json:"text"`
+	Price        types.Number  `json:"price"`
+	BizInfo      string        `json:"biz_info"`
+	TimeInForce  string        `json:"tif"`
+	AmendText    string        `json:"amend_text"`
+	Status       string        `json:"status"`
+	Contract     currency.Pair `json:"contract"`
+	STPAct       string        `json:"stp_act"`
+	FinishAs     string        `json:"finish_as"`
+	FillPrice    types.Number  `json:"fill_price"`
+	ID           int64         `json:"id"`
+	CreateTime   types.Time    `json:"create_time"`
+	UpdateTime   types.Time    `json:"update_time"`
+	FinishTime   types.Time    `json:"finish_time"`
+	Size         float64       `json:"size"`
+	Left         float64       `json:"left"`
+	User         int64         `json:"user"`
+	Succeeded    *bool         `json:"succeeded"` // Nil if not present in returned response.
+	IsReduceOnly bool          `json:"is_reduce_only"`
 }
 
 // WebsocketOrderBatchRequest defines a websocket order batch request
@@ -119,7 +122,7 @@ type WebsocketOrderBatchRequest struct {
 // WebsocketOrderRequest defines a websocket order request
 type WebsocketOrderRequest struct {
 	OrderID string `json:"order_id"` // This requires order_id tag
-	Pair    string `json:"pair"`
+	Pair    string `json:"currency_pair"`
 	Account string `json:"account,omitempty"`
 }
 
