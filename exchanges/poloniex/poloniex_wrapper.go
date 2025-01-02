@@ -172,7 +172,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		Connector:             p.WsConnect,
 		Subscriber:            p.Subscribe,
 		Unsubscriber:          p.Unsubscribe,
-		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: p.generateSubscriptions,
 		Features:              &p.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,

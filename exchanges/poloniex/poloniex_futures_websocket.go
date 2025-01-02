@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -94,6 +95,7 @@ func (p *Poloniex) WsFuturesConnect() error {
 		err = p.AuthConnect()
 		if err != nil {
 			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", p.Name, err)
 		}
 	}
 	p.Websocket.Wg.Add(1)
@@ -648,4 +650,12 @@ func (p *Poloniex) UnsubscribeFutures(unsub subscription.List) error {
 		}
 	}
 	return p.Websocket.RemoveSubscriptions(p.Websocket.Conn, unsub...)
+}
+
+// ----------------------------------------------------------------
+// Configuration update based on Gks
+
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (p *Poloniex) generateSubscriptions() (subscription.List, error) {
+	return p.Features.Subscriptions.ExpandTemplates(p)
 }
