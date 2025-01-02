@@ -2158,7 +2158,7 @@ func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.P
 // GetOpenPositions returns the total positions of a particular pair
 func (bi *Bitget) GetOpenPositions(ctx context.Context, pair currency.Pair, productType string) (*OpenPositionsResp, error) {
 	if pair.IsEmpty() {
-		return nil, errPairEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if productType == "" {
 		return nil, errProductTypeEmpty

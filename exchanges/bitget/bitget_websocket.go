@@ -1023,12 +1023,12 @@ func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (bi *Bitget) Subscribe(subs subscription.List) error {
-	return bi.websocketMessage(subs, "subscribe")
+	return bi.manageSubs("subscribe", subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (bi *Bitget) Unsubscribe(subs subscription.List) error {
-	return bi.websocketMessage(subs, "unsubscribe")
+	return bi.manageSubs("unsubscribe", subs)
 }
 
 // ReqSplitter splits a request into multiple requests to avoid going over the byte limit
@@ -1081,8 +1081,8 @@ func (bi *Bitget) reqBuilder(req *WsRequest, sub *subscription.Subscription) {
 	}
 }
 
-// websocketMessage sends a websocket message
-func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
+// manageSubs subscribes or unsubscribes from a list of websocket channels
+func (bi *Bitget) manageSubs(op string, subs subscription.List) error {
 	unauthBase := &WsRequest{
 		Operation: op,
 	}
@@ -1142,8 +1142,7 @@ func channelName(s *subscription.Subscription) string {
 	if n, ok := subscriptionNames[s.Asset][s.Channel]; ok {
 		return n
 	}
-	// Replace error with subscription.ErrNotSupported after merge
-	panic(fmt.Errorf("error not supported: %s", s.Channel))
+	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
 }
 
 const subTplText = `

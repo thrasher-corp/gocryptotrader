@@ -1081,7 +1081,12 @@ func TestGetFuturesCandlestickData(t *testing.T) {
 
 func TestGetOpenPositions(t *testing.T) {
 	t.Parallel()
-	testGetTwoArgs(t, bi.GetOpenPositions)
+	_, err := bi.GetOpenPositions(context.Background(), currency.Pair{}, "")
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = bi.GetOpenPositions(context.Background(), currency.NewPairWithDelimiter("meow", "woof", ""), "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetOpenPositions(context.Background(), testPair2, testFiat2.String()+"-FUTURES")
+	assert.NoError(t, err)
 }
 
 func TestGetNextFundingTime(t *testing.T) {
@@ -1201,6 +1206,7 @@ func TestAdjustMargin(t *testing.T) {
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	// This is getting the error "verification exception margin mode == FIXED", and I can't find a way to skirt around that
+	// Now it's giving the error "insufficient amount of margin", which is a fine error to have, watch for random reversions
 	err = bi.AdjustMargin(context.Background(), testPair2, testFiat2.String()+"-FUTURES", "long", testFiat2, -testAmount)
 	assert.NoError(t, err)
 }
@@ -2375,6 +2381,7 @@ func TestGetLoanInfo(t *testing.T) {
 	// bi.Verbose = true
 	_, err := bi.GetLoanInfo(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetLoanInfo(context.Background(), "1")
 	assert.NoError(t, err)
 }
@@ -2384,6 +2391,7 @@ func TestGetMarginCoinRatio(t *testing.T) {
 	// bi.Verbose = true
 	_, err := bi.GetMarginCoinRatio(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetMarginCoinRatio(context.Background(), "1")
 	assert.NoError(t, err)
 }
@@ -2393,6 +2401,7 @@ func TestGetSpotSymbols(t *testing.T) {
 	// bi.Verbose = true
 	_, err := bi.GetSpotSymbols(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetSpotSymbols(context.Background(), "1")
 	assert.NoError(t, err)
 }
@@ -2400,6 +2409,7 @@ func TestGetSpotSymbols(t *testing.T) {
 func TestGetLoanToValue(t *testing.T) {
 	t.Parallel()
 	// bi.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err := bi.GetLoanToValue(context.Background())
 	assert.NoError(t, err)
 }
@@ -2409,6 +2419,7 @@ func TestGetTransferableAmount(t *testing.T) {
 	// bi.Verbose = true
 	_, err := bi.GetTransferableAmount(context.Background(), "", currency.Code{})
 	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetTransferableAmount(context.Background(), "", testFiat)
 	assert.NoError(t, err)
 }
@@ -2418,6 +2429,7 @@ func TestGetLoanOrders(t *testing.T) {
 	// bi.Verbose = true
 	_, err := bi.GetLoanOrders(context.Background(), "", time.Now().Add(time.Minute), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetLoanOrders(context.Background(), "", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
@@ -2427,6 +2439,7 @@ func TestGetRepaymentOrders(t *testing.T) {
 	// bi.Verbose = true
 	_, err := bi.GetRepaymentOrders(context.Background(), "", time.Now().Add(time.Minute), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetRepaymentOrders(context.Background(), "", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
@@ -3725,7 +3738,7 @@ func testGetOneArg[R getOneArgResp, P getOneArgParam](t *testing.T, f getOneArgG
 }
 
 type getTwoArgsResp interface {
-	[]FutureTickerResp | *OpenPositionsResp | []FundingTimeResp | []FuturesPriceResp | []FundingCurrentResp | []ContractConfigResp
+	[]FutureTickerResp | []FundingTimeResp | []FuturesPriceResp | []FundingCurrentResp | []ContractConfigResp
 }
 
 type getTwoArgsPairProduct[G getTwoArgsResp] func(context.Context, currency.Pair, string) (G, error)
