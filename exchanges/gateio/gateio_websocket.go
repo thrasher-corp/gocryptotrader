@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -32,8 +31,7 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint  = "wss://api.gateio.ws/ws/v4/"
-	gateioWebsocketRateLimit = 120 * time.Millisecond
+	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
 	spotPingChannel            = "spot.ping"
 	spotPongChannel            = "spot.pong"
@@ -90,12 +88,70 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
+	return nil
+}
+
+// authenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
+	return g.websocketLogin(ctx, conn, "spot.login")
+}
+
+// websocketLogin authenticates the websocket connection
+func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) error {
+	if conn == nil {
+		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
+	}
+
+	if channel == "" {
+		return errChannelEmpty
+	}
+
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	tn := time.Now().Unix()
+	msg := "api\n" + channel + "\n" + "\n" + strconv.FormatInt(tn, 10)
+	mac := hmac.New(sha512.New, []byte(creds.Secret))
+	if _, err = mac.Write([]byte(msg)); err != nil {
+		return err
+	}
+	signature := hex.EncodeToString(mac.Sum(nil))
+
+	payload := WebsocketPayload{
+		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		APIKey:    creds.Key,
+		Signature: signature,
+		Timestamp: strconv.FormatInt(tn, 10),
+	}
+
+	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
+
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, req.Payload.RequestID, req)
+	if err != nil {
+		return err
+	}
+
+	var inbound WebsocketAPIResponse
+	if err := json.Unmarshal(resp, &inbound); err != nil {
+		return err
+	}
+
+	if inbound.Header.Status != "200" {
+		var wsErr WebsocketErrors
+		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
+			return err
+		}
+		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	}
+
 	return nil
 }
 
@@ -111,21 +167,21 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &push); err != nil {
 		return err
 	}
 
+	if push.RequestID != "" {
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+	}
+
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.Time.Time())
+		return g.processTicker(push.Result, push.TimeMs.Time())
 	case spotTradesChannel:
 		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
@@ -587,7 +643,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 			if err != nil {
 				return err
 			}
-			result, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+			result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 			if err != nil {
 				return err
 			}
@@ -698,7 +754,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	}
 	var errs error
 	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, request.Unset, payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
