@@ -1083,7 +1083,6 @@ func (bi *Bitget) reqBuilder(req *WsRequest, sub *subscription.Subscription) {
 
 // websocketMessage sends a websocket message
 func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
-	tn := time.Now()
 	unauthBase := &WsRequest{
 		Operation: op,
 	}
@@ -1105,13 +1104,11 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 		if len(unauthReq[i].Arguments) != 0 {
 			wg.Add(1)
 			go func(req WsRequest) {
-				fmt.Println("OUT WEBSOCKET unAUTH")
 				defer wg.Done()
-				err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+				err := bi.Websocket.Conn.SendJSONMessage(context.TODO(), RateSubscription, req)
 				if err != nil {
 					errC <- err
 				}
-				fmt.Println("RECIEVED UNAUTH")
 			}(unauthReq[i])
 		}
 	}
@@ -1119,13 +1116,11 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 		if len(authReq[i].Arguments) != 0 {
 			wg.Add(1)
 			go func(req WsRequest) {
-				fmt.Println("OUT WEBSOCKET AUTH")
 				defer wg.Done()
-				err := bi.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+				err := bi.Websocket.AuthConn.SendJSONMessage(context.TODO(), RateSubscription, req)
 				if err != nil {
 					errC <- err
 				}
-				fmt.Println("RECIEVED AUTH")
 			}(authReq[i])
 		}
 	}
@@ -1135,8 +1130,6 @@ func (bi *Bitget) websocketMessage(subs subscription.List, op string) error {
 	for err := range errC {
 		errs = common.AppendError(errs, err)
 	}
-
-	fmt.Println("MEOWWWW", time.Since(tn))
 	return errs
 }
 

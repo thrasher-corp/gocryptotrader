@@ -159,9 +159,6 @@ func RateLimit(ctx context.Context, rateLimiter *RateLimiterWithWeight) error {
 	}
 
 	tick := time.NewTimer(finalDelay)
-	if finalDelay.Seconds() > 10 {
-		fmt.Printf("\n\nAbout to start waiting for %v seconds\nRate limiter details: %+v\n\n", finalDelay.Seconds(), rateLimiter)
-	}
 	select {
 	case <-tick.C:
 		return nil

@@ -17,7 +17,7 @@ const (
 	bitgetRate2                = 2
 	bitgetRate1                = 1
 	bitgetSubscriptionInterval = time.Second
-	bitgetSubscriptionRate     = 240000
+	bitgetSubscriptionRate     = 25
 )
 
 // Bitget rate limits
