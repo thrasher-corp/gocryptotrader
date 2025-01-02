@@ -150,16 +150,16 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
 	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &push); err != nil {
 		return err
 	}
 
+	if push.RequestID != "" {
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+	}
+
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {
@@ -176,8 +176,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
-		var processed []order.Detail
-		processed, err = g.processFuturesOrdersPushData(respRaw, a)
+		processed, err := g.processFuturesOrdersPushData(respRaw, a)
 		if err != nil {
 			return err
 		}

@@ -698,7 +698,7 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 	}
 }
 
-func TestContextVerbosity(t *testing.T) {
+func TestIsVerbose(t *testing.T) {
 	t.Parallel()
 	require.False(t, IsVerbose(context.Background(), false))
 	require.True(t, IsVerbose(context.Background(), true))
