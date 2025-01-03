@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -82,7 +83,7 @@ func (s *Service) Update(b *Base) error {
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, errExchangeNameUnset
+		return nil, common.ErrExchangeNameUnset
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -294,7 +295,7 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 // list
 func (b *Base) Process() error {
 	if b.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameUnset
 	}
 
 	if b.Pair.IsEmpty() {
