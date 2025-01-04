@@ -78,6 +78,11 @@ const (
 	// Multi means a margin trade is not isolated from other margin trades
 	// it can sometimes be referred to as "cross"
 	Multi
+	// Cash indicates a trade that is conducted in non-margin mode, i.e., no borrowing of funds is involved.
+	Cash
+	// SpotIsolated indicates a margin trade that uses isolated margin mode for spot trading only.
+	// Each position has its own margin, and risks are isolated to that position.
+	SpotIsolated
 	// Unknown is an unknown margin type but is not unset
 	Unknown
 )
@@ -85,12 +90,14 @@ const (
 var supported = Isolated | Multi
 
 const (
-	unsetStr    = "unset"
-	isolatedStr = "isolated"
-	multiStr    = "multi"
-	crossedStr  = "crossed"
-	crossStr    = "cross"
-	unknownStr  = "unknown"
+	unsetStr        = "unset"
+	isolatedStr     = "isolated"
+	multiStr        = "multi"
+	cashStr         = "cash"
+	spotIsolatedStr = "spot_isolated"
+	crossedStr      = "crossed"
+	crossStr        = "cross"
+	unknownStr      = "unknown"
 )
 
 // RateHistoryResponse has the funding rate details

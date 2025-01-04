@@ -1103,7 +1103,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	default:
-		return nil, order.ErrTypeIsInvalid
+		return nil, fmt.Errorf("%w, order type %s", order.ErrTypeIsInvalid, orderTypeString)
 	}
 	if err != nil {
 		return nil, err
@@ -1126,12 +1126,12 @@ func priceTypeString(pt order.PriceType) string {
 
 func (ok *Okx) marginTypeToString(m margin.Type) string {
 	switch m {
-	case margin.Isolated:
-		return TradeModeIsolated
+	case margin.Isolated, margin.Cash, margin.SpotIsolated:
+		return m.String()
 	case margin.Multi:
 		return TradeModeCross
 	default:
-		return TradeModeCash
+		return ""
 	}
 }
 

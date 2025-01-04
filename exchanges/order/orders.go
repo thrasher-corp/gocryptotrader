@@ -1167,9 +1167,9 @@ func StringToOrderType(oType string) (Type, error) {
 		return MarketMakerProtection, nil
 	case MarketMakerProtectionAndPostOnly.String():
 		return MarketMakerProtectionAndPostOnly, nil
-	case TWAP.String(), "twap":
+	case TWAP.String():
 		return TWAP, nil
-	case Chase.String(), "chase":
+	case Chase.String():
 		return Chase, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -38,9 +37,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "fdb19ca4-c895-4056-b028-9236983c5669"
+	apiSecret               = "1CCB5710FE47ED3D5796A4FB78FE7DDC"
+	passphrase              = "0631Okx!"
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -985,7 +984,7 @@ func TestGetOrderList(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGet7And3MonthDayOrderHistory(t *testing.T) {
+func TestGet7DayOrderHistory(t *testing.T) {
 	t.Parallel()
 	_, err := ok.getOrderHistory(context.Background(), &OrderHistoryRequestParams{}, "", request.UnAuth)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
@@ -1166,6 +1165,40 @@ func TestPlaceTWAPOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ok.PlaceTakeProfitStopLossOrder(context.Background(), &AlgoOrderParams{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.PlaceTakeProfitStopLossOrder(context.Background(), &AlgoOrderParams{ReduceOnly: true})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	_, err = ok.PlaceTakeProfitStopLossOrder(context.Background(), &AlgoOrderParams{OrderType: "conditional"})
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	_, err = ok.PlaceTakeProfitStopLossOrder(context.Background(), &AlgoOrderParams{
+		OrderType:                "conditional",
+		StopLossTriggerPrice:     1234,
+		StopLossTriggerPriceType: "abcd"})
+	require.ErrorIs(t, err, order.ErrUnknownPriceType)
+
+	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	result, err := ok.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{
+		OrderType:                "conditional",
+		StopLossTriggerPrice:     1234,
+		StopLossTriggerPriceType: "last",
+		AlgoClientOrderID:        "681096944655273984",
+		InstrumentID:             "BTC-USDT",
+		LimitPrice:               100.22,
+		SizeLimit:                9999.9,
+		PriceSpread:              0.4,
+		TradeMode:                "cross",
+		Side:                     order.Sell.Lower(),
+		Size:                     6,
+		TimeInterval:             kline.ThreeDay,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestPlaceChaseAlgoOrder(t *testing.T) {
 	t.Parallel()
 	_, err := ok.PlaceChaseAlgoOrder(context.Background(), &AlgoOrderParams{})
@@ -1173,7 +1206,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 	arg := &AlgoOrderParams{
 		ReduceOnly: true,
 	}
-	_, err = ok.PlaceTWAPOrder(contextGenerate(), arg)
+	_, err = ok.PlaceChaseAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	arg.OrderType = "chase"
@@ -1716,8 +1749,12 @@ func TestFundingTransfer(t *testing.T) {
 		RemittingAccountType: "18", Currency: currency.EMPTYCODE})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		Amount: 12.000, BeneficiaryAccountType: "6",
-		RemittingAccountType: "", Currency: currency.BTC})
+		Amount: 12.000, BeneficiaryAccountType: "2",
+		RemittingAccountType: "3", Currency: currency.BTC})
+	assert.ErrorIs(t, err, errAddressRequired)
+	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
+		Amount: 12.000, BeneficiaryAccountType: "2",
+		RemittingAccountType: "18", Currency: currency.BTC})
 	assert.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -1891,6 +1928,11 @@ func TestSavingsPurchase(t *testing.T) {
 	_, err = ok.SavingsPurchaseOrRedemption(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	arg.Rate = 0.001
+	arg.ActionType = "purchase"
+	_, err = ok.SavingsPurchaseOrRedemption(contextGenerate(), arg)
+	require.ErrorIs(t, err, errRateRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SavingsPurchaseOrRedemption(contextGenerate(), &SavingsPurchaseRedemptionInput{
 		Amount:     123.4,
@@ -1918,7 +1960,7 @@ func TestSetLendingRate(t *testing.T) {
 	_, err = ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
-	require.ErrorIs(t, err, errLendingRateRequired)
+	require.ErrorIs(t, err, errRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
@@ -2036,33 +2078,28 @@ func TestConvertTrade(t *testing.T) {
 	t.Parallel()
 	_, err := ok.ConvertTrade(contextGenerate(), &ConvertTradeInput{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.ConvertTrade(contextGenerate(), &ConvertTradeInput{Tag: "123"})
+	arg := &ConvertTradeInput{Tag: "123"}
+	_, err = ok.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = ok.ConvertTrade(contextGenerate(), &ConvertTradeInput{
-		BaseCurrency:  "BTC",
-		QuoteCurrency: "USDT",
-	})
+
+	arg.BaseCurrency = "BTC"
+	_, err = ok.ConvertTrade(contextGenerate(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.QuoteCurrency = "USDT"
+	_, err = ok.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	_, err = ok.ConvertTrade(contextGenerate(), &ConvertTradeInput{
-		BaseCurrency:  "BTC",
-		QuoteCurrency: "USDT",
-		Side:          order.Buy.Lower(),
-	})
+
+	arg.Side = order.Buy.Lower()
+	_, err = ok.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
-	_, err = ok.ConvertTrade(contextGenerate(), &ConvertTradeInput{
-		BaseCurrency:  "BTC",
-		QuoteCurrency: "USDT",
-		Side:          order.Buy.Lower(),
-		Size:          2,
-	})
+
+	arg.Size = 2
+	_, err = ok.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = ok.ConvertTrade(contextGenerate(), &ConvertTradeInput{
-		BaseCurrency:  "BTC",
-		QuoteCurrency: "USDT",
-		Side:          order.Buy.Lower(),
-		Size:          2,
-		SizeCurrency:  currency.USDT,
-	})
+
+	arg.SizeCurrency = currency.USDT
+	_, err = ok.ConvertTrade(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -2125,8 +2162,18 @@ func TestGetBillsDetail(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetBillsDetailLast7Days(contextGenerate(), &BillsDetailQueryParameter{
-		Limit: 3,
-	})
+		Limit: 3})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBillsDetail3Months(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetBillsDetail3Months(contextGenerate(), &BillsDetailQueryParameter{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetBillsDetail3Months(contextGenerate(), &BillsDetailQueryParameter{Limit: 3})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2327,16 +2374,15 @@ func TestSetGreeks(t *testing.T) {
 
 func TestIsolatedMarginTradingSettings(t *testing.T) {
 	t.Parallel()
-	_, err := ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{IsoMode: "", InstrumentType: "MARGIN"})
+	_, err := ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{IsoMode: "", InstrumentType: "MARGIN"})
 	require.ErrorIs(t, err, errMissingIsolatedMarginTradingSetting)
 	_, err = ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{IsoMode: "autonomy", InstrumentType: ""})
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{
-		IsoMode:        "autonomy",
-		InstrumentType: "MARGIN",
-	})
+	result, err := ok.IsolatedMarginTradingSettings(contextGenerate(), &IsolatedMode{IsoMode: "autonomy", InstrumentType: "MARGIN"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2580,7 +2626,7 @@ func TestGetGreeks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetGreeks(contextGenerate(), currency.EMPTYCODE)
-	assert.False(t, err != nil && !strings.Contains(err.Error(), "Unsupported operation"), err)
+	assert.NoError(t, err)
 }
 
 func TestGetPMLimitation(t *testing.T) {
@@ -2712,6 +2758,10 @@ func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidSubaccount)
 
 	arg.To = 6
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+
+	arg.FromSubAccount = "sami"
 	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidSubAccountName)
 
@@ -5186,9 +5236,33 @@ func TestComputeMinInvestment(t *testing.T) {
 	arg.MaxPrice = 5000
 	_, err = ok.ComputeMinInvestment(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
 	arg.MinPrice = 5000
 	_, err = ok.ComputeMinInvestment(context.Background(), arg)
 	require.ErrorIs(t, err, errInvalidGridQuantity)
+
+	arg.GridNumber = 1234
+	arg.RunType = ""
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, errRunTypeRequired)
+
+	arg.RunType = "1"
+	arg.AlgoOrderType = "contract_grid"
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, errMissingRequiredArgumentDirection)
+
+	arg.Direction = positionSideLong
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidLeverage)
+
+	arg.Leverage = 5
+	arg.InvestmentData = []InvestmentData{{Currency: currency.ETH}}
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.InvestmentData = []InvestmentData{{Amount: 0.01}}
+	_, err = ok.ComputeMinInvestment(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := ok.ComputeMinInvestment(context.Background(), &ComputeInvestmentDataParam{
 		InstrumentID:  "ETH-USDT",
@@ -6057,7 +6131,7 @@ func TestPlaceLendingOrder(t *testing.T) {
 
 	arg.Amount = 1
 	_, err = ok.PlaceLendingOrder(context.Background(), arg)
-	require.ErrorIs(t, err, errLendingRateRequired)
+	require.ErrorIs(t, err, errRateRequired)
 
 	arg.Rate = 0.01
 	_, err = ok.PlaceLendingOrder(context.Background(), arg)
@@ -6478,20 +6552,76 @@ func TestOrderTypeFromString(t *testing.T) {
 		OType order.Type
 		Error error
 	}{
-		"market":            {OType: order.Market, Error: nil},
-		"LIMIT":             {OType: order.Limit, Error: nil},
-		"limit":             {OType: order.Limit, Error: nil},
-		"post_only":         {OType: order.PostOnly, Error: nil},
-		"fok":               {OType: order.FillOrKill, Error: nil},
-		"ioc":               {OType: order.ImmediateOrCancel, Error: nil},
-		"optimal_limit_ioc": {OType: order.OptimalLimitIOC, Error: nil},
-		"mmp":               {OType: order.MarketMakerProtection, Error: nil},
-		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly, Error: nil},
+		"market":            {OType: order.Market},
+		"LIMIT":             {OType: order.Limit},
+		"limit":             {OType: order.Limit},
+		"post_only":         {OType: order.PostOnly},
+		"fok":               {OType: order.FillOrKill},
+		"ioc":               {OType: order.ImmediateOrCancel},
+		"optimal_limit_ioc": {OType: order.OptimalLimitIOC},
+		"mmp":               {OType: order.MarketMakerProtection},
+		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly},
 		"trigger":           {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
+		"chase":             {OType: order.Chase},
+		"move_order_stop":   {OType: order.TrailingStop},
+		"twap":              {OType: order.TWAP},
+		"abcd":              {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 	}
 	for a := range orderTypeStrings {
 		oType, err := ok.OrderTypeFromString(a)
-		require.ErrorIs(t, err, orderTypeStrings[a].Error)
+		assert.ErrorIs(t, err, orderTypeStrings[a].Error)
 		assert.Equal(t, oType, orderTypeStrings[a].OType)
+	}
+}
+
+func TestGetFee(t *testing.T) {
+	t.Parallel()
+
+	// CryptocurrencyWithdrawalFee Basic
+	feeBuilder := &exchange.FeeBuilder{
+		Amount:        1,
+		FeeType:       exchange.CryptocurrencyWithdrawalFee,
+		Pair:          spotTP,
+		PurchasePrice: 1,
+	}
+	_, err := ok.GetFee(contextGenerate(), feeBuilder)
+	require.ErrorIs(t, err, errFeeTypeUnsupported)
+
+	feeBuilder.FeeType = exchange.CryptocurrencyTradeFee
+	_, err = ok.GetFee(contextGenerate(), feeBuilder)
+	require.NoError(t, err)
+
+	feeBuilder.FeeType = exchange.OfflineTradeFee
+	_, err = ok.GetFee(contextGenerate(), feeBuilder)
+	assert.NoError(t, err)
+}
+
+func TestPriceTypeString(t *testing.T) {
+	t.Parallel()
+	priceTypeToStringMap := map[order.PriceType]string{
+		order.LastPrice:        "last",
+		order.IndexPrice:       "index",
+		order.MarkPrice:        "mark",
+		order.UnknownPriceType: "",
+	}
+	var priceTString string
+	for x := range priceTypeToStringMap {
+		priceTString = priceTypeString(x)
+		assert.Equal(t, priceTString, priceTypeToStringMap[x])
+	}
+}
+
+func TestMarginTypeToString(t *testing.T) {
+	t.Parallel()
+	marginTypeToStringMap := map[margin.Type]string{
+		margin.Isolated:     "isolated",
+		margin.Multi:        "cross",
+		margin.Cash:         "cash",
+		margin.SpotIsolated: "spot_isolated",
+	}
+	var marginTypeString string
+	for m := range marginTypeToStringMap {
+		marginTypeString = ok.marginTypeToString(m)
+		assert.Equal(t, marginTypeString, m)
 	}
 }

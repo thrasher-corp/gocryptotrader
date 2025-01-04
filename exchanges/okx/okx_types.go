@@ -107,6 +107,7 @@ var (
 	errInvalidSubaccount                    = errors.New("invalid sub-account type")
 	errMissingAlgoOrderType                 = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
 	errInvalidGridQuantity                  = errors.New("invalid grid quantity (grid number)")
+	errRunTypeRequired                      = errors.New("runType is required; possible values are 1: Arithmetic, 2: Geometric")
 	errMissingRequiredArgumentDirection     = errors.New("missing required argument, direction")
 	errInvalidLeverage                      = errors.New("invalid leverage value")
 	errMissingValidStopType                 = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
@@ -144,7 +145,7 @@ var (
 	errInvalidChecksum                      = errors.New("invalid checksum")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
 	errLendingTermIsRequired                = errors.New("lending term is required")
-	errLendingRateRequired                  = errors.New("lending rate is required")
+	errRateRequired                         = errors.New("lending rate is required")
 	errQuarterValueRequired                 = errors.New("quarter is required")
 	errYearRequired                         = errors.New("year is required")
 	errBorrowTypeRequired                   = errors.New("borrow type is required")
@@ -155,6 +156,7 @@ var (
 	errMonthNameRequired                    = errors.New("month name is required")
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
 	errInvoiceTextMissing                   = errors.New("missing invoice text")
+	errFeeTypeUnsupported                   = errors.New("fee type is not supported")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -1296,20 +1298,20 @@ type AssetBalance struct {
 
 // NonTradableAsset holds non-tradable asset detail
 type NonTradableAsset struct {
-	Balance          types.Number `json:"bal"`
-	CanWithdraw      bool         `json:"canWd"`
-	Currency         string       `json:"ccy"`
-	Chain            string       `json:"chain"`
-	CtAddr           string       `json:"ctAddr"`
-	LogoLink         string       `json:"logoLink"`
-	Name             string       `json:"name"`
-	NeedTag          bool         `json:"needTag"`
-	WithdrawAll      bool         `json:"wdAll"`
-	FeeCurrency      string       `json:"feeCcy"`
-	Fee              types.Number `json:"fee"`
-	MinWithdrawal    types.Number `json:"minWd"`
-	WithdrawTickSize types.Number `json:"wdTickSz"`
-	BurningFeeRate   types.Number `json:"burningFeeRate"`
+	Balance          types.Number  `json:"bal"`
+	CanWithdraw      bool          `json:"canWd"`
+	Currency         string        `json:"ccy"`
+	Chain            string        `json:"chain"`
+	CtAddr           string        `json:"ctAddr"`
+	LogoLink         string        `json:"logoLink"`
+	Name             string        `json:"name"`
+	NeedTag          bool          `json:"needTag"`
+	WithdrawAll      bool          `json:"wdAll"`
+	FeeCurrency      currency.Code `json:"feeCcy"`
+	Fee              types.Number  `json:"fee"`
+	MinWithdrawal    types.Number  `json:"minWd"`
+	WithdrawTickSize types.Number  `json:"wdTickSz"`
+	BurningFeeRate   types.Number  `json:"burningFeeRate"`
 }
 
 // AccountAssetValuation represents view account asset valuation data

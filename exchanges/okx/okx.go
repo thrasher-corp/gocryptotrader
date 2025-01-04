@@ -1527,7 +1527,7 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
 		return nil, fmt.Errorf("%w, side has to be either 'redempt' or 'purchase'", order.ErrSideIsInvalid)
 	case arg.ActionType == "purchase" && (arg.Rate < 0.01 || arg.Rate > 3.65):
-		return nil, errors.New("the rate value range is between 1% (0.01) and 365% (3.65)")
+		return nil, fmt.Errorf("%w, the rate value range is between 0.01 and 3.65", errRateRequired)
 	}
 	var resp *SavingsPurchaseRedemptionResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, "finance/savings/purchase-redempt", &arg, &resp, request.AuthenticatedRequest)
@@ -1560,7 +1560,7 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg *LendingRate) (*LendingRa
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
-		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errLendingRateRequired)
+		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errRateRequired)
 	}
 	var resp *LendingRate
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, "finance/savings/set-lending-rate", &arg, &resp, request.AuthenticatedRequest)
@@ -2160,8 +2160,9 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.OfflineTradeFee:
 		return 0.0015 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
+	default:
+		return fee, errFeeTypeUnsupported
 	}
-	return fee, nil
 }
 
 // GetTradeFee queries the trade fee rates for various instrument types and their respective IDs
@@ -3435,7 +3436,7 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 		return nil, fmt.Errorf("%w, grid number is required", errInvalidGridQuantity)
 	}
 	if arg.RunType == "" {
-		return nil, errors.New("runType is required; possible values are 1: Arithmetic, 2: Geometric")
+		return nil, errRunTypeRequired
 	}
 	if arg.AlgoOrderType == "contract_grid" {
 		switch arg.Direction {
@@ -5822,7 +5823,7 @@ func (ok *Okx) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam) (*
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Rate <= 0 {
-		return nil, errLendingRateRequired
+		return nil, errRateRequired
 	}
 	if arg.Term == "" {
 		return nil, errLendingTermIsRequired

@@ -955,6 +955,10 @@ func TestStringToOrderType(t *testing.T) {
 		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 		{"chase", Chase, nil},
+		{"MOVE_ORDER_STOP", TrailingStop, nil},
+		{"mOVe_OrdeR_StoP", TrailingStop, nil},
+		{"optimal_limit_IoC", OptimalLimitIOC, nil},
+		{"Stop_market", StopMarket, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
