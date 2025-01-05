@@ -1872,7 +1872,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			if req.AssetType == asset.Futures {
 				futuresOrder, err = g.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
 			} else {
-				futuresOrder, err = g.GetDeliveryPersonalTradingHistory(ctx, settle, req.FromOrderID, fPair, 0, 0, 0, "")
+				futuresOrder, err = g.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fPair, 0, 0, 0, "")
 			}
 			if err != nil {
 				return nil, err
@@ -1894,8 +1894,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	case asset.Options:
 		for x := range req.Pairs {
 			fPair := req.Pairs[x].Format(format)
-			var optionOrders []OptionTradingHistory
-			optionOrders, err = g.GetOptionsPersonalTradingHistory(ctx, fPair.String(), fPair.Upper(), 0, 0, req.StartTime, req.EndTime)
+			optionOrders, err := g.GetMyOptionsTradingHistory(ctx, fPair.String(), fPair.Upper(), 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}

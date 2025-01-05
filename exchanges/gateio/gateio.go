@@ -2940,8 +2940,8 @@ func (g *Gateio) CancelSingleDeliveryOrder(ctx context.Context, settle currency.
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCancelOrderEPL, http.MethodDelete, deliveryPath+settle.Item.Lower+"/orders/"+orderID, nil, nil, &response)
 }
 
-// GetDeliveryPersonalTradingHistory retrieves personal trading history
-func (g *Gateio) GetDeliveryPersonalTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]TradingHistoryItem, error) {
+// GetMyDeliveryTradingHistory retrieves authenticated account delivery futures trading history
+func (g *Gateio) GetMyDeliveryTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -3406,8 +3406,8 @@ func (g *Gateio) CancelOptionSingleOrder(ctx context.Context, orderID string) (*
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsCancelOrderEPL, http.MethodDelete, "options/orders/"+orderID, nil, nil, &response)
 }
 
-// GetOptionsPersonalTradingHistory retrieves personal tradign histories given the underlying{Required}, contract, and other pagination params.
-func (g *Gateio) GetOptionsPersonalTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]OptionTradingHistory, error) {
+// GetMyOptionsTradingHistory retrieves authenticated account's option trading history
+func (g *Gateio) GetMyOptionsTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]OptionTradingHistory, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}

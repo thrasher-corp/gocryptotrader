@@ -1155,11 +1155,11 @@ func TestCancelSingleDeliveryOrder(t *testing.T) {
 	assert.NoError(t, err, "CancelSingleDeliveryOrder should not error")
 }
 
-func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
+func TestGetMyDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDeliveryPersonalTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
-	assert.NoError(t, err, "GetDeliveryPersonalTradingHistory should not error")
+	_, err := g.GetMyDeliveryTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
+	assert.NoError(t, err, "GetMyDeliveryTradingHistory should not error")
 }
 
 func TestGetDeliveryPositionCloseHistory(t *testing.T) {
@@ -1766,12 +1766,12 @@ func TestCancelSingleOrder(t *testing.T) {
 	}
 }
 
-func TestGetOptionsPersonalTradingHistory(t *testing.T) {
+func TestGetMyOptionsTradingHistory(t *testing.T) {
 	t.Parallel()
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMyOptionsTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestWithdrawCurrency(t *testing.T) {
