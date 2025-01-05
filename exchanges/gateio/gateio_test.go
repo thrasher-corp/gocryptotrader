@@ -439,12 +439,11 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 	}
 }
 
-func TestGetPersonalTradingHistory(t *testing.T) {
+func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateIOGetPersonalTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMySpotTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestGetServerTime(t *testing.T) {

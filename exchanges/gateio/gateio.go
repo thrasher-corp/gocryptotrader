@@ -775,12 +775,11 @@ func (g *Gateio) CancelSingleSpotOrder(ctx context.Context, orderID, currencyPai
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelSingleOrderEPL, http.MethodDelete, gateioSpotOrders+"/"+orderID, params, nil, &response)
 }
 
-// GateIOGetPersonalTradingHistory retrieves personal trading history
-func (g *Gateio) GateIOGetPersonalTradingHistory(ctx context.Context, currencyPair currency.Pair,
-	orderID string, page, limit uint64, crossMarginAccount bool, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
+// GetMySpotTradingHistory retrieves personal trading history
+func (g *Gateio) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, crossMargin bool, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
 	params := url.Values{}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
+	if p.IsPopulated() {
+		params.Set("currency_pair", p.String())
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -791,7 +790,7 @@ func (g *Gateio) GateIOGetPersonalTradingHistory(ctx context.Context, currencyPa
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
-	if crossMarginAccount {
+	if crossMargin {
 		params.Set("account", asset.CrossMargin.String())
 	}
 	if !from.IsZero() {
