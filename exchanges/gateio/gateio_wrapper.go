@@ -2333,7 +2333,7 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		if err != nil {
 			return nil, err
 		}
-		contract, err := g.GetSingleContract(ctx, settle, fPair.String())
+		contract, err := g.GetFuturesContract(ctx, settle, fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -2423,7 +2423,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 		}
 		switch k[0].Asset {
 		case asset.DeliveryFutures:
-			contractResp, err := g.GetSingleDeliveryContracts(ctx, currency.USDT, p)
+			contractResp, err := g.GetDeliveryContract(ctx, currency.USDT, p)
 			if err != nil {
 				return nil, err
 			}
@@ -2441,7 +2441,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			}, nil
 		case asset.Futures:
 			for _, s := range settlementCurrencies {
-				contractResp, err := g.GetSingleContract(ctx, s, p.String())
+				contractResp, err := g.GetFuturesContract(ctx, s, p.String())
 				if err != nil {
 					continue
 				}

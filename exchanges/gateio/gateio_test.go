@@ -968,12 +968,12 @@ func TestGetAllFutureContracts(t *testing.T) {
 	}
 }
 
-func TestGetSingleContract(t *testing.T) {
+func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetSingleContract(context.Background(), settle, getPair(t, asset.Futures).String())
-	assert.NoError(t, err, "GetSingleContract should not error")
+	_, err = g.GetFuturesContract(context.Background(), settle, getPair(t, asset.Futures).String())
+	assert.NoError(t, err, "GetFuturesContract should not error")
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
@@ -1457,12 +1457,12 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 	}
 }
 
-func TestGetSingleDeliveryContracts(t *testing.T) {
+func TestGetDeliveryContract(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetSingleDeliveryContracts(context.Background(), settle, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "GetSingleDeliveryContracts should not error")
+	_, err = g.GetDeliveryContract(context.Background(), settle, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "GetDeliveryContract should not error")
 }
 
 func TestGetDeliveryOrderbook(t *testing.T) {

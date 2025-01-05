@@ -1842,8 +1842,8 @@ func (g *Gateio) GetAllFutureContracts(ctx context.Context, settle currency.Code
 	return contracts, g.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesContractsEPL, futuresPath+settle.Item.Lower+"/contracts", &contracts)
 }
 
-// GetSingleContract returns a single contract info for the specified settle and Currency Pair (contract << in this case)
-func (g *Gateio) GetSingleContract(ctx context.Context, settle currency.Code, contract string) (*FuturesContract, error) {
+// GetFuturesContract returns a single futures contract info for the specified settle and Currency Pair (contract << in this case)
+func (g *Gateio) GetFuturesContract(ctx context.Context, settle currency.Code, contract string) (*FuturesContract, error) {
 	if contract == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -2623,8 +2623,8 @@ func (g *Gateio) GetAllDeliveryContracts(ctx context.Context, settle currency.Co
 	return contracts, g.SendHTTPRequest(ctx, exchange.RestSpot, publicDeliveryContractsEPL, deliveryPath+settle.Item.Lower+"/contracts", &contracts)
 }
 
-// GetSingleDeliveryContracts retrieves a single delivery contract instance.
-func (g *Gateio) GetSingleDeliveryContracts(ctx context.Context, settle currency.Code, contract currency.Pair) (*DeliveryContract, error) {
+// GetDeliveryContract retrieves a single delivery contract instance
+func (g *Gateio) GetDeliveryContract(ctx context.Context, settle currency.Code, contract currency.Pair) (*DeliveryContract, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
