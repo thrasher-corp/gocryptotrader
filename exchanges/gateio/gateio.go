@@ -2427,8 +2427,8 @@ func (g *Gateio) AmendFuturesOrder(ctx context.Context, settle currency.Code, or
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAmendOrderEPL, http.MethodPut, futuresPath+settle.Item.Lower+"/orders/"+orderID, nil, &arg, &response)
 }
 
-// GetMyPersonalTradingHistory retrieves my personal trading history
-func (g *Gateio) GetMyPersonalTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]TradingHistoryItem, error) {
+// GetMyFuturesTradingHistory retrieves authenticated account's futures trading history
+func (g *Gateio) GetMyFuturesTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}

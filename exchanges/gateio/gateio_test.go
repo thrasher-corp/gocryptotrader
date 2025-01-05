@@ -1367,11 +1367,11 @@ func TestAmendFuturesOrder(t *testing.T) {
 	assert.NoError(t, err, "AmendFuturesOrder should not error")
 }
 
-func TestGetMyPersonalTradingHistory(t *testing.T) {
+func TestGetMyFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetMyPersonalTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
-	assert.NoError(t, err, "GetMyPersonalTradingHistory should not error")
+	_, err := g.GetMyFuturesTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
+	assert.NoError(t, err, "GetMyFuturesTradingHistory should not error")
 }
 
 func TestGetFuturesPositionCloseHistory(t *testing.T) {

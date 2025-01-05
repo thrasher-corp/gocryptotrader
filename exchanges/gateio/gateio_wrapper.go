@@ -1875,9 +1875,9 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			if err != nil {
 				return nil, err
 			}
-			var futuresOrder []TradingHistoryItem
+ 			var futuresOrder []TradingHistoryItem
 			if req.AssetType == asset.Futures {
-				futuresOrder, err = g.GetMyPersonalTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
+				futuresOrder, err = g.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
 			} else {
 				futuresOrder, err = g.GetDeliveryPersonalTradingHistory(ctx, settle, req.FromOrderID, fPair, 0, 0, 0, "")
 			}
