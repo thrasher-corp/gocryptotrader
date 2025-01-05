@@ -1171,6 +1171,12 @@ func StringToOrderType(oType string) (Type, error) {
 		return TWAP, nil
 	case Chase.String():
 		return Chase, nil
+	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+		return TakeProfitMarket, nil
+	case TakeProfit.String(), "TAKE_PROFIT":
+		return TakeProfit, nil
+	case Liquidation.String():
+		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}

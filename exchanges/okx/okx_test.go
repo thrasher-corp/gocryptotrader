@@ -37,9 +37,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "fdb19ca4-c895-4056-b028-9236983c5669"
-	apiSecret               = "1CCB5710FE47ED3D5796A4FB78FE7DDC"
-	passphrase              = "0631Okx!"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -1017,8 +1017,12 @@ func TestTransactionHistory(t *testing.T) {
 	result, err := ok.GetTransactionDetailsLast3Days(contextGenerate(), &TransactionDetailRequestParams{InstrumentType: "MARGIN", Limit: 1})
 	require.NoError(t, err)
 	require.NotNil(t, result)
+}
 
-	result, err = ok.GetTransactionDetailsLast3Months(contextGenerate(), &TransactionDetailRequestParams{InstrumentType: "MARGIN"})
+func TestGetTransactionDetailsLast3Months(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	result, err := ok.GetTransactionDetailsLast3Months(contextGenerate(), &TransactionDetailRequestParams{InstrumentType: "MARGIN"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6576,7 +6580,6 @@ func TestOrderTypeFromString(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder := &exchange.FeeBuilder{
 		Amount:        1,
@@ -6587,13 +6590,14 @@ func TestGetFee(t *testing.T) {
 	_, err := ok.GetFee(contextGenerate(), feeBuilder)
 	require.ErrorIs(t, err, errFeeTypeUnsupported)
 
-	feeBuilder.FeeType = exchange.CryptocurrencyTradeFee
-	_, err = ok.GetFee(contextGenerate(), feeBuilder)
-	require.NoError(t, err)
-
 	feeBuilder.FeeType = exchange.OfflineTradeFee
 	_, err = ok.GetFee(contextGenerate(), feeBuilder)
 	assert.NoError(t, err)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	feeBuilder.FeeType = exchange.CryptocurrencyTradeFee
+	_, err = ok.GetFee(contextGenerate(), feeBuilder)
+	require.NoError(t, err)
 }
 
 func TestPriceTypeString(t *testing.T) {
@@ -6618,10 +6622,11 @@ func TestMarginTypeToString(t *testing.T) {
 		margin.Multi:        "cross",
 		margin.Cash:         "cash",
 		margin.SpotIsolated: "spot_isolated",
+		margin.Unset:        "",
 	}
 	var marginTypeString string
 	for m := range marginTypeToStringMap {
 		marginTypeString = ok.marginTypeToString(m)
-		assert.Equal(t, marginTypeString, m)
+		assert.Equal(t, marginTypeString, marginTypeToStringMap[m])
 	}
 }

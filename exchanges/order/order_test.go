@@ -959,6 +959,12 @@ func TestStringToOrderType(t *testing.T) {
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
 		{"optimal_limit_IoC", OptimalLimitIOC, nil},
 		{"Stop_market", StopMarket, nil},
+		{"liquidation", Liquidation, nil},
+		{"LiQuidation", Liquidation, nil},
+		{"take_profit", TakeProfit, nil},
+		{"Take ProfIt", TakeProfit, nil},
+		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
+		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]

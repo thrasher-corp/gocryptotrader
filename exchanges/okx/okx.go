@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -138,40 +139,29 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return errMissingInstrumentID
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	switch arg.Side {
-	case order.Buy.Lower(), order.Sell.Lower():
-	default:
-		switch arg.AssetType {
-		case asset.Futures, asset.PerpetualSwap, asset.Options:
-		default:
+	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
+		arg.Side = strings.ToLower(arg.Side)
+		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 		}
 	}
-	switch arg.TradeMode {
-	case "", TradeModeCross, TradeModeIsolated, TradeModeCash:
-	default:
+	if !slices.Contains([]string{"", TradeModeCross, TradeModeIsolated, TradeModeCash}, arg.TradeMode) {
 		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
 	}
-	switch arg.AssetType {
-	case asset.Futures, asset.PerpetualSwap:
-		if arg.PositionSide == "" {
-			return fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
+	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
+		arg.PositionSide = strings.ToLower(arg.PositionSide)
+		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
+			return fmt.Errorf("%w, 'long' or 'short' required", order.ErrSideIsInvalid)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
-	switch arg.OrderType {
-	case OkxOrderMarket, OkxOrderLimit, OkxOrderPostOnly,
-		OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC,
-		"mmp", "mmp_and_post_only":
-	default:
+	if !slices.Contains([]string{OkxOrderMarket, OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
 		return fmt.Errorf("%w %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.Amount <= 0 {
 		return order.ErrAmountBelowMin
 	}
-	switch arg.QuantityType {
-	case "", "base_ccy", "quote_ccy":
-	default:
+	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.QuantityType) {
 		return errCurrencyQuantitTypeRequired
 	}
 	return nil
@@ -503,8 +493,8 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, "trade/order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
-// PlaceStopOrder to place stop order
-// currently expected value is 'conditional'
+// PlaceStopOrder places a stop order.
+// The order type should be "conditional" because stop orders are used for conditional take-profit or stop-loss scenarios.
 func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
@@ -3396,7 +3386,7 @@ func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg *MarginBalanceParam)
 
 // GetGridAIParameter retrieves grid AI parameter
 func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrumentID, direction, duration string) ([]GridAIParameterResponse, error) {
-	if algoOrderType != "moon_grid" && algoOrderType != "contract_grid" && algoOrderType != "grid" {
+	if !slices.Contains([]string{"moon_grid", "contract_grid", "grid"}, algoOrderType) {
 		return nil, errInvalidAlgoOrderType
 	}
 	if instrumentID == "" {

@@ -28,25 +28,25 @@ func TestUnmarshalJSON(t *testing.T) {
 	jason := []byte(`{"margin":"isolated"}`)
 	err := json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
-	assert.Equalf(t, alien.M, Isolated, "received '%v' expected '%v'", alien.M, Isolated)
+	assert.Equalf(t, Isolated, alien.M, "received '%v' expected '%v'", alien.M, Isolated)
 
 	jason = []byte(`{"margin":"cross"}`)
 	err = json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
-	assert.Equalf(t, alien.M, Multi, "received '%v' expected '%v'", alien.M, Multi)
+	assert.Equalf(t, Multi, alien.M, "received '%v' expected '%v'", alien.M, Multi)
 
 	jason = []byte(`{"margin":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
 	require.ErrorIs(t, err, ErrInvalidMarginType)
-	assert.Equalf(t, alien.M, Unknown, "received '%v' expected '%v'", alien.M, Unknown)
+	assert.Equalf(t, Unknown, alien.M, "received '%v' expected '%v'", alien.M, Unknown)
 }
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, Unknown.String(), unknownStr)
-	assert.Equal(t, Isolated.String(), isolatedStr)
-	assert.Equal(t, Multi.String(), multiStr)
-	assert.Equal(t, Unset.String(), unsetStr)
+	assert.Equal(t, unknownStr, Unknown.String())
+	assert.Equal(t, isolatedStr, Isolated.String())
+	assert.Equal(t, multiStr, Multi.String())
+	assert.Equal(t, unsetStr, Unset.String())
 }
 
 func TestUpper(t *testing.T) {
@@ -72,29 +72,29 @@ func TestStringToMarginType(t *testing.T) {
 	t.Parallel()
 	resp, err := StringToMarginType("lol")
 	assert.ErrorIs(t, err, ErrInvalidMarginType)
-	assert.Equal(t, resp, Unknown)
+	assert.Equal(t, Unknown, resp)
 
 	resp, err = StringToMarginType("")
 	assert.NoError(t, err)
-	assert.Equalf(t, resp, Unset, "received '%v' expected '%v'", resp, Unset)
+	assert.Equalf(t, Unset, resp, "received '%v' expected '%v'", resp, Unset)
 
 	resp, err = StringToMarginType("cross")
 	assert.NoError(t, err)
-	assert.Equalf(t, resp, Multi, "received '%v' expected '%v'", resp, Multi)
+	assert.Equalf(t, Multi, resp, "received '%v' expected '%v'", resp, Multi)
 
 	resp, err = StringToMarginType("multi")
 	assert.NoError(t, err)
-	assert.Equalf(t, resp, Multi, "received '%v' expected '%v'", resp, Multi)
+	assert.Equalf(t, Multi, resp, "received '%v' expected '%v'", resp, Multi)
 
 	resp, err = StringToMarginType("isolated")
 	assert.NoError(t, err)
-	assert.Equalf(t, resp, Isolated, "received '%v' expected '%v'", resp, Isolated)
+	assert.Equalf(t, Isolated, resp, "received '%v' expected '%v'", resp, Isolated)
 
 	resp, err = StringToMarginType("cash")
 	assert.NoError(t, err)
-	assert.Equalf(t, resp, Cash, "received '%v' expected '%v'", resp, Cash)
+	assert.Equalf(t, Cash, resp, "received '%v' expected '%v'", resp, Cash)
 
 	resp, err = StringToMarginType("spot_isolated")
 	assert.NoError(t, err)
-	assert.Equalf(t, resp, SpotIsolated, "received '%v' expected '%v'", resp, SpotIsolated)
+	assert.Equalf(t, SpotIsolated, resp, "received '%v' expected '%v'", resp, SpotIsolated)
 }
