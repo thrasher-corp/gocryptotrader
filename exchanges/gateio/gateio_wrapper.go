@@ -945,18 +945,16 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 	var resp []trade.Data
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		var tradeData []Trade
 		if p.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		tradeData, err = g.GetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
+		tradeData, err := g.GetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
 		}
 		resp = make([]trade.Data, len(tradeData))
 		for i := range tradeData {
-			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Side)
+			side, err := order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -972,13 +970,11 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			}
 		}
 	case asset.Futures:
-		var settle currency.Code
-		settle, err = getSettlementFromCurrency(p)
+		settle, err := getSettlementFromCurrency(p)
 		if err != nil {
 			return nil, err
 		}
-		var futuresTrades []TradingHistoryItem
-		futuresTrades, err = g.GetFuturesTradingHistory(ctx, settle, p, 0, 0, "", time.Time{}, time.Time{})
+		futuresTrades, err := g.GetFuturesTradingHistory(ctx, settle, p, 0, 0, "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -995,13 +991,11 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			}
 		}
 	case asset.DeliveryFutures:
-		var settle currency.Code
-		settle, err = getSettlementFromCurrency(p)
+		settle, err := getSettlementFromCurrency(p)
 		if err != nil {
 			return nil, err
 		}
-		var deliveryTrades []DeliveryTradingHistory
-		deliveryTrades, err = g.GetDeliveryTradingHistory(ctx, settle, "", p.Upper(), 0, time.Time{}, time.Time{})
+		deliveryTrades, err := g.GetDeliveryTradingHistory(ctx, settle, "", p.Upper(), 0, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -1018,8 +1012,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			}
 		}
 	case asset.Options:
-		var trades []TradingHistoryItem
-		trades, err = g.GetOptionsTradeHistory(ctx, p.Upper(), "", 0, 0, time.Time{}, time.Time{})
+		trades, err := g.GetOptionsTradeHistory(ctx, p.Upper(), "", 0, 0, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -1875,7 +1868,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			if err != nil {
 				return nil, err
 			}
- 			var futuresOrder []TradingHistoryItem
+			var futuresOrder []TradingHistoryItem
 			if req.AssetType == asset.Futures {
 				futuresOrder, err = g.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
 			} else {

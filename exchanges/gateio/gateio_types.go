@@ -836,15 +836,6 @@ type DeliveryContract struct {
 	InDelisting         bool         `json:"in_delisting"`
 }
 
-// DeliveryTradingHistory represents futures trading history
-type DeliveryTradingHistory struct {
-	ID         int64        `json:"id"`
-	CreateTime types.Time   `json:"create_time"`
-	Contract   string       `json:"contract"`
-	Size       float64      `json:"size"`
-	Price      types.Number `json:"price"`
-}
-
 // OptionUnderlying represents option underlying and it's index price.
 type OptionUnderlying struct {
 	Name       string       `json:"name"`

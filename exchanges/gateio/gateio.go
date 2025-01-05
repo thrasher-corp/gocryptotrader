@@ -2655,7 +2655,7 @@ func (g *Gateio) GetDeliveryOrderbook(ctx context.Context, settle currency.Code,
 }
 
 // GetDeliveryTradingHistory retrieves futures trading history
-func (g *Gateio) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]DeliveryTradingHistory, error) {
+func (g *Gateio) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2676,7 +2676,7 @@ func (g *Gateio) GetDeliveryTradingHistory(ctx context.Context, settle currency.
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	var histories []DeliveryTradingHistory
+	var histories []TradingHistoryItem
 	return histories, g.SendHTTPRequest(ctx, exchange.RestSpot, publicTradingHistoryDeliveryEPL, common.EncodeURLValues(deliveryPath+settle.Item.Lower+"/trades", params), &histories)
 }
 
