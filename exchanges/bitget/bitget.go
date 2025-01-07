@@ -209,6 +209,8 @@ const (
 	bitgetEnsureCoinsConvert       = "ensure-coins-convert"
 	bitgetLTVConvert               = "ltv-convert"
 	bitgetTransferred              = "transfered" // sic
+	bitgetRiskUnit                 = "risk-unit"
+	bitgetBindUID                  = "bind-uid"
 	bitgetLoanOrder                = "loan-order"
 	bitgetRepaidHistory            = "repaid-history"
 
@@ -637,12 +639,13 @@ func (bi *Bitget) GetFuturesRatios(ctx context.Context, pair currency.Pair, peri
 }
 
 // GetSpotFundFlows returns information on volumes and buy/sell ratios for whales, dolphins, and fish for a particular pair
-func (bi *Bitget) GetSpotFundFlows(ctx context.Context, pair currency.Pair) (*FundFlowResp, error) {
+func (bi *Bitget) GetSpotFundFlows(ctx context.Context, pair currency.Pair, period string) (*FundFlowResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
+	vals.Set("period", period)
 	path := bitgetSpot + bitgetMarket + bitgetFundFlow
 	var resp struct {
 		FundFlowResp `json:"data"`
@@ -729,7 +732,7 @@ func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, new
 }
 
 // CreateSubaccountAndAPIKey creates a subaccounts and an API key. Every account can have up to 20 sub-accounts, and every API key can have up to 10 API keys. The name of the sub-account must be exactly 8 English letters. The passphrase of the API key must be 8-32 letters and/or numbers. The label must be 20 or fewer characters. A maximum of 30 IPs can be a part of the whitelist.
-func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName, passphrase, label string, whiteList, permList []string) ([]CrSubAccAPIKeyResp, error) {
+func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName, passphrase, label string, allowedIPList, permList []string) ([]CrSubAccAPIKeyResp, error) {
 	if subaccountName == "" {
 		return nil, errSubaccountEmpty
 	}
@@ -737,7 +740,7 @@ func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName,
 		"subAccountName": subaccountName,
 		"passphrase":     passphrase,
 		"label":          label,
-		"ipList":         whiteList,
+		"ipList":         allowedIPList,
 		"permList":       permList,
 	}
 	var resp struct {
@@ -760,7 +763,7 @@ func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination i
 	var resp struct {
 		GetVirSubResp `json:"data"`
 	}
-	return &resp.GetVirSubResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate2, http.MethodGet, path, vals, nil, &resp)
+	return &resp.GetVirSubResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // CreateAPIKey creates an API key for the selected virtual sub-account
@@ -908,9 +911,8 @@ func (bi *Bitget) CommitConversion(ctx context.Context, fromCurrency, toCurrency
 		return nil, errPriceEmpty
 	}
 	req := map[string]any{
-		// Double-check whether functionality would actually be weird if they weren't stringed
-		"fromCoin":     fromCurrency.String(),
-		"toCoin":       toCurrency.String(),
+		"fromCoin":     fromCurrency,
+		"toCoin":       toCurrency,
 		"traceId":      traceID,
 		"fromCoinSize": strconv.FormatFloat(fromAmount, 'f', -1, 64),
 		"toCoinSize":   strconv.FormatFloat(toAmount, 'f', -1, 64),
@@ -919,7 +921,7 @@ func (bi *Bitget) CommitConversion(ctx context.Context, fromCurrency, toCurrency
 	var resp struct {
 		CommitConvResp `json:"data"`
 	}
-	return &resp.CommitConvResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, bitgetConvert+bitgetTrade, nil, req, &resp)
+	return &resp.CommitConvResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, bitgetConvert+bitgetTrade, nil, req, &resp)
 }
 
 // GetConvertHistory returns a list of the user's previous conversions
@@ -958,7 +960,6 @@ func (bi *Bitget) ConvertBGB(ctx context.Context, currencies []currency.Code) ([
 		return nil, errCurrencyEmpty
 	}
 	req := map[string]any{
-		// See whether this breaks and should be reverted back to just strings, or maybe I could just unroll them into strings somewhere
 		"coinList": currencies,
 	}
 	var resp struct {
@@ -1151,7 +1152,7 @@ func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair currency.Pair, side, 
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"side":        side,
 		"orderType":   orderType,
 		"force":       strategy,
@@ -1201,7 +1202,7 @@ func (bi *Bitget) CancelAndPlaceSpotOrder(ctx context.Context, pair currency.Pai
 		return nil, errPriceEmpty
 	}
 	req := map[string]any{
-		"symbol": pair.String(),
+		"symbol": pair,
 		"price":  strconv.FormatFloat(price, 'f', -1, 64),
 		"size":   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
@@ -1235,7 +1236,6 @@ func (bi *Bitget) BatchCancelAndPlaceSpotOrders(ctx context.Context, orders []Re
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		// Check whether this breaks with the pair being changed from a string to a currency.Pair
 		"orderList": orders,
 	}
 	path := bitgetSpot + bitgetTrade + bitgetBatchCancelReplaceOrder
@@ -1254,7 +1254,7 @@ func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair currency.Pair, t
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]any{
-		"symbol":   pair.String(),
+		"symbol":   pair,
 		"tpslType": tpslType,
 	}
 	if orderID != 0 {
@@ -1279,7 +1279,7 @@ func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair currency.Pair, 
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderList": orders,
 	}
 	if multiCurrencyMode {
@@ -1305,7 +1305,7 @@ func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair currency.Pair, mul
 		return nil, errOrderIDEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderList": orderIDs,
 	}
 	if multiCurrencyMode {
@@ -1322,7 +1322,7 @@ func (bi *Bitget) CancelOrdersBySymbol(ctx context.Context, pair currency.Pair) 
 		return "", errPairEmpty
 	}
 	req := map[string]any{
-		"symbol": pair.String(),
+		"symbol": pair,
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCancelSymbolOrder
 	var resp struct {
@@ -1447,7 +1447,7 @@ func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, si
 		return nil, errTriggerTypeEmpty
 	}
 	req := map[string]any{
-		"symbol":       pair.String(),
+		"symbol":       pair,
 		"side":         side,
 		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
 		"orderType":    orderType,
@@ -1640,7 +1640,7 @@ func (bi *Bitget) ModifyDepositAccount(ctx context.Context, accountType string, 
 		return nil, errCurrencyEmpty
 	}
 	req := map[string]any{
-		"coin":        currency.String(),
+		"coin":        currency,
 		"accountType": accountType,
 	}
 	path := bitgetSpot + bitgetWallet + bitgetModifyDepositAccount
@@ -1694,8 +1694,8 @@ func (bi *Bitget) TransferAsset(ctx context.Context, fromType, toType, clientOrd
 		"fromType": fromType,
 		"toType":   toType,
 		"amount":   strconv.FormatFloat(amount, 'f', -1, 64),
-		"coin":     currency.String(),
-		"symbol":   pair.String(),
+		"coin":     currency,
+		"symbol":   pair,
 	}
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
@@ -1749,8 +1749,8 @@ func (bi *Bitget) SubaccountTransfer(ctx context.Context, fromType, toType, clie
 		"fromType": fromType,
 		"toType":   toType,
 		"amount":   strconv.FormatFloat(amount, 'f', -1, 64),
-		"coin":     currency.String(),
-		"symbol":   pair.String(),
+		"coin":     currency,
+		"symbol":   pair,
 		"fromId":   fromID,
 		"toId":     toID,
 	}
@@ -1779,7 +1779,7 @@ func (bi *Bitget) WithdrawFunds(ctx context.Context, currency currency.Code, tra
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"coin":         currency.String(),
+		"coin":         currency,
 		"transferType": transferType,
 		"address":      address,
 		"chain":        chain,
@@ -2366,9 +2366,9 @@ func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, produc
 		return nil, errLeverageEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
-		"marginCoin":  marginCoin.String(),
+		"marginCoin":  marginCoin,
 		"holdSide":    holdSide,
 		"leverage":    strconv.FormatFloat(leverage, 'f', -1, 64),
 	}
@@ -2388,8 +2388,8 @@ func (bi *Bitget) AdjustIsolatedAutoMargin(ctx context.Context, pair currency.Pa
 		return errMarginCoinEmpty
 	}
 	req := map[string]any{
-		"symbol":     pair.String(),
-		"marginCoin": marginCoin.String(),
+		"symbol":     pair,
+		"marginCoin": marginCoin,
 		"holdSide":   holdSide,
 		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
 	}
@@ -2417,9 +2417,9 @@ func (bi *Bitget) AdjustMargin(ctx context.Context, pair currency.Pair, productT
 		return errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
-		"marginCoin":  marginCoin.String(),
+		"marginCoin":  marginCoin,
 		"amount":      strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 	if holdSide != "" {
@@ -2444,9 +2444,9 @@ func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair currency.Pair, prod
 		return nil, errMarginModeEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
-		"marginCoin":  marginCoin.String(),
+		"marginCoin":  marginCoin,
 		"marginMode":  marginMode,
 	}
 	path := bitgetMix + bitgetAccount + bitgetSetMarginMode
@@ -2617,10 +2617,10 @@ func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, pro
 		return nil, errLimitPriceEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
 		"marginMode":  marginMode,
-		"marginCoin":  marginCoin.String(),
+		"marginCoin":  marginCoin,
 		"side":        side,
 		"tradeSide":   tradeSide,
 		"orderType":   orderType,
@@ -2666,8 +2666,8 @@ func (bi *Bitget) PlaceReversal(ctx context.Context, pair currency.Pair, marginC
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
-		"marginCoin":  marginCoin.String(),
+		"symbol":      pair,
+		"marginCoin":  marginCoin,
 		"productType": productType,
 		"side":        side,
 		"tradeSide":   tradeSide,
@@ -2706,9 +2706,9 @@ func (bi *Bitget) BatchPlaceFuturesOrders(ctx context.Context, pair currency.Pai
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
-		"marginCoin":  marginCoin.String(),
+		"marginCoin":  marginCoin,
 		"marginMode":  marginMode,
 		"orderList":   orders,
 	}
@@ -2736,7 +2736,7 @@ func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientO
 		return nil, errNewClientOrderIDEmpty
 	}
 	req := map[string]any{
-		"symbol":                    pair.String(),
+		"symbol":                    pair,
 		"productType":               productType,
 		"newClientOid":              newClientOrderID,
 		"newPresetStopSurplusPrice": strconv.FormatFloat(newTakeProfit, 'f', -1, 64),
@@ -2773,7 +2773,7 @@ func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair currency.Pair, pr
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
 	}
 	if clientOrderID != "" {
@@ -2783,7 +2783,7 @@ func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair currency.Pair, pr
 		req["orderId"] = orderID
 	}
 	if !marginCoin.IsEmpty() {
-		req["marginCoin"] = marginCoin.String()
+		req["marginCoin"] = marginCoin
 	}
 	path := bitgetMix + bitgetOrder + bitgetCancelOrder
 	var resp struct {
@@ -2798,12 +2798,12 @@ func (bi *Bitget) BatchCancelFuturesOrders(ctx context.Context, orderIDs []Order
 		return nil, errProductTypeEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"productType": productType,
 		"orderList":   orderIDs,
 	}
 	if marginCoin.IsEmpty() {
-		req["marginCoin"] = marginCoin.String()
+		req["marginCoin"] = marginCoin
 	}
 	path := bitgetMix + bitgetOrder + bitgetBatchCancelOrders
 	var resp *BatchOrderResp
@@ -2816,7 +2816,7 @@ func (bi *Bitget) FlashClosePosition(ctx context.Context, pair currency.Pair, ho
 		return nil, errProductTypeEmpty
 	}
 	req := map[string]any{
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"holdSide":    holdSide,
 		"productType": productType,
 	}
@@ -2974,12 +2974,12 @@ func (bi *Bitget) CancelAllFuturesOrders(ctx context.Context, pair currency.Pair
 	}
 	req := map[string]any{
 		"productType":   productType,
-		"symbol":        pair.String(),
+		"symbol":        pair,
 		"requestTime":   time.Now().UnixMilli(),
 		"receiveWindow": time.Unix(0, 0).Add(acceptableDelay).UnixMilli(),
 	}
 	if !marginCoin.IsEmpty() {
-		req["marginCoin"] = marginCoin.String()
+		req["marginCoin"] = marginCoin
 	}
 	path := bitgetMix + bitgetOrder + bitgetCancelAllOrders
 	var resp *BatchOrderResp
@@ -3032,9 +3032,9 @@ func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"marginCoin":   marginCoin.String(),
+		"marginCoin":   marginCoin,
 		"productType":  productType,
-		"symbol":       pair.String(),
+		"symbol":       pair,
 		"planType":     planType,
 		"triggerType":  triggerType,
 		"holdSide":     holdSide,
@@ -3096,10 +3096,10 @@ func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, produc
 	}
 	req := map[string]any{
 		"planType":      planType,
-		"symbol":        pair.String(),
+		"symbol":        pair,
 		"productType":   productType,
 		"marginMode":    marginMode,
-		"marginCoin":    marginCoin.String(),
+		"marginCoin":    marginCoin,
 		"triggerType":   triggerType,
 		"side":          side,
 		"tradeSide":     tradeSide,
@@ -3155,9 +3155,9 @@ func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, cli
 	req := map[string]any{
 		"orderId":      orderID,
 		"clientOid":    clientOrderID,
-		"marginCoin":   marginCoin.String(),
+		"marginCoin":   marginCoin,
 		"productType":  productType,
-		"symbol":       pair.String(),
+		"symbol":       pair,
 		"triggerType":  triggerType,
 		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
 		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
@@ -3256,9 +3256,9 @@ func (bi *Bitget) CancelTriggerFuturesOrders(ctx context.Context, orderIDList []
 	req := map[string]any{
 		"productType": productType,
 		"planType":    planType,
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"orderIdList": orderIDList,
-		"marginCoin":  marginCoin.String(),
+		"marginCoin":  marginCoin,
 	}
 	path := bitgetMix + bitgetOrder + bitgetCancelPlanOrder
 	var resp *BatchOrderResp
@@ -3455,7 +3455,7 @@ func (bi *Bitget) CrossBorrow(ctx context.Context, currency currency.Code, clien
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"coin":         currency.String(),
+		"coin":         currency,
 		"borrowAmount": strconv.FormatFloat(amount, 'f', -1, 64),
 		"clientOid":    clientOrderID,
 	}
@@ -3475,7 +3475,7 @@ func (bi *Bitget) CrossRepay(ctx context.Context, currency currency.Code, amount
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"coin":        currency.String(),
+		"coin":        currency,
 		"repayAmount": strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetRepay
@@ -3555,7 +3555,7 @@ func (bi *Bitget) GetCrossTierConfiguration(ctx context.Context, currency curren
 // CrossFlashRepay repays funds for cross margin, with the option to only repay for a particular currency
 func (bi *Bitget) CrossFlashRepay(ctx context.Context, currency currency.Code) (*FlashRepayCross, error) {
 	req := map[string]any{
-		"coin": currency.String(),
+		"coin": currency,
 	}
 	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetFlashRepay
 	var resp struct {
@@ -3600,7 +3600,7 @@ func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair currency.Pair, order
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderType": orderType,
 		"loanType":  loanType,
 		"force":     strategy,
@@ -3630,7 +3630,7 @@ func (bi *Bitget) BatchPlaceCrossOrders(ctx context.Context, pair currency.Pair,
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderList": orders,
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetBatchPlaceOrder
@@ -3647,7 +3647,7 @@ func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair currency.Pair, clie
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]any{
-		"symbol": pair.String(),
+		"symbol": pair,
 	}
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
@@ -3671,7 +3671,7 @@ func (bi *Bitget) BatchCancelCrossOrders(ctx context.Context, pair currency.Pair
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderList": orders,
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetBatchCancelOrder
@@ -3958,8 +3958,8 @@ func (bi *Bitget) IsolatedBorrow(ctx context.Context, pair currency.Pair, curren
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":       pair.String(),
-		"coin":         currency.String(),
+		"symbol":       pair,
+		"coin":         currency,
 		"borrowAmount": strconv.FormatFloat(amount, 'f', -1, 64),
 		"clientOid":    clientOrderID,
 	}
@@ -3982,9 +3982,9 @@ func (bi *Bitget) IsolatedRepay(ctx context.Context, amount float64, currency cu
 		return nil, errPairEmpty
 	}
 	req := map[string]any{
-		"coin":        currency.String(),
+		"coin":        currency,
 		"repayAmount": strconv.FormatFloat(amount, 'f', -1, 64),
-		"symbol":      pair.String(),
+		"symbol":      pair,
 		"clientOid":   clientOrderID,
 	}
 	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetRepay
@@ -4115,7 +4115,7 @@ func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, or
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderType": orderType,
 		"loanType":  loanType,
 		"force":     strategy,
@@ -4145,7 +4145,7 @@ func (bi *Bitget) BatchPlaceIsolatedOrders(ctx context.Context, pair currency.Pa
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderList": orders,
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetBatchPlaceOrder
@@ -4162,7 +4162,7 @@ func (bi *Bitget) CancelIsolatedOrder(ctx context.Context, pair currency.Pair, c
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]any{
-		"symbol": pair.String(),
+		"symbol": pair,
 	}
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
@@ -4186,7 +4186,7 @@ func (bi *Bitget) BatchCancelIsolatedOrders(ctx context.Context, pair currency.P
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair.String(),
+		"symbol":    pair,
 		"orderList": orders,
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetBatchCancelOrder
@@ -4672,8 +4672,8 @@ func (bi *Bitget) BorrowFunds(ctx context.Context, loanCoin, collateralCoin curr
 		return nil, errCollateralLoanMutex
 	}
 	req := map[string]any{
-		"loanCoin":     loanCoin.String(),
-		"pledgeCoin":   collateralCoin.String(),
+		"loanCoin":     loanCoin,
+		"pledgeCoin":   collateralCoin,
 		"daily":        term,
 		"pledgeAmount": strconv.FormatFloat(collateralAmount, 'f', -1, 64),
 		"loanAmount":   strconv.FormatFloat(loanAmount, 'f', -1, 64),
@@ -4770,7 +4770,7 @@ func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amount fl
 	req := map[string]any{
 		"orderId":    orderID,
 		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
-		"pledgeCoin": pledgeCoin.String(),
+		"pledgeCoin": pledgeCoin,
 		"reviseType": reviseType,
 	}
 	path := bitgetEarn + bitgetLoan + bitgetRevisePledge
@@ -4906,12 +4906,14 @@ func (bi *Bitget) GetSpotSymbols(ctx context.Context, productID string) (*SpotSy
 }
 
 // GetLoanToValue returns the loan to value ratio for all loans on the user's account
-func (bi *Bitget) GetLoanToValue(ctx context.Context) (*LoanToValue, error) {
+func (bi *Bitget) GetLoanToValue(ctx context.Context, riskUnitID string) (*LoanToValue, error) {
+	vals := url.Values{}
+	vals.Set("riskUnitId", riskUnitID)
 	path := bitgetSpot + bitgetInsLoan + bitgetLTVConvert
 	var resp struct {
 		LoanToValue `json:"data"`
 	}
-	return &resp.LoanToValue, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, nil, nil, &resp)
+	return &resp.LoanToValue, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetTransferableAmount returns the amount of a currency that can be transferred
@@ -4927,6 +4929,40 @@ func (bi *Bitget) GetTransferableAmount(ctx context.Context, accountID string, c
 		TransferableAmount `json:"data"`
 	}
 	return &resp.TransferableAmount, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetRiskUnit returns the IDs for all risk unit accounts
+func (bi *Bitget) GetRiskUnit(ctx context.Context) ([]string, error) {
+	path := bitgetSpot + bitgetInsLoan + bitgetRiskUnit
+	var resp struct {
+		Data struct {
+			RiskUnitID []string `json:"riskUnitId"`
+		} `json:"data"`
+	}
+	return resp.Data.RiskUnitID, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, nil, nil, &resp)
+}
+
+// SubaccountRiskUnitBinding binds or unbinds the provided subaccount and risk unit
+func (bi *Bitget) SubaccountRiskUnitBinding(ctx context.Context, subaccountID, riskUnitID string, bind bool) ([]string, error) {
+	if subaccountID == "" {
+		return nil, errSubaccountEmpty
+	}
+	req := map[string]any{
+		"uid":        subaccountID,
+		"riskUnitId": riskUnitID,
+	}
+	if bind {
+		req["operate"] = "bind"
+	} else {
+		req["operate"] = "unbind"
+	}
+	path := bitgetSpot + bitgetInsLoan + bitgetBindUID
+	var resp struct {
+		Data struct {
+			RiskUnitID []string `json:"riskUnitId"`
+		} `json:"data"`
+	}
+	return resp.Data.RiskUnitID, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetLoanOrders returns a list of loan orders taken out on the user's account

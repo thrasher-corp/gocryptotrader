@@ -76,6 +76,7 @@ const (
 	skipInsufficientAPIKeysFound       = "insufficient API keys found, skipping"
 	skipInsufficientBalance            = "insufficient balance to place order, skipping"
 	skipInsufficientOrders             = "insufficient orders found, skipping"
+	skipInsufficientRiskUnits          = "insufficient risk units found, skipping"
 	errAPIKeyLimitPartial              = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
 	errCurrentlyHoldingPositionPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"45117","msg":"Currently holding positions or orders, the margin mode cannot be adjusted","requestTime":`
 )
@@ -107,6 +108,7 @@ func TestMain(m *testing.M) {
 		MessageType: websocket.TextMessage,
 		Delay:       time.Second * 25,
 	})
+	bi.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -173,9 +175,6 @@ func TestQueryAnnouncements(t *testing.T) {
 func TestGetTime(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, bi.GetTime)
-	resp, err := bi.GetTime(context.Background())
-	require.NoError(t, err)
-	fmt.Printf("Server time: %s\nComputer time: %s\n", resp.ServerTime.Time(), time.Now())
 }
 
 func TestGetTradeRate(t *testing.T) {
@@ -195,7 +194,7 @@ func TestGetSpotTransactionRecords(t *testing.T) {
 	_, err := bi.GetSpotTransactionRecords(context.Background(), currency.Code{}, time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetSpotTransactionRecords(context.Background(), currency.Code{}, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
+	_, err = bi.GetSpotTransactionRecords(context.Background(), testFiat, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -215,7 +214,7 @@ func TestGetMarginTransactionRecords(t *testing.T) {
 	_, err := bi.GetMarginTransactionRecords(context.Background(), "", currency.Code{}, time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetMarginTransactionRecords(context.Background(), "", currency.Code{}, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
+	_, err = bi.GetMarginTransactionRecords(context.Background(), "", testFiat, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -224,7 +223,7 @@ func TestGetP2PTransactionRecords(t *testing.T) {
 	_, err := bi.GetP2PTransactionRecords(context.Background(), currency.Code{}, time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetP2PTransactionRecords(context.Background(), currency.Code{}, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
+	_, err = bi.GetP2PTransactionRecords(context.Background(), testFiat, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -247,7 +246,7 @@ func TestGetMerchantP2POrders(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	// Can't currently be properly tested due to not knowing any p2p order IDs
-	_, err = bi.GetMerchantP2POrders(context.Background(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 0, 0, 0, "", "", currency.Code{}, currency.Code{})
+	_, err = bi.GetMerchantP2POrders(context.Background(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 1, 0, 0, "", "", testCrypto, currency.Code{})
 	assert.NoError(t, err)
 }
 
@@ -256,7 +255,7 @@ func TestGetMerchantAdvertisementList(t *testing.T) {
 	_, err := bi.GetMerchantAdvertisementList(context.Background(), time.Time{}, time.Time{}, 0, 0, 0, 0, "", "", "", "", currency.Code{}, currency.Code{})
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetMerchantAdvertisementList(context.Background(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 1<<62, 0, 0, "", "sell", "", "", testCrypto, currency.Code{})
+	_, err = bi.GetMerchantAdvertisementList(context.Background(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 1<<62, 0, 0, "", "sell", "", "", testCrypto, currency.USD)
 	assert.NoError(t, err)
 }
 
@@ -321,7 +320,11 @@ func TestGetFuturesRatios(t *testing.T) {
 
 func TestGetSpotFundFlows(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, bi.GetSpotFundFlows, currency.Pair{}, testPair, errPairEmpty, true, false, false)
+	_, err := bi.GetSpotFundFlows(context.Background(), currency.Pair{}, "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := bi.GetSpotFundFlows(context.Background(), testPair, "")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestGetTradeSupportSymbols(t *testing.T) {
@@ -477,6 +480,22 @@ func TestGetQuotedPrice(t *testing.T) {
 	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto, testFiat, 0.1, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestCommitConversion(t *testing.T) {
+	_, err := bi.CommitConversion(context.Background(), currency.Code{}, currency.Code{}, "", 0, 0, 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "", 0, 0, 0)
+	assert.ErrorIs(t, err, errTraceIDEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 0, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 1, 1, 0)
+	assert.ErrorIs(t, err, errPriceEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto, testFiat, testAmount, 0)
+	require.NoError(t, err)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, resp.TraceID, resp.FromCoinSize, resp.ToCoinSize, resp.ConvertPrice)
+	assert.NoError(t, err)
 }
 
 func TestGetConvertHistory(t *testing.T) {
@@ -2239,7 +2258,7 @@ func TestSubscribeSharkFin(t *testing.T) {
 	resp, err := bi.GetSharkFinProducts(context.Background(), testCrypto, 5, 1<<62)
 	require.NoError(t, err)
 	require.NotEmpty(t, resp)
-	_, err = bi.SubscribeSharkFin(context.Background(), resp.ResultList[0].ProductID, resp.ResultList[0].MinAmount)
+	_, err = bi.SubscribeSharkFin(context.Background(), resp.ResultList[0].ProductID, resp.ResultList[0].MinimumAmount)
 	assert.NoError(t, err)
 }
 
@@ -2410,8 +2429,10 @@ func TestGetLoanToValue(t *testing.T) {
 	t.Parallel()
 	// bi.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetLoanToValue(context.Background())
+	_, err := bi.GetLoanToValue(context.Background(), "")
 	assert.NoError(t, err)
+	tarID := riskUnitHelper(t)
+	_, err = bi.GetLoanToValue(context.Background(), tarID)
 }
 
 func TestGetTransferableAmount(t *testing.T) {
@@ -2421,6 +2442,24 @@ func TestGetTransferableAmount(t *testing.T) {
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetTransferableAmount(context.Background(), "", testFiat)
+	assert.NoError(t, err)
+}
+
+func TestGetRiskUnit(t *testing.T) {
+	t.Parallel()
+	// bi.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	testGetNoArgs(t, bi.GetRiskUnit)
+}
+
+func TestSubaccountRiskUnitBinding(t *testing.T) {
+	t.Parallel()
+	_, err := bi.SubaccountRiskUnitBinding(context.Background(), "", "", false)
+	assert.ErrorIs(t, err, errSubaccountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	tarID2 := riskUnitHelper(t)
+	_, err = bi.SubaccountRiskUnitBinding(context.Background(), tarID, tarID2, false)
 	assert.NoError(t, err)
 }
 
@@ -3067,22 +3106,6 @@ func TestModifyOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCommitConversion(t *testing.T) {
-	_, err := bi.CommitConversion(context.Background(), currency.Code{}, currency.Code{}, "", 0, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "", 0, 0, 0)
-	assert.ErrorIs(t, err, errTraceIDEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 0, 0, 0)
-	assert.ErrorIs(t, err, errAmountEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 1, 1, 0)
-	assert.ErrorIs(t, err, errPriceEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto, testFiat, testAmount, 0)
-	require.NoError(t, err)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, resp.TraceID, resp.FromCoinSize, resp.ToCoinSize, resp.ConvertPrice)
-	assert.NoError(t, err)
-}
-
 func TestCancelTriggerFuturesOrders(t *testing.T) {
 	var ordList []OrderIDStruct
 	_, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, currency.Pair{}, "", "", currency.Code{})
@@ -3700,7 +3723,7 @@ func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 }
 
 type getNoArgsResp interface {
-	*TimeResp | *P2PMerInfoResp | []ConvertCoinsResp | []BGBConvertCoinsResp | []VIPFeeRateResp | []SupCurrencyResp | float64 | *SavingsBalance | *SharkFinBalance | *DebtsResp | []AssetOverviewResp | string | *SymbolsResp | []SubaccountAssetsResp | []exchange.FundingHistory
+	*TimeResp | *P2PMerInfoResp | []ConvertCoinsResp | []BGBConvertCoinsResp | []VIPFeeRateResp | []SupCurrencyResp | float64 | *SavingsBalance | *SharkFinBalance | *DebtsResp | []AssetOverviewResp | string | *SymbolsResp | []SubaccountAssetsResp | []exchange.FundingHistory | []string
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
@@ -3909,6 +3932,16 @@ func exchangeBaseHelper(bi *Bitget) error {
 		return err
 	}
 	return nil
+}
+
+func riskUnitHelper(t *testing.T) string {
+	t.Helper()
+	resp, err := bi.GetRiskUnit(context.Background())
+	require.NoError(t, err)
+	if len(resp) == 0 {
+		t.Skip(skipInsufficientRiskUnits)
+	}
+	return resp[0]
 }
 
 func aBenchmarkHelper(a, pag int64) {

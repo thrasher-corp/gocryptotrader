@@ -193,7 +193,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		pairs := make(currency.Pairs, len(resp))
 		var filter int
 		for x := range resp {
-			if resp[x].PricePrecision == 0 && resp[x].QuantityPrecision == 0 && resp[x].QuotePrecision == 0 {
+			if (resp[x].PricePrecision == 0 && resp[x].QuantityPrecision == 0 && resp[x].QuotePrecision == 0) || resp[x].OpenTime.Time().After(time.Now().Add(time.Hour*24*365)) {
 				continue
 			}
 			pair := currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
@@ -350,21 +350,31 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		for x := range tick {
-			p, err := bi.MatchSymbolWithAvailablePairs(tick[x].Symbol, assetType, false)
+		var filter int
+		newTick := make([]TickerResp, len(tick))
+		for i := range tick {
+			if tick[i].Symbol == "BABYBONKUSDT" {
+				continue
+			}
+			newTick[filter] = tick[i]
+			filter++
+		}
+		newTick = newTick[:filter]
+		for x := range newTick {
+			p, err := bi.MatchSymbolWithAvailablePairs(newTick[x].Symbol, assetType, false)
 			if err != nil {
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				High:         tick[x].High24H,
-				Low:          tick[x].Low24H,
-				Bid:          tick[x].BidPrice,
-				Ask:          tick[x].AskPrice,
-				Volume:       tick[x].BaseVolume,
-				QuoteVolume:  tick[x].QuoteVolume,
-				Open:         tick[x].Open,
-				Close:        tick[x].LastPrice,
-				LastUpdated:  tick[x].Timestamp.Time(),
+				High:         newTick[x].High24H,
+				Low:          newTick[x].Low24H,
+				Bid:          newTick[x].BidPrice,
+				Ask:          newTick[x].AskPrice,
+				Volume:       newTick[x].BaseVolume,
+				QuoteVolume:  newTick[x].QuoteVolume,
+				Open:         newTick[x].Open,
+				Close:        newTick[x].LastPrice,
+				LastUpdated:  newTick[x].Timestamp.Time(),
 				Pair:         p,
 				ExchangeName: bi.Name,
 				AssetType:    assetType,
@@ -414,9 +424,15 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		checkSlice := make([]string, len(check))
+		var filter int
 		for i := range check {
-			checkSlice[i] = check[i].Symbol
+			if (check[i].PricePrecision == 0 && check[i].QuantityPrecision == 0 && check[i].QuotePrecision == 0) || check[i].OpenTime.Time().After(time.Now().Add(time.Hour)) {
+				continue
+			}
+			checkSlice[filter] = check[i].Symbol
+			filter++
 		}
+		checkSlice = checkSlice[:filter]
 		for x := range pairs {
 			if !slices.Contains(checkSlice, pairs[x].Symbol) {
 				continue
@@ -1301,10 +1317,10 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.MaxID) {
+				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.MaximumID) {
 					break
 				}
-				pagination = int64(genOrds.MaxID)
+				pagination = int64(genOrds.MaximumID)
 				tempOrds := make([]order.Detail, len(genOrds.OrderList))
 				for i := range genOrds.OrderList {
 					tempOrds[i] = order.Detail{
@@ -1462,10 +1478,10 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if genFills == nil || len(genFills.Fills) == 0 || pagination == int64(genFills.MaxID) {
+				if genFills == nil || len(genFills.Fills) == 0 || pagination == int64(genFills.MaximumID) {
 					break
 				}
-				pagination = int64(genFills.MaxID)
+				pagination = int64(genFills.MaximumID)
 				for i := range genFills.Fills {
 					fillMap[genFills.Fills[i].TradeID] = append(fillMap[genFills.Fills[i].TradeID], order.TradeHistory{
 						TID:       strconv.FormatInt(genFills.Fills[i].TradeID, 10),
@@ -1490,10 +1506,10 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.MaxID) {
+				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.MaximumID) {
 					break
 				}
-				pagination = int64(genOrds.MaxID)
+				pagination = int64(genOrds.MaximumID)
 				tempOrds := make([]order.Detail, len(genOrds.OrderList))
 				for i := range genOrds.OrderList {
 					tempOrds[i] = order.Detail{
@@ -1669,7 +1685,7 @@ func (bi *Bitget) GetFuturesContractDetails(ctx context.Context, _ asset.Item) (
 				Status:      resp[x].SymbolStatus,
 				StartDate:   resp[x].DeliveryStartTime.Time(),
 				EndDate:     resp[x].DeliveryTime.Time(),
-				MaxLeverage: resp[x].MaxLever,
+				MaxLeverage: resp[x].MaximumLeverage,
 			}
 			set := make(currency.Currencies, len(resp[x].SupportMarginCoins))
 			for y := range resp[x].SupportMarginCoins {
@@ -1732,9 +1748,9 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				PriceStepIncrementSize:  math.Pow10(-int(resp[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(resp[i].QuantityPrecision)),
 				QuoteStepIncrementSize:  math.Pow10(-int(resp[i].QuotePrecision)),
-				MinNotional:             resp[i].MinTradeUSDT,
-				MarketMinQty:            resp[i].MinTradeAmount,
-				MarketMaxQty:            resp[i].MaxTradeAmount,
+				MinNotional:             resp[i].MinimumTradeUSDT,
+				MarketMinQty:            resp[i].MinimumTradeAmount,
+				MarketMaxQty:            resp[i].MaximumTradeAmount,
 			}
 		}
 	case asset.Futures:
@@ -1748,8 +1764,8 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				tempResp[x] = order.MinMaxLevel{
 					Asset:          a,
 					Pair:           currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin),
-					MinNotional:    resp[x].MinTradeUSDT,
-					MaxTotalOrders: resp[x].MaxSymbolOpenOrderNum,
+					MinNotional:    resp[x].MinimumTradeUSDT,
+					MaxTotalOrders: resp[x].MaximumSymbolOpenOrderNumber,
 				}
 			}
 			limits = append(limits, tempResp...)
@@ -1764,9 +1780,9 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			limits[i] = order.MinMaxLevel{
 				Asset:                   a,
 				Pair:                    currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin),
-				MinNotional:             resp[i].MinTradeUSDT,
-				MarketMinQty:            resp[i].MinTradeAmount,
-				MarketMaxQty:            resp[i].MaxTradeAmount,
+				MinNotional:             resp[i].MinimumTradeUSDT,
+				MarketMinQty:            resp[i].MinimumTradeAmount,
+				MarketMaxQty:            resp[i].MaximumTradeAmount,
 				QuoteStepIncrementSize:  math.Pow10(-int(resp[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(resp[i].QuantityPrecision)),
 			}
@@ -1842,10 +1858,10 @@ loop:
 			if err != nil {
 				return nil, err
 			}
-			if resp == nil || len(resp.ResultList) == 0 || pagination == int64(resp.MaxID) {
+			if resp == nil || len(resp.ResultList) == 0 || pagination == int64(resp.MaximumID) {
 				break loop
 			}
-			pagination = int64(resp.MaxID)
+			pagination = int64(resp.MaximumID)
 			for i := range resp.ResultList {
 				rates.Rates = append(rates.Rates, margin.Rate{
 					DailyBorrowRate: decimal.NewFromFloat(resp.ResultList[i].DailyInterestRate),
@@ -1857,10 +1873,10 @@ loop:
 			if err != nil {
 				return nil, err
 			}
-			if resp == nil || len(resp.ResultList) == 0 || pagination == int64(resp.MaxID) {
+			if resp == nil || len(resp.ResultList) == 0 || pagination == int64(resp.MaximumID) {
 				break loop
 			}
-			pagination = int64(resp.MaxID)
+			pagination = int64(resp.MaximumID)
 			for i := range resp.ResultList {
 				rates.Rates = append(rates.Rates, margin.Rate{
 					DailyBorrowRate: decimal.NewFromFloat(resp.ResultList[i].DailyInterestRate),
@@ -2077,9 +2093,9 @@ func (bi *Bitget) GetLeverage(ctx context.Context, a asset.Item, p currency.Pair
 		case margin.Isolated:
 			switch s {
 			case order.Buy, order.Long:
-				lev = resp.IsolatedLongLever
+				lev = resp.IsolatedLongLeverage
 			case order.Sell, order.Short:
-				lev = resp.IsolatedShortLever
+				lev = resp.IsolatedShortLeverage
 			default:
 				return lev, order.ErrSideIsInvalid
 			}

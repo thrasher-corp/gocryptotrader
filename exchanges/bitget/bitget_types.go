@@ -83,7 +83,6 @@ type MerchantList struct {
 	RegisterTime        types.Time `json:"registerTime"`
 	NickName            string     `json:"nickName"`
 	IsOnline            string     `json:"isOnline"`
-	MerchantID          int64      `json:"merchantId,string"`
 	AvgPaymentTime      int64      `json:"avgPaymentTime,string"`
 	AvgReleaseTime      int64      `json:"avgReleaseTime,string"`
 	TotalTrades         int64      `json:"totalTrades,string"`
@@ -98,8 +97,8 @@ type MerchantList struct {
 
 // P2PMerResp holds information on P2P merchant lists
 type P2PMerListResp struct {
-	MerchantList  []MerchantList `json:"merchantList"`
-	MinMerchantID int64          `json:"minMerchantId,string"`
+	MerchantList      []MerchantList `json:"merchantList"`
+	MinimumMerchantID int64          `json:"minMerchantId,string"`
 }
 
 // YesNoBool is a type used to unmarshal strings that are either "yes" or "no" into bools
@@ -167,18 +166,18 @@ type P2POrderList struct {
 
 // P2POrdersResp holds information on P2P orders
 type P2POrdersResp struct {
-	OrderList  []P2POrderList `json:"orderList"`
-	MinOrderID int64          `json:"minOrderId,string"`
+	OrderList      []P2POrderList `json:"orderList"`
+	MinimumOrderID int64          `json:"minOrderId,string"`
 }
 
 // UserLimitList is a sub-struct holding information on P2P user limits
 type UserLimitList struct {
-	MinCompleteNum     int64     `json:"minCompleteNum,string"`
-	MaxCompleteNum     int64     `json:"maxCompleteNum,string"`
-	PlaceOrderNum      int64     `json:"placeOrderNum,string"`
-	AllowMerchantPlace YesNoBool `json:"allowMerchantPlace"`
-	CompleteRate30D    float64   `json:"completeRate30d,string"`
-	Country            string    `json:"country"`
+	MinimumOrderQuantity int64     `json:"minCompleteNum,string"`
+	MaximumOrderQuantity int64     `json:"maxCompleteNum,string"`
+	PlaceOrderNumber     int64     `json:"placeOrderNum,string"`
+	AllowMerchantPlace   YesNoBool `json:"allowMerchantPlace"`
+	CompleteRate30D      float64   `json:"completeRate30d,string"`
+	Country              string    `json:"country"`
 }
 
 // ReqNameType is a sub-struct holding information on P2P payment methods
@@ -203,10 +202,10 @@ type MerchantCertifiedList struct {
 
 // AdvertisementList is a sub-struct holding information on P2P advertisements
 type AdvertisementList struct {
-	AdID                  int64                   `json:"adId,string"`
-	AdvNum                int64                   `json:"advNo,string"`
+	AdvertisementID       int64                   `json:"advId,string"`
+	AdvertisementNumber   int64                   `json:"advNo,string"`
 	Side                  string                  `json:"side"`
-	AdSize                float64                 `json:"adSize,string"`
+	AdvertisementSize     float64                 `json:"adSize,string"`
 	Size                  float64                 `json:"size,string"`
 	CryptoCurrency        currency.Code           `json:"coin"`
 	Price                 float64                 `json:"price,string"`
@@ -216,10 +215,10 @@ type AdvertisementList struct {
 	FiatSymbol            string                  `json:"fiatSymbol"`
 	Status                string                  `json:"status"`
 	Hide                  YesNoBool               `json:"hide"`
-	MaxTradeAmount        float64                 `json:"maxTradeAmount,string"`
-	MinTradeAmount        float64                 `json:"minTradeAmount,string"`
+	MaximumOrderQuantity  float64                 `json:"maxTradeAmount,string"`
+	MinimumOrderQuantity  float64                 `json:"minTradeAmount,string"`
 	PayDuration           int64                   `json:"payDuration,string"`
-	TurnoverNum           int64                   `json:"turnoverNum,string"`
+	TurnoverNumber        int64                   `json:"turnoverNum,string"`
 	TurnoverRate          float64                 `json:"turnoverRate,string"`
 	Label                 string                  `json:"label"`
 	CreationTime          types.Time              `json:"ctime"`
@@ -231,8 +230,8 @@ type AdvertisementList struct {
 
 // P2PAdListResp holds information on P2P advertisements
 type P2PAdListResp struct {
-	AdvertisementList  []AdvertisementList `json:"advList"`
-	MinAdvertisementID int64               `json:"minAdvId,string"`
+	AdvertisementList      []AdvertisementList `json:"advList"`
+	MinimumAdvertisementID int64               `json:"minAdvId,string"`
 }
 
 // WhaleNetFlowResp holds information on whale trading volumes
@@ -416,10 +415,10 @@ type AssetOverviewResp struct {
 
 // ConvertCoinsResp contains information on the user's available currencies
 type ConvertCoinsResp struct {
-	Coin      currency.Code `json:"coin"`
-	Available float64       `json:"available,string"`
-	MaxAmount float64       `json:"maxAmount,string"`
-	MinAmount float64       `json:"minAmount,string"`
+	Coin          currency.Code `json:"coin"`
+	Available     float64       `json:"available,string"`
+	MaximumAmount float64       `json:"maxAmount,string"`
+	MinimumAmount float64       `json:"minAmount,string"`
 }
 
 // QuotedPriceResp contains information on a queried conversion
@@ -504,21 +503,21 @@ type BGBConvHistResp struct {
 
 // ChainInfo is a sub-struct containing information on supported chains for a currency
 type ChainInfo struct {
-	Chain                string  `json:"chain"`
-	NeedTag              bool    `json:"needTag,string"`
-	Withdrawable         bool    `json:"withdrawable,string"`
-	Rechargeable         bool    `json:"rechargeable,string"`
-	WithdrawFee          float64 `json:"withdrawFee,string"`
-	ExtraWithdrawFee     float64 `json:"extraWithdrawFee,string"`
-	DepositConfirm       uint16  `json:"depositConfirm,string"`
-	WithdrawConfirm      uint16  `json:"withdrawConfirm,string"`
-	MinDepositAmount     float64 `json:"minDepositAmount,string"`
-	MinWithdrawAmount    float64 `json:"minWithdrawAmount,string"`
-	BrowserURL           string  `json:"browserUrl"`
-	ContractAddress      string  `json:"contractAddress"`
-	WithdrawStep         uint8   `json:"withdrawStep,string"`
-	WithdrawMinimumScale uint8   `json:"withdrawMinimumScale,string"`
-	Congestion           string  `json:"congestion"`
+	Chain                 string  `json:"chain"`
+	NeedTag               bool    `json:"needTag,string"`
+	Withdrawable          bool    `json:"withdrawable,string"`
+	Rechargeable          bool    `json:"rechargeable,string"`
+	WithdrawFee           float64 `json:"withdrawFee,string"`
+	ExtraWithdrawFee      float64 `json:"extraWithdrawFee,string"`
+	DepositConfirm        uint16  `json:"depositConfirm,string"`
+	WithdrawConfirm       uint16  `json:"withdrawConfirm,string"`
+	MinimumDepositAmount  float64 `json:"minDepositAmount,string"`
+	MinimumWithdrawAmount float64 `json:"minWithdrawAmount,string"`
+	BrowserURL            string  `json:"browserUrl"`
+	ContractAddress       string  `json:"contractAddress"`
+	WithdrawStep          uint8   `json:"withdrawStep,string"`
+	WithdrawMinimumScale  uint8   `json:"withdrawMinimumScale,string"`
+	Congestion            string  `json:"congestion"`
 }
 
 // CoinInfoResp contains information on supported spot currencies
@@ -534,17 +533,20 @@ type SymbolInfoResp struct {
 	Symbol              string        `json:"symbol"`
 	BaseCoin            currency.Code `json:"baseCoin"`
 	QuoteCoin           currency.Code `json:"quoteCoin"`
-	MinTradeAmount      float64       `json:"minTradeAmount,string"`
-	MaxTradeAmount      float64       `json:"maxTradeAmount,string"`
+	MinimumTradeAmount  float64       `json:"minTradeAmount,string"`
+	MaximumTradeAmount  float64       `json:"maxTradeAmount,string"`
 	TakerFeeRate        float64       `json:"takerFeeRate,string"`
 	MakerFeeRate        float64       `json:"makerFeeRate,string"`
 	PricePrecision      uint8         `json:"pricePrecision,string"`
 	QuantityPrecision   uint8         `json:"quantityPrecision,string"`
 	QuotePrecision      uint8         `json:"quotePrecision,string"`
-	MinTradeUSDT        float64       `json:"minTradeUSDT,string"`
+	MinimumTradeUSDT    float64       `json:"minTradeUSDT,string"`
 	Status              string        `json:"status"`
 	BuyLimitPriceRatio  types.Number  `json:"buyLimitPriceRatio"`
 	SellLimitPriceRatio types.Number  `json:"sellLimitPriceRatio"`
+	AreaSymbol          YesNoBool     `json:"areaSymbol"`
+	OrderQuantity       uint16        `json:"orderQuantity,string"`
+	OpenTime            types.Time    `json:"openTime"`
 }
 
 // VIPFeeRateResp contains information on the different levels of VIP fee rates
@@ -555,8 +557,8 @@ type VIPFeeRateResp struct {
 	TakerFeeRate float64 `json:"takerFeeRate,string"`
 	MakerFeeRate float64 `json:"makerFeeRate,string"`
 	// 24-hour withdrawal limits
-	BTCWithdrawAmount float64 `json:"btcWithdrawAmount,string"`
-	USDWithdrawAmount float64 `json:"usdWithdrawAmount,string"`
+	BTCWithdrawAmount  float64 `json:"btcWithdrawAmount,string"`
+	USDTWithdrawAmount float64 `json:"usdtWithdrawAmount,string"`
 }
 
 // TickerResp contains information on tickers
@@ -642,6 +644,7 @@ type MarketFillsResp struct {
 
 // PlaceOrderStruct contains information on an order to be placed
 type PlaceSpotOrderStruct struct {
+	// Symbol needs to be included, despite it being absent in the documentation, or the exchange will return an error
 	Pair                   currency.Pair `json:"symbol"`
 	Side                   string        `json:"side"`
 	OrderType              string        `json:"orderType"`
@@ -745,22 +748,28 @@ type SpotOrderDetailData struct {
 
 // UnfilledOrdersResp contains information on the user's unfilled orders
 type UnfilledOrdersResp struct {
-	UserID           uint64     `json:"userId,string"`
-	Symbol           string     `json:"symbol"`
-	OrderID          EmptyInt   `json:"orderId"`
-	ClientOrderID    string     `json:"clientOid"`
-	PriceAverage     float64    `json:"priceAvg,string"`
-	Size             float64    `json:"size,string"`
-	OrderType        string     `json:"orderType"`
-	Side             string     `json:"side"`
-	Status           string     `json:"status"`
-	BasePrice        float64    `json:"basePrice,string"`
-	BaseVolume       float64    `json:"baseVolume,string"`
-	QuoteVolume      float64    `json:"quoteVolume,string"`
-	EnterPointSource string     `json:"enterPointSource"`
-	OrderSource      string     `json:"orderSource"`
-	CreationTime     types.Time `json:"cTime"`
-	UpdateTime       types.Time `json:"uTime"`
+	UserID                 uint64     `json:"userId,string"`
+	Symbol                 string     `json:"symbol"`
+	OrderID                EmptyInt   `json:"orderId"`
+	ClientOrderID          string     `json:"clientOid"`
+	PriceAverage           float64    `json:"priceAvg,string"`
+	Size                   float64    `json:"size,string"`
+	OrderType              string     `json:"orderType"`
+	Side                   string     `json:"side"`
+	Status                 string     `json:"status"`
+	BasePrice              float64    `json:"basePrice,string"`
+	BaseVolume             float64    `json:"baseVolume,string"`
+	QuoteVolume            float64    `json:"quoteVolume,string"`
+	EnterPointSource       string     `json:"enterPointSource"`
+	OrderSource            string     `json:"orderSource"`
+	PresetTakeProfitPrice  float64    `json:"presetTakeProfitPrice,string"`
+	ExecuteTakeProfitPrice float64    `json:"executeTakeProfitPrice,string"`
+	PresetStopLossPrice    float64    `json:"presetStopLossPrice,string"`
+	ExecuteStopLossPrice   float64    `json:"executeStopLossPrice,string"`
+	CreationTime           types.Time `json:"cTime"`
+	UpdateTime             types.Time `json:"uTime"`
+	TriggerType            string     `json:"triggerType"`
+	TPSLType               string     `json:"tpslType"`
 }
 
 // AbridgedFeeDetail contains some information on fees
@@ -1066,38 +1075,38 @@ type FundingCurrentResp struct {
 
 // ContractConfigResp contains information on contract details
 type ContractConfigResp struct {
-	Symbol                string        `json:"symbol"`
-	BaseCoin              currency.Code `json:"baseCoin"`
-	QuoteCoin             currency.Code `json:"quoteCoin"`
-	BuyLimitPriceRatio    float64       `json:"buyLimitPriceRatio,string"`
-	SellLimitPriceRatio   float64       `json:"sellLimitPriceRatio,string"`
-	FeeRateUpRatio        float64       `json:"feeRateUpRatio,string"`
-	MakerFeeRate          float64       `json:"makerFeeRate,string"`
-	TakerFeeRate          float64       `json:"takerFeeRate,string"`
-	OpenCostUpRatio       float64       `json:"openCostUpRatio,string"`
-	SupportMarginCoins    []string      `json:"supportMarginCoins"`
-	MinTradeNum           float64       `json:"minTradeNum,string"`
-	PriceEndStep          float64       `json:"priceEndStep,string"`
-	VolumePlace           float64       `json:"volumePlace,string"`
-	PricePlace            float64       `json:"pricePlace,string"`
-	SizeMultiplier        float64       `json:"sizeMultiplier,string"`
-	SymbolType            string        `json:"symbolType"`
-	MinTradeUSDT          float64       `json:"minTradeUSDT,string"`
-	MaxSymbolOrderNum     int64         `json:"maxSymbolOrderNum,string"`
-	MaxSymbolOpenOrderNum int64         `json:"maxSymbolOpenOrderNum,string"`
-	MaxPositionNum        int64         `json:"maxPositionNum,string"`
-	SymbolStatus          string        `json:"symbolStatus"`
-	OffTime               int64         `json:"offTime,string"`
-	LimitOpenTime         int64         `json:"limitOpenTime,string"`
-	DeliveryTime          types.Time    `json:"deliveryTime"`
-	DeliveryStartTime     types.Time    `json:"deliveryStartTime"`
-	DeliveryPeriod        string        `json:"deliveryPeriod"`
-	LaunchTime            types.Time    `json:"launchTime"`
-	FundInterval          EmptyInt      `json:"fundInterval"`
-	MinLever              float64       `json:"minLever,string"`
-	MaxLever              float64       `json:"maxLever,string"`
-	PosLimit              float64       `json:"posLimit,string"`
-	MaintainTime          types.Time    `json:"maintainTime"`
+	Symbol                       string        `json:"symbol"`
+	BaseCoin                     currency.Code `json:"baseCoin"`
+	QuoteCoin                    currency.Code `json:"quoteCoin"`
+	BuyLimitPriceRatio           float64       `json:"buyLimitPriceRatio,string"`
+	SellLimitPriceRatio          float64       `json:"sellLimitPriceRatio,string"`
+	FeeRateUpRatio               float64       `json:"feeRateUpRatio,string"`
+	MakerFeeRate                 float64       `json:"makerFeeRate,string"`
+	TakerFeeRate                 float64       `json:"takerFeeRate,string"`
+	OpenCostUpRatio              float64       `json:"openCostUpRatio,string"`
+	SupportMarginCoins           []string      `json:"supportMarginCoins"`
+	MinimumTradeNumber           float64       `json:"minTradeNum,string"`
+	PriceEndStep                 float64       `json:"priceEndStep,string"`
+	VolumePlace                  float64       `json:"volumePlace,string"`
+	PricePlace                   float64       `json:"pricePlace,string"`
+	SizeMultiplier               float64       `json:"sizeMultiplier,string"`
+	SymbolType                   string        `json:"symbolType"`
+	MinimumTradeUSDT             float64       `json:"minTradeUSDT,string"`
+	MaximumSymbolOrderNumber     int64         `json:"maxSymbolOrderNum,string"`
+	MaximumSymbolOpenOrderNumber int64         `json:"maxSymbolOpenOrderNum,string"`
+	MaximumPositionNumber        int64         `json:"maxPositionNum,string"`
+	SymbolStatus                 string        `json:"symbolStatus"`
+	OffTime                      int64         `json:"offTime,string"`
+	LimitOpenTime                int64         `json:"limitOpenTime,string"`
+	DeliveryTime                 types.Time    `json:"deliveryTime"`
+	DeliveryStartTime            types.Time    `json:"deliveryStartTime"`
+	DeliveryPeriod               string        `json:"deliveryPeriod"`
+	LaunchTime                   types.Time    `json:"launchTime"`
+	FundInterval                 EmptyInt      `json:"fundInterval"`
+	MinimumLeverage              float64       `json:"minLever,string"`
+	MaximumLeverage              float64       `json:"maxLever,string"`
+	PosLimit                     float64       `json:"posLimit,string"`
+	MaintainTime                 types.Time    `json:"maintainTime"`
 }
 
 // OneAccResp contains information on a single account
@@ -1107,14 +1116,14 @@ type OneAccResp struct {
 	Available             float64       `json:"available,string"`
 	CrossedMaxAvailable   float64       `json:"crossedMaxAvailable,string"`
 	IsolatedMaxAvailable  float64       `json:"isolatedMaxAvailable,string"`
-	MaxTransferOut        float64       `json:"maxTransferOut,string"`
+	MaximumTransferOut    float64       `json:"maxTransferOut,string"`
 	AccountEquity         float64       `json:"accountEquity,string"`
 	USDTEquity            float64       `json:"usdtEquity,string"`
 	BTCEquity             float64       `json:"btcEquity,string"`
 	CrossedRiskRate       float64       `json:"crossedRiskRate,string"`
 	CrossedMarginleverage float64       `json:"crossedMarginleverage"`
-	IsolatedLongLever     float64       `json:"isolatedLongLever"`
-	IsolatedShortLever    float64       `json:"isolatedShortLever"`
+	IsolatedLongLeverage  float64       `json:"isolatedLongLever"`
+	IsolatedShortLeverage float64       `json:"isolatedShortLever"`
 	MarginMode            string        `json:"marginMode"`
 	PositionMode          string        `json:"posMode"`
 	UnrealizedPL          types.Number  `json:"unrealizedPL"`
@@ -1130,7 +1139,7 @@ type FutureAccDetails struct {
 	Available            float64       `json:"available,string"`
 	CrossedMaxAvailable  float64       `json:"crossedMaxAvailable,string"`
 	IsolatedMaxAvailable float64       `json:"isolatedMaxAvailable,string"`
-	MaxTransferOut       float64       `json:"maxTransferOut,string"`
+	MaximumTransferOut   float64       `json:"maxTransferOut,string"`
 	AccountEquity        float64       `json:"accountEquity,string"`
 	USDTEquity           float64       `json:"usdtEquity,string"`
 	BTCEquity            float64       `json:"btcEquity,string"`
@@ -1414,17 +1423,17 @@ type SupCurrencyResp struct {
 	Symbol                    string        `json:"symbol"`
 	BaseCoin                  currency.Code `json:"baseCoin"`
 	QuoteCoin                 currency.Code `json:"quoteCoin"`
-	MaxCrossedLeverage        float64       `json:"maxCrossedLeverage,string"`
-	MaxIsolatedLeverage       float64       `json:"maxIsolatedLeverage,string"`
+	MaximumCrossedLeverage    float64       `json:"maxCrossedLeverage,string"`
+	MaximumIsolatedLeverage   float64       `json:"maxIsolatedLeverage,string"`
 	WarningRiskRatio          float64       `json:"warningRiskRatio,string"`
 	LiquidationRiskRatio      float64       `json:"liquidationRiskRatio,string"`
-	MinTradeAmount            float64       `json:"minTradeAmount,string"`
-	MaxTradeAmount            float64       `json:"maxTradeAmount,string"`
+	MinimumTradeAmount        float64       `json:"minTradeAmount,string"`
+	MaximumTradeAmount        float64       `json:"maxTradeAmount,string"`
 	TakerFeeRate              float64       `json:"takerFeeRate,string"`
 	MakerFeeRate              float64       `json:"makerFeeRate,string"`
 	PricePrecision            uint8         `json:"pricePrecision,string"`
 	QuantityPrecision         uint8         `json:"quantityPrecision,string"`
-	MinTradeUSDT              float64       `json:"minTradeUSDT,string"`
+	MinimumTradeUSDT          float64       `json:"minTradeUSDT,string"`
 	IsBorrowable              bool          `json:"isBorrowable"`
 	UserMinBorrow             float64       `json:"userMinBorrow,string"`
 	Status                    string        `json:"status"`
@@ -1446,8 +1455,8 @@ type CrossBorrow struct {
 // BorrowHistCross contains information on borrowing history for cross margin
 type BorrowHistCross struct {
 	ResultList []CrossBorrow `json:"resultList"`
-	MaxID      EmptyInt      `json:"maxId"`
-	MinID      EmptyInt      `json:"minId"`
+	MaximumID  EmptyInt      `json:"maxId"`
+	MinimumID  EmptyInt      `json:"minId"`
 }
 
 // Repayment is a sub-struct containing information on repayment
@@ -1465,8 +1474,8 @@ type Repayment struct {
 // RepayHistResp contains information on repayment history
 type RepayHistResp struct {
 	ResultList []Repayment `json:"resultList"`
-	MaxID      EmptyInt    `json:"maxId"`
-	MinID      EmptyInt    `json:"minId"`
+	MaximumID  EmptyInt    `json:"maxId"`
+	MinimumID  EmptyInt    `json:"minId"`
 }
 
 // CrossInterest is a sub-struct containing information on interest for cross margin
@@ -1483,8 +1492,8 @@ type CrossInterest struct {
 
 // InterHistCross contains information on interest history for cross margin
 type InterHistCross struct {
-	MinID      EmptyInt        `json:"minId"`
-	MaxID      EmptyInt        `json:"maxId"`
+	MinimumID  EmptyInt        `json:"minId"`
+	MaximumID  EmptyInt        `json:"maxId"`
 	ResultList []CrossInterest `json:"resultList"`
 }
 
@@ -1503,8 +1512,8 @@ type CrossLiquidation struct {
 
 // LiquidHistCross contains information on liquidation history for cross margin
 type LiquidHistCross struct {
-	MinID      EmptyInt           `json:"minId"`
-	MaxID      EmptyInt           `json:"maxId"`
+	MinimumID  EmptyInt           `json:"minId"`
+	MaximumID  EmptyInt           `json:"maxId"`
 	ResultList []CrossLiquidation `json:"resultList"`
 }
 
@@ -1522,8 +1531,8 @@ type CrossFinHist struct {
 
 // FinHistCrossResp contains information on financial history for cross margin
 type FinHistCrossResp struct {
-	MinID      EmptyInt       `json:"minId"`
-	MaxID      EmptyInt       `json:"maxId"`
+	MinimumID  EmptyInt       `json:"minId"`
+	MaximumID  EmptyInt       `json:"maxId"`
 	ResultList []CrossFinHist `json:"resultList"`
 }
 
@@ -1558,14 +1567,14 @@ type RepayCross struct {
 
 // MaxBorrowCross contains information on the maximum amount that can be borrowed for cross margin
 type MaxBorrowCross struct {
-	Coin                currency.Code `json:"coin"`
-	MaxBorrowableAmount float64       `json:"maxBorrowableAmount,string"`
+	Coin                    currency.Code `json:"coin"`
+	MaximumBorrowableAmount float64       `json:"maxBorrowableAmount,string"`
 }
 
 // MaxTransferCross contains information on the maximum amount that can be transferred out of cross margin
 type MaxTransferCross struct {
-	Coin                 currency.Code `json:"coin"`
-	MaxTransferOutAmount float64       `json:"maxTransferOutAmount,string"`
+	Coin                     currency.Code `json:"coin"`
+	MaximumTransferOutAmount float64       `json:"maxTransferOutAmount,string"`
 }
 
 // VIPInfo is a sub-struct containing information on VIP levels
@@ -1580,23 +1589,23 @@ type VIPInfo struct {
 // IntRateMaxBorrowCross contains information on the interest rate and the maximum amount that can be borrowed for
 // cross margin
 type IntRateMaxBorrowCross struct {
-	Transferable        bool          `json:"transferable"`
-	Leverage            float64       `json:"leverage,string"`
-	Coin                currency.Code `json:"coin"`
-	Borrowable          bool          `json:"borrowable"`
-	DailyInterestRate   float64       `json:"dailyInterestRate,string"`
-	AnnualInterestRate  float64       `json:"annualInterestRate,string"`
-	MaxBorrowableAmount float64       `json:"maxBorrowableAmount,string"`
-	VIPList             []VIPInfo     `json:"vipList"`
+	Transferable            bool          `json:"transferable"`
+	Leverage                float64       `json:"leverage,string"`
+	Coin                    currency.Code `json:"coin"`
+	Borrowable              bool          `json:"borrowable"`
+	DailyInterestRate       float64       `json:"dailyInterestRate,string"`
+	AnnualInterestRate      float64       `json:"annualInterestRate,string"`
+	MaximumBorrowableAmount float64       `json:"maxBorrowableAmount,string"`
+	VIPList                 []VIPInfo     `json:"vipList"`
 }
 
 // TierConfigCross contains information on tier configurations for cross margin
 type TierConfigCross struct {
-	Tier                int64         `json:"tier,string"`
-	Leverage            float64       `json:"leverage,string"`
-	Coin                currency.Code `json:"coin"`
-	MaxBorrowableAmount float64       `json:"maxBorrowableAmount,string"`
-	MaintainMarginRate  float64       `json:"maintainMarginRate,string"`
+	Tier                    int64         `json:"tier,string"`
+	Leverage                float64       `json:"leverage,string"`
+	Coin                    currency.Code `json:"coin"`
+	MaximumBorrowableAmount float64       `json:"maxBorrowableAmount,string"`
+	MaintainMarginRate      float64       `json:"maintainMarginRate,string"`
 }
 
 // FlashRepayCross contains information on a flash repayment for cross margin
@@ -1646,8 +1655,8 @@ type MarginOrder struct {
 // MarginOpenOrds contains information on open margin orders
 type MarginOpenOrds struct {
 	OrderList []MarginOrder `json:"orderList"`
-	MaxID     EmptyInt      `json:"maxId"`
-	MinID     EmptyInt      `json:"minId"`
+	MaximumID EmptyInt      `json:"maxId"`
+	MinimumID EmptyInt      `json:"minId"`
 }
 
 // MarginOrdWithAveragePrice is a sub-struct containing information on a margin order with an average price
@@ -1674,8 +1683,8 @@ type MarginOrdWithAveragePrice struct {
 // MarginHistOrds contains information on historical margin orders
 type MarginHistOrds struct {
 	OrderList []MarginOrdWithAveragePrice `json:"orderList"`
-	MaxID     EmptyInt                    `json:"maxId"`
-	MinID     EmptyInt                    `json:"minId"`
+	MaximumID EmptyInt                    `json:"maxId"`
+	MinimumID EmptyInt                    `json:"minId"`
 }
 
 // MarginFill is a sub-struct containing information on fulfilled margin orders
@@ -1695,9 +1704,9 @@ type MarginFill struct {
 
 // MarginOrderFills contains information on fulfilled margin orders
 type MarginOrderFills struct {
-	Fills []MarginFill `json:"fills"`
-	MaxID EmptyInt     `json:"maxId"`
-	MinID EmptyInt     `json:"minId"`
+	Fills     []MarginFill `json:"fills"`
+	MaximumID EmptyInt     `json:"maxId"`
+	MinimumID EmptyInt     `json:"minId"`
 }
 
 // LiquidationOrder is a sub-struct containing information on liquidation orders
@@ -1739,8 +1748,8 @@ type IsoBorrow struct {
 // BorrowHistIso contains information on borrowing history for isolated margin
 type BorrowHistIso struct {
 	ResultList []IsoBorrow `json:"resultList"`
-	MaxID      EmptyInt    `json:"maxId"`
-	MinID      EmptyInt    `json:"minId"`
+	MaximumID  EmptyInt    `json:"maxId"`
+	MinimumID  EmptyInt    `json:"minId"`
 }
 
 // IsoInterest is a sub-struct containing information on interest for isolated margin
@@ -1758,8 +1767,8 @@ type IsoInterest struct {
 
 // InterHistIso contains information on interest history for isolated margin
 type InterHistIso struct {
-	MinID      EmptyInt      `json:"minId"`
-	MaxID      EmptyInt      `json:"maxId"`
+	MinimumID  EmptyInt      `json:"minId"`
+	MaximumID  EmptyInt      `json:"maxId"`
 	ResultList []IsoInterest `json:"resultList"`
 }
 
@@ -1779,8 +1788,8 @@ type IsoLiquidation struct {
 
 // LiquidHistIso contains information on liquidation history for isolated margin
 type LiquidHistIso struct {
-	MinID      EmptyInt         `json:"minId"`
-	MaxID      EmptyInt         `json:"maxId"`
+	MinimumID  EmptyInt         `json:"minId"`
+	MaximumID  EmptyInt         `json:"maxId"`
 	ResultList []IsoLiquidation `json:"resultList"`
 }
 
@@ -1799,8 +1808,8 @@ type IsoFinHist struct {
 
 // FinHistIsoResp contains information on financial history for isolated margin
 type FinHistIsoResp struct {
-	MinID      EmptyInt     `json:"minId"`
-	MaxID      EmptyInt     `json:"maxId"`
+	MinimumID  EmptyInt     `json:"minId"`
+	MaximumID  EmptyInt     `json:"maxId"`
 	ResultList []IsoFinHist `json:"resultList"`
 }
 
@@ -1911,10 +1920,10 @@ type FlashRepayIso struct {
 }
 
 type APY struct {
-	RateLevel    int64   `json:"rateLevel,string"`
-	MinStepValue float64 `json:"minStepVal,string"`
-	MaxStepValue float64 `json:"maxStepVal,string"`
-	CurrentAPY   float64 `json:"currentAPY,string"`
+	RateLevel        int64   `json:"rateLevel,string"`
+	MinimumStepValue float64 `json:"minStepVal,string"`
+	MaximumStepValue float64 `json:"maxStepVal,string"`
+	CurrentAPY       float64 `json:"currentAPY,string"`
 }
 
 // SavingsProductList contains information on savings products
@@ -2033,7 +2042,7 @@ type SharKFinProduct struct {
 	Period            EmptyInt      `json:"period"`
 	InterestStartTime types.Time    `json:"interestStartTime"`
 	Status            string        `json:"status"`
-	MinAmount         float64       `json:"minAmount,string"`
+	MinimumAmount     float64       `json:"minAmount,string"`
 	LimitAmount       float64       `json:"limitAmount,string"`
 	SoldAmount        float64       `json:"soldAmount,string"`
 	EndTime           types.Time    `json:"endTime"`
@@ -2091,12 +2100,12 @@ type SharkFinSubDetail struct {
 	SubscribeCoin      currency.Code `json:"subscribeCoin"`
 	InterestTime       types.Time    `json:"interestTime"`
 	ExpirationTime     types.Time    `json:"expirationTime"`
-	MinPrice           float64       `json:"minPrice,string"`
+	MinimumPrice       float64       `json:"minPrice,string"`
 	CurrentPrice       float64       `json:"currentPrice,string"`
-	MaxPrice           float64       `json:"maxPrice,string"`
-	MinRate            float64       `json:"minRate,string"`
+	MaximumPrice       float64       `json:"maxPrice,string"`
+	MinimumRate        float64       `json:"minRate,string"`
 	DefaultRate        float64       `json:"defaultRate,string"`
-	MaxRate            float64       `json:"maxRate,string"`
+	MaximumRate        float64       `json:"maxRate,string"`
 	Period             EmptyInt      `json:"period"`
 	ProductMinAmount   float64       `json:"productMinAmount,string"`
 	AvailableBalance   float64       `json:"availableBalance,string"`
@@ -2113,10 +2122,10 @@ type LoanInfos struct {
 	Rate7Day        float64       `json:"rate7D,string"`
 	HourlyRate30Day float64       `json:"hourRate30D,string"`
 	Rate30Day       float64       `json:"rate30D,string"`
-	MinUSDT         float64       `json:"minUsdt,string"`
-	MaxUSDT         float64       `json:"maxUsdt,string"`
-	Min             float64       `json:"min,string"`
-	Max             float64       `json:"max,string"`
+	MinimumUSDT     float64       `json:"minUsdt,string"`
+	MaximumUSDT     float64       `json:"maxUsdt,string"`
+	Minimum         float64       `json:"min,string"`
+	Maximum         float64       `json:"max,string"`
 }
 
 // PledgeInfos is a sub-struct containing information on pledges
@@ -2125,8 +2134,8 @@ type PledgeInfos struct {
 	InitialRate       float64       `json:"initRate,string"`
 	SupplementaryRate float64       `json:"supRate,string"`
 	ForceRate         float64       `json:"forceRate,string"`
-	MinUSDT           float64       `json:"minUsdt,string"`
-	MaxUSDT           float64       `json:"maxUsdt,string"`
+	MinimumUSDT       float64       `json:"minUsdt,string"`
+	MaximumUSDT       float64       `json:"maxUsdt,string"`
 }
 
 // LoanCurList contains information on currencies which can be loaned
@@ -2256,9 +2265,9 @@ type LoanInfo struct {
 
 // CoinConverts contains information on coin conversion ratios
 type CoinConverts struct {
-	Coin            currency.Code `json:"coin"`
-	ConvertRatio    float64       `json:"convertRatio,string"`
-	MaxConvertValue float64       `json:"maxConvertValue,string"`
+	Coin                currency.Code `json:"coin"`
+	ConvertRatio        float64       `json:"convertRatio,string"`
+	MaximumConvertValue float64       `json:"maxConvertValue,string"`
 }
 
 // MarginCoinRatio contains information on margin coin conversion ratios
@@ -2484,13 +2493,13 @@ type WsTriggerOrderSpotResponse struct {
 
 // WsAccountFuturesResponse contains information on an account response for futures trading
 type WsAccountFuturesResponse struct {
-	MarginCoin               currency.Code `json:"marginCoin"`
-	Frozen                   float64       `json:"frozen,string"`
-	Available                float64       `json:"available,string"`
-	MaxOpenPositionAvailable float64       `json:"maxOpenPositionAvailable,string"`
-	MaxTransferOut           float64       `json:"maxTransferOut,string"`
-	Equity                   float64       `json:"equity,string"`
-	USDTEquity               float64       `json:"usdtEquity,string"`
+	MarginCoin                   currency.Code `json:"marginCoin"`
+	Frozen                       float64       `json:"frozen,string"`
+	Available                    float64       `json:"available,string"`
+	MaximumOpenPositionAvailable float64       `json:"maxOpenPositionAvailable,string"`
+	MaximumTransferOut           float64       `json:"maxTransferOut,string"`
+	Equity                       float64       `json:"equity,string"`
+	USDTEquity                   float64       `json:"usdtEquity,string"`
 }
 
 // WsPositionResponse contains information on a position response
