@@ -31,8 +31,8 @@ func TestMain(m *testing.M) {
 	}
 
 	if b.API.AuthenticatedSupport {
-		if err := b.RetrieveAndSetAccountType(context.Background()); err != nil {
-			log.Printf("%s unable to RetrieveAndSetAccountType: %v", b.Name, err)
+		if _, err := b.FetchAccountType(context.Background()); err != nil {
+			log.Printf("%s unable to FetchAccountType: %v", b.Name, err)
 		}
 	}
 
