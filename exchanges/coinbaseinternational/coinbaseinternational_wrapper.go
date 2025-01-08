@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -29,28 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (co *CoinbaseInternational) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	co.SetDefaults()
-	exchCfg, err := co.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = co.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if co.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := co.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for CoinbaseInternational
 func (co *CoinbaseInternational) SetDefaults() {
@@ -197,6 +176,7 @@ func (co *CoinbaseInternational) FetchTradablePairs(ctx context.Context, a asset
 		} else if a == asset.Futures && instruments[x].Type != "PERP" {
 			continue
 		}
+		instruments[x].TradingState = strings.ToUpper(instruments[x].TradingState)
 		if instruments[x].TradingState != "TRADING" {
 			continue
 		}

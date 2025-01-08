@@ -28,7 +28,7 @@ type AssetInfoWithSupportedNetwork struct {
 	MinWithdrawalAmount types.Number `json:"min_withdrawal_amt"`
 	MaxWithdrawalAmount types.Number `json:"max_withdrawal_amt"`
 	NetworkConfirms     int64        `json:"network_confirms"`
-	ProcessingTime      int64        `json:"processing_time"`
+	ProcessingTime      types.Time   `json:"processing_time"`
 	IsDefault           bool         `json:"is_default"`
 }
 
