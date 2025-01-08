@@ -456,17 +456,20 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 		if err != nil {
 			return fmt.Errorf("%w 'chanId': %w from message: %s", errParsingWSField, err, respRaw)
 		}
-		if !b.Websocket.Match.IncomingWithData("unsubscribe:"+chanID, respRaw) {
-			return fmt.Errorf("%w: unsubscribe:%v", stream.ErrNoMessageListener, chanID)
+		err = b.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
+		if err != nil {
+			return fmt.Errorf("%w: unsubscribe:%v", err, chanID)
 		}
 	case wsEventError:
 		if subID, err := jsonparser.GetUnsafeString(respRaw, "subId"); err == nil {
-			if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
-				return fmt.Errorf("%w: subscribe:%v", stream.ErrNoMessageListener, subID)
+			err = b.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
+			if err != nil {
+				return fmt.Errorf("%w: subscribe:%v", err, subID)
 			}
 		} else if chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId"); err == nil {
-			if !b.Websocket.Match.IncomingWithData("unsubscribe:"+chanID, respRaw) {
-				return fmt.Errorf("%w: unsubscribe:%v", stream.ErrNoMessageListener, chanID)
+			err = b.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
+			if err != nil {
+				return fmt.Errorf("%w: unsubscribe:%v", err, chanID)
 			}
 		} else {
 			return fmt.Errorf("unknown channel error; Message: %s", respRaw)
@@ -531,17 +534,16 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	c.Key = int(chanID)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	if err := b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, c); err != nil {
+	err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, c)
+	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, err, subID)
 	}
 
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Pairs, chanID)
 	}
-	if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
-		return fmt.Errorf("%w: subscribe:%v", stream.ErrNoMessageListener, subID)
-	}
-	return nil
+
+	return b.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
 
 func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, eventType string, d []interface{}) error {

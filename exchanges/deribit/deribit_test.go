@@ -25,9 +25,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -3266,11 +3268,82 @@ func setupWs() {
 	}
 }
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	result, err := d.GenerateDefaultSubscriptions()
+
+	d := new(Deribit) //nolint:govet // Intentional lexical scope shadow
+	require.NoError(t, testexch.Setup(d), "Test instance Setup must not error")
+
+	d.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := d.generateSubscriptions()
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	exp := subscription.List{}
+	for _, s := range d.Features.Subscriptions {
+		for _, a := range d.GetAssetTypes(true) {
+			if !d.IsAssetWebsocketSupported(a) {
+				continue
+			}
+			pairs, err := d.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if isSymbolChannel(s) {
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = channelName(s) + "." + p.String()
+					if s.Interval != 0 {
+						s.QualifiedChannel += "." + channelInterval(s)
+					}
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s.Pairs = pairs
+				s.QualifiedChannel = channelName(s)
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestChannelInterval(t *testing.T) {
+	t.Parallel()
+
+	for _, i := range []int64{1, 3, 5, 10, 15, 30, 60, 120, 180, 360, 720} {
+		a := channelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.Interval(i * int64(time.Minute))})
+		assert.Equal(t, strconv.Itoa(int(i)), a)
+	}
+
+	a := channelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay})
+	assert.Equal(t, "1D", a)
+
+	assert.Panics(t, func() {
+		channelInterval(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth})
+	})
+
+	a = channelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds})
+	assert.Equal(t, "agg2", a, "1 second should expand to agg2")
+
+	a = channelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
+	assert.Equal(t, "100ms", a, "100ms should expand correctly")
+
+	a = channelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Raw})
+	assert.Equal(t, "raw", a, "raw should expand correctly")
+
+	assert.Panics(t, func() {
+		channelInterval(&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMonth})
+	})
+
+	a = channelInterval(&subscription.Subscription{Channel: userAccessLogChannel})
+	assert.Empty(t, a, "Anything else should return empty")
+}
+
+func TestChannelName(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, tickerChannel, channelName(&subscription.Subscription{Channel: subscription.TickerChannel}))
+	assert.Equal(t, userLockChannel, channelName(&subscription.Subscription{Channel: userLockChannel}))
+	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: "wibble"}) }, "Unknown channels should panic")
 }
 
 func TestFetchTicker(t *testing.T) {
@@ -3681,18 +3754,15 @@ func TestFormatFuturesTradablePair(t *testing.T) {
 
 func TestOptionPairToString(t *testing.T) {
 	t.Parallel()
-	optionsList := map[currency.Pair]string{
+	for pair, exp := range map[currency.Pair]string{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("30MAY24-61000-C")}:      "BTC-30MAY24-61000-C",
 		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("1JUN24-3200-P")}:        "ETH-1JUN24-3200-P",
 		{Delimiter: currency.DashDelimiter, Base: currency.SOL, Quote: currency.NewCode("USDC-31MAY24-162-P")}:   "SOL_USDC-31MAY24-162-P",
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6APR24-0d98-P")}: "MATIC_USDC-6APR24-0d98-P",
-	}
-	for pair, instrumentID := range optionsList {
-		t.Run(instrumentID, func(t *testing.T) {
-			t.Parallel()
-			instrument := d.optionPairToString(pair)
-			require.Equal(t, instrumentID, instrument)
-		})
+		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-8JUN24-0D99-P")}: "MATIC_USDC-8JUN24-0d99-P",
+		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6DEC29-0D87-C")}: "MATIC_USDC-6DEC29-0d87-C",
+	} {
+		assert.Equal(t, exp, d.optionPairToString(pair), "optionPairToString should return correctly")
 	}
 }
 
