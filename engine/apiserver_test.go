@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
@@ -269,9 +270,16 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	var responseConfig config.Config
 	err = json.Unmarshal(body, &responseConfig)
 	assert.NoError(t, err, "Unmarshal should not error")
-	for _, e := range responseConfig.Exchanges {
+	for i, e := range responseConfig.Exchanges {
 		err = e.CurrencyPairs.SetDelimitersFromConfig()
 		assert.NoError(t, err, "SetDelimitersFromConfig should not error")
+		// Using require here makes it much easier to isolate differences per-exchange than below
+		// We look into pointers separately
+		for a, p := range e.CurrencyPairs.Pairs {
+			require.Equalf(t, c.Exchanges[i].CurrencyPairs.Pairs[a], p, "%s exchange Config CurrencyManager Pairs for asset %s must match api response", e.Name, a)
+		}
+		require.Equalf(t, c.Exchanges[i].CurrencyPairs, e.CurrencyPairs, "%s exchange Config CurrencyManager must match api response", e.Name)
+		require.Equalf(t, c.Exchanges[i], e, "%s exchange Config must match api response", e.Name) // require here makes it much easier to isolate differences than below
 	}
 	assert.Equal(t, c, responseConfig, "Config should match api response")
 }

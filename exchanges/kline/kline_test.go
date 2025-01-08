@@ -143,9 +143,9 @@ func TestKlineDuration(t *testing.T) {
 
 func TestKlineShort(t *testing.T) {
 	t.Parallel()
-	if OneDay.Short() != "24h" {
-		t.Fatalf("unexpected result: %v", OneDay.Short())
-	}
+	assert.Equal(t, "24h", OneDay.Short(), "One day should show as 24h")
+	assert.Equal(t, "1h", OneHour.Short(), "One hour should truncate 0m0s suffix")
+	assert.Equal(t, "raw", Raw.Short(), "Raw should return raw")
 }
 
 func TestDurationToWord(t *testing.T) {
@@ -1403,16 +1403,15 @@ func TestGetIntervalResultLimit(t *testing.T) {
 }
 
 func TestUnmarshalJSON(t *testing.T) {
-	i := new(Interval)
-	err := i.UnmarshalJSON([]byte(`"3m"`))
-	assert.NoError(t, err, "UnmarshalJSON should not error")
-	assert.Equal(t, time.Minute*3, i.Duration(), "Interval should have correct value")
-	err = i.UnmarshalJSON([]byte(`"15s"`))
-	assert.NoError(t, err, "UnmarshalJSON should not error")
-	assert.Equal(t, time.Second*15, i.Duration(), "Interval should have correct value")
-	err = i.UnmarshalJSON([]byte(`720000000000`))
-	assert.NoError(t, err, "UnmarshalJSON should not error")
-	assert.Equal(t, time.Minute*12, i.Duration(), "Interval should have correct value")
-	err = i.UnmarshalJSON([]byte(`"6hedgehogs"`))
+	t.Parallel()
+	var i Interval
+	for _, tt := range []struct {
+		in  string
+		exp Interval
+	}{{`"3m"`, ThreeMin}, {`"15s"`, FifteenSecond}, {`720000000000`, OneMin * 12}, {`"-1ns"`, Raw}, {`"raw"`, Raw}} {
+		err := i.UnmarshalJSON([]byte(tt.in))
+		assert.NoErrorf(t, err, "UnmarshalJSON should not error on %q", tt.in)
+	}
+	err := i.UnmarshalJSON([]byte(`"6hedgehogs"`))
 	assert.ErrorContains(t, err, "unknown unit", "UnmarshalJSON should error")
 }

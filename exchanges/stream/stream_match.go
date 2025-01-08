@@ -2,8 +2,12 @@ package stream
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
+
+// ErrSignatureNotMatched is returned when a signature does not match a request
+var ErrSignatureNotMatched = errors.New("websocket response to request signature not matched")
 
 var (
 	errSignatureCollision = errors.New("signature collision")
@@ -45,6 +49,15 @@ func (m *Match) IncomingWithData(signature any, data []byte) bool {
 		delete(m.m, signature)
 	}
 	return true
+}
+
+// RequireMatchWithData validates that incoming data matches a request's signature.
+// If a match is found, the data is processed; otherwise, it returns an error.
+func (m *Match) RequireMatchWithData(signature any, data []byte) error {
+	if m.IncomingWithData(signature, data) {
+		return nil
+	}
+	return fmt.Errorf("'%v' %w with data %v", signature, ErrSignatureNotMatched, string(data))
 }
 
 // Set the signature response channel for incoming data
