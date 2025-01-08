@@ -690,10 +690,12 @@ func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, symbol, side, client
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, privateCreateOTCOrder, params, &resp)
 }
 
+var intervalMap = map[kline.Interval]string{
+	kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.FourHour: "4h",
+	kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.SevenDay: "7D", kline.TwoWeek: "14D", kline.OneMonth: "1M"}
+
 // intervalToString returns a string representation of interval.
 func intervalToString(interval kline.Interval) (string, error) {
-	intervalMap := map[kline.Interval]string{
-		kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.FourHour: "4h", kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.SevenDay: "7D", kline.TwoWeek: "14D", kline.OneMonth: "1M"}
 	intervalString, okay := intervalMap[interval]
 	if !okay {
 		return "", fmt.Errorf("%v interval:%v", kline.ErrUnsupportedInterval, interval)
@@ -729,8 +731,6 @@ func (cr *Cryptodotcom) CreateStaking(ctx context.Context, symbol string, quanti
 	var resp *StakingResp
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/stake", params, &resp)
 }
-
-//
 
 // Unstake create a request to unlock staked token.
 func (cr *Cryptodotcom) Unstake(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {

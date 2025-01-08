@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -27,26 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (cr *Cryptodotcom) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	cr.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = cr.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = cr.BaseCurrencies
-	err := cr.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if cr.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := cr.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Cryptodotcom
 func (cr *Cryptodotcom) SetDefaults() {
@@ -202,42 +181,6 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Cryptodotcom go routine
-func (cr *Cryptodotcom) Start(_ context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		cr.Run()
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Cryptodotcom wrapper
-func (cr *Cryptodotcom) Run() {
-	if cr.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			cr.Name,
-			common.IsEnabled(cr.Websocket.IsEnabled()))
-		cr.PrintEnabledPairs()
-	}
-
-	if !cr.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := cr.UpdateTradablePairs(context.TODO(), false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			cr.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
