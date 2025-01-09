@@ -59,16 +59,16 @@ func TestPromptForConfigKey(t *testing.T) {
 
 func TestEncryptConfigFile(t *testing.T) {
 	t.Parallel()
-	_, err := EncryptConfigFile([]byte("test"), nil)
+	_, err := EncryptConfigData([]byte("test"), nil)
 	require.ErrorIs(t, err, errKeyIsEmpty)
 
 	c := &Config{
 		sessionDK: []byte("a"),
 	}
-	_, err = c.encryptConfigFile([]byte(`test`))
+	_, err = c.encryptConfigData([]byte(`test`))
 	require.ErrorIs(t, err, ErrSettingEncryptConfig)
 
-	_, err = c.encryptConfigFile([]byte(`{"test":1}`))
+	_, err = c.encryptConfigData([]byte(`{"test":1}`))
 	require.Error(t, err)
 	require.IsType(t, aes.KeySizeError(1), err)
 
@@ -79,13 +79,13 @@ func TestEncryptConfigFile(t *testing.T) {
 		sessionDK:  sessDk,
 		storedSalt: salt,
 	}
-	_, err = c.encryptConfigFile([]byte(`{"test":1}`))
+	_, err = c.encryptConfigData([]byte(`{"test":1}`))
 	require.NoError(t, err)
 }
 
 func TestDecryptConfigFile(t *testing.T) {
 	t.Parallel()
-	e, err := EncryptConfigFile([]byte(`{"test":1}`), []byte("key"))
+	e, err := EncryptConfigData([]byte(`{"test":1}`), []byte("key"))
 	require.NoError(t, err)
 
 	d, err := DecryptConfigData(e, []byte("key"))
