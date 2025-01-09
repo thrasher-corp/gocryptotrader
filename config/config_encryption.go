@@ -135,8 +135,8 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	return appendedFile, nil
 }
 
-// DecryptConfigFile decrypts config data with a key
-func DecryptConfigFile(d, key []byte) ([]byte, error) {
+// DecryptConfigData decrypts config data with a key
+func DecryptConfigData(d, key []byte) ([]byte, error) {
 	return (&Config{}).decryptConfigData(d, key)
 }
 
