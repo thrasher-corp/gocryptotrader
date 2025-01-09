@@ -1603,7 +1603,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 			}
 			c.sessionDK, c.storedSalt = sessionDK, storedSalt
 		}
-		payload, err = c.encryptConfigFile(payload)
+		payload, err = c.encryptConfigData(payload)
 		if err != nil {
 			return err
 		}
