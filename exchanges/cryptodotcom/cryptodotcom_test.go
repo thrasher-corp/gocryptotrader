@@ -133,6 +133,19 @@ func TestGetTrades(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetValuations(t *testing.T) {
+	t.Parallel()
+	_, err := cr.GetValuations(context.Background(), "", "index_price", 0, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = cr.GetValuations(context.Background(), tradablePair.String(), "", 0, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errValuationTypeUnset)
+
+	result, err := cr.GetValuations(context.Background(), "BTCUSD-INDEX", "index_price", 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestWithdrawFunds(t *testing.T) {
 	t.Parallel()
 	_, err := cr.WithdrawFunds(context.Background(), currency.EMPTYCODE, 10, core.BitcoinDonationAddress, "", "", "")

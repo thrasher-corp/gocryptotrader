@@ -22,6 +22,7 @@ var (
 	errAddressRequired                 = errors.New("address is required")
 	errInvalidRate                     = errors.New("invalid rate")
 	errInvalidSlippageToleraceBPs      = errors.New("invalid slippage tolerance base points")
+	errValuationTypeUnset              = errors.New("valuation type unset")
 )
 
 // Instrument represents an details.
@@ -387,7 +388,7 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	params := make(map[string]interface{})
 	params["instrument_name"] = arg.Symbol
 	params["side"] = arg.Side.String()
-	params["type"] = arg.OrderType
+	params["type"] = OrderTypeToString(arg.OrderType)
 	params["price"] = arg.Price
 	if arg.Quantity > 0 {
 		params["quantity"] = arg.Quantity
@@ -821,15 +822,15 @@ type StakingRequestsResponse struct {
 
 // StakingDetail represents a stake/unstake request detail
 type StakingDetail struct {
-	InstrumentName     string `json:"instrument_name"`
-	UnderlyingInstName string `json:"underlying_inst_name"`
-	CycleID            string `json:"cycle_id"`
-	StakingID          string `json:"staking_id"`
-	Status             string `json:"status"`
-	Account            string `json:"account"`
-	Quantity           string `json:"quantity"`
-	Side               string `json:"side"`
-	CreateTimestampMs  string `json:"create_timestamp_ms"`
+	InstrumentName     string       `json:"instrument_name"`
+	UnderlyingInstName string       `json:"underlying_inst_name"`
+	CycleID            string       `json:"cycle_id"`
+	StakingID          string       `json:"staking_id"`
+	Status             string       `json:"status"`
+	Account            string       `json:"account"`
+	Quantity           types.Number `json:"quantity"`
+	Side               string       `json:"side"`
+	CreateTimestampMs  types.Time   `json:"create_timestamp_ms"`
 }
 
 // StakingRewardHistory represents a staking reward history

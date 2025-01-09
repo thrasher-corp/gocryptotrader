@@ -37,12 +37,8 @@ const (
 	cryptodotcomWebsocketMarketAPI = "wss://stream.crypto.com/v2/market"
 
 	// Public endpoints
-	publicAuth        = "public/auth"
-	publicInstruments = "public/get-instruments"
-	publicOrderbook   = "public/get-book"
-	publicCandlestick = "public/get-candlestick"
-	publicTickers     = "public/get-ticker"
-	publicTrades      = "public/get-trades"
+	publicAuth    = "public/auth"
+	publicTickers = "public/get-ticker"
 
 	// Authenticated endpoints
 	privateSetCancelOnDisconnect = "private/set-cancel-on-disconnect"
@@ -64,10 +60,8 @@ const (
 	// Wallet management API
 	privateWithdrawal = "private/create-withdrawal"
 
-	privateGetCurrencyNetworks = "private/get-currency-networks"
-	privateGetDepositAddress   = "private/get-deposit-address"
-	privateGetAccounts         = "private/get-accounts"
-	privateCreateSubAccount    = "private/create-subaccount-transfer"
+	privateGetAccounts      = "private/get-accounts"
+	privateCreateSubAccount = "private/create-subaccount-transfer"
 
 	// OTC Trading API
 	privateGetOTCUser         = "private/otc/get-otc-user"
@@ -80,7 +74,6 @@ const (
 	privateCreateOTCOrder = "private/otc/create-order"
 
 	privateGetWithdrawalHistory = "private/get-withdrawal-history"
-	privateGetDepositHistory    = "private/get-deposit-history"
 
 	// Spot Trading API
 	privateGetAccountSummary = "private/get-account-summary"
@@ -95,14 +88,7 @@ func (cr *Cryptodotcom) GetRiskParameters(ctx context.Context) (*SmartCrossMargi
 // GetInstruments provides information on all supported instruments
 func (cr *Cryptodotcom) GetInstruments(ctx context.Context) (*InstrumentList, error) {
 	var resp *InstrumentList
-	err := cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, publicInstrumentsRate, &resp)
-	switch {
-	case err != nil:
-		return nil, err
-	case resp == nil:
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, "public/get-instruments", publicInstrumentsRate, &resp)
 }
 
 // GetOrderbook retches the public order book for a particular instrument and depth.
@@ -115,7 +101,7 @@ func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, symbol string, depth i
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
 	var resp *OrderbookDetail
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicOrderbook, params), publicOrderbookRate, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-book", params), publicOrderbookRate, &resp)
 }
 
 func checkInstrumentName(symbol string) (url.Values, error) {
@@ -137,7 +123,7 @@ func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, symbol string,
 		params.Set("timeframe", intervalString)
 	}
 	var resp *CandlestickDetail
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicCandlestick, params), publicCandlestickRate, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-candlestick", params), publicCandlestickRate, &resp)
 }
 
 // GetTickers fetches the public tickers for an instrument.
@@ -157,7 +143,34 @@ func (cr *Cryptodotcom) GetTrades(ctx context.Context, symbol string) (*TradesRe
 		return nil, err
 	}
 	var resp *TradesResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTrades, params), publicTradesRate, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-trades", params), publicTradesRate, &resp)
+}
+
+// GetValuations fetches certain valuation type data for a particular instrument.
+// Valuation type possible values: index_price, mark_price, funding_hist, funding_rate, and estimated_funding_rate
+func (cr *Cryptodotcom) GetValuations(ctx context.Context, symbol, valuationType string, count int64, startTimestamp, endTimestamp time.Time) (*InstrumentValuation, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if valuationType == "" {
+		return nil, errValuationTypeUnset
+	}
+	params := url.Values{}
+	params.Set("instrument_name", symbol)
+	params.Set("valuation_type", valuationType)
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !startTimestamp.IsZero() && !endTimestamp.IsZero() {
+		err := common.StartEndTimeCheck(startTimestamp, endTimestamp)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("start_ts", strconv.FormatInt(startTimestamp.UnixMilli(), 10))
+		params.Set("end_ts", strconv.FormatInt(endTimestamp.UnixMilli(), 10))
+	}
+	var resp *InstrumentValuation
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-valuations", params), request.UnAuth, &resp)
 }
 
 // Private endpoints
@@ -195,7 +208,7 @@ func (cr *Cryptodotcom) WithdrawFunds(ctx context.Context, ccy currency.Code, am
 // GetCurrencyNetworks retrieves the symbol network mapping.
 func (cr *Cryptodotcom) GetCurrencyNetworks(ctx context.Context) (*CurrencyNetworkResponse, error) {
 	var resp *CurrencyNetworkResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetCurrencyNetworksRate, privateGetCurrencyNetworks, nil, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetCurrencyNetworksRate, "private/get-currency-networks", nil, &resp)
 }
 
 // GetWithdrawalHistory retrieves accounts withdrawal history.
@@ -228,7 +241,7 @@ func (cr *Cryptodotcom) GetDepositHistory(ctx context.Context, ccy currency.Code
 		params["status"] = status
 	}
 	var resp *DepositResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetDepositHistoryRate, privateGetDepositHistory, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetDepositHistoryRate, "private/get-deposit-history", params, &resp)
 }
 
 // GetPersonalDepositAddress fetches deposit address. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Keys, this feature is not yet available for you.
@@ -239,7 +252,7 @@ func (cr *Cryptodotcom) GetPersonalDepositAddress(ctx context.Context, ccy curre
 	params := make(map[string]interface{})
 	params["currency"] = ccy.String()
 	var resp *DepositAddresses
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, privateGetDepositAddress, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, "private/get-deposit-address", params, &resp)
 }
 
 // CreateExportRequest creates a new export
