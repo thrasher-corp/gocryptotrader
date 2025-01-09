@@ -88,17 +88,17 @@ func TestDecryptConfigFile(t *testing.T) {
 	e, err := EncryptConfigFile([]byte(`{"test":1}`), []byte("key"))
 	require.NoError(t, err)
 
-	d, err := DecryptConfigFile(e, []byte("key"))
+	d, err := DecryptConfigData(e, []byte("key"))
 	require.NoError(t, err)
 	assert.Equal(t, `{"test":1,"encryptConfig":1}`, string(d), "encryptConfig should be set to 1 after first encryption")
 
-	_, err = DecryptConfigFile(e, nil)
+	_, err = DecryptConfigData(e, nil)
 	require.ErrorIs(t, err, errKeyIsEmpty)
 
-	_, err = DecryptConfigFile([]byte("test"), nil)
+	_, err = DecryptConfigData([]byte("test"), nil)
 	require.ErrorIs(t, err, errNoPrefix)
 
-	_, err = DecryptConfigFile(encryptionPrefix, []byte("AAAAAAAAAAAAAAAA"))
+	_, err = DecryptConfigData(encryptionPrefix, []byte("AAAAAAAAAAAAAAAA"))
 	require.ErrorIs(t, err, errAESBlockSize)
 }
 
