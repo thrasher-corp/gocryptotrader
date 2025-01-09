@@ -294,6 +294,7 @@ func TestGet24HTotalVolume(t *testing.T) {
 
 func TestGetOracle(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = true
 	result, err := ok.GetOracle(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)

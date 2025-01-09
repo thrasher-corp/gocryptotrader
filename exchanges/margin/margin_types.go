@@ -90,7 +90,7 @@ const (
 var supported = Isolated | Multi
 
 const (
-	unsetStr        = "unset"
+	unsetStr        = ""
 	isolatedStr     = "isolated"
 	multiStr        = "multi"
 	cashStr         = "cash"

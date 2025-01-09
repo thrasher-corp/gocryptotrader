@@ -47,6 +47,9 @@ func TestString(t *testing.T) {
 	assert.Equal(t, isolatedStr, Isolated.String())
 	assert.Equal(t, multiStr, Multi.String())
 	assert.Equal(t, unsetStr, Unset.String())
+	assert.Equal(t, spotIsolatedStr, SpotIsolated.String())
+	assert.Equal(t, cashStr, Cash.String())
+	assert.Equal(t, "", Type(30).String())
 }
 
 func TestUpper(t *testing.T) {
