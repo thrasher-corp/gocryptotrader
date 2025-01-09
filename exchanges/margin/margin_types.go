@@ -87,7 +87,7 @@ const (
 	Unknown
 )
 
-var supported = Isolated | Multi
+var supported = Isolated | Multi | Cash | SpotIsolated
 
 const (
 	unsetStr        = ""

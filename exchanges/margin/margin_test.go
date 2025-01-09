@@ -13,6 +13,8 @@ func TestValid(t *testing.T) {
 	t.Parallel()
 	require.True(t, Isolated.Valid())
 	require.True(t, Multi.Valid())
+	require.True(t, Cash.Valid())
+	require.True(t, SpotIsolated.Valid())
 	require.False(t, Unset.Valid())
 	require.False(t, Unknown.Valid())
 	require.False(t, Type(137).Valid())
@@ -34,6 +36,16 @@ func TestUnmarshalJSON(t *testing.T) {
 	err = json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
 	assert.Equalf(t, Multi, alien.M, "received '%v' expected '%v'", alien.M, Multi)
+
+	jason = []byte(`{"margin":"cash"}`)
+	err = json.Unmarshal(jason, &alien)
+	assert.NoError(t, err)
+	assert.Equalf(t, Cash, alien.M, "received '%v' expected '%v'", alien.M, Cash)
+
+	jason = []byte(`{"margin":"spot_isolated"}`)
+	err = json.Unmarshal(jason, &alien)
+	assert.NoError(t, err)
+	assert.Equalf(t, SpotIsolated, alien.M, "received '%v' expected '%v'", alien.M, SpotIsolated)
 
 	jason = []byte(`{"margin":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
@@ -57,17 +69,20 @@ func TestUpper(t *testing.T) {
 	assert.Equal(t, Unknown.Upper(), strings.ToUpper(unknownStr))
 	assert.Equal(t, Isolated.Upper(), strings.ToUpper(isolatedStr))
 	assert.Equal(t, Multi.Upper(), strings.ToUpper(multiStr))
+	assert.Equal(t, SpotIsolated.Upper(), strings.ToUpper(spotIsolatedStr))
+	assert.Equal(t, Cash.Upper(), strings.ToUpper(cashStr))
 	assert.Equal(t, Unset.Upper(), strings.ToUpper(unsetStr))
 }
 
 func TestIsValidString(t *testing.T) {
 	t.Parallel()
 	require.False(t, IsValidString("lol"))
+	require.True(t, IsValidString("spot_isolated"))
+	require.True(t, IsValidString("cash"))
 	require.True(t, IsValidString("isolated"))
 	require.True(t, IsValidString("cross"))
 	require.True(t, IsValidString("multi"))
-	require.True(t, IsValidString("unset"))
-	require.False(t, IsValidString(""))
+	require.True(t, IsValidString(""))
 	require.False(t, IsValidString("unknown"))
 }
 
