@@ -1,4 +1,4 @@
-//go:build sonic && !(darwin || arm64)
+//go:build sonic
 
 package json
 
