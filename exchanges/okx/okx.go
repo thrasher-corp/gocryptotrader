@@ -1725,8 +1725,6 @@ func AssetTypeString(assetType asset.Item) (string, error) {
 		return "OPTION", nil
 	case asset.PerpetualSwap:
 		return "SWAP", nil
-	case asset.Spread:
-		return "SPREAD", nil
 	default:
 		return "", asset.ErrNotSupported
 	}
