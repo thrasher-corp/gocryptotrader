@@ -82,10 +82,10 @@ const (
 	wsFundingOfferUpdateRequest            = wsFundingOfferUpdate + wsRequest
 	wsFundingOfferCancelRequest            = wsFundingOfferCancel + wsRequest
 	wsCancelMultipleOrders                 = "oc_multi"
-	wsBook                                 = "book"
-	wsCandles                              = "candles"
-	wsTicker                               = "ticker"
-	wsTrades                               = "trades"
+	wsBookChannel                          = "book"
+	wsCandlesChannel                       = "candles"
+	wsTickerChannel                        = "ticker"
+	wsTradesChannel                        = "trades"
 	wsError                                = "error"
 	wsEventSubscribed                      = "subscribed"
 	wsEventUnsubscribed                    = "unsubscribed"
@@ -116,10 +116,10 @@ var checksumStore = make(map[int]*checksum)
 var cMtx sync.Mutex
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    wsTicker,
-	subscription.OrderbookChannel: wsBook,
-	subscription.CandlesChannel:   wsCandles,
-	subscription.AllTradesChannel: wsTrades,
+	subscription.TickerChannel:    wsTickerChannel,
+	subscription.OrderbookChannel: wsBookChannel,
+	subscription.CandlesChannel:   wsCandlesChannel,
+	subscription.AllTradesChannel: wsTradesChannel,
 }
 
 // WsConnect starts a new websocket connection
@@ -1748,7 +1748,7 @@ func (b *Bitfinex) subscribeToChan(subs subscription.List) error {
 	}
 
 	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
-	// Although docs only mention subId for wsBook, it works for all chans
+	// Although docs only mention subId for wsBookChannel, it works for all chans
 	subID := strconv.FormatInt(b.Websocket.Conn.GenerateMessageID(false), 10)
 	req["subId"] = subID
 
@@ -2218,7 +2218,7 @@ func subToMap(s *subscription.Subscription, a asset.Item, p currency.Pair) map[s
 		pairFmt.Delimiter = ":"
 	}
 	symbol := p.Format(pairFmt).String()
-	if c == wsCandles {
+	if c == wsCandlesChannel {
 		req["key"] = "trade:" + s.Interval.Short() + ":" + prefix + symbol + fundingPeriod
 	} else {
 		req["symbol"] = prefix + symbol
