@@ -111,12 +111,23 @@ if err != nil {
 }
 ```
 
-### How to do Websocket public/private calls
+### Subscriptions
 
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
-```
+All default subscriptions are for all enabled assets.
+
+Default Public Subscriptions:
+- Candles ( Timeframe: 1 day )
+- Orderbook ( Full depth @ Interval: 100ms )
+- Ticker ( Interval: 100ms )
+- All Trades ( Interval: 100ms )
+
+Default Authenticated Subscriptions:
+- My Account Orders
+- My Account Trades
+
+kline.Raw Interval configurable for a raw orderbook subscription when authenticated
+
+Subscriptions are subject to enabled assets and pairs.
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
