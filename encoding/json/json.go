@@ -4,6 +4,9 @@ package json
 
 import "encoding/json" //nolint:depguard // This is a wrapper package
 
+// Version is a constant string that represents the current JSON implementation package
+const Version = "encoding/json"
+
 var (
 	// Marshal returns the JSON encoding of v. See the "encoding/json" documentation for Marshal
 	Marshal = json.Marshal

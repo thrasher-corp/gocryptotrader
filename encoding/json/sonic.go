@@ -2,7 +2,14 @@
 
 package json
 
-import "github.com/bytedance/sonic"
+import (
+	"log"
+
+	"github.com/bytedance/sonic"
+)
+
+// Version is a constant string that represents the current JSON implementation package
+const Version = "bytedance/sonic"
 
 var (
 	// Marshal returns the JSON encoding of v. See the "github.com/bytedance/sonic" documentation for Marshal
@@ -18,3 +25,7 @@ var (
 	// Valid reports whether data is a valid JSON encoding. See the "github.com/bytedance/sonic" documentation for Valid
 	Valid = sonic.ConfigStd.Valid
 )
+
+func init() {
+	log.Printf("Using %s for JSON encoding\n", Version)
+}
