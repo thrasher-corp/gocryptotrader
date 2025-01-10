@@ -38,6 +38,63 @@ var (
 	errParsingWSField = errors.New("error parsing WS field")
 )
 
+const (
+	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
+	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
+	pong                                   = "pong"
+	wsHeartbeat                            = "hb"
+	wsChecksum                             = "cs"
+	wsPositionSnapshot                     = "ps"
+	wsPositionNew                          = "pn"
+	wsPositionUpdate                       = "pu"
+	wsPositionClose                        = "pc"
+	wsWalletSnapshot                       = "ws"
+	wsWalletUpdate                         = "wu"
+	wsTradeUpdated                         = "tu"
+	wsTradeExecuted                        = "te"
+	wsFundingCreditSnapshot                = "fcs"
+	wsFundingCreditNew                     = "fcn"
+	wsFundingCreditUpdate                  = "fcu"
+	wsFundingCreditCancel                  = "fcc"
+	wsFundingLoanSnapshot                  = "fls"
+	wsFundingLoanNew                       = "fln"
+	wsFundingLoanUpdate                    = "flu"
+	wsFundingLoanCancel                    = "flc"
+	wsFundingTradeExecuted                 = "fte"
+	wsFundingTradeUpdated                  = "ftu"
+	wsFundingInfoUpdate                    = "fiu"
+	wsBalanceUpdate                        = "bu"
+	wsMarginInfoUpdate                     = "miu"
+	wsNotification                         = "n"
+	wsOrderSnapshot                        = "os"
+	wsOrderNew                             = "on"
+	wsOrderUpdate                          = "ou"
+	wsOrderCancel                          = "oc"
+	wsRequest                              = "-req"
+	wsOrderNewRequest                      = wsOrderNew + wsRequest
+	wsOrderUpdateRequest                   = wsOrderUpdate + wsRequest
+	wsOrderCancelRequest                   = wsOrderCancel + wsRequest
+	wsFundingOfferSnapshot                 = "fos"
+	wsFundingOfferNew                      = "fon"
+	wsFundingOfferUpdate                   = "fou"
+	wsFundingOfferCancel                   = "foc"
+	wsFundingOfferNewRequest               = wsFundingOfferNew + wsRequest
+	wsFundingOfferUpdateRequest            = wsFundingOfferUpdate + wsRequest
+	wsFundingOfferCancelRequest            = wsFundingOfferCancel + wsRequest
+	wsCancelMultipleOrders                 = "oc_multi"
+	wsBook                                 = "book"
+	wsCandles                              = "candles"
+	wsTicker                               = "ticker"
+	wsTrades                               = "trades"
+	wsError                                = "error"
+	wsEventSubscribed                      = "subscribed"
+	wsEventUnsubscribed                    = "unsubscribed"
+	wsEventAuth                            = "auth"
+	wsEventError                           = "error"
+	wsEventConf                            = "conf"
+	wsEventInfo                            = "info"
+)
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
 	{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.All},
