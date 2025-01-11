@@ -1231,7 +1231,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Futures} {
 		_, err := h.UpdateAccountInfo(context.Background(), a)
-		require.NoErrorf(t, err, "UpdateAccountInfo must not error for asset %s; Spot and Futures have separate api keys. Please ensure that the correct keys are provided", a)
+		assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
 	}
 }
 
