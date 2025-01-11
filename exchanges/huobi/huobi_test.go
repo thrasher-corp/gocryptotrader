@@ -1302,7 +1302,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 	}
 }
 
-func TestWsCandles(t *testing.T) {
+func TestWSCandles(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
@@ -1328,7 +1328,7 @@ func TestWsCandles(t *testing.T) {
 	assert.Equal(t, exp, c)
 }
 
-func TestWsOrderbook(t *testing.T) {
+func TestWSOrderbook(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
@@ -1354,9 +1354,9 @@ func TestWsOrderbook(t *testing.T) {
 	assert.Equal(t, 0.56281, liq, "Bid Liquidity should be correct")
 }
 
-// TestWsTradeDetail checks we can send a trade detail through
+// TestWSTradeDetail checks we can send a trade detail through
 // We can't currently easily see the result with the current DB instance, so we just check it doesn't error
-func TestWsTradeDetail(t *testing.T) {
+func TestWSTradeDetail(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
@@ -1367,7 +1367,7 @@ func TestWsTradeDetail(t *testing.T) {
 	require.Empty(t, h.Websocket.DataHandler, "Must not see any errors going to datahandler")
 }
 
-func TestWsTicker(t *testing.T) {
+func TestWSTicker(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
@@ -1395,7 +1395,7 @@ func TestWsTicker(t *testing.T) {
 	assert.Equal(t, exp, tick)
 }
 
-func TestWsAccountUpdate(t *testing.T) {
+func TestWSAccountUpdate(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
@@ -1418,7 +1418,7 @@ func TestWsAccountUpdate(t *testing.T) {
 	}
 }
 
-func TestWsOrderUpdate(t *testing.T) {
+func TestWSOrderUpdate(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
@@ -1483,7 +1483,7 @@ func TestWsOrderUpdate(t *testing.T) {
 	}
 }
 
-func TestWsMyTrades(t *testing.T) {
+func TestWSMyTrades(t *testing.T) {
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
