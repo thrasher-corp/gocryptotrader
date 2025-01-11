@@ -941,7 +941,7 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	_, valueType, _, err := jsonparser.Get(respRaw, "[1]")
+	v, valueType, _, err := jsonparser.Get(respRaw, "[1]")
 	if err != nil {
 		return fmt.Errorf("%w `tradesUpdate[1]`: %w", errParsingWSField, err)
 	}
@@ -949,13 +949,13 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	switch valueType {
 	case jsonparser.String:
 		if t, err := b.handleWSPublicTradeUpdate(respRaw); err != nil {
-			return err
+			return fmt.Errorf("%w `tradesUpdate[2]`: %w", errParsingWSField, err)
 		} else {
 			wsTrades = []*wsTrade{t}
 		}
 	case jsonparser.Array:
-		if wsTrades, err = b.handleWSPublicTradesSnapshot(respRaw); err != nil {
-			return err
+		if wsTrades, err = b.handleWSPublicTradesSnapshot(v); err != nil {
+			return fmt.Errorf("%w `tradesSnapshot`: %w", errParsingWSField, err)
 		}
 	default:
 		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType)
@@ -990,39 +990,18 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	return err
 }
 
-func (b *Bitfinex) handleWSPublicTradesSnapshot(respRaw []byte) (trades []*wsTrade, errs error) {
-	handleTrade := func(v []byte, valueType jsonparser.ValueType, _ int, _ error) {
-		if valueType != jsonparser.Array {
-			errs = common.AppendError(errs, fmt.Errorf("%w `tradesSnapshot[1][*]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType))
-		} else {
-			t := &wsTrade{}
-			if err := json.Unmarshal(v, t); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w `tradesSnapshot[1][*]`: %w", errParsingWSField, err))
-			} else {
-				trades = append(trades, t)
-			}
-		}
-	}
-
-	if _, err := jsonparser.ArrayEach(respRaw, handleTrade, "[1]"); err != nil {
-		errs = common.AppendError(errs, err)
-	}
-	return
+func (b *Bitfinex) handleWSPublicTradesSnapshot(v []byte) ([]*wsTrade, error) {
+	var trades []*wsTrade
+	return trades, json.Unmarshal(v, &trades)
 }
 
 func (b *Bitfinex) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
-	v, valueType, _, err := jsonparser.Get(respRaw, "[2]")
+	v, _, _, err := jsonparser.Get(respRaw, "[2]")
 	if err != nil {
-		return nil, fmt.Errorf("%w `tradesUpdate[2]`: %w", errParsingWSField, err)
-	}
-	if valueType != jsonparser.Array {
-		return nil, fmt.Errorf("%w `tradesUpdate[2]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType)
+		return nil, err
 	}
 	t := &wsTrade{}
-	if err := json.Unmarshal(v, t); err != nil {
-		return nil, fmt.Errorf("%w `tradeUpdate[2]`: %w", errParsingWSField, err)
-	}
-	return t, nil
+	return t, json.Unmarshal(v, t)
 }
 
 func (b *Bitfinex) handleWSNotification(d []interface{}, respRaw []byte) error {
