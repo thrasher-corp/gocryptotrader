@@ -1303,6 +1303,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 }
 
 func TestWSCandles(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
@@ -1329,6 +1330,7 @@ func TestWSCandles(t *testing.T) {
 }
 
 func TestWSOrderbook(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
@@ -1357,6 +1359,7 @@ func TestWSOrderbook(t *testing.T) {
 // TestWSTradeDetail checks we can send a trade detail through
 // We can't currently easily see the result with the current DB instance, so we just check it doesn't error
 func TestWSTradeDetail(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
@@ -1368,6 +1371,7 @@ func TestWSTradeDetail(t *testing.T) {
 }
 
 func TestWSTicker(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
@@ -1396,6 +1400,7 @@ func TestWSTicker(t *testing.T) {
 }
 
 func TestWSAccountUpdate(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
@@ -1419,6 +1424,7 @@ func TestWSAccountUpdate(t *testing.T) {
 }
 
 func TestWSOrderUpdate(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
@@ -1484,6 +1490,7 @@ func TestWSOrderUpdate(t *testing.T) {
 }
 
 func TestWSMyTrades(t *testing.T) {
+	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
@@ -1525,6 +1532,7 @@ func TestWSMyTrades(t *testing.T) {
 }
 
 func TestStringToOrderStatus(t *testing.T) {
+	t.Parallel()
 	type TestCases struct {
 		Case   string
 		Result order.Status
@@ -1545,6 +1553,7 @@ func TestStringToOrderStatus(t *testing.T) {
 }
 
 func TestStringToOrderSide(t *testing.T) {
+	t.Parallel()
 	type TestCases struct {
 		Case   string
 		Result order.Side
@@ -1563,6 +1572,7 @@ func TestStringToOrderSide(t *testing.T) {
 }
 
 func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
 	type TestCases struct {
 		Case   string
 		Result order.Type
@@ -1581,6 +1591,7 @@ func TestStringToOrderType(t *testing.T) {
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		interval kline.Interval
 		output   string
