@@ -118,16 +118,6 @@ func (h *HUOBI) wsReadMsgs(s stream.Connection) {
 	}
 }
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
-	for _, op := range []string{wsSubOp, wsUnsubOp} {
-		key := op + "bed" // subbed, unsubbed
-		if ch, err := jsonparser.GetString(respRaw, key); err == nil {
-			if !h.Websocket.Match.IncomingWithData(op+":"+ch, respRaw) {
-				return fmt.Errorf("%w: %s:%s", stream.ErrNoMessageListener, op, ch)
-			}
-			return nil
-		}
-	}
-
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if h.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
