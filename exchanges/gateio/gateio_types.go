@@ -679,17 +679,23 @@ type FuturesContract struct {
 	OrdersLimit           int64        `json:"orders_limit"`
 	TradeID               int64        `json:"trade_id"`
 	OrderbookID           int64        `json:"orderbook_id"`
+	EnableBonus           bool         `json:"enable_bonus"`
+	EnableCredit          bool         `json:"enable_credit"`
+	CreateTime            types.Time   `json:"create_time"`
+	FundingCapRatio       types.Number `json:"funding_cap_ratio"`
+	VoucherLeverage       types.Number `json:"voucher_leverage"`
 }
 
 // TradingHistoryItem represents futures trading history item.
 type TradingHistoryItem struct {
-	ID         int64        `json:"id"`
-	CreateTime types.Time   `json:"create_time"`
-	Contract   string       `json:"contract"`
-	Text       string       `json:"text"`
-	Size       float64      `json:"size"`
-	Price      types.Number `json:"price"`
-	// Added for Derived market trade history datas.
+	ID           int64        `json:"id"`
+	CreateTime   types.Time   `json:"create_time"`
+	CreateTimeMs types.Time   `json:"create_time_ms"`
+	Contract     string       `json:"contract"`
+	Text         string       `json:"text"`
+	Size         float64      `json:"size"`
+	Price        types.Number `json:"price"`
+	// Added for Derived market trade history data
 	Fee      types.Number `json:"fee"`
 	PointFee types.Number `json:"point_fee"`
 	Role     string       `json:"role"`
@@ -704,9 +710,7 @@ type FuturesCandlestick struct {
 	LowestPrice  types.Number `json:"l"`
 	OpenPrice    types.Number `json:"o"`
 	Sum          types.Number `json:"sum"` // Trading volume (unit: Quote currency)
-
-	// Added for websocket push data
-	Name string `json:"n,omitempty"`
+	Name         string       `json:"n,omitempty"`
 }
 
 // FuturesPremiumIndexKLineResponse represents premium index K-Line information.
