@@ -963,7 +963,7 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType)
 	}
 	trades := make([]trade.Data, len(wsTrades))
-	for i, w := range wsTrades {
+	for _, w := range wsTrades {
 		t := trade.Data{
 			Exchange:     b.Name,
 			AssetType:    s.Asset,
@@ -981,10 +981,9 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 			t.Side = order.Sell
 			t.Amount = math.Abs(t.Amount)
 		}
-		trades[i] = t
-	}
-	if feedEnabled {
-		b.Websocket.DataHandler <- trades
+		if feedEnabled {
+			b.Websocket.DataHandler <- t
+		}
 	}
 	if b.IsSaveTradeDataEnabled() {
 		err = trade.AddTradesToBuffer(b.GetName(), trades...)

@@ -1386,14 +1386,14 @@ func TestWSAllTrades(t *testing.T) {
 	require.Len(t, b.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
 	for resp := range b.Websocket.DataHandler {
 		switch v := resp.(type) {
-		case *trade.Data:
+		case trade.Data:
 			i := 6 - len(b.Websocket.DataHandler)
-			exp := &trade.Data{
+			exp := trade.Data{
 				Exchange:     b.Name,
 				CurrencyPair: btcusdPair,
 			}
-			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
-			require.Equalf(t, exp, v, "Trade [%d] should be correct", i)
+			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
+			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
 		default:
