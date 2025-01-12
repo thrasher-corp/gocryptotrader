@@ -1,0 +1,241 @@
+package mexc
+
+import (
+	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
+
+// MEXC is the overarching type across this package
+type MEXC struct {
+	exchange.Base
+}
+
+const (
+	mexcAPIURL     = "https://api.mexc.com"
+	mexcWSAPIURL   = "https://api.mexc.com"
+	mexcAPIVersion = "/v3/"
+
+	// Public endpoints
+
+	// Authenticated endpoints
+)
+
+// Start implementing public and private exchange API funcs below
+
+// GetSymbols retrieves current exchange trading rules and symbol information
+func (me *MEXC) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConfig, error) {
+	params := url.Values{}
+	if len(symbols) > 1 {
+		params.Set("symbols", strings.Join(symbols, ","))
+	} else if len(symbols) == 1 {
+		params.Set("symbol", symbols[0])
+	}
+	var resp *ExchangeConfig
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "exchangeInfo", params, nil, &resp, false)
+}
+
+// GetSystemTime check server time
+func (me *MEXC) GetSystemTime(ctx context.Context) (types.Time, error) {
+	resp := &struct {
+		ServerTime types.Time `json:"serverTime"`
+	}{}
+	return resp.ServerTime, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "time", nil, nil, &resp, false)
+}
+
+// GetDefaultSumbols retrieves all default symbols
+func (me *MEXC) GetDefaultSumbols(ctx context.Context) ([]string, error) {
+	resp := &struct {
+		Symbols []string `json:"data"`
+	}{}
+	return resp.Symbols, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "defaultSymbols", nil, nil, &resp, false)
+}
+
+// GetOrderbook retrieves orderbook data of a symbol
+func (me *MEXC) GetOrderbook(ctx context.Context, symbol string, limit int64) (*Orderbook, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *Orderbook
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "depth", params, nil, &resp, false)
+}
+
+// GetRecentTradesList retrieves recent trades list
+func (me *MEXC) GetRecentTradesList(ctx context.Context, symbol string, limit int64) ([]TradeDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []TradeDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "trades", params, nil, &resp, false)
+}
+
+// GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
+func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]AggregatedTradeDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []AggregatedTradeDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "aggTrades", params, nil, &resp, false)
+}
+
+var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}
+
+func intervalToString(interval kline.Interval) (string, error) {
+	intervalString, ok := intervalToStringMap[interval]
+	if !ok {
+		return "", kline.ErrUnsupportedInterval
+	}
+	return intervalString, nil
+}
+
+// GetCandlestick retrieves kline/candlestick bars for a symbol.
+// Klines are uniquely identified by their open time.
+func (me *MEXC) GetCandlestick(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]CandlestickData, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	intervalString, err := intervalToString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []CandlestickData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "klines", params, nil, &resp, false)
+}
+
+// GetCurrentAveragePrice retrieves current average price of symbol
+func (me *MEXC) GetCurrentAveragePrice(ctx context.Context, symbol string) (*SymbolAveragePrice, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *SymbolAveragePrice
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "avgPrice", params, nil, &resp, false)
+}
+
+// Get24HourTickerPriceChangeStatistics retrieves ticker price change statistics
+func (me *MEXC) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbols []string) (TickerList, error) {
+	params := url.Values{}
+	if len(symbols) > 1 {
+		params.Set("symbols", strings.Join(symbols, ","))
+	} else if len(symbols) == 1 {
+		params.Set("symbol", symbols[0])
+	}
+	var resp TickerList
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/24hr", params, nil, &resp, false)
+}
+
+// GetSymbolPriceTicker represents a symbol price ticker detail
+func (me *MEXC) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]SymbolPriceTicker, error) {
+	params := url.Values{}
+	if len(symbols) > 1 {
+		params.Set("symbols", strings.Join(symbols, ","))
+	} else if len(symbols) == 1 {
+		params.Set("symbol", symbols[0])
+	}
+	var resp SymbolPriceTickers
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/price", params, nil, &resp, false)
+}
+
+// GetSymbolOrderbookTicker represents an orderbook detail for a symbol
+func (me *MEXC) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]SymbolOrderbookTicker, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp SymbolOrderbookTickerList
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/bookTicker", params, nil, &resp, false)
+}
+
+// SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
+func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, data, result interface{}, auth bool) error {
+	ePoint, err := me.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	var authType request.AuthType
+	authType = request.UnauthenticatedRequest
+	if auth {
+		authType = request.AuthenticatedRequest
+	}
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/json"
+	if auth {
+		creds, err := me.GetCredentials(ctx)
+		if err != nil {
+			return err
+		}
+		headers["X-MEXC-APIKEY"] = creds.Key
+		if values != nil {
+			values = url.Values{}
+		}
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(values.Encode()),
+			[]byte(creds.Secret))
+		if err != nil {
+			return err
+		}
+		values.Set("signature", crypto.HexEncodeToString(hmac))
+	}
+	return me.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
+		return &request.Item{
+			Method:  method,
+			Path:    ePoint + "/api" + mexcAPIVersion + common.EncodeURLValues(requestPath, values),
+			Headers: headers,
+			// Body:          bytes.NewBufferString(values.Encode()),
+			Result:        result,
+			NonceEnabled:  true,
+			Verbose:       me.Verbose,
+			HTTPDebugging: me.HTTPDebugging,
+			HTTPRecording: me.HTTPRecording,
+		}, nil
+	}, authType)
+}
