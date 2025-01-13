@@ -2783,61 +2783,95 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if !ok.SupportsAsset(item) || item == asset.Options {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
-	}
-	instType := ok.GetInstrumentTypeFromAssetItem(item)
-	result, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
-		InstrumentType: instType,
-	})
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]futures.Contract, len(result))
-	for i := range result {
-		var cp, underlying currency.Pair
-		underlying, err = currency.NewPairFromString(result[i].Underlying)
+	switch item {
+	case asset.Futures, asset.PerpetualSwap:
+		instType := ok.GetInstrumentTypeFromAssetItem(item)
+		result, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: instType,
+		})
 		if err != nil {
 			return nil, err
 		}
-		cp, err = currency.NewPairFromString(result[i].InstrumentID)
-		if err != nil {
-			return nil, err
-		}
-		settleCurr := currency.NewCode(result[i].SettlementCurrency)
-		var ct futures.ContractType
-		if item == asset.PerpetualSwap {
-			ct = futures.Perpetual
-		} else {
-			switch result[i].Alias {
-			case "this_week", "next_week":
-				ct = futures.Weekly
-			case "quarter", "next_quarter":
-				ct = futures.Quarterly
+		resp := make([]futures.Contract, len(result))
+		for i := range result {
+			var cp, underlying currency.Pair
+			underlying, err = currency.NewPairFromString(result[i].Underlying)
+			if err != nil {
+				return nil, err
+			}
+			cp, err = currency.NewPairFromString(result[i].InstrumentID)
+			if err != nil {
+				return nil, err
+			}
+			settleCurr := currency.NewCode(result[i].SettlementCurrency)
+			var ct futures.ContractType
+			if item == asset.PerpetualSwap {
+				ct = futures.Perpetual
+			} else {
+				switch result[i].Alias {
+				case "this_week", "next_week":
+					ct = futures.Weekly
+				case "quarter", "next_quarter":
+					ct = futures.Quarterly
+				}
+			}
+			contractSettlementType := futures.Linear
+			if result[i].SettlementCurrency == result[i].BaseCurrency {
+				contractSettlementType = futures.Inverse
+			}
+			resp[i] = futures.Contract{
+				Exchange:             ok.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            result[i].ListTime.Time(),
+				EndDate:              result[i].ExpTime.Time(),
+				IsActive:             result[i].State == "live",
+				Status:               result[i].State,
+				Type:                 ct,
+				SettlementType:       contractSettlementType,
+				SettlementCurrencies: currency.Currencies{settleCurr},
+				MarginCurrency:       settleCurr,
+				Multiplier:           result[i].ContractValue.Float64(),
+				MaxLeverage:          result[i].MaxLeverage.Float64(),
 			}
 		}
-		contractSettlementType := futures.Linear
-		if result[i].SettlementCurrency == result[i].BaseCurrency {
-			contractSettlementType = futures.Inverse
+		return resp, nil
+	case asset.Spread:
+		results, err := ok.GetPublicSpreads(ctx, "", "", "", "")
+		if err != nil {
+			return nil, err
 		}
-		resp[i] = futures.Contract{
-			Exchange:             ok.Name,
-			Name:                 cp,
-			Underlying:           underlying,
-			Asset:                item,
-			StartDate:            result[i].ListTime.Time(),
-			EndDate:              result[i].ExpTime.Time(),
-			IsActive:             result[i].State == "live",
-			Status:               result[i].State,
-			Type:                 ct,
-			SettlementType:       contractSettlementType,
-			SettlementCurrencies: currency.Currencies{settleCurr},
-			MarginCurrency:       settleCurr,
-			Multiplier:           result[i].ContractValue.Float64(),
-			MaxLeverage:          result[i].MaxLeverage.Float64(),
+		resp := make([]futures.Contract, len(results))
+		for s := range results {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(results[s].SpreadID)
+			if err != nil {
+				return nil, err
+			}
+			contractSettlementType, err := futures.StringToContractSettlementType(results[s].SpreadType)
+			if err != nil {
+				return nil, err
+			}
+			resp[s] = futures.Contract{
+				Exchange:       ok.Name,
+				Name:           cp,
+				Asset:          asset.Spread,
+				StartDate:      results[s].ListTime.Time(),
+				EndDate:        results[s].ExpTime.Time(),
+				IsActive:       results[s].State == "live",
+				Status:         results[s].State,
+				Type:           futures.LongDated,
+				SettlementType: contractSettlementType,
+				MarginCurrency: currency.NewCode(results[s].QuoteCurrency),
+				Multiplier:     results[s].TickSize.Float64(),
+				MaxLeverage:    results[s].LotSize.Float64(),
+			}
 		}
+		return resp, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	return resp, nil
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

@@ -3039,7 +3039,7 @@ type SpreadInstrument struct {
 	TickSize      types.Number `json:"tickSz"`
 	MinSize       types.Number `json:"minSz"`
 	LotSize       types.Number `json:"lotSz"`
-	ListTime      string       `json:"listTime"`
+	ListTime      types.Time   `json:"listTime"`
 	Legs          []struct {
 		InstrumentID string `json:"instId"`
 		Side         string `json:"side"`

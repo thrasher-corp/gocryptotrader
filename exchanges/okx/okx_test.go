@@ -4879,6 +4879,10 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	result, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = ok.GetFuturesContractDetails(context.Background(), asset.Spread)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {
