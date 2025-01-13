@@ -135,7 +135,6 @@ Supported Methods:
 
 Supported Methods:
 - GetOrder
-- GetOrders
 - CancelOrders
 - CancelOrder
 - SubmitOrder
@@ -180,9 +179,6 @@ Supported Methods:
 - CancelOrder
 - SubmitOrder
 - UserTradeHistory
-
-
-
 
 
 

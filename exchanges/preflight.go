@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -40,16 +39,16 @@ func AutomaticPreFlightCheck(exch IBotExchange) protocol.FeatureSet {
 	// TODO: Make this more dynamic and reflect off interface.go interfaces.
 	methodToFeature := map[string]setter{
 		"SubmitOrder": {fn: func(f *protocol.Features) *bool { return &f.SubmitOrder }, args: func(a asset.Item) []interface{} {
-			return []interface{}{ctx, &order.Submit{Exchange: "bruh", AssetType: a, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: order.Market, Price: 1, Amount: 1}}
+			return []interface{}{ctx, &order.Submit{Exchange: "preflight", AssetType: a, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: order.Market, Price: 1, Amount: 1}}
 		}},
 		"ModifyOrder": {fn: func(f *protocol.Features) *bool { return &f.ModifyOrder }, args: func(a asset.Item) []interface{} {
-			return []interface{}{ctx, &order.Modify{Exchange: "bruh", AssetType: a, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: order.Market, Price: 1, Amount: 1}}
+			return []interface{}{ctx, &order.Modify{Exchange: "preflight", AssetType: a, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: order.Market, Price: 1, Amount: 1}}
 		}},
 		"CancelOrder": {fn: func(f *protocol.Features) *bool { return &f.CancelOrder }, args: func(a asset.Item) []interface{} {
-			return []interface{}{ctx, &order.Cancel{Exchange: "bruh", AssetType: a, Pair: currency.NewBTCUSD(), OrderID: "bruh"}}
+			return []interface{}{ctx, &order.Cancel{Exchange: "preflight", AssetType: a, Pair: currency.NewBTCUSD(), OrderID: "bruh"}}
 		}},
 		"CancelAllOrders": {fn: func(f *protocol.Features) *bool { return &f.CancelOrders }, args: func(a asset.Item) []interface{} {
-			return []interface{}{ctx, &order.Cancel{Exchange: "bruh", AssetType: a, Pair: currency.NewBTCUSD()}}
+			return []interface{}{ctx, &order.Cancel{Exchange: "preflight", AssetType: a, Pair: currency.NewBTCUSD()}}
 		}},
 		"GetOrderInfo": {fn: func(f *protocol.Features) *bool { return &f.GetOrder }, args: func(a asset.Item) []interface{} { return []interface{}{ctx, "someID", currency.NewBTCUSD(), a} }},
 		"GetActiveOrders": {fn: func(f *protocol.Features) *bool { return &f.GetOrders }, args: func(a asset.Item) []interface{} {
@@ -89,7 +88,6 @@ func AutomaticPreFlightCheck(exch IBotExchange) protocol.FeatureSet {
 				continue
 			}
 
-			fmt.Println(err, methodName, a)
 			feature := featureSetter.fn(&features)
 			*feature = true
 		}
