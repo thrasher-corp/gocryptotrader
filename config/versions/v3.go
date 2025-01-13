@@ -16,7 +16,7 @@ func init() {
 	Manager.registerVersion(3, &Version3{})
 }
 
-// // Exchanges returns all exchanges: "*"
+// Exchanges returns all exchanges: "*"
 func (v *Version3) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange will remove the orderbook and publishPeriod from the exchange config
@@ -30,7 +30,7 @@ var defaultOrderbookPublishPeriod = time.Second * 10
 // DowngradeExchange will downgrade the exchange config with the default orderbook publish period
 func (v *Version3) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if _, _, _, err := jsonparser.Get(e, "orderbook"); err != nil {
-		return e, nil
+		return e, nil //nolint:nilerr // No error, just return the original config
 	}
 	out, err := json.Marshal(defaultOrderbookPublishPeriod)
 	if err != nil {
