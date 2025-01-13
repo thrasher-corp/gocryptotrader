@@ -2625,13 +2625,9 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	r, err := h.GetAvailableTransferChains(context.Background(), currency.USDT)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(r) < 2 {
-		t.Error("expected more than one result")
-	}
+	c, err := h.GetAvailableTransferChains(context.Background(), currency.USDT)
+	require.NoError(t, err)
+	require.Greater(t, len(c), 2, "Must get more than 2 chains")
 }
 
 func TestFormatFuturesPair(t *testing.T) {
@@ -2990,4 +2986,20 @@ func TestChannelName(t *testing.T) {
 	assert.Equal(t, "market.BTCUSD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, p))
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, p) })
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: subscription.MyAccountChannel}, p) }, "Should panic on V2 endpoints until implemented")
+}
+
+func TestBootstrap(t *testing.T) {
+	t.Parallel()
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
+
+	c, err := h.Bootstrap(context.Background())
+	require.NoError(t, err)
+	assert.True(t, c, "Bootstrap should return true to continue")
+
+	h.futureContractCodes = nil
+	h.Features.Enabled.AutoPairUpdates = false
+	_, err = h.Bootstrap(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, h.futureContractCodes)
 }
