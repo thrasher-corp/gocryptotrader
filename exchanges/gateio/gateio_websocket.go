@@ -302,7 +302,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := g.Websocket.Trade.Update(saveTradeData, trade.Data{
-				Timestamp:    data.CreateTimeMs.Time(),
+				Timestamp:    data.CreateTime.Time(),
 				CurrencyPair: data.CurrencyPair,
 				AssetType:    a,
 				Exchange:     g.Name,
@@ -363,7 +363,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 		Exchange:       g.Name,
 		Pair:           data.CurrencyPair,
 		Asset:          asset.Spot,
-		LastUpdated:    data.UpdateTimeMS.Time(),
+		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
 		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
 		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
@@ -418,7 +418,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 
 	for _, a := range enabledAssets {
 		if err := g.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateTime:     data.UpdateTimeMs.Time(),
+			UpdateTime:     data.UpdateTime.Time(),
 			UpdatePushedAt: updatePushedAt,
 			Pair:           data.CurrencyPair,
 			Asset:          a,
@@ -455,7 +455,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 				Exchange:       g.Name,
 				Pair:           data.CurrencyPair,
 				Asset:          a,
-				LastUpdated:    data.UpdateTimeMs.Time(),
+				LastUpdated:    data.UpdateTime.Time(),
 				UpdatePushedAt: updatePushedAt,
 				Bids:           bids,
 				Asks:           asks,
@@ -503,8 +503,8 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			AssetType:      a,
 			Price:          resp.Result[x].Price.Float64(),
 			ExecutedAmount: resp.Result[x].Amount.Float64() - resp.Result[x].Left.Float64(),
-			Date:           resp.Result[x].CreateTimeMs.Time(),
-			LastUpdated:    resp.Result[x].UpdateTimeMs.Time(),
+			Date:           resp.Result[x].CreateTime.Time(),
+			LastUpdated:    resp.Result[x].UpdateTime.Time(),
 		}
 	}
 	g.Websocket.DataHandler <- details
@@ -533,7 +533,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].CurrencyPair,
 			Side:         side,

@@ -966,7 +966,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Side:         side,
 				Price:        tradeData[i].Price.Float64(),
 				Amount:       tradeData[i].Amount.Float64(),
-				Timestamp:    tradeData[i].CreateTimeMs.Time(),
+				Timestamp:    tradeData[i].CreateTime.Time(),
 			}
 		}
 	case asset.Futures:
@@ -1107,8 +1107,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Pair = s.Pair
 		response.Date = sOrder.CreateTime.Time()
 		response.ClientOrderID = sOrder.Text
-		response.Date = sOrder.CreateTimeMs.Time()
-		response.LastUpdated = sOrder.UpdateTimeMs.Time()
+		response.Date = sOrder.CreateTime.Time()
+		response.LastUpdated = sOrder.UpdateTime.Time()
 		return response, nil
 	case asset.Futures:
 		// TODO: See https://www.gate.io/docs/developers/apiv4/en/#create-a-futures-order
@@ -1490,8 +1490,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Status:         orderStatus,
 			Price:          spotOrder.Price.Float64(),
 			ExecutedAmount: spotOrder.Amount.Float64() - spotOrder.Left.Float64(),
-			Date:           spotOrder.CreateTimeMs.Time(),
-			LastUpdated:    spotOrder.UpdateTimeMs.Time(),
+			Date:           spotOrder.CreateTime.Time(),
+			LastUpdated:    spotOrder.UpdateTime.Time(),
 		}, nil
 	case asset.Futures, asset.DeliveryFutures:
 		var settle currency.Code
@@ -1698,8 +1698,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					RemainingAmount:      spotOrders[x].Orders[y].Left.Float64(),
 					Price:                spotOrders[x].Orders[y].Price.Float64(),
 					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice.Float64(),
-					Date:                 spotOrders[x].Orders[y].CreateTimeMs.Time(),
-					LastUpdated:          spotOrders[x].Orders[y].UpdateTimeMs.Time(),
+					Date:                 spotOrders[x].Orders[y].CreateTime.Time(),
+					LastUpdated:          spotOrders[x].Orders[y].UpdateTime.Time(),
 					Exchange:             g.Name,
 					AssetType:            req.AssetType,
 					ClientOrderID:        spotOrders[x].Orders[y].Text,

@@ -352,7 +352,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
 		trades[x] = trade.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     g.Name,
@@ -438,7 +438,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 		}
 	}
 	updates := orderbook.Update{
-		UpdateTime: data.TimestampInMs.Time(),
+		UpdateTime: data.Timestamp.Time(),
 		Pair:       data.ContractName,
 		Asset:      assetType,
 	}
@@ -469,7 +469,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            data.Contract,
-			LastUpdated:     data.TimestampInMs.Time(),
+			LastUpdated:     data.Timestamp.Time(),
 			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
@@ -573,13 +573,13 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
-			LastUpdated:    resp.Result[x].FinishTimeMs.Time(),
-			Date:           resp.Result[x].CreateTimeMs.Time(),
+			LastUpdated:    resp.Result[x].FinishTime.Time(),
+			Date:           resp.Result[x].CreateTime.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
 			AssetType:      assetType,
 			AccountID:      resp.Result[x].User,
-			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
+			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
 	return orderDetails, nil
@@ -603,7 +603,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
