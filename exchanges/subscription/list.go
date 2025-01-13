@@ -14,12 +14,14 @@ type List []*Subscription
 
 type assetPairs map[asset.Item]currency.Pairs
 
-type iExchange interface {
+// IExchange provides method requirements for exchanges to use subscription templating
+type IExchange interface {
 	GetAssetTypes(enabled bool) asset.Items
 	GetEnabledPairs(asset.Item) (currency.Pairs, error)
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
 	GetSubscriptionTemplate(*Subscription) (*template.Template, error)
 	CanUseAuthenticatedWebsocketEndpoints() bool
+	IsAssetWebsocketSupported(a asset.Item) bool
 }
 
 // Strings returns a sorted slice of subscriptions
@@ -44,6 +46,22 @@ func (l List) GroupPairs() (n List) {
 		}
 	}
 	return s.List()
+}
+
+// GroupByPairs groups subscriptions which have the same Pairs
+func (l List) GroupByPairs() []List {
+	n := []List{}
+outer:
+	for _, a := range l {
+		for i, b := range n {
+			if a.Pairs.Equal(b[0].Pairs) { // Note: b is guaranteed to have 1 element by the append(n) below
+				n[i] = append(n[i], a)
+				continue outer
+			}
+		}
+		n = append(n, List{a})
+	}
+	return n
 }
 
 // Clone returns a deep clone of the List
@@ -76,7 +94,7 @@ func (l List) SetStates(state State) error {
 	return err
 }
 
-func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
+func fillAssetPairs(ap assetPairs, a asset.Item, e IExchange) error {
 	p, err := e.GetEnabledPairs(a)
 	if err != nil {
 		return err
@@ -90,8 +108,13 @@ func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
 }
 
 // assetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
-func (l List) assetPairs(e iExchange) (assetPairs, error) {
-	at := e.GetAssetTypes(true)
+func (l List) assetPairs(e IExchange) (assetPairs, error) {
+	at := []asset.Item{}
+	for _, a := range e.GetAssetTypes(true) {
+		if e.IsAssetWebsocketSupported(a) {
+			at = append(at, a)
+		}
+	}
 	ap := assetPairs{}
 	for _, s := range l {
 		switch s.Asset {
@@ -112,4 +135,37 @@ func (l List) assetPairs(e iExchange) (assetPairs, error) {
 		}
 	}
 	return ap, nil
+}
+
+// Enabled returns a new list of only enabled subscriptions
+func (l List) Enabled() List {
+	n := make(List, 0, len(l))
+	for _, s := range l {
+		if s.Enabled {
+			n = append(n, s)
+		}
+	}
+	return slices.Clip(n)
+}
+
+// Private returns only subscriptions which require authentication
+func (l List) Private() List {
+	n := List{}
+	for _, s := range l {
+		if s.Authenticated {
+			n = append(n, s)
+		}
+	}
+	return n
+}
+
+// Public returns only subscriptions which do not require authentication
+func (l List) Public() List {
+	n := List{}
+	for _, s := range l {
+		if !s.Authenticated {
+			n = append(n, s)
+		}
+	}
+	return n
 }

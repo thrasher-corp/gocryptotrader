@@ -42,7 +42,7 @@ type tplCtx struct {
 // Calls e.GetSubscriptionTemplate to find a template for each subscription
 // Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
 // See README.md for more details
-func (l List) ExpandTemplates(e iExchange) (List, error) {
+func (l List) ExpandTemplates(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
 		// Empty list, or already processed
 		return slices.Clone(l), nil
@@ -82,7 +82,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 	return subs, err
 }
 
-func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
+func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
 	if s.QualifiedChannel != "" {
 		return List{s}, nil
 	}
@@ -104,27 +104,28 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	subs := List{}
 
+	if len(s.Pairs) != 0 {
+		// We deliberately do not check Availability of sub Pairs because users have edge cases to subscribe to non-existent pairs
+		for a := range ap {
+			ap[a] = s.Pairs
+		}
+	}
+
 	switch s.Asset {
 	case asset.All:
+		if len(ap) == 0 {
+			return List{}, nil // No assets enabled; only asset.Empty subs may continue
+		}
 		subCtx.AssetPairs = ap
 	default:
+		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
+			return List{}, nil // No pairs enabled for this sub asset
+		}
 		// This deliberately includes asset.Empty to harmonise handling
 		subCtx.AssetPairs = assetPairs{
 			s.Asset: ap[s.Asset],
 		}
 		assets = asset.Items{s.Asset}
-		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
-			return List{}, nil // Nothing is enabled for this sub asset
-		}
-	}
-
-	if len(s.Pairs) != 0 {
-		for a, pairs := range subCtx.AssetPairs {
-			if err := pairs.ContainsAll(s.Pairs, true); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
-				return nil, err
-			}
-			subCtx.AssetPairs[a] = s.Pairs
-		}
 	}
 
 	buf := &bytes.Buffer{}

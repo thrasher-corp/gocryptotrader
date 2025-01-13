@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -18,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -54,6 +57,27 @@ const (
 	websocketPrivate = "wss://stream.bybit.com/v5/private"
 )
 
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 50},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneHour},
+	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
+	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
+	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanPositions},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    chanPublicTicker,
+	subscription.OrderbookChannel: chanOrderbook,
+	subscription.AllTradesChannel: chanPublicTrade,
+	subscription.MyOrdersChannel:  chanOrder,
+	subscription.MyTradesChannel:  chanExecution,
+	subscription.MyWalletChannel:  chanWallet,
+	subscription.CandlesChannel:   chanKline,
+}
+
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
@@ -64,7 +88,7 @@ func (by *Bybit) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
@@ -90,7 +114,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 		return err
 	}
 
-	by.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
@@ -118,7 +142,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(req.RequestID, req)
+	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -138,73 +162,36 @@ func (by *Bybit) Subscribe(channelsToSubscribe subscription.List) error {
 	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
 }
 
-func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
-	var args []SubscriptionArgument
-	arg := SubscriptionArgument{
-		Operation: operation,
-		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-		Arguments: []string{},
-	}
-	authArg := SubscriptionArgument{
-		auth:      true,
-		Operation: operation,
-		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-		Arguments: []string{},
-	}
-
-	var selectedChannels, positions, execution, order, wallet, greeks, dCP = 0, 1, 2, 3, 4, 5, 6
-	chanMap := map[string]int{
-		chanPositions: positions,
-		chanExecution: execution,
-		chanOrder:     order,
-		chanWallet:    wallet,
-		chanGreeks:    greeks,
-		chanDCP:       dCP}
-
-	pairFormat, err := by.GetPairFormat(assetType, true)
+func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
+	subs, err = subs.ExpandTemplates(by)
 	if err != nil {
-		return nil, err
+		return
 	}
-	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) != 1 {
-			return nil, subscription.ErrNotSinglePair
-		}
-		pair := channelsToSubscribe[i].Pairs[0]
-		switch channelsToSubscribe[i].Channel {
-		case chanOrderbook:
-			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, pair.Format(pairFormat).String()))
-		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+pair.Format(pairFormat).String())
-		case chanKline, chanLeverageTokenKline:
-			interval, err := intervalToString(kline.FiveMin)
-			if err != nil {
-				return nil, err
-			}
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+pair.Format(pairFormat).String())
-		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
-			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
-				continue
-			}
-			authArg.Arguments = append(authArg.Arguments, channelsToSubscribe[i].Channel)
-			// adding the channel to selected channels so that we will not visit it again.
-			selectedChannels |= chanMap[channelsToSubscribe[i].Channel]
-		}
-		if len(arg.Arguments) >= 10 {
-			args = append(args, arg)
-			arg = SubscriptionArgument{
-				Operation: operation,
-				RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-				Arguments: []string{},
-			}
+	chans := []string{}
+	authChans := []string{}
+	for _, s := range subs {
+		if s.Authenticated {
+			authChans = append(authChans, s.QualifiedChannel)
+		} else {
+			chans = append(chans, s.QualifiedChannel)
 		}
 	}
-	if len(arg.Arguments) != 0 {
-		args = append(args, arg)
+	for _, b := range common.Batch(chans, 10) {
+		args = append(args, SubscriptionArgument{
+			Operation: operation,
+			RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+			Arguments: b,
+		})
 	}
-	if len(authArg.Arguments) != 0 {
-		args = append(args, authArg)
+	if len(authChans) != 0 {
+		args = append(args, SubscriptionArgument{
+			auth:      true,
+			Operation: operation,
+			RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+			Arguments: authChans,
+		})
 	}
-	return args, nil
+	return
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -213,19 +200,19 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 }
 
 func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := by.handleSubscriptions(asset.Spot, operation, channelsToSubscribe)
+	payloads, err := by.handleSubscriptions(operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	for a := range payloads {
 		var response []byte
 		if payloads[a].auth {
-			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
+			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
 		} else {
-			response, err = by.Websocket.Conn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
+			response, err = by.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
@@ -242,50 +229,18 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe su
 	return nil
 }
 
-// GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var subscriptions subscription.List
-	var channels = []string{
-		chanPublicTicker,
-		chanOrderbook,
-		chanPublicTrade,
-	}
-	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, []string{
-			chanPositions,
-			chanExecution,
-			chanOrder,
-			chanWallet,
-		}...)
-	}
-	pairs, err := by.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	for x := range channels {
-		switch channels[x] {
-		case chanPositions,
-			chanExecution,
-			chanOrder,
-			chanDCP,
-			chanWallet:
-			subscriptions = append(subscriptions,
-				&subscription.Subscription{
-					Channel: channels[x],
-					Asset:   asset.Spot,
-				})
-		default:
-			for z := range pairs {
-				subscriptions = append(subscriptions,
-					&subscription.Subscription{
-						Channel: channels[x],
-						Pairs:   currency.Pairs{pairs[z]},
-						Asset:   asset.Spot,
-					})
-			}
-		}
-	}
-	return subscriptions, nil
+// generateSubscriptions generates default subscription
+func (by *Bybit) generateSubscriptions() (subscription.List, error) {
+	return by.Features.Subscriptions.ExpandTemplates(by)
+}
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName":      channelName,
+		"isSymbolChannel":  isSymbolChannel,
+		"intervalToString": intervalToString,
+	}).Parse(subTplText)
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -408,7 +363,7 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
 			return err
 		}
@@ -449,7 +404,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
 			return err
 		}
@@ -500,7 +455,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(result.Symbol)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -511,7 +466,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 		Pair:         cp,
 		ExchangeName: by.Name,
 		AssetType:    assetType,
-		LastUpdated:  resp.Timestamp.Time(),
+		LastUpdated:  resp.PushTimestamp.Time(),
 	}
 	return nil
 }
@@ -522,7 +477,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(topicSplit[2])
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -566,7 +521,7 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(topicSplit[2])
+	cp, err := by.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -601,7 +556,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		return err
 	}
 
-	p, err := by.MatchSymbolWithAvailablePairs(tickResp.Symbol, assetType, true)
+	p, err := by.MatchSymbolWithAvailablePairs(tickResp.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -627,7 +582,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	}
 
 	updateTicker(tick, tickResp)
-	tick.LastUpdated = resp.Timestamp.Time()
+	tick.LastUpdated = resp.PushTimestamp.Time()
 
 	if err = ticker.ProcessTicker(tick); err == nil {
 		by.Websocket.DataHandler <- tick
@@ -702,7 +657,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 	}
 	tradeDatas := make([]trade.Data, len(result))
 	for x := range result {
-		cp, err := currency.NewPairFromString(result[x].Symbol)
+		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
 			return err
 		}
@@ -730,7 +685,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(result.Symbol)
+	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
@@ -759,31 +714,66 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if len(asks) == 0 && len(bids) == 0 {
 		return nil
 	}
-	if resp.Type == "snapshot" || result.UpdateID == 1 {
-		err = by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:         cp,
-			Exchange:     by.Name,
-			Asset:        assetType,
-			LastUpdated:  resp.Timestamp.Time(),
-			LastUpdateID: result.Sequence,
-			Asks:         asks,
-			Bids:         bids,
+	if resp.Type == "snapshot" {
+		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Pair:           cp,
+			Exchange:       by.Name,
+			Asset:          assetType,
+			LastUpdated:    resp.OrderbookLastUpdated.Time(),
+			LastUpdateID:   result.UpdateID,
+			UpdatePushedAt: resp.PushTimestamp.Time(),
+			Asks:           asks,
+			Bids:           bids,
 		})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = by.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
-			Asks:       asks,
-			Bids:       bids,
-			Asset:      assetType,
-			UpdateID:   result.Sequence,
-			UpdateTime: resp.Timestamp.Time(),
-		})
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+	return by.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:           cp,
+		Asks:           asks,
+		Bids:           bids,
+		Asset:          assetType,
+		UpdateID:       result.UpdateID,
+		UpdateTime:     resp.OrderbookLastUpdated.Time(),
+		UpdatePushedAt: resp.PushTimestamp.Time(),
+	})
+}
+
+// channelName converts global channel names to exchange specific names
+func channelName(s *subscription.Subscription) string {
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
+	}
+	return s.Channel
+}
+
+// isSymbolChannel returns whether the channel accepts a symbol parameter
+func isSymbolChannel(name string) bool {
+	switch name {
+	case chanPositions, chanExecution, chanOrder, chanDCP, chanWallet:
+		return false
+	}
+	return true
+}
+
+const subTplText = `
+{{ with $name := channelName $.S }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- if isSymbolChannel $name }}
+			{{- range $p := $pairs }}
+				{{- $name -}} .
+				{{- if eq $name "orderbook" -}} {{- $.S.Levels -}} . {{- end }}
+				{{- if eq $name "kline" -}} {{- intervalToString $.S.Interval -}} . {{- end }}
+				{{- $p }}
+				{{- $.PairSeparator }}
+			{{- end }}
+		{{- else }}
+			{{- $name }}
+		{{- end }}
+	{{- end }}
+	{{- $.AssetSeparator }}
+{{- end }}
+`
+
+// hasPotentialDelimiter returns if the asset has a potential delimiter on the pairs being returned.
+func hasPotentialDelimiter(a asset.Item) bool {
+	return a == asset.Options || a == asset.USDCMarginedFutures
 }

@@ -40,7 +40,7 @@ jobs:
 
     - name: Setup Postgres
       if: matrix.psql == true
-      uses: ikalnytskyi/action-setup-postgres@v6
+      uses: ikalnytskyi/action-setup-postgres@v7
       with:
         database: gct_dev_ci
       id: postgres
@@ -97,7 +97,7 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -144,7 +144,7 @@ jobs:
     
     - name: Run Docker image
       run: |
-        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --rm gct-backend-arm64
+        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --env GCT_DOCKER_CI=true --rm gct-backend-arm64
 
   frontend:
     name: GoCryptoTrader front-end

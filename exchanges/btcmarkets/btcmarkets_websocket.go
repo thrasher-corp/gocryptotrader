@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -32,9 +34,25 @@ const (
 var (
 	errTypeAssertionFailure = errors.New("type assertion failure")
 	errChecksumFailure      = errors.New("crc32 checksum failure")
-
-	authChannels = []string{fundChange, heartbeat, orderChange}
 )
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Channel: subscription.HeartbeatChannel},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.OrderbookChannel: wsOrderbookUpdate,
+	subscription.TickerChannel:    tick,
+	subscription.AllTradesChannel: tradeEndPoint,
+	subscription.MyOrdersChannel:  orderChange,
+	subscription.MyAccountChannel: fundChange,
+	subscription.HeartbeatChannel: heartbeat,
+}
 
 // WsConnect connects to a websocket feed
 func (b *BTCMarkets) WsConnect() error {
@@ -325,29 +343,13 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) generateDefaultSubscriptions() (subscription.List, error) {
-	var channels = []string{wsOrderbookUpdate, tick, tradeEndPoint}
-	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	var subscriptions subscription.List
-	for i := range channels {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: channels[i],
-			Pairs:   enabledCurrencies,
-			Asset:   asset.Spot,
-		})
-	}
+func (b *BTCMarkets) generateSubscriptions() (subscription.List, error) {
+	return b.Features.Subscriptions.ExpandTemplates(b)
+}
 
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		for i := range authChannels {
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: authChannels[i],
-			})
-		}
-	}
-	return subscriptions, nil
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *BTCMarkets) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -357,13 +359,17 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 	}
 
 	var errs error
-	for _, s := range subs {
-		if baseReq.Key == "" && common.StringDataContains(authChannels, s.Channel) {
-			if err := b.authWsSubscibeReq(baseReq); err != nil {
-				return err
+	if authed := subs.Private(); len(authed) > 0 {
+		if err := b.signWsReq(baseReq); err != nil {
+			errs = err
+			for _, s := range authed {
+				errs = common.AppendError(errs, fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, s))
 			}
+			subs = subs.Public()
 		}
+	}
 
+	for _, batch := range subs.GroupByPairs() {
 		if baseReq.MessageType == subscribe && len(b.Websocket.GetSubscriptions()) != 0 {
 			baseReq.MessageType = addSubscription // After first *successful* subscription API requires addSubscription
 			baseReq.ClientType = clientType       // Note: Only addSubscription requires/accepts clientType
@@ -371,12 +377,15 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 
 		r := baseReq
 
-		r.Channels = []string{s.Channel}
-		r.MarketIDs = s.Pairs.Strings()
+		r.MarketIDs = batch[0].Pairs.Strings()
+		r.Channels = make([]string, len(batch))
+		for i, s := range batch {
+			r.Channels[i] = s.QualifiedChannel
+		}
 
-		err := b.Websocket.Conn.SendJSONMessage(r)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(s)
+			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, batch...)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -386,7 +395,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 	return errs
 }
 
-func (b *BTCMarkets) authWsSubscibeReq(r *WsSubscribe) error {
+func (b *BTCMarkets) signWsReq(r *WsSubscribe) error {
 	creds, err := b.GetCredentials(context.TODO())
 	if err != nil {
 		return err
@@ -414,9 +423,9 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 			MarketIDs:   s.Pairs.Strings(),
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
-			err = b.Websocket.RemoveSubscriptions(s)
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -470,11 +479,24 @@ func concat(liquidity orderbook.Tranches) string {
 	return c
 }
 
-// trim turns value into string, removes the decimal point and all the leading
-// zeros.
+// trim turns value into string, removes the decimal point and all the leading zeros
 func trim(value float64) string {
 	valstr := strconv.FormatFloat(value, 'f', -1, 64)
 	valstr = strings.ReplaceAll(valstr, ".", "")
 	valstr = strings.TrimLeft(valstr, "0")
 	return valstr
 }
+
+func channelName(s *subscription.Subscription) string {
+	if n, ok := subscriptionNames[s.Channel]; ok {
+		return n
+	}
+	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+}
+
+const subTplText = `
+{{ range $asset, $pairs := $.AssetPairs }}
+	{{- channelName $.S -}}
+	{{ $.AssetSeparator }}
+{{- end }}
+`

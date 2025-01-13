@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -96,22 +96,20 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 	params.Set("symbol", symbolValue)
 	strLimit := strconv.FormatInt(limit, 10)
 	if strLimit != "" {
-		if !common.StringDataCompare(uValidOBLimits, strLimit) {
+		if !slices.Contains(uValidOBLimits, strLimit) {
 			return nil, fmt.Errorf("invalid limit: %v", limit)
 		}
 		params.Set("limit", strLimit)
 	}
 
-	rateBudget := uFuturesDefaultRate
+	rateBudget := uFuturesOrderbook1000Rate
 	switch {
 	case limit == 5, limit == 10, limit == 20, limit == 50:
 		rateBudget = uFuturesOrderbook50Rate
 	case limit >= 100 && limit < 500:
 		rateBudget = uFuturesOrderbook100Rate
-	case limit >= 500 && limit < 1000:
+	case limit == 0, limit >= 500 && limit < 1000:
 		rateBudget = uFuturesOrderbook500Rate
-	case limit == 1000:
-		rateBudget = uFuturesOrderbook1000Rate
 	}
 
 	var data OrderbookData
@@ -228,7 +226,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		return nil, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
+	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval")
 	}
 	params.Set("interval", interval)
@@ -494,7 +492,7 @@ func (b *Binance) UOpenInterestStats(ctx context.Context, symbol currency.Pair, 
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(uValidPeriods, period) {
+	if !slices.Contains(uValidPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -520,7 +518,7 @@ func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol curren
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(uValidPeriods, period) {
+	if !slices.Contains(uValidPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -546,7 +544,7 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol currenc
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(uValidPeriods, period) {
+	if !slices.Contains(uValidPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -572,7 +570,7 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pai
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(uValidPeriods, period) {
+	if !slices.Contains(uValidPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -598,7 +596,7 @@ func (b *Binance) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, pe
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(uValidPeriods, period) {
+	if !slices.Contains(uValidPeriods, period) {
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
@@ -646,7 +644,7 @@ func (b *Binance) UFuturesNewOrder(ctx context.Context, data *UFuturesNewOrderRe
 	params.Set("symbol", symbolValue)
 	params.Set("side", data.Side)
 	if data.PositionSide != "" {
-		if !common.StringDataCompare(validPositionSide, data.PositionSide) {
+		if !slices.Contains(validPositionSide, data.PositionSide) {
 			return resp, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", data.PositionSide)
@@ -663,13 +661,13 @@ func (b *Binance) UFuturesNewOrder(ctx context.Context, data *UFuturesNewOrderRe
 		params.Set("closePosition", data.ClosePosition)
 	}
 	if data.WorkingType != "" {
-		if !common.StringDataCompare(validWorkingType, data.WorkingType) {
+		if !slices.Contains(validWorkingType, data.WorkingType) {
 			return resp, errors.New("invalid workingType")
 		}
 		params.Set("workingType", data.WorkingType)
 	}
 	if data.NewOrderRespType != "" {
-		if !common.StringDataCompare(validNewOrderRespType, data.NewOrderRespType) {
+		if !slices.Contains(validNewOrderRespType, data.NewOrderRespType) {
 			return resp, errors.New("invalid newOrderRespType")
 		}
 		params.Set("newOrderRespType", data.NewOrderRespType)
@@ -707,17 +705,17 @@ func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderD
 		}
 		data[x].Symbol = formattedPair.String()
 		if data[x].PositionSide != "" {
-			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
+			if !slices.Contains(validPositionSide, data[x].PositionSide) {
 				return resp, errors.New("invalid positionSide")
 			}
 		}
 		if data[x].WorkingType != "" {
-			if !common.StringDataCompare(validWorkingType, data[x].WorkingType) {
+			if !slices.Contains(validWorkingType, data[x].WorkingType) {
 				return resp, errors.New("invalid workingType")
 			}
 		}
 		if data[x].NewOrderRespType != "" {
-			if !common.StringDataCompare(validNewOrderRespType, data[x].NewOrderRespType) {
+			if !slices.Contains(validNewOrderRespType, data[x].NewOrderRespType) {
 				return resp, errors.New("invalid newOrderRespType")
 			}
 		}
@@ -916,7 +914,7 @@ func (b *Binance) UChangeInitialMarginType(ctx context.Context, symbol currency.
 		return err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validMarginType, marginType) {
+	if !slices.Contains(validMarginType, marginType) {
 		return errors.New("invalid marginType")
 	}
 	params.Set("marginType", marginType)
@@ -1034,7 +1032,7 @@ func (b *Binance) UAccountIncomeHistory(ctx context.Context, symbol currency.Pai
 	}
 	params.Set("symbol", symbolValue)
 	if incomeType != "" {
-		if !common.StringDataCompare(validIncomeType, incomeType) {
+		if !slices.Contains(validIncomeType, incomeType) {
 			return resp, errors.New("invalid incomeType")
 		}
 		params.Set("incomeType", incomeType)
@@ -1094,7 +1092,7 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 		params.Set("symbol", symbolValue)
 	}
 	if autoCloseType != "" {
-		if !common.StringDataCompare(validAutoCloseTypes, autoCloseType) {
+		if !slices.Contains(validAutoCloseTypes, autoCloseType) {
 			return resp, errors.New("invalid incomeType")
 		}
 		params.Set("autoCloseType", autoCloseType)

@@ -5,14 +5,14 @@
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges)
-[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 This exchanges package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
-You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
+You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
@@ -217,7 +217,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
 | Lbank | Yes | No | NA |
-| Okcoin | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
@@ -247,47 +246,9 @@ var Exchanges = []string{
 	"kraken",
 	"kucoin",
 	"lbank",
-	"okcoin",
 	"okx",
 	"poloniex",
 	"yobit",
-```
-
-#### Increment the default number of supported exchanges in [config/config_test.go](../config/config_test.go):
-```go
-func TestGetEnabledExchanges(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if !errors.Is(err, errConfigDefineErrorExample) {
-		t.Errorf("received: '%v' but expected '%v'", err, errConfigDefineErrorExample)
-	}
-
-	exchanges := cfg.GetEnabledExchanges()
-	// modify the value of defaultEnabledExchanges at the top of the 
-	// config_test.go file to match the total count of exchanges
-	if len(exchanges) != defaultEnabledExchanges { 
-		t.Errorf("received: '%v' but expected '%v'", len(exchanges), defaultEnabledExchanges)
-	}
-
-	if !common.StringDataCompare(exchanges, "Bitfinex") {
-		t.Errorf("received: '%v' but expected '%v'", 
-			common.StringDataCompare(exchanges, "Bitfinex"), 
-			true)
-	}
-}
-```
-
-#### Increment the number of supported exchanges in [the gctscript exchange wrapper test file](../gctscript/wrappers/gct/exchange/exchange_test.go):
-```go
-func TestExchange_Exchanges(t *testing.T) {
-	t.Parallel()
-	x := exchangeTest.Exchanges(false)
-	y := len(x)
-	expected := 28 // modify this value to match the total count of exchanges
-	if y != expected {
-    	t.Fatalf("expected %v received %v", expected , y)
-	}
-}
 ```
 
 #### Setup and run the [documentation tool](../cmd/documentation):
@@ -837,7 +798,7 @@ channels:
 			continue
 		}
 		// When we have a successful subscription, we can alert our internal management system of the success.
-		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		f.Websocket.AddSuccessfulSubscriptions(f.Websocket.Conn, channelsToSubscribe[i])
 	}
     return errs
 }
@@ -1077,7 +1038,7 @@ channels:
 			continue
 		}
 		// When we have a successful unsubscription, we can alert our internal management system of the success.
-		f.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+		f.Websocket.RemoveSubscriptions(f.Websocket.Conn, channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -1137,7 +1098,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return f.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload

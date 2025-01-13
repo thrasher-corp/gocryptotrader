@@ -28,7 +28,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -3378,80 +3380,33 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
+
+	ok := new(Okx) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ok), "Setup must not error")
+
 	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
-	if !errors.Is(err, errEmptyArgument) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errEmptyArgument)
 
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID("SPOT", "")
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	if len(assets) != 1 {
-		t.Errorf("received %v expected %v", len(assets), 1)
-	}
-	if assets[0] != asset.Spot {
-		t.Errorf("received %v expected %v", assets[0], asset.Spot)
-	}
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	if len(assets) != 1 {
-		t.Errorf("received %v expected %v", len(assets), 1)
-	}
-	if assets[0] != asset.Futures {
-		t.Errorf("received %v expected %v", assets[0], asset.Futures)
-	}
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	if len(assets) != 1 {
-		t.Errorf("received %v expected %v", len(assets), 1)
-	}
-	if assets[0] != asset.PerpetualSwap {
-		t.Errorf("received %v expected %v", assets[0], asset.PerpetualSwap)
+	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
+		symbol := ""
+		if a != asset.Spot {
+			symbol = ok.CurrencyPairs.Pairs[a].Enabled[0].String()
+		}
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID(a.String(), symbol)
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		require.Len(t, assets, 1)
+		assert.Equalf(t, a, assets[0], "Should contain asset: %s", a)
 	}
 
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
-	if !errors.Is(err, currency.ErrCurrencyNotSupported) {
-		t.Error(err)
-	}
-
+	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test-test")
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Margin].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	var found bool
-	for i := range assets {
-		if assets[i] == asset.Margin {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("received %v expected %v", assets, asset.Margin)
-	}
-
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Spot].Enabled[0].String())
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	found = false
-	for i := range assets {
-		if assets[i] == asset.Spot {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("received %v expected %v", assets, asset.Spot)
+	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		assert.Contains(t, assets, a)
 	}
 }
 
@@ -3755,4 +3710,68 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ok := new(Okx)
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+
+	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ok.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{
+		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	}
+	for _, s := range ok.Features.Subscriptions {
+		for _, a := range ok.GetAssetTypes(true) {
+			if s.Asset != asset.All && s.Asset != a {
+				continue
+			}
+			pairs, err := ok.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
+			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "-"})
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			name := channelName(s)
+			if isSymbolChannel(s) {
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			} else {
+				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+				if isAssetChannel(s) {
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, ok.GetInstrumentTypeFromAssetItem(s.Asset))
+				} else {
+					s.QualifiedChannel = `{"channel":"` + name + `"}`
+				}
+				s.Pairs = pairs
+				exp = append(exp, s)
+			}
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestGenerateGridSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ok := new(Okx)
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+
+	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}}}
+	subs, err := ok.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{{Channel: okxChannelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
+	testsubs.EqualLists(t, exp, subs)
+
+	ok.Features.Subscriptions = subscription.List{{Channel: okxChannelGridPositions}}
+	subs, err = ok.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp = subscription.List{{Channel: okxChannelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
+	testsubs.EqualLists(t, exp, subs)
 }

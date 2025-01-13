@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,8 +18,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -31,6 +34,23 @@ const (
 	geminiWsMarketData             = "marketdata"
 	geminiWsOrderEvents            = "order/events"
 )
+
+const (
+	marketDataLevel2 = "l2"
+	candlesChannel   = "candles"
+)
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	// Authenticated connection is directly to the orders URI, so this is implicit
+	// {Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.CandlesChannel:   candlesChannel,
+	subscription.OrderbookChannel: marketDataLevel2,
+}
 
 // Instantiates a communications channel between websocket connections
 var comms = make(chan stream.Response)
@@ -61,28 +81,17 @@ func (g *Gemini) WsConnect() error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (g *Gemini) GenerateDefaultSubscriptions() (subscription.List, error) {
-	// See gemini_types.go for more subscription/candle vars
-	var channels = []string{
-		marketDataLevel2,
-		candles1d,
-	}
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (g *Gemini) generateSubscriptions() (subscription.List, error) {
+	return g.Features.Subscriptions.ExpandTemplates(g)
+}
 
-	pairs, err := g.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-
-	var subscriptions subscription.List
-	for x := range channels {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: channels[x],
-			Pairs:   pairs,
-			Asset:   asset.Spot,
-		})
-	}
-	return subscriptions, nil
+// GetSubscriptionTemplate returns a subscription channel template
+func (g *Gemini) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName": channelName,
+		"interval":    channelInterval,
+	}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -96,31 +105,26 @@ func (g *Gemini) Unsubscribe(subs subscription.List) error {
 }
 
 func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
-	format, err := g.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
 	req := wsSubscribeRequest{
 		Type:          op,
 		Subscriptions: make([]wsSubscriptions, 0, len(subs)),
 	}
 	for _, s := range subs {
 		req.Subscriptions = append(req.Subscriptions, wsSubscriptions{
-			Name:    s.Channel,
-			Symbols: s.Pairs.Format(format).Strings(),
+			Name:    s.QualifiedChannel,
+			Symbols: s.Pairs.Strings(),
 		})
 	}
 
-	if err := g.Websocket.Conn.SendJSONMessage(req); err != nil {
+	if err := g.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req); err != nil {
 		return err
 	}
 
 	if op == wsUnsubscribeOp {
-		return g.Websocket.RemoveSubscriptions(subs...)
+		return g.Websocket.RemoveSubscriptions(g.Websocket.Conn, subs...)
 	}
 
-	return g.Websocket.AddSuccessfulSubscriptions(subs...)
+	return g.Websocket.AddSuccessfulSubscriptions(g.Websocket.Conn, subs...)
 }
 
 // WsAuth will connect to Gemini's secure endpoint
@@ -165,6 +169,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
+	g.Websocket.Wg.Add(1)
 	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
 	return nil
 }
@@ -560,3 +565,28 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 
 	return trade.AddTradesToBuffer(g.Name, trades...)
 }
+
+func channelName(s *subscription.Subscription) string {
+	if n, ok := subscriptionNames[s.Channel]; ok {
+		return n
+	}
+	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+}
+
+func channelInterval(i kline.Interval) string {
+	switch i {
+	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.SixHour:
+		return i.Short()
+	case kline.OneDay:
+		return "1d"
+	}
+	panic(fmt.Errorf("%w: %s", kline.ErrUnsupportedInterval, i.Short()))
+}
+
+const subTplText = `
+{{ range $asset, $pairs := $.AssetPairs }}
+	{{- channelName $.S -}}
+	{{- with $i := $.S.Interval -}} _ {{- interval $i }}{{ end -}}
+	{{- $.AssetSeparator }}
+{{- end }}
+`

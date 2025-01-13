@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -88,7 +89,7 @@ func (b *Binance) WsConnect() error {
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -562,7 +563,7 @@ func (b *Binance) Unsubscribe(channels subscription.List) error {
 // manageSubs subscribes or unsubscribes from a list of subscriptions
 func (b *Binance) manageSubs(op string, subs subscription.List) error {
 	if op == wsSubscribeMethod {
-		if err := b.Websocket.AddSubscriptions(subs...); err != nil { // Note: AddSubscription will set state to subscribing
+		if err := b.Websocket.AddSubscriptions(b.Websocket.Conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
 			return err
 		}
 	} else {
@@ -577,7 +578,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		Params: subs.QualifiedChannels(),
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.ID, req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
@@ -591,7 +592,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		b.Websocket.DataHandler <- err
 
 		if op == wsSubscribeMethod {
-			if err2 := b.Websocket.RemoveSubscriptions(subs...); err2 != nil {
+			if err2 := b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...); err2 != nil {
 				err = common.AppendError(err, err2)
 			}
 		}
@@ -599,7 +600,7 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 		if op == wsSubscribeMethod {
 			err = common.AppendError(err, subs.SetStates(subscription.SubscribedState))
 		} else {
-			err = b.Websocket.RemoveSubscriptions(subs...)
+			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
 		}
 	}
 

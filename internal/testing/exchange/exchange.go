@@ -3,7 +3,6 @@ package exchange
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -39,11 +37,8 @@ func Setup(e exchange.IBotExchange) error {
 	if err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
 	}
-	parts := strings.Split(fmt.Sprintf("%T", e), ".")
-	if len(parts) != 2 {
-		return errors.New("unexpected parts splitting exchange type name")
-	}
-	eName := parts[1]
+	e.SetDefaults()
+	eName := e.GetName()
 	exchConf, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(`%s`) error: %w", eName, err)
@@ -86,11 +81,6 @@ func MockHTTPInstance(e exchange.IBotExchange) error {
 	return nil
 }
 
-var upgrader = websocket.Upgrader{}
-
-// WsMockFunc is a websocket handler to be called with each websocket message
-type WsMockFunc func([]byte, *websocket.Conn) error
-
 // MockWsInstance creates a new Exchange instance with a mock websocket instance and HTTP server
 // It accepts an exchange package type argument and a http.HandlerFunc
 // See CurryWsMockUpgrader for a convenient way to curry t and a ws mock function
@@ -126,33 +116,6 @@ func MockWsInstance[T any, PT interface {
 	require.NoError(tb, err, "Connect should not error")
 
 	return e
-}
-
-// CurryWsMockUpgrader curries a WsMockUpgrader with a testing.TB and a mock func
-// bridging the gap between information known before the Server is created and during a request
-func CurryWsMockUpgrader(tb testing.TB, wsHandler WsMockFunc) http.HandlerFunc {
-	tb.Helper()
-	return func(w http.ResponseWriter, r *http.Request) {
-		WsMockUpgrader(tb, w, r, wsHandler)
-	}
-}
-
-// WsMockUpgrader handles upgrading an initial HTTP request to WS, and then runs a for loop calling the mock func on each input
-func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHandler WsMockFunc) {
-	tb.Helper()
-	c, err := upgrader.Upgrade(w, r, nil)
-	require.NoError(tb, err, "Upgrade connection should not error")
-	defer c.Close()
-	for {
-		_, p, err := c.ReadMessage()
-		if websocket.IsUnexpectedCloseError(err) {
-			return
-		}
-		require.NoError(tb, err, "ReadMessage should not error")
-
-		err = wsHandler(p, c)
-		assert.NoError(tb, err, "WS Mock Function should not error")
-	}
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData)
