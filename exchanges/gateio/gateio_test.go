@@ -3525,3 +3525,28 @@ func TestHandleSubscriptions(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestParseWSHeader(t *testing.T) {
+	in := []string{
+		`{"time":1726121320,"time_ms":1726121320745,"id":1,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time_ms":1726121320746,"id":2,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time":1726121321,"id":3,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+	}
+	for _, i := range in {
+		h, err := parseWSHeader([]byte(i))
+		require.NoError(t, err)
+		require.NotEmpty(t, h.ID)
+		assert.Equal(t, "a4", h.RequestID)
+		assert.Equal(t, "spot.tickers", h.Channel)
+		assert.Equal(t, "subscribe", h.Event)
+		assert.NotEmpty(t, h.Result)
+		switch h.ID {
+		case 1:
+			assert.Equal(t, int64(1726121320745), h.Time.UnixMilli())
+		case 2:
+			assert.Equal(t, int64(1726121320746), h.Time.UnixMilli())
+		case 3:
+			assert.Equal(t, int64(1726121321), h.Time.Unix())
+		}
+	}
+}

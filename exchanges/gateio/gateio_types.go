@@ -2001,11 +2001,10 @@ type WsEventResponse struct {
 	}
 }
 
-// WsResponse represents generalized websocket push data from the server.
-type WsResponse struct {
+// WSResponse represents generalized websocket push data from the server.
+type WSResponse struct {
 	ID        int64           `json:"id"`
-	Time      types.Time      `json:"time"`
-	TimeMs    types.Time      `json:"time_ms"`
+	Time      time.Time       `json:"time"`
 	Channel   string          `json:"channel"`
 	Event     string          `json:"event"`
 	Result    json.RawMessage `json:"result"`

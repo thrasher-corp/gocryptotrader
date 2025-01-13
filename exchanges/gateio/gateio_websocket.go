@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -166,8 +167,8 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
-	var push WsResponse
-	if err := json.Unmarshal(respRaw, &push); err != nil {
+	push, err := parseWSHeader(respRaw)
+	if err != nil {
 		return err
 	}
 
@@ -181,17 +182,17 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.TimeMs.Time())
+		return g.processTicker(push.Result, push.Time)
 	case spotTradesChannel:
 		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
 		return g.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(push.Result, push.TimeMs.Time())
+		return g.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result, push.TimeMs.Time())
+		return g.processOrderbookUpdate(push.Result, push.Time)
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(push.Result, push.TimeMs.Time())
+		return g.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -214,6 +215,45 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 		return errors.New(stream.UnhandledMessage)
 	}
 	return nil
+}
+
+func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
+	r = &WSResponse{}
+	paths := [][]string{{"time_ms"}, {"time"}, {"channel"}, {"event"}, {"request_id"}, {"id"}, {"result"}}
+	jsonparser.EachKey(msg, func(idx int, v []byte, _ jsonparser.ValueType, _ error) {
+		switch idx {
+		case 0: // time_ms
+			if ts, err := strconv.ParseInt(string(v), 10, 64); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w parsing `time_ms`", err))
+			} else {
+				r.Time = time.UnixMilli(ts)
+			}
+		case 1: // time
+			if r.Time.IsZero() {
+				if ts, err := strconv.ParseInt(string(v), 10, 64); err != nil {
+					errs = common.AppendError(errs, fmt.Errorf("%w parsing `time`", err))
+				} else {
+					r.Time = time.Unix(ts, 0)
+				}
+			}
+		case 2:
+			r.Channel = string(v)
+		case 3:
+			r.Event = string(v)
+		case 4:
+			r.RequestID = string(v)
+		case 5:
+			if id, err := strconv.ParseInt(string(v), 10, 64); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w parsing `id`", err))
+			} else {
+				r.ID = id
+			}
+		case 6:
+			r.Result = json.RawMessage(v)
+		}
+	}, paths...)
+
+	return r, errs
 }
 
 func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {

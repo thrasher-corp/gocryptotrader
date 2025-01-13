@@ -294,8 +294,7 @@ func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleOptionsData handles options websocket data
 func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
-	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
+	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
@@ -327,7 +326,7 @@ func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
 		optionsUnderlyingCandlesticksChannel:
 		return g.processOptionsCandlestickPushData(respRaw)
 	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time.Time())
+		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
