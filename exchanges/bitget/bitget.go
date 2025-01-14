@@ -1377,8 +1377,8 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair currency.Pair, tps
 	return resp.UnfilledOrdersResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
 
-// GetHistoricalSpotOrders returns the user's spot order history
-func (bi *Bitget) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pair, startTime, endTime time.Time, limit, pagination, orderID int64) ([]SpotOrderDetailData, error) {
+// GetHistoricalSpotOrders returns the user's spot order history, within the last 90 days
+func (bi *Bitget) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pair, startTime, endTime time.Time, limit, pagination, orderID int64, tpslType string, acceptableDelay time.Duration) ([]SpotOrderDetailData, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true, true)
@@ -1386,6 +1386,7 @@ func (bi *Bitget) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pai
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
+	params.Values.Set("tpslType", tpslType)
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -1393,6 +1394,8 @@ func (bi *Bitget) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pai
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Values.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	params.Values.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
 	path := bitgetSpot + bitgetTrade + bitgetHistoryOrders
 	return bi.spotOrderHelper(ctx, path, params.Values)
 }
@@ -1424,7 +1427,7 @@ func (bi *Bitget) GetSpotFills(ctx context.Context, pair currency.Pair, startTim
 }
 
 // PlacePlanSpotOrder sets up an order to be placed after certain conditions are met
-func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, side, orderType, planType, triggerType, clientOrderID, strategy string, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
+func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, side, orderType, planType, triggerType, clientOrderID, strategy, stpMode string, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -1456,6 +1459,7 @@ func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, si
 		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
 		"triggerType":  triggerType,
 		"force":        strategy,
+		"stpMode":      stpMode,
 	}
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
@@ -1746,13 +1750,13 @@ func (bi *Bitget) SubaccountTransfer(ctx context.Context, fromType, toType, clie
 		return nil, errAmountEmpty
 	}
 	req := map[string]any{
-		"fromType": fromType,
-		"toType":   toType,
-		"amount":   strconv.FormatFloat(amount, 'f', -1, 64),
-		"coin":     currency,
-		"symbol":   pair,
-		"fromId":   fromID,
-		"toId":     toID,
+		"fromType":   fromType,
+		"toType":     toType,
+		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
+		"coin":       currency,
+		"symbol":     pair,
+		"fromUserId": fromID,
+		"toUserId":   toID,
 	}
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
@@ -1796,11 +1800,11 @@ func (bi *Bitget) WithdrawFunds(ctx context.Context, currency currency.Code, tra
 	var resp struct {
 		OrderIDStruct `json:"data"`
 	}
-	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetSubaccountTransferRecord returns the user's sub-account transfer history
-func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency currency.Code, subaccountID, clientOrderID string, startTime, endTime time.Time, limit, pagination int64) ([]SubaccTfrRecResp, error) {
+func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency currency.Code, subaccountID, clientOrderID, role string, startTime, endTime time.Time, limit, pagination int64) ([]SubaccTfrRecResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true, true)
@@ -1811,6 +1815,7 @@ func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency curr
 		params.Values.Set("coin", currency.String())
 	}
 	params.Values.Set("subUid", subaccountID)
+	params.Values.Set("role", role)
 	if clientOrderID != "" {
 		params.Values.Set("clientOid", clientOrderID)
 	}
@@ -1828,7 +1833,7 @@ func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency curr
 }
 
 // GetTransferRecord returns the user's transfer history
-func (bi *Bitget) GetTransferRecord(ctx context.Context, currency currency.Code, fromType, clientOrderID string, startTime, endTime time.Time, limit, pagination int64) ([]TransferRecResp, error) {
+func (bi *Bitget) GetTransferRecord(ctx context.Context, currency currency.Code, fromType, clientOrderID string, startTime, endTime time.Time, limit, pagination, page int64) ([]TransferRecResp, error) {
 	if currency.IsEmpty() {
 		return nil, errCurrencyEmpty
 	}
@@ -1851,6 +1856,9 @@ func (bi *Bitget) GetTransferRecord(ctx context.Context, currency currency.Code,
 	}
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if page != 0 {
+		params.Values.Set("pageNum", strconv.FormatInt(page, 10))
 	}
 	path := bitgetSpot + bitgetAccount + bitgetTransferRecord
 	var resp struct {
@@ -1875,13 +1883,14 @@ func (bi *Bitget) SwitchBGBDeductionStatus(ctx context.Context, deduct bool) (bo
 }
 
 // GetDepositAddressForCurrency returns the user's deposit address for a particular currency
-func (bi *Bitget) GetDepositAddressForCurrency(ctx context.Context, currency currency.Code, chain string) (*DepositAddressResp, error) {
+func (bi *Bitget) GetDepositAddressForCurrency(ctx context.Context, currency currency.Code, chain string, amount float64) (*DepositAddressResp, error) {
 	if currency.IsEmpty() {
 		return nil, errCurrencyEmpty
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
 	vals.Set("chain", chain)
+	vals.Set("size", strconv.FormatFloat(amount, 'f', -1, 64))
 	path := bitgetSpot + bitgetWallet + bitgetDepositAddress
 	var resp struct {
 		DepositAddressResp `json:"data"`
@@ -1890,7 +1899,7 @@ func (bi *Bitget) GetDepositAddressForCurrency(ctx context.Context, currency cur
 }
 
 // GetSubaccountDepositAddress returns the deposit address for a particular currency and sub-account
-func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID, chain string, currency currency.Code) (*DepositAddressResp, error) {
+func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID, chain string, currency currency.Code, amount float64) (*DepositAddressResp, error) {
 	if subaccountID == "" {
 		return nil, errSubaccountEmpty
 	}
@@ -1901,6 +1910,7 @@ func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID,
 	vals.Set("subUid", subaccountID)
 	vals.Set("coin", currency.String())
 	vals.Set("chain", chain)
+	vals.Set("size", strconv.FormatFloat(amount, 'f', -1, 64))
 	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositAddress
 	var resp struct {
 		DepositAddressResp `json:"data"`
@@ -1909,14 +1919,14 @@ func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID,
 }
 
 // GetBGBDeductionStatus returns the user's current BGB deduction status
-func (bi *Bitget) GetBGBDeductionStatus(ctx context.Context) (string, error) {
+func (bi *Bitget) GetBGBDeductionStatus(ctx context.Context) (bool, error) {
 	path := bitgetSpot + bitgetAccount + bitgetDeductInfo
 	var resp struct {
 		Data struct {
-			Deduct string `json:"deduct"`
+			Deduct OnOffBool `json:"deduct"`
 		} `json:"data"`
 	}
-	return resp.Data.Deduct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, nil, nil, &resp)
+	return bool(resp.Data.Deduct), bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, nil, nil, &resp)
 }
 
 // CancelWithdrawal cancels a large withdrawal request that was placed in the last minute
@@ -5169,6 +5179,22 @@ func (e *EmptyInt) MarshalJSON() ([]byte, error) {
 	return json.Marshal(strconv.FormatInt(int64(*e), 10))
 }
 
+// UnmarshalJSON unmarshals the JSON input into an OnOffBool type
+func (o *OnOffBool) UnmarshalJSON(b []byte) error {
+	var oS string
+	err := json.Unmarshal(b, &oS)
+	if err != nil {
+		return err
+	}
+	switch oS {
+	case "yes":
+		*o = true
+	case "no":
+		*o = false
+	}
+	return nil
+}
+
 // CandlestickHelper pulls out common candlestick functionality to avoid repetition
 func (bi *Bitget) candlestickHelper(ctx context.Context, pair currency.Pair, granularity, path string, limit uint16, params Params) (*CandleData, error) {
 	params.Values.Set("symbol", pair.String())
@@ -5302,6 +5328,10 @@ func (bi *Bitget) spotOrderHelper(ctx context.Context, path string, vals url.Val
 	}
 	resp := make([]SpotOrderDetailData, len(temp.Data))
 	for i := range temp.Data {
+		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp[i].FeeDetail)
+		if err != nil {
+			return nil, err
+		}
 		resp[i].UserID = temp.Data[i].UserID
 		resp[i].Symbol = temp.Data[i].Symbol
 		resp[i].OrderID = temp.Data[i].OrderID
@@ -5318,10 +5348,9 @@ func (bi *Bitget) spotOrderHelper(ctx context.Context, path string, vals url.Val
 		resp[i].CreationTime = temp.Data[i].CreationTime
 		resp[i].UpdateTime = temp.Data[i].UpdateTime
 		resp[i].OrderSource = temp.Data[i].OrderSource
-		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp[i].FeeDetail)
-		if err != nil {
-			return nil, err
-		}
+		resp[i].TriggerPrice = temp.Data[i].TriggerPrice
+		resp[i].TPSLType = temp.Data[i].TPSLType
+		resp[i].CancelReason = temp.Data[i].CancelReason
 	}
 	return resp, nil
 }

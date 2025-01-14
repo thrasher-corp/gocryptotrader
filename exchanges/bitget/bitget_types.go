@@ -708,6 +708,9 @@ type OrderDetailTemp struct {
 	UpdateTime       types.Time      `json:"uTime"`
 	OrderSource      string          `json:"orderSource"`
 	FeeDetailTemp    json.RawMessage `json:"feeDetail"`
+	TriggerPrice     float64         `json:"triggerPrice,string"`
+	TPSLType         string          `json:"tpslType"`
+	CancelReason     string          `json:"cancelReason"`
 }
 
 // FeeDetail contains information on fees
@@ -744,6 +747,10 @@ type SpotOrderDetailData struct {
 	UpdateTime       types.Time
 	OrderSource      string
 	FeeDetail        FeeDetailStore
+	// This struct is used by two endpoints, check both before deleting fields
+	TriggerPrice float64
+	TPSLType     string
+	CancelReason string
 }
 
 // UnfilledOrdersResp contains information on the user's unfilled orders
@@ -941,6 +948,9 @@ type DepositAddressResp struct {
 	URL     string        `json:"url"`
 }
 
+// OnOffBool is a type used to unmarshal strings that are either "on" or "off" into bools
+type OnOffBool bool
+
 // SubaccDepRecResp contains detailed information on deposits to sub-accounts
 type SubaccDepRecResp struct {
 	OrderID      int64         `json:"orderId,string"`
@@ -1127,7 +1137,7 @@ type OneAccResp struct {
 	MarginMode            string        `json:"marginMode"`
 	PositionMode          string        `json:"posMode"`
 	UnrealizedPL          types.Number  `json:"unrealizedPL"`
-	Coupon                types.Number  `json:"coupon,string"`
+	Coupon                types.Number  `json:"coupon"`
 	CrossedUnrealizedPL   types.Number  `json:"crossedUnrealizedPL"`
 	IsolatedUnrealizedPL  types.Number  `json:"isolatedUnrealizedPL"`
 }

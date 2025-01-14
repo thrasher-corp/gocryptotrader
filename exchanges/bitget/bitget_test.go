@@ -482,22 +482,6 @@ func TestGetQuotedPrice(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestCommitConversion(t *testing.T) {
-	_, err := bi.CommitConversion(context.Background(), currency.Code{}, currency.Code{}, "", 0, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "", 0, 0, 0)
-	assert.ErrorIs(t, err, errTraceIDEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 0, 0, 0)
-	assert.ErrorIs(t, err, errAmountEmpty)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 1, 1, 0)
-	assert.ErrorIs(t, err, errPriceEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto, testFiat, testAmount, 0)
-	require.NoError(t, err)
-	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, resp.TraceID, resp.FromCoinSize, resp.ToCoinSize, resp.ConvertPrice)
-	assert.NoError(t, err)
-}
-
 func TestGetConvertHistory(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetConvertHistory(context.Background(), time.Time{}, time.Time{}, 0, 0)
@@ -753,10 +737,10 @@ func TestGetUnfilledOrders(t *testing.T) {
 
 func TestGetHistoricalSpotOrders(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetHistoricalSpotOrders(context.Background(), currency.Pair{}, time.Now().Add(time.Hour), time.Time{}, 0, 0, 0)
+	_, err := bi.GetHistoricalSpotOrders(context.Background(), currency.Pair{}, time.Now().Add(time.Hour), time.Time{}, 0, 0, 0, "", time.Minute)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetHistoricalSpotOrders(context.Background(), currency.Pair{}, time.Time{}, time.Time{}, 5, 1<<62, 0)
+	_, err = bi.GetHistoricalSpotOrders(context.Background(), currency.Pair{}, time.Time{}, time.Time{}, 5, 1<<62, 0, "", time.Minute)
 	assert.NoError(t, err)
 }
 
@@ -773,22 +757,22 @@ func TestGetSpotFills(t *testing.T) {
 
 func TestPlacePlanSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.PlacePlanSpotOrder(context.Background(), currency.Pair{}, "", "", "", "", "", "", 0, 0, 0)
+	_, err := bi.PlacePlanSpotOrder(context.Background(), currency.Pair{}, "", "", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "", "", "", "", "", "", 0, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "", "", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "", "", "", "", "", 0, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "", "", "", "", "", 1, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "", "", "", "", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "limit", "", "", "", "", 1, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "limit", "", "", "", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "neigh", "", "", "", "", 1, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), testPair, "woof", "neigh", "", "", "", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
-	_, err = bi.PlacePlanSpotOrder(context.Background(), currency.NewPairWithDelimiter("meow", "woof", ""), "neigh", "oink", "", "", "", "", 1, 0, 1)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), currency.NewPairWithDelimiter("meow", "woof", ""), "neigh", "oink", "", "", "", "", "", 1, 0, 1)
 	assert.ErrorIs(t, err, errTriggerTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.PlacePlanSpotOrder(context.Background(), testPair, "sell", "limit", "", "fill_price", clientIDGenerator(), "ioc", testPrice, testPrice, testAmount)
+	resp, err := bi.PlacePlanSpotOrder(context.Background(), testPair, "sell", "limit", "", "fill_price", clientIDGenerator(), "ioc", "none", testPrice, testPrice, testAmount)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -842,7 +826,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestGetAccountAssets(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetAccountAssets(context.Background(), currency.Code{}, "")
+	_, err := bi.GetAccountAssets(context.Background(), testCrypto, "")
 	assert.NoError(t, err)
 }
 
@@ -938,23 +922,23 @@ func TestWithdrawFunds(t *testing.T) {
 
 func TestGetSubaccountTransferRecord(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetSubaccountTransferRecord(context.Background(), currency.Code{}, "", "", time.Now().Add(time.Hour), time.Time{}, 0, 0)
+	_, err := bi.GetSubaccountTransferRecord(context.Background(), currency.Code{}, "", "", "", time.Now().Add(time.Hour), time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetSubaccountTransferRecord(context.Background(), currency.Code{}, "", "meow", time.Time{}, time.Time{}, 3, 1<<62)
+	_, err = bi.GetSubaccountTransferRecord(context.Background(), testCrypto, "", "meow", "", time.Time{}, time.Time{}, 3, 1<<62)
 	assert.NoError(t, err)
 }
 
 func TestGetTransferRecord(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetTransferRecord(context.Background(), currency.Code{}, "", "", time.Time{}, time.Time{}, 0, 0)
+	_, err := bi.GetTransferRecord(context.Background(), currency.Code{}, "", "", time.Time{}, time.Time{}, 0, 0, 0)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
-	_, err = bi.GetTransferRecord(context.Background(), testCrypto, "", "", time.Time{}, time.Time{}, 0, 0)
+	_, err = bi.GetTransferRecord(context.Background(), testCrypto, "", "", time.Time{}, time.Time{}, 0, 0, 0)
 	assert.ErrorIs(t, err, errFromTypeEmpty)
-	_, err = bi.GetTransferRecord(context.Background(), testCrypto, "woof", "", time.Now().Add(time.Hour), time.Time{}, 0, 0)
+	_, err = bi.GetTransferRecord(context.Background(), testCrypto, "woof", "", time.Now().Add(time.Hour), time.Time{}, 0, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetTransferRecord(context.Background(), testCrypto, "spot", "meow", time.Time{}, time.Time{}, 3, 1<<62)
+	_, err = bi.GetTransferRecord(context.Background(), testCrypto, "spot", "meow", time.Time{}, time.Time{}, 3, 1<<62, 1)
 	assert.NoError(t, err)
 }
 
@@ -966,24 +950,22 @@ func TestSwitchBGBDeductionStatus(t *testing.T) {
 
 func TestGetDepositAddressForCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetDepositAddressForCurrency(context.Background(), currency.Code{}, "")
+	_, err := bi.GetDepositAddressForCurrency(context.Background(), currency.Code{}, "", 0)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetDepositAddressForCurrency(context.Background(), testCrypto, "")
+	resp, err := bi.GetDepositAddressForCurrency(context.Background(), testCrypto, "", 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
 func TestGetSubaccountDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetSubaccountDepositAddress(context.Background(), "", "", currency.Code{})
+	_, err := bi.GetSubaccountDepositAddress(context.Background(), "", "", currency.Code{}, 0)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
-	_, err = bi.GetSubaccountDepositAddress(context.Background(), "meow", "", currency.Code{})
+	_, err = bi.GetSubaccountDepositAddress(context.Background(), "meow", "", currency.Code{}, 0)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetSubaccountDepositAddress(context.Background(), deposSubaccID, "", testCrypto)
-	// Getting the error "The business of this account has been restricted", don't think this was happening
-	// last week.
+	resp, err := bi.GetSubaccountDepositAddress(context.Background(), deposSubaccID, "", testCrypto, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -992,6 +974,14 @@ func TestGetBGBDeductionStatus(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	testGetNoArgs(t, bi.GetBGBDeductionStatus)
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	_, err := bi.CancelWithdrawal(context.Background(), "")
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+
 }
 
 func TestGetSubaccountDepositRecords(t *testing.T) {
@@ -3034,7 +3024,55 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// The following 18 tests aren't parallel due to collisions with each other, and some other tests
+func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
+	t.Parallel()
+	ord := orderbook.Base{
+		Asks: orderbook.Tranches{
+			{
+				StrPrice:  "3",
+				StrAmount: "1",
+			},
+		},
+		Bids: orderbook.Tranches{
+			{
+				StrPrice:  "4",
+				StrAmount: "1",
+			},
+		},
+	}
+	err := bi.CalculateUpdateOrderbookChecksum(&ord, 0)
+	assert.ErrorIs(t, err, errInvalidChecksum)
+	err = bi.CalculateUpdateOrderbookChecksum(&ord, 892106381)
+	assert.NoError(t, err)
+	ord.Asks = make(orderbook.Tranches, 26)
+	data := "3141592653589793238462643383279502884197169399375105"
+	for i := range ord.Asks {
+		ord.Asks[i] = orderbook.Tranche{
+			StrPrice:  string(data[i*2]),
+			StrAmount: string(data[i*2+1]),
+		}
+	}
+	err = bi.CalculateUpdateOrderbookChecksum(&ord, 2945115267)
+	assert.NoError(t, err)
+}
+
+// The following 20 tests aren't parallel due to collisions with each other, and some other tests
+func TestCommitConversion(t *testing.T) {
+	_, err := bi.CommitConversion(context.Background(), currency.Code{}, currency.Code{}, "", 0, 0, 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "", 0, 0, 0)
+	assert.ErrorIs(t, err, errTraceIDEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 0, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, "1", 1, 1, 0)
+	assert.ErrorIs(t, err, errPriceEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto, testFiat, testAmount, 0)
+	require.NoError(t, err)
+	_, err = bi.CommitConversion(context.Background(), testCrypto, testFiat, resp.TraceID, resp.FromCoinSize, resp.ToCoinSize, resp.ConvertPrice)
+	assert.NoError(t, err)
+}
+
 func TestModifyPlanSpotOrder(t *testing.T) {
 	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
@@ -3255,6 +3293,7 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = bi.CancelAllOrders(context.Background(), ord)
 	assert.NoError(t, err)
 }
+
 func TestCancelCrossOrder(t *testing.T) {
 	_, err := bi.CancelCrossOrder(context.Background(), currency.Pair{}, "", 0)
 	assert.ErrorIs(t, err, errPairEmpty)
@@ -3332,6 +3371,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = bi.CancelBatchOrders(context.Background(), orders)
 	assert.NoError(t, err)
 }
+
 func TestCancelIsolatedOrder(t *testing.T) {
 	_, err := bi.CancelIsolatedOrder(context.Background(), currency.Pair{}, "", 0)
 	assert.ErrorIs(t, err, errPairEmpty)
@@ -3690,40 +3730,8 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
-	t.Parallel()
-	ord := orderbook.Base{
-		Asks: orderbook.Tranches{
-			{
-				StrPrice:  "3",
-				StrAmount: "1",
-			},
-		},
-		Bids: orderbook.Tranches{
-			{
-				StrPrice:  "4",
-				StrAmount: "1",
-			},
-		},
-	}
-	err := bi.CalculateUpdateOrderbookChecksum(&ord, 0)
-	assert.ErrorIs(t, err, errInvalidChecksum)
-	err = bi.CalculateUpdateOrderbookChecksum(&ord, 892106381)
-	assert.NoError(t, err)
-	ord.Asks = make(orderbook.Tranches, 26)
-	data := "3141592653589793238462643383279502884197169399375105"
-	for i := range ord.Asks {
-		ord.Asks[i] = orderbook.Tranche{
-			StrPrice:  string(data[i*2]),
-			StrAmount: string(data[i*2+1]),
-		}
-	}
-	err = bi.CalculateUpdateOrderbookChecksum(&ord, 2945115267)
-	assert.NoError(t, err)
-}
-
 type getNoArgsResp interface {
-	*TimeResp | *P2PMerInfoResp | []ConvertCoinsResp | []BGBConvertCoinsResp | []VIPFeeRateResp | []SupCurrencyResp | float64 | *SavingsBalance | *SharkFinBalance | *DebtsResp | []AssetOverviewResp | string | *SymbolsResp | []SubaccountAssetsResp | []exchange.FundingHistory | []string
+	*TimeResp | *P2PMerInfoResp | []ConvertCoinsResp | []BGBConvertCoinsResp | []VIPFeeRateResp | []SupCurrencyResp | float64 | *SavingsBalance | *SharkFinBalance | *DebtsResp | []AssetOverviewResp | bool | *SymbolsResp | []SubaccountAssetsResp | []exchange.FundingHistory | []string
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)

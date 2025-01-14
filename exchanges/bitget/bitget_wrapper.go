@@ -1172,7 +1172,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (bi *Bitget) GetDepositAddress(ctx context.Context, c currency.Code, _ string, chain string) (*deposit.Address, error) {
-	resp, err := bi.GetDepositAddressForCurrency(ctx, c, chain)
+	resp, err := bi.GetDepositAddressForCurrency(ctx, c, chain, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1407,7 +1407,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				}
 			}
 			for {
-				genOrds, err := bi.GetHistoricalSpotOrders(ctx, getOrdersRequest.Pairs[x], time.Time{}, time.Time{}, 100, pagination, 0)
+				genOrds, err := bi.GetHistoricalSpotOrders(ctx, getOrdersRequest.Pairs[x], time.Time{}, time.Time{}, 100, pagination, 0, "", time.Minute)
 				if err != nil {
 					return nil, err
 				}
