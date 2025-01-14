@@ -259,24 +259,6 @@ func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	return ticker.GetTicker(h.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (h *HitBTC) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
-	if err != nil {
-		return h.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (h *HitBTC) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(h.Name, p, assetType)
-	if err != nil {
-		return h.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if c.IsEmpty() {
@@ -357,20 +339,6 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 
 	return response, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(h.Name, creds, assetType)
-	if err != nil {
-		return h.UpdateAccountInfo(ctx, assetType)
-	}
-
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

@@ -420,7 +420,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 	}
 	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()]) ||
 		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()]) {
-		orderbooks, err := g.FetchOrderbook(context.Background(), data.ContractName, assetType)
+		orderbooks, err := g.UpdateOrderbook(context.Background(), data.ContractName, assetType)
 		if err != nil {
 			return err
 		}

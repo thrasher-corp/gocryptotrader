@@ -247,24 +247,6 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(ctx context.Context, assetT
     return nil
 }
 
-// FetchTicker returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker({{.Variable}}.Name, p, assetType)
-	if err != nil {
-		return {{.Variable}}.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get({{.Variable}}.Name, pair, assetType)
-	if err != nil {
-		return {{.Variable}}.UpdateOrderbook(ctx, pair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
@@ -310,21 +292,6 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	// If fetching requires more than one asset type please set 
 	// HasAssetTypeAccountSegregation to true in RESTCapabilities above. 
-	return account.Holdings{}, common.ErrNotYetImplemented
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// Example implementation below:
-	// 	creds, err := {{.Variable}}.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	acc, err := account.GetHoldings({{.Variable}}.Name, creds, assetType)
-	// 	if err != nil {
-	// 		return {{.Variable}}.UpdateAccountInfo(ctx, assetType)
-	// 	}
-	// 	return acc, nil
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
