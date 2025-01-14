@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -32,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"

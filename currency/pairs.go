@@ -1,12 +1,13 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Public Errors

@@ -1,11 +1,11 @@
 package bitstamp
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

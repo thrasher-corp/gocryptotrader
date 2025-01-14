@@ -1,11 +1,11 @@
 package bithumb
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
