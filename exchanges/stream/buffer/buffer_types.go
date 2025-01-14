@@ -2,7 +2,6 @@ package buffer
 
 import (
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -44,9 +43,6 @@ type Orderbook struct {
 	updateIDProgression bool
 	// checksum is a package defined checksum calculation for updated books.
 	checksum func(state *orderbook.Base, checksum uint32) error
-
-	publishPeriod time.Duration
-
 	// TODO: sync.RWMutex. For the moment we process the orderbook in a single
 	// thread. In future when there are workers directly involved this can be
 	// can be improved with RW mechanics which will allow updates to occur at
@@ -57,12 +53,7 @@ type Orderbook struct {
 // orderbookHolder defines a store of pending updates and a pointer to the
 // orderbook depth
 type orderbookHolder struct {
-	ob     *orderbook.Depth
-	buffer *[]orderbook.Update
-	// Reduces the amount of outbound alerts to the data handler for example
-	// coinbasepro can have up too 100 updates per second introducing overhead.
-	// The sync agent only requires an alert every 15 seconds for a specific
-	// currency.
-	ticker   *time.Ticker
+	ob       *orderbook.Depth
+	buffer   *[]orderbook.Update
 	updateID int64
 }

@@ -318,8 +318,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -399,8 +398,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -480,8 +478,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -564,8 +561,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -681,8 +677,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -844,8 +839,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -946,8 +940,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -1152,8 +1145,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -1638,8 +1630,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -1716,8 +1707,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -1797,8 +1787,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -1903,8 +1892,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -2000,8 +1988,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
@@ -2297,8 +2284,7 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false,
-    "publishPeriod": 10000000000
+    "websocketBufferEnabled": false
    }
   },
   {
