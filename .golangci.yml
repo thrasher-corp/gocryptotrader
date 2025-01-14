@@ -150,6 +150,9 @@ issues:
     - text: "Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec
+    - text: 'shadow: declaration of "err" shadows declaration at'
+      linters: [ govet ]
+
 
   exclude-dirs:
     - vendor

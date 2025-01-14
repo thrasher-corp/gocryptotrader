@@ -294,24 +294,17 @@ type ResponseError struct {
 
 // WsRequest defines a request obj for the JSON-RPC and gets a websocket response
 type WsRequest struct {
-	Method string   `json:"method"`
-	Params WsParams `json:"params,omitempty"`
-	ID     int64    `json:"id"`
-}
-
-// WsNotification defines a notification obj for the JSON-RPC this does not get
-// a websocket response
-type WsNotification struct {
-	JSONRPCVersion string   `json:"jsonrpc,omitempty"`
-	Method         string   `json:"method"`
-	Params         WsParams `json:"params"`
+	JSONRPCVersion string    `json:"jsonrpc,omitempty"`
+	Method         string    `json:"method"`
+	Params         *WsParams `json:"params,omitempty"`
+	ID             int64     `json:"id,omitempty"`
 }
 
 // WsParams are websocket params for a request
 type WsParams struct {
 	Symbol  string   `json:"symbol,omitempty"`
 	Period  string   `json:"period,omitempty"`
-	Limit   int64    `json:"limit,omitempty"`
+	Limit   int      `json:"limit,omitempty"`
 	Symbols []string `json:"symbols,omitempty"`
 }
 
