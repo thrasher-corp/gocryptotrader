@@ -23,9 +23,9 @@ var (
 	// holdings cannot be found
 	ErrExchangeHoldingsNotFound = errors.New("exchange holdings not found")
 
-	errHoldingsIsNil                = errors.New("holdings cannot be nil")
-	errExchangeNameUnset            = errors.New("exchange name unset")
-	errAssetHoldingsNotFound        = errors.New("asset holdings not found")
+	errHoldingsIsNil     = errors.New("holdings cannot be nil")
+	errExchangeNameUnset = errors.New("exchange name unset")
+	// errAssetHoldingsNotFound        = errors.New("asset holdings not found")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errBalanceIsNil                 = errors.New("balance is nil")
@@ -100,11 +100,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 
 	subAccountHoldings, ok := accounts.SubAccounts[*creds]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %s %s %w",
-			exch,
-			creds,
-			assetType,
-			errNoCredentialBalances)
+		return Holdings{}, fmt.Errorf("%s %s %s %w %w", exch, creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
 	}
 
 	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
@@ -130,10 +126,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 		}
 	}
 	if len(currencyBalances) == 0 {
-		return Holdings{}, fmt.Errorf("%s %s %w",
-			exch,
-			assetType,
-			errAssetHoldingsNotFound)
+		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, ErrExchangeHoldingsNotFound)
 	}
 	return Holdings{Exchange: exch, Accounts: []SubAccount{{
 		Credentials: Protected{creds: cpy},

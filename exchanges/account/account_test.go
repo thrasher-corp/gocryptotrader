@@ -165,8 +165,8 @@ func TestGetHoldings(t *testing.T) {
 	}
 
 	_, err = GetHoldings("Test", happyCredentials, asset.UpsideProfitContract)
-	if !errors.Is(err, errAssetHoldingsNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetHoldingsNotFound)
+	if !errors.Is(err, ErrExchangeHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeHoldingsNotFound)
 	}
 
 	_, err = GetHoldings("Test", &Credentials{Key: "BBBBB"}, asset.Spot)
