@@ -25,7 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -39,7 +41,7 @@ func TestMain(m *testing.M) {
 }
 
 // singleExchangeOverride enter an exchange name to only test that exchange
-var singleExchangeOverride = ""
+var singleExchangeOverride = "bitmex"
 
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
@@ -63,7 +65,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithCancel(ctx)
+				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
@@ -176,77 +178,57 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
-
-	var firstPriority []string
-	var secondPriority []string
-
 	for x := range iExchange.NumMethod() {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
 		}
+		method := actualExchange.MethodByName(methodName)
 
-		if _, ok := priorityMethodNames[methodName]; ok {
-			firstPriority = append(firstPriority, methodName)
-		} else {
-			secondPriority = append(secondPriority, methodName)
+		var assetLen int
+		for y := range method.Type().NumIn() {
+			input := method.Type().In(y)
+			for _, t := range []reflect.Type{
+				assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
+			} {
+				if input.AssignableTo(t) {
+					// this allows wrapper functions that support assets types
+					// to be tested with all supported assets
+					assetLen = len(assetParams) - 1
+					break
+				}
+			}
+		}
+		tt := time.Now()
+		e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
+		s := e.Add(-time.Hour * 24 * 2)
+		if methodName == "GetHistoricTrades" {
+			// limit trade history
+			e = time.Now()
+			s = e.Add(-time.Minute * 3)
+		}
+		for y := 0; y <= assetLen; y++ {
+			inputs := make([]reflect.Value, method.Type().NumIn())
+			argGenerator := &MethodArgumentGenerator{
+				Exchange:    exch,
+				AssetParams: assetParams[y],
+				MethodName:  methodName,
+				Start:       s,
+				End:         e,
+			}
+			for z := range method.Type().NumIn() {
+				argGenerator.MethodInputType = method.Type().In(z)
+				generatedArg := generateMethodArg(ctx, t, argGenerator)
+				inputs[z] = *generatedArg
+			}
+			assetY := assetParams[y].Asset.String()
+			pairY := assetParams[y].Pair.String()
+			t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
+				t.Parallel()
+				CallExchangeMethod(t, method, inputs, methodName, exch)
+			})
 		}
 	}
-	handleExchangeWrapperTests(ctx, t, actualExchange, firstPriority, exch, assetParams, "PRIORITY GROUP")
-	handleExchangeWrapperTests(ctx, t, actualExchange, secondPriority, exch, assetParams, "SECONDARY GROUP")
-}
-
-func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchange reflect.Value, methodNames []string, exch exchange.IBotExchange, assetParams []assetPair, groupTestID string) {
-	t.Helper()
-	t.Run(groupTestID, func(t *testing.T) {
-		for x := range methodNames {
-			methodName := methodNames[x]
-			method := actualExchange.MethodByName(methodNames[x])
-			var assetLen int
-			for y := range method.Type().NumIn() {
-				input := method.Type().In(y)
-				for _, t := range []reflect.Type{
-					assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
-				} {
-					if input.AssignableTo(t) {
-						// this allows wrapper functions that support assets types
-						// to be tested with all supported assets
-						assetLen = len(assetParams) - 1
-						break
-					}
-				}
-			}
-			tt := time.Now()
-			e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
-			s := e.Add(-time.Hour * 24 * 2)
-			if methodName == "GetHistoricTrades" {
-				// limit trade history
-				e = time.Now()
-				s = e.Add(-time.Minute * 3)
-			}
-			for y := range assetLen {
-				inputs := make([]reflect.Value, method.Type().NumIn())
-				argGenerator := &MethodArgumentGenerator{
-					Exchange:    exch,
-					AssetParams: assetParams[y],
-					MethodName:  methodName,
-					Start:       s,
-					End:         e,
-				}
-				for z := range method.Type().NumIn() {
-					argGenerator.MethodInputType = method.Type().In(z)
-					generatedArg := generateMethodArg(ctx, t, argGenerator)
-					inputs[z] = *generatedArg
-				}
-				assetY := assetParams[y].Asset.String()
-				pairY := assetParams[y].Pair.String()
-				t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
-					t.Parallel()
-					CallExchangeMethod(t, method, inputs, methodName, exch)
-				})
-			}
-		}
-	})
 }
 
 // CallExchangeMethod will call an exchange's method using generated arguments
@@ -568,13 +550,6 @@ type assetPair struct {
 	Asset asset.Item
 }
 
-// priorityMethodNames are called before other exchange functions
-var priorityMethodNames = map[string]struct{}{
-	"UpdateTickers":   {}, // Is required before FetchTickers is called
-	"UpdateTicker":    {}, // Is required before FetchTicker is called
-	"UpdateOrderbook": {}, // Is required before FetchOrderbook is called
-}
-
 // excludedMethodNames represent the functions that are not
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
@@ -616,7 +591,6 @@ var excludedMethodNames = map[string]struct{}{
 	"GetLeverage":                      {},
 	"SetMarginType":                    {},
 	"ChangePositionMargin":             {},
-	"FetchAccountInfo":                 {}, // Account info is not retrieved in these tests
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -669,6 +643,9 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
+	account.ErrExchangeHoldingsNotFound,  // Is thrown when an exchange's holdings are not found
+	ticker.ErrNoTickerFound,              // Is thrown when no ticker is found
+	orderbook.ErrCannotFindOrderbook,     // Is thrown when no orderbook is found
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
