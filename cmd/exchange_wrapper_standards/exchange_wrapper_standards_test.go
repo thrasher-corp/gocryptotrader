@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 }
 
 // singleExchangeOverride enter an exchange name to only test that exchange
-var singleExchangeOverride = "bitmex"
+var singleExchangeOverride = ""
 
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
