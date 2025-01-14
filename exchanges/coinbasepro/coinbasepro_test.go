@@ -389,7 +389,7 @@ func TestCreatePortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errNameEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err = c.CreatePortfolio(context.Background(), "GCT Test Portfolio")
-	if err != nil && err.Error() != errPortfolioNameDuplicate {
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -448,7 +448,7 @@ func TestEditPortfolio(t *testing.T) {
 	pID := portfolioIDFromName(t, "GCT Test Portfolio To-Edit")
 	_, err = c.EditPortfolio(context.Background(), pID, "GCT Test Portfolio Edited")
 	// The new JWT-based keys don't have permissions to edit portfolios they aren't assigned to, causing this to fail
-	if err != nil && err.Error() != errPortfolioNameDuplicate {
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -1499,7 +1499,7 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 	}
 	if !partialSkip {
 		_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 	_, err = c.CancelPendingFuturesSweep(context.Background())
 	assert.NoError(t, err)
@@ -1514,6 +1514,7 @@ func TestWsAuth(t *testing.T) {
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	require.NoError(t, err)
+	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 	err = c.Subscribe(subscription.List{
 		{
