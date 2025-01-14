@@ -9,14 +9,15 @@ import (
 	"strings"
 )
 
+// Public Errors
+var (
+	ErrPairDuplication = errors.New("currency pair duplication")
+)
+
 var (
 	errSymbolEmpty                = errors.New("symbol is empty")
 	errNoDelimiter                = errors.New("no delimiter was supplied")
 	errPairFormattingInconsistent = errors.New("pair formatting is inconsistent")
-
-	// ErrPairDuplication defines an error when there is multiple of the same
-	// currency pairs found.
-	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
