@@ -39,13 +39,13 @@ var (
 	ErrAmountMustBeSet             = errors.New("amount must be set")
 	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
 	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
+	ErrIDNotSet                    = errors.New("ID not set")
+	ErrUnrecognisedOrderType       = errors.New("unrecognised order type")
 )
 
 var (
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
-	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
-	errExchangeNameUnset        = errors.New("exchange name unset")
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
@@ -64,7 +64,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if s.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameUnset
 	}
 
 	if s.Pair.IsEmpty() {
@@ -83,7 +83,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
-	if s.Type != Market && s.Type != Limit {
+	if AllOrderTypes&s.Type != s.Type || s.Type == UnknownType {
 		return ErrTypeIsInvalid
 	}
 
@@ -1156,7 +1156,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case ConditionalStop.String():
 		return ConditionalStop, nil
 	default:
-		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
+		return UnknownType, fmt.Errorf("'%v' %w", oType, ErrUnrecognisedOrderType)
 	}
 }
 
@@ -1229,7 +1229,7 @@ func (o *ClassificationError) Error() string {
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
 		if c.OrderID == "" {
-			return errors.New("ID not set")
+			return ErrIDNotSet
 		}
 		return nil
 	})
@@ -1282,7 +1282,7 @@ func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if g.Type == UnknownType {
-		return errUnrecognisedOrderType
+		return ErrUnrecognisedOrderType
 	}
 
 	var errs error
