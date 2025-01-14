@@ -13,9 +13,11 @@ package versions
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"strconv"
 	"sync"
@@ -30,6 +32,8 @@ var (
 	errModifyingExchange   = errors.New("error modifying exchange config")
 	errNoVersions          = errors.New("error retrieving latest config version: No config versions are registered")
 	errApplyingVersion     = errors.New("error applying version")
+	errConfigVersion       = errors.New("version in config file is higher than the latest available version")
+	errTargetVersion       = errors.New("target downgrade version is higher than the latest available version")
 )
 
 // ConfigVersion is a version that affects the general configuration
@@ -55,14 +59,21 @@ type manager struct {
 var Manager = &manager{}
 
 // Deploy upgrades or downgrades the config between versions
-func (m *manager) Deploy(ctx context.Context, j []byte) ([]byte, error) {
+// version param -1 defaults to the latest version
+// Prints an error an exits if the config file version or version param is not registered
+func (m *manager) Deploy(ctx context.Context, j []byte, version int) ([]byte, error) {
 	if err := m.checkVersions(); err != nil {
 		return j, err
 	}
 
-	target, err := m.latest()
+	latest, err := m.latest()
 	if err != nil {
 		return j, err
+	}
+
+	target := latest
+	if version != -1 {
+		target = version
 	}
 
 	m.m.RLock()
@@ -77,47 +88,61 @@ func (m *manager) Deploy(ctx context.Context, j []byte) ([]byte, error) {
 		return j, fmt.Errorf("%w `version`: %w", common.ErrGettingField, err)
 	case target == current:
 		return j, nil
+	case latest < current:
+		warnVersionNotRegistered(current, latest, errConfigVersion)
+		return j, errConfigVersion
+	case target > latest:
+		warnVersionNotRegistered(target, latest, errTargetVersion)
+		return j, errTargetVersion
 	}
 
 	for current != target {
-		next := current + 1
-		action := "upgrade"
+		patchVersion := current + 1
+		action := "upgrade to"
 		configMethod := ConfigVersion.UpgradeConfig
 		exchMethod := ExchangeVersion.UpgradeExchange
 
 		if target < current {
-			next = current - 1
-			action = "downgrade"
+			patchVersion = current
+			action = "downgrade from"
 			configMethod = ConfigVersion.DowngradeConfig
 			exchMethod = ExchangeVersion.DowngradeExchange
 		}
 
-		log.Printf("Running %s to config version %v\n", action, next)
+		log.Printf("Running %s config version %v\n", action, patchVersion)
 
-		patch := m.versions[next]
+		patch := m.versions[patchVersion]
 
 		if cPatch, ok := patch.(ConfigVersion); ok {
 			if j, err = configMethod(cPatch, ctx, j); err != nil {
-				return j, fmt.Errorf("%w %s to %v: %w", errApplyingVersion, action, next, err)
+				return j, fmt.Errorf("%w %s %v: %w", errApplyingVersion, action, patchVersion, err)
 			}
 		}
 
 		if ePatch, ok := patch.(ExchangeVersion); ok {
 			if j, err = exchangeDeploy(ctx, ePatch, exchMethod, j); err != nil {
-				return j, fmt.Errorf("%w %s to %v: %w", errApplyingVersion, action, next, err)
+				return j, fmt.Errorf("%w %s %v: %w", errApplyingVersion, action, patchVersion, err)
 			}
 		}
 
-		current = next
+		current = patchVersion
+		if target < current {
+			current = patchVersion - 1
+		}
 
 		if j, err = jsonparser.Set(j, []byte(strconv.Itoa(current)), "version"); err != nil {
-			return j, fmt.Errorf("%w `version` during %s to %v: %w", common.ErrSettingField, action, next, err)
+			return j, fmt.Errorf("%w `version` during %s %v: %w", common.ErrSettingField, action, patchVersion, err)
 		}
+	}
+
+	var out bytes.Buffer
+	if err = json.Indent(&out, j, "", " "); err != nil {
+		return j, fmt.Errorf("error formatting json: %w", err)
 	}
 
 	log.Println("Version management finished")
 
-	return j, nil
+	return out.Bytes(), nil
 }
 
 func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(ExchangeVersion, context.Context, []byte) ([]byte, error), j []byte) ([]byte, error) {
@@ -195,4 +220,12 @@ func (m *manager) checkVersions() error {
 		}
 	}
 	return nil
+}
+
+func warnVersionNotRegistered(current, latest int, msg error) {
+	fmt.Fprintf(os.Stderr, `
+%s ('%d' > '%d')
+Switch back to the version of GoCryptoTrader containing config version '%d' and run:
+$ ./cmd/config downgrade %d 
+`, msg, current, latest, current, latest)
 }

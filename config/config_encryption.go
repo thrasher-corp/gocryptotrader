@@ -95,8 +95,8 @@ func getSensitiveInput(prompt string) (resp []byte, err error) {
 	return bytes.TrimRight(resp, "\r\n"), err
 }
 
-// EncryptConfigFile encrypts json config data with a key
-func EncryptConfigFile(configData, key []byte) ([]byte, error) {
+// EncryptConfigData encrypts json config data with a key
+func EncryptConfigData(configData, key []byte) ([]byte, error) {
 	sessionDK, salt, err := makeNewSessionDK(key)
 	if err != nil {
 		return nil, err
@@ -105,12 +105,12 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 		sessionDK:  sessionDK,
 		storedSalt: salt,
 	}
-	return c.encryptConfigFile(configData)
+	return c.encryptConfigData(configData)
 }
 
-// encryptConfigFile encrypts json config data with a key
+// encryptConfigData encrypts json config data with a key
 // The EncryptConfig field is set to config enabled (1)
-func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
+func (c *Config) encryptConfigData(configData []byte) ([]byte, error) {
 	configData, err := jsonparser.Set(configData, []byte("1"), "encryptConfig")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSettingEncryptConfig, err)
@@ -135,8 +135,8 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	return appendedFile, nil
 }
 
-// DecryptConfigFile decrypts config data with a key
-func DecryptConfigFile(d, key []byte) ([]byte, error) {
+// DecryptConfigData decrypts config data with a key
+func DecryptConfigData(d, key []byte) ([]byte, error) {
 	return (&Config{}).decryptConfigData(d, key)
 }
 
