@@ -2864,8 +2864,6 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 				Type:           futures.LongDated,
 				SettlementType: contractSettlementType,
 				MarginCurrency: currency.NewCode(results[s].QuoteCurrency),
-				Multiplier:     results[s].TickSize.Float64(),
-				MaxLeverage:    results[s].LotSize.Float64(),
 			}
 		}
 		return resp, nil

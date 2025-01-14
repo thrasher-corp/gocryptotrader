@@ -31,3 +31,43 @@ func TestStringToContractSettlementType(t *testing.T) {
 		assert.ErrorIs(t, err, contractSettlementTypesMap[x].Error)
 	}
 }
+
+func TestContractSettlementTypeString(t *testing.T) {
+	t.Parallel()
+	contractSettlementTypeToStringMap := map[ContractSettlementType]string{
+		UnsetSettlementType:         "unset",
+		Linear:                      "linear",
+		Inverse:                     "inverse",
+		Quanto:                      "quanto",
+		LinearOrInverse:             "linearOrInverse",
+		Hybrid:                      "hybrid",
+		ContractSettlementType(200): "unknown",
+	}
+	for k := range contractSettlementTypeToStringMap {
+		assert.Equal(t, k.String(), contractSettlementTypeToStringMap[k])
+	}
+}
+
+func TestContractTypeToString(t *testing.T) {
+	t.Parallel()
+	contractTypeToStringMap := map[ContractType]string{
+		Daily:             "day",
+		Perpetual:         "perpetual",
+		LongDated:         "long_dated",
+		Weekly:            "weekly",
+		Fortnightly:       "fortnightly",
+		ThreeWeekly:       "three-weekly",
+		Monthly:           "monthly",
+		Quarterly:         "quarterly",
+		SemiAnnually:      "semi-annually",
+		HalfYearly:        "half-yearly",
+		NineMonthly:       "nine-monthly",
+		Yearly:            "yearly",
+		Unknown:           "unknown",
+		UnsetContractType: "unset",
+		ContractType(200): "unset",
+	}
+	for k := range contractTypeToStringMap {
+		assert.Equal(t, k.String(), contractTypeToStringMap[k])
+	}
+}
