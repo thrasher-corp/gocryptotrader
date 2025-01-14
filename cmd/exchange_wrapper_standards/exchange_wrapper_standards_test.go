@@ -199,7 +199,6 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchange reflect.Value, methodNames []string, exch exchange.IBotExchange, assetParams []assetPair, groupTestID string) {
 	t.Helper()
 	t.Run(groupTestID, func(t *testing.T) {
-		t.Parallel()
 		for x := range methodNames {
 			methodName := methodNames[x]
 			method := actualExchange.MethodByName(methodNames[x])
