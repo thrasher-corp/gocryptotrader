@@ -1249,7 +1249,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 	var errs error
 	limits := make([]order.MinMaxLevel, 0, len(summary))
 	for _, marketInfo := range summary {
-		p, err := marketInfo.Pair() //nolint:govet // Deliberately shadow err
+		p, err := marketInfo.Pair()
 		if err != nil {
 			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
 			continue

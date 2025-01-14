@@ -3548,12 +3548,35 @@ func TestStringToOrderStatus(t *testing.T) {
 	}
 }
 
-func TestRetrieveAndSetAccountType(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	err := b.RetrieveAndSetAccountType(context.Background())
-	if err != nil {
-		t.Fatal(err)
+func TestFetchAccountType(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
+	val, err := b.FetchAccountType(context.Background())
+	require.NoError(t, err)
+	require.NotZero(t, val)
+}
+
+func TestAccountTypeString(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "unset", AccountType(0).String())
+	require.Equal(t, "unified", accountTypeUnified.String())
+	require.Equal(t, "normal", accountTypeNormal.String())
+	require.Equal(t, "unknown", AccountType(3).String())
+}
+
+func TestRequiresUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	err := b.RequiresUnifiedAccount(context.Background())
+	require.NoError(t, err)
+	b := &Bybit{} //nolint:govet // Intentional shadow to avoid future copy/paste mistakes. Also stops race below.
+	b.account.accountType = accountTypeNormal
+	err = b.RequiresUnifiedAccount(context.Background())
+	require.ErrorIs(t, err, errAPIKeyIsNotUnified)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
