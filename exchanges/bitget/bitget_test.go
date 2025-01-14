@@ -1254,6 +1254,18 @@ func TestAdjustMargin(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSetUSDTAssetMode(t *testing.T) {
+	t.Parallel()
+	_, err := bi.SetUSDTAssetMode(context.Background(), "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.SetUSDTAssetMode(context.Background(), "meow", "")
+	assert.ErrorIs(t, err, errAssetModeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.SetUSDTAssetMode(context.Background(), "SUSDT-FUTURES", "single")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
 func TestChangeMarginMode(t *testing.T) {
 	t.Parallel()
 	_, err := bi.ChangeMarginMode(context.Background(), currency.Pair{}, "", "", currency.Code{})
@@ -1289,12 +1301,12 @@ func TestChangePositionMode(t *testing.T) {
 
 func TestGetFuturesAccountBills(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetFuturesAccountBills(context.Background(), "", "", currency.Pair{}, currency.Code{}, 0, 0, time.Time{}, time.Time{})
+	_, err := bi.GetFuturesAccountBills(context.Background(), "", "", "", currency.Code{}, 0, 0, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = bi.GetFuturesAccountBills(context.Background(), "meow", "", currency.Pair{}, currency.Code{}, 0, 0, time.Now().Add(time.Hour), time.Time{})
+	_, err = bi.GetFuturesAccountBills(context.Background(), "meow", "", "", currency.Code{}, 0, 0, time.Now().Add(time.Hour), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetFuturesAccountBills(context.Background(), testFiat2.String()+"-FUTURES", "", currency.Pair{}, currency.Code{}, 0, 0, time.Time{}, time.Time{})
+	_, err = bi.GetFuturesAccountBills(context.Background(), testFiat2.String()+"-FUTURES", "trans_from_exchange", "", testFiat2, 1<<62, 2, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1344,24 +1356,24 @@ func TestGetHistoricalPositions(t *testing.T) {
 
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.PlaceFuturesOrder(context.Background(), currency.Pair{}, "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	_, err := bi.PlaceFuturesOrder(context.Background(), currency.Pair{}, "", "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "", "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errMarginModeEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "", "", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "", "", "", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "oink", "", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "oink", "", "", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "oink", "", "limit", "", "", testFiat2, 0, 0, 0, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "oink", "", "limit", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
 	assert.ErrorIs(t, err, errAmountEmpty)
-	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "oink", "", "limit", "", "", testFiat2, 0, 0, 1, 0, false, false)
+	_, err = bi.PlaceFuturesOrder(context.Background(), testPair2, "woof", "neigh", "oink", "", "limit", "", "", "", testFiat2, 0, 0, 1, 0, false, false)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.PlaceFuturesOrder(context.Background(), testPair2, testFiat2.String()+"-FUTURES", "isolated", "buy", "open", "limit", "GTC", clientIDGenerator(), testFiat2, testPrice2+1, testPrice2-1, testAmount2, testPrice2, true, true)
+	resp, err := bi.PlaceFuturesOrder(context.Background(), testPair2, testFiat2.String()+"-FUTURES", "isolated", "buy", "open", "limit", "GTC", clientIDGenerator(), "", testFiat2, testPrice2+1, testPrice2-1, testAmount2, testPrice2, true, true)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -3217,7 +3229,7 @@ func TestModifyFuturesOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errNewClientOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	oID := getFuturesOrdIDHelper(t, true, true)
-	_, err = bi.ModifyFuturesOrder(context.Background(), int64(oID.OrderID), oID.ClientOrderID, testFiat2.String()+"-FUTURES", clientIDGenerator(), testPair2, 0, 0, testPrice2+1, testPrice2/10)
+	_, err = bi.ModifyFuturesOrder(context.Background(), int64(oID.OrderID), oID.ClientOrderID, testFiat2.String()+"-FUTURES", clientIDGenerator(), testPair2, testAmount2+1, testPrice2+2, testPrice2+1, testPrice2/10)
 	assert.NoError(t, err)
 }
 
@@ -3230,7 +3242,7 @@ func TestCancelFuturesOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	oID := getFuturesOrdIDHelper(t, true, true)
-	_, err = bi.CancelFuturesOrder(context.Background(), testPair2, testFiat2.String()+"-FUTURES", "", currency.Code{}, int64(oID.OrderID))
+	_, err = bi.CancelFuturesOrder(context.Background(), testPair2, testFiat2.String()+"-FUTURES", oID.ClientOrderID, testFiat2, int64(oID.OrderID))
 	assert.NoError(t, err)
 }
 
@@ -3244,7 +3256,7 @@ func TestBatchCancelFuturesOrders(t *testing.T) {
 			OrderID: oID.OrderID,
 		},
 	}
-	_, err = bi.BatchCancelFuturesOrders(context.Background(), orders, testPair2, testFiat2.String()+"-FUTURES", currency.Code{})
+	_, err = bi.BatchCancelFuturesOrders(context.Background(), orders, testPair2, testFiat2.String()+"-FUTURES", testFiat2)
 	assert.NoError(t, err)
 }
 

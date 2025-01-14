@@ -152,6 +152,7 @@ const (
 	bitgetSetLeverage              = "/set-leverage"
 	bitgetSetAutoMargin            = "/set-auto-margin"
 	bitgetSetMargin                = "/set-margin"
+	bitgetSetAssetMode             = "/set-asset-mode"
 	bitgetSetMarginMode            = "/set-margin-mode"
 	bitgetSetPositionMode          = "/set-position-mode"
 	bitgetBill                     = "/bill"
@@ -312,6 +313,7 @@ var (
 	errReturnEmpty                    = errors.New("returned data unexpectedly empty")
 	errInvalidChecksum                = errors.New("invalid checksum")
 	errAuthenticatedWebsocketDisabled = errors.New("authenticatedWebsocketAPISupport not enabled")
+	errAssetModeEmpty                 = errors.New("assetMode cannot be empty")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
@@ -2502,6 +2504,25 @@ func (bi *Bitget) AdjustMargin(ctx context.Context, pair currency.Pair, productT
 	return bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, nil)
 }
 
+// SetUSDTAssetMode sets the asset mode for USDT pairs
+func (bi *Bitget) SetUSDTAssetMode(ctx context.Context, productType, assetMode string) (*SuccessBool, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if assetMode == "" {
+		return nil, errAssetModeEmpty
+	}
+	req := map[string]any{
+		"productType": productType,
+		"assetMode":   assetMode,
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetAssetMode
+	var resp struct {
+		SuccessBool `json:"data"`
+	}
+	return &resp.SuccessBool, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate2, http.MethodPost, path, nil, req, &resp)
+}
+
 // ChangeMarginMode changes the margin mode for a given pair. Can only be done when there the user has no open positions or orders
 func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair currency.Pair, productType, marginMode string, marginCoin currency.Code) (*LeverageResp, error) {
 	if pair.IsEmpty() {
@@ -2551,7 +2572,7 @@ func (bi *Bitget) ChangePositionMode(ctx context.Context, productType, positionM
 }
 
 // GetFuturesAccountBills returns a section of the user's billing history
-func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, businessType string, pair currency.Pair, currency currency.Code, pagination, limit int64, startTime, endTime time.Time) ([]FutureAccBillResp, error) {
+func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, businessType, onlyFunding string, currency currency.Code, pagination, limit int64, startTime, endTime time.Time) (*FutureAccBillResp, error) {
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -2562,11 +2583,11 @@ func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, busin
 		return nil, err
 	}
 	params.Values.Set("productType", productType)
-	params.Values.Set("symbol", pair.String())
 	if !currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
 	params.Values.Set("businessType", businessType)
+	params.Values.Set("onlyFunding", onlyFunding)
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -2575,11 +2596,9 @@ func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, busin
 	}
 	path := bitgetMix + bitgetAccount + bitgetBill
 	var resp struct {
-		Data struct {
-			Bills []FutureAccBillResp `json:"bills"`
-		} `json:"data"`
+		Data FutureAccBillResp `json:"data"`
 	}
-	return resp.Data.Bills, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.Data, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetPositionTier returns the position configuration for a given pair
@@ -2601,7 +2620,7 @@ func (bi *Bitget) GetPositionTier(ctx context.Context, productType string, pair 
 }
 
 // GetSinglePosition returns position details for a given productType, pair, and marginCoin. The exchange recommends using the websocket feed instead, as information from this endpoint may be delayed during settlement or market fluctuations
-func (bi *Bitget) GetSinglePosition(ctx context.Context, productType string, pair currency.Pair, marginCoin currency.Code) ([]PositionResp, error) {
+func (bi *Bitget) GetSinglePosition(ctx context.Context, productType string, pair currency.Pair, marginCoin currency.Code) ([]SinglePositionResp, error) {
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -2617,13 +2636,13 @@ func (bi *Bitget) GetSinglePosition(ctx context.Context, productType string, pai
 	vals.Set("marginCoin", marginCoin.String())
 	path := bitgetMix + bitgetPosition + bitgetSinglePosition
 	var resp struct {
-		PositionResp []PositionResp `json:"data"`
+		PositionResp []SinglePositionResp `json:"data"`
 	}
 	return resp.PositionResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetAllPositions returns position details for a given productType and marginCoin. The exchange recommends using the websocket feed instead, as information from this endpoint may be delayed during settlement or market fluctuations
-func (bi *Bitget) GetAllPositions(ctx context.Context, productType string, marginCoin currency.Code) ([]PositionResp, error) {
+func (bi *Bitget) GetAllPositions(ctx context.Context, productType string, marginCoin currency.Code) ([]AllPositionResp, error) {
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -2635,7 +2654,7 @@ func (bi *Bitget) GetAllPositions(ctx context.Context, productType string, margi
 	vals.Set("marginCoin", marginCoin.String())
 	path := bitgetMix + bitgetPosition + bitgetAllPositions
 	var resp struct {
-		PositionResp []PositionResp `json:"data"`
+		PositionResp []AllPositionResp `json:"data"`
 	}
 	return resp.PositionResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2664,7 +2683,7 @@ func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair currency.Pair
 }
 
 // PlaceFuturesOrder places a futures order on the exchange
-func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, productType, marginMode, side, tradeSide, orderType, strategy, clientOID string, marginCoin currency.Code, stopSurplusPrice, stopLossPrice, amount, price float64, reduceOnly, isCopyTradeLeader bool) (*OrderIDStruct, error) {
+func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, productType, marginMode, side, tradeSide, orderType, strategy, clientOID, stpMode string, marginCoin currency.Code, stopSurplusPrice, stopLossPrice, amount, price float64, reduceOnly, isCopyTradeLeader bool) (*OrderIDStruct, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -2700,6 +2719,7 @@ func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, pro
 		"force":       strategy,
 		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
 		"price":       strconv.FormatFloat(price, 'f', -1, 64),
+		"stpMode":     stpMode,
 	}
 	if clientOID != "" {
 		req["clientOid"] = clientOID
@@ -2745,7 +2765,6 @@ func (bi *Bitget) PlaceReversal(ctx context.Context, pair currency.Pair, marginC
 		"side":        side,
 		"tradeSide":   tradeSide,
 		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
-		"orderType":   "market",
 	}
 	if clientOID != "" {
 		req["clientOid"] = clientOID
@@ -2875,7 +2894,7 @@ func (bi *Bitget) BatchCancelFuturesOrders(ctx context.Context, orderIDs []Order
 		"productType": productType,
 		"orderList":   orderIDs,
 	}
-	if marginCoin.IsEmpty() {
+	if !marginCoin.IsEmpty() {
 		req["marginCoin"] = marginCoin
 	}
 	path := bitgetMix + bitgetOrder + bitgetBatchCancelOrders
