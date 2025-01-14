@@ -188,3 +188,35 @@ func (t *SymbolOrderbookTickerList) UnmarshalJSON(data []byte) error {
 	*t = tickers
 	return nil
 }
+
+// SubAccountCreationResponse represents a sub-account creation response.
+type SubAccountCreationResponse struct {
+	SubAccount string `json:"subAccount"`
+	Note       string `json:"note"`
+}
+
+// SubAccounts represents list of sub-accounts and sub-account detail
+type SubAccounts struct {
+	SubAccounts []struct {
+		SubAccount string     `json:"subAccount"`
+		IsFreeze   bool       `json:"isFreeze"`
+		CreateTime types.Time `json:"createTime"`
+		UID        string     `json:"uid"`
+	} `json:"subAccounts"`
+}
+
+// SubAccountAPIDetail represents a sub-account API key detail
+type SubAccountAPIDetail struct {
+	SubAccount  string     `json:"subAccount"`
+	Note        string     `json:"note"`
+	APIKey      string     `json:"apiKey"`
+	SecretKey   string     `json:"secretKey"`
+	Permissions string     `json:"permissions"`
+	IP          string     `json:"ip"`
+	CreatTime   types.Time `json:"creatTime"`
+}
+
+// SubAccountsAPIs represents a sub-account API keys detail
+type SubAccountsAPIs struct {
+	SubAccount []SubAccountAPIDetail `json:"subAccount"`
+}

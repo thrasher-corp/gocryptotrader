@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -32,6 +33,12 @@ const (
 	// Authenticated endpoints
 )
 
+var (
+	errInvalidSubAccountName      = errors.New("invalid sub-account name")
+	errInvalidSubAccountNote      = errors.New("invalid sub-account note")
+	errUnsupportedPermissionValue = errors.New("permission is unsupported")
+)
+
 // Start implementing public and private exchange API funcs below
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -43,7 +50,7 @@ func (me *MEXC) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConf
 		params.Set("symbol", symbols[0])
 	}
 	var resp *ExchangeConfig
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "exchangeInfo", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "exchangeInfo", params, &resp)
 }
 
 // GetSystemTime check server time
@@ -51,7 +58,7 @@ func (me *MEXC) GetSystemTime(ctx context.Context) (types.Time, error) {
 	resp := &struct {
 		ServerTime types.Time `json:"serverTime"`
 	}{}
-	return resp.ServerTime, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "time", nil, nil, &resp, false)
+	return resp.ServerTime, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "time", nil, &resp)
 }
 
 // GetDefaultSumbols retrieves all default symbols
@@ -59,7 +66,7 @@ func (me *MEXC) GetDefaultSumbols(ctx context.Context) ([]string, error) {
 	resp := &struct {
 		Symbols []string `json:"data"`
 	}{}
-	return resp.Symbols, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "defaultSymbols", nil, nil, &resp, false)
+	return resp.Symbols, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "defaultSymbols", nil, &resp)
 }
 
 // GetOrderbook retrieves orderbook data of a symbol
@@ -73,7 +80,7 @@ func (me *MEXC) GetOrderbook(ctx context.Context, symbol string, limit int64) (*
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *Orderbook
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "depth", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "depth", params, &resp)
 }
 
 // GetRecentTradesList retrieves recent trades list
@@ -87,7 +94,7 @@ func (me *MEXC) GetRecentTradesList(ctx context.Context, symbol string, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []TradeDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "trades", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "trades", params, &resp)
 }
 
 // GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
@@ -109,7 +116,7 @@ func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTim
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AggregatedTradeDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "aggTrades", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "aggTrades", params, &resp)
 }
 
 var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}
@@ -147,7 +154,7 @@ func (me *MEXC) GetCandlestick(ctx context.Context, symbol string, interval klin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []CandlestickData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "klines", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "klines", params, &resp)
 }
 
 // GetCurrentAveragePrice retrieves current average price of symbol
@@ -158,7 +165,7 @@ func (me *MEXC) GetCurrentAveragePrice(ctx context.Context, symbol string) (*Sym
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *SymbolAveragePrice
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "avgPrice", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "avgPrice", params, &resp)
 }
 
 // Get24HourTickerPriceChangeStatistics retrieves ticker price change statistics
@@ -170,7 +177,7 @@ func (me *MEXC) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbol
 		params.Set("symbol", symbols[0])
 	}
 	var resp TickerList
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/24hr", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/24hr", params, &resp)
 }
 
 // GetSymbolPriceTicker represents a symbol price ticker detail
@@ -182,7 +189,7 @@ func (me *MEXC) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]S
 		params.Set("symbol", symbols[0])
 	}
 	var resp SymbolPriceTickers
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/price", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/price", params, &resp)
 }
 
 // GetSymbolOrderbookTicker represents an orderbook detail for a symbol
@@ -192,23 +199,110 @@ func (me *MEXC) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]
 		params.Set("symbol", symbol)
 	}
 	var resp SymbolOrderbookTickerList
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/bookTicker", params, nil, &resp, false)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/bookTicker", params, &resp)
+}
+
+// CreateSubAccount create a sub-account from the master account.
+func (me *MEXC) CreateSubAccount(ctx context.Context, subAccountName, note string) (*SubAccountCreationResponse, error) {
+	if subAccountName == "" {
+		return nil, errInvalidSubAccountName
+	}
+	if note == "" {
+		return nil, errInvalidSubAccountNote
+	}
+	params := url.Values{}
+	params.Set("subAccount", subAccountName)
+	params.Set("note", note)
+	var resp *SubAccountCreationResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "sub-account/virtualSubAccount", params, &resp, true)
+}
+
+// GetSubAccountList get details of the sub-account list
+func (me *MEXC) GetSubAccountList(ctx context.Context, subAccountName string, isFreeze bool, page, limit int64) (*SubAccounts, error) {
+	params := url.Values{}
+	if subAccountName != "" {
+		params.Set("subAccount", subAccountName)
+	}
+	if isFreeze {
+		params.Set("isFreeze", "true")
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *SubAccounts
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/list", params, &resp, true)
+}
+
+// CreateAPIKeyForSubAccount creates an API key for sub-account
+// Permission of APIKey: SPOT_ACCOUNT_READ, SPOT_ACCOUNT_WRITE, SPOT_DEAL_READ, SPOT_DEAL_WRITE, CONTRACT_ACCOUNT_READ, CONTRACT_ACCOUNT_WRITE, CONTRACT_DEAL_READ,
+// CONTRACT_DEAL_WRITE, SPOT_TRANSFER_READ, SPOT_TRANSFER_WRITE
+func (me *MEXC) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, note, permissions, ip string) (interface{}, error) {
+	if subAccountName == "" {
+		return nil, errInvalidSubAccountName
+	}
+	if note == "" {
+		return nil, errInvalidSubAccountNote
+	}
+	if permissions == "" {
+		return nil, errUnsupportedPermissionValue
+	}
+	params := url.Values{}
+	params.Set("subAccount", subAccountName)
+	params.Set("note", note)
+	params.Set("permissions", permissions)
+	if ip != "" {
+		params.Set("ip", ip)
+	}
+	var resp *SubAccountAPIDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "sub-account/apiKey", params, &resp, true)
+}
+
+// GetSubAccountAPIKey applies to master accounts only
+func (me *MEXC) GetSubAccountAPIKey(ctx context.Context, subAccountName string) (*SubAccountsAPIs, error) {
+	if subAccountName == "" {
+		return nil, errInvalidSubAccountName
+	}
+	params := url.Values{}
+	params.Set("subAccount", subAccountName)
+	var resp *SubAccountsAPIs
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/apiKey", params, &resp, true)
+}
+
+// DeleteAPIKeySubAccount delete the API Key of a sub-account
+func (me *MEXC) DeleteAPIKeySubAccount(ctx context.Context, subAccountName string) (string, error) {
+	if subAccountName == "" {
+		return "", errInvalidSubAccountName
+	}
+	params := url.Values{}
+	params.Set("subAccount", subAccountName)
+	resp := &struct {
+		SubAccount string `json:"subAccount"`
+	}{}
+	return resp.SubAccount, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "sub-account/apiKey", params, &resp, true)
+}
+
+// UniversalTransfer requires SPOT_TRANSFER_WRITE permission
+func (me *MEXC) UniversalTransfer(ctx context.Context, fromAccount, toAccount, fromAccountType, toAccountType string, asset currency.Code, amount float64) (interface{}, error) {
+	params := url.Values{}
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "capital/sub-account/universalTransfer", params, &resp, true)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
-func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, data, result interface{}, auth bool) error {
+func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
-	var authType request.AuthType
-	authType = request.UnauthenticatedRequest
-	if auth {
-		authType = request.AuthenticatedRequest
-	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
-	if auth {
+	var authType request.AuthType
+	authType = request.UnauthenticatedRequest
+	if len(auth) > 0 && auth[0] {
+		authType = request.AuthenticatedRequest
 		creds, err := me.GetCredentials(ctx)
 		if err != nil {
 			return err
@@ -217,6 +311,8 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.
 		if values != nil {
 			values = url.Values{}
 		}
+		values.Set("recvWindow", "5000")
+		values.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(values.Encode()),
 			[]byte(creds.Secret))

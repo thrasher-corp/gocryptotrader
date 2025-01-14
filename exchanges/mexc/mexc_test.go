@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -163,6 +164,64 @@ func TestGetSymbolOrderbookTicker(t *testing.T) {
 	assert.NotNil(t, result)
 
 	result, err = me.GetSymbolOrderbookTicker(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := me.CreateSubAccount(context.Background(), "", "sub-account notes")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+	_, err = me.CreateSubAccount(context.Background(), "Test1", "")
+	require.ErrorIs(t, err, errInvalidSubAccountNote)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CreateSubAccount(context.Background(), "Test1", "sub-account notes")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSubAccountList(context.Background(), "SubAcc1", false, 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateAPIKeyForSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := me.CreateAPIKeyForSubAccount(context.Background(), "", "123", "SPOT_DEAL_WRITE", "")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+	_, err = me.CreateAPIKeyForSubAccount(context.Background(), "SubAcc2", "", "SPOT_DEAL_WRITE", "")
+	require.ErrorIs(t, err, errInvalidSubAccountNote)
+	_, err = me.CreateAPIKeyForSubAccount(context.Background(), "SubAcc2", "123", "", "")
+	require.ErrorIs(t, err, errUnsupportedPermissionValue)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CreateAPIKeyForSubAccount(context.Background(), "SubAcc2", "123", "SPOT_DEAL_WRITE", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetSubAccountAPIKey(context.Background(), "")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSubAccountAPIKey(context.Background(), "SubAcc1")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDeleteAPIKeySubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := me.DeleteAPIKeySubAccount(context.Background(), "")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.DeleteAPIKeySubAccount(context.Background(), "SubAcc1")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
