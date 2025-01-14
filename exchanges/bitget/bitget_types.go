@@ -561,6 +561,49 @@ type VIPFeeRateResp struct {
 	USDTWithdrawAmount float64 `json:"usdtWithdrawAmount,string"`
 }
 
+// InterestRateHistory contains information on the interest rate history
+type InterestRateHistory struct {
+	AnnualInterestRate float64    `json:"annualInterestRate,string"`
+	DailyInterestRate  float64    `json:"dailyInterestRate,string"`
+	Timestamp          types.Time `json:"ts"`
+}
+
+// InterestRateResp contains information on the interest rate history
+type InterestRateResp struct {
+	Coin    currency.Code         `json:"coin"`
+	History []InterestRateHistory `json:"historyInterestRateList"`
+}
+
+// ExchangeRateList is a sub-struct holding information on exchange rates
+type ExchangeRateList struct {
+	Tier          uint8   `json:"tier,string"`
+	MinimumAmount float64 `json:"minAmount,string"`
+	MaximumAmount float64 `json:"maxAmount,string"`
+	ExchangeRate  float64 `json:"exchangeRate,string"`
+}
+
+// ExchangeRateResp contains information on exchange rates
+type ExchangeRateResp struct {
+	Coin     currency.Code      `json:"coin"`
+	RateList []ExchangeRateList `json:"exchangeRateList"`
+}
+
+// DiscountRateList is a sub-struct holding information on discount rates
+type DiscountRateList struct {
+	Tier          uint8   `json:"tier,string"`
+	MinimumAmount float64 `json:"minAmount,string"`
+	MaximumAmount float64 `json:"maxAmount,string"`
+	DiscountRate  float64 `json:"discountRate,string"`
+}
+
+// DiscountRateResp contains information on discount rates
+type DiscountRateResp struct {
+	Coin       currency.Code      `json:"coin"`
+	UserLimit  uint64             `json:"userLimit,string"`
+	TotalLimit uint64             `json:"totalLimit,string"`
+	RateList   []DiscountRateList `json:"discountRateList"`
+}
+
 // TickerResp contains information on tickers
 type TickerResp struct {
 	Symbol       string     `json:"symbol"`
@@ -953,17 +996,20 @@ type OnOffBool bool
 
 // SubaccDepRecResp contains detailed information on deposits to sub-accounts
 type SubaccDepRecResp struct {
-	OrderID      int64         `json:"orderId,string"`
-	TradeID      int64         `json:"tradeId,string"`
-	Coin         currency.Code `json:"coin"`
-	Size         float64       `json:"size,string"`
-	Status       string        `json:"status"`
-	FromAddress  string        `json:"fromAddress"`
-	ToAddress    string        `json:"toAddress"`
-	Chain        string        `json:"chain"`
-	Destination  string        `json:"dest"`
-	CreationTime types.Time    `json:"cTime"`
-	UpdateTime   types.Time    `json:"uTime"`
+	OrderID       int64         `json:"orderId,string"`
+	TradeID       int64         `json:"tradeId,string"`
+	Coin          currency.Code `json:"coin"`
+	ClientOrderID string        `json:"clientOid"`
+	Size          float64       `json:"size,string"`
+	Status        string        `json:"status"`
+	FromAddress   string        `json:"fromAddress"`
+	ToAddress     string        `json:"toAddress"`
+	Chain         string        `json:"chain"`
+	Confirm       uint32        `json:"confirm,string"`
+	Destination   string        `json:"dest"`
+	Tag           string        `json:"tag"`
+	CreationTime  types.Time    `json:"cTime"`
+	UpdateTime    types.Time    `json:"uTime"`
 }
 
 // WithdrawRecordsResp contains detailed information on withdrawals
@@ -1026,6 +1072,7 @@ type FutureTickerResp struct {
 	DeliveryTime      types.Time `json:"deliveryTime"`
 	DeliveryStatus    string     `json:"deliveryStatus"`
 	Open24H           float64    `json:"open24h,string"`
+	MarkPrice         float64    `json:"markPrice,string"`
 }
 
 // CallMode represents the call mode for the futures candlestick endpoints
@@ -1117,6 +1164,7 @@ type ContractConfigResp struct {
 	MaximumLeverage              float64       `json:"maxLever,string"`
 	PosLimit                     float64       `json:"posLimit,string"`
 	MaintainTime                 types.Time    `json:"maintainTime"`
+	OpenTime                     types.Time    `json:"openTime"`
 }
 
 // OneAccResp contains information on a single account
@@ -1140,6 +1188,10 @@ type OneAccResp struct {
 	Coupon                types.Number  `json:"coupon"`
 	CrossedUnrealizedPL   types.Number  `json:"crossedUnrealizedPL"`
 	IsolatedUnrealizedPL  types.Number  `json:"isolatedUnrealizedPL"`
+	Grant                 types.Number  `json:"grant"`
+	AssetMode             string        `json:"assetMode"`
+	IsolatedMargin        types.Number  `json:"isolatedMargin"`
+	CrossedMargin         types.Number  `json:"crossedMargin"`
 }
 
 // FutureAccDetails contains information on a user's futures account
@@ -1158,12 +1210,57 @@ type FutureAccDetails struct {
 	Coupon               types.Number  `json:"coupon"`
 	CrossedUnrealizedPL  types.Number  `json:"crossedUnrealizedPL"`
 	IsolatedUnrealizedPL types.Number  `json:"isolatedUnrealizedPL"`
+	Grant                types.Number  `json:"grant"`
+	AssetMode            string        `json:"assetMode"`
+	IsolatedMargin       types.Number  `json:"isolatedMargin"`
+	CrossedMargin        types.Number  `json:"crossedMargin"`
+}
+
+// FutureSubaccDetails contains information on a futures-related sub-account
+type FutureSubaccDetails struct {
+	MarginCoin           currency.Code `json:"marginCoin"`
+	Locked               float64       `json:"locked,string"`
+	Available            float64       `json:"available,string"`
+	CrossedMaxAvailable  float64       `json:"crossedMaxAvailable,string"`
+	IsolatedMaxAvailable float64       `json:"isolatedMaxAvailable,string"`
+	MaximumTransferOut   float64       `json:"maxTransferOut,string"`
+	AccountEquity        float64       `json:"accountEquity,string"`
+	USDTEquity           float64       `json:"usdtEquity,string"`
+	BTCEquity            float64       `json:"btcEquity,string"`
+	UnrealizedPL         types.Number  `json:"unrealizedPL"`
+	Coupon               types.Number  `json:"coupon"`
+	CrossedUnrealizedPL  types.Number  `json:"crossedUnrealizedPL"`
+	IsolatedUnrealizedPL types.Number  `json:"isolatedUnrealizedPL"`
+	Grant                types.Number  `json:"grant"`
+	AssetMode            string        `json:"assetMode"`
+	IsolatedMargin       types.Number  `json:"isolatedMargin"`
+	CrossedMargin        types.Number  `json:"crossedMargin"`
 }
 
 // SubaccountFuturesResp contains information on futures details of a user's sub-accounts
 type SubaccountFuturesResp struct {
-	UserID    uint64             `json:"userId"`
-	AssetList []FutureAccDetails `json:"assetList"`
+	UserID    uint64                `json:"userId"`
+	AssetList []FutureSubaccDetails `json:"assetList"`
+}
+
+// InterestList is a sub-struct containing information on interest
+type InterestList struct {
+	Coin              currency.Code `json:"coin"`
+	Liability         float64       `json:"liability,string"`
+	InterestFreeLimit float64       `json:"interestFreeLimit,string"`
+	InterestLimit     float64       `json:"interestLimit,string"`
+	HourInterestRate  float64       `json:"hourInterestRate,string"`
+	Interest          float64       `json:"interest,string"`
+	CreationTime      types.Time    `json:"cTime"`
+}
+
+// USDTInterestHistory contains information on USDT interest history
+type USDTInterestHistory struct {
+	NextSettleTime types.Time     `json:"nextSettleTime"`
+	BorrowAmount   float64        `json:"borrowAmount,string"`
+	BorrowLimit    float64        `json:"borrowLimit,string"`
+	InterestList   []InterestList `json:"interestList"`
+	EndID          int64          `json:"endId,string"`
 }
 
 // LeverageResp contains information on the leverage of a position

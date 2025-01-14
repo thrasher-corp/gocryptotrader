@@ -29,42 +29,45 @@ const (
 	bitgetAPIURL = "https://api.bitget.com/api/v2/"
 
 	// Public endpoints
-	bitgetPublic              = "public/"
-	bitgetAnnouncements       = "annoucements" // sic
-	bitgetTime                = "time"
-	bitgetMarket              = "market/"
-	bitgetWhaleNetFlow        = "whale-net-flow"
-	bitgetTakerBuySell        = "taker-buy-sell"
-	bitgetPositionLongShort   = "position-long-short"
-	bitgetLongShortRatio      = "long-short-ratio"
-	bitgetLoanGrowth          = "loan-growth"
-	bitgetIsolatedBorrowRate  = "isolated-borrow-rate"
-	bitgetLongShort           = "long-short"
-	bitgetFundFlow            = "fund-flow"
-	bitgetSupportSymbols      = "support-symbols"
-	bitgetFundNetFlow         = "fund-net-flow"
-	bitgetAccountLongShort    = "account-long-short"
-	bitgetCoins               = "coins"
-	bitgetSymbols             = "symbols"
-	bitgetVIPFeeRate          = "vip-fee-rate"
-	bitgetTickers             = "tickers"
-	bitgetMergeDepth          = "merge-depth"
-	bitgetOrderbook           = "orderbook"
-	bitgetCandles             = "candles"
-	bitgetHistoryCandles      = "history-candles"
-	bitgetFillsHistory        = "fills-history"
-	bitgetTicker              = "ticker"
-	bitgetHistoryIndexCandles = "history-index-candles"
-	bitgetHistoryMarkCandles  = "history-mark-candles"
-	bitgetOpenInterest        = "open-interest"
-	bitgetFundingTime         = "funding-time"
-	bitgetSymbolPrice         = "symbol-price"
-	bitgetHistoryFundRate     = "history-fund-rate"
-	bitgetCurrentFundRate     = "current-fund-rate"
-	bitgetContracts           = "contracts"
-	bitgetQueryPositionLever  = "query-position-lever"
-	bitgetCoinInfos           = "coinInfos"
-	bitgetHourInterest        = "hour-interest"
+	bitgetPublic                   = "public/"
+	bitgetAnnouncements            = "annoucements" // sic
+	bitgetTime                     = "time"
+	bitgetMarket                   = "market/"
+	bitgetWhaleNetFlow             = "whale-net-flow"
+	bitgetTakerBuySell             = "taker-buy-sell"
+	bitgetPositionLongShort        = "position-long-short"
+	bitgetLongShortRatio           = "long-short-ratio"
+	bitgetLoanGrowth               = "loan-growth"
+	bitgetIsolatedBorrowRate       = "isolated-borrow-rate"
+	bitgetLongShort                = "long-short"
+	bitgetFundFlow                 = "fund-flow"
+	bitgetSupportSymbols           = "support-symbols"
+	bitgetFundNetFlow              = "fund-net-flow"
+	bitgetAccountLongShort         = "account-long-short"
+	bitgetCoins                    = "coins"
+	bitgetSymbols                  = "symbols"
+	bitgetVIPFeeRate               = "vip-fee-rate"
+	bitgetUnionInterestRateHistory = "union-interest-rate-history"
+	bitgetExchangeRate             = "exchange-rate"
+	bitgetDiscountRate             = "discount-rate"
+	bitgetTickers                  = "tickers"
+	bitgetMergeDepth               = "merge-depth"
+	bitgetOrderbook                = "orderbook"
+	bitgetCandles                  = "candles"
+	bitgetHistoryCandles           = "history-candles"
+	bitgetFillsHistory             = "fills-history"
+	bitgetTicker                   = "ticker"
+	bitgetHistoryIndexCandles      = "history-index-candles"
+	bitgetHistoryMarkCandles       = "history-mark-candles"
+	bitgetOpenInterest             = "open-interest"
+	bitgetFundingTime              = "funding-time"
+	bitgetSymbolPrice              = "symbol-price"
+	bitgetHistoryFundRate          = "history-fund-rate"
+	bitgetCurrentFundRate          = "current-fund-rate"
+	bitgetContracts                = "contracts"
+	bitgetQueryPositionLever       = "query-position-lever"
+	bitgetCoinInfos                = "coinInfos"
+	bitgetHourInterest             = "hour-interest"
 
 	// Mixed endpoints
 	bitgetSpot   = "spot/"
@@ -1930,12 +1933,12 @@ func (bi *Bitget) GetBGBDeductionStatus(ctx context.Context) (bool, error) {
 }
 
 // CancelWithdrawal cancels a large withdrawal request that was placed in the last minute
-func (bi *Bitget) CancelWithdrawal(ctx context.Context, orderID string) (*SuccessBool, error) {
-	if orderID == "" {
+func (bi *Bitget) CancelWithdrawal(ctx context.Context, orderID int64) (*SuccessBool, error) {
+	if orderID == 0 {
 		return nil, errOrderIDEmpty
 	}
 	req := map[string]any{
-		"orderId": orderID,
+		"orderId": strconv.FormatInt(orderID, 10),
 	}
 	path := bitgetSpot + bitgetWallet + bitgetCancelWithdrawal
 	var resp *SuccessBool
@@ -1943,7 +1946,7 @@ func (bi *Bitget) CancelWithdrawal(ctx context.Context, orderID string) (*Succes
 }
 
 // GetSubaccountDepositRecords returns the deposit history for a sub-account
-func (bi *Bitget) GetSubaccountDepositRecords(ctx context.Context, subaccountID string, currency currency.Code, orderID, pagination, limit int64, startTime, endTime time.Time) ([]SubaccDepRecResp, error) {
+func (bi *Bitget) GetSubaccountDepositRecords(ctx context.Context, subaccountID string, currency currency.Code, pagination, limit int64, startTime, endTime time.Time) ([]SubaccDepRecResp, error) {
 	if subaccountID == "" {
 		return nil, errSubaccountEmpty
 	}
@@ -1957,7 +1960,6 @@ func (bi *Bitget) GetSubaccountDepositRecords(ctx context.Context, subaccountID 
 	if currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
-	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -2029,6 +2031,38 @@ func (bi *Bitget) GetFuturesVIPFeeRate(ctx context.Context) ([]VIPFeeRateResp, e
 		VIPFeeRateResp []VIPFeeRateResp `json:"data"`
 	}
 	return resp.VIPFeeRateResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
+}
+
+// GetInterestRateHistory returns the historical interest rate for futures trading
+func (bi *Bitget) GetInterestRateHistory(ctx context.Context, currency currency.Code) (*InterestRateResp, error) {
+	if currency.IsEmpty() {
+		return nil, errCurrencyEmpty
+	}
+	vals := url.Values{}
+	vals.Set("coin", currency.String())
+	path := bitgetMix + bitgetMarket + bitgetUnionInterestRateHistory
+	var resp struct {
+		InterestRateResp `json:"data"`
+	}
+	return &resp.InterestRateResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate5, path, vals, &resp)
+}
+
+// GetInterestExchangeRate returns the interest exchange rate for all currencies
+func (bi *Bitget) GetInterestExchangeRate(ctx context.Context) ([]ExchangeRateResp, error) {
+	path := bitgetMix + bitgetMarket + bitgetExchangeRate
+	var resp struct {
+		ExchangeRateResp []ExchangeRateResp `json:"data"`
+	}
+	return resp.ExchangeRateResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate5, path, nil, &resp)
+}
+
+// GetDiscountRate returns the discount rate for all currencies
+func (bi *Bitget) GetDiscountRate(ctx context.Context) ([]DiscountRateResp, error) {
+	path := bitgetMix + bitgetMarket + bitgetDiscountRate
+	var resp struct {
+		DiscountRateResp []DiscountRateResp `json:"data"`
+	}
+	return resp.DiscountRateResp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate5, path, nil, &resp)
 }
 
 // GetFuturesMergeDepth returns part of the orderbook, with options to merge orders of similar price levels together, and to change how many results are returned. Limit's a string instead of the typical int64 because the API will accept a value of "max"
@@ -2134,7 +2168,7 @@ func (bi *Bitget) GetFuturesMarketTrades(ctx context.Context, pair currency.Pair
 }
 
 // GetFuturesCandlestickData returns candlestick data for a given pair within a particular time range
-func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.Pair, productType, granularity string, startTime, endTime time.Time, limit uint16, mode CallMode) (*CandleData, error) {
+func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.Pair, productType, granularity, candleType string, startTime, endTime time.Time, limit uint16, mode CallMode) (*CandleData, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -2155,6 +2189,7 @@ func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.P
 	switch mode {
 	case CallModeNormal:
 		path += bitgetCandles
+		params.Values.Set("kLineType", candleType)
 	case CallModeHistory:
 		path += bitgetHistoryCandles
 	case CallModeIndex:
@@ -2326,6 +2361,32 @@ func (bi *Bitget) GetFuturesSubaccountAssets(ctx context.Context, productType st
 	return resp.SubaccountFuturesResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path, vals, nil, &resp)
 }
 
+// GetUSDTInterestHistory returns the interest history for USDT
+func (bi *Bitget) GetUSDTInterestHistory(ctx context.Context, currency currency.Code, productType string, idLessThan, limit int64, startTime, endTime time.Time) (*USDTInterestHistory, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", currency.String())
+	params.Values.Set("productType", productType)
+	if idLessThan != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(idLessThan, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetAccount + bitgetInterestHistory
+	var resp struct {
+		USDTInterestHistory `json:"data"`
+	}
+	return &resp.USDTInterestHistory, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values, nil, &resp)
+}
+
 // GetEstimatedOpenCount returns the estimated size of open orders for a given pair
 func (bi *Bitget) GetEstimatedOpenCount(ctx context.Context, pair currency.Pair, productType string, marginCoin currency.Code, openAmount, openPrice, leverage float64) (float64, error) {
 	if pair.IsEmpty() {
@@ -2361,6 +2422,30 @@ func (bi *Bitget) GetEstimatedOpenCount(ctx context.Context, pair currency.Pair,
 	return resp.Data.Size, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
+// SetIsolatedAutoMargin sets the auto margin for a given pair
+func (bi *Bitget) SetIsolatedAutoMargin(ctx context.Context, pair currency.Pair, autoMargin OnOffBool, marginCoin currency.Code, holdSide string) (*SuccessBool, error) {
+	if pair.IsEmpty() {
+		return nil, errPairEmpty
+	}
+	if marginCoin.IsEmpty() {
+		return nil, errMarginCoinEmpty
+	}
+	if holdSide == "" {
+		return nil, errHoldSideEmpty
+	}
+	req := map[string]any{
+		"symbol":     pair,
+		"autoMargin": autoMargin,
+		"marginCoin": marginCoin,
+		"holdSide":   holdSide,
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetAutoMargin
+	var resp struct {
+		SuccessBool `json:"data"`
+	}
+	return &resp.SuccessBool, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
+}
+
 // ChangeLeverage changes the leverage for the given pair and product type
 func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, productType, holdSide string, marginCoin currency.Code, leverage float64) (*LeverageResp, error) {
 	if pair.IsEmpty() {
@@ -2389,29 +2474,6 @@ func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, produc
 	return &resp.LeverageResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
-// AdjustIsolatedAutoMargin adjusts the auto margin for a specified isolated margin account
-func (bi *Bitget) AdjustIsolatedAutoMargin(ctx context.Context, pair currency.Pair, marginCoin currency.Code, holdSide string, autoMargin bool, amount float64) error {
-	if pair.IsEmpty() {
-		return errPairEmpty
-	}
-	if marginCoin.IsEmpty() {
-		return errMarginCoinEmpty
-	}
-	req := map[string]any{
-		"symbol":     pair,
-		"marginCoin": marginCoin,
-		"holdSide":   holdSide,
-		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
-	}
-	if autoMargin {
-		req["autoMargin"] = "on"
-	} else {
-		req["autoMargin"] = "off"
-	}
-	path := bitgetMix + bitgetAccount + bitgetSetAutoMargin
-	return bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, nil)
-}
-
 // AdjustMargin adds or subtracts margin from a position
 func (bi *Bitget) AdjustMargin(ctx context.Context, pair currency.Pair, productType, holdSide string, marginCoin currency.Code, amount float64) error {
 	if pair.IsEmpty() {
@@ -2426,14 +2488,15 @@ func (bi *Bitget) AdjustMargin(ctx context.Context, pair currency.Pair, productT
 	if amount == 0 {
 		return errAmountEmpty
 	}
+	if holdSide == "" {
+		return errHoldSideEmpty
+	}
 	req := map[string]any{
 		"symbol":      pair,
 		"productType": productType,
 		"marginCoin":  marginCoin,
 		"amount":      strconv.FormatFloat(amount, 'f', -1, 64),
-	}
-	if holdSide != "" {
-		req["holdSide"] = holdSide
+		"holdSide":    holdSide,
 	}
 	path := bitgetMix + bitgetAccount + bitgetSetMargin
 	return bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, nil)
@@ -5193,6 +5256,14 @@ func (o *OnOffBool) UnmarshalJSON(b []byte) error {
 		*o = false
 	}
 	return nil
+}
+
+// MarshalJSON marshals the OnOffBool type into a JSON string
+func (o OnOffBool) MarshalJSON() ([]byte, error) {
+	if o {
+		return json.Marshal("on")
+	}
+	return json.Marshal("off")
 }
 
 // CandlestickHelper pulls out common candlestick functionality to avoid repetition

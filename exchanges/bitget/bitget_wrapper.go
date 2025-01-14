@@ -1595,7 +1595,7 @@ func (bi *Bitget) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			}
 		}
 	case asset.Futures:
-		cndl, err := bi.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), formatExchangeKlineIntervalFutures(req.ExchangeInterval), req.Start, req.End, 200, CallModeHistory)
+		cndl, err := bi.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), formatExchangeKlineIntervalFutures(req.ExchangeInterval), "", req.Start, req.End, 200, CallModeHistory)
 		if err != nil {
 			return nil, err
 		}
@@ -1643,7 +1643,7 @@ func (bi *Bitget) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 			resp = append(resp, temp...)
 		case asset.Futures:
-			cndl, err := bi.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), formatExchangeKlineIntervalFutures(req.ExchangeInterval), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200, CallModeHistory)
+			cndl, err := bi.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), formatExchangeKlineIntervalFutures(req.ExchangeInterval), "", req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200, CallModeHistory)
 			if err != nil {
 				return nil, err
 			}

@@ -978,21 +978,24 @@ func TestGetBGBDeductionStatus(t *testing.T) {
 
 func TestCancelWithdrawal(t *testing.T) {
 	t.Parallel()
-	_, err := bi.CancelWithdrawal(context.Background(), "")
+	_, err := bi.CancelWithdrawal(context.Background(), 0)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-
+	resp, err := bi.WithdrawFunds(context.Background(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), testAmount)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.OrderID)
+	_, err = bi.CancelWithdrawal(context.Background(), int64(resp.OrderID))
 }
 
 func TestGetSubaccountDepositRecords(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetSubaccountDepositRecords(context.Background(), "", currency.Code{}, 0, 0, 0, time.Time{}, time.Time{})
+	_, err := bi.GetSubaccountDepositRecords(context.Background(), "", currency.Code{}, 0, 0, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, errSubaccountEmpty)
-	_, err = bi.GetSubaccountDepositRecords(context.Background(), "meow", currency.Code{}, 0, 0, 0, time.Now().Add(time.Hour), time.Time{})
+	_, err = bi.GetSubaccountDepositRecords(context.Background(), "meow", currency.Code{}, 0, 0, time.Now().Add(time.Hour), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	tarID := subAccTestHelper(t, "", "")
-	_, err = bi.GetSubaccountDepositRecords(context.Background(), tarID, currency.Code{}, 0, 1<<62, 2, time.Time{}, time.Time{})
+	_, err = bi.GetSubaccountDepositRecords(context.Background(), tarID, currency.Code{}, 1<<62, 2, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1001,7 +1004,7 @@ func TestGetWithdrawalRecords(t *testing.T) {
 	_, err := bi.GetWithdrawalRecords(context.Background(), currency.Code{}, "", time.Time{}, time.Time{}, 0, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetWithdrawalRecords(context.Background(), currency.Code{}, "", time.Now().Add(-time.Hour*24*90), time.Now(), 1<<62, 0, 5)
+	_, err = bi.GetWithdrawalRecords(context.Background(), testCrypto, "", time.Now().Add(-time.Hour*24*90), time.Now(), 1<<62, 0, 5)
 	assert.NoError(t, err)
 }
 
@@ -1014,6 +1017,26 @@ func TestGetDepositRecords(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetFuturesVIPFeeRate(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, bi.GetFuturesVIPFeeRate)
+}
+
+func TestGetInterestRateHistory(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, bi.GetInterestRateHistory, currency.Code{}, testFiat, errCurrencyEmpty, true, false, false)
+}
+
+func TestGetInterestExchangeRate(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, bi.GetInterestExchangeRate)
+}
+
+func TestGetDiscountRate(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, bi.GetDiscountRate)
+}
+
 func TestGetFuturesMergeDepth(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetFuturesMergeDepth(context.Background(), currency.Pair{}, "", "", "")
@@ -1023,11 +1046,6 @@ func TestGetFuturesMergeDepth(t *testing.T) {
 	resp, err := bi.GetFuturesMergeDepth(context.Background(), testPair, "USDT-FUTURES", "scale3", "5")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
-}
-
-func TestGetFuturesVIPFeeRate(t *testing.T) {
-	t.Parallel()
-	testGetNoArgs(t, bi.GetFuturesVIPFeeRate)
 }
 
 func TestGetFuturesTicker(t *testing.T) {
@@ -1066,24 +1084,24 @@ func TestGetFuturesMarketTrades(t *testing.T) {
 
 func TestGetFuturesCandlestickData(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetFuturesCandlestickData(context.Background(), currency.Pair{}, "", "", time.Time{}, time.Time{}, 0, 0)
+	_, err := bi.GetFuturesCandlestickData(context.Background(), currency.Pair{}, "", "", "", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "", "", time.Time{}, time.Time{}, 0, 0)
+	_, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "", "", "", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "woof", "", time.Time{}, time.Time{}, 0, 0)
+	_, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "woof", "", "", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, errGranEmpty)
-	_, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "woof", "neigh", time.Now().Add(time.Hour), time.Time{}, 0, 0)
+	_, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "woof", "neigh", "", time.Now().Add(time.Hour), time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
-	resp, err := bi.GetFuturesCandlestickData(context.Background(), testPair, "USDT-FUTURES", "1m", time.Time{}, time.Time{}, 5, CallModeNormal)
+	resp, err := bi.GetFuturesCandlestickData(context.Background(), testPair, "USDT-FUTURES", "1m", "", time.Time{}, time.Time{}, 5, CallModeNormal)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.FuturesCandles)
-	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "COIN-FUTURES", "1m", time.Time{}, time.Time{}, 5, CallModeHistory)
+	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "COIN-FUTURES", "1m", "", time.Time{}, time.Time{}, 5, CallModeHistory)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.FuturesCandles)
-	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "USDC-FUTURES", "1m", time.Time{}, time.Now(), 5, CallModeIndex)
+	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "USDC-FUTURES", "1m", "", time.Time{}, time.Now(), 5, CallModeIndex)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.FuturesCandles)
-	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "USDT-FUTURES", "1m", time.Time{}, time.Now(), 5, CallModeMark)
+	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair, "USDT-FUTURES", "1m", "", time.Time{}, time.Now(), 5, CallModeMark)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.FuturesCandles)
 }
@@ -1156,6 +1174,18 @@ func TestGetFuturesSubaccountAssets(t *testing.T) {
 	testGetOneArg(t, bi.GetFuturesSubaccountAssets, "", "COIN-FUTURES", errProductTypeEmpty, true, true, true)
 }
 
+func TestGetUSDTInterestHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetUSDTInterestHistory(context.Background(), testFiat, "", 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetUSDTInterestHistory(context.Background(), testFiat, "woof", 0, 0, time.Now().Add(time.Hour), time.Time{})
+	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	// This endpoint persistently returns the error "Parameter verification failed" for no discernible reason
+	_, err = bi.GetUSDTInterestHistory(context.Background(), testFiat, "SUSDT-FUTURES", 1<<62, 2, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
 func TestGetEstimatedOpenCount(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetEstimatedOpenCount(context.Background(), currency.Pair{}, "", currency.Code{}, 0, 0, 0)
@@ -1170,6 +1200,20 @@ func TestGetEstimatedOpenCount(t *testing.T) {
 	assert.ErrorIs(t, err, errOpenPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetEstimatedOpenCount(context.Background(), testPair, "USDT-FUTURES", testFiat, testPrice, testAmount, 20)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestSetIsolatedAutoMargin(t *testing.T) {
+	t.Parallel()
+	_, err := bi.SetIsolatedAutoMargin(context.Background(), currency.Pair{}, false, currency.Code{}, "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.SetIsolatedAutoMargin(context.Background(), testPair, false, currency.Code{}, "")
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	_, err = bi.SetIsolatedAutoMargin(context.Background(), testPair, false, testFiat, "")
+	assert.ErrorIs(t, err, errHoldSideEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.SetIsolatedAutoMargin(context.Background(), testPair, false, testFiat, "short")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -1190,19 +1234,6 @@ func TestChangeLeverage(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestAdjustIsolatedAutoMargin(t *testing.T) {
-	t.Parallel()
-	err := bi.AdjustIsolatedAutoMargin(context.Background(), currency.Pair{}, currency.Code{}, "", false, 0)
-	assert.ErrorIs(t, err, errPairEmpty)
-	err = bi.AdjustIsolatedAutoMargin(context.Background(), testPair2, currency.Code{}, "", false, 0)
-	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	err = bi.AdjustIsolatedAutoMargin(context.Background(), testPair2, testFiat2, "long", false, 0)
-	assert.NoError(t, err)
-	err = bi.AdjustIsolatedAutoMargin(context.Background(), testPair2, testFiat2, "long", true, 0.01)
-	assert.NoError(t, err)
-}
-
 func TestAdjustMargin(t *testing.T) {
 	t.Parallel()
 	err := bi.AdjustMargin(context.Background(), currency.Pair{}, "", "", currency.Code{}, 0)
@@ -1213,9 +1244,12 @@ func TestAdjustMargin(t *testing.T) {
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
 	err = bi.AdjustMargin(context.Background(), testPair2, "woof", "", testFiat2, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
+	err = bi.AdjustMargin(context.Background(), testPair2, "woof", "", testFiat2, 1)
+	assert.ErrorIs(t, err, errHoldSideEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	// This is getting the error "verification exception margin mode == FIXED", and I can't find a way to skirt around that
 	// Now it's giving the error "insufficient amount of margin", which is a fine error to have, watch for random reversions
+	// And back to the former error
 	err = bi.AdjustMargin(context.Background(), testPair2, testFiat2.String()+"-FUTURES", "long", testFiat2, -testAmount)
 	assert.NoError(t, err)
 }
@@ -3731,7 +3765,7 @@ func TestWsHandleData(t *testing.T) {
 }
 
 type getNoArgsResp interface {
-	*TimeResp | *P2PMerInfoResp | []ConvertCoinsResp | []BGBConvertCoinsResp | []VIPFeeRateResp | []SupCurrencyResp | float64 | *SavingsBalance | *SharkFinBalance | *DebtsResp | []AssetOverviewResp | bool | *SymbolsResp | []SubaccountAssetsResp | []exchange.FundingHistory | []string
+	*TimeResp | *P2PMerInfoResp | []ConvertCoinsResp | []BGBConvertCoinsResp | []VIPFeeRateResp | []ExchangeRateResp | []DiscountRateResp | []SupCurrencyResp | float64 | *SavingsBalance | *SharkFinBalance | *DebtsResp | []AssetOverviewResp | bool | *SymbolsResp | []SubaccountAssetsResp | []exchange.FundingHistory | []string
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
@@ -3743,7 +3777,7 @@ func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) 
 }
 
 type getOneArgResp interface {
-	[]WhaleNetFlowResp | *FundFlowResp | []WhaleFundFlowResp | *CrVirSubResp | []GetAPIKeyResp | []FundingAssetsResp | []BotAccAssetsResp | []ConvertBGBResp | []CoinInfoResp | []SymbolInfoResp | []TickerResp | string | *SubOrderResp | *BatchOrderResp | bool | []FutureTickerResp | []FutureAccDetails | []SubaccountFuturesResp | []CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | []IntRateMaxBorrowCross | []TierConfigCross | *FlashRepayCross | []IsoAssetResp | []IntRateMaxBorrowIso | []TierConfigIso | *MaxBorrowIso | *MaxTransferIso | []FlashRepayIso | []EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates | []futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse
+	[]WhaleNetFlowResp | *FundFlowResp | []WhaleFundFlowResp | *CrVirSubResp | []GetAPIKeyResp | []FundingAssetsResp | []BotAccAssetsResp | []ConvertBGBResp | []CoinInfoResp | []SymbolInfoResp | []TickerResp | string | *SubOrderResp | *BatchOrderResp | bool | *InterestRateResp | []FutureTickerResp | []FutureAccDetails | []SubaccountFuturesResp | []CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | []IntRateMaxBorrowCross | []TierConfigCross | *FlashRepayCross | []IsoAssetResp | []IntRateMaxBorrowIso | []TierConfigIso | *MaxBorrowIso | *MaxTransferIso | []FlashRepayIso | []EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates | []futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse
 }
 
 type getOneArgParam interface {
