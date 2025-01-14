@@ -1,12 +1,19 @@
 package futures
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+)
+
+// var error definitions
+var (
+	ErrInvalidContractSettlementType = errors.New("invalid contract settlement type")
 )
 
 // Contract holds details on futures contracts
@@ -41,6 +48,7 @@ const (
 	Inverse
 	Quanto
 	LinearOrInverse
+	Hybrid
 )
 
 // String returns the string representation of a contract settlement type
@@ -56,8 +64,31 @@ func (d ContractSettlementType) String() string {
 		return "quanto"
 	case LinearOrInverse:
 		return "linearOrInverse"
+	case Hybrid:
+		return "hybrid"
 	default:
 		return "unknown"
+	}
+}
+
+// StringToContractSettlementType for converting case insensitive contract settlement type
+func StringToContractSettlementType(cstype string) (ContractSettlementType, error) {
+	cstype = strings.ToLower(cstype)
+	switch cstype {
+	case UnsetSettlementType.String(), "":
+		return UnsetSettlementType, nil
+	case Linear.String():
+		return Linear, nil
+	case Inverse.String():
+		return Inverse, nil
+	case Quanto.String():
+		return Quanto, nil
+	case "linearorinverse":
+		return LinearOrInverse, nil
+	case Hybrid.String():
+		return Hybrid, nil
+	default:
+		return UnsetSettlementType, ErrInvalidContractSettlementType
 	}
 }
 

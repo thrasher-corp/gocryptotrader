@@ -34,6 +34,8 @@ func (t Mode) String() string {
 		return multiCollateralStr
 	case PortfolioMode:
 		return portfolioCollateralStr
+	case SpotFuturesMode:
+		return spotFuturesCollateralStr
 	case UnknownMode:
 		return unknownCollateralStr
 	}

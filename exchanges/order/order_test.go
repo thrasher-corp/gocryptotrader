@@ -949,7 +949,22 @@ func TestStringToOrderType(t *testing.T) {
 		{"tRiGgEr", Trigger, nil},
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
+		{"mMp", MarketMakerProtection, nil},
+		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
+		{"tWaP", TWAP, nil},
+		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
+		{"chase", Chase, nil},
+		{"MOVE_ORDER_STOP", TrailingStop, nil},
+		{"mOVe_OrdeR_StoP", TrailingStop, nil},
+		{"optimal_limit_IoC", OptimalLimitIOC, nil},
+		{"Stop_market", StopMarket, nil},
+		{"liquidation", Liquidation, nil},
+		{"LiQuidation", Liquidation, nil},
+		{"take_profit", TakeProfit, nil},
+		{"Take ProfIt", TakeProfit, nil},
+		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
+		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -2150,4 +2165,30 @@ func TestGetTradeAmount(t *testing.T) {
 	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
 	s.Side = Sell
 	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
+}
+
+func TestStringToTrackingMode(t *testing.T) {
+	t.Parallel()
+	inputs := map[string]TrackingMode{
+		"diStance":   Distance,
+		"distance":   Distance,
+		"Percentage": Percentage,
+		"percentage": Percentage,
+		"":           UnknownTrackingMode,
+	}
+	for k, v := range inputs {
+		assert.Equal(t, v, StringToTrackingMode(k))
+	}
+}
+
+func TestTrackingModeString(t *testing.T) {
+	t.Parallel()
+	inputs := map[TrackingMode]string{
+		Distance:            "distance",
+		Percentage:          "percentage",
+		UnknownTrackingMode: "",
+	}
+	for k, v := range inputs {
+		require.Equal(t, v, k.String())
+	}
 }
