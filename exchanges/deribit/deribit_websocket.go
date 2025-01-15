@@ -1176,8 +1176,13 @@ func (d *Deribit) handleSubscription(operation string, channels subscription.Lis
 			return fmt.Errorf("%v %v", d.Name, err)
 		}
 		if payloads[x].ID == response.ID && len(response.Result) == 0 {
-			log.Errorf(log.ExchangeSys, "subscription to channel %s was not successful", payloads[x].Params["channels"][0])
+			return fmt.Errorf("subscription to channel %s was not successful", payloads[x].Params["channels"][0])
 		}
+	}
+	if operation == "unsubscribe" {
+		d.Websocket.RemoveSubscriptions(d.Websocket.Conn, channels...)
+	} else {
+		d.Websocket.AddSubscriptions(d.Websocket.Conn, channels...)
 	}
 	return nil
 }
