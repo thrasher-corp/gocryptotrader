@@ -53,6 +53,8 @@ var (
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
+	errSubscriptionsNotAdded                = errors.New("subscriptions not added")
+	errSubscriptionsNotRemoved              = errors.New("subscriptions not removed")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
@@ -360,6 +362,10 @@ func (w *Websocket) connect() error {
 			if err := w.SubscribeToChannels(nil, subs); err != nil {
 				return err
 			}
+
+			if w.subscriptions.Len() != len(subs) {
+				return fmt.Errorf("%s %w expecting %d subscribed", w.exchangeName, errSubscriptionsNotAdded, len(subs))
+			}
 		}
 		return nil
 	}
@@ -431,6 +437,11 @@ func (w *Websocket) connect() error {
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
 			multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
+			break
+		}
+
+		if len(subs) != 0 && w.connectionManager[i].Subscriptions.Len() != len(subs) {
+			multiConnectFatalError = fmt.Errorf("%v %w expecting %d subscribed %v", w.exchangeName, errSubscriptionsNotAdded, len(subs), subs)
 			break
 		}
 
@@ -604,14 +615,7 @@ func (w *Websocket) FlushChannels() error {
 		if err != nil {
 			return err
 		}
-		subs, unsubs := w.GetChannelDifference(nil, newSubs)
-		if err := w.UnsubscribeChannels(nil, unsubs); err != nil {
-			return err
-		}
-		if len(subs) == 0 {
-			return nil
-		}
-		return w.SubscribeToChannels(nil, subs)
+		return w.updateChannelSubscriptions(nil, w.subscriptions, newSubs)
 	}
 
 	for x := range w.connectionManager {
@@ -637,17 +641,9 @@ func (w *Websocket) FlushChannels() error {
 			w.connectionManager[x].Connection = conn
 		}
 
-		subs, unsubs := w.GetChannelDifference(w.connectionManager[x].Connection, newSubs)
-
-		if len(unsubs) != 0 {
-			if err := w.UnsubscribeChannels(w.connectionManager[x].Connection, unsubs); err != nil {
-				return err
-			}
-		}
-		if len(subs) != 0 {
-			if err := w.SubscribeToChannels(w.connectionManager[x].Connection, subs); err != nil {
-				return err
-			}
+		err = w.updateChannelSubscriptions(w.connectionManager[x].Connection, w.connectionManager[x].Subscriptions, newSubs)
+		if err != nil {
+			return err
 		}
 
 		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
@@ -657,6 +653,31 @@ func (w *Websocket) FlushChannels() error {
 				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", w.exchangeName, err)
 			}
 			w.connectionManager[x].Connection = nil
+		}
+	}
+	return nil
+}
+
+// updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
+// have been subscribed to or unsubscribed from.
+func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription.Store, incoming subscription.List) error {
+	subs, unsubs := w.GetChannelDifference(c, incoming)
+	if len(unsubs) != 0 {
+		prevState := store.Len()
+		if err := w.UnsubscribeChannels(c, unsubs); err != nil {
+			return err
+		}
+		if diff := prevState - store.Len(); diff != len(unsubs) {
+			return fmt.Errorf("%v %w expected %d unsubscribed", w.exchangeName, errSubscriptionsNotRemoved, len(unsubs))
+		}
+	}
+	if len(subs) != 0 {
+		prevState := store.Len()
+		if err := w.SubscribeToChannels(c, subs); err != nil {
+			return err
+		}
+		if diff := store.Len() - prevState; diff != len(subs) {
+			return fmt.Errorf("%v %w expected %d subscribed", w.exchangeName, errSubscriptionsNotAdded, len(subs))
 		}
 	}
 	return nil
