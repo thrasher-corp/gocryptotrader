@@ -836,12 +836,14 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 			err = common.AppendError(err, errors.New(s.String()))
 		}
 	}
-	if method == "unsubscribe" {
-		d.Websocket.RemoveSubscriptions(d.Websocket.Conn, subs...)
-	} else {
-		d.Websocket.AddSubscriptions(d.Websocket.Conn, subs...)
+	if err != nil {
+		return err
 	}
-	return err
+
+	if method == "unsubscribe" {
+		return d.Websocket.RemoveSubscriptions(d.Websocket.Conn, subs...)
+	}
+	return d.Websocket.AddSubscriptions(d.Websocket.Conn, subs...)
 }
 
 func getValidatedCurrencyCode(pair currency.Pair) string {
