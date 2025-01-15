@@ -167,28 +167,30 @@ func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (
 	if err != nil {
 		return
 	}
-	chans := []string{}
-	authChans := []string{}
+	var chans subscription.List
+	var authChans subscription.List
 	for _, s := range subs {
 		if s.Authenticated {
-			authChans = append(authChans, s.QualifiedChannel)
+			authChans = append(authChans, s)
 		} else {
-			chans = append(chans, s.QualifiedChannel)
+			chans = append(chans, s)
 		}
 	}
 	for _, b := range common.Batch(chans, 10) {
 		args = append(args, SubscriptionArgument{
-			Operation: operation,
-			RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-			Arguments: b,
+			Operation:      operation,
+			RequestID:      strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+			Arguments:      b.QualifiedChannels(),
+			associatedSubs: b,
 		})
 	}
 	if len(authChans) != 0 {
 		args = append(args, SubscriptionArgument{
-			auth:      true,
-			Operation: operation,
-			RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-			Arguments: authChans,
+			auth:           true,
+			Operation:      operation,
+			RequestID:      strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+			Arguments:      authChans.QualifiedChannels(),
+			associatedSubs: authChans,
 		})
 	}
 	return
@@ -224,6 +226,22 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe su
 		}
 		if !resp.Success {
 			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
+		}
+
+		var conn stream.Connection
+		if payloads[a].auth {
+			conn = by.Websocket.AuthConn
+		} else {
+			conn = by.Websocket.Conn
+		}
+
+		if operation == "unsubscribe" {
+			err = by.Websocket.RemoveSubscriptions(conn, payloads[a].associatedSubs...)
+		} else {
+			err = by.Websocket.AddSubscriptions(conn, payloads[a].associatedSubs...)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil

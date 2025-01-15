@@ -7,6 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -32,10 +33,11 @@ type Authenticate struct {
 
 // SubscriptionArgument represents a subscription arguments.
 type SubscriptionArgument struct {
-	auth      bool     `json:"-"`
-	RequestID string   `json:"req_id"`
-	Operation string   `json:"op"`
-	Arguments []string `json:"args"`
+	auth           bool              `json:"-"`
+	RequestID      string            `json:"req_id"`
+	Operation      string            `json:"op"`
+	Arguments      []string          `json:"args"`
+	associatedSubs subscription.List `json:"-"` // Used to store associated subscriptions
 }
 
 // Fee holds fee information
