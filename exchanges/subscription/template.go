@@ -42,7 +42,7 @@ type tplCtx struct {
 // Calls e.GetSubscriptionTemplate to find a template for each subscription
 // Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
 // See README.md for more details
-func (l List) ExpandTemplates(e iExchange) (List, error) {
+func (l List) ExpandTemplates(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
 		// Empty list, or already processed
 		return slices.Clone(l), nil
@@ -82,7 +82,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 	return subs, err
 }
 
-func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
+func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
 	if s.QualifiedChannel != "" {
 		return List{s}, nil
 	}
@@ -113,20 +113,23 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 
 	switch s.Asset {
 	case asset.All:
+		if len(ap) == 0 {
+			return List{}, nil // No assets enabled; only asset.Empty subs may continue
+		}
 		subCtx.AssetPairs = ap
 	default:
+		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
+			return List{}, nil // No pairs enabled for this sub asset
+		}
 		// This deliberately includes asset.Empty to harmonise handling
 		subCtx.AssetPairs = assetPairs{
 			s.Asset: ap[s.Asset],
 		}
 		assets = asset.Items{s.Asset}
-		if s.Asset != asset.Empty && len(ap[s.Asset]) == 0 {
-			return List{}, nil // Nothing is enabled for this sub asset
-		}
 	}
 
 	buf := &bytes.Buffer{}
-	if err := t.Execute(buf, subCtx); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
+	if err := t.Execute(buf, subCtx); err != nil {
 		return nil, err
 	}
 

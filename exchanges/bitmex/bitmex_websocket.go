@@ -170,8 +170,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		if e2 != nil {
 			return fmt.Errorf("%w parsing stream", e2)
 		}
-		if !b.Websocket.Match.IncomingWithData(op+":"+streamID, msg) {
-			return fmt.Errorf("%w: %s:%s", stream.ErrNoMessageListener, op, streamID)
+		err = b.Websocket.Match.RequireMatchWithData(op+":"+streamID, msg)
+		if err != nil {
+			return fmt.Errorf("%w: %s:%s", err, op, streamID)
 		}
 		return nil
 	}
@@ -650,16 +651,16 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 
 const subTplText = `
 {{- if $.S.Asset }}
-	{{ range $asset, $pairs := $.AssetPairs }}
+	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S $asset }}
-			{{- range $i, $p := $pairs -}}
-				{{- $name -}} : {{- $p -}}
-				{{ $.PairSeparator }}
+			{{- range $i, $p := $pairs }}
+				{{- $name -}} : {{- $p }}
+				{{- $.PairSeparator }}
 			{{- end }}
 		{{- end }}
-		{{ $.AssetSeparator }}
+		{{- $.AssetSeparator }}
 	{{- end }}
-{{- else -}}
-	{{ channelName $.S $.S.Asset }}
+{{- else }}
+	{{- channelName $.S $.S.Asset }}
 {{- end }}
 `

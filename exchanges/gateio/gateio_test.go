@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -332,7 +333,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -438,12 +439,11 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 	}
 }
 
-func TestGetPersonalTradingHistory(t *testing.T) {
+func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateIOGetPersonalTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMySpotTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -967,12 +967,12 @@ func TestGetAllFutureContracts(t *testing.T) {
 	}
 }
 
-func TestGetSingleContract(t *testing.T) {
+func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetSingleContract(context.Background(), settle, getPair(t, asset.Futures).String())
-	assert.NoError(t, err, "GetSingleContract should not error")
+	_, err = g.GetFuturesContract(context.Background(), settle, getPair(t, asset.Futures).String())
+	assert.NoError(t, err, "GetFuturesContract should not error")
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
@@ -1141,29 +1141,25 @@ func TestCancelMultipleDeliveryOrders(t *testing.T) {
 
 func TestGetSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSingleDeliveryOrder(context.Background(), currency.USD, "123456")
+	_, err := g.GetSingleDeliveryOrder(context.Background(), currency.EMPTYCODE, "123456")
 	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "GetSingleDeliveryOrder should return errEmptyOrInvalidSettlementCurrency")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	for _, settle := range settlementCurrencies {
-		_, err := g.GetSingleDeliveryOrder(context.Background(), settle, "123456")
-		assert.NoErrorf(t, err, "GetSingleDeliveryOrder %s should not error", settle)
-	}
+	_, err = g.GetSingleDeliveryOrder(context.Background(), currency.USDT, "123456")
+	assert.NoError(t, err, "GetSingleDeliveryOrder should not error")
 }
 
 func TestCancelSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	for _, settle := range settlementCurrencies {
-		_, err := g.CancelSingleDeliveryOrder(context.Background(), settle, "123456")
-		assert.NoErrorf(t, err, "CancelSingleDeliveryOrder %s should not error", settle)
-	}
+	_, err := g.CancelSingleDeliveryOrder(context.Background(), currency.USDT, "123456")
+	assert.NoError(t, err, "CancelSingleDeliveryOrder should not error")
 }
 
-func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
+func TestGetMyDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDeliveryPersonalTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
-	assert.NoError(t, err, "GetDeliveryPersonalTradingHistory should not error")
+	_, err := g.GetMyDeliveryTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
+	assert.NoError(t, err, "GetMyDeliveryTradingHistory should not error")
 }
 
 func TestGetDeliveryPositionCloseHistory(t *testing.T) {
@@ -1224,7 +1220,7 @@ func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), currency.BTC, "12345")
+	_, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), currency.USDT, "12345")
 	assert.NoError(t, err, "GetSingleDeliveryPriceTriggeredOrder should not error")
 }
 
@@ -1371,11 +1367,11 @@ func TestAmendFuturesOrder(t *testing.T) {
 	assert.NoError(t, err, "AmendFuturesOrder should not error")
 }
 
-func TestGetMyPersonalTradingHistory(t *testing.T) {
+func TestGetMyFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetMyPersonalTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
-	assert.NoError(t, err, "GetMyPersonalTradingHistory should not error")
+	_, err := g.GetMyFuturesTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
+	assert.NoError(t, err, "GetMyFuturesTradingHistory should not error")
 }
 
 func TestGetFuturesPositionCloseHistory(t *testing.T) {
@@ -1449,16 +1445,23 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
-	assert.NoError(t, err, "GetAllDeliveryContracts should not error")
+	r, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
+	r, err = g.GetAllDeliveryContracts(context.Background(), currency.BTC)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	// The test below will fail if support for BTC settlement is added. This is intentional, as it ensures we are alerted when it's time to reintroduce support
+	if !assert.Empty(t, r, "GetAllDeliveryContracts should not return any data with unsupported settlement currency BTC") {
+		t.Error("BTC settlement for delivery futures appears to be supported again by the API. Please raise an issue to reintroduce BTC support for this exchange")
+	}
 }
 
-func TestGetSingleDeliveryContracts(t *testing.T) {
+func TestGetDeliveryContract(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetSingleDeliveryContracts(context.Background(), settle, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "GetSingleDeliveryContracts should not error")
+	_, err = g.GetDeliveryContract(context.Background(), settle, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "GetDeliveryContract should not error")
 }
 
 func TestGetDeliveryOrderbook(t *testing.T) {
@@ -1526,6 +1529,8 @@ func TestGetSingleDeliveryPosition(t *testing.T) {
 
 func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionMargin(context.Background(), currency.EMPTYCODE, 0.001, currency.Pair{})
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
@@ -1535,15 +1540,19 @@ func TestUpdateDeliveryPositionMargin(t *testing.T) {
 
 func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionLeverage(context.Background(), currency.EMPTYCODE, currency.Pair{}, 0.001)
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.UpdateDeliveryPositionLeverage(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
+	_, err = g.UpdateDeliveryPositionLeverage(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
 	assert.NoError(t, err, "UpdateDeliveryPositionLeverage should not error")
 }
 
 func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.EMPTYCODE, currency.Pair{}, 0)
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
+	_, err = g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
 	assert.NoError(t, err, "UpdateDeliveryPositionRiskLimit should not error")
 }
 
@@ -1757,12 +1766,12 @@ func TestCancelSingleOrder(t *testing.T) {
 	}
 }
 
-func TestGetOptionsPersonalTradingHistory(t *testing.T) {
+func TestGetMyOptionsTradingHistory(t *testing.T) {
 	t.Parallel()
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMyOptionsTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestWithdrawCurrency(t *testing.T) {
@@ -2826,8 +2835,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
@@ -2877,13 +2887,14 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 }
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
-		t.Error(err)
-	}
-
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
-		t.Error(err)
-	}
+	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	subs, err = g.GenerateFuturesDefaultSubscriptions(currency.BTC)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
+	require.Error(t, err)
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -3011,11 +3022,11 @@ func TestGetSettlementFromCurrency(t *testing.T) {
 	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
 		availPairs, err := g.GetAvailablePairs(assetType)
 		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
-		for x := range availPairs {
-			t.Run(strconv.Itoa(x), func(t *testing.T) {
+		for i, pair := range availPairs {
+			t.Run(strconv.Itoa(i)+":"+assetType.String(), func(t *testing.T) {
 				t.Parallel()
-				_, err = getSettlementFromCurrency(availPairs[x])
-				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", availPairs[x], assetType)
+				_, err := getSettlementFromCurrency(pair)
+				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", pair, assetType)
 			})
 		}
 	}
@@ -3174,22 +3185,20 @@ func TestForceFileStandard(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetFuturesContractDetails(context.Background(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	exp, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	c, err := g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.Equal(t, len(exp), len(c), "GetFuturesContractDetails should return same number of Delivery contracts as exist")
+
+	c, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.NotEmpty(t, c, "GetFuturesContractDetails should return same number of Future contracts as exist")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3515,4 +3524,29 @@ func TestHandleSubscriptions(t *testing.T) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
+}
+
+func TestParseWSHeader(t *testing.T) {
+	in := []string{
+		`{"time":1726121320,"time_ms":1726121320745,"id":1,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time_ms":1726121320746,"id":2,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time":1726121321,"id":3,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+	}
+	for _, i := range in {
+		h, err := parseWSHeader([]byte(i))
+		require.NoError(t, err)
+		require.NotEmpty(t, h.ID)
+		assert.Equal(t, "a4", h.RequestID)
+		assert.Equal(t, "spot.tickers", h.Channel)
+		assert.Equal(t, "subscribe", h.Event)
+		assert.NotEmpty(t, h.Result)
+		switch h.ID {
+		case 1:
+			assert.Equal(t, int64(1726121320745), h.Time.UnixMilli())
+		case 2:
+			assert.Equal(t, int64(1726121320746), h.Time.UnixMilli())
+		case 3:
+			assert.Equal(t, int64(1726121321), h.Time.Unix())
+		}
+	}
 }
