@@ -170,20 +170,6 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 		}
 	}
 
-	var ret *orderbook.Base
-	if book.ob.VerifyOrderbook {
-		// This is used here so as to not retrieve book if verification is off.
-		// On every update, this will retrieve and verify orderbook depth.
-		ret, err = book.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-		err = ret.Verify()
-		if err != nil {
-			return book.ob.Invalidate(err)
-		}
-	}
-
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	book.ob.Publish()
 
@@ -240,15 +226,17 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *orderbook.Update)
 	return true, nil
 }
 
-// processObUpdate processes updates either by its corresponding id or by
-// price level
+// processObUpdate processes updates either by its corresponding id or by price level
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) error {
+	// Both update methods require post processing to ensure the orderbook is in a valid state.
 	if w.updateEntriesByID {
-		return o.updateByIDAndAction(u)
-	}
-	err := o.updateByPrice(u)
-	if err != nil {
-		return err
+		if err := o.updateByIDAndAction(u); err != nil {
+			return err
+		}
+	} else {
+		if err := o.updateByPrice(u); err != nil {
+			return err
+		}
 	}
 	if w.checksum != nil {
 		compare, err := o.ob.Retrieve()
@@ -260,6 +248,15 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 			return o.ob.Invalidate(err)
 		}
 		o.updateID = u.UpdateID
+	} else if o.ob.VerifyOrderbook() {
+		compare, err := o.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+		err = compare.Verify()
+		if err != nil {
+			return o.ob.Invalidate(err)
+		}
 	}
 	return nil
 }
@@ -277,24 +274,24 @@ func (o *orderbookHolder) updateByIDAndAction(updts *orderbook.Update) error {
 	case orderbook.Amend:
 		err := o.ob.UpdateBidAskByID(updts)
 		if err != nil {
-			return fmt.Errorf("%v %w", errAmendFailure, err)
+			return fmt.Errorf("%w %w", errAmendFailure, err)
 		}
 	case orderbook.Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
 		err := o.ob.DeleteBidAskByID(updts, bypassErr)
 		if err != nil {
-			return fmt.Errorf("%v %w", errDeleteFailure, err)
+			return fmt.Errorf("%w %w", errDeleteFailure, err)
 		}
 	case orderbook.Insert:
 		err := o.ob.InsertBidAskByID(updts)
 		if err != nil {
-			return fmt.Errorf("%v %w", errInsertFailure, err)
+			return fmt.Errorf("%w %w", errInsertFailure, err)
 		}
 	case orderbook.UpdateInsert:
 		err := o.ob.UpdateInsertByID(updts)
 		if err != nil {
-			return fmt.Errorf("%v %w", errUpdateInsertFailure, err)
+			return fmt.Errorf("%w %w", errUpdateInsertFailure, err)
 		}
 	default:
 		return fmt.Errorf("%w [%d]", errInvalidAction, updts.Action)
@@ -333,28 +330,9 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	holder.updateID = book.LastUpdateID
 
-	err = holder.ob.LoadSnapshot(book.Bids,
-		book.Asks,
-		book.LastUpdateID,
-		book.LastUpdated,
-		book.UpdatePushedAt,
-		false)
+	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.UpdatePushedAt, false)
 	if err != nil {
 		return err
-	}
-
-	if holder.ob.VerifyOrderbook {
-		// This is used here so as to not retrieve book if verification is off.
-		// Checks to see if orderbook snapshot that was deployed has not been
-		// altered in any way
-		book, err = holder.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-		err = book.Verify()
-		if err != nil {
-			return holder.ob.Invalidate(err)
-		}
 	}
 
 	holder.ob.Publish()

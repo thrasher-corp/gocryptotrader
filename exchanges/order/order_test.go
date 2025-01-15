@@ -55,7 +55,7 @@ func TestSubmit_Validate(t *testing.T) {
 			Submit: &Submit{
 				Exchange:  "test",
 				Pair:      testPair,
-				AssetType: 255,
+				AssetType: asset.All,
 			},
 		}, // valid pair but invalid asset
 		{
@@ -2204,10 +2204,9 @@ func TestStringToTimeInForce(t *testing.T) {
 	if !errors.Is(err, ErrInvalidTimeInForce) {
 		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
 	}
-	_, err = StringToTimeInForce("IOC")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tif, err = StringToTimeInForce("IOC")
+	assert.NoError(t, err)
+	assert.Equal(t, tif, IOC)
 }
 
 func TestString(t *testing.T) {
@@ -2225,6 +2224,15 @@ func TestString(t *testing.T) {
 			t.Fatalf("expected %v, got %v", x, result)
 		}
 	}
+}
+func TestSideMarshalJSON(t *testing.T) {
+	t.Parallel()
+	b, err := Buy.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, `"BUY"`, string(b))
+	b, err = UnknownSide.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, `"UNKNOWN"`, string(b))
 }
 
 func TestGetTradeAmount(t *testing.T) {

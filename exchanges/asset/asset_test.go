@@ -3,21 +3,21 @@ package asset
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	a := Spot
-	if a.String() != "spot" {
-		t.Fatal("TestString returned an unexpected result")
-	}
-
-	a = 0
-	if a.String() != "" {
-		t.Fatal("TestString returned an unexpected result")
+	for a := range All {
+		if a == 0 {
+			assert.Empty(t, a.String(), "Empty.String should return empty")
+		} else {
+			assert.NotEmptyf(t, a.String(), "%s.String should return empty", a)
+		}
 	}
 }
 
@@ -58,12 +58,37 @@ func TestJoinToString(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	t.Parallel()
-	if Item(0).IsValid() {
-		t.Fatal("TestIsValid returned an unexpected result")
+	for a := range All {
+		if a.String() == "" {
+			require.Falsef(t, a.IsValid(), "IsValid must return false with non-asset value %d", a)
+		} else {
+			require.Truef(t, a.IsValid(), "IsValid must return true for %s", a)
+		}
 	}
+	require.False(t, All.IsValid(), "IsValid must return false for All")
+}
 
-	if !Spot.IsValid() {
-		t.Fatal("TestIsValid returned an unexpected result")
+func TestIsFutures(t *testing.T) {
+	t.Parallel()
+	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract}
+	for a := range All {
+		if slices.Contains(valid, a) {
+			require.Truef(t, a.IsFutures(), "IsFutures must return true for %s", a)
+		} else {
+			require.Falsef(t, a.IsFutures(), "IsFutures must return false for non-asset value %d (%s)", a, a)
+		}
+	}
+}
+
+func TestIsOptions(t *testing.T) {
+	t.Parallel()
+	valid := []Item{Options, OptionCombo}
+	for a := range All {
+		if slices.Contains(valid, a) {
+			require.Truef(t, a.IsOptions(), "IsOptions must return true for %s", a)
+		} else {
+			require.Falsef(t, a.IsOptions(), "IsOptions must return false for non-asset value %d (%s)", a, a)
+		}
 	}
 }
 
@@ -90,8 +115,9 @@ func TestNew(t *testing.T) {
 		{Input: "Options", Expected: Options},
 		{Input: "Option", Expected: Options},
 		{Input: "Future", Error: ErrNotSupported},
-		{Input: "future_combo", Expected: FutureCombo},
 		{Input: "option_combo", Expected: OptionCombo},
+		{Input: "future_combo", Expected: FutureCombo},
+		{Input: "linearContract", Expected: LinearContract},
 	}
 
 	for _, tt := range cases {
@@ -118,114 +144,6 @@ func TestSupported(t *testing.T) {
 		if s[i] != supportedList[i] {
 			t.Fatal("TestSupported returned an unexpected result")
 		}
-	}
-}
-
-func TestIsFutures(t *testing.T) {
-	t.Parallel()
-	type scenario struct {
-		item      Item
-		isFutures bool
-	}
-	scenarios := []scenario{
-		{
-			item:      Spot,
-			isFutures: false,
-		},
-		{
-			item:      Margin,
-			isFutures: false,
-		},
-		{
-			item:      MarginFunding,
-			isFutures: false,
-		},
-		{
-			item:      Index,
-			isFutures: false,
-		},
-		{
-			item:      Binary,
-			isFutures: false,
-		},
-		{
-			item:      PerpetualContract,
-			isFutures: true,
-		},
-		{
-			item:      PerpetualSwap,
-			isFutures: true,
-		},
-		{
-			item:      Futures,
-			isFutures: true,
-		},
-		{
-			item:      UpsideProfitContract,
-			isFutures: true,
-		},
-		{
-			item:      DownsideProfitContract,
-			isFutures: true,
-		},
-		{
-			item:      CoinMarginedFutures,
-			isFutures: true,
-		},
-		{
-			item:      USDTMarginedFutures,
-			isFutures: true,
-		},
-		{
-			item:      USDCMarginedFutures,
-			isFutures: true,
-		}, {
-			item:      FutureCombo,
-			isFutures: true,
-		},
-	}
-	for _, s := range scenarios {
-		testScenario := s
-		t.Run(testScenario.item.String(), func(t *testing.T) {
-			t.Parallel()
-			if testScenario.item.IsFutures() != testScenario.isFutures {
-				t.Errorf("expected %v isFutures to be %v", testScenario.item, testScenario.isFutures)
-			}
-		})
-	}
-}
-
-func TestIsOptions(t *testing.T) {
-	t.Parallel()
-	type scenario struct {
-		item      Item
-		isOptions bool
-	}
-	scenarios := []scenario{
-		{
-			item:      Options,
-			isOptions: true,
-		}, {
-			item:      OptionCombo,
-			isOptions: true,
-		},
-		{
-			item:      Futures,
-			isOptions: false,
-		},
-		{
-			item:      Empty,
-			isOptions: false,
-		},
-	}
-	for _, s := range scenarios {
-		testScenario := s
-		t.Run(testScenario.item.String(), func(t *testing.T) {
-			t.Parallel()
-			if testScenario.item.IsOptions() != testScenario.isOptions {
-				t.Errorf("expected %v isOptions to be %v", testScenario.item, testScenario.isOptions)
-			}
-		})
 	}
 }
 

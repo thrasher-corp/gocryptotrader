@@ -321,7 +321,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.OrderID = m.OrderID
 		updated = true
 	}
-	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
+	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnsetTIF {
 		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
@@ -742,6 +742,8 @@ func (t TimeInForce) String() string {
 	case PostOnlyGTC:
 		// Added in Bittrex exchange to represent PostOnly and GTC
 		return "POST_ONLY_GOOD_TIL_CANCELLED"
+	case UnsetTIF:
+		return ""
 	default:
 		return "UNKNOWN"
 	}
@@ -1130,6 +1132,11 @@ func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// MarshalJSON returns the JSON-encoded order side
+func (s Side) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
@@ -1238,6 +1245,8 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		return FOK, nil
 	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnlyGTC.String():
 		return PostOnlyGTC, nil
+	case "":
+		return UnsetTIF, nil
 	default:
 		return UnknownTIF, fmt.Errorf("%w, tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
@@ -1246,7 +1255,7 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 // IsValid returns whether or not the supplied time in force value is valid or
 // not
 func (t TimeInForce) IsValid() bool {
-	return t == UnknownTIF || supportedTimeInForceFlag&t == t
+	return t == UnsetTIF || supportedTimeInForceFlag&t == t
 }
 
 func (o *ClassificationError) Error() string {
