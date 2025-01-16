@@ -439,12 +439,11 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 	}
 }
 
-func TestGetPersonalTradingHistory(t *testing.T) {
+func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateIOGetPersonalTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMySpotTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -968,12 +967,12 @@ func TestGetAllFutureContracts(t *testing.T) {
 	}
 }
 
-func TestGetSingleContract(t *testing.T) {
+func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetSingleContract(context.Background(), settle, getPair(t, asset.Futures).String())
-	assert.NoError(t, err, "GetSingleContract should not error")
+	_, err = g.GetFuturesContract(context.Background(), settle, getPair(t, asset.Futures).String())
+	assert.NoError(t, err, "GetFuturesContract should not error")
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
@@ -1156,11 +1155,11 @@ func TestCancelSingleDeliveryOrder(t *testing.T) {
 	assert.NoError(t, err, "CancelSingleDeliveryOrder should not error")
 }
 
-func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
+func TestGetMyDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDeliveryPersonalTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
-	assert.NoError(t, err, "GetDeliveryPersonalTradingHistory should not error")
+	_, err := g.GetMyDeliveryTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
+	assert.NoError(t, err, "GetMyDeliveryTradingHistory should not error")
 }
 
 func TestGetDeliveryPositionCloseHistory(t *testing.T) {
@@ -1368,11 +1367,11 @@ func TestAmendFuturesOrder(t *testing.T) {
 	assert.NoError(t, err, "AmendFuturesOrder should not error")
 }
 
-func TestGetMyPersonalTradingHistory(t *testing.T) {
+func TestGetMyFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetMyPersonalTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
-	assert.NoError(t, err, "GetMyPersonalTradingHistory should not error")
+	_, err := g.GetMyFuturesTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
+	assert.NoError(t, err, "GetMyFuturesTradingHistory should not error")
 }
 
 func TestGetFuturesPositionCloseHistory(t *testing.T) {
@@ -1457,12 +1456,12 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 	}
 }
 
-func TestGetSingleDeliveryContracts(t *testing.T) {
+func TestGetDeliveryContract(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
-	_, err = g.GetSingleDeliveryContracts(context.Background(), settle, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "GetSingleDeliveryContracts should not error")
+	_, err = g.GetDeliveryContract(context.Background(), settle, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "GetDeliveryContract should not error")
 }
 
 func TestGetDeliveryOrderbook(t *testing.T) {
@@ -1767,12 +1766,12 @@ func TestCancelSingleOrder(t *testing.T) {
 	}
 }
 
-func TestGetOptionsPersonalTradingHistory(t *testing.T) {
+func TestGetMyOptionsTradingHistory(t *testing.T) {
 	t.Parallel()
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMyOptionsTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestWithdrawCurrency(t *testing.T) {
@@ -3186,22 +3185,20 @@ func TestForceFileStandard(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetFuturesContractDetails(context.Background(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	exp, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	c, err := g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.Equal(t, len(exp), len(c), "GetFuturesContractDetails should return same number of Delivery contracts as exist")
+
+	c, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.NotEmpty(t, c, "GetFuturesContractDetails should return same number of Future contracts as exist")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3527,6 +3524,31 @@ func TestHandleSubscriptions(t *testing.T) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
+}
+
+func TestParseWSHeader(t *testing.T) {
+	in := []string{
+		`{"time":1726121320,"time_ms":1726121320745,"id":1,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time_ms":1726121320746,"id":2,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time":1726121321,"id":3,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+	}
+	for _, i := range in {
+		h, err := parseWSHeader([]byte(i))
+		require.NoError(t, err)
+		require.NotEmpty(t, h.ID)
+		assert.Equal(t, "a4", h.RequestID)
+		assert.Equal(t, "spot.tickers", h.Channel)
+		assert.Equal(t, "subscribe", h.Event)
+		assert.NotEmpty(t, h.Result)
+		switch h.ID {
+		case 1:
+			assert.Equal(t, int64(1726121320745), h.Time.UnixMilli())
+		case 2:
+			assert.Equal(t, int64(1726121320746), h.Time.UnixMilli())
+		case 3:
+			assert.Equal(t, int64(1726121321), h.Time.Unix())
+		}
+	}
 }
 
 func TestDeriveSpotSubmitOrderResponses(t *testing.T) {
