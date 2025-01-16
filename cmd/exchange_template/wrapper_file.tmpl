@@ -6,15 +6,18 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -78,19 +81,29 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			{{ if .REST }} REST: true, {{ end }}
 			{{ if .WS }} Websocket: true, {{ end }}
+			{{ if .REST }}
 			RESTCapabilities: protocol.Features{
 				TickerFetching: true,
 				OrderbookFetching: true,
 			},
+			{{ end }}
+			{{ if .WS }}
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching: true,
 				OrderbookFetching: true,
 			},
+			{{ end }}
 			WithdrawPermissions: exchange.AutoWithdrawCrypto | 
 				exchange.AutoWithdrawFiat,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			// Kline: kline.ExchangeCapabilitiesEnabled{
+			// 	Intervals: kline.DeployExchangeIntervals(
+			// 		kline.IntervalCapacity{Interval: kline.OneMin},
+			// 	),
+			// 	GlobalResultLimit: 2000,
+			// }
 		},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
@@ -188,26 +201,35 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(ctx context.Context, 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-	tickerPrice := new(ticker.Price)
-	tick, err := {{.Variable}}.GetTicker(p.String())
-	if err != nil {
-		return tickerPrice, err
-	}
-	tickerPrice = &ticker.Price{
-		High:    tick.High,
-		Low:     tick.Low,
-		Bid:     tick.Bid,
-		Ask:     tick.Ask,
-		Open:    tick.Open,
-		Close:   tick.Close,
-		Pair:    p,
-	}
-	err = ticker.ProcessTicker({{.Variable}}.Name, tickerPrice, assetType)
-	if err != nil {
-		return tickerPrice, err
-	}
+			tick, err := ti.GetTickers()
+			if err != nil {
+				return err
+			}
+		    for y := range tick {
+		        cp, err := currency.NewPairFromString(tick[y].Symbol)
+		        if err != nil {
+		            return err
+		        }
+		        err = ticker.ProcessTicker(&ticker.Price{
+		            Last:         tick[y].LastPrice,
+		            High:         tick[y].HighPrice,
+		            Low:          tick[y].LowPrice,
+		            Bid:          tick[y].BidPrice,
+		            Ask:          tick[y].AskPrice,
+		            Volume:       tick[y].Volume,
+		            QuoteVolume:  tick[y].QuoteVolume,
+		            Open:         tick[y].OpenPrice,
+		            Close:        tick[y].PrevClosePrice,
+		            Pair:         cp,
+		            ExchangeName: b.Name,
+		            AssetType:    assetType,
+		        })
+		        if err != nil {
+		            return err
+		        }
+		    }
 	*/
 	return ticker.GetTicker({{.Variable}}.Name, p, assetType)
 }
@@ -438,7 +460,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(ctx context.C
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(_ context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -447,7 +469,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(ctx context.Context, wi
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(_ context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -502,9 +524,83 @@ func ({{.Variable}} *{{.CapitalName}}) GetLatestFundingRates(_ context.Context, 
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricalFundingRates(_ context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if r == nil {
+		return nil, common.ErrNilPointer
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func ({{.Variable}} *{{.CapitalName}}) GetOpenInterest(_ context.Context, _ ...key.PairAsset) ([]futures.OpenInterest, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func ({{.Variable}} *{{.CapitalName}}) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := {{.Variable}}.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	return "", common.ErrNotYetImplemented
+}
+
 // UpdateOrderExecutionLimits updates order execution limits
 func ({{.Variable}} *{{.CapitalName}}) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func ({{.Variable}} *{{.CapitalName}}) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
+	return common.ErrNotYetImplemented
+}
+
+// SetMarginType sets the default margin type for when opening a new position
+func ({{.Variable}} *{{.CapitalName}}) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
+	return common.ErrNotYetImplemented
+}
+
+// SetCollateralMode sets the collateral type for your account
+func ({{.Variable}} *{{.CapitalName}}) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
+	return common.ErrNotYetImplemented
+}
+
+// GetCollateralMode returns the collateral type for your account
+func ({{.Variable}} *{{.CapitalName}}) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
+	return collateral.UnknownMode, common.ErrNotYetImplemented
+}
+
+// ChangePositionMargin will modify a position/currencies margin parameters
+func ({{.Variable}} *{{.CapitalName}}) ChangePositionMargin(_ context.Context, r *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if r == nil {
+		return nil, common.ErrNilPointer
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositionSummary returns position summary details for an active position
+func ({{.Variable}} *{{.CapitalName}}) GetFuturesPositionSummary(_ context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+	if r == nil {
+		return nil, common.ErrNilPointer
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositionOrders returns the orders for futures positions
+func ({{.Variable}} *{{.CapitalName}}) GetFuturesPositionOrders(_ context.Context, r *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	if r == nil {
+		return nil, common.ErrNilPointer
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func ({{.Variable}} *{{.CapitalName}}) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	if !a.IsFutures() {
+		return false, nil
+	}
+	// further check if the currency pair is perpetual
+	return false, common.ErrNotYetImplemented
+}
 {{end}}
