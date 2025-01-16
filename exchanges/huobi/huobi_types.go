@@ -35,7 +35,7 @@ type CurrenciesChainData struct {
 	Currency   string `json:"currency"`
 	AssetType  uint8  `json:"assetType"`
 	InstStatus string `json:"instStatus"`
-	ChainData  []struct {
+	ChainData  []*struct {
 		Chain                     string  `json:"chain"`
 		DisplayName               string  `json:"displayName"`
 		BaseChain                 string  `json:"baseChain"`
@@ -1166,13 +1166,14 @@ var (
 		"reduceShort":    12,
 	}
 
-	validContractTypes = []string{
-		"this_week", "next_week", "quarter", "next_quarter",
+	contractExpiryNames = map[string]string{
+		"this_week":    "CW",
+		"next_week":    "NW",
+		"quarter":      "CQ",
+		"next_quarter": "NQ",
 	}
 
-	validContractShortTypes = []string{
-		"cw", "nw", "cq", "nq",
-	}
+	validContractExpiryCodes = []string{"CW", "NW", "CQ", "NQ"}
 
 	validFuturesPeriods = []string{
 		"1min", "5min", "15min", "30min", "60min", "1hour", "4hour", "1day",

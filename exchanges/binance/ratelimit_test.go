@@ -21,11 +21,11 @@ func TestRateLimit_Limit(t *testing.T) {
 		Deadline time.Time
 	}{
 		"Open Orders":          {Expected: spotOpenOrdersSpecificRate, Limit: openOrdersLimit(symbol)},
-		"Orderbook Depth 5":    {Expected: spotDefaultRate, Limit: orderbookLimit(5)},
-		"Orderbook Depth 10":   {Expected: spotDefaultRate, Limit: orderbookLimit(10)},
-		"Orderbook Depth 20":   {Expected: spotDefaultRate, Limit: orderbookLimit(20)},
-		"Orderbook Depth 50":   {Expected: spotDefaultRate, Limit: orderbookLimit(50)},
-		"Orderbook Depth 100":  {Expected: spotDefaultRate, Limit: orderbookLimit(100)},
+		"Orderbook Depth 5":    {Expected: spotOrderbookDepth100Rate, Limit: orderbookLimit(5)},
+		"Orderbook Depth 10":   {Expected: spotOrderbookDepth100Rate, Limit: orderbookLimit(10)},
+		"Orderbook Depth 20":   {Expected: spotOrderbookDepth100Rate, Limit: orderbookLimit(20)},
+		"Orderbook Depth 50":   {Expected: spotOrderbookDepth100Rate, Limit: orderbookLimit(50)},
+		"Orderbook Depth 100":  {Expected: spotOrderbookDepth100Rate, Limit: orderbookLimit(100)},
 		"Orderbook Depth 500":  {Expected: spotOrderbookDepth500Rate, Limit: orderbookLimit(500)},
 		"Orderbook Depth 1000": {Expected: spotOrderbookDepth1000Rate, Limit: orderbookLimit(1000)},
 		"Orderbook Depth 5000": {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000)},
@@ -63,7 +63,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 	testTable := map[string]request.EndpointLimit{
 		"Default":           spotDefaultRate,
 		"Historical Trades": spotHistoricalTradesRate,
-		"All Price Changes": spotPriceChangeAllRate,
+		"All Price Changes": spotTickerAllRate,
 		"All Orders":        spotAllOrdersRate,
 	}
 

@@ -6,7 +6,7 @@
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/huobi)
-[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
@@ -14,7 +14,7 @@ This huobi package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
-You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
+You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
@@ -110,12 +110,24 @@ if err != nil {
 }
 ```
 
-### How to do Websocket public/private calls
+### Subscriptions
 
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
+All subscriptions are for spot only.
+
+Default Public Subscriptions:
+- Ticker
+- Candles ( Interval: 1min )
+- Orderbook ( Level: 0 - No aggregation )
+  - Configure Level: 1-5 for depth aggregation, for example:
+```json
+ {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
+- Trades
+
+Default Authenticated Subscriptions:
+- Account Trades
+- Account Orders
+- Account Updates
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
