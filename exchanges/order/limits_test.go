@@ -1,10 +1,11 @@
 package order
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -19,9 +20,7 @@ func TestLoadLimits(t *testing.T) {
 	t.Parallel()
 	e := ExecutionLimits{}
 	err := e.LoadLimits(nil)
-	if !errors.Is(err, errCannotLoadLimit) {
-		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
-	}
+	assert.ErrorIs(t, err, errCannotLoadLimit)
 
 	invalidAsset := []MinMaxLevel{
 		{
@@ -33,11 +32,7 @@ func TestLoadLimits(t *testing.T) {
 		},
 	}
 	err = e.LoadLimits(invalidAsset)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("expected error %v but received %v",
-			asset.ErrNotSupported,
-			err)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	invalidPairLoading := []MinMaxLevel{
 		{
@@ -50,9 +45,7 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(invalidPairLoading)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("expected error %v but received %v", currency.ErrCurrencyPairEmpty, err)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	newLimits := []MinMaxLevel{
 		{
@@ -66,9 +59,7 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(newLimits)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	badLimit := []MinMaxLevel{
 		{
@@ -82,9 +73,7 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(badLimit)
-	if !errors.Is(err, errInvalidPriceLevels) {
-		t.Fatalf("expected error %v but received %v", errInvalidPriceLevels, err)
-	}
+	require.ErrorIs(t, err, errInvalidPriceLevels)
 
 	badLimit = []MinMaxLevel{
 		{
@@ -98,9 +87,7 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(badLimit)
-	if !errors.Is(err, errInvalidAmountLevels) {
-		t.Fatalf("expected error %v but received %v", errInvalidPriceLevels, err)
-	}
+	require.ErrorIs(t, err, errInvalidAmountLevels)
 
 	goodLimit := []MinMaxLevel{
 		{
@@ -110,9 +97,7 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(goodLimit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	noCompare := []MinMaxLevel{
 		{
@@ -123,9 +108,7 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(noCompare)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	noCompare = []MinMaxLevel{
 		{
@@ -136,18 +119,14 @@ func TestLoadLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(noCompare)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	e := ExecutionLimits{}
 	_, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
-	if !errors.Is(err, ErrExchangeLimitNotLoaded) {
-		t.Fatalf("expected error %v but received %v", ErrExchangeLimitNotLoaded, err)
-	}
+	require.ErrorIs(t, err, ErrExchangeLimitNotLoaded)
 
 	newLimits := []MinMaxLevel{
 		{
@@ -161,45 +140,31 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 	}
 
 	err = e.LoadLimits(newLimits)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
-	}
+	require.NoError(t, err)
 
 	_, err = e.GetOrderExecutionLimits(asset.Futures, ltcusd)
-	if !errors.Is(err, ErrCannotValidateAsset) {
-		t.Fatalf("expected error %v but received %v", ErrCannotValidateAsset, err)
-	}
+	require.ErrorIs(t, err, ErrCannotValidateAsset)
 
 	_, err = e.GetOrderExecutionLimits(asset.Spot, ltcusd)
-	if !errors.Is(err, errExchangeLimitBase) {
-		t.Fatalf("expected error %v but received %v", errExchangeLimitBase, err)
-	}
+	require.ErrorIs(t, err, errExchangeLimitBase)
 
 	_, err = e.GetOrderExecutionLimits(asset.Spot, btcltc)
-	if !errors.Is(err, errExchangeLimitQuote) {
-		t.Fatalf("expected error %v but received %v", errExchangeLimitQuote, err)
-	}
+	require.ErrorIs(t, err, errExchangeLimitQuote)
 
 	tt, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
-	if tt.MaximumBaseAmount != newLimits[0].MaximumBaseAmount ||
+	assert.False(t, tt.MaximumBaseAmount != newLimits[0].MaximumBaseAmount ||
 		tt.MinimumBaseAmount != newLimits[0].MinimumBaseAmount ||
 		tt.MaxPrice != newLimits[0].MaxPrice ||
-		tt.MinPrice != newLimits[0].MinPrice {
-		t.Fatal("unexpected values")
-	}
+		tt.MinPrice != newLimits[0].MinPrice)
 }
 
 func TestCheckLimit(t *testing.T) {
 	t.Parallel()
 	e := ExecutionLimits{}
 	err := e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, Limit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	newLimits := []MinMaxLevel{
 		{
@@ -213,97 +178,63 @@ func TestCheckLimit(t *testing.T) {
 	}
 
 	err = e.LoadLimits(newLimits)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
-	}
+	require.NoError(t, err)
 
 	err = e.CheckOrderExecutionLimits(asset.Futures, ltcusd, 1337, 1337, Limit)
-	if !errors.Is(err, ErrCannotValidateAsset) {
-		t.Fatalf("expected error %v but received %v", ErrCannotValidateAsset, err)
-	}
+	require.ErrorIs(t, err, ErrCannotValidateAsset)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, ltcusd, 1337, 1337, Limit)
-	if !errors.Is(err, ErrCannotValidateBaseCurrency) {
-		t.Fatalf("expected error %v but received %v", ErrCannotValidateBaseCurrency, err)
-	}
+	require.ErrorIs(t, err, ErrCannotValidateBaseCurrency)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcltc, 1337, 1337, Limit)
-	if !errors.Is(err, ErrCannotValidateQuoteCurrency) {
-		t.Fatalf("expected error %v but received %v", ErrCannotValidateQuoteCurrency, err)
-	}
+	require.ErrorIs(t, err, ErrCannotValidateQuoteCurrency)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 9, Limit)
-	if !errors.Is(err, ErrPriceBelowMin) {
-		t.Fatalf("expected error %v but received %v", ErrPriceBelowMin, err)
-	}
+	require.ErrorIs(t, err, ErrPriceBelowMin)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 9, Limit)
-	if !errors.Is(err, ErrPriceExceedsMax) {
-		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMax, err)
-	}
+	require.ErrorIs(t, err, ErrPriceExceedsMax)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, .5, Limit)
-	if !errors.Is(err, ErrAmountBelowMin) {
-		t.Fatalf("expected error %v but received %v", ErrAmountBelowMin, err)
-	}
+	require.ErrorIs(t, err, ErrAmountBelowMin)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 11, Limit)
-	if !errors.Is(err, ErrAmountExceedsMax) {
-		t.Fatalf("expected error %v but received %v", ErrAmountExceedsMax, err)
-	}
+	require.ErrorIs(t, err, ErrAmountExceedsMax)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Limit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Market)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestConforms(t *testing.T) {
 	t.Parallel()
 	var tt MinMaxLevel
 	err := tt.Conforms(0, 0, Limit)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tt = MinMaxLevel{
 		MinNotional: 100,
 	}
 
 	err = tt.Conforms(1, 1, Limit)
-	if !errors.Is(err, ErrNotionalValue) {
-		t.Fatalf("expected error %v but received %v", ErrNotionalValue, err)
-	}
+	require.ErrorIs(t, err, ErrNotionalValue)
 
 	err = tt.Conforms(200, .5, Limit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	tt.PriceStepIncrementSize = 0.001
 	err = tt.Conforms(200.0001, .5, Limit)
-	if !errors.Is(err, ErrPriceExceedsStep) {
-		t.Fatalf("expected error %v but received %v", ErrPriceExceedsStep, err)
-	}
+	require.ErrorIs(t, err, ErrPriceExceedsStep)
 	err = tt.Conforms(200.004, .5, Limit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	tt.AmountStepIncrementSize = 0.001
 	err = tt.Conforms(200, .0002, Limit)
-	if !errors.Is(err, ErrAmountExceedsStep) {
-		t.Fatalf("expected error %v but received %v", ErrAmountExceedsStep, err)
-	}
+	require.ErrorIs(t, err, ErrAmountExceedsStep)
 	err = tt.Conforms(200000, .003, Limit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	tt.MinimumBaseAmount = 1
 	tt.MaximumBaseAmount = 10
@@ -311,115 +242,73 @@ func TestConforms(t *testing.T) {
 	tt.MarketMaxQty = 9.9
 
 	err = tt.Conforms(200000, 1, Market)
-	if !errors.Is(err, ErrMarketAmountBelowMin) {
-		t.Fatalf("expected error %v but received: %v", ErrMarketAmountBelowMin, err)
-	}
+	require.ErrorIs(t, err, ErrMarketAmountBelowMin)
 
 	err = tt.Conforms(200000, 10, Market)
-	if !errors.Is(err, ErrMarketAmountExceedsMax) {
-		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsMax, err)
-	}
+	require.ErrorIs(t, err, ErrMarketAmountExceedsMax)
 
 	tt.MarketStepIncrementSize = 10
 	err = tt.Conforms(200000, 9.1, Market)
-	if !errors.Is(err, ErrMarketAmountExceedsStep) {
-		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsStep, err)
-	}
+	require.ErrorIs(t, err, ErrMarketAmountExceedsStep)
 	tt.MarketStepIncrementSize = 1
 	err = tt.Conforms(200000, 9.1, Market)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error %v but received: %v", nil, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestConformToDecimalAmount(t *testing.T) {
 	t.Parallel()
 	var tt MinMaxLevel
-	if !tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001)).Equal(decimal.NewFromFloat(1.001)) {
-		t.Fatal("value should not be changed")
-	}
+	require.True(t, tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001)).Equal(decimal.NewFromFloat(1.001)))
 
 	tt = MinMaxLevel{}
 	val := tt.ConformToDecimalAmount(decimal.NewFromInt(1))
-	if !val.Equal(decimal.NewFromInt(1)) { // If there is no step amount set this should not change
-		// the inputted amount
-		t.Fatal("unexpected amount")
-	}
+	assert.True(t, val.Equal(decimal.NewFromInt(1))) // If there is no step amount set this should not change
 
 	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))
-	if !val.Equal(decimal.NewFromFloat(1.001)) {
-		t.Error("unexpected amount", val)
-	}
+	assert.True(t, val.Equal(decimal.NewFromFloat(1.001)))
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(0.0001))
-	if !val.IsZero() {
-		t.Error("unexpected amount", val)
-	}
+	assert.True(t, val.IsZero())
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(0.7777))
-	if !val.Equal(decimal.NewFromFloat(0.777)) {
-		t.Error("unexpected amount", val)
-	}
+	assert.True(t, val.Equal(decimal.NewFromFloat(0.777)))
 
 	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(100))
-	if !val.Equal(decimal.NewFromInt(100)) {
-		t.Fatal("unexpected amount", val)
-	}
+	assert.True(t, val.Equal(decimal.NewFromInt(100)))
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(200))
-	if !val.Equal(decimal.NewFromInt(200)) {
-		t.Fatal("unexpected amount", val)
-	}
+	assert.True(t, val.Equal(decimal.NewFromInt(200)))
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(150))
-	if !val.Equal(decimal.NewFromInt(100)) {
-		t.Fatal("unexpected amount", val)
-	}
+	assert.True(t, val.Equal(decimal.NewFromInt(100)))
 }
 
 func TestConformToAmount(t *testing.T) {
 	t.Parallel()
 	var tt MinMaxLevel
-	if tt.ConformToAmount(1.001) != 1.001 {
-		t.Fatal("value should not be changed")
-	}
+	require.Equal(t, 1.001, tt.ConformToAmount(1.001))
 
 	tt = MinMaxLevel{}
 	val := tt.ConformToAmount(1)
-	if val != 1 { // If there is no step amount set this should not change
-		// the inputted amount
-		t.Fatal("unexpected amount")
-	}
+	assert.Equal(t, 1., val) // If there is no step amount set this should not change
 
 	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToAmount(1.001)
-	if val != 1.001 {
-		t.Error("unexpected amount", val)
-	}
+	assert.Equal(t, 1.001, val)
 
 	val = tt.ConformToAmount(0.0001)
-	if val != 0 {
-		t.Error("unexpected amount", val)
-	}
+	assert.Zero(t, val)
 
 	val = tt.ConformToAmount(0.7777)
-	if val != 0.777 {
-		t.Error("unexpected amount", val)
-	}
+	assert.Equal(t, 0.777, val)
 
 	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToAmount(100)
-	if val != 100 {
-		t.Fatal("unexpected amount", val)
-	}
+	assert.Equal(t, 100., val)
 
 	val = tt.ConformToAmount(200)
-	if val != 200 {
-		t.Fatal("unexpected amount", val)
-	}
+	require.Equal(t, 200., val)
 	val = tt.ConformToAmount(150)
-	if val != 100 {
-		t.Fatal("unexpected amount", val)
-	}
+	assert.Equal(t, 100., val)
 }
