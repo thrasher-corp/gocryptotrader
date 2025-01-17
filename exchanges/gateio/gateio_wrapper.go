@@ -40,7 +40,10 @@ import (
 // this error.
 const unfundedFuturesAccount = `please transfer funds first to create futures account`
 
-var errNoResponseReceived = errors.New("no response received")
+var (
+	errNoResponseReceived  = errors.New("no response received")
+	errSingleAssetRequired = errors.New("single asset type required")
+)
 
 // SetDefaults sets default values for the exchange
 func (g *Gateio) SetDefaults() {
@@ -2668,6 +2671,55 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	}
 }
 
+// WebsocketSubmitBatchOrders submits multiple orders to the exchange through the websocket
+// RE: Spot batch orders; cannot derive purchased amount as the average price is omitted from the response and the fill
+// price is not accurate.
+func (g *Gateio) WebsocketSubmitBatchOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	var a asset.Item
+	for x := range orders {
+		if err = orders[x].Validate(g.GetTradingRequirements()); err != nil {
+			return nil, err
+		}
+
+		if !a.IsValid() {
+			a = orders[x].AssetType
+			continue
+		}
+
+		if a != orders[x].AssetType {
+			return nil, fmt.Errorf("%w %v", errSingleAssetRequired, a)
+		}
+	}
+
+	if !g.CurrencyPairs.IsAssetSupported(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	switch a {
+	case asset.Spot:
+		reqs := make([]*CreateOrderRequest, len(orders))
+		for x := range orders {
+			reqs[x], err = g.getSpotOrderRequest(orders[x])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		got, err := g.WebsocketSpotSubmitOrders(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+
+		resps, err := g.DeriveSpotSubmitOrderResponses(got)
+		if err != nil {
+			return nil, err
+		}
+		return resps, nil
+	default:
+		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+	}
+}
+
 // DeriveSpotSubmitOrderResponses returns the order submission responses for spot
 func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
@@ -2676,6 +2728,15 @@ func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderRespon
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
 	for x := range responses {
+		if responses[x].Label != "" { // Only returned in a batch order response context
+			out = append(out, &order.SubmitResponse{
+				Exchange:      g.Name,
+				ClientOrderID: responses[x].Text,
+				Error:         fmt.Errorf("%w reason label:%s message:%s", order.ErrUnableToPlaceOrder, responses[x].Label, responses[x].Message),
+			})
+			continue
+		}
+
 		side, err := order.StringToOrderSide(responses[x].Side)
 		if err != nil {
 			return nil, err

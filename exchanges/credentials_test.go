@@ -5,8 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 func TestGetCredentials(t *testing.T) {
@@ -127,6 +129,11 @@ func TestGetCredentials(t *testing.T) {
 		notOverrided.SubAccount != "" {
 		t.Fatal("unexpected values")
 	}
+
+	creds, err = b.GetCredentials(request.WithMockResponse(context.Background(), nil))
+	require.NoError(t, err)
+	require.NotNil(t, creds)
+	require.Empty(t, creds)
 }
 
 func TestAreCredentialsValid(t *testing.T) {

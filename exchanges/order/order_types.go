@@ -131,6 +131,9 @@ type SubmitResponse struct {
 	BorrowSize  float64
 	LoanApplyID string
 	MarginType  margin.Type
+
+	// Error is populated if the order was not successful, this is used in batch order submissions
+	Error error
 }
 
 // Modify contains all properties of an order

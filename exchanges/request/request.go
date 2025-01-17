@@ -194,7 +194,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		start := time.Now()
 
-		resp, err := r._HTTPClient.do(req)
+		var resp *http.Response
+		if IsMockResponse(ctx) {
+			resp = getRESTResponseFromMock(ctx)
+		} else {
+			resp, err = r._HTTPClient.do(req)
+		}
 
 		if r.reporter != nil && err == nil {
 			r.reporter.Latency(r.name, p.Method, p.Path, time.Since(start))

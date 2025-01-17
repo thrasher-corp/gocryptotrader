@@ -137,6 +137,8 @@ type OrderManagement interface {
 
 	// WebsocketSubmitOrder submits an order via the websocket connection
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	// WebsocketSubmitBatchOrders submits multiple orders in a batch via the websocket connection
+	WebsocketSubmitBatchOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management

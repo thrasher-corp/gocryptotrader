@@ -87,6 +87,8 @@ type WebsocketOrderResponse struct {
 	STPID              int           `json:"stp_id"`
 	STPAct             string        `json:"stp_act"`
 	AverageDealPrice   types.Number  `json:"avg_deal_price"`
+	Label              string        `json:"label"`
+	Message            string        `json:"message"`
 }
 
 // WebsocketFuturesOrderResponse defines a websocket futures order response

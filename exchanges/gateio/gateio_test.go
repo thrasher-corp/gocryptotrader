@@ -3845,3 +3845,42 @@ func TestDeriveFuturesSubmitOrderResponses(t *testing.T) {
 		})
 	}
 }
+
+func TestWebsocketSubmitBatchOrders(t *testing.T) {
+	t.Parallel()
+	_, err := g.WebsocketSubmitBatchOrders(context.Background(), []*order.Submit{{}})
+	require.ErrorIs(t, err, order.ErrExchangeNameUnset)
+
+	dummy := &order.Submit{
+		Exchange:    "test",
+		Pair:        currency.NewPair(currency.BTC, currency.USDT),
+		AssetType:   asset.Spot,
+		Type:        order.Market,
+		Side:        order.Buy,
+		QuoteAmount: 1,
+	}
+
+	other := *dummy
+	other.AssetType = asset.Futures
+
+	_, err = g.WebsocketSubmitBatchOrders(context.Background(), []*order.Submit{dummy, &other})
+	require.ErrorIs(t, err, errSingleAssetRequired)
+
+	other.AssetType = asset.Futures
+	_, err = g.WebsocketSubmitBatchOrders(context.Background(), []*order.Submit{&other})
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	mockResponse1 := []byte(`{"header":{"response_time":"1736485230579","status":"200","channel":"spot.order_place","event":"api","client_id":"35.72.184.127-0xc05f1d8d00","conn_id":"6f7d1aad7c5d05cd","conn_trace_id":"4ca4bd9b2484834eb365c5e079ba69d8","trace_id":"b9835664bf217746b6a8e9644412d6cd","x_in_time":1736485230578603,"x_out_time":1736485230579021},"data":{"result":{"req_id":"777","api_key":"","timestamp":"1736485230","signature":"","trace_id":"","text":"","req_header":{},"req_param":[{"time_in_force":"ioc","text":"t-774","currency_pair":"RBC_USDT","type":"market","account":"spot","side":"buy","amount":"9.98662"},{"text":"t-775","currency_pair":"RBC_ETH","type":"market","account":"spot","side":"sell","amount":"397","time_in_force":"ioc"},{"time_in_force":"ioc","text":"t-776","currency_pair":"ETH_USDT","type":"market","account":"spot","side":"sell","amount":"0.003"}]}},"request_id":"777","ack":true}`)
+	mockResponse2 := []byte(`{"header":{"response_time":"1736485230624","status":"200","channel":"spot.order_place","event":"api","client_id":"35.72.184.127-0xc05f1d8d00","conn_trace_id":"4ca4bd9b2484834eb365c5e079ba69d8","trace_id":"b9835664bf217746b6a8e9644412d6cd","x_in_time":1736485230578603,"x_out_time":1736485230624136},"data":{"result":[{"account":"spot","status":"closed","side":"buy","amount":"9.98662","id":"771815277347","create_time":"1736485230","update_time":"1736485230","text":"t-774","left":"0.0002093","currency_pair":"RBC_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"ioc","iceberg":"0","filled_total":"9.9864107","fill_price":"9.9864107","create_time_ms":1736485230593,"update_time_ms":1736485230593,"succeeded":true},{"account":"spot","status":"closed","side":"sell","amount":"397","id":"771815277391","create_time":"1736485230","update_time":"1736485230","text":"t-775","left":"0","currency_pair":"RBC_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"ioc","iceberg":"0","filled_total":"0.002976309","fill_price":"0.002976309","create_time_ms":1736485230600,"update_time_ms":1736485230600,"succeeded":true},{"account":"spot","status":"closed","side":"sell","amount":"0.003","id":"771815277451","create_time":"1736485230","update_time":"1736485230","text":"t-776","left":"0","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"ioc","iceberg":"0","filled_total":"9.76572","fill_price":"9.76572","create_time_ms":1736485230608,"update_time_ms":1736485230608,"succeeded":true}]},"request_id":"777"}`)
+	ctx := context.Background()
+	got, err := g.WebsocketSubmitBatchOrders(request.WithMockResponse(ctx, mockResponse1, mockResponse2), []*order.Submit{dummy, dummy, dummy})
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+
+	mockResponse1 = []byte(`{"header":{"response_time":"1736980695937","status":"200","channel":"spot.order_place","event":"api","client_id":"35.72.184.127-0xc13ed551e0","conn_id":"138c696791d9dc0d","conn_trace_id":"dca3f78ba2d34e8c52a4217258783552","trace_id":"d096e1f953d017d054f678980aff4087","x_in_time":1736980695937125,"x_out_time":1736980695937383},"data":{"result":{"req_id":"743","api_key":"","timestamp":"1736980695","signature":"","trace_id":"","text":"","req_header":{},"req_param":[{"side":"buy","amount":"9.98","time_in_force":"fok","text":"t-740","currency_pair":"ETH_USDT","type":"market","account":"spot"},{"text":"t-741","currency_pair":"LIKE_ETH","type":"market","account":"spot","side":"buy","amount":"0.00289718","time_in_force":"fok"},{"type":"market","account":"spot","side":"sell","amount":"297.16","time_in_force":"fok","text":"t-742","currency_pair":"LIKE_USDT"}]}},"request_id":"743","ack":true}`)
+	mockResponse2 = []byte(`{"header":{"response_time":"1736980695972","status":"200","channel":"spot.order_place","event":"api","client_id":"35.72.184.127-0xc13ed551e0","conn_trace_id":"dca3f78ba2d34e8c52a4217258783552","trace_id":"d096e1f953d017d054f678980aff4087","x_in_time":1736980695937125,"x_out_time":1736980695972307},"data":{"result":[{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true},{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true},{"text":"t-742","label":"BALANCE_NOT_ENOUGH","message":"Not enough balance"}]},"request_id":"743"}`)
+	got, err = g.WebsocketSubmitBatchOrders(request.WithMockResponse(ctx, mockResponse1, mockResponse2), []*order.Submit{dummy, dummy, dummy})
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	require.ErrorIs(t, got[2].Error, order.ErrUnableToPlaceOrder)
+}

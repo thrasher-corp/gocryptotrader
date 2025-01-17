@@ -825,7 +825,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		return err
 	}
 
-	conn, err := g.Websocket.GetConnection(connSignature)
+	conn, err := g.Websocket.GetConnection(ctx, connSignature)
 	if err != nil {
 		return err
 	}

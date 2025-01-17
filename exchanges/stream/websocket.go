@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -1265,13 +1266,17 @@ func signalReceived(ch chan struct{}) bool {
 
 // GetConnection returns a connection by message filter (defined in exchange package _wrapper.go websocket connection)
 // for request and response handling in a multi connection context.
-func (w *Websocket) GetConnection(messageFilter any) (Connection, error) {
+func (w *Websocket) GetConnection(ctx context.Context, messageFilter any) (Connection, error) {
 	if w == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, w)
 	}
 
 	if messageFilter == nil {
 		return nil, errMessageFilterNotSet
+	}
+
+	if request.IsMockResponse(ctx) {
+		return newMockWebsocketConnection(), nil
 	}
 
 	w.m.Lock()
