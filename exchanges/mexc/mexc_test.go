@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -222,6 +224,95 @@ func TestDeleteAPIKeySubAccount(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.DeleteAPIKeySubAccount(context.Background(), "SubAcc1")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUniversalTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Futures, currency.USDT, 1234.)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, currency.USDT, 1234.)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.EMPTYCODE, 1234.)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 1234.)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnversalTransferHistory(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = me.GetUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountAsset(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetSubAccountAsset(context.Background(), "", asset.Spot)
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+	_, err = me.GetSubAccountAsset(context.Background(), "thesubaccount@test.com", asset.Empty)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSubAccountAsset(context.Background(), "thesubaccount@test.com", asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetKYCStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetKYCStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUseAPIDefaultSymbols(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.UseAPIDefaultSymbols(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewTestOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.NewTestOrder(context.Background(), "", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "", "LIMIT", 1, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.NewOrder(context.Background(), "", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "", "LIMIT", 1, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

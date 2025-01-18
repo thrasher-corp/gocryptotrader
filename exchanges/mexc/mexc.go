@@ -3,6 +3,7 @@ package mexc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,7 +14,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -285,11 +288,140 @@ func (me *MEXC) DeleteAPIKeySubAccount(ctx context.Context, subAccountName strin
 }
 
 // UniversalTransfer requires SPOT_TRANSFER_WRITE permission
-func (me *MEXC) UniversalTransfer(ctx context.Context, fromAccount, toAccount, fromAccountType, toAccountType string, asset currency.Code, amount float64) (interface{}, error) {
+func (me *MEXC) UniversalTransfer(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) (*UniversalTransferResponse, error) {
+	if !me.SupportsAsset(fromAccountType) {
+		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
+	}
+	if !me.SupportsAsset(toAccountType) {
+		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, fromAccountType)
+	}
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w, asset %v", currency.ErrCurrencyCodeEmpty, ccy)
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
 	params := url.Values{}
-	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "capital/sub-account/universalTransfer", params, &resp, true)
+	params.Set("fromAccountType", fromAccountType.String())
+	params.Set("toAccountType", toAccountType.String())
+	params.Set("asset", ccy.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if fromAccount != "" {
+		params.Set("fromAccount", fromAccount)
+	}
+	if toAccount != "" {
+		params.Set("toAccount", toAccount)
+	}
+	var resp *UniversalTransferResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/sub-account/universalTransfer", params, &resp, true)
 }
+
+// GetUnversalTransferHistory retrieves universal assets transfer history of master account
+func (me *MEXC) GetUnversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
+	if !me.SupportsAsset(fromAccountType) {
+		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
+	}
+	if !me.SupportsAsset(toAccountType) {
+		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, fromAccountType)
+	}
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	params.Set("fromAccountType", fromAccountType.String())
+	params.Set("toAccountType", toAccountType.String())
+	if fromAccount != "" {
+		params.Set("fromAccount", fromAccount)
+	}
+	if toAccount != "" {
+		params.Set("toAccount", toAccount)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *UniversalTransferHistoryData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/sub-account/universalTransfer", params, resp, true)
+}
+
+// GetSubAccountAsset represents a sub-account asset balance detail
+func (me *MEXC) GetSubAccountAsset(ctx context.Context, subAccount string, accountType asset.Item) (*SubAccountAssetBalances, error) {
+	if subAccount == "" {
+		return nil, errInvalidSubAccountName
+	}
+	if accountType == asset.Empty {
+		return nil, asset.ErrNotSupported
+	}
+	params := url.Values{}
+	params.Set("subAccount", subAccount)
+	params.Set("accountType", accountType.String())
+	var resp *SubAccountAssetBalances
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/asset", params, &resp, true)
+}
+
+// GetKYCStatus retrieves accounts KYC(know your customer) status
+func (me *MEXC) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
+	var resp *KYCStatusInfo
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "kyc/status", nil, &resp, true)
+}
+
+// UserAPIDefaultSymbols retrieves a default user API symbols
+func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) (interface{}, error) {
+	resp := &struct {
+		Data []string `json:"data"`
+	}{}
+	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "selfSymbols", nil, &resp, true)
+}
+
+// NewTestOrder creates and validates a new order but does not send it into the matching engine.
+func (me *MEXC) NewTestOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+	return me.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order/test", quantity, quoteOrderQty, price)
+}
+
+// NewOrder creates a new order
+func (me *MEXC) NewOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+	return me.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order", quantity, quoteOrderQty, price)
+}
+
+func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, orderType, path string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if orderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("side", side)
+	params.Set("type", orderType)
+	if quantity != 0 {
+		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	}
+	if quoteOrderQty != 0 {
+		params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
+	}
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+	if newClientOrderID != "" {
+		params.Set("newClientOrderId", newClientOrderID)
+	}
+	var resp *OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, path, params, &resp, true)
+}
+
+// CreateBatchOrder supports 30 orders with a same symbol in a batch,rate limit:2 times/s.
+// func (me *MEXC) CreateBatchOrder(ctx context.Context, )
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
 func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {

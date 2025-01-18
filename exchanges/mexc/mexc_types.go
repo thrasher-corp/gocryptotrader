@@ -220,3 +220,50 @@ type SubAccountAPIDetail struct {
 type SubAccountsAPIs struct {
 	SubAccount []SubAccountAPIDetail `json:"subAccount"`
 }
+
+// UniversalTransferResponse represents a universal asset transfer response
+type UniversalTransferResponse struct {
+	TransferID int64 `json:"tranId"`
+}
+
+// UniversalTransferHistoryData represents a universal asset transfer history detail
+type UniversalTransferHistoryData struct {
+	TranID          string       `json:"tranId"`
+	FromAccount     string       `json:"fromAccount"`
+	ToAccount       string       `json:"toAccount"`
+	ClientTranID    string       `json:"clientTranId"`
+	Asset           string       `json:"asset"`
+	Amount          types.Number `json:"amount"`
+	FromAccountType string       `json:"fromAccountType"`
+	ToAccountType   string       `json:"toAccountType"`
+	FromSymbol      string       `json:"fromSymbol"`
+	ToSymbol        string       `json:"toSymbol"`
+	Status          string       `json:"status"`
+	Timestamp       types.Time   `json:"timestamp"`
+}
+
+// SubAccountAssetBalances represents a sub-account asset balances
+type SubAccountAssetBalances struct {
+	Balances []struct {
+		Asset  string     `json:"asset"`
+		Free   types.Time `json:"free"`
+		Locked types.Time `json:"locked"`
+	} `json:"balances"`
+}
+
+// KYCStatusInfo represents a KYC status information
+type KYCStatusInfo struct {
+	Status string `json:"status"`
+}
+
+// OrderDetail represents an order detail
+type OrderDetail struct {
+	Symbol       string       `json:"symbol"`
+	OrderID      string       `json:"orderId"`
+	OrderListID  int          `json:"orderListId"`
+	Price        types.Number `json:"price"`
+	OrigQty      types.Number `json:"origQty"`
+	Type         string       `json:"type"`
+	Side         string       `json:"side"`
+	TransactTime types.Time   `json:"transactTime"`
+}
