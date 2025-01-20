@@ -1,0 +1,42 @@
+name: stale-checks
+on:
+  schedule:
+    - cron: '0 0 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+    contents: read
+
+env:
+  DAYS_BEFORE_STALE: ${{ vars.DAYS_BEFORE_STALE }}
+  DAYS_BEFORE_CLOSE: ${{ vars.DAYS_BEFORE_CLOSE }}
+  EXEMPT_ISSUE_LABELS: ${{ vars.EXEMPT_ISSUE_LABELS }}
+  EXEMPT_PR_LABELS: ${{ vars.EXEMPT_PR_LABELS }}
+
+jobs:
+  stale:
+    name: Stale issues and PRs check
+    runs-on: ubuntu-latest
+    environment: ci
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # General settings
+          days-before-stale: ${{ env.DAYS_BEFORE_STALE }}
+          days-before-close: ${{ env.DAYS_BEFORE_CLOSE }}
+          exempt-issue-labels: ${{ env.EXEMPT_ISSUE_LABELS }}
+          exempt-pr-labels: ${{ env.EXEMPT_PR_LABELS }}
+          enable-statistics: true
+
+          # Issue settings
+          stale-issue-message: 'This issue is stale because it has been open ${{ env.DAYS_BEFORE_STALE }} days with no activity. Please provide an update or this issue will be automatically closed in ${{ env.DAYS_BEFORE_CLOSE }} days.'
+          close-issue-message: 'This issue was closed because it has been stalled for ${{ env.DAYS_BEFORE_CLOSE }} days with no activity.'
+          stale-issue-label: 'stale'
+         
+          # PR settings
+          stale-pr-message: 'This PR is stale because it has been open ${{ env.DAYS_BEFORE_STALE }} days with no activity. Please provide an update on the progress of this PR.'
+          days-before-pr-close: -1
+          stale-pr-label: 'stale'
