@@ -129,7 +129,7 @@ func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.It
 	}
 
 	buf := &bytes.Buffer{}
-	if err := t.Execute(buf, subCtx); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
+	if err := t.Execute(buf, subCtx); err != nil {
 		return nil, err
 	}
 
