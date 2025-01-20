@@ -337,6 +337,11 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				b.Name,
 				err)
 		}
+		// maker placed buy order, so taker market sell
+		side := order.Buy
+		if t.Maker {
+			side = order.Sell
+		}
 		return b.Websocket.Trade.Update(saveTradeData,
 			trade.Data{
 				CurrencyPair: pair,
@@ -345,6 +350,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Amount:       t.Quantity.Float64(),
 				Exchange:     b.Name,
 				AssetType:    asset.Spot,
+				Side:         side,
 				TID:          strconv.FormatInt(t.TradeID, 10),
 			})
 	case "ticker":
