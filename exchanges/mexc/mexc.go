@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -400,6 +401,22 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	if orderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
+	orderType = strings.ToUpper(orderType)
+	switch orderType {
+	case "LIMIT_ORDER":
+		if quantity <= 0 {
+			return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, quantity)
+		}
+		if price <= 0 {
+			return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, price)
+		}
+	case "MARKET_ORDER":
+		if quantity <= 0 && quoteOrderQty <= 0 {
+			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
+		}
+	default:
+		return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, orderType)
+	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("side", side)
@@ -420,8 +437,215 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, path, params, &resp, true)
 }
 
-// CreateBatchOrder supports 30 orders with a same symbol in a batch,rate limit:2 times/s.
-// func (me *MEXC) CreateBatchOrder(ctx context.Context, )
+// OrderTypeString returns a string representation of an order.Type instance.
+func (me *MEXC) OrderTypeString(oType order.Type) (string, error) {
+	switch oType {
+	case order.Limit:
+		return "LIMIT_ORDER", nil
+	case order.PostOnly:
+		return "POST_ONLY", nil
+	case order.Market:
+		return "MARKET_ORDER", nil
+	case order.ImmediateOrCancel:
+		return "IMMEDIATE_OR_CANCEL", nil
+	case order.FillOrKill:
+		return "FILL_OR_KILL", nil
+	case order.StopLimit:
+		return "STOP_LIMIT", nil
+	default:
+		return "", order.ErrUnsupportedOrderType
+	}
+}
+
+// CreateBatchOrder creates utmost 30 orders with a same symbol in a batch,rate limit:2 times/s.
+func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]OrderDetail, error) {
+	if len(args) == 0 {
+		return nil, common.ErrEmptyParams
+	}
+	for a := range args {
+		if args[a] == (BatchOrderCreationParam{}) {
+			return nil, common.ErrEmptyParams
+		}
+		if args[a].Symbol == "" {
+			return nil, currency.ErrSymbolStringEmpty
+		}
+		if args[a].Side == "" {
+			return nil, order.ErrSideIsInvalid
+		}
+		args[a].OrderType = strings.ToUpper(args[a].OrderType)
+		switch args[a].OrderType {
+		case "LIMIT_ORDER":
+			if args[a].Quantity <= 0 {
+				return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, args[a].Quantity)
+			}
+			if args[a].Price <= 0 {
+				return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, args[a].Price)
+			}
+		case "MARKET_ORDER":
+			if args[a].Quantity <= 0 && args[a].QuoteOrderQty <= 0 {
+				return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
+			}
+		default:
+			return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, args[a].OrderType)
+		}
+	}
+	jsonString, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("batchOrders", string(jsonString))
+	var resp []OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "batchOrders", params, &resp, true)
+}
+
+// CancelTradeOrder cancels an order
+func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol string, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if orderID == "" && clientOrderID == "" {
+		return nil, order.ErrClientOrderIDMustBeSet
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("origClientOrderId", clientOrderID)
+	}
+	if newClientOrderID != "" {
+		params.Set("newClientOrderId", newClientOrderID)
+	}
+	var resp *OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "order", params, &resp, true)
+}
+
+// CancelAllOpenOrdersBySymbol cancel all pending orders for a single symbol, including OCO pending orders.
+func (me *MEXC) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol string) ([]OrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp []OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "openOrders", params, &resp, true)
+}
+
+// GetOrderByID retrieves a single order
+func (me *MEXC) GetOrderByID(ctx context.Context, symbol, clientOrderID, orderID string) (*OrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if clientOrderID == "" && orderID == "" {
+		return nil, order.ErrClientOrderIDMustBeSet
+	}
+	if clientOrderID != "" {
+		params.Set("origClientOrderId", clientOrderID)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	var resp *OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "order", params, &resp, true)
+}
+
+// GetOpenOrders retrieves all open orders on a symbol. Careful when accessing this with no symbol.
+func (me *MEXC) GetOpenOrders(ctx context.Context, symbol string) ([]OrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp []OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "openOrders", params, &resp, true)
+}
+
+// GetAllOrders retrieves all account orders including active, cancelled or completed orders(the query period is the latest 24 hours by default).
+// You can query a maximum of the latest 7 days.
+func (me *MEXC) GetAllOrders(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]OrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []OrderDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "allOrders", params, &resp, true)
+}
+
+// GetAccountInformation retrieves current account information,rate limit:2 times/s.
+func (me *MEXC) GetAccountInformation(ctx context.Context) (*AccountDetail, error) {
+	var resp *AccountDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "account", nil, &resp, true)
+}
+
+// GetAccountTradeList retrieves trades for a specific account and symbol,Only the transaction records in the past 1 month can be queried.
+func (me *MEXC) GetAccountTradeList(ctx context.Context, symbol, orderID string, startTime, endTime time.Time, limit int64) ([]AccountTrade, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []AccountTrade
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "myTrades", params, &resp, true)
+}
+
+// EnableMXDeduct enable or disable MX deduct for spot commission fee
+func (me *MEXC) EnableMXDeduct(ctx context.Context, mxDeductEnable bool) (*MXDeductResponse, error) {
+	params := url.Values{}
+	if mxDeductEnable {
+		params.Set("mxDeductEnable", "true")
+	} else {
+		params.Set("mxDeductEnable", "false")
+	}
+	var resp *MXDeductResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "mxDeduct/enable", params, &resp, true)
+}
+
+// GetMXDeductStatus retrieves MX deduct status detail
+func (me *MEXC) GetMXDeductStatus(ctx context.Context) (*MXDeductResponse, error) {
+	var resp *MXDeductResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "mxDeduct/enable", nil, &resp, true)
+}
+
+// GetSymbolTradingFee retrieves symbol commissions
+func (me *MEXC) GetSymbolTradingFee(ctx context.Context, symbol string) (*SymbolCommissionFee, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *SymbolCommissionFee
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "tradeFee", params, &resp, true)
+}
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
 func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {

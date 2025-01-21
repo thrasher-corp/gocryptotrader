@@ -244,11 +244,14 @@ type UniversalTransferHistoryData struct {
 
 // SubAccountAssetBalances represents a sub-account asset balances
 type SubAccountAssetBalances struct {
-	Balances []struct {
-		Asset  string     `json:"asset"`
-		Free   types.Time `json:"free"`
-		Locked types.Time `json:"locked"`
-	} `json:"balances"`
+	Balances []AccountBalanceInfo `json:"balances"`
+}
+
+// AccountBalanceInfo represents an account balance information
+type AccountBalanceInfo struct {
+	Asset  string       `json:"asset"`
+	Free   types.Number `json:"free"`
+	Locked types.Number `json:"locked"`
 }
 
 // KYCStatusInfo represents a KYC status information
@@ -258,12 +261,86 @@ type KYCStatusInfo struct {
 
 // OrderDetail represents an order detail
 type OrderDetail struct {
-	Symbol       string       `json:"symbol"`
-	OrderID      string       `json:"orderId"`
-	OrderListID  int          `json:"orderListId"`
-	Price        types.Number `json:"price"`
-	OrigQty      types.Number `json:"origQty"`
-	Type         string       `json:"type"`
-	Side         string       `json:"side"`
-	TransactTime types.Time   `json:"transactTime"`
+	Symbol              string       `json:"symbol"`
+	OrderID             string       `json:"orderId"`
+	OrderListID         int          `json:"orderListId"`
+	Price               types.Number `json:"price"`
+	OrigQty             types.Number `json:"origQty"`
+	Type                string       `json:"type"`
+	Side                string       `json:"side"`
+	TransactTime        types.Time   `json:"transactTime"`
+	ClientOrderID       string       `json:"clientOrderId"`
+	ExecutedQty         string       `json:"executedQty"`
+	CummulativeQuoteQty string       `json:"cummulativeQuoteQty"`
+	TimeInForce         string       `json:"timeInForce"`
+	Status              string       `json:"status"`
+	OrigClientOrderID   string       `json:"origClientOrderId"`
+	StopPrice           string       `json:"stopPrice"`
+	IcebergQty          string       `json:"icebergQty"`
+	Time                int64        `json:"time"`
+	UpdateTime          int64        `json:"updateTime"`
+	IsWorking           bool         `json:"isWorking"`
+	OrigQuoteOrderQty   string       `json:"origQuoteOrderQty"`
+}
+
+// BatchOrderCreationParam represents a batch order creation parameter
+type BatchOrderCreationParam struct {
+	OrderType        string  `json:"type"`
+	Price            float64 `json:"price,omitempty,string"`
+	Quantity         float64 `json:"quantity,omitempty,string"`
+	QuoteOrderQty    float64 `json:"quoteOrderQty,omitempty,string"`
+	Symbol           string  `json:"symbol,omitempty"`
+	Side             string  `json:"side,omitempty"`
+	NewClientOrderID int64   `json:"newClientOrderId,omitempty"`
+}
+
+// AccountDetail represents an account detail information
+type AccountDetail struct {
+	CanTrade    bool                 `json:"canTrade"`
+	CanWithdraw bool                 `json:"canWithdraw"`
+	CanDeposit  bool                 `json:"canDeposit"`
+	UpdateTime  types.Time           `json:"updateTime"`
+	AccountType string               `json:"accountType"`
+	Balances    []AccountBalanceInfo `json:"balances"`
+	Permissions []string             `json:"permissions"`
+}
+
+// AccountTrade represents an account trade detail
+type AccountTrade struct {
+	Symbol          string       `json:"symbol"`
+	ID              string       `json:"id"`
+	OrderID         string       `json:"orderId"`
+	OrderListID     int64        `json:"orderListId"`
+	Price           types.Number `json:"price"`
+	Quantity        types.Number `json:"qty"`
+	QuoteQuantity   types.Number `json:"quoteQty"`
+	Commission      string       `json:"commission"`
+	CommissionAsset string       `json:"commissionAsset"`
+	Time            types.Time   `json:"time"`
+	IsBuyer         bool         `json:"isBuyer"`
+	IsMaker         bool         `json:"isMaker"`
+	IsBestMatch     bool         `json:"isBestMatch"`
+	IsSelfTrade     bool         `json:"isSelfTrade"`
+	ClientOrderID   int64        `json:"clientOrderId"`
+}
+
+// MXDeductResponse represents an MX deduct response from spot commissions.
+type MXDeductResponse struct {
+	Data struct {
+		MxDeductEnable bool `json:"mxDeductEnable"`
+	} `json:"data"`
+	Code      int64      `json:"code"`
+	Message   string     `json:"msg"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// SymbolCommissionFee represents a symbol trading fee
+type SymbolCommissionFee struct {
+	Data struct {
+		MakerCommission float64 `json:"makerCommission"`
+		TakerCommission float64 `json:"takerCommission"`
+	} `json:"data"`
+	Code      int64      `json:"code"`
+	Message   string     `json:"msg"`
+	Timestamp types.Time `json:"timestamp"`
 }

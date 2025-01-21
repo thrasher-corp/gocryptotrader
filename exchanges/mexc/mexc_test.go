@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -289,30 +290,209 @@ func TestUseAPIDefaultSymbols(t *testing.T) {
 
 func TestNewTestOrder(t *testing.T) {
 	t.Parallel()
-	_, err := me.NewTestOrder(context.Background(), "", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	_, err := me.NewTestOrder(context.Background(), "", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "", "LIMIT", 1, 0, 123456.78)
+	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "", "LIMIT_ORDER", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 0, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 0)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	_, err = me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "MARKET_ORDER", 0, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	result, err := me.NewTestOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := me.NewOrder(context.Background(), "", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	_, err := me.NewOrder(context.Background(), "", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "", "LIMIT", 1, 0, 123456.78)
+	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "", "LIMIT_ORDER", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 0, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 0)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "MARKET_ORDER", 0, 0, 123456.78)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT", 1, 0, 123456.78)
+	result, err := me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateBatchOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.CreateBatchOrder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{{}})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	arg := BatchOrderCreationParam{
+		NewClientOrderID: 1234,
+	}
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	arg.Symbol = "BTCUSDT"
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell.String()
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.OrderType, err = me.OrderTypeString(order.Limit)
+	require.NoError(t, err)
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.Quantity = 123478.5
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.OrderType, err = me.OrderTypeString(order.Market)
+	require.NoError(t, err)
+
+	arg.Quantity = 0
+	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	arg.Quantity = 1231231
+	result, err := me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestOrderTypeString(t *testing.T) {
+	t.Parallel()
+	typesMap := map[order.Type]struct {
+		String string
+		Error  error
+	}{
+		order.Limit:             {String: "LIMIT_ORDER"},
+		order.PostOnly:          {String: "POST_ONLY"},
+		order.Market:            {String: "MARKET_ORDER"},
+		order.ImmediateOrCancel: {String: "IMMEDIATE_OR_CANCEL"},
+		order.FillOrKill:        {String: "FILL_OR_KILL"},
+		order.StopLimit:         {String: "STOP_LIMIT"},
+		order.OptimalLimitIOC:   {String: "", Error: order.ErrUnsupportedOrderType},
+	}
+	for a := range typesMap {
+		value, err := me.OrderTypeString(a)
+		assert.Equal(t, typesMap[a].String, value)
+		assert.ErrorIs(t, err, typesMap[a].Error)
+	}
+}
+
+func TestCancelTradeOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.CancelTradeOrder(context.Background(), "", "", "", "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.CancelTradeOrder(context.Background(), "BTCUSDT", "", "", "")
+	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CancelTradeOrder(context.Background(), "BTCUSDT", "1234", "", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllOpenOrdersBySymbol(t *testing.T) {
+	t.Parallel()
+	_, err := me.CancelAllOpenOrdersBySymbol(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CancelAllOpenOrdersBySymbol(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderByID(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetOrderByID(context.Background(), "", "123455", "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = me.GetOrderByID(context.Background(), "BTCUSDT", "", "")
+	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetOrderByID(context.Background(), "BTCUSDT", "1234", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenOrders(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetOpenOrders(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetOpenOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllOrders(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetAllOrders(context.Background(), "", time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAllOrders(context.Background(), "BTCUSDT", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAccountInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountTradeList(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetAccountTradeList(context.Background(), "", "", time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAccountTradeList(context.Background(), "BTCUSDT", "", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableMXDeduct(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.EnableMXDeduct(context.Background(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMXDeductStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetMXDeductStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSymbolTradingFee(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSymbolTradingFee(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
