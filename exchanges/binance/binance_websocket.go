@@ -337,22 +337,22 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				b.Name,
 				err)
 		}
-		// maker placed buy order, so taker market sell
-		side := order.Buy
-		if t.Maker {
-			side = order.Sell
+		td := trade.Data{
+			CurrencyPair: pair,
+			Timestamp:    t.TimeStamp,
+			Price:        t.Price.Float64(),
+			Amount:       t.Quantity.Float64(),
+			Exchange:     b.Name,
+			AssetType:    asset.Spot,
+			Side:         order.Sell,
+			TID:          strconv.FormatInt(t.TradeID, 10)}
+
+		if t.IsBuyerMaker { // Seller is Taker
+			td.Side = order.Sell
+		} else { // Buyer is Taker
+			td.Side = order.Buy
 		}
-		return b.Websocket.Trade.Update(saveTradeData,
-			trade.Data{
-				CurrencyPair: pair,
-				Timestamp:    t.TimeStamp,
-				Price:        t.Price.Float64(),
-				Amount:       t.Quantity.Float64(),
-				Exchange:     b.Name,
-				AssetType:    asset.Spot,
-				Side:         side,
-				TID:          strconv.FormatInt(t.TradeID, 10),
-			})
+		return b.Websocket.Trade.Update(saveTradeData, td)
 	case "ticker":
 		var t TickerStream
 		err = json.Unmarshal(jsonData, &t)

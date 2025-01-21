@@ -198,7 +198,7 @@ type TradeStream struct {
 	BuyerOrderID   int64        `json:"b"`
 	SellerOrderID  int64        `json:"a"`
 	TimeStamp      time.Time    `json:"T"`
-	Maker          bool         `json:"m"`
+	IsBuyerMaker   bool         `json:"m"`
 	BestMatchPrice bool         `json:"M"`
 }
 
