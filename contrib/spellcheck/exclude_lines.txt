@@ -23,3 +23,6 @@
 	currency.SHFT:     84,
 		TotalIn  float64 `json:"totalIn"`
 		TotalIn        int64  `json:"totalIn"`
+	currency.ANC:      44,
+	eto := request.EndTimeOverride.AsTime()
+	if eto.Unix() != 0 && !eto.IsZero() {	
