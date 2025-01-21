@@ -1405,33 +1405,39 @@ type PlaceFuturesOrderStruct struct {
 
 // FuturesOrderDetailResp contains information on a futures order
 type FuturesOrderDetailResp struct {
-	Symbol                 string        `json:"symbol"`
-	Size                   float64       `json:"size,string"`
-	OrderID                EmptyInt      `json:"orderId"`
-	ClientOrderID          string        `json:"clientOid"`
-	BaseVolume             float64       `json:"baseVolume,string"`
-	PriceAverage           float64       `json:"priceAvg,string"`
-	Fee                    types.Number  `json:"fee"`
-	Price                  float64       `json:"price,string"`
-	State                  string        `json:"state"`
-	Side                   string        `json:"side"`
-	Force                  string        `json:"force"`
-	TotalProfits           float64       `json:"totalProfits,string"`
-	PositionSide           string        `json:"posSide"`
-	MarginCoin             currency.Code `json:"marginCoin"`
-	PresetStopSurplusPrice float64       `json:"presetStopSurplusPrice,string"`
-	PresetStopLossPrice    float64       `json:"presetStopLossPrice,string"`
-	QuoteVolume            float64       `json:"quoteVolume,string"`
-	OrderType              string        `json:"orderType"`
-	Leverage               float64       `json:"leverage,string"`
-	MarginMode             string        `json:"marginMode"`
-	ReduceOnly             YesNoBool     `json:"reduceOnly"`
-	EnterPointSource       string        `json:"enterPointSource"`
-	TradeSide              string        `json:"tradeSide"`
-	PositionMode           string        `json:"posMode"`
-	OrderSource            string        `json:"orderSource"`
-	CreationTime           types.Time    `json:"cTime"`
-	UpdateTime             types.Time    `json:"uTime"`
+	Symbol                        string        `json:"symbol"`
+	Size                          float64       `json:"size,string"`
+	OrderID                       EmptyInt      `json:"orderId"`
+	ClientOrderID                 string        `json:"clientOid"`
+	BaseVolume                    float64       `json:"baseVolume,string"`
+	PriceAverage                  types.Number  `json:"priceAvg"`
+	Fee                           types.Number  `json:"fee"`
+	Price                         float64       `json:"price,string"`
+	State                         string        `json:"state"`
+	Side                          string        `json:"side"`
+	Force                         string        `json:"force"`
+	TotalProfits                  float64       `json:"totalProfits,string"`
+	PositionSide                  string        `json:"posSide"`
+	MarginCoin                    currency.Code `json:"marginCoin"`
+	PresetStopSurplusPrice        float64       `json:"presetStopSurplusPrice,string"`
+	PresetStopSurplusExecutePrice types.Number  `json:"presetStopSurplusExecutePrice"`
+	PresetStopSurplusType         string        `json:"presetStopSurplusType"`
+	PresetStopLossPrice           float64       `json:"presetStopLossPrice,string"`
+	PresetStopLossExecutePrice    types.Number  `json:"presetStopLossExecutePrice"`
+	PresetStopLossType            string        `json:"presetStopLossType"`
+	QuoteVolume                   float64       `json:"quoteVolume,string"`
+	OrderType                     string        `json:"orderType"`
+	Leverage                      float64       `json:"leverage,string"`
+	MarginMode                    string        `json:"marginMode"`
+	ReduceOnly                    YesNoBool     `json:"reduceOnly"`
+	EnterPointSource              string        `json:"enterPointSource"`
+	TradeSide                     string        `json:"tradeSide"`
+	PositionMode                  string        `json:"posMode"`
+	OrderSource                   string        `json:"orderSource"`
+	NewTradeSide                  string        `json:"newTradeSide"`
+	CancelReason                  string        `json:"cancelReason"`
+	CreationTime                  types.Time    `json:"cTime"`
+	UpdateTime                    types.Time    `json:"uTime"`
 }
 
 // FuturesFill is a sub-struct containing information on fulfilled futures orders
@@ -1460,6 +1466,47 @@ type FuturesFillsResp struct {
 
 // FuturesOrder is a sub-struct containing information on futures orders
 type FuturesOrder struct {
+	Symbol                        string        `json:"symbol"`
+	Size                          float64       `json:"size,string"`
+	OrderID                       int64         `json:"orderId,string"`
+	ClientOrderID                 string        `json:"clientOid"`
+	BaseVolume                    float64       `json:"baseVolume,string"`
+	Fee                           types.Number  `json:"fee"`
+	Price                         types.Number  `json:"price"`
+	PriceAverage                  types.Number  `json:"priceAvg"`
+	Status                        string        `json:"status"`
+	Side                          string        `json:"side"`
+	Force                         string        `json:"force"`
+	TotalProfits                  float64       `json:"totalProfits,string"`
+	PositionSide                  string        `json:"posSide"`
+	MarginCoin                    currency.Code `json:"marginCoin"`
+	QuoteVolume                   float64       `json:"quoteVolume,string"`
+	Leverage                      float64       `json:"leverage,string"`
+	MarginMode                    string        `json:"marginMode"`
+	ReduceOnly                    YesNoBool     `json:"reduceOnly"`
+	EnterPointSource              string        `json:"enterPointSource"`
+	TradeSide                     string        `json:"tradeSide"`
+	PositionMode                  string        `json:"posMode"`
+	OrderType                     string        `json:"orderType"`
+	OrderSource                   string        `json:"orderSource"`
+	CreationTime                  types.Time    `json:"cTime"`
+	UpdateTime                    types.Time    `json:"uTime"`
+	PresetStopSurplusPrice        types.Number  `json:"presetStopSurplusPrice"`
+	PresetStopSurplusType         string        `json:"presetStopSurplusType"`
+	PresetStopSurplusExecutePrice types.Number  `json:"presetStopSurplusExecutePrice"`
+	PresetStopLossPrice           types.Number  `json:"presetStopLossPrice"`
+	PresetStopLossType            string        `json:"presetStopLossType"`
+	PresetStopLossExecutePrice    types.Number  `json:"presetStopLossExecutePrice"`
+}
+
+// FuturesOrdResp contains information on futures orders
+type FuturesOrdResp struct {
+	EntrustedList []FuturesOrder `json:"entrustedList"`
+	EndID         EmptyInt       `json:"endId"`
+}
+
+// HistFuturesOrder is a sub-struct containing information on historical futures orders
+type HistFuturesOrder struct {
 	Symbol                 string        `json:"symbol"`
 	Size                   float64       `json:"size,string"`
 	OrderID                int64         `json:"orderId,string"`
@@ -1485,11 +1532,12 @@ type FuturesOrder struct {
 	CreationTime           types.Time    `json:"cTime"`
 	UpdateTime             types.Time    `json:"uTime"`
 	PresetStopSurplusPrice types.Number  `json:"presetStopSurplusPrice"`
-	PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
+	PresetStopSurplusType  string        `json:"presetStopSurplusType"`
+	ReduceOnly             YesNoBool     `json:"reduceOnly"`
 }
 
-// FuturesOrdResp contains information on futures orders
-type FuturesOrdResp struct {
+// HistFuturesOrdResp contains information on historical futures orders
+type HistFuturesOrdResp struct {
 	EntrustedList []FuturesOrder `json:"entrustedList"`
 	EndID         EmptyInt       `json:"endId"`
 }
@@ -1502,6 +1550,7 @@ type PlanFuturesOrder struct {
 	OrderID                int64         `json:"orderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
 	Price                  types.Number  `json:"price"`
+	ExecutePrice           types.Number  `json:"executePrice"`
 	CallbackRatio          types.Number  `json:"callbackRatio"`
 	TriggerPrice           float64       `json:"triggerPrice,string"`
 	TriggerType            string        `json:"triggerType"`
@@ -1517,10 +1566,10 @@ type PlanFuturesOrder struct {
 	OrderSource            string        `json:"orderSource"`
 	CreationTime           types.Time    `json:"cTime"`
 	UpdateTime             types.Time    `json:"uTime"`
-	PresetTakeProfitPrice  types.Number  `json:"presetStopSurplusPrice"`
-	TakeprofitTriggerPrice types.Number  `json:"stopSurplusTriggerPrice"`
+	TakeProfitExecutePrice types.Number  `json:"stopSurplusExecutePrice"`
+	TakeProfitTriggerPrice types.Number  `json:"stopSurplusTriggerPrice"`
 	TakeProfitTriggerType  string        `json:"stopSurplusTriggerType"`
-	PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
+	StopLossExecutePrice   types.Number  `json:"stopLossExecutePrice"`
 	StopLossTriggerPrice   types.Number  `json:"stopLossTriggerPrice"`
 	StopLossTriggerType    string        `json:"stopLossTriggerType"`
 }
@@ -1611,8 +1660,8 @@ type BorrowHistCross struct {
 	MinimumID  EmptyInt      `json:"minId"`
 }
 
-// Repayment is a sub-struct containing information on repayment
-type Repayment struct {
+// CrossRepayment is a sub-struct containing information on a repayment for cross margin
+type CrossRepayment struct {
 	RepayID        int64         `json:"repayId,string"`
 	Coin           currency.Code `json:"coin"`
 	RepayAmount    float64       `json:"repayAmount,string"`
@@ -1623,11 +1672,11 @@ type Repayment struct {
 	UpdateTime     types.Time    `json:"uTime"`
 }
 
-// RepayHistResp contains information on repayment history
-type RepayHistResp struct {
-	ResultList []Repayment `json:"resultList"`
-	MaximumID  EmptyInt    `json:"maxId"`
-	MinimumID  EmptyInt    `json:"minId"`
+// CrossRepayHistResp contains information on repayment history for cross margin
+type CrossRepayHistResp struct {
+	ResultList []CrossRepayment `json:"resultList"`
+	MaximumID  EmptyInt         `json:"maxId"`
+	MinimumID  EmptyInt         `json:"minId"`
 }
 
 // CrossInterest is a sub-struct containing information on interest for cross margin
@@ -1782,6 +1831,7 @@ type MarginOrderData struct {
 	QuoteAmount   float64 `json:"quoteSize,string"`
 	LoanType      string  `json:"loanType"`
 	ClientOrderID string  `json:"clientOid"`
+	STPMode       string  `json:"stpMode"`
 }
 
 // MarginOrder is a sub-struct containing information on a margin order
@@ -1793,6 +1843,7 @@ type MarginOrder struct {
 	ClientOrderID    string     `json:"clientOid"`
 	LoanType         string     `json:"loanType"`
 	Price            float64    `json:"price,string"`
+	PriceAverage     float64    `json:"priceAvg,string"`
 	Side             string     `json:"side"`
 	Status           string     `json:"status"`
 	BaseSize         float64    `json:"baseSize,string"`
@@ -1813,23 +1864,23 @@ type MarginOpenOrds struct {
 
 // MarginOrdWithAveragePrice is a sub-struct containing information on a margin order with an average price
 type MarginOrdWithAveragePrice struct {
-	OrderID          int64      `json:"orderId,string"`
-	Symbol           string     `json:"symbol"`
-	OrderType        string     `json:"orderType"`
-	EnterPointSource string     `json:"enterPointSource"`
-	ClientOrderID    string     `json:"clientOid"`
-	LoanType         string     `json:"loanType"`
-	Price            float64    `json:"price,string"`
-	Side             string     `json:"side"`
-	Status           string     `json:"status"`
-	BaseSize         float64    `json:"baseSize,string"`
-	QuoteSize        float64    `json:"quoteSize,string"`
-	PriceAverage     float64    `json:"priceAvg,string"`
-	Size             float64    `json:"size,string"`
-	Amount           float64    `json:"amount,string"`
-	Force            string     `json:"force"`
-	CreationTime     types.Time `json:"cTime"`
-	UpdateTime       types.Time `json:"uTime"`
+	OrderID          int64         `json:"orderId,string"`
+	Symbol           currency.Pair `json:"symbol"`
+	OrderType        string        `json:"orderType"`
+	EnterPointSource string        `json:"enterPointSource"`
+	ClientOrderID    string        `json:"clientOid"`
+	LoanType         string        `json:"loanType"`
+	Price            float64       `json:"price,string"`
+	Side             string        `json:"side"`
+	Status           string        `json:"status"`
+	BaseSize         float64       `json:"baseSize,string"`
+	QuoteSize        float64       `json:"quoteSize,string"`
+	PriceAverage     float64       `json:"priceAvg,string"`
+	Size             float64       `json:"size,string"`
+	Amount           float64       `json:"amount,string"`
+	Force            string        `json:"force"`
+	CreationTime     types.Time    `json:"cTime"`
+	UpdateTime       types.Time    `json:"uTime"`
 }
 
 // MarginHistOrds contains information on historical margin orders
@@ -1886,13 +1937,33 @@ type LiquidationResp struct {
 	IDLessThan EmptyInt           `json:"idLessThan"`
 }
 
+// IsoRepayment is a sub-struct containing information on a repayment for isolated margin
+type IsoRepayment struct {
+	RepayID        int64         `json:"repayId,string"`
+	Coin           currency.Code `json:"coin"`
+	RepayAmount    float64       `json:"repayAmount,string"`
+	RepayType      string        `json:"repayType"`
+	RepayInterest  float64       `json:"repayInterest,string"`
+	RepayPrincipal float64       `json:"repayPrincipal,string"`
+	Symbol         currency.Pair `json:"symbol"`
+	CreationTime   types.Time    `json:"cTime"`
+	UpdateTime     types.Time    `json:"uTime"`
+}
+
+// IsoRepayHistResp contains information on repayment history for isolated margin
+type IsoRepayHistResp struct {
+	ResultList []IsoRepayment `json:"resultList"`
+	MaximumID  EmptyInt       `json:"maxId"`
+	MinimumID  EmptyInt       `json:"minId"`
+}
+
 // IsoBorrow is a sub-struct containing information on borrowing for isolated margin
 type IsoBorrow struct {
 	LoanID       int64         `json:"loanId,string"`
 	Coin         currency.Code `json:"coin"`
 	BorrowAmount float64       `json:"borrowAmount,string"`
 	BorrowType   string        `json:"borrowType"`
-	Symbol       string        `json:"symbol"`
+	Symbol       currency.Pair `json:"symbol"`
 	CreationTime types.Time    `json:"cTime"`
 	UpdateTime   types.Time    `json:"uTime"`
 }
@@ -1950,7 +2021,7 @@ type IsoFinHist struct {
 	MarginID     int64         `json:"marginId,string"`
 	Amount       float64       `json:"amount,string"`
 	Coin         currency.Code `json:"coin"`
-	Symbol       string        `json:"symbol"`
+	Symbol       currency.Pair `json:"symbol"`
 	Balance      float64       `json:"balance,string"`
 	Fee          float64       `json:"fee,string"`
 	MarginType   string        `json:"marginType"`
@@ -2012,8 +2083,7 @@ type IsoVIPList struct {
 	DiscountRate       float64 `json:"discountRate,string"`
 }
 
-// IntRateMaxBorrowIso contains information on the interest rate and the maximum amount that can be borrowed for
-// isolated margin
+// IntRateMaxBorrowIso contains information on the interest rate and the maximum amount that can be borrowed for isolated margin
 type IntRateMaxBorrowIso struct {
 	Symbol                   string        `json:"symbol"`
 	Leverage                 float64       `json:"leverage,string"`
@@ -2048,7 +2118,7 @@ type TierConfigIso struct {
 
 // MaxBorrowIso contains information on the maximum amount that can be borrowed for isolated margin
 type MaxBorrowIso struct {
-	Symbol                       string        `json:"symbol"`
+	Symbol                       currency.Pair `json:"symbol"`
 	BaseCoin                     currency.Code `json:"baseCoin"`
 	BaseCoinMaxBorrowableAmount  float64       `json:"baseCoinmaxBorrowAmount,string"`
 	QuoteCoin                    currency.Code `json:"quoteCoin"`
@@ -2302,11 +2372,6 @@ type EstimateInterest struct {
 	LoanAmount   float64 `json:"loanAmount,string"`
 }
 
-// BorrowResp contains information on a loan
-type BorrowResp struct {
-	OrderID int64 `json:"orderId,string"`
-}
-
 // OngoingLoans contains information on ongoing loans
 type OngoingLoans struct {
 	OrderID           int64         `json:"orderId,string"`
@@ -2316,6 +2381,7 @@ type OngoingLoans struct {
 	HourInterestRate  float64       `json:"hourInterestRate,string"`
 	PledgeCoin        currency.Code `json:"pledgeCoin"`
 	PledgeAmount      float64       `json:"pledgeAmount,string"`
+	PledgeRate        float64       `json:"pledgeRate,string"`
 	SupplementaryRate float64       `json:"supRate,string"`
 	ForceRate         float64       `json:"forceRate,string"`
 	BorrowTime        types.Time    `json:"borrowTime"`

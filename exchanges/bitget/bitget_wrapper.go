@@ -73,11 +73,54 @@ func (bi *Bitget) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				AutoPairUpdates:                true,
+				AccountBalance:                 true,
+				CryptoDeposit:                  true,
+				CryptoWithdrawal:               true,
+				FiatWithdraw:                   false,
+				GetOrder:                       true,
+				GetOrders:                      true,
+				CancelOrders:                   true,
+				CancelOrder:                    true,
+				SubmitOrder:                    true,
+				SubmitOrders:                   true,
+				ModifyOrder:                    true,
+				DepositHistory:                 true,
+				WithdrawalHistory:              true,
+				TradeHistory:                   true,
+				UserTradeHistory:               true,
+				TradeFee:                       true,
 				TickerFetching:                 true,
+				KlineFetching:                  true,
+				TradeFetching:                  true,
 				OrderbookFetching:              true,
+				AccountInfo:                    true,
+				FiatDeposit:                    false,
+				FundingRateFetching:            true,
+				AuthenticatedEndpoints:         true,
+				CandleHistory:                  true,
+				MultiChainDeposits:             true,
+				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
 			},
 			WebsocketCapabilities: protocol.Features{
+				TickerBatching:    false,
+				AccountBalance:    true,
+				CryptoDeposit:     false,
+				CryptoWithdrawal:  false,
+				FiatWithdraw:      false,
+				GetOrder:          false,
+				GetOrders:         true,
+				CancelOrders:      false,
+				CancelOrder:       false,
+				SubmitOrder:       false,
+				SubmitOrders:      false,
+				ModifyOrder:       false,
+				DepositHistory:    false,
+				WithdrawalHistory: false,
+				TradeHistory:      false,
+				UserTradeHistory:  false,
+
 				TickerFetching:    true,
 				OrderbookFetching: true,
 			},
@@ -860,9 +903,9 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			loanType = "autoLoan"
 		}
 		if s.AssetType == asset.Margin {
-			IDs, err = bi.PlaceIsolatedOrder(ctx, s.Pair, s.Type.Lower(), loanType, strat, cID.String(), s.Side.String(), s.Price, s.Amount, s.QuoteAmount)
+			IDs, err = bi.PlaceIsolatedOrder(ctx, s.Pair, s.Type.Lower(), loanType, strat, cID.String(), s.Side.String(), "", s.Price, s.Amount, s.QuoteAmount)
 		} else {
-			IDs, err = bi.PlaceCrossOrder(ctx, s.Pair, s.Type.Lower(), loanType, strat, cID.String(), s.Side.String(), s.Price, s.Amount, s.QuoteAmount)
+			IDs, err = bi.PlaceCrossOrder(ctx, s.Pair, s.Type.Lower(), loanType, strat, cID.String(), s.Side.String(), "", s.Price, s.Amount, s.QuoteAmount)
 		}
 	default:
 		return nil, asset.ErrNotSupported
@@ -1082,7 +1125,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		}
 		resp.Amount = ordInfo.Size
 		resp.ClientOrderID = ordInfo.ClientOrderID
-		resp.AverageExecutedPrice = ordInfo.PriceAverage
+		resp.AverageExecutedPrice = ordInfo.PriceAverage.Float64()
 		resp.Fee = ordInfo.Fee.Float64()
 		resp.Price = ordInfo.Price
 		resp.Status = statusDecoder(ordInfo.State)
@@ -1530,7 +1573,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					if !getOrdersRequest.Pairs[x].IsEmpty() {
 						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
 					} else {
-						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.OrderList[i].Symbol)
+						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.OrderList[i].Symbol.String())
 						if err != nil {
 							return nil, err
 						}
@@ -2465,8 +2508,8 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 					Type:               typeDecoder(genOrds.EntrustedList[i].OrderType),
 					Date:               genOrds.EntrustedList[i].CreationTime.Time(),
 					LastUpdated:        genOrds.EntrustedList[i].UpdateTime.Time(),
-					LimitPriceUpper:    float64(genOrds.EntrustedList[i].PresetTakeProfitPrice),
-					LimitPriceLower:    float64(genOrds.EntrustedList[i].PresetStopLossPrice),
+					LimitPriceUpper:    float64(genOrds.EntrustedList[i].TakeProfitExecutePrice),
+					LimitPriceLower:    float64(genOrds.EntrustedList[i].StopLossExecutePrice),
 				}
 				if !pairCan.IsEmpty() {
 					tempOrds[i].Pair = pairCan
@@ -2554,7 +2597,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType 
 	}
 	pagination = 0
 	for {
-		genOrds, err := bi.GetHistoricalFuturesOrders(ctx, 0, pagination, 100, "", productType, pairCan, time.Time{}, time.Time{})
+		genOrds, err := bi.GetHistoricalFuturesOrders(ctx, 0, pagination, 100, "", productType, "", pairCan, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -2794,7 +2837,7 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 			}
 		}
 		if !breakbool2 {
-			genOrds2, err := bi.GetHistoricalFuturesOrders(ctx, 0, pagination2, 100, "", productType, pairCan, time.Time{}, time.Time{})
+			genOrds2, err := bi.GetHistoricalFuturesOrders(ctx, 0, pagination2, 100, "", productType, "", pairCan, time.Time{}, time.Time{})
 			if err != nil {
 				return nil, err
 			}
@@ -2886,8 +2929,8 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 					Type:               typeDecoder(genOrds.EntrustedList[i].OrderType),
 					Date:               genOrds.EntrustedList[i].CreationTime.Time(),
 					LastUpdated:        genOrds.EntrustedList[i].UpdateTime.Time(),
-					LimitPriceUpper:    float64(genOrds.EntrustedList[i].PresetTakeProfitPrice),
-					LimitPriceLower:    float64(genOrds.EntrustedList[i].PresetStopLossPrice),
+					LimitPriceUpper:    float64(genOrds.EntrustedList[i].TakeProfitExecutePrice),
+					LimitPriceLower:    float64(genOrds.EntrustedList[i].StopLossExecutePrice),
 				})
 			}
 		}

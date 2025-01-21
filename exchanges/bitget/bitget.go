@@ -172,6 +172,7 @@ const (
 	bitgetOrdersHistory            = "/orders-history"
 	bitgetCancelAllOrders          = "/cancel-all-orders"
 	bitgetPlaceTPSLOrder           = "/place-tpsl-order"
+	bitgetPlacePOSTPSL             = "/place-pos-tpsl"
 	bitgetModifyTPSLOrder          = "/modify-tpsl-order"
 	bitgetOrdersPlanPending        = "/orders-plan-pending"
 	bitgetOrdersPlanHistory        = "/orders-plan-history"
@@ -295,8 +296,6 @@ var (
 	errPlanOrderIDEmpty               = errors.New("planOrderID cannot be empty")
 	errHoldSideEmpty                  = errors.New("holdSide cannot be empty")
 	errExecutePriceEmpty              = errors.New("executePrice cannot be empty")
-	errTakeProfitParamsInconsistency  = errors.New("takeProfitTriggerPrice, takeProfitExecutePrice, and takeProfitTriggerType must either all be set or all be empty")
-	errStopLossParamsInconsistency    = errors.New("stopLossTriggerPrice, stopLossExecutePrice, and stopLossTriggerType must either all be set or all be empty")
 	errIDListEmpty                    = errors.New("idList cannot be empty")
 	errLoanTypeEmpty                  = errors.New("loanType cannot be empty")
 	errProductIDEmpty                 = errors.New("productID cannot be empty")
@@ -314,6 +313,8 @@ var (
 	errInvalidChecksum                = errors.New("invalid checksum")
 	errAuthenticatedWebsocketDisabled = errors.New("authenticatedWebsocketAPISupport not enabled")
 	errAssetModeEmpty                 = errors.New("assetMode cannot be empty")
+	errTakeProfitTriggerPriceEmpty    = errors.New("takeProfitTriggerPrice cannot be empty")
+	errStopLossTriggerPriceEmpty      = errors.New("stopLossTriggerPrice cannot be empty")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
@@ -3030,7 +3031,7 @@ func (bi *Bitget) GetPendingFuturesOrders(ctx context.Context, orderID, paginati
 }
 
 // GetHistoricalFuturesOrders returns information on futures orders that are no longer pending
-func (bi *Bitget) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, productType string, pair currency.Pair, startTime, endTime time.Time) (*FuturesOrdResp, error) {
+func (bi *Bitget) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, productType, orderSource string, pair currency.Pair, startTime, endTime time.Time) (*HistFuturesOrdResp, error) {
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -3042,6 +3043,7 @@ func (bi *Bitget) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagin
 	}
 	params.Values.Set("symbol", pair.String())
 	params.Values.Set("productType", productType)
+	params.Values.Set("orderSource", orderSource)
 	if orderID != 0 {
 		params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
@@ -3054,9 +3056,9 @@ func (bi *Bitget) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagin
 	}
 	path := bitgetMix + bitgetOrder + bitgetOrdersHistory
 	var resp struct {
-		FuturesOrdResp `json:"data"`
+		HistFuturesOrdResp `json:"data"`
 	}
-	return &resp.FuturesOrdResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.HistFuturesOrdResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // CancelAllFuturesOrders cancels all pending orders
@@ -3101,7 +3103,7 @@ func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, prod
 }
 
 // PlaceTPSLFuturesOrder places a take-profit or stop-loss futures order
-func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency.Code, productType, planType, triggerType, holdSide, rangeRate, clientOrderID string, pair currency.Pair, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
+func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency.Code, productType, planType, triggerType, holdSide, rangeRate, clientOrderID, stpMode string, pair currency.Pair, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
 	if marginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
@@ -3131,6 +3133,7 @@ func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency
 		"triggerType":  triggerType,
 		"holdSide":     holdSide,
 		"rangeRate":    rangeRate,
+		"stpMode":      stpMode,
 		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
 		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
 		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
@@ -3145,8 +3148,50 @@ func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency
 	return &resp.OrderIDStruct, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
+// PlaceTPAndSLFuturesOrder places a take-profit and stop-loss futures order
+func (bi *Bitget) PlaceTPAndSLFuturesOrder(ctx context.Context, marginCoin currency.Code, productType, takeProfitTriggerType, stopLossTriggerType, holdSide, stpMode string, pair currency.Pair, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) ([]int64, error) {
+	if marginCoin.IsEmpty() {
+		return nil, errMarginCoinEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if pair.IsEmpty() {
+		return nil, errPairEmpty
+	}
+	if takeProfitTriggerPrice == 0 {
+		return nil, errTakeProfitTriggerPriceEmpty
+	}
+	if stopLossTriggerPrice == 0 {
+		return nil, errStopLossTriggerPriceEmpty
+	}
+	if holdSide == "" {
+		return nil, errHoldSideEmpty
+	}
+	req := map[string]any{
+		"marginCoin":              marginCoin,
+		"productType":             productType,
+		"symbol":                  pair,
+		"stopSurplusTriggerPrice": takeProfitTriggerPrice,
+		"stopSurplusTriggerType":  takeProfitTriggerType,
+		"stopSurplusExecutePrice": takeProfitExecutePrice,
+		"stopLossTriggerPrice":    stopLossTriggerPrice,
+		"stopLossTriggerType":     stopLossTriggerType,
+		"stopLossExecutePrice":    stopLossExecutePrice,
+		"holdSide":                holdSide,
+		"stpMode":                 stpMode,
+	}
+	path := bitgetMix + bitgetOrder + bitgetPlacePOSTPSL
+	var resp struct {
+		Data struct {
+			OrderIDs []int64 `json:"orderIds"`
+		} `json:"data"`
+	}
+	return resp.Data.OrderIDs, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+}
+
 // PlaceTriggerFuturesOrder places a trigger futures order
-func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, productType, marginMode, triggerType, side, tradeSide, orderType, clientOrderID, takeProfitTriggerType, stopLossTriggerType string, pair currency.Pair, marginCoin currency.Code, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64, reduceOnly bool) (*OrderIDStruct, error) {
+func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, productType, marginMode, triggerType, side, tradeSide, orderType, clientOrderID, takeProfitTriggerType, stopLossTriggerType, stpMode string, pair currency.Pair, marginCoin currency.Code, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64, reduceOnly bool) (*OrderIDStruct, error) {
 	if planType == "" {
 		return nil, errPlanTypeEmpty
 	}
@@ -3180,12 +3225,6 @@ func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, produc
 	if triggerPrice == 0 {
 		return nil, errTriggerPriceEmpty
 	}
-	if (takeProfitTriggerType != "" || takeProfitTriggerPrice != 0 || takeProfitExecutePrice != 0) && (takeProfitTriggerType == "" || takeProfitTriggerPrice == 0 || takeProfitExecutePrice == 0) {
-		return nil, errTakeProfitParamsInconsistency
-	}
-	if (stopLossTriggerType != "" || stopLossTriggerPrice != 0 || stopLossExecutePrice != 0) && (stopLossTriggerType == "" || stopLossTriggerPrice == 0 || stopLossExecutePrice == 0) {
-		return nil, errStopLossParamsInconsistency
-	}
 	req := map[string]any{
 		"planType":      planType,
 		"symbol":        pair,
@@ -3196,6 +3235,7 @@ func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, produc
 		"side":          side,
 		"tradeSide":     tradeSide,
 		"orderType":     orderType,
+		"stpMode":       stpMode,
 		"size":          strconv.FormatFloat(amount, 'f', -1, 64),
 		"price":         strconv.FormatFloat(executePrice, 'f', -1, 64),
 		"triggerPrice":  strconv.FormatFloat(triggerPrice, 'f', -1, 64),
@@ -3429,7 +3469,7 @@ func (bi *Bitget) GetCrossBorrowHistory(ctx context.Context, loanID, limit, pagi
 }
 
 // GetCrossRepayHistory returns the repayment history for cross margin
-func (bi *Bitget) GetCrossRepayHistory(ctx context.Context, repayID, limit, pagination int64, currency currency.Code, startTime, endTime time.Time) (*RepayHistResp, error) {
+func (bi *Bitget) GetCrossRepayHistory(ctx context.Context, repayID, limit, pagination int64, currency currency.Code, startTime, endTime time.Time) (*CrossRepayHistResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, false, true)
@@ -3450,9 +3490,9 @@ func (bi *Bitget) GetCrossRepayHistory(ctx context.Context, repayID, limit, pagi
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetRepayHistory
 	var resp struct {
-		RepayHistResp `json:"data"`
+		CrossRepayHistResp `json:"data"`
 	}
-	return &resp.RepayHistResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.CrossRepayHistResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetCrossInterestHistory returns the interest history for cross margin
@@ -3672,7 +3712,7 @@ func (bi *Bitget) GetCrossFlashRepayResult(ctx context.Context, idList []int64) 
 }
 
 // PlaceCrossOrder places an order using cross margin
-func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair currency.Pair, orderType, loanType, strategy, clientOrderID, side string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
+func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair currency.Pair, orderType, loanType, strategy, clientOrderID, side, stpMode string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -3698,6 +3738,7 @@ func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair currency.Pair, order
 		"force":     strategy,
 		"clientOid": clientOrderID,
 		"side":      side,
+		"stpMode":   stpMode,
 		"price":     strconv.FormatFloat(price, 'f', -1, 64),
 	}
 	if baseAmount != 0 {
@@ -3866,7 +3907,7 @@ func (bi *Bitget) GetCrossLiquidationOrders(ctx context.Context, orderType, from
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderType", orderType)
+	params.Values.Set("type", orderType)
 	params.Values.Set("symbol", pair.String())
 	params.Values.Set("fromCoin", fromCoin)
 	params.Values.Set("toCoin", toCoin)
@@ -3884,7 +3925,7 @@ func (bi *Bitget) GetCrossLiquidationOrders(ctx context.Context, orderType, from
 }
 
 // GetIsolatedRepayHistory returns the repayment history for isolated margin
-func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pair, currency currency.Code, repayID, limit, pagination int64, startTime, endTime time.Time) (*RepayHistResp, error) {
+func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pair, currency currency.Code, repayID, limit, pagination int64, startTime, endTime time.Time) (*IsoRepayHistResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -3909,13 +3950,13 @@ func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pai
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetRepayHistory
 	var resp struct {
-		RepayHistResp `json:"data"`
+		IsoRepayHistResp `json:"data"`
 	}
-	return &resp.RepayHistResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.IsoRepayHistResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetIsolatedBorrowHistory returns the borrowing history for isolated margin
-func (bi *Bitget) GetIsolatedBorrowHistory(ctx context.Context, pair currency.Pair, currency string, loanID, limit, pagination int64, startTime, endTime time.Time) (*BorrowHistIso, error) {
+func (bi *Bitget) GetIsolatedBorrowHistory(ctx context.Context, pair currency.Pair, currency currency.Code, loanID, limit, pagination int64, startTime, endTime time.Time) (*BorrowHistIso, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -3925,9 +3966,7 @@ func (bi *Bitget) GetIsolatedBorrowHistory(ctx context.Context, pair currency.Pa
 	if err != nil {
 		return nil, err
 	}
-	if loanID != 0 {
-		params.Values.Set("loanId", strconv.FormatInt(loanID, 10))
-	}
+	params.Values.Set("loanId", strconv.FormatInt(loanID, 10))
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -3935,9 +3974,7 @@ func (bi *Bitget) GetIsolatedBorrowHistory(ctx context.Context, pair currency.Pa
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	params.Values.Set("symbol", pair.String())
-	if currency != "" {
-		params.Values.Set("coin", currency)
-	}
+	params.Values.Set("coin", currency.String())
 	path := bitgetMargin + bitgetIsolated + bitgetBorrowHistory
 	var resp struct {
 		BorrowHistIso `json:"data"`
@@ -4187,7 +4224,7 @@ func (bi *Bitget) GetIsolatedFlashRepayResult(ctx context.Context, idList []int6
 }
 
 // PlaceIsolatedOrder places an order using isolated margin
-func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, orderType, loanType, strategy, clientOrderID, side string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
+func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, orderType, loanType, strategy, clientOrderID, side, stpMode string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -4213,6 +4250,7 @@ func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, or
 		"force":     strategy,
 		"clientOid": clientOrderID,
 		"side":      side,
+		"stpMode":   stpMode,
 		"price":     strconv.FormatFloat(price, 'f', -1, 64),
 	}
 	if baseAmount != 0 {
@@ -4381,7 +4419,7 @@ func (bi *Bitget) GetIsolatedLiquidationOrders(ctx context.Context, orderType, f
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderType", orderType)
+	params.Values.Set("type", orderType)
 	params.Values.Set("symbol", pair.String())
 	params.Values.Set("fromCoin", fromCoin)
 	params.Values.Set("toCoin", toCoin)
@@ -4512,15 +4550,15 @@ func (bi *Bitget) SubscribeSavings(ctx context.Context, productID int64, periodT
 }
 
 // GetSavingsSubscriptionResult returns the result of a subscription attempt
-func (bi *Bitget) GetSavingsSubscriptionResult(ctx context.Context, orderID int64, periodType string) (*SaveResult, error) {
-	if orderID == 0 {
-		return nil, errOrderIDEmpty
+func (bi *Bitget) GetSavingsSubscriptionResult(ctx context.Context, productId int64, periodType string) (*SaveResult, error) {
+	if productId == 0 {
+		return nil, errProductIDEmpty
 	}
 	if periodType == "" {
 		return nil, errPeriodTypeEmpty
 	}
 	vals := url.Values{}
-	vals.Set("orderId", strconv.FormatInt(orderID, 10))
+	vals.Set("productId", strconv.FormatInt(productId, 10))
 	vals.Set("periodType", periodType)
 	path := bitgetEarn + bitgetSavings + bitgetSubscribeResult
 	var resp struct {
@@ -4750,18 +4788,18 @@ func (bi *Bitget) GetEstimatedInterestAndBorrowable(ctx context.Context, loanCoi
 }
 
 // BorrowFunds borrows funds for a currency, supplying a certain amount of currency as collateral
-func (bi *Bitget) BorrowFunds(ctx context.Context, loanCoin, collateralCoin currency.Code, term string, collateralAmount, loanAmount float64) (*BorrowResp, error) {
+func (bi *Bitget) BorrowFunds(ctx context.Context, loanCoin, collateralCoin currency.Code, term string, collateralAmount, loanAmount float64) (int64, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinEmpty
+		return 0, errLoanCoinEmpty
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinEmpty
+		return 0, errCollateralCoinEmpty
 	}
 	if term == "" {
-		return nil, errTermEmpty
+		return 0, errTermEmpty
 	}
 	if (collateralAmount == 0 && loanAmount == 0) || (collateralAmount != 0 && loanAmount != 0) {
-		return nil, errCollateralLoanMutex
+		return 0, errCollateralLoanMutex
 	}
 	req := map[string]any{
 		"loanCoin":     loanCoin,
@@ -4772,9 +4810,11 @@ func (bi *Bitget) BorrowFunds(ctx context.Context, loanCoin, collateralCoin curr
 	}
 	path := bitgetEarn + bitgetLoan + bitgetBorrow
 	var resp struct {
-		BorrowResp `json:"data"`
+		Data struct {
+			OrderID int64 `json:"orderId"`
+		} `json:"data"`
 	}
-	return &resp.BorrowResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
+	return resp.Data.OrderID, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetOngoingLoans returns the ongoing loans, optionally filtered by currency
@@ -4833,10 +4873,10 @@ func (bi *Bitget) GetLoanRepayHistory(ctx context.Context, orderID, pagination, 
 	params.Values.Set("loanCoin", loanCoin.String())
 	params.Values.Set("pledgeCoin", pledgeCoin.String())
 	if pagination != 0 {
-		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+		params.Values.Set("pageNo", strconv.FormatInt(pagination, 10))
 	}
 	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetRepayHistory
 	var resp struct {
@@ -4884,10 +4924,10 @@ func (bi *Bitget) GetPledgeRateHistory(ctx context.Context, orderID, pagination,
 	params.Values.Set("reviseSide", reviseSide)
 	params.Values.Set("pledgeCoin", pledgeCoin.String())
 	if pagination != 0 {
-		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+		params.Values.Set("pageNo", strconv.FormatInt(pagination, 10))
 	}
 	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetReviseHistory
 	var resp struct {
@@ -4909,10 +4949,10 @@ func (bi *Bitget) GetLoanHistory(ctx context.Context, orderID, pagination, limit
 	params.Values.Set("pledgeCoin", pledgeCoin.String())
 	params.Values.Set("status", status)
 	if pagination != 0 {
-		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+		params.Values.Set("pageNo", strconv.FormatInt(pagination, 10))
 	}
 	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetBorrowHistory
 	var resp struct {
@@ -4943,10 +4983,10 @@ func (bi *Bitget) GetLiquidationRecords(ctx context.Context, orderID, pagination
 	params.Values.Set("pledgeCoin", pledgeCoin.String())
 	params.Values.Set("status", status)
 	if pagination != 0 {
-		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+		params.Values.Set("pageNo", strconv.FormatInt(pagination, 10))
 	}
 	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetReduces
 	var resp struct {
@@ -5074,13 +5114,15 @@ func (bi *Bitget) GetLoanOrders(ctx context.Context, orderID string, startTime, 
 }
 
 // GetRepaymentOrders returns a list of repayment orders taken out on the user's account
-func (bi *Bitget) GetRepaymentOrders(ctx context.Context, orderID string, startTime, endTime time.Time) ([]RepaymentOrders, error) {
+func (bi *Bitget) GetRepaymentOrders(ctx context.Context, limit int64, startTime, endTime time.Time) ([]RepaymentOrders, error) {
 	var params Params
 	params.Values = make(url.Values)
-	params.Values.Set("orderId", orderID)
 	err := params.prepareDateString(startTime, endTime, true, true)
 	if err != nil {
 		return nil, err
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetSpot + bitgetInsLoan + bitgetRepaidHistory
 	var resp struct {
