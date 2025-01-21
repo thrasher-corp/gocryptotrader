@@ -470,7 +470,7 @@ func (c *CoinbasePro) GetWSJWT() (string, error) {
 		c.mut.RUnlock()
 		return retStr, nil
 	}
-	go c.mut.RUnlock()
+	c.mut.RUnlock()
 	c.mut.Lock()
 	defer c.mut.Unlock()
 	var err error
