@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,12 +27,6 @@ type Deribit struct {
 	exchange.Base
 }
 
-var (
-	// optionRegex compiles optionDecimalRegex at startup and is used to help set
-	// option currency lower-case d eg MATIC-USDC-3JUN24-0d64-P
-	optionRegex *regexp.Regexp
-)
-
 const (
 	deribitAPIVersion = "/api/v2"
 	tradeBaseURL      = "https://www.deribit.com/"
@@ -43,8 +36,7 @@ const (
 	tradeFuturesCombo = "futures-spreads/"
 	tradeOptionsCombo = "combos/"
 
-	perpString         = "PERPETUAL"
-	optionDecimalRegex = `\d+(D)\d+`
+	perpString = "PERPETUAL"
 
 	// Public endpoints
 	// Market Data
@@ -2837,20 +2829,19 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 	return instrumentID
 }
 
-// optionPairToString to format and return an Options currency pairs with the following format: MATIC_USDC-6APR24-0d98-P
-// it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
+// optionPairToString formats an options pair as: SYMBOL-EXPIRE-STRIKE-TYPE
+// SYMBOL may be a currency (BTC) or a pair (XRP_USDC)
+// EXPIRE is DDMMMYY
+// STRIKE may include a d for decimal point in linear options
+// TYPE is Call or Put
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
-	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
 	initialDelimiter := currency.DashDelimiter
-	if subCodes[0] == "USDC" {
+	q := pair.Quote.String()
+	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
 		initialDelimiter = currency.UnderscoreDelimiter
+		// Replace a capital D with d for decimal place in Strike price
+		// Char 11 is either the hyphen before Strike price or first digit
+		q = q[:11] + strings.Replace(q[11:], "D", "d", -1)
 	}
-	for i := range subCodes {
-		if match := optionRegex.MatchString(subCodes[i]); match {
-			subCodes[i] = strings.ToLower(subCodes[i])
-			break
-		}
-	}
-
-	return pair.Base.String() + initialDelimiter + strings.Join(subCodes, currency.DashDelimiter)
+	return pair.Base.String() + initialDelimiter + q
 }
