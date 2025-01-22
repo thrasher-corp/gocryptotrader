@@ -344,7 +344,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			Amount:       t.Quantity.Float64(),
 			Exchange:     b.Name,
 			AssetType:    asset.Spot,
-			Side:         order.Sell,
 			TID:          strconv.FormatInt(t.TradeID, 10)}
 
 		if t.IsBuyerMaker { // Seller is Taker
