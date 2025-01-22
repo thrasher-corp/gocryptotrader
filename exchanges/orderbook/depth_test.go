@@ -928,5 +928,7 @@ func TestGetKey(t *testing.T) {
 	depth.exchange = "test"
 	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
 	depth.asset = asset.Spot
-	require.Equal(t, key.ExchangePairAsset{Exchange: depth.exchange, Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset}, depth.GetKey())
+require.Equal(t, 
+		key.ExchangePairAsset{Exchange: depth.exchange, Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset}, 
+		depth.GetKey())
 }
