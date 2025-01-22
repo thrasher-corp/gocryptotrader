@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	okxWebsocketResponseMaxLimit = time.Second * 3
+	websocketResponseMaxLimit = time.Second * 3
 )
 
 // SetDefaults sets the basic defaults for Okx
@@ -170,16 +170,16 @@ func (ok *Okx) SetDefaults() {
 
 	ok.API.Endpoints = ok.NewEndpoints()
 	err = ok.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      okxAPIURL,
-		exchange.WebsocketSpot: okxAPIWebsocketPublicURL,
+		exchange.RestSpot:      apiURL,
+		exchange.WebsocketSpot: apiWebsocketPublicURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
 	ok.Websocket = stream.NewWebsocket()
-	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
-	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
+	ok.WebsocketResponseMaxLimit = websocketResponseMaxLimit
+	ok.WebsocketResponseCheckTimeout = websocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
@@ -210,7 +210,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:                         exch,
-		DefaultURL:                             okxAPIWebsocketPublicURL,
+		DefaultURL:                             apiWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
 		Connector:                              ok.WsConnect,
 		Subscriber:                             ok.Subscribe,
@@ -229,18 +229,18 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	go ok.WsResponseMultiplexer.Run()
 
 	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPublicURL,
+		URL:                  apiWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	}); err != nil {
 		return err
 	}
 
 	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPrivateURL,
+		URL:                  apiWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
 	})
@@ -471,9 +471,9 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 			return err
 		}
 
-		instrumentType := ok.GetInstrumentTypeFromAssetItem(assetType)
+		instrumentType := GetInstrumentTypeFromAssetItem(assetType)
 		if assetType == asset.Margin {
-			instrumentType = okxInstTypeSpot
+			instrumentType = instTypeSpot
 		}
 		ticks, err := ok.GetTickers(ctx, instrumentType, "", "")
 		if err != nil {
@@ -939,14 +939,14 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		return s.DeriveSubmitResponse(placeSpreadOrderResponse.OrderID)
 	}
-	orderTypeString, err := ok.OrderTypeString(s.Type)
+	orderTypeString, err := OrderTypeString(s.Type)
 	if err != nil {
 		return nil, err
 	}
 	var placeOrderResponse *OrderData
 	var result *AlgoOrder
 	switch orderTypeString {
-	case OkxOrderLimit, OkxOrderMarket, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC, "mmp", "mmp_and_post_only":
+	case orderLimit, orderMarket, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only":
 		var orderRequest = &PlaceOrderRequestParam{
 			InstrumentID:  pairString,
 			TradeMode:     tradeMode,
@@ -960,12 +960,12 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			AssetType:     s.AssetType,
 		}
 		switch s.Type.Lower() {
-		case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
+		case orderLimit, orderPostOnly, orderFOK, orderIOC:
 			orderRequest.Price = s.Price
 		}
 		if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
 			if s.Type.Lower() == "" {
-				orderRequest.OrderType = OkxOrderOptimalLimitIOC
+				orderRequest.OrderType = orderOptimalLimitIOC
 			}
 			// TODO: handle positionSideLong while side is Short and positionSideShort while side is Long
 			if s.Side.IsLong() {
@@ -1425,11 +1425,11 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
-		instrumentType = ok.GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
 	}
 	var oType string
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
-		oType, err = ok.OrderTypeString(orderCancellation.Type)
+		oType, err = OrderTypeString(orderCancellation.Type)
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
@@ -1585,7 +1585,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return nil, err
 	}
-	orderType, err := ok.OrderTypeFromString(orderDetail.OrderType)
+	orderType, err := OrderTypeFromString(orderDetail.OrderType)
 	if err != nil {
 		return nil, err
 	}
@@ -1747,10 +1747,10 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 		return req.Filter(ok.Name, resp), nil
 	}
 
-	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
+	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	var orderType string
 	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = ok.OrderTypeString(req.Type)
+		orderType, err = OrderTypeString(req.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1800,7 +1800,7 @@ allOrders:
 				return nil, err
 			}
 			var oType order.Type
-			oType, err = ok.OrderTypeFromString(orderList[i].OrderType)
+			oType, err = OrderTypeFromString(orderList[i].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1848,7 +1848,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := ok.OrderTypeString(req.Type)
+		oType, err := OrderTypeString(req.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1903,7 +1903,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
+	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	endTime := req.EndTime
 allOrders:
 	for {
@@ -1944,7 +1944,7 @@ allOrders:
 				}
 				orderSide := orderList[i].Side
 				var oType order.Type
-				oType, err = ok.OrderTypeFromString(orderList[i].OrderType)
+				oType, err = OrderTypeFromString(orderList[i].OrderType)
 				if err != nil {
 					return nil, err
 				}
@@ -2106,7 +2106,7 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 
 // getInstrumentsForOptions returns the instruments for options asset type
 func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, error) {
-	underlyings, err := ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+	underlyings, err := ok.GetPublicUnderlyings(context.Background(), instTypeOption)
 	if err != nil {
 		return nil, err
 	}
@@ -2114,7 +2114,7 @@ func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, erro
 	for x := range underlyings {
 		var instruments []Instrument
 		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeOption,
+			InstrumentType: instTypeOption,
 			Underlying:     underlyings[x],
 		})
 		if err != nil {
@@ -2141,17 +2141,17 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 			return nil, err
 		}
 		ok.instrumentsInfoMapLock.Lock()
-		ok.instrumentsInfoMap[okxInstTypeOption] = instruments
+		ok.instrumentsInfoMap[instTypeOption] = instruments
 		ok.instrumentsInfoMapLock.Unlock()
 		return instruments, nil
 	case asset.Spot:
-		instType = okxInstTypeSpot
+		instType = instTypeSpot
 	case asset.Futures:
-		instType = okxInstTypeFutures
+		instType = instTypeFutures
 	case asset.PerpetualSwap:
-		instType = okxInstTypeSwap
+		instType = instTypeSwap
 	case asset.Margin:
-		instType = okxInstTypeMargin
+		instType = instTypeMargin
 	}
 
 	instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
@@ -2315,7 +2315,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 			}
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
-				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
+				InstrumentType: GetInstrumentTypeFromAssetItem(r.Asset),
 				Currency:       pairRate.PaymentCurrency,
 				BillType:       137,
 				BeginTime:      sd,
@@ -2456,7 +2456,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 	if err != nil {
 		return nil, err
 	}
-	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+	instrumentType := GetInstrumentTypeFromAssetItem(req.Asset)
 
 	var contracts []futures.Contract
 	contracts, err = ok.GetFuturesContractDetails(ctx, req.Asset)
@@ -2603,7 +2603,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 		if err != nil {
 			return nil, err
 		}
-		instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+		instrumentType := GetInstrumentTypeFromAssetItem(req.Asset)
 
 		multiplier := 1.0
 		var contractSettlementType futures.ContractSettlementType
@@ -2652,7 +2652,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			}
 			orderSide := positions[j].Side
 			var oType order.Type
-			oType, err = ok.OrderTypeFromString(positions[j].OrderType)
+			oType, err = OrderTypeFromString(positions[j].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -2785,7 +2785,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	}
 	switch item {
 	case asset.Futures, asset.PerpetualSwap:
-		instType := ok.GetInstrumentTypeFromAssetItem(item)
+		instType := GetInstrumentTypeFromAssetItem(item)
 		result, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: instType,
 		})
@@ -2886,17 +2886,17 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		var resp []futures.OpenInterest
 		// TODO: Options support
 		instTypes := map[string]asset.Item{
-			okxInstTypeSwap:    asset.PerpetualSwap,
-			okxInstTypeFutures: asset.Futures,
-			okxInstTypeOption:  asset.Options,
+			instTypeSwap:    asset.PerpetualSwap,
+			instTypeFutures: asset.Futures,
+			instTypeOption:  asset.Options,
 		}
 		for instType, v := range instTypes {
 			var oid []OpenInterest
 			var err error
 			switch instType {
-			case okxInstTypeOption:
+			case instTypeOption:
 				var underlyings []string
-				underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+				underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
 				if err != nil {
 					return nil, err
 				}
@@ -2908,8 +2908,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 					}
 					oid = append(oid, incOID...)
 				}
-			case okxInstTypeSwap,
-				okxInstTypeFutures:
+			case instTypeSwap,
+				instTypeFutures:
 				oid, err = ok.GetOpenInterestData(ctx, instType, "", "", "")
 				if err != nil {
 					return nil, err
@@ -2959,9 +2959,9 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	}
 	var oid []OpenInterest
 	switch instTypes[k[0].Asset] {
-	case okxInstTypeOption:
+	case instTypeOption:
 		var underlyings []string
-		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+		underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
 		if err != nil {
 			return nil, err
 		}
@@ -2973,7 +2973,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			}
 			oid = append(oid, incOID...)
 		}
-	case okxInstTypeSwap, okxInstTypeFutures:
+	case instTypeSwap, instTypeFutures:
 		oid, err = ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
 		if err != nil {
 			return nil, err
@@ -3024,7 +3024,7 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 			return "", err
 		}
 		insts, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeFutures,
+			InstrumentType: instTypeFutures,
 			InstrumentID:   cp.String(),
 		})
 		if err != nil {

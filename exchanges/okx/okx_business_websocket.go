@@ -31,9 +31,9 @@ var (
 		okxSpreadOrderbook,
 		okxSpreadPublicTicker,
 
-		okxChannelPublicStrucBlockTrades,
-		okxChannelPublicBlockTrades,
-		okxChannelBlockTickers,
+		channelPublicStrucBlockTrades,
+		channelPublicBlockTrades,
+		channelBlockTickers,
 	}
 
 	// defaultBusinessAuthChannels list of authenticated channels
@@ -177,8 +177,8 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscripti
 					Pairs:   []currency.Pair{pairs[p]},
 				})
 			}
-		case okxChannelPublicBlockTrades,
-			okxChannelBlockTickers:
+		case channelPublicBlockTrades,
+			channelBlockTickers:
 			pairs, err := ok.GetEnabledPairs(asset.PerpetualSwap)
 			if err != nil {
 				return nil, err
@@ -231,8 +231,8 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 			okxSpreadPublicTrades,
 			okxSpreadPublicTicker:
 			spreadID = subscriptions[i].Pairs[0].String()
-		case okxChannelPublicBlockTrades,
-			okxChannelBlockTickers:
+		case channelPublicBlockTrades,
+			channelBlockTickers:
 			instrumentID = subscriptions[i].Pairs[0].String()
 		}
 		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]

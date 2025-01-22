@@ -19,7 +19,7 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	a.InstrumentType = GetAssetTypeFromInstrumentType(chil.InstrumentType)
+	a.InstrumentType = AssetTypeFromInstrumentType(chil.InstrumentType)
 	return nil
 }
 

@@ -46,39 +46,39 @@ type Okx struct {
 }
 
 const (
-	baseURL       = "https://www.okx.com/"
-	okxAPIURL     = baseURL + okxAPIPath
-	okxAPIVersion = "/v5/"
-	tradeSpot     = "trade-spot/"
-	tradeMargin   = "trade-margin/"
-	tradeFutures  = "trade-futures/"
-	tradePerps    = "trade-swap/"
-	tradeOptions  = "trade-option/"
+	baseURL      = "https://www.okx.com/"
+	apiURL       = baseURL + apiPath
+	apiVersion   = "/v5/"
+	tradeSpot    = "trade-spot/"
+	tradeMargin  = "trade-margin/"
+	tradeFutures = "trade-futures/"
+	tradePerps   = "trade-swap/"
+	tradeOptions = "trade-option/"
 
-	okxAPIPath      = "api" + okxAPIVersion
-	okxWebsocketURL = "wss://ws.okx.com:8443/ws" + okxAPIVersion
+	apiPath      = "api" + apiVersion
+	websocketURL = "wss://ws.okx.com:8443/ws" + apiVersion
 
-	okxAPIWebsocketPublicURL  = okxWebsocketURL + "public"
-	okxAPIWebsocketPrivateURL = okxWebsocketURL + "private"
+	apiWebsocketPublicURL  = websocketURL + "public"
+	apiWebsocketPrivateURL = websocketURL + "private"
 )
 
 /************************************ MarketData Endpoints *************************************************/
 
 // OrderTypeFromString returns order.Type instance from string
-func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
+func OrderTypeFromString(orderType string) (order.Type, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {
-	case OkxOrderMarket:
+	case orderMarket:
 		return order.Market, nil
-	case OkxOrderLimit:
+	case orderLimit:
 		return order.Limit, nil
-	case OkxOrderPostOnly:
+	case orderPostOnly:
 		return order.PostOnly, nil
-	case OkxOrderFOK:
+	case orderFOK:
 		return order.FillOrKill, nil
-	case OkxOrderIOC:
+	case orderIOC:
 		return order.ImmediateOrCancel, nil
-	case OkxOrderOptimalLimitIOC:
+	case orderOptimalLimitIOC:
 		return order.OptimalLimitIOC, nil
 	case "mmp":
 		return order.MarketMakerProtection, nil
@@ -96,7 +96,7 @@ func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
 }
 
 // OrderTypeString returns a string representation of order.Type instance
-func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
+func OrderTypeString(orderType order.Type) (string, error) {
 	switch orderType {
 	case order.ImmediateOrCancel:
 		return "ioc", nil
@@ -155,7 +155,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
-	if !slices.Contains([]string{OkxOrderMarket, OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC, OkxOrderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
+	if !slices.Contains([]string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
 		return fmt.Errorf("%w %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.Amount <= 0 {
@@ -553,7 +553,7 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if arg.LimitPrice <= 0 {
 		return nil, errInvalidPriceLimit
 	}
-	if ok.GetIntervalEnum(arg.TimeInterval, true) == "" {
+	if IntervalFromString(arg.TimeInterval, true) == "" {
 		return nil, errMissingIntervalValue
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
@@ -847,7 +847,7 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 		return nil, errInstrumentFamilyRequired
 	}
 	if lockInterval < 0 || lockInterval > 10000 {
-		return nil, fmt.Errorf("%w, lockInterval value range should be [0, 10 000]", errMissingIntervalValue)
+		return nil, fmt.Errorf("%w, lockInterval value range should be between 0 and 10000", errMissingIntervalValue)
 	}
 	arg := &struct {
 		InstrumentType   string `json:"instType,omitempty"`
@@ -919,8 +919,8 @@ func (ok *Okx) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, "rfq/counterparties", nil, &resp, request.AuthenticatedRequest)
 }
 
-// CreateRFQ Creates a new Rfq
-func (ok *Okx) CreateRFQ(ctx context.Context, arg *CreateRfqInput) (*RFQResponse, error) {
+// CreateRFQ Creates a new RFQ
+func (ok *Okx) CreateRFQ(ctx context.Context, arg *CreateRFQInput) (*RFQResponse, error) {
 	if len(arg.CounterParties) == 0 {
 		return nil, errInvalidCounterParties
 	}
@@ -928,51 +928,51 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg *CreateRfqInput) (*RFQResponse
 		return nil, errMissingLegs
 	}
 	var resp *RFQResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRFQEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelRfq Cancel an existing active Rfq that you has previously created
-func (ok *Okx) CancelRfq(ctx context.Context, rfqID, clientRFQID string) (*CancelRFQResponse, error) {
+// CancelRFQ Cancel an existing active RFQ that you has previously created
+func (ok *Okx) CancelRFQ(ctx context.Context, rfqID, clientRFQID string) (*CancelRFQResponse, error) {
 	if rfqID == "" && clientRFQID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelRFQResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRfqRequestParam{
-		RfqID:       rfqID,
-		ClientRfqID: clientRFQID,
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRFQEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRFQRequestParam{
+		RFQID:       rfqID,
+		ClientRFQID: clientRFQID,
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleRFQs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time
+// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be canceled at a time
 func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	if len(arg.RfqIDs) == 0 && len(arg.ClientRfqIDs) == 0 {
+	if len(arg.RFQIDs) == 0 && len(arg.ClientRFQIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
-	} else if len(arg.RfqIDs)+len(arg.ClientRfqIDs) > 100 {
-		return nil, errMaxRfqOrdersToCancel
+	} else if len(arg.RFQIDs)+len(arg.ClientRFQIDs) > 100 {
+		return nil, errMaxRFQOrdersToCancel
 	}
 	var resp []CancelRFQResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRfqEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRFQEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllRfqs cancels all active Rfqs
-func (ok *Okx) CancelAllRfqs(ctx context.Context) (types.Time, error) {
+// CancelAllRFQs cancels all active RFQs
+func (ok *Okx) CancelAllRFQs(ctx context.Context) (types.Time, error) {
 	var resp types.Time
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &struct {
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &struct {
 		Timestamp *types.Time `json:"ts"`
 	}{Timestamp: &resp}, request.AuthenticatedRequest)
 }
 
-// ExecuteQuote executes a Quote. It is only used by the creator of the Rfq
+// ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
 func (ok *Okx) ExecuteQuote(ctx context.Context, rfqID, quoteID string) (*ExecuteQuoteResponse, error) {
 	if rfqID == "" || quoteID == "" {
-		return nil, errMissingRfqIDOrQuoteID
+		return nil, errMissingRFQIDOrQuoteID
 	}
 	var resp *ExecuteQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, "rfq/execute-quote", &ExecuteQuoteParams{
-		RfqID:   rfqID,
+		RFQID:   rfqID,
 		QuoteID: quoteID,
 	}, &resp, request.AuthenticatedRequest)
 }
@@ -983,29 +983,29 @@ func (ok *Okx) GetQuoteProducts(ctx context.Context) ([]QuoteProduct, error) {
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuoteProductsEPL, http.MethodGet, "rfq/maker-instrument-settings", nil, &resp, request.AuthenticatedRequest)
 }
 
-// SetQuoteProducts customize the products which makers want to quote and receive Rfqs for, and the corresponding price and size limit
+// SetQuoteProducts customize the products which makers want to quote and receive RFQs for, and the corresponding price and size limit
 func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam) (*SetQuoteProductsResult, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
 	for x := range args {
 		args[x].InstrumentType = strings.ToUpper(args[x].InstrumentType)
-		if args[x].InstrumentType != okxInstTypeSwap &&
-			args[x].InstrumentType != okxInstTypeSpot &&
-			args[x].InstrumentType != okxInstTypeFutures &&
-			args[x].InstrumentType != okxInstTypeOption {
+		if args[x].InstrumentType != instTypeSwap &&
+			args[x].InstrumentType != instTypeSpot &&
+			args[x].InstrumentType != instTypeFutures &&
+			args[x].InstrumentType != instTypeOption {
 			return nil, fmt.Errorf("%w received %v", errInvalidInstrumentType, args[x].InstrumentType)
 		}
 		if len(args[x].Data) == 0 {
 			return nil, errMissingMakerInstrumentSettings
 		}
 		for y := range args[x].Data {
-			if (args[x].InstrumentType == okxInstTypeSwap ||
-				args[x].InstrumentType == okxInstTypeFutures ||
-				args[x].InstrumentType == okxInstTypeOption) && args[x].Data[y].Underlying == "" {
+			if (args[x].InstrumentType == instTypeSwap ||
+				args[x].InstrumentType == instTypeFutures ||
+				args[x].InstrumentType == instTypeOption) && args[x].Data[y].Underlying == "" {
 				return nil, fmt.Errorf("%w, for instrument type %s and %s", errInvalidUnderlying, args[x].InstrumentType, args[x].Data[x].Underlying)
 			}
-			if (args[x].InstrumentType == okxInstTypeSpot) && args[x].Data[x].InstrumentID == "" {
+			if (args[x].InstrumentType == instTypeSpot) && args[x].Data[x].InstrumentID == "" {
 				return nil, fmt.Errorf("%w, for instrument type %s and %s", errMissingInstrumentID, args[x].InstrumentType, args[x].Data[x].InstrumentID)
 			}
 		}
@@ -1022,16 +1022,16 @@ func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
 }
 
-// CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
-// the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed
+// CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
+// the entire RFQ and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed
 func (ok *Okx) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*QuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	arg.QuoteSide = strings.ToLower(arg.QuoteSide)
 	switch {
-	case arg.RfqID == "":
-		return nil, errMissingRfqID
+	case arg.RFQID == "":
+		return nil, errMissingRFQID
 	case arg.QuoteSide != order.Buy.Lower() && arg.QuoteSide != order.Sell.Lower():
 		return nil, order.ErrSideIsInvalid
 	case len(arg.Legs) == 0:
@@ -1053,7 +1053,7 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, "rfq/create-quote", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelQuote cancels an existing active quote you have created in response to an Rfq
+// CancelQuote cancels an existing active quote you have created in response to an RFQ
 func (ok *Okx) CancelQuote(ctx context.Context, quoteID, clientQuoteID string) (*CancelQuoteResponse, error) {
 	if clientQuoteID == "" && quoteID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -1074,8 +1074,8 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllQuotes cancels all active quote orders
-func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
+// CancelAllRFQQuotes cancels all active quote orders
+func (ok *Okx) CancelAllRFQQuotes(ctx context.Context) (types.Time, error) {
 	var resp types.Time
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil,
 		&struct {
@@ -1083,17 +1083,17 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (types.Time, error) {
 		}{Timestamp: &resp}, request.AuthenticatedRequest)
 }
 
-// GetRfqs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
-func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQResponse, error) {
-	if *arg == (RfqRequestParams{}) {
+// GetRFQs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
+func (ok *Okx) GetRFQs(ctx context.Context, arg *RFQRequestParams) ([]RFQResponse, error) {
+	if *arg == (RFQRequestParams{}) {
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
-	if arg.RfqID != "" {
-		params.Set("rfqId", arg.RfqID)
+	if arg.RFQID != "" {
+		params.Set("rfqId", arg.RFQID)
 	}
-	if arg.ClientRfqID != "" {
-		params.Set("clRfqId", arg.ClientRfqID)
+	if arg.ClientRFQID != "" {
+		params.Set("clRFQId", arg.ClientRFQID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -1108,7 +1108,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []RFQResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRfqsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRFQsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetQuotes retrieves all Quotes where the user is a counterparty, either as the creator or the receiver
@@ -1117,11 +1117,11 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
-	if arg.RfqID != "" {
-		params.Set("rfqId", arg.RfqID)
+	if arg.RFQID != "" {
+		params.Set("rfqId", arg.RFQID)
 	}
-	if arg.ClientRfqID != "" {
-		params.Set("clRfqId", arg.ClientRfqID)
+	if arg.ClientRFQID != "" {
+		params.Set("clRFQId", arg.ClientRFQID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
@@ -1145,17 +1145,17 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRfqTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
-func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([]RfqTradeResponse, error) {
-	if *arg == (RfqTradesRequestParams{}) {
+// GetRFQTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
+func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([]RFQTradeResponse, error) {
+	if *arg == (RFQTradesRequestParams{}) {
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
-	if arg.RfqID != "" {
-		params.Set("rfqId", arg.RfqID)
+	if arg.RFQID != "" {
+		params.Set("rfqId", arg.RFQID)
 	}
-	if arg.ClientRfqID != "" {
-		params.Set("clRfqId", arg.ClientRfqID)
+	if arg.ClientRFQID != "" {
+		params.Set("clRFQId", arg.ClientRFQID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
@@ -1178,7 +1178,7 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp []RfqTradeResponse
+	var resp []RFQTradeResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -1408,7 +1408,7 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg *LightningWithdrawal
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelWithdrawal you can cancel normal withdrawal, but can not cancel the withdrawal on Lightning
+// CancelWithdrawal cancels a normal withdrawal request but cannot be used to cancel Lightning withdrawals
 func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
 	if withdrawalID == "" {
 		return "", errMissingValidWithdrawalID
@@ -1455,7 +1455,7 @@ func (ok *Okx) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, with
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/withdrawal-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetDepositWithdrawalStatus retrieve deposit's and withdrawal's detailed status and estimated complete time
+// GetDepositWithdrawalStatus retrieves the detailed status and estimated completion time for deposits and withdrawals
 func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.Code, withdrawalID, transactionID, addressTo, chain string) ([]DepositWithdrawStatus, error) {
 	if withdrawalID == "" && transactionID == "" {
 		return nil, fmt.Errorf("%w, either withdrawal id or transaction id is required", order.ErrOrderIDNotSet)
@@ -1587,7 +1587,7 @@ func (ok *Okx) GetPublicBorrowHistory(ctx context.Context, ccy currency.Code, be
 
 /***********************************Convert Endpoints | Authenticated s*****************************************/
 
-// ApplyForMonthlyStatement apply for monthly statement in the past year
+// ApplyForMonthlyStatement requests a monthly statement for any month within the past year
 func (ok *Okx) ApplyForMonthlyStatement(ctx context.Context, month string) (types.Time, error) {
 	if month == "" {
 		return types.Time{}, errMonthNameRequired
@@ -1599,8 +1599,8 @@ func (ok *Okx) ApplyForMonthlyStatement(ctx context.Context, month string) (type
 		http.MethodPost, "asset/monthly-statement", &map[string]string{"month": month}, &resp, request.AuthenticatedRequest)
 }
 
-// GetMonthlyStatement retrieve monthly statement in the past year.
-// Month, valid value is Jan, Feb, Mar, Apr,May, Jun, Jul,Aug, Sep,Oct,Nov,Dec
+// GetMonthlyStatement retrieves monthly statements for the past year.
+// Month is in the form of Jan, Feb, March etc.
 func (ok *Okx) GetMonthlyStatement(ctx context.Context, month string) ([]MonthlyStatement, error) {
 	if month == "" {
 		return nil, errMonthNameRequired
@@ -1651,10 +1651,10 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.RFQAmount <= 0 {
-		return nil, fmt.Errorf("%w, rfq amount required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, RFQ amount required", order.ErrAmountBelowMin)
 	}
 	if arg.RFQSzCurrency == "" {
-		return nil, fmt.Errorf("%w, missing rfq currency", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w, missing RFQ currency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp *EstimateQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, "asset/convert/estimate-quote", arg, &resp, request.AuthenticatedRequest)
@@ -2123,7 +2123,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 		if err != nil {
 			return 0, err
 		}
-		responses, err := ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "", "", "")
+		responses, err := ok.GetTradeFee(ctx, instTypeSpot, uly, "", "", "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
@@ -2237,8 +2237,8 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg *IsolatedM
 		arg.IsoMode != "autonomy" {
 		return nil, errMissingIsolatedMarginTradingSetting
 	}
-	if arg.InstrumentType != okxInstTypeMargin &&
-		arg.InstrumentType != okxInstTypeContract {
+	if arg.InstrumentType != instTypeMargin &&
+		arg.InstrumentType != instTypeContract {
 		return nil, fmt.Errorf("%w, received '%v' only margin and contract instrument types are allowed", errInvalidInstrumentType, arg.InstrumentType)
 	}
 	var resp *IsolatedMode
@@ -3461,7 +3461,7 @@ func (ok *Okx) RSIBackTesting(ctx context.Context, instrumentID, triggerConditio
 	if threshold > 100 || threshold < 1 {
 		return nil, errors.New("threshold should be an integer between 1 to 100")
 	}
-	timeFrameString := ok.GetIntervalEnum(timeFrame, false)
+	timeFrameString := IntervalFromString(timeFrame, false)
 	if timeFrameString == "" {
 		return nil, errors.New("timeframe is required")
 	}
@@ -4404,12 +4404,12 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency currency.Code,
 }
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange
-func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) string {
+func GetInstrumentTypeFromAssetItem(a asset.Item) string {
 	switch a {
 	case asset.PerpetualSwap:
-		return okxInstTypeSwap
+		return instTypeSwap
 	case asset.Options:
-		return okxInstTypeOption
+		return instTypeOption
 	default:
 		return strings.ToUpper(a.String())
 	}
@@ -4450,8 +4450,8 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookEPL, http.MethodGet, common.EncodeURLValues("market/books", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetIntervalEnum allowed interval params by Okx Exchange
-func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
+// IntervalFromString returns a kline.Interval instance from string
+func IntervalFromString(interval kline.Interval, appendUTC bool) string {
 	switch interval {
 	case kline.OneMin:
 		return "1m"
@@ -4547,7 +4547,7 @@ func (ok *Okx) getHistoricCandlesticks(ctx context.Context, instrumentID, path s
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
-	barString := ok.GetIntervalEnum(bar, false)
+	barString := IntervalFromString(bar, false)
 	if barString != "" {
 		params.Set("bar", barString)
 	}
@@ -4594,7 +4594,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	bar := ok.GetIntervalEnum(interval, true)
+	bar := IntervalFromString(interval, true)
 	if bar != "" {
 		params.Set("bar", bar)
 	}
@@ -5002,7 +5002,7 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 	if arg.InstrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if arg.InstrumentType == okxInstTypeOption &&
+	if arg.InstrumentType == instTypeOption &&
 		arg.InstrumentFamily == "" && arg.Underlying == "" {
 		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
@@ -5029,7 +5029,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 		return nil, errInvalidInstrumentType
 	}
 	switch instrumentType {
-	case okxInstTypeFutures, okxInstTypeOption:
+	case instTypeFutures, instTypeOption:
 		if underlying == "" && instrumentFamily == "" {
 			return nil, errInstrumentFamilyOrUnderlyingRequired
 		}
@@ -5064,7 +5064,7 @@ func (ok *Okx) GetOpenInterestData(ctx context.Context, instType, uly, instrumen
 	if instType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if instType == okxInstTypeOption && uly == "" && instrumentFamily == "" {
+	if instType == instTypeOption && uly == "" && instrumentFamily == "" {
 		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
 	params := url.Values{}
@@ -5187,17 +5187,17 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 		params.Set("mgnMode", arg.MarginMode)
 	}
 	switch {
-	case arg.InstrumentType == okxInstTypeMargin && arg.InstrumentID != "":
+	case arg.InstrumentType == instTypeMargin && arg.InstrumentID != "":
 		params.Set("instId", arg.InstrumentID)
-	case arg.InstrumentType == okxInstTypeMargin && arg.Currency.String() != "":
+	case arg.InstrumentType == instTypeMargin && arg.Currency.String() != "":
 		params.Set("ccy", arg.Currency.String())
 	default:
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
-	if arg.InstrumentType != okxInstTypeMargin && arg.Underlying != "" {
+	if arg.InstrumentType != instTypeMargin && arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
-	if arg.InstrumentType == okxInstTypeFutures && arg.Alias != "" {
+	if arg.InstrumentType == instTypeFutures && arg.Alias != "" {
 		params.Set("alias", arg.Alias)
 	}
 	if !arg.Before.IsZero() {
@@ -5253,7 +5253,7 @@ func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, 
 	}
 
 	switch instrumentType {
-	case okxInstTypeSwap, okxInstTypeFutures, okxInstTypeOption:
+	case instTypeSwap, instTypeFutures, instTypeOption:
 		if instrumentFamily == "" && underlying == "" {
 			return nil, errInstrumentFamilyOrUnderlyingRequired
 		}
@@ -5319,7 +5319,7 @@ func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFu
 		params.Set("type", arg.InsuranceType)
 	}
 	switch arg.InstrumentType {
-	case okxInstTypeFutures, okxInstTypeSwap, okxInstTypeOption:
+	case instTypeFutures, instTypeSwap, instTypeOption:
 		if arg.Underlying == "" && arg.InstrumentFamily == "" {
 			return nil, errInstrumentFamilyOrUnderlyingRequired
 		}
@@ -5414,7 +5414,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, ccy currency.Code, instrument
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5443,7 +5443,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, ccy currency.Code, beg
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5463,7 +5463,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, ccy currency.Code, begin, 
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5483,7 +5483,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(ctx context.Context, ccy curren
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5497,7 +5497,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, ccy currency
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5511,7 +5511,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, ccy currency.Code, period kl
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5525,7 +5525,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, ccy currency.
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5544,7 +5544,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5559,7 +5559,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
-	interval := ok.GetIntervalEnum(period, false)
+	interval := IntervalFromString(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -5645,7 +5645,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			if err != nil {
 				return nil, err
 			}
-			signPath := "/" + okxAPIPath + requestPath
+			signPath := "/" + apiPath + requestPath
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(utcTime+httpMethod+signPath+string(payload)),
@@ -5708,18 +5708,18 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, common.EncodeURLValues("system/status", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
-func GetAssetTypeFromInstrumentType(instrumentType string) asset.Item {
+// AssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
+func AssetTypeFromInstrumentType(instrumentType string) asset.Item {
 	switch strings.ToUpper(instrumentType) {
-	case okxInstTypeSwap, okxInstTypeContract:
+	case instTypeSwap, instTypeContract:
 		return asset.PerpetualSwap
-	case okxInstTypeSpot:
+	case instTypeSpot:
 		return asset.Spot
-	case okxInstTypeMargin:
+	case instTypeMargin:
 		return asset.Margin
-	case okxInstTypeFutures:
+	case instTypeFutures:
 		return asset.Futures
-	case okxInstTypeOption:
+	case instTypeOption:
 		return asset.Options
 	}
 	return asset.Empty
@@ -5729,7 +5729,7 @@ func GetAssetTypeFromInstrumentType(instrumentType string) asset.Item {
 // that the currency pair is associated with
 func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([]asset.Item, error) {
 	if instType != "" {
-		a := GetAssetTypeFromInstrumentType(instType)
+		a := AssetTypeFromInstrumentType(instType)
 		if a != asset.Empty {
 			return []asset.Item{a}, nil
 		}
@@ -5909,7 +5909,7 @@ func (ok *Okx) GetFuturesContractsOpenInterestHistory(ctx context.Context, instr
 	params := url.Values{}
 	params.Set("instId", instrumentID)
 	if period != kline.Interval(0) {
-		params.Set("period", ok.GetIntervalEnum(period, true))
+		params.Set("period", IntervalFromString(period, true))
 	}
 	if !startAt.IsZero() {
 		params.Set("begin", strconv.FormatInt(startAt.UnixMilli(), 10))
@@ -5934,7 +5934,7 @@ func (ok *Okx) GetFuturesContractTakerVolume(ctx context.Context, instrumentID s
 	params := url.Values{}
 	params.Set("instId", instrumentID)
 	if period != kline.Interval(0) {
-		params.Set("period", ok.GetIntervalEnum(period, true))
+		params.Set("period", IntervalFromString(period, true))
 	}
 	if !startAt.IsZero() {
 		params.Set("begin", strconv.FormatInt(startAt.UnixMilli(), 10))
@@ -5976,7 +5976,7 @@ func (ok *Okx) getTopTradersFuturesContractLongShortRatio(ctx context.Context, i
 	params := url.Values{}
 	params.Set("instId", instrumentID)
 	if period != kline.Interval(0) {
-		params.Set("period", ok.GetIntervalEnum(period, true))
+		params.Set("period", IntervalFromString(period, true))
 	}
 	if !startAt.IsZero() {
 		params.Set("begin", strconv.FormatInt(startAt.UnixMilli(), 10))

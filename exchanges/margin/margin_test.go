@@ -76,14 +76,14 @@ func TestUpper(t *testing.T) {
 
 func TestIsValidString(t *testing.T) {
 	t.Parallel()
-	require.False(t, IsValidString("lol"))
-	require.True(t, IsValidString("spot_isolated"))
-	require.True(t, IsValidString("cash"))
-	require.True(t, IsValidString("isolated"))
-	require.True(t, IsValidString("cross"))
-	require.True(t, IsValidString("multi"))
-	require.True(t, IsValidString(""))
-	require.False(t, IsValidString("unknown"))
+	assert.False(t, IsValidString("lol"))
+	assert.True(t, IsValidString("spot_isolated"))
+	assert.True(t, IsValidString("cash"))
+	assert.True(t, IsValidString("isolated"))
+	assert.True(t, IsValidString("cross"))
+	assert.True(t, IsValidString("multi"))
+	assert.True(t, IsValidString(""))
+	assert.False(t, IsValidString("unknown"))
 }
 
 func TestStringToMarginType(t *testing.T) {

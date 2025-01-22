@@ -23,12 +23,10 @@ func TestStringToContractSettlementType(t *testing.T) {
 		"QUANTO":          {Quanto, nil},
 		"Unknown":         {UnsetSettlementType, ErrInvalidContractSettlementType},
 	}
-	var val ContractSettlementType
-	var err error
-	for x := range contractSettlementTypesMap {
-		val, err = StringToContractSettlementType(x)
-		assert.Equalf(t, val, contractSettlementTypesMap[x].CT, "got %v, expected %v", val, contractSettlementTypesMap[x].CT)
-		assert.ErrorIs(t, err, contractSettlementTypesMap[x].Error)
+	for x, v := range contractSettlementTypesMap {
+		val, err := StringToContractSettlementType(x)
+		assert.Equal(t, val, v.CT, "got %v, expected %v", val, v.CT)
+		assert.ErrorIs(t, err, v.Error)
 	}
 }
 
@@ -43,8 +41,8 @@ func TestContractSettlementTypeString(t *testing.T) {
 		Hybrid:                      "hybrid",
 		ContractSettlementType(200): "unknown",
 	}
-	for k := range contractSettlementTypeToStringMap {
-		assert.Equal(t, k.String(), contractSettlementTypeToStringMap[k])
+	for k, v := range contractSettlementTypeToStringMap {
+		assert.Equal(t, k.String(), v)
 	}
 }
 

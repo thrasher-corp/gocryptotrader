@@ -49,10 +49,10 @@ const (
 	tradeOneClickRepayEPL
 	massCancemMMPOrderEPL
 	getCounterpartiesEPL
-	createRfqEPL
-	cancelRfqEPL
-	cancelMultipleRfqEPL
-	cancelAllRfqsEPL
+	createRFQEPL
+	cancelRFQEPL
+	cancelMultipleRFQEPL
+	cancelAllRFQsEPL
 	executeQuoteEPL
 	getQuoteProductsEPL
 	setQuoteProductsEPL
@@ -63,7 +63,7 @@ const (
 	cancelQuoteEPL
 	cancelMultipleQuotesEPL
 	cancelAllQuotesEPL
-	getRfqsEPL
+	getRFQsEPL
 	getQuotesEPL
 	getTradesEPL
 	getTradesHistoryEPL
@@ -362,10 +362,10 @@ func GetRateLimit() request.RateLimitDefinitions {
 
 		// Block Trading endpoints
 		getCounterpartiesEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		createRfqEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		cancelRfqEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		cancelMultipleRfqEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		cancelAllRfqsEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		createRFQEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		cancelRFQEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		cancelMultipleRFQEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		cancelAllRFQsEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		executeQuoteEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 2, 1),
 		getQuoteProductsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		setQuoteProductsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -377,7 +377,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		cancelQuoteEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 50, 1),
 		cancelMultipleQuotesEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		cancelAllQuotesEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getRfqsEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getRFQsEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		getQuotesEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		getTradesEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getTradesHistoryEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),

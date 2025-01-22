@@ -31,9 +31,9 @@ import (
 )
 
 var (
-	candlestickChannelsMap    = map[string]bool{okxChannelCandle1Y: true, okxChannelCandle6M: true, okxChannelCandle3M: true, okxChannelCandle1M: true, okxChannelCandle1W: true, okxChannelCandle1D: true, okxChannelCandle2D: true, okxChannelCandle3D: true, okxChannelCandle5D: true, okxChannelCandle12H: true, okxChannelCandle6H: true, okxChannelCandle4H: true, okxChannelCandle2H: true, okxChannelCandle1H: true, okxChannelCandle30m: true, okxChannelCandle15m: true, okxChannelCandle5m: true, okxChannelCandle3m: true, okxChannelCandle1m: true, okxChannelCandle1Yutc: true, okxChannelCandle3Mutc: true, okxChannelCandle1Mutc: true, okxChannelCandle1Wutc: true, okxChannelCandle1Dutc: true, okxChannelCandle2Dutc: true, okxChannelCandle3Dutc: true, okxChannelCandle5Dutc: true, okxChannelCandle12Hutc: true, okxChannelCandle6Hutc: true}
-	candlesticksMarkPriceMap  = map[string]bool{okxChannelMarkPriceCandle1Y: true, okxChannelMarkPriceCandle6M: true, okxChannelMarkPriceCandle3M: true, okxChannelMarkPriceCandle1M: true, okxChannelMarkPriceCandle1W: true, okxChannelMarkPriceCandle1D: true, okxChannelMarkPriceCandle2D: true, okxChannelMarkPriceCandle3D: true, okxChannelMarkPriceCandle5D: true, okxChannelMarkPriceCandle12H: true, okxChannelMarkPriceCandle6H: true, okxChannelMarkPriceCandle4H: true, okxChannelMarkPriceCandle2H: true, okxChannelMarkPriceCandle1H: true, okxChannelMarkPriceCandle30m: true, okxChannelMarkPriceCandle15m: true, okxChannelMarkPriceCandle5m: true, okxChannelMarkPriceCandle3m: true, okxChannelMarkPriceCandle1m: true, okxChannelMarkPriceCandle1Yutc: true, okxChannelMarkPriceCandle3Mutc: true, okxChannelMarkPriceCandle1Mutc: true, okxChannelMarkPriceCandle1Wutc: true, okxChannelMarkPriceCandle1Dutc: true, okxChannelMarkPriceCandle2Dutc: true, okxChannelMarkPriceCandle3Dutc: true, okxChannelMarkPriceCandle5Dutc: true, okxChannelMarkPriceCandle12Hutc: true, okxChannelMarkPriceCandle6Hutc: true}
-	candlesticksIndexPriceMap = map[string]bool{okxChannelIndexCandle1Y: true, okxChannelIndexCandle6M: true, okxChannelIndexCandle3M: true, okxChannelIndexCandle1M: true, okxChannelIndexCandle1W: true, okxChannelIndexCandle1D: true, okxChannelIndexCandle2D: true, okxChannelIndexCandle3D: true, okxChannelIndexCandle5D: true, okxChannelIndexCandle12H: true, okxChannelIndexCandle6H: true, okxChannelIndexCandle4H: true, okxChannelIndexCandle2H: true, okxChannelIndexCandle1H: true, okxChannelIndexCandle30m: true, okxChannelIndexCandle15m: true, okxChannelIndexCandle5m: true, okxChannelIndexCandle3m: true, okxChannelIndexCandle1m: true, okxChannelIndexCandle1Yutc: true, okxChannelIndexCandle3Mutc: true, okxChannelIndexCandle1Mutc: true, okxChannelIndexCandle1Wutc: true, okxChannelIndexCandle1Dutc: true, okxChannelIndexCandle2Dutc: true, okxChannelIndexCandle3Dutc: true, okxChannelIndexCandle5Dutc: true, okxChannelIndexCandle12Hutc: true, okxChannelIndexCandle6Hutc: true}
+	candlestickChannelsMap    = map[string]bool{channelCandle1Y: true, channelCandle6M: true, channelCandle3M: true, channelCandle1M: true, channelCandle1W: true, channelCandle1D: true, channelCandle2D: true, channelCandle3D: true, channelCandle5D: true, channelCandle12H: true, channelCandle6H: true, channelCandle4H: true, channelCandle2H: true, channelCandle1H: true, channelCandle30m: true, channelCandle15m: true, channelCandle5m: true, channelCandle3m: true, channelCandle1m: true, channelCandle1Yutc: true, channelCandle3Mutc: true, channelCandle1Mutc: true, channelCandle1Wutc: true, channelCandle1Dutc: true, channelCandle2Dutc: true, channelCandle3Dutc: true, channelCandle5Dutc: true, channelCandle12Hutc: true, channelCandle6Hutc: true}
+	candlesticksMarkPriceMap  = map[string]bool{channelMarkPriceCandle1Y: true, channelMarkPriceCandle6M: true, channelMarkPriceCandle3M: true, channelMarkPriceCandle1M: true, channelMarkPriceCandle1W: true, channelMarkPriceCandle1D: true, channelMarkPriceCandle2D: true, channelMarkPriceCandle3D: true, channelMarkPriceCandle5D: true, channelMarkPriceCandle12H: true, channelMarkPriceCandle6H: true, channelMarkPriceCandle4H: true, channelMarkPriceCandle2H: true, channelMarkPriceCandle1H: true, channelMarkPriceCandle30m: true, channelMarkPriceCandle15m: true, channelMarkPriceCandle5m: true, channelMarkPriceCandle3m: true, channelMarkPriceCandle1m: true, channelMarkPriceCandle1Yutc: true, channelMarkPriceCandle3Mutc: true, channelMarkPriceCandle1Mutc: true, channelMarkPriceCandle1Wutc: true, channelMarkPriceCandle1Dutc: true, channelMarkPriceCandle2Dutc: true, channelMarkPriceCandle3Dutc: true, channelMarkPriceCandle5Dutc: true, channelMarkPriceCandle12Hutc: true, channelMarkPriceCandle6Hutc: true}
+	candlesticksIndexPriceMap = map[string]bool{channelIndexCandle1Y: true, channelIndexCandle6M: true, channelIndexCandle3M: true, channelIndexCandle1M: true, channelIndexCandle1W: true, channelIndexCandle1D: true, channelIndexCandle2D: true, channelIndexCandle3D: true, channelIndexCandle5D: true, channelIndexCandle12H: true, channelIndexCandle6H: true, channelIndexCandle4H: true, channelIndexCandle2H: true, channelIndexCandle1H: true, channelIndexCandle30m: true, channelIndexCandle15m: true, channelIndexCandle5m: true, channelIndexCandle3m: true, channelIndexCandle1m: true, channelIndexCandle1Yutc: true, channelIndexCandle3Mutc: true, channelIndexCandle1Mutc: true, channelIndexCandle1Wutc: true, channelIndexCandle1Dutc: true, channelIndexCandle2Dutc: true, channelIndexCandle3Dutc: true, channelIndexCandle5Dutc: true, channelIndexCandle12Hutc: true, channelIndexCandle6Hutc: true}
 )
 
 var (
@@ -81,50 +81,50 @@ const (
 	okxDepositInfo    = "deposit-info"
 
 	// Ticker channel
-	okxChannelTickers                = "tickers"
-	okxChannelIndexTickers           = "index-tickers"
-	okxChannelStatus                 = "status"
-	okxChannelPublicStrucBlockTrades = "public-struc-block-trades"
-	okxChannelPublicBlockTrades      = "public-block-trades"
-	okxChannelBlockTickers           = "block-tickers"
+	channelTickers                = "tickers"
+	channelIndexTickers           = "index-tickers"
+	channelStatus                 = "status"
+	channelPublicStrucBlockTrades = "public-struc-block-trades"
+	channelPublicBlockTrades      = "public-block-trades"
+	channelBlockTickers           = "block-tickers"
 
 	// Private Channels
-	okxChannelAccount              = "account"
-	okxChannelPositions            = "positions"
-	okxChannelBalanceAndPosition   = "balance_and_position"
-	okxChannelOrders               = "orders"
-	okxChannelAlgoOrders           = "orders-algo"
-	okxChannelAlgoAdvance          = "algo-advance"
-	okxChannelLiquidationWarning   = "liquidation-warning"
-	okxChannelAccountGreeks        = "account-greeks"
-	okxChannelRfqs                 = "rfqs"
-	okxChannelQuotes               = "quotes"
-	okxChannelStructureBlockTrades = "struc-block-trades"
-	okxChannelSpotGridOrder        = "grid-orders-spot"
-	okxChannelGridOrdersContract   = "grid-orders-contract"
-	okxChannelGridPositions        = "grid-positions"
-	okxChannelGridSubOrders        = "grid-sub-orders"
-	okxRecurringBuyChannel         = "algo-recurring-buy"
-	okxLiquidationOrders           = "liquidation-orders"
-	okxADLWarning                  = "adl-warning"
-	okxEconomicCalendar            = "economic-calendar"
+	channelAccount              = "account"
+	channelPositions            = "positions"
+	channelBalanceAndPosition   = "balance_and_position"
+	channelOrders               = "orders"
+	channelAlgoOrders           = "orders-algo"
+	channelAlgoAdvance          = "algo-advance"
+	channelLiquidationWarning   = "liquidation-warning"
+	channelAccountGreeks        = "account-greeks"
+	channelRfqs                 = "rfqs"
+	channelQuotes               = "quotes"
+	channelStructureBlockTrades = "struc-block-trades"
+	channelSpotGridOrder        = "grid-orders-spot"
+	channelGridOrdersContract   = "grid-orders-contract"
+	channelGridPositions        = "grid-positions"
+	channelGridSubOrders        = "grid-sub-orders"
+	channelRecurringBuy         = "algo-recurring-buy"
+	liquidationOrders           = "liquidation-orders"
+	adlWarning                  = "adl-warning"
+	economicCalendar            = "economic-calendar"
 
 	// Public channels
-	okxChannelInstruments     = "instruments"
-	okxChannelOpenInterest    = "open-interest"
-	okxChannelTrades          = "trades"
-	okxChannelAllTrades       = "trades-all"
-	okxChannelEstimatedPrice  = "estimated-price"
-	okxChannelMarkPrice       = "mark-price"
-	okxChannelPriceLimit      = "price-limit"
-	okxChannelOrderBooks      = "books"
-	okxChannelOptionTrades    = "option-trades"
-	okxChannelOrderBooks5     = "books5"
-	okxChannelOrderBooks50TBT = "books50-l2-tbt"
-	okxChannelOrderBooksTBT   = "books-l2-tbt"
-	okxChannelBBOTBT          = "bbo-tbt"
-	okxChannelOptSummary      = "opt-summary"
-	okxChannelFundingRate     = "funding-rate"
+	channelInstruments     = "instruments"
+	channelOpenInterest    = "open-interest"
+	channelTrades          = "trades"
+	channelAllTrades       = "trades-all"
+	channelEstimatedPrice  = "estimated-price"
+	channelMarkPrice       = "mark-price"
+	channelPriceLimit      = "price-limit"
+	channelOrderBooks      = "books"
+	channelOptionTrades    = "option-trades"
+	channelOrderBooks5     = "books5"
+	channelOrderBooks50TBT = "books50-l2-tbt"
+	channelOrderBooksTBT   = "books-l2-tbt"
+	channelBBOTBT          = "bbo-tbt"
+	channelOptSummary      = "opt-summary"
+	channelFundingRate     = "funding-rate"
 
 	// Websocket trade endpoint operations
 	okxOpOrder             = "order"
@@ -136,100 +136,100 @@ const (
 	okxOpMassCancelOrder   = "mass-cancel"
 
 	// Candlestick lengths
-	okxChannelCandle1Y     = candle + "1Y"
-	okxChannelCandle6M     = candle + "6M"
-	okxChannelCandle3M     = candle + "3M"
-	okxChannelCandle1M     = candle + "1M"
-	okxChannelCandle1W     = candle + "1W"
-	okxChannelCandle1D     = candle + "1D"
-	okxChannelCandle2D     = candle + "2D"
-	okxChannelCandle3D     = candle + "3D"
-	okxChannelCandle5D     = candle + "5D"
-	okxChannelCandle12H    = candle + "12H"
-	okxChannelCandle6H     = candle + "6H"
-	okxChannelCandle4H     = candle + "4H"
-	okxChannelCandle2H     = candle + "2H"
-	okxChannelCandle1H     = candle + "1H"
-	okxChannelCandle30m    = candle + "30m"
-	okxChannelCandle15m    = candle + "15m"
-	okxChannelCandle5m     = candle + "5m"
-	okxChannelCandle3m     = candle + "3m"
-	okxChannelCandle1m     = candle + "1m"
-	okxChannelCandle1Yutc  = candle + "1Yutc"
-	okxChannelCandle3Mutc  = candle + "3Mutc"
-	okxChannelCandle1Mutc  = candle + "1Mutc"
-	okxChannelCandle1Wutc  = candle + "1Wutc"
-	okxChannelCandle1Dutc  = candle + "1Dutc"
-	okxChannelCandle2Dutc  = candle + "2Dutc"
-	okxChannelCandle3Dutc  = candle + "3Dutc"
-	okxChannelCandle5Dutc  = candle + "5Dutc"
-	okxChannelCandle12Hutc = candle + "12Hutc"
-	okxChannelCandle6Hutc  = candle + "6Hutc"
+	channelCandle1Y     = candle + "1Y"
+	channelCandle6M     = candle + "6M"
+	channelCandle3M     = candle + "3M"
+	channelCandle1M     = candle + "1M"
+	channelCandle1W     = candle + "1W"
+	channelCandle1D     = candle + "1D"
+	channelCandle2D     = candle + "2D"
+	channelCandle3D     = candle + "3D"
+	channelCandle5D     = candle + "5D"
+	channelCandle12H    = candle + "12H"
+	channelCandle6H     = candle + "6H"
+	channelCandle4H     = candle + "4H"
+	channelCandle2H     = candle + "2H"
+	channelCandle1H     = candle + "1H"
+	channelCandle30m    = candle + "30m"
+	channelCandle15m    = candle + "15m"
+	channelCandle5m     = candle + "5m"
+	channelCandle3m     = candle + "3m"
+	channelCandle1m     = candle + "1m"
+	channelCandle1Yutc  = candle + "1Yutc"
+	channelCandle3Mutc  = candle + "3Mutc"
+	channelCandle1Mutc  = candle + "1Mutc"
+	channelCandle1Wutc  = candle + "1Wutc"
+	channelCandle1Dutc  = candle + "1Dutc"
+	channelCandle2Dutc  = candle + "2Dutc"
+	channelCandle3Dutc  = candle + "3Dutc"
+	channelCandle5Dutc  = candle + "5Dutc"
+	channelCandle12Hutc = candle + "12Hutc"
+	channelCandle6Hutc  = candle + "6Hutc"
 
 	// Index Candlesticks Channels
-	okxChannelIndexCandle1Y     = indexCandlestick + okxChannelCandle1Y
-	okxChannelIndexCandle6M     = indexCandlestick + okxChannelCandle6M
-	okxChannelIndexCandle3M     = indexCandlestick + okxChannelCandle3M
-	okxChannelIndexCandle1M     = indexCandlestick + okxChannelCandle1M
-	okxChannelIndexCandle1W     = indexCandlestick + okxChannelCandle1W
-	okxChannelIndexCandle1D     = indexCandlestick + okxChannelCandle1D
-	okxChannelIndexCandle2D     = indexCandlestick + okxChannelCandle2D
-	okxChannelIndexCandle3D     = indexCandlestick + okxChannelCandle3D
-	okxChannelIndexCandle5D     = indexCandlestick + okxChannelCandle5D
-	okxChannelIndexCandle12H    = indexCandlestick + okxChannelCandle12H
-	okxChannelIndexCandle6H     = indexCandlestick + okxChannelCandle6H
-	okxChannelIndexCandle4H     = indexCandlestick + okxChannelCandle4H
-	okxChannelIndexCandle2H     = indexCandlestick + okxChannelCandle2H
-	okxChannelIndexCandle1H     = indexCandlestick + okxChannelCandle1H
-	okxChannelIndexCandle30m    = indexCandlestick + okxChannelCandle30m
-	okxChannelIndexCandle15m    = indexCandlestick + okxChannelCandle15m
-	okxChannelIndexCandle5m     = indexCandlestick + okxChannelCandle5m
-	okxChannelIndexCandle3m     = indexCandlestick + okxChannelCandle3m
-	okxChannelIndexCandle1m     = indexCandlestick + okxChannelCandle1m
-	okxChannelIndexCandle1Yutc  = indexCandlestick + okxChannelCandle1Yutc
-	okxChannelIndexCandle3Mutc  = indexCandlestick + okxChannelCandle3Mutc
-	okxChannelIndexCandle1Mutc  = indexCandlestick + okxChannelCandle1Mutc
-	okxChannelIndexCandle1Wutc  = indexCandlestick + okxChannelCandle1Wutc
-	okxChannelIndexCandle1Dutc  = indexCandlestick + okxChannelCandle1Dutc
-	okxChannelIndexCandle2Dutc  = indexCandlestick + okxChannelCandle2Dutc
-	okxChannelIndexCandle3Dutc  = indexCandlestick + okxChannelCandle3Dutc
-	okxChannelIndexCandle5Dutc  = indexCandlestick + okxChannelCandle5Dutc
-	okxChannelIndexCandle12Hutc = indexCandlestick + okxChannelCandle12Hutc
-	okxChannelIndexCandle6Hutc  = indexCandlestick + okxChannelCandle6Hutc
+	channelIndexCandle1Y     = indexCandlestick + channelCandle1Y
+	channelIndexCandle6M     = indexCandlestick + channelCandle6M
+	channelIndexCandle3M     = indexCandlestick + channelCandle3M
+	channelIndexCandle1M     = indexCandlestick + channelCandle1M
+	channelIndexCandle1W     = indexCandlestick + channelCandle1W
+	channelIndexCandle1D     = indexCandlestick + channelCandle1D
+	channelIndexCandle2D     = indexCandlestick + channelCandle2D
+	channelIndexCandle3D     = indexCandlestick + channelCandle3D
+	channelIndexCandle5D     = indexCandlestick + channelCandle5D
+	channelIndexCandle12H    = indexCandlestick + channelCandle12H
+	channelIndexCandle6H     = indexCandlestick + channelCandle6H
+	channelIndexCandle4H     = indexCandlestick + channelCandle4H
+	channelIndexCandle2H     = indexCandlestick + channelCandle2H
+	channelIndexCandle1H     = indexCandlestick + channelCandle1H
+	channelIndexCandle30m    = indexCandlestick + channelCandle30m
+	channelIndexCandle15m    = indexCandlestick + channelCandle15m
+	channelIndexCandle5m     = indexCandlestick + channelCandle5m
+	channelIndexCandle3m     = indexCandlestick + channelCandle3m
+	channelIndexCandle1m     = indexCandlestick + channelCandle1m
+	channelIndexCandle1Yutc  = indexCandlestick + channelCandle1Yutc
+	channelIndexCandle3Mutc  = indexCandlestick + channelCandle3Mutc
+	channelIndexCandle1Mutc  = indexCandlestick + channelCandle1Mutc
+	channelIndexCandle1Wutc  = indexCandlestick + channelCandle1Wutc
+	channelIndexCandle1Dutc  = indexCandlestick + channelCandle1Dutc
+	channelIndexCandle2Dutc  = indexCandlestick + channelCandle2Dutc
+	channelIndexCandle3Dutc  = indexCandlestick + channelCandle3Dutc
+	channelIndexCandle5Dutc  = indexCandlestick + channelCandle5Dutc
+	channelIndexCandle12Hutc = indexCandlestick + channelCandle12Hutc
+	channelIndexCandle6Hutc  = indexCandlestick + channelCandle6Hutc
 
 	// Mark price candlesticks channel
-	okxChannelMarkPriceCandle1Y     = markPrice + okxChannelCandle1Y
-	okxChannelMarkPriceCandle6M     = markPrice + okxChannelCandle6M
-	okxChannelMarkPriceCandle3M     = markPrice + okxChannelCandle3M
-	okxChannelMarkPriceCandle1M     = markPrice + okxChannelCandle1M
-	okxChannelMarkPriceCandle1W     = markPrice + okxChannelCandle1W
-	okxChannelMarkPriceCandle1D     = markPrice + okxChannelCandle1D
-	okxChannelMarkPriceCandle2D     = markPrice + okxChannelCandle2D
-	okxChannelMarkPriceCandle3D     = markPrice + okxChannelCandle3D
-	okxChannelMarkPriceCandle5D     = markPrice + okxChannelCandle5D
-	okxChannelMarkPriceCandle12H    = markPrice + okxChannelCandle12H
-	okxChannelMarkPriceCandle6H     = markPrice + okxChannelCandle6H
-	okxChannelMarkPriceCandle4H     = markPrice + okxChannelCandle4H
-	okxChannelMarkPriceCandle2H     = markPrice + okxChannelCandle2H
-	okxChannelMarkPriceCandle1H     = markPrice + okxChannelCandle1H
-	okxChannelMarkPriceCandle30m    = markPrice + okxChannelCandle30m
-	okxChannelMarkPriceCandle15m    = markPrice + okxChannelCandle15m
-	okxChannelMarkPriceCandle5m     = markPrice + okxChannelCandle5m
-	okxChannelMarkPriceCandle3m     = markPrice + okxChannelCandle3m
-	okxChannelMarkPriceCandle1m     = markPrice + okxChannelCandle1m
-	okxChannelMarkPriceCandle1Yutc  = markPrice + okxChannelCandle1Yutc
-	okxChannelMarkPriceCandle3Mutc  = markPrice + okxChannelCandle3Mutc
-	okxChannelMarkPriceCandle1Mutc  = markPrice + okxChannelCandle1Mutc
-	okxChannelMarkPriceCandle1Wutc  = markPrice + okxChannelCandle1Wutc
-	okxChannelMarkPriceCandle1Dutc  = markPrice + okxChannelCandle1Dutc
-	okxChannelMarkPriceCandle2Dutc  = markPrice + okxChannelCandle2Dutc
-	okxChannelMarkPriceCandle3Dutc  = markPrice + okxChannelCandle3Dutc
-	okxChannelMarkPriceCandle5Dutc  = markPrice + okxChannelCandle5Dutc
-	okxChannelMarkPriceCandle12Hutc = markPrice + okxChannelCandle12Hutc
-	okxChannelMarkPriceCandle6Hutc  = markPrice + okxChannelCandle6Hutc
+	channelMarkPriceCandle1Y     = markPrice + channelCandle1Y
+	channelMarkPriceCandle6M     = markPrice + channelCandle6M
+	channelMarkPriceCandle3M     = markPrice + channelCandle3M
+	channelMarkPriceCandle1M     = markPrice + channelCandle1M
+	channelMarkPriceCandle1W     = markPrice + channelCandle1W
+	channelMarkPriceCandle1D     = markPrice + channelCandle1D
+	channelMarkPriceCandle2D     = markPrice + channelCandle2D
+	channelMarkPriceCandle3D     = markPrice + channelCandle3D
+	channelMarkPriceCandle5D     = markPrice + channelCandle5D
+	channelMarkPriceCandle12H    = markPrice + channelCandle12H
+	channelMarkPriceCandle6H     = markPrice + channelCandle6H
+	channelMarkPriceCandle4H     = markPrice + channelCandle4H
+	channelMarkPriceCandle2H     = markPrice + channelCandle2H
+	channelMarkPriceCandle1H     = markPrice + channelCandle1H
+	channelMarkPriceCandle30m    = markPrice + channelCandle30m
+	channelMarkPriceCandle15m    = markPrice + channelCandle15m
+	channelMarkPriceCandle5m     = markPrice + channelCandle5m
+	channelMarkPriceCandle3m     = markPrice + channelCandle3m
+	channelMarkPriceCandle1m     = markPrice + channelCandle1m
+	channelMarkPriceCandle1Yutc  = markPrice + channelCandle1Yutc
+	channelMarkPriceCandle3Mutc  = markPrice + channelCandle3Mutc
+	channelMarkPriceCandle1Mutc  = markPrice + channelCandle1Mutc
+	channelMarkPriceCandle1Wutc  = markPrice + channelCandle1Wutc
+	channelMarkPriceCandle1Dutc  = markPrice + channelCandle1Dutc
+	channelMarkPriceCandle2Dutc  = markPrice + channelCandle2Dutc
+	channelMarkPriceCandle3Dutc  = markPrice + channelCandle3Dutc
+	channelMarkPriceCandle5Dutc  = markPrice + channelCandle5Dutc
+	channelMarkPriceCandle12Hutc = markPrice + channelCandle12Hutc
+	channelMarkPriceCandle6Hutc  = markPrice + channelCandle6Hutc
 
 	// Copy trading websocket endpoints.
-	okxCopyTrading = "copytrading-notification"
+	copyTrading = "copytrading-notification"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -241,11 +241,11 @@ var defaultSubscriptions = subscription.List{
 }
 
 var subscriptionNames = map[string]string{
-	subscription.AllTradesChannel: okxChannelTrades,
-	subscription.OrderbookChannel: okxChannelOrderBooks,
-	subscription.TickerChannel:    okxChannelTickers,
-	subscription.MyAccountChannel: okxChannelAccount,
-	subscription.MyOrdersChannel:  okxChannelOrders,
+	subscription.AllTradesChannel: channelTrades,
+	subscription.OrderbookChannel: channelOrderBooks,
+	subscription.TickerChannel:    channelTickers,
+	subscription.MyAccountChannel: channelAccount,
+	subscription.MyOrdersChannel:  channelOrders,
 }
 
 // WsConnect initiates a websocket connection
@@ -499,98 +499,98 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		return nil
 	}
 	switch resp.Argument.Channel {
-	case okxChannelCandle1Y, okxChannelCandle6M, okxChannelCandle3M, okxChannelCandle1M, okxChannelCandle1W,
-		okxChannelCandle1D, okxChannelCandle2D, okxChannelCandle3D, okxChannelCandle5D, okxChannelCandle12H,
-		okxChannelCandle6H, okxChannelCandle4H, okxChannelCandle2H, okxChannelCandle1H, okxChannelCandle30m,
-		okxChannelCandle15m, okxChannelCandle5m, okxChannelCandle3m, okxChannelCandle1m, okxChannelCandle1Yutc,
-		okxChannelCandle3Mutc, okxChannelCandle1Mutc, okxChannelCandle1Wutc, okxChannelCandle1Dutc,
-		okxChannelCandle2Dutc, okxChannelCandle3Dutc, okxChannelCandle5Dutc, okxChannelCandle12Hutc,
-		okxChannelCandle6Hutc:
+	case channelCandle1Y, channelCandle6M, channelCandle3M, channelCandle1M, channelCandle1W,
+		channelCandle1D, channelCandle2D, channelCandle3D, channelCandle5D, channelCandle12H,
+		channelCandle6H, channelCandle4H, channelCandle2H, channelCandle1H, channelCandle30m,
+		channelCandle15m, channelCandle5m, channelCandle3m, channelCandle1m, channelCandle1Yutc,
+		channelCandle3Mutc, channelCandle1Mutc, channelCandle1Wutc, channelCandle1Dutc,
+		channelCandle2Dutc, channelCandle3Dutc, channelCandle5Dutc, channelCandle12Hutc,
+		channelCandle6Hutc:
 		return ok.wsProcessCandles(respRaw)
-	case okxChannelIndexCandle1Y, okxChannelIndexCandle6M, okxChannelIndexCandle3M, okxChannelIndexCandle1M,
-		okxChannelIndexCandle1W, okxChannelIndexCandle1D, okxChannelIndexCandle2D, okxChannelIndexCandle3D,
-		okxChannelIndexCandle5D, okxChannelIndexCandle12H, okxChannelIndexCandle6H, okxChannelIndexCandle4H,
-		okxChannelIndexCandle2H, okxChannelIndexCandle1H, okxChannelIndexCandle30m, okxChannelIndexCandle15m,
-		okxChannelIndexCandle5m, okxChannelIndexCandle3m, okxChannelIndexCandle1m, okxChannelIndexCandle1Yutc,
-		okxChannelIndexCandle3Mutc, okxChannelIndexCandle1Mutc, okxChannelIndexCandle1Wutc,
-		okxChannelIndexCandle1Dutc, okxChannelIndexCandle2Dutc, okxChannelIndexCandle3Dutc, okxChannelIndexCandle5Dutc,
-		okxChannelIndexCandle12Hutc, okxChannelIndexCandle6Hutc:
+	case channelIndexCandle1Y, channelIndexCandle6M, channelIndexCandle3M, channelIndexCandle1M,
+		channelIndexCandle1W, channelIndexCandle1D, channelIndexCandle2D, channelIndexCandle3D,
+		channelIndexCandle5D, channelIndexCandle12H, channelIndexCandle6H, channelIndexCandle4H,
+		channelIndexCandle2H, channelIndexCandle1H, channelIndexCandle30m, channelIndexCandle15m,
+		channelIndexCandle5m, channelIndexCandle3m, channelIndexCandle1m, channelIndexCandle1Yutc,
+		channelIndexCandle3Mutc, channelIndexCandle1Mutc, channelIndexCandle1Wutc,
+		channelIndexCandle1Dutc, channelIndexCandle2Dutc, channelIndexCandle3Dutc, channelIndexCandle5Dutc,
+		channelIndexCandle12Hutc, channelIndexCandle6Hutc:
 		return ok.wsProcessIndexCandles(respRaw)
-	case okxChannelTickers:
+	case channelTickers:
 		return ok.wsProcessTickers(respRaw)
-	case okxChannelIndexTickers:
+	case channelIndexTickers:
 		var response WsIndexTicker
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelStatus:
+	case channelStatus:
 		var response WsSystemStatusResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelPublicStrucBlockTrades:
+	case channelPublicStrucBlockTrades:
 		var response WsPublicTradesResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelPublicBlockTrades:
+	case channelPublicBlockTrades:
 		return ok.wsProcessBlockPublicTrades(respRaw)
-	case okxChannelBlockTickers:
+	case channelBlockTickers:
 		var response WsBlockTicker
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelAccountGreeks:
+	case channelAccountGreeks:
 		var response WsGreeks
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelAccount:
+	case channelAccount:
 		var response WsAccountChannelPushData
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelPositions,
-		okxChannelLiquidationWarning:
+	case channelPositions,
+		channelLiquidationWarning:
 		var response WsPositionResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelBalanceAndPosition:
+	case channelBalanceAndPosition:
 		var response WsBalanceAndPosition
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelOrders:
+	case channelOrders:
 		return ok.wsProcessOrders(respRaw)
-	case okxChannelAlgoOrders:
+	case channelAlgoOrders:
 		var response WsAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelAlgoAdvance:
+	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelRfqs:
-		var response WsRfq
+	case channelRfqs:
+		var response WsRFQ
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelQuotes:
+	case channelQuotes:
 		var response WsQuote
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelStructureBlockTrades:
+	case channelStructureBlockTrades:
 		var response WsStructureBlocTrade
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelSpotGridOrder:
+	case channelSpotGridOrder:
 		var response WsSpotGridAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelGridOrdersContract:
+	case channelGridOrdersContract:
 		var response WsContractGridAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelGridPositions:
+	case channelGridPositions:
 		var response WsContractGridAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelGridSubOrders:
+	case channelGridSubOrders:
 		var response WsGridSubOrderData
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelInstruments:
+	case channelInstruments:
 		var response WSInstrumentResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelOpenInterest:
+	case channelOpenInterest:
 		var response WSOpenInterestResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelTrades,
-		okxChannelAllTrades:
+	case channelTrades,
+		channelAllTrades:
 		return ok.wsProcessTrades(respRaw)
-	case okxChannelEstimatedPrice:
+	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelMarkPrice,
-		okxChannelPriceLimit:
+	case channelMarkPrice,
+		channelPriceLimit:
 		var response WsMarkPrice
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelOrderBooks5:
+	case channelOrderBooks5:
 		return ok.wsProcessOrderbook5(respRaw)
 	case okxSpreadOrderbookLevel1,
 		okxSpreadOrderbook:
@@ -599,27 +599,27 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		return ok.wsProcessPublicSpreadTrades(respRaw)
 	case okxSpreadPublicTicker:
 		return ok.wsProcessPublicSpreadTicker(respRaw)
-	case okxChannelOrderBooks,
-		okxChannelOrderBooks50TBT,
-		okxChannelBBOTBT,
-		okxChannelOrderBooksTBT:
+	case channelOrderBooks,
+		channelOrderBooks50TBT,
+		channelBBOTBT,
+		channelOrderBooksTBT:
 		return ok.wsProcessOrderBooks(respRaw)
-	case okxChannelOptionTrades:
+	case channelOptionTrades:
 		return ok.wsProcessOptionTrades(respRaw)
-	case okxChannelOptSummary:
+	case channelOptSummary:
 		var response WsOptionSummary
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelFundingRate:
+	case channelFundingRate:
 		var response WsFundingRate
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelMarkPriceCandle1Y, okxChannelMarkPriceCandle6M, okxChannelMarkPriceCandle3M, okxChannelMarkPriceCandle1M,
-		okxChannelMarkPriceCandle1W, okxChannelMarkPriceCandle1D, okxChannelMarkPriceCandle2D, okxChannelMarkPriceCandle3D,
-		okxChannelMarkPriceCandle5D, okxChannelMarkPriceCandle12H, okxChannelMarkPriceCandle6H, okxChannelMarkPriceCandle4H,
-		okxChannelMarkPriceCandle2H, okxChannelMarkPriceCandle1H, okxChannelMarkPriceCandle30m, okxChannelMarkPriceCandle15m,
-		okxChannelMarkPriceCandle5m, okxChannelMarkPriceCandle3m, okxChannelMarkPriceCandle1m, okxChannelMarkPriceCandle1Yutc,
-		okxChannelMarkPriceCandle3Mutc, okxChannelMarkPriceCandle1Mutc, okxChannelMarkPriceCandle1Wutc, okxChannelMarkPriceCandle1Dutc,
-		okxChannelMarkPriceCandle2Dutc, okxChannelMarkPriceCandle3Dutc, okxChannelMarkPriceCandle5Dutc, okxChannelMarkPriceCandle12Hutc,
-		okxChannelMarkPriceCandle6Hutc:
+	case channelMarkPriceCandle1Y, channelMarkPriceCandle6M, channelMarkPriceCandle3M, channelMarkPriceCandle1M,
+		channelMarkPriceCandle1W, channelMarkPriceCandle1D, channelMarkPriceCandle2D, channelMarkPriceCandle3D,
+		channelMarkPriceCandle5D, channelMarkPriceCandle12H, channelMarkPriceCandle6H, channelMarkPriceCandle4H,
+		channelMarkPriceCandle2H, channelMarkPriceCandle1H, channelMarkPriceCandle30m, channelMarkPriceCandle15m,
+		channelMarkPriceCandle5m, channelMarkPriceCandle3m, channelMarkPriceCandle1m, channelMarkPriceCandle1Yutc,
+		channelMarkPriceCandle3Mutc, channelMarkPriceCandle1Mutc, channelMarkPriceCandle1Wutc, channelMarkPriceCandle1Dutc,
+		channelMarkPriceCandle2Dutc, channelMarkPriceCandle3Dutc, channelMarkPriceCandle5Dutc, channelMarkPriceCandle12Hutc,
+		channelMarkPriceCandle6Hutc:
 		return ok.wsHandleMarkPriceCandles(respRaw)
 	case okxSpreadOrders:
 		return ok.wsProcessSpreadOrders(respRaw)
@@ -637,22 +637,22 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 			Data      []WsWithdrawlInfo `json:"data"`
 		}{}
 		return ok.wsProcessPushData(respRaw, resp)
-	case okxRecurringBuyChannel:
+	case channelRecurringBuy:
 		resp := &struct {
 			Arguments SubscriptionInfo    `json:"arg"`
 			Data      []RecurringBuyOrder `json:"data"`
 		}{}
 		return ok.wsProcessPushData(respRaw, resp)
-	case okxLiquidationOrders:
+	case liquidationOrders:
 		var resp *LiquidationOrder
 		return ok.wsProcessPushData(respRaw, &resp)
-	case okxADLWarning:
+	case adlWarning:
 		var resp ADLWarning
 		return ok.wsProcessPushData(respRaw, &resp)
-	case okxEconomicCalendar:
+	case economicCalendar:
 		var resp EconomicCalendarResponse
 		return ok.wsProcessPushData(respRaw, &resp)
-	case okxCopyTrading:
+	case copyTrading:
 		var resp CopyTradingNotification
 		return ok.wsProcessPushData(respRaw, &resp)
 	default:
@@ -987,7 +987,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if response.Argument.Channel == okxChannelOrderBooks &&
+	if response.Argument.Channel == channelOrderBooks &&
 		response.Action != wsOrderbookUpdate &&
 		response.Action != wsOrderbookSnapshot {
 		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
@@ -1234,7 +1234,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	a := GetAssetTypeFromInstrumentType(response.Argument.InstrumentType)
+	a := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
 	for x := range response.Data {
 		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
 		if err != nil {
@@ -1421,7 +1421,7 @@ func (ok *Okx) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.
 		"channelName":     channelName,
 		"isSymbolChannel": isSymbolChannel,
 		"isAssetChannel":  isAssetChannel,
-		"instType":        ok.GetInstrumentTypeFromAssetItem,
+		"instType":        GetInstrumentTypeFromAssetItem,
 	}).Parse(subTplText)
 }
 
@@ -2004,13 +2004,13 @@ func (ok *Okx) wsChannelSubscription(ctx context.Context, operation, channel str
 	var format currency.PairFormat
 	var err error
 	if tInstrumentType {
-		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
-		if instrumentType != okxInstTypeSpot &&
-			instrumentType != okxInstTypeMargin &&
-			instrumentType != okxInstTypeSwap &&
-			instrumentType != okxInstTypeFutures &&
-			instrumentType != okxInstTypeOption {
-			instrumentType = okxInstTypeANY
+		instrumentType = GetInstrumentTypeFromAssetItem(assetType)
+		if instrumentType != instTypeSpot &&
+			instrumentType != instTypeMargin &&
+			instrumentType != instTypeSwap &&
+			instrumentType != instTypeFutures &&
+			instrumentType != instTypeOption {
+			instrumentType = instTypeANY
 		}
 	}
 	if tUnderlying {
@@ -2056,12 +2056,12 @@ func (ok *Okx) wsAuthChannelSubscription(ctx context.Context, operation, channel
 	var instrumentType string
 	var ccy string
 	if params.InstrumentType {
-		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
-		if instrumentType != okxInstTypeMargin &&
-			instrumentType != okxInstTypeSwap &&
-			instrumentType != okxInstTypeFutures &&
-			instrumentType != okxInstTypeOption {
-			instrumentType = okxInstTypeANY
+		instrumentType = GetInstrumentTypeFromAssetItem(assetType)
+		if instrumentType != instTypeMargin &&
+			instrumentType != instTypeSwap &&
+			instrumentType != instTypeFutures &&
+			instrumentType != instTypeOption {
+			instrumentType = instTypeANY
 		}
 	}
 	if params.Underlying {
@@ -2114,78 +2114,78 @@ func (ok *Okx) wsAuthChannelSubscription(ctx context.Context, operation, channel
 // events such as placing order, canceling order, transaction execution, etc.
 // It will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) WsAccountSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelAccount, assetType, pair, "", "", wsSubscriptionParameters{Currency: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelAccount, assetType, pair, "", "", wsSubscriptionParameters{Currency: true})
 }
 
 // WsPositionChannel retrieve the position data. The first snapshot will be sent in accordance with the granularity of the subscription. Data will be pushed when certain actions, such placing or canceling an order, trigger it. It will also be pushed periodically based on the granularity of the subscription.
 func (ok *Okx) WsPositionChannel(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelPositions, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelPositions, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true})
 }
 
 // BalanceAndPositionSubscription retrieve account balance and position information. Data will be pushed when triggered by events such as filled order, funding transfer.
 func (ok *Okx) BalanceAndPositionSubscription(ctx context.Context, operation, uid string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
 }
 
 // WsOrderChannel for subscribing for orders.
 func (ok *Okx) WsOrderChannel(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, _ string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
 // AlgoOrdersSubscription for subscribing to algo - order channels
 func (ok *Okx) AlgoOrdersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelAlgoOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelAlgoOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
 // AdvanceAlgoOrdersSubscription algo order subscription to retrieve advance algo orders (including Iceberg order, TWAP order, Trailing order). Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) AdvanceAlgoOrdersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelAlgoAdvance, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, InstrumentID: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelAlgoAdvance, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, InstrumentID: true})
 }
 
 // PositionRiskWarningSubscription this push channel is only used as a risk warning, and is not recommended as a risk judgment for strategic trading
 // In the case that the market is not moving violently, there may be the possibility that the position has been liquidated at the same time that this message is pushed.
 func (ok *Okx) PositionRiskWarningSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelLiquidationWarning, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelLiquidationWarning, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
 // AccountGreeksSubscription algo order subscription to retrieve account greeks information. Data will be pushed when triggered by events such as increase/decrease positions or cash balance in account, and will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) AccountGreeksSubscription(ctx context.Context, operation string, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelAccountGreeks, asset.Empty, pair, "", "", wsSubscriptionParameters{Currency: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelAccountGreeks, asset.Empty, pair, "", "", wsSubscriptionParameters{Currency: true})
 }
 
-// RfqSubscription subscription to retrieve Rfq updates on Rfq orders.
-func (ok *Okx) RfqSubscription(ctx context.Context, operation, uid string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelRfqs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
+// RFQSubscription subscription to retrieve RFQ updates on RFQ orders.
+func (ok *Okx) RFQSubscription(ctx context.Context, operation, uid string) error {
+	return ok.wsAuthChannelSubscription(ctx, operation, channelRfqs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
 }
 
 // QuotesSubscription subscription to retrieve Quote subscription
 func (ok *Okx) QuotesSubscription(ctx context.Context, operation string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelQuotes, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelQuotes, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParameters{})
 }
 
 // StructureBlockTradesSubscription to retrieve Structural block subscription
 func (ok *Okx) StructureBlockTradesSubscription(ctx context.Context, operation string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelStructureBlockTrades, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelStructureBlockTrades, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParameters{})
 }
 
 // SpotGridAlgoOrdersSubscription to retrieve spot grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) SpotGridAlgoOrdersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelSpotGridOrder, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, Underlying: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelSpotGridOrder, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, Underlying: true})
 }
 
 // ContractGridAlgoOrders to retrieve contract grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) ContractGridAlgoOrders(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelGridOrdersContract, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, Underlying: true})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelGridOrdersContract, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, Underlying: true})
 }
 
 // GridPositionsSubscription to retrieve grid positions. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) GridPositionsSubscription(ctx context.Context, operation, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelGridPositions, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelGridPositions, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
 }
 
 // GridSubOrders to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
 func (ok *Okx) GridSubOrders(ctx context.Context, operation, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, okxChannelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(ctx, operation, channelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
 }
 
 // Public Websocket stream subscription
@@ -2194,12 +2194,12 @@ func (ok *Okx) GridSubOrders(ctx context.Context, operation, algoID string) erro
 // for the first time after subscription. Subsequently, the instruments will be pushed if there is any change to the instrument’s state (such as delivery of FUTURES,
 // exercise of OPTION, listing of new contracts / trading pairs, trading suspension, etc.).
 func (ok *Okx) InstrumentsSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelInstruments, assetType, pair, true, false, false)
+	return ok.wsChannelSubscription(ctx, operation, channelInstruments, assetType, pair, true, false, false)
 }
 
 // TickersSubscription subscribing to "ticker" channel to retrieve the last traded price, bid price, ask price and 24-hour trading volume of instruments. Data will be pushed every 100 ms.
 func (ok *Okx) TickersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelTickers, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelTickers, assetType, pair, false, true, false)
 }
 
 // OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will be pushed every 3 seconds.
@@ -2207,7 +2207,7 @@ func (ok *Okx) OpenInterestSubscription(ctx context.Context, operation string, a
 	if assetType != asset.Futures && assetType != asset.Options && assetType != asset.PerpetualSwap {
 		return fmt.Errorf("%w, received '%v' only FUTURES, SWAP and OPTION asset types are supported", errInvalidInstrumentType, assetType)
 	}
-	return ok.wsChannelSubscription(ctx, operation, okxChannelOpenInterest, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelOpenInterest, assetType, pair, false, true, false)
 }
 
 // CandlesticksSubscription to subscribe or unsubscribe to "candle" channels to retrieve the candlesticks data of an instrument. the push frequency is the fastest interval 500ms push the data.
@@ -2220,7 +2220,7 @@ func (ok *Okx) CandlesticksSubscription(ctx context.Context, operation, channel 
 
 // TradesSubscription to subscribe or unsubscribe to "trades" channel to retrieve the recent trades data. Data will be pushed whenever there is a trade. Every update contain only one trade.
 func (ok *Okx) TradesSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelTrades, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelTrades, assetType, pair, false, true, false)
 }
 
 // EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
@@ -2228,12 +2228,12 @@ func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(ctx context.Context, o
 	if assetType != asset.Futures && assetType != asset.Options {
 		return fmt.Errorf("%w, received '%v' only FUTURES and OPTION asset types are supported", errInvalidInstrumentType, assetType)
 	}
-	return ok.wsChannelSubscription(ctx, operation, okxChannelEstimatedPrice, assetType, pair, true, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelEstimatedPrice, assetType, pair, true, true, false)
 }
 
 // MarkPriceSubscription to subscribe or unsubscribe to the "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
 func (ok *Okx) MarkPriceSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelMarkPrice, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelMarkPrice, assetType, pair, false, true, false)
 }
 
 // MarkPriceCandlesticksSubscription to subscribe or unsubscribe to "mark-price-candles" channels to retrieve the candlesticks data of the mark price. Data will be pushed every 500 ms.
@@ -2249,12 +2249,12 @@ func (ok *Okx) PriceLimitSubscription(ctx context.Context, operation string, ass
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
 	}
-	return ok.wsChannelSubscription(ctx, operation, okxChannelPriceLimit, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelPriceLimit, assetType, pair, false, true, false)
 }
 
 // OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
 func (ok *Okx) OrderBooksSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair) error {
-	if channel != okxChannelOrderBooks && channel != okxChannelOrderBooks5 && channel != okxChannelOrderBooks50TBT && channel != okxChannelOrderBooksTBT && channel != okxChannelBBOTBT {
+	if channel != channelOrderBooks && channel != channelOrderBooks5 && channel != channelOrderBooks50TBT && channel != channelOrderBooksTBT && channel != channelBBOTBT {
 		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
 	}
 	return ok.wsChannelSubscription(ctx, operation, channel, assetType, pair, false, true, false)
@@ -2263,13 +2263,13 @@ func (ok *Okx) OrderBooksSubscription(ctx context.Context, operation, channel st
 // OptionSummarySubscription a method to subscribe or unsubscribe to "opt-summary" channel
 // to retrieve detailed pricing information of all OPTION contracts. Data will be pushed at once.
 func (ok *Okx) OptionSummarySubscription(ctx context.Context, operation string, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelOptSummary, asset.Options, pair, false, false, true)
+	return ok.wsChannelSubscription(ctx, operation, channelOptSummary, asset.Options, pair, false, false, true)
 }
 
 // FundingRateSubscription a method to subscribe and unsubscribe to "funding-rate" channel.
 // retrieve funding rate. Data will be pushed in 30s to 90s.
 func (ok *Okx) FundingRateSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelFundingRate, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelFundingRate, assetType, pair, false, true, false)
 }
 
 // IndexCandlesticksSubscription a method to subscribe and unsubscribe to "index-candle*" channel
@@ -2283,30 +2283,30 @@ func (ok *Okx) IndexCandlesticksSubscription(ctx context.Context, operation, cha
 
 // IndexTickerChannel a method to subscribe and unsubscribe to "index-tickers" channel
 func (ok *Okx) IndexTickerChannel(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelIndexTickers, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelIndexTickers, assetType, pair, false, true, false)
 }
 
 // StatusSubscription get the status of system maintenance and push when the system maintenance status changes.
 // First subscription: "Push the latest change data"; every time there is a state change, push the changed content
 func (ok *Okx) StatusSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelStatus, assetType, pair, false, false, false)
+	return ok.wsChannelSubscription(ctx, operation, channelStatus, assetType, pair, false, false, false)
 }
 
 // PublicStructureBlockTradesSubscription a method to subscribe or unsubscribe to "public-struc-block-trades" channel
 func (ok *Okx) PublicStructureBlockTradesSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelPublicStrucBlockTrades, assetType, pair, false, false, false)
+	return ok.wsChannelSubscription(ctx, operation, channelPublicStrucBlockTrades, assetType, pair, false, false, false)
 }
 
 // BlockTickerSubscription a method to subscribe and unsubscribe to a "block-tickers" channel to retrieve the latest block trading volume in the last 24 hours.
 // The data will be pushed when triggered by transaction execution event. In addition, it will also be pushed in 5 minutes interval according to subscription granularity.
 func (ok *Okx) BlockTickerSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelBlockTickers, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelBlockTickers, assetType, pair, false, true, false)
 }
 
 // PublicBlockTradesSubscription a method to subscribe and unsubscribe to a "public-block-trades" channel to retrieve the recent block trades data by individual legs.
 // Each leg in a block trade is pushed in a separate update. Data will be pushed whenever there is a block trade.
 func (ok *Okx) PublicBlockTradesSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, okxChannelPublicBlockTrades, assetType, pair, false, true, false)
+	return ok.wsChannelSubscription(ctx, operation, channelPublicBlockTrades, assetType, pair, false, true, false)
 }
 
 // Websocket Spread Trade methods
@@ -2568,7 +2568,7 @@ func isAssetChannel(s *subscription.Subscription) bool {
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
 	switch s.Channel {
-	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, okxChannelFundingRate:
+	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
 		return true
 	}
 	return false
