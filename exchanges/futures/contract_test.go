@@ -25,7 +25,7 @@ func TestStringToContractSettlementType(t *testing.T) {
 	}
 	for x, v := range contractSettlementTypesMap {
 		val, err := StringToContractSettlementType(x)
-		assert.Equal(t, val, v.CT, "got %v, expected %v", val, v.CT)
+		assert.Equal(t, v.CT, val)
 		assert.ErrorIs(t, err, v.Error)
 	}
 }
@@ -42,7 +42,7 @@ func TestContractSettlementTypeString(t *testing.T) {
 		ContractSettlementType(200): "unknown",
 	}
 	for k, v := range contractSettlementTypeToStringMap {
-		assert.Equal(t, k.String(), v)
+		assert.Equal(t, v, k.String())
 	}
 }
 
@@ -65,7 +65,7 @@ func TestContractTypeToString(t *testing.T) {
 		UnsetContractType: "unset",
 		ContractType(200): "unset",
 	}
-	for k := range contractTypeToStringMap {
-		assert.Equal(t, k.String(), contractTypeToStringMap[k])
+	for k, v := range contractTypeToStringMap {
+		assert.Equal(t, v, k.String())
 	}
 }

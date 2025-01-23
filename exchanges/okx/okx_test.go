@@ -3258,21 +3258,26 @@ func TestSystemStatusResponse(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-var instrumentTypeToAssetTypeMap = map[string]asset.Item{
-	instTypeSwap:     asset.PerpetualSwap,
-	instTypeContract: asset.PerpetualSwap,
-	instTypeSpot:     asset.Spot,
-	instTypeMargin:   asset.Margin,
-	instTypeFutures:  asset.Futures,
-	instTypeOption:   asset.Options,
-	"":               asset.Empty,
-	"lol":            asset.Empty,
+var instrumentTypeToAssetTypeMap = map[string]struct {
+	AssetType asset.Item
+	Error     error
+}{
+	instTypeSwap:     {AssetType: asset.PerpetualSwap},
+	instTypeContract: {AssetType: asset.PerpetualSwap},
+	instTypeSpot:     {AssetType: asset.Spot},
+	instTypeMargin:   {AssetType: asset.Margin},
+	instTypeFutures:  {AssetType: asset.Futures},
+	instTypeOption:   {AssetType: asset.Options},
+	"":               {AssetType: asset.Empty},
+	"lol":            {AssetType: asset.Empty, Error: asset.ErrNotSupported},
 }
 
 func TestAssetTypeFromInstrumentType(t *testing.T) {
 	t.Parallel()
 	for k, v := range instrumentTypeToAssetTypeMap {
-		assert.Equal(t, v, AssetTypeFromInstrumentType(k))
+		assetItem, err := AssetTypeFromInstrumentType(k)
+		require.ErrorIs(t, err, v.Error)
+		assert.Equal(t, v.AssetType, assetItem)
 	}
 }
 
@@ -4628,7 +4633,7 @@ func TestGetIntervalEnum(t *testing.T) {
 		{Description: "kline.ThreeMonth ", Interval: kline.ThreeMonth, Expected: "3M"},
 		{Description: "kline.SixMonth ", Interval: kline.SixMonth, Expected: "6M"},
 		{Description: "kline.OneYear ", Interval: kline.OneYear, Expected: "1Y"},
-		{Description: "kline.SixHour + utc", Interval: kline.SixHour, Expected: "6Hutc", AppendUTC: true},
+		{Description: "kline.SixHour + UTC", Interval: kline.SixHour, Expected: "6Hutc", AppendUTC: true},
 		{Description: "kline.TwelveHour + UTC ", Interval: kline.TwelveHour, Expected: "12Hutc", AppendUTC: true},
 		{Description: "kline.OneDay + UTC ", Interval: kline.OneDay, Expected: "1Dutc", AppendUTC: true},
 		{Description: "kline.TwoDay + UTC ", Interval: kline.TwoDay, Expected: "2Dutc", AppendUTC: true},
@@ -4735,7 +4740,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	is, err := ok.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
 	require.NoError(t, err)
-	require.False(t, is, "expected false")
+	require.False(t, is)
 
 	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
 	require.NoError(t, err)
@@ -4758,7 +4763,10 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		if a != asset.Spot {
 			symbol = ok.CurrencyPairs.Pairs[a].Enabled[0].String()
 		}
-		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID(a.String(), symbol)
+		instrumentTypeString, err := AssetTypeString(a)
+		require.NoError(t, err)
+
+		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID(instrumentTypeString, symbol)
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		require.Len(t, assets, 1)
 		assert.Equalf(t, a, assets[0], "Should contain asset: %s", a)
@@ -6667,7 +6675,7 @@ func TestMarginTypeToString(t *testing.T) {
 	marginTypeToStringMap := map[margin.Type]string{
 		margin.Isolated:     "isolated",
 		margin.Multi:        "cross",
-		margin.Cash:         "cash",
+		margin.NoMargin:     "cash",
 		margin.SpotIsolated: "spot_isolated",
 		margin.Unset:        "",
 	}

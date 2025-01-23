@@ -59,6 +59,7 @@ const (
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
 	swap                   = "swap"
+	spread                 = "spread"
 	futures                = "futures"
 	deliveryFutures        = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
@@ -69,7 +70,6 @@ const (
 	options                = "options"
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
-	spread                 = "spread"
 	linearContract         = "linearcontract"
 	all                    = "all"
 )
@@ -102,6 +102,8 @@ func (a Item) String() string {
 		return perpetualContract
 	case PerpetualSwap:
 		return perpetualSwap
+	case Spread:
+		return spread
 	case Futures:
 		return futures
 	case DeliveryFutures:
@@ -118,8 +120,6 @@ func (a Item) String() string {
 		return usdcMarginedFutures
 	case Options:
 		return options
-	case Spread:
-		return spread
 	case OptionCombo:
 		return optionCombo
 	case FutureCombo:
@@ -224,6 +224,8 @@ func New(input string) (Item, error) {
 		return PerpetualContract, nil
 	case perpetualSwap, swap:
 		return PerpetualSwap, nil
+	case spread:
+		return Spread, nil
 	case futures:
 		return Futures, nil
 	case upsideProfitContract:
@@ -238,8 +240,6 @@ func New(input string) (Item, error) {
 		return USDCMarginedFutures, nil
 	case options, "option":
 		return Options, nil
-	case spread:
-		return Spread, nil
 	case optionCombo:
 		return OptionCombo, nil
 	case futureCombo:

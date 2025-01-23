@@ -798,35 +798,22 @@ type PlaceOrderRequestParam struct {
 }
 
 // OrderData response message for place, cancel, and amend an order requests.
-// implements the StatusCodeHolder interface
 type OrderData struct {
 	OrderID       string `json:"ordId,omitempty"`
 	RequestID     string `json:"reqId,omitempty"`
 	ClientOrderID string `json:"clOrdId,omitempty"`
 	Tag           string `json:"tag,omitempty"`
-	SCode         string `json:"sCode,omitempty"`
-	SMessage      string `json:"sMsg,omitempty"`
+	StatusCode    string `json:"sCode,omitempty"`
+	StatusMessage string `json:"sMsg,omitempty"`
 }
-
-// GetSCode returns a status code value
-func (a *OrderData) GetSCode() string { return a.SCode }
-
-// GetSMsg returns a status message value
-func (a *OrderData) GetSMsg() string { return a.SMessage }
 
 // ResponseSuccess holds responses having a status result value
 type ResponseSuccess struct {
 	Result bool `json:"result"`
 
-	SCode    string `json:"sCode,omitempty"`
-	SMessage string `json:"sMsg,omitempty"`
+	StatusCode    string `json:"sCode,omitempty"`
+	StatusMessage string `json:"sMsg,omitempty"`
 }
-
-// GetSCode returns a status code value
-func (a *ResponseSuccess) GetSCode() string { return a.SCode }
-
-// GetSMsg returns a status message value
-func (a *ResponseSuccess) GetSMsg() string { return a.SMessage }
 
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
@@ -1125,7 +1112,7 @@ type AlgoOrderParams struct {
 type AlgoOrder struct {
 	AlgoID            string `json:"algoId"`
 	StatusCode        string `json:"sCode"`
-	StatusMsg         string `json:"sMsg"`
+	StatusMessage     string `json:"sMsg"`
 	ClientOrderID     string `json:"clOrdId"`
 	AlgoClientOrderID string `json:"algoClOrdId"`
 	Tag               string `json:"tag"`
@@ -1171,8 +1158,8 @@ type AmendAlgoResponse struct {
 	AlgoClientOrderID string `json:"algoClOrdId"`
 	AlgoID            string `json:"algoId"`
 	ReqID             string `json:"reqId"`
-	SCode             string `json:"sCode"`
-	SMsg              string `json:"sMsg"`
+	StatusCode        string `json:"sCode"`
+	StatusMessage     string `json:"sMsg"`
 }
 
 // AlgoOrderDetail represents an algo order detail
@@ -2355,10 +2342,10 @@ type CancelRFQRequestsParam struct {
 
 // CancelRFQResponse represents cancel RFQ orders response
 type CancelRFQResponse struct {
-	RFQID       string `json:"rfqId"`
-	ClientRFQID string `json:"clRfqId"`
-	StatusCode  string `json:"sCode"`
-	StatusMsg   string `json:"sMsg"`
+	RFQID         string `json:"rfqId"`
+	ClientRFQID   string `json:"clRfqId"`
+	StatusCode    string `json:"sCode"`
+	StatusMessage string `json:"sMsg"`
 }
 
 // MMPStatusResponse holds MMP reset status response
@@ -2479,8 +2466,8 @@ type CancelQuotesRequestParams struct {
 type CancelQuoteResponse struct {
 	QuoteID       string `json:"quoteId"`
 	ClientQuoteID string `json:"clQuoteId"`
-	SCode         string `json:"sCode"`
-	SMsg          string `json:"sMsg"`
+	StatusCode    string `json:"sCode"`
+	StatusMessage string `json:"sMsg"`
 }
 
 // RFQRequestParams represents get RFQ orders param
@@ -2750,9 +2737,9 @@ type GridAlgoOrder struct {
 
 // GridAlgoOrderIDResponse represents grid algo order
 type GridAlgoOrderIDResponse struct {
-	AlgoOrderID string `json:"algoId"`
-	SCode       string `json:"sCode"`
-	SMsg        string `json:"sMsg"`
+	AlgoOrderID   string `json:"algoId"`
+	StatusCode    string `json:"sCode"`
+	StatusMessage string `json:"sMsg"`
 }
 
 // StopGridAlgoOrderParam holds stop grid algo order parameter
@@ -2946,26 +2933,14 @@ type SpreadOrderParam struct {
 
 // SpreadOrderResponse represents a spread create order response
 type SpreadOrderResponse struct {
-	SCode         string `json:"sCode"`
-	SMsg          string `json:"sMsg"`
+	StatusCode    string `json:"sCode"`
+	StatusMessage string `json:"sMsg"`
 	ClientOrderID string `json:"clOrdId"`
 	OrderID       string `json:"ordId"`
 	Tag           string `json:"tag"`
 
 	// Added when amending spread order through websocket
 	RequestID string `json:"reqId"`
-}
-
-// GetSCode returns a status code value
-func (a *SpreadOrderResponse) GetSCode() string { return a.SCode }
-
-// GetSMsg returns a status message value
-func (a *SpreadOrderResponse) GetSMsg() string { return a.SMsg }
-
-// StatusCodeHolder interface to represent structs which has a status code information
-type StatusCodeHolder interface {
-	GetSCode() string
-	GetSMsg() string
 }
 
 // AmendSpreadOrderParam holds amend parameters for spread order
@@ -3150,20 +3125,13 @@ type WsPlaceOrderResponse struct {
 }
 
 // SpreadOrderInfo holds spread order response information
-// implements the StatusCodeHolder interface
 type SpreadOrderInfo struct {
 	ClientOrderID string `json:"clOrdId"`
 	OrderID       string `json:"ordId"`
 	Tag           string `json:"tag"`
-	SCode         string `json:"sCode"`
-	SMsg          string `json:"sMsg"`
+	StatusCode    string `json:"sCode"`
+	StatusMessage string `json:"sMsg"`
 }
-
-// GetSCode returns a status code value
-func (a *SpreadOrderInfo) GetSCode() string { return a.SCode }
-
-// GetSMsg returns a status message value
-func (a *SpreadOrderInfo) GetSMsg() string { return a.SMsg }
 
 type wsRequestInfo struct {
 	ID             string
@@ -3175,10 +3143,10 @@ type wsRequestInfo struct {
 }
 
 type wsIncomingData struct {
-	Event    string           `json:"event,omitempty"`
-	Argument SubscriptionInfo `json:"arg,omitempty"`
-	Code     string           `json:"code,omitempty"`
-	Message  string           `json:"msg,omitempty"`
+	Event      string           `json:"event,omitempty"`
+	Argument   SubscriptionInfo `json:"arg,omitempty"`
+	StatusCode string           `json:"code,omitempty"`
+	Message    string           `json:"msg,omitempty"`
 
 	// For Websocket Trading Endpoints websocket responses
 	ID        string          `json:"id,omitempty"`
@@ -3256,7 +3224,7 @@ func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingDat
 		return common.ErrNilPointer
 	}
 	a.ID = incoming.ID
-	a.Code = incoming.Code
+	a.Code = incoming.StatusCode
 	a.Operation = incoming.Operation
 	a.Msg = incoming.Message
 	return nil
@@ -4029,14 +3997,14 @@ type SubOrder struct {
 
 // SignalBotEventHistory holds history information for signal bot
 type SignalBotEventHistory struct {
-	AlertMsg          time.Time  `json:"alertMsg"`
-	AlgoID            string     `json:"algoId"`
-	EventCreationTime types.Time `json:"eventCtime"`
-	EventProcessMsg   string     `json:"eventProcessMsg"`
-	EventStatus       string     `json:"eventStatus"`
-	EventUtime        types.Time `json:"eventUtime"`
-	EventType         string     `json:"eventType"`
-	TriggeredOrdData  []struct {
+	AlertMsg            time.Time  `json:"alertMsg"`
+	AlgoID              string     `json:"algoId"`
+	EventCreationTime   types.Time `json:"eventCtime"`
+	EventProcessMessage string     `json:"eventProcessMsg"`
+	EventStatus         string     `json:"eventStatus"`
+	EventUtime          types.Time `json:"eventUtime"`
+	EventType           string     `json:"eventType"`
+	TriggeredOrdData    []struct {
 		ClientOrderID string `json:"clOrdId"`
 	} `json:"triggeredOrdData"`
 }
@@ -4081,8 +4049,8 @@ type RecurringListItemDetailed struct {
 type RecurringOrderResponse struct {
 	AlgoID            string `json:"algoId"`
 	AlgoClientOrderID string `json:"algoClOrdId"`
-	SCode             string `json:"sCode"`
-	SMsg              string `json:"sMsg"`
+	StatusCode        string `json:"sCode"`
+	StatusMessage     string `json:"sMsg"`
 }
 
 // AmendRecurringOrderParam holds recurring order params

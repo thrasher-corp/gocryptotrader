@@ -19,8 +19,8 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	a.InstrumentType = AssetTypeFromInstrumentType(chil.InstrumentType)
-	return nil
+	a.InstrumentType, err = AssetTypeFromInstrumentType(chil.InstrumentType)
+	return err
 }
 
 // MarshalJSON serialized QuoteLeg instance into bytes

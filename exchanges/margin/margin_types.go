@@ -78,8 +78,8 @@ const (
 	// Multi means a margin trade is not isolated from other margin trades
 	// it can sometimes be referred to as "cross"
 	Multi
-	// Cash indicates a trade that is conducted in non-margin mode, i.e., no borrowing of funds is involved.
-	Cash
+	// NoMargin indicates a trade that is conducted in non-margin mode, i.e., no borrowing of funds is involved.
+	NoMargin
 	// SpotIsolated indicates a margin trade that uses isolated margin mode for spot trading only.
 	// Each position has its own margin, and risks are isolated to that position.
 	SpotIsolated
@@ -87,7 +87,7 @@ const (
 	Unknown
 )
 
-var supported = Isolated | Multi | Cash | SpotIsolated
+var supported = Isolated | Multi | NoMargin | SpotIsolated
 
 const (
 	unsetStr        = ""

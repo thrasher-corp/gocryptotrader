@@ -13,7 +13,7 @@ func TestValid(t *testing.T) {
 	t.Parallel()
 	require.True(t, Isolated.Valid())
 	require.True(t, Multi.Valid())
-	require.True(t, Cash.Valid())
+	require.True(t, NoMargin.Valid())
 	require.True(t, SpotIsolated.Valid())
 	require.False(t, Unset.Valid())
 	require.False(t, Unknown.Valid())
@@ -30,27 +30,27 @@ func TestUnmarshalJSON(t *testing.T) {
 	jason := []byte(`{"margin":"isolated"}`)
 	err := json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
-	assert.Equalf(t, Isolated, alien.M, "received '%v' expected '%v'", alien.M, Isolated)
+	assert.Equal(t, Isolated.String(), alien.M.String())
 
 	jason = []byte(`{"margin":"cross"}`)
 	err = json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
-	assert.Equalf(t, Multi, alien.M, "received '%v' expected '%v'", alien.M, Multi)
+	assert.Equal(t, Multi.String(), alien.M.String())
 
 	jason = []byte(`{"margin":"cash"}`)
 	err = json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
-	assert.Equalf(t, Cash, alien.M, "received '%v' expected '%v'", alien.M, Cash)
+	assert.Equal(t, NoMargin.String(), alien.M.String())
 
 	jason = []byte(`{"margin":"spot_isolated"}`)
 	err = json.Unmarshal(jason, &alien)
 	assert.NoError(t, err)
-	assert.Equalf(t, SpotIsolated, alien.M, "received '%v' expected '%v'", alien.M, SpotIsolated)
+	assert.Equal(t, SpotIsolated.String(), alien.M.String())
 
 	jason = []byte(`{"margin":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
 	require.ErrorIs(t, err, ErrInvalidMarginType)
-	assert.Equalf(t, Unknown, alien.M, "received '%v' expected '%v'", alien.M, Unknown)
+	assert.Equal(t, Unknown.String(), alien.M.String())
 }
 
 func TestString(t *testing.T) {
@@ -60,18 +60,18 @@ func TestString(t *testing.T) {
 	assert.Equal(t, multiStr, Multi.String())
 	assert.Equal(t, unsetStr, Unset.String())
 	assert.Equal(t, spotIsolatedStr, SpotIsolated.String())
-	assert.Equal(t, cashStr, Cash.String())
+	assert.Equal(t, cashStr, NoMargin.String())
 	assert.Equal(t, "", Type(30).String())
 }
 
 func TestUpper(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, Unknown.Upper(), strings.ToUpper(unknownStr))
-	assert.Equal(t, Isolated.Upper(), strings.ToUpper(isolatedStr))
-	assert.Equal(t, Multi.Upper(), strings.ToUpper(multiStr))
-	assert.Equal(t, SpotIsolated.Upper(), strings.ToUpper(spotIsolatedStr))
-	assert.Equal(t, Cash.Upper(), strings.ToUpper(cashStr))
-	assert.Equal(t, Unset.Upper(), strings.ToUpper(unsetStr))
+	assert.Equal(t, strings.ToUpper(unknownStr), Unknown.Upper())
+	assert.Equal(t, strings.ToUpper(isolatedStr), Isolated.Upper())
+	assert.Equal(t, strings.ToUpper(multiStr), Multi.Upper())
+	assert.Equal(t, strings.ToUpper(spotIsolatedStr), SpotIsolated.Upper())
+	assert.Equal(t, strings.ToUpper(cashStr), NoMargin.Upper())
+	assert.Equal(t, strings.ToUpper(unsetStr), Unset.Upper())
 }
 
 func TestIsValidString(t *testing.T) {
@@ -94,25 +94,25 @@ func TestStringToMarginType(t *testing.T) {
 
 	resp, err = StringToMarginType("")
 	assert.NoError(t, err)
-	assert.Equalf(t, Unset, resp, "received '%v' expected '%v'", resp, Unset)
+	assert.Equal(t, Unset.String(), resp.String())
 
 	resp, err = StringToMarginType("cross")
 	assert.NoError(t, err)
-	assert.Equalf(t, Multi, resp, "received '%v' expected '%v'", resp, Multi)
+	assert.Equal(t, Multi.String(), resp.String())
 
 	resp, err = StringToMarginType("multi")
 	assert.NoError(t, err)
-	assert.Equalf(t, Multi, resp, "received '%v' expected '%v'", resp, Multi)
+	assert.Equal(t, Multi.String(), resp.String())
 
 	resp, err = StringToMarginType("isolated")
 	assert.NoError(t, err)
-	assert.Equalf(t, Isolated, resp, "received '%v' expected '%v'", resp, Isolated)
+	assert.Equal(t, Isolated.String(), resp.String())
 
 	resp, err = StringToMarginType("cash")
 	assert.NoError(t, err)
-	assert.Equalf(t, Cash, resp, "received '%v' expected '%v'", resp, Cash)
+	assert.Equal(t, NoMargin.String(), resp.String())
 
 	resp, err = StringToMarginType("spot_isolated")
 	assert.NoError(t, err)
-	assert.Equalf(t, SpotIsolated, resp, "received '%v' expected '%v'", resp, SpotIsolated)
+	assert.Equal(t, SpotIsolated.String(), resp.String())
 }

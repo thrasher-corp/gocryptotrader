@@ -1126,7 +1126,7 @@ func priceTypeString(pt order.PriceType) string {
 
 func (ok *Okx) marginTypeToString(m margin.Type) string {
 	switch m {
-	case margin.Isolated, margin.Cash, margin.SpotIsolated:
+	case margin.Isolated, margin.NoMargin, margin.SpotIsolated:
 		return m.String()
 	case margin.Multi:
 		return TradeModeCross
@@ -1302,7 +1302,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			return err
 		}
 		if response.StatusCode != "0" {
-			return fmt.Errorf("sCode: %s sMessage: %s", response.StatusCode, response.StatusMsg)
+			return fmt.Errorf("sCode: %s sMessage: %s", response.StatusCode, response.StatusMessage)
 		}
 		return nil
 	default:
@@ -1371,7 +1371,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		}
 		for x := range canceledOrders {
 			resp.Status[canceledOrders[x].OrderID] = func() string {
-				if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
+				if canceledOrders[x].StatusCode != "0" && canceledOrders[x].StatusCode != "2" {
 					return ""
 				}
 				return order.Cancelled.String()
@@ -1389,7 +1389,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			if len(resp.Status) > 0 {
 				return resp, nil
 			}
-			return resp, fmt.Errorf("sCode: %s sMessage: %s", cancelationResponse.StatusCode, cancelationResponse.StatusMsg)
+			return resp, fmt.Errorf("sCode: %s sMessage: %s", cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
 		}
 		for x := range cancelAlgoOrderParams {
 			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()
@@ -1498,10 +1498,10 @@ ordersLoop:
 			}
 		}
 		for y := range response {
-			if response[y].SCode == "0" {
+			if response[y].StatusCode == "0" {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
-				cancelAllResponse.Status[response[y].OrderID] = response[y].SMessage
+				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
 			}
 		}
 	}
@@ -3009,13 +3009,13 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 	cp.Delimiter = currency.DashDelimiter
 	switch a {
 	case asset.Spot:
-		return baseURL + tradeSpot + cp.Lower().String(), nil
+		return baseURL + "trade-spot/" + cp.Lower().String(), nil
 	case asset.Margin:
-		return baseURL + tradeMargin + cp.Lower().String(), nil
+		return baseURL + "trade-margin/" + cp.Lower().String(), nil
 	case asset.PerpetualSwap:
-		return baseURL + tradePerps + cp.Lower().String(), nil
+		return baseURL + "trade-swap/" + cp.Lower().String(), nil
 	case asset.Options:
-		return baseURL + tradeOptions + cp.Base.Lower().String() + "-usd", nil
+		return baseURL + "trade-option/" + cp.Base.Lower().String() + "-usd", nil
 	case asset.Spread:
 		return baseURL, nil
 	case asset.Futures:
@@ -3048,7 +3048,7 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 		case "next_quarter":
 			ct = "-biquarterly"
 		}
-		return baseURL + tradeFutures + strings.ToLower(insts[0].Underlying) + ct, nil
+		return baseURL + "trade-futures/" + strings.ToLower(insts[0].Underlying) + ct, nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}

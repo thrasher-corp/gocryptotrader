@@ -46,17 +46,11 @@ type Okx struct {
 }
 
 const (
-	baseURL      = "https://www.okx.com/"
-	apiURL       = baseURL + apiPath
-	apiVersion   = "/v5/"
-	tradeSpot    = "trade-spot/"
-	tradeMargin  = "trade-margin/"
-	tradeFutures = "trade-futures/"
-	tradePerps   = "trade-swap/"
-	tradeOptions = "trade-option/"
+	baseURL = "https://www.okx.com/"
+	apiURL  = baseURL + apiPath
 
-	apiPath      = "api" + apiVersion
-	websocketURL = "wss://ws.okx.com:8443/ws" + apiVersion
+	apiPath      = "api/v5/"
+	websocketURL = "wss://ws.okx.com:8443/ws/v5/"
 
 	apiWebsocketPublicURL  = websocketURL + "public"
 	apiWebsocketPrivateURL = websocketURL + "private"
@@ -64,57 +58,7 @@ const (
 
 /************************************ MarketData Endpoints *************************************************/
 
-// OrderTypeFromString returns order.Type instance from string
-func OrderTypeFromString(orderType string) (order.Type, error) {
-	orderType = strings.ToLower(orderType)
-	switch orderType {
-	case orderMarket:
-		return order.Market, nil
-	case orderLimit:
-		return order.Limit, nil
-	case orderPostOnly:
-		return order.PostOnly, nil
-	case orderFOK:
-		return order.FillOrKill, nil
-	case orderIOC:
-		return order.ImmediateOrCancel, nil
-	case orderOptimalLimitIOC:
-		return order.OptimalLimitIOC, nil
-	case "mmp":
-		return order.MarketMakerProtection, nil
-	case "mmp_and_post_only":
-		return order.MarketMakerProtectionAndPostOnly, nil
-	case "twap":
-		return order.TWAP, nil
-	case "move_order_stop":
-		return order.TrailingStop, nil
-	case "chase":
-		return order.Chase, nil
-	default:
-		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
-	}
-}
-
-// OrderTypeString returns a string representation of order.Type instance
-func OrderTypeString(orderType order.Type) (string, error) {
-	switch orderType {
-	case order.ImmediateOrCancel:
-		return "ioc", nil
-	case order.Market, order.Limit, order.Trigger,
-		order.PostOnly, order.FillOrKill, order.OptimalLimitIOC,
-		order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly,
-		order.Chase, order.TWAP, order.OCO:
-		return orderType.Lower(), nil
-	case order.ConditionalStop:
-		return "conditional", nil
-	case order.TrailingStop:
-		return "move_order_stop", nil
-	default:
-		return "", fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, orderType)
-	}
-}
-
-// PlaceOrder place an order only if you have sufficient funds
+// PlaceOrder places an order
 func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	err := ok.validatePlaceOrderParams(arg)
 	if err != nil {
@@ -123,48 +67,12 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*Or
 	var resp *OrderData
 	err = ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.SMessage != "" {
-			return nil, fmt.Errorf("%w, SCode: %s SMsg: %s", err, resp.SCode, resp.SMessage)
+		if resp != nil && resp.StatusMessage != "" {
+			return nil, fmt.Errorf("%w, SCode: %s SMsg: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
 	return resp, nil
-}
-
-func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
-	if *arg == (PlaceOrderRequestParam{}) {
-		return common.ErrEmptyParams
-	}
-	if arg.InstrumentID == "" {
-		return errMissingInstrumentID
-	}
-	arg.Side = strings.ToLower(arg.Side)
-	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
-		arg.Side = strings.ToLower(arg.Side)
-		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
-			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
-		}
-	}
-	if !slices.Contains([]string{"", TradeModeCross, TradeModeIsolated, TradeModeCash}, arg.TradeMode) {
-		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
-	}
-	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
-		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w, 'long' or 'short' required", order.ErrSideIsInvalid)
-		}
-	}
-	arg.OrderType = strings.ToLower(arg.OrderType)
-	if !slices.Contains([]string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
-		return fmt.Errorf("%w %v", order.ErrTypeIsInvalid, arg.OrderType)
-	}
-	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
-	}
-	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.QuantityType) {
-		return errCurrencyQuantitTypeRequired
-	}
-	return nil
 }
 
 // PlaceMultipleOrders  to place orders in batches. Maximum 20 orders can be placed at a time. Request parameters should be passed in the form of an array
@@ -187,7 +95,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		}
 		var errs error
 		for x := range resp {
-			errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+			errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].StatusCode, resp[x].StatusMessage))
 		}
 		return nil, errs
 	}
@@ -208,8 +116,8 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 	var resp *OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.SMessage != "" {
-			return nil, fmt.Errorf("%w, SCode: %s and SMsg: %s", err, resp.SCode, resp.SMessage)
+		if resp != nil && resp.StatusMessage != "" {
+			return nil, fmt.Errorf("%w, SCode: %s and SMsg: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -240,8 +148,8 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		}
 		var errs error
 		for x := range resp {
-			if resp[x].SCode != "0" {
-				errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+			if resp[x].StatusCode != "0" {
+				errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
 		return nil, errs
@@ -649,8 +557,8 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	var resp *AlgoOrder
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.StatusMsg != "" {
-			return nil, fmt.Errorf("%w, SCode: %s, SMsg: %s", err, resp.StatusCode, resp.StatusMsg)
+		if resp != nil && resp.StatusMessage != "" {
+			return nil, fmt.Errorf("%w, SCode: %s, SMsg: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -724,10 +632,7 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	if orderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
-	if algoOrderID == "" &&
-		state != "effective" &&
-		state != "order_failed" &&
-		state != "canceled" {
+	if algoOrderID == "" && !slices.Contains([]string{"effective", "order_failed", "canceled"}, state) {
 		return nil, errMissingEitherAlgoIDOrState
 	}
 	params := url.Values{}
@@ -990,19 +895,14 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 	}
 	for x := range args {
 		args[x].InstrumentType = strings.ToUpper(args[x].InstrumentType)
-		if args[x].InstrumentType != instTypeSwap &&
-			args[x].InstrumentType != instTypeSpot &&
-			args[x].InstrumentType != instTypeFutures &&
-			args[x].InstrumentType != instTypeOption {
+		if !slices.Contains([]string{instTypeSwap, instTypeSpot, instTypeFutures, instTypeOption}, args[x].InstrumentType) {
 			return nil, fmt.Errorf("%w received %v", errInvalidInstrumentType, args[x].InstrumentType)
 		}
 		if len(args[x].Data) == 0 {
 			return nil, errMissingMakerInstrumentSettings
 		}
 		for y := range args[x].Data {
-			if (args[x].InstrumentType == instTypeSwap ||
-				args[x].InstrumentType == instTypeFutures ||
-				args[x].InstrumentType == instTypeOption) && args[x].Data[y].Underlying == "" {
+			if slices.Contains([]string{instTypeSwap, instTypeFutures, instTypeOption}, args[x].InstrumentType) && args[x].Data[y].Underlying == "" {
 				return nil, fmt.Errorf("%w, for instrument type %s and %s", errInvalidUnderlying, args[x].InstrumentType, args[x].Data[x].Underlying)
 			}
 			if (args[x].InstrumentType == instTypeSpot) && args[x].Data[x].InstrumentID == "" {
@@ -1712,24 +1612,6 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 
 /********************************** Account endpoints ***************************************************/
 
-// AssetTypeString returns a string representation of asset type
-func AssetTypeString(assetType asset.Item) (string, error) {
-	switch assetType {
-	case asset.Spot:
-		return "SPOT", nil
-	case asset.Margin:
-		return "MARGIN", nil
-	case asset.Futures:
-		return "FUTURES", nil
-	case asset.Options:
-		return "OPTION", nil
-	case asset.PerpetualSwap:
-		return "SWAP", nil
-	default:
-		return "", asset.ErrNotSupported
-	}
-}
-
 // GetAccountInstruments retrieve available instruments info of current account
 func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType asset.Item, underlying, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
 	if instrumentType == asset.Empty {
@@ -2028,9 +1910,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecrease
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.PositionSide != positionSideLong &&
-		arg.PositionSide != positionSideShort &&
-		arg.PositionSide != positionSideNet {
+	if !slices.Contains([]string{positionSideLong, positionSideShort, positionSideNet}, arg.PositionSide) {
 		return nil, fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
 	}
 	if arg.MarginBalanceType != marginBalanceAdd && arg.MarginBalanceType != marginBalanceReduce {
@@ -2877,10 +2757,7 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 	}
 	if arg.APIKeyPermission == "" && len(arg.Permissions) != 0 {
 		for x := range arg.Permissions {
-			if arg.Permissions[x] != "read" &&
-				arg.Permissions[x] != "withdraw" &&
-				arg.Permissions[x] != "trade" &&
-				arg.Permissions[x] != "read_only" {
+			if !slices.Contains([]string{"read", "withdraw", "trade", "read_only"}, arg.Permissions[x]) {
 				return nil, errInvalidAPIKeyPermission
 			}
 			if x != 0 {
@@ -2888,7 +2765,7 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 			}
 			arg.APIKeyPermission += arg.Permissions[x]
 		}
-	} else if arg.APIKeyPermission != "read" && arg.APIKeyPermission != "withdraw" && arg.APIKeyPermission != "trade" && arg.APIKeyPermission != "read_only" {
+	} else if !slices.Contains([]string{"read", "withdraw", "trade", "read_only"}, arg.APIKeyPermission) {
 		return nil, errInvalidAPIKeyPermission
 	}
 	var resp *SubAccountAPIKeyResponse
@@ -3107,7 +2984,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 			return nil, fmt.Errorf("%w 'size' is required", order.ErrAmountMustBeSet)
 		}
 		arg.Direction = strings.ToLower(arg.Direction)
-		if arg.Direction != positionSideLong && arg.Direction != positionSideShort && arg.Direction != "neutral" {
+		if !slices.Contains([]string{positionSideLong, positionSideShort, "neutral"}, arg.Direction) {
 			return nil, errMissingRequiredArgumentDirection
 		}
 		if arg.Leverage == "" {
@@ -3117,8 +2994,8 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	var resp *GridAlgoOrderIDResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.SMsg != "" {
-			return nil, fmt.Errorf("%w, SCode %s SMsg %s", err, resp.SCode, resp.SMsg)
+		if resp != nil && resp.StatusMessage != "" {
+			return nil, fmt.Errorf("%w, SCode %s SMsg %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -3139,8 +3016,8 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAmend) 
 	var resp *GridAlgoOrderIDResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.SMsg == "" {
-			return nil, fmt.Errorf("%w, SMsg: %s and SCode: %s", err, resp.SMsg, resp.SCode)
+		if resp != nil && resp.StatusMessage == "" {
+			return nil, fmt.Errorf("%w, SMsg: %s and SCode: %s", err, resp.StatusMessage, resp.StatusCode)
 		}
 		return nil, err
 	}
@@ -3177,7 +3054,7 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 		if len(resp) == 0 {
 			return nil, err
 		}
-		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMsg)
+		return nil, fmt.Errorf("error code:%s message: %v", resp[0].StatusCode, resp[0].StatusMessage)
 	}
 	return resp, nil
 }
@@ -3390,14 +3267,14 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if algoOrderType == "contract_grid" && direction != positionSideLong && direction != positionSideShort && direction != "neutral" {
+	if algoOrderType == "contract_grid" && !slices.Contains([]string{positionSideLong, positionSideShort, "neutral"}, direction) {
 		return nil, fmt.Errorf("%w, required for 'contract_grid' algo order type", errMissingRequiredArgumentDirection)
 	}
 	params := url.Values{}
 	params.Set("direction", direction)
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("instId", instrumentID)
-	if duration != "" && duration != "7D" && duration != "30D" && duration != "180D" {
+	if !slices.Contains([]string{"", "7D", "30D", "180D"}, duration) {
 		return nil, errInvalidDuration
 	}
 	var resp []GridAIParameterResponse
@@ -5592,109 +5469,6 @@ func (ok *Okx) GetUserAffiliateRebateInformation(ctx context.Context, apiKey str
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffiliateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
 }
 
-// SendHTTPRequest sends an authenticated http request to a desired
-// path with a JSON payload (of present)
-// URL arguments must be in the request path and not as url.URL values
-func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
-	rv := reflect.ValueOf(result)
-	if rv.Kind() != reflect.Pointer {
-		return errInvalidResponseParam
-	}
-	endpoint, err := ok.API.Endpoints.GetURL(ep)
-	if err != nil {
-		return err
-	}
-	var respResult interface{}
-	switch {
-	case rv.Elem().Kind() == reflect.Slice && len(useAsItIs) > 0 && !useAsItIs[0]:
-		respResult = &[]interface{}{&result}
-	case rv.Elem().Kind() == reflect.Slice ||
-		// When needed to use the result as it is.
-		len(useAsItIs) > 0 && useAsItIs[0]:
-		respResult = result
-	default:
-		respResult = &[]interface{}{result}
-	}
-	resp := struct {
-		Code types.Number `json:"code"`
-		Msg  string       `json:"msg"`
-		Data any          `json:"data"`
-	}{
-		Data: respResult,
-	}
-	requestType := request.AuthType(request.UnauthenticatedRequest)
-	newRequest := func() (*request.Item, error) {
-		utcTime := time.Now().UTC().Format(time.RFC3339)
-		payload := []byte("")
-
-		if data != nil {
-			payload, err = json.Marshal(data)
-			if err != nil {
-				return nil, err
-			}
-		}
-		path := endpoint + requestPath
-		headers := make(map[string]string)
-		headers["Content-Type"] = "application/json"
-		if _, okay := ctx.Value(testNetVal).(bool); okay {
-			headers["x-simulated-trading"] = "1"
-		}
-		if authenticated == request.AuthenticatedRequest {
-			var creds *account.Credentials
-			creds, err = ok.GetCredentials(ctx)
-			if err != nil {
-				return nil, err
-			}
-			signPath := "/" + apiPath + requestPath
-			var hmac []byte
-			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-				[]byte(utcTime+httpMethod+signPath+string(payload)),
-				[]byte(creds.Secret))
-			if err != nil {
-				return nil, err
-			}
-			headers["OK-ACCESS-KEY"] = creds.Key
-			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
-			headers["OK-ACCESS-TIMESTAMP"] = utcTime
-			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
-		}
-		return &request.Item{
-			Method:        strings.ToUpper(httpMethod),
-			Path:          path,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &resp,
-			Verbose:       ok.Verbose,
-			HTTPDebugging: ok.HTTPDebugging,
-			HTTPRecording: ok.HTTPRecording,
-		}, nil
-	}
-	err = ok.SendPayload(ctx, f, newRequest, requestType)
-	if err != nil {
-		if authenticated == request.AuthenticatedRequest {
-			return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
-		}
-		return err
-	}
-	if rv.Kind() == reflect.Slice {
-		value, okay := result.([]interface{})
-		if !okay || result == nil || len(value) == 0 {
-			return fmt.Errorf("%w, received invalid response", common.ErrNoResponse)
-		}
-	}
-	if err == nil && resp.Code.Int64() != 0 {
-		if resp.Msg != "" {
-			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
-		}
-		err, okay := ErrorCodes[resp.Code.String()]
-		if okay {
-			return err
-		}
-		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
-	}
-	return nil
-}
-
 // Status
 
 // SystemStatusResponse retrieves the system status.
@@ -5706,98 +5480,6 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 	}
 	var resp []SystemStatusResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, common.EncodeURLValues("system/status", params), nil, &resp, request.UnauthenticatedRequest)
-}
-
-// AssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
-func AssetTypeFromInstrumentType(instrumentType string) asset.Item {
-	switch strings.ToUpper(instrumentType) {
-	case instTypeSwap, instTypeContract:
-		return asset.PerpetualSwap
-	case instTypeSpot:
-		return asset.Spot
-	case instTypeMargin:
-		return asset.Margin
-	case instTypeFutures:
-		return asset.Futures
-	case instTypeOption:
-		return asset.Options
-	}
-	return asset.Empty
-}
-
-// GetAssetsFromInstrumentTypeOrID parses an instrument type and instrument ID and returns a list of assets
-// that the currency pair is associated with
-func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([]asset.Item, error) {
-	if instType != "" {
-		a := AssetTypeFromInstrumentType(instType)
-		if a != asset.Empty {
-			return []asset.Item{a}, nil
-		}
-	}
-	if instrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	pf, err := ok.CurrencyPairs.GetFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
-	}
-	splitSymbol := strings.Split(instrumentID, pf.Delimiter)
-	if len(splitSymbol) <= 1 {
-		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
-	}
-	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case len(splitSymbol) == 2:
-		resp := make([]asset.Item, 0, 2)
-		enabled, err := ok.IsPairEnabled(pair, asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-		if enabled {
-			resp = append(resp, asset.Spot)
-		}
-		enabled, err = ok.IsPairEnabled(pair, asset.Margin)
-		if err != nil {
-			return nil, err
-		}
-		if enabled {
-			resp = append(resp, asset.Margin)
-		}
-		if len(resp) > 0 {
-			return resp, nil
-		}
-	case len(splitSymbol) > 2:
-		switch splitSymbol[len(splitSymbol)-1] {
-		case "SWAP", "swap":
-			enabled, err := ok.IsPairEnabled(pair, asset.PerpetualSwap)
-			if err != nil {
-				return nil, err
-			}
-			if enabled {
-				return []asset.Item{asset.PerpetualSwap}, nil
-			}
-		case "C", "P", "c", "p":
-			enabled, err := ok.IsPairEnabled(pair, asset.Options)
-			if err != nil {
-				return nil, err
-			}
-			if enabled {
-				return []asset.Item{asset.Options}, nil
-			}
-		default:
-			enabled, err := ok.IsPairEnabled(pair, asset.Futures)
-			if err != nil {
-				return nil, err
-			}
-			if enabled {
-				return []asset.Item{asset.Futures}, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("%w  '%v' or currency not enabled '%v'", asset.ErrNotSupported, instType, instrumentID)
 }
 
 // -------------------------------------------------------  Lending Orders  ------------------------------------------------------
@@ -6162,4 +5844,107 @@ func (ok *Okx) GetFiatDepositPaymentMethods(ctx context.Context, ccy currency.Co
 	var resp *FiatDepositPaymentMethods
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFiatDepositPaymentMethodsEPL, http.MethodGet,
 		common.EncodeURLValues("fiat/deposit-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
+}
+
+// SendHTTPRequest sends an authenticated http request to a desired
+// path with a JSON payload (of present)
+// URL arguments must be in the request path and not as url.URL values
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
+	rv := reflect.ValueOf(result)
+	if rv.Kind() != reflect.Pointer {
+		return errInvalidResponseParam
+	}
+	endpoint, err := ok.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	var respResult interface{}
+	switch {
+	case rv.Elem().Kind() == reflect.Slice && len(useAsItIs) > 0 && !useAsItIs[0]:
+		respResult = &[]interface{}{&result}
+	case rv.Elem().Kind() == reflect.Slice ||
+		// When needed to use the result as it is.
+		len(useAsItIs) > 0 && useAsItIs[0]:
+		respResult = result
+	default:
+		respResult = &[]interface{}{result}
+	}
+	resp := struct {
+		Code types.Number `json:"code"`
+		Msg  string       `json:"msg"`
+		Data any          `json:"data"`
+	}{
+		Data: respResult,
+	}
+	requestType := request.AuthType(request.UnauthenticatedRequest)
+	newRequest := func() (*request.Item, error) {
+		utcTime := time.Now().UTC().Format(time.RFC3339)
+		payload := []byte("")
+
+		if data != nil {
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+		}
+		path := endpoint + requestPath
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		if _, okay := ctx.Value(testNetVal).(bool); okay {
+			headers["x-simulated-trading"] = "1"
+		}
+		if authenticated == request.AuthenticatedRequest {
+			var creds *account.Credentials
+			creds, err = ok.GetCredentials(ctx)
+			if err != nil {
+				return nil, err
+			}
+			signPath := "/" + apiPath + requestPath
+			var hmac []byte
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+				[]byte(utcTime+httpMethod+signPath+string(payload)),
+				[]byte(creds.Secret))
+			if err != nil {
+				return nil, err
+			}
+			headers["OK-ACCESS-KEY"] = creds.Key
+			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+			headers["OK-ACCESS-TIMESTAMP"] = utcTime
+			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
+		}
+		return &request.Item{
+			Method:        strings.ToUpper(httpMethod),
+			Path:          path,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(payload),
+			Result:        &resp,
+			Verbose:       ok.Verbose,
+			HTTPDebugging: ok.HTTPDebugging,
+			HTTPRecording: ok.HTTPRecording,
+		}, nil
+	}
+	err = ok.SendPayload(ctx, f, newRequest, requestType)
+	if err != nil {
+		if authenticated == request.AuthenticatedRequest {
+			return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+		}
+		return err
+	}
+	if rv.Kind() == reflect.Slice {
+		value, okay := result.([]interface{})
+		if !okay || result == nil || len(value) == 0 {
+			return fmt.Errorf("%w, received invalid response", common.ErrNoResponse)
+		}
+	}
+	if err == nil && resp.Code.Int64() != 0 {
+		if resp.Msg != "" {
+			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
+		}
+		err, okay := ErrorCodes[resp.Code.String()]
+		if okay {
+			return err
+		}
+		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
+	}
+	return nil
 }

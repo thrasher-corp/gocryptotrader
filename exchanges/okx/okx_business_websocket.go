@@ -132,13 +132,13 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 	for {
 		select {
 		case data := <-wsResponse:
-			if data.Event == operationLogin && data.Code == "0" {
+			if data.Event == operationLogin && data.StatusCode == "0" {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				return nil
 			} else if data.Event == "error" &&
-				(data.Code == "60022" || data.Code == "60009") {
+				(data.StatusCode == "60022" || data.StatusCode == "60009") {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.Code])
+				return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.StatusCode])
 			}
 			continue
 		case <-timer.C:

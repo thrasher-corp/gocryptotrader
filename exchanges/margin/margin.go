@@ -34,7 +34,7 @@ func (t Type) String() string {
 		return multiStr
 	case SpotIsolated:
 		return spotIsolatedStr
-	case Cash:
+	case NoMargin:
 		return cashStr
 	case Unknown:
 		return unknownStr
@@ -67,7 +67,7 @@ func StringToMarginType(m string) (Type, error) {
 	case spotIsolatedStr:
 		return SpotIsolated, nil
 	case cashStr:
-		return Cash, nil
+		return NoMargin, nil
 	case "":
 		return Unset, nil
 	}
