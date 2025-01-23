@@ -17,7 +17,7 @@ func TestValid(t *testing.T) {
 	require.True(t, SpotIsolated.Valid())
 	require.False(t, Unset.Valid())
 	require.False(t, Unknown.Valid())
-	require.False(t, Type(137).Valid())
+	require.False(t, Type(5).Valid())
 }
 
 func TestUnmarshalJSON(t *testing.T) {

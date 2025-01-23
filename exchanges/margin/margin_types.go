@@ -74,7 +74,7 @@ const (
 	// Unset is the default value
 	Unset = Type(0)
 	// Isolated means a margin trade is isolated from other margin trades
-	Isolated Type = 1 << (iota - 1)
+	Isolated Type = 1 << iota
 	// Multi means a margin trade is not isolated from other margin trades
 	// it can sometimes be referred to as "cross"
 	Multi
