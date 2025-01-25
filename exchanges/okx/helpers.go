@@ -61,18 +61,9 @@ func OrderTypeString(orderType order.Type) (string, error) {
 	}
 }
 
-// GetAssetsFromInstrumentTypeOrID parses an instrument type and instrument ID and returns a list of assets
-// that the currency pair is associated with
-func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([]asset.Item, error) {
-	if instType != "" {
-		a, err := AssetTypeFromInstrumentType(instType)
-		if err != nil {
-			return nil, err
-		}
-		if a != asset.Empty {
-			return []asset.Item{a}, nil
-		}
-	}
+// GetAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
+// that the instrument is is associated with
+func (ok *Okx) GetAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -136,7 +127,7 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 			}
 		}
 	}
-	return nil, fmt.Errorf("%w '%v' or instrument `%v` not enabled", asset.ErrNotSupported, instType, instrumentID)
+	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotSupported, instrumentID)
 }
 
 // AssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

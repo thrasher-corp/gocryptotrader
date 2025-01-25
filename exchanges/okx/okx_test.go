@@ -4745,30 +4745,29 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	ok := new(Okx) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(ok), "Setup must not error")
 
-	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
+	_, err := ok.GetAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		symbol := ""
-		if a != asset.Spot {
-			symbol = ok.CurrencyPairs.Pairs[a].Enabled[0].String()
-		}
-		instrumentTypeString, err := AssetTypeString(a)
-		require.NoError(t, err)
-
-		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID(instrumentTypeString, symbol)
+		assets, err2 := ok.GetAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		require.Len(t, assets, 1)
-		assert.Equalf(t, a, assets[0], "Should contain asset: %s", a)
+		switch a {
+		case asset.Spot, asset.Margin:
+			// spot and margin instruments are similar
+			require.Len(t, assets, 2)
+		default:
+			require.Len(t, assets, 1)
+		}
+		assert.Contains(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
+	_, err = ok.GetAssetsFromInstrumentID("test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test-test")
+	_, err = ok.GetAssetsFromInstrumentID("test-test")
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := ok.GetAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}

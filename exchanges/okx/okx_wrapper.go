@@ -1125,14 +1125,12 @@ func priceTypeString(pt order.PriceType) string {
 }
 
 func (ok *Okx) marginTypeToString(m margin.Type) string {
-	switch m {
-	case margin.Isolated, margin.NoMargin, margin.SpotIsolated:
+	if (margin.Isolated|margin.NoMargin|margin.SpotIsolated)&m == m {
 		return m.String()
-	case margin.Multi:
+	} else if margin.Multi == m {
 		return TradeModeCross
-	default:
-		return ""
 	}
+	return ""
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion

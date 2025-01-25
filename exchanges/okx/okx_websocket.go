@@ -778,9 +778,18 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
-	if err != nil {
-		return err
+	var assets []asset.Item
+	if response.Argument.InstrumentType != "" {
+		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		if err != nil {
+			return err
+		}
+		assets = append(assets, assetType)
+	} else {
+		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		if err != nil {
+			return err
+		}
 	}
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
@@ -909,8 +918,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	if len(resp.Data) != 1 {
 		return fmt.Errorf("%s - no data returned", ok.Name)
 	}
-
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID("", resp.Argument.InstrumentID)
+	assets, err := ok.GetAssetsFromInstrumentID(resp.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -992,9 +1000,18 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		response.Action != wsOrderbookSnapshot {
 		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
 	}
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
-	if err != nil {
-		return err
+	var assets []asset.Item
+	if response.Argument.InstrumentType != "" {
+		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		if err != nil {
+			return err
+		}
+		assets = append(assets, assetType)
+	} else {
+		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		if err != nil {
+			return err
+		}
 	}
 	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
@@ -1201,9 +1218,18 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	if err != nil {
 		return err
 	}
-	assets, err := ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
-	if err != nil {
-		return err
+	var assets []asset.Item
+	if response.Argument.InstrumentType != "" {
+		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		if err != nil {
+			return err
+		}
+		assets = append(assets, assetType)
+	} else {
+		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		if err != nil {
+			return err
+		}
 	}
 	trades := make([]trade.Data, 0, len(response.Data)*len(assets))
 	for i := range response.Data {
@@ -1340,9 +1366,17 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		return err
 	}
 	var assets []asset.Item
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
-	if err != nil {
-		return err
+	if response.Argument.InstrumentType != "" {
+		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		if err != nil {
+			return err
+		}
+		assets = append(assets, assetType)
+	} else {
+		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		if err != nil {
+			return err
+		}
 	}
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
@@ -1373,9 +1407,17 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	}
 	for i := range response.Data {
 		var assets []asset.Item
-		assets, err = ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Data[i].InstrumentID)
-		if err != nil {
-			return err
+		if response.Argument.InstrumentType != "" {
+			assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+			if err != nil {
+				return err
+			}
+			assets = append(assets, assetType)
+		} else {
+			assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+			if err != nil {
+				return err
+			}
 		}
 		c, err := currency.NewPairFromString(response.Data[i].InstrumentID)
 		if err != nil {

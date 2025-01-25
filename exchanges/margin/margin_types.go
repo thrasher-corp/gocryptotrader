@@ -74,16 +74,15 @@ const (
 	// Unset is the default value
 	Unset = Type(0)
 	// Isolated means a margin trade is isolated from other margin trades
-	Isolated Type = 1 << iota
+	Isolated Type = 1 << (iota - 1)
 	// Multi means a margin trade is not isolated from other margin trades
 	// it can sometimes be referred to as "cross"
 	Multi
 	// NoMargin indicates a trade that is conducted in non-margin mode, i.e., no borrowing of funds is involved.
 	NoMargin
-	// SpotIsolated indicates a margin trade that uses isolated margin mode for spot trading only.
-	// Each position has its own margin, and risks are isolated to that position.
+	// SpotIsolated indicates a margin shared amongst all spot trades but isolated from other assets
 	SpotIsolated
-	// Unknown is an unknown margin type but is not unset
+	// Unknown indicates the margin type is set, but unknown
 	Unknown
 )
 
