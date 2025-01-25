@@ -8,7 +8,7 @@ import (
 
 // Valid returns whether the margin type is valid
 func (t Type) Valid() bool {
-	return t != Unset && (t&(t-1) == 0) && supported&t == t
+	return t != Unset && supported&t == t
 }
 
 // UnmarshalJSON converts json into margin type

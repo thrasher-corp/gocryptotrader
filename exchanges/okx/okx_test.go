@@ -37,9 +37,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "fdb19ca4-c895-4056-b028-9236983c5669"
+	apiSecret               = "1CCB5710FE47ED3D5796A4FB78FE7DDC"
+	passphrase              = "0631Okx!"
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -720,8 +720,8 @@ func TestGetTakerFlow(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ok.PlaceOrder(contextGenerate(), &PlaceOrderRequestParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := ok.PlaceOrder(contextGenerate(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &PlaceOrderRequestParam{
 		ReduceOnly: true,
@@ -758,16 +758,16 @@ func TestPlaceOrder(t *testing.T) {
 	arg.Amount = 1
 	arg.QuantityType = "abcd"
 	_, err = ok.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, errCurrencyQuantitTypeRequired)
+	require.ErrorIs(t, err, errCurrencyQuantityTypeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceOrder(contextGenerate(), &PlaceOrderRequestParam{
 		InstrumentID: "BTC-USDC",
 		TradeMode:    "cross",
-		Side:         order.Buy.Lower(),
+		Side:         order.Buy.String(),
 		OrderType:    "limit",
 		Amount:       2.6,
-		Price:        2.1,
+		Price:        2000000.1,
 		Currency:     "BTC",
 		AssetType:    asset.Margin,
 	})
@@ -3285,21 +3285,11 @@ func TestAssetTypeFromInstrumentType(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	result, err := ok.FetchTradablePairs(contextGenerate(), asset.Options)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = ok.FetchTradablePairs(contextGenerate(), asset.PerpetualSwap)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = ok.FetchTradablePairs(contextGenerate(), asset.Futures)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = ok.FetchTradablePairs(contextGenerate(), asset.Spot)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = ok.FetchTradablePairs(contextGenerate(), asset.Spread)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	for _, a := range []asset.Item{asset.Options, asset.PerpetualSwap, asset.Futures, asset.Spot, asset.Spread} {
+		result, err := ok.FetchTradablePairs(contextGenerate(), a)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	}
 }
 
 func TestUpdateTradablePairs(t *testing.T) {

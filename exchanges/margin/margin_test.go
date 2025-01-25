@@ -22,35 +22,28 @@ func TestValid(t *testing.T) {
 
 func TestUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	type martian struct {
-		M Type `json:"margin"`
+	for name, tc := range map[string]struct {
+		in   string
+		want Type
+		err  error
+	}{
+		"isolated":     {`{"margin":"isolated"}`, Isolated, nil},
+		"cross":        {`{"margin":"cross"}`, Multi, nil},
+		"cash":         {`{"margin":"cash"}`, NoMargin, nil},
+		"spotIsolated": {`{"margin":"spot_isolated"}`, SpotIsolated, nil},
+		"invalid":      {`{"margin":"hello moto"}`, Unknown, ErrInvalidMarginType},
+		"unset":        {`{"margin":""}`, Unset, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var alien struct {
+				M Type `json:"margin"`
+			}
+			err := json.Unmarshal([]byte(tc.in), &alien)
+			assert.ErrorIs(t, err, tc.err)
+			assert.Equal(t, tc.want, alien.M)
+		})
 	}
-
-	var alien martian
-	jason := []byte(`{"margin":"isolated"}`)
-	err := json.Unmarshal(jason, &alien)
-	assert.NoError(t, err)
-	assert.Equal(t, Isolated.String(), alien.M.String())
-
-	jason = []byte(`{"margin":"cross"}`)
-	err = json.Unmarshal(jason, &alien)
-	assert.NoError(t, err)
-	assert.Equal(t, Multi.String(), alien.M.String())
-
-	jason = []byte(`{"margin":"cash"}`)
-	err = json.Unmarshal(jason, &alien)
-	assert.NoError(t, err)
-	assert.Equal(t, NoMargin.String(), alien.M.String())
-
-	jason = []byte(`{"margin":"spot_isolated"}`)
-	err = json.Unmarshal(jason, &alien)
-	assert.NoError(t, err)
-	assert.Equal(t, SpotIsolated.String(), alien.M.String())
-
-	jason = []byte(`{"margin":"hello moto"}`)
-	err = json.Unmarshal(jason, &alien)
-	require.ErrorIs(t, err, ErrInvalidMarginType)
-	assert.Equal(t, Unknown.String(), alien.M.String())
 }
 
 func TestString(t *testing.T) {
@@ -88,31 +81,20 @@ func TestIsValidString(t *testing.T) {
 
 func TestStringToMarginType(t *testing.T) {
 	t.Parallel()
-	resp, err := StringToMarginType("lol")
-	assert.ErrorIs(t, err, ErrInvalidMarginType)
-	assert.Equal(t, Unknown, resp)
-
-	resp, err = StringToMarginType("")
-	assert.NoError(t, err)
-	assert.Equal(t, Unset.String(), resp.String())
-
-	resp, err = StringToMarginType("cross")
-	assert.NoError(t, err)
-	assert.Equal(t, Multi.String(), resp.String())
-
-	resp, err = StringToMarginType("multi")
-	assert.NoError(t, err)
-	assert.Equal(t, Multi.String(), resp.String())
-
-	resp, err = StringToMarginType("isolated")
-	assert.NoError(t, err)
-	assert.Equal(t, Isolated.String(), resp.String())
-
-	resp, err = StringToMarginType("cash")
-	assert.NoError(t, err)
-	assert.Equal(t, NoMargin.String(), resp.String())
-
-	resp, err = StringToMarginType("spot_isolated")
-	assert.NoError(t, err)
-	assert.Equal(t, SpotIsolated.String(), resp.String())
+	for label, v := range map[string]struct {
+		MarginType Type
+		Error      error
+	}{
+		"lol":           {Unknown, ErrInvalidMarginType},
+		"":              {Unset, nil},
+		"cross":         {Multi, nil},
+		"multi":         {Multi, nil},
+		"isolated":      {Isolated, nil},
+		"cash":          {NoMargin, nil},
+		"spot_isolated": {SpotIsolated, nil},
+	} {
+		resp, err := StringToMarginType(label)
+		assert.ErrorIs(t, err, v.Error)
+		assert.Equal(t, v.MarginType.String(), resp.String())
+	}
 }

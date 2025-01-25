@@ -136,7 +136,7 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 			}
 		}
 	}
-	return nil, fmt.Errorf("%w  '%v' or currency not enabled '%v'", asset.ErrNotSupported, instType, instrumentID)
+	return nil, fmt.Errorf("%w '%v' or instrument `%v` not enabled", asset.ErrNotSupported, instType, instrumentID)
 }
 
 // AssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
@@ -160,15 +160,13 @@ func AssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 }
 
 func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
-	if *arg == (PlaceOrderRequestParam{}) {
-		return common.ErrEmptyParams
+	if arg == nil {
+		return common.ErrNilPointer
 	}
 	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
 	}
-	arg.Side = strings.ToLower(arg.Side)
 	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
-		arg.Side = strings.ToLower(arg.Side)
 		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 		}
@@ -177,20 +175,20 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
-		arg.PositionSide = strings.ToLower(arg.PositionSide)
+		// arg.PositionSide = strings.ToLower(arg.PositionSide)
 		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w, 'long' or 'short' required", order.ErrSideIsInvalid)
+			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
 	if !slices.Contains([]string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
-		return fmt.Errorf("%w %v", order.ErrTypeIsInvalid, arg.OrderType)
+		return fmt.Errorf("%w: '%v'", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.Amount <= 0 {
 		return order.ErrAmountBelowMin
 	}
 	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.QuantityType) {
-		return errCurrencyQuantitTypeRequired
+		return errCurrencyQuantityTypeRequired
 	}
 	return nil
 }

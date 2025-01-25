@@ -80,7 +80,7 @@ var (
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
 	errInvalidTradeModeValue                = errors.New("invalid trade mode value")
-	errCurrencyQuantitTypeRequired          = errors.New("only base_ccy and quote_ccy quantity types are supported")
+	errCurrencyQuantityTypeRequired         = errors.New("only base_ccy and quote_ccy quantity types are supported")
 	errWebsocketStreamNotAuthenticated      = errors.New("websocket stream not authenticated")
 	errInvalidNewSizeOrPriceInformation     = errors.New("invalid new size or price information")
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
