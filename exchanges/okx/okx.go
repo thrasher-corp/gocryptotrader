@@ -1635,7 +1635,7 @@ func (ok *Okx) GetAccountInstruments(ctx context.Context, instrumentType asset.I
 			params.Set("instFamily", instrumentFamily)
 		}
 	}
-	instTypeString, err := AssetTypeString(instrumentType)
+	instTypeString, err := assetTypeString(instrumentType)
 	if err != nil {
 		return nil, err
 	}

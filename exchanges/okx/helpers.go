@@ -11,8 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// OrderTypeFromString returns order.Type instance from string
-func OrderTypeFromString(orderType string) (order.Type, error) {
+// orderTypeFromString returns order.Type instance from string
+func orderTypeFromString(orderType string) (order.Type, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case orderMarket:
@@ -42,8 +42,8 @@ func OrderTypeFromString(orderType string) (order.Type, error) {
 	}
 }
 
-// OrderTypeString returns a string representation of order.Type instance
-func OrderTypeString(orderType order.Type) (string, error) {
+// orderTypeString returns a string representation of order.Type instance
+func orderTypeString(orderType order.Type) (string, error) {
 	switch orderType {
 	case order.ImmediateOrCancel:
 		return "ioc", nil
@@ -61,9 +61,9 @@ func OrderTypeString(orderType order.Type) (string, error) {
 	}
 }
 
-// GetAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
-// that the instrument is is associated with
-func (ok *Okx) GetAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
+// getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
+// that the instrument is associated with
+func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -130,8 +130,8 @@ func (ok *Okx) GetAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotSupported, instrumentID)
 }
 
-// AssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
-func AssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
+// assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
+func assetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	switch strings.ToUpper(instrumentType) {
 	case instTypeSwap, instTypeContract:
 		return asset.PerpetualSwap, nil
@@ -158,6 +158,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return errMissingInstrumentID
 	}
 	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
+		arg.Side = strings.ToLower(arg.Side)
 		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
 		}
@@ -166,7 +167,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
-		// arg.PositionSide = strings.ToLower(arg.PositionSide)
+		arg.PositionSide = strings.ToLower(arg.PositionSide)
 		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
 			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
@@ -184,8 +185,8 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	return nil
 }
 
-// AssetTypeString returns a string representation of asset type
-func AssetTypeString(assetType asset.Item) (string, error) {
+// assetTypeString returns a string representation of asset type
+func assetTypeString(assetType asset.Item) (string, error) {
 	switch assetType {
 	case asset.Spot:
 		return "SPOT", nil

@@ -780,13 +780,13 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
-		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
 		if err != nil {
 			return err
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -918,7 +918,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	if len(resp.Data) != 1 {
 		return fmt.Errorf("%s - no data returned", ok.Name)
 	}
-	assets, err := ok.GetAssetsFromInstrumentID(resp.Argument.InstrumentID)
+	assets, err := ok.getAssetsFromInstrumentID(resp.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -1002,13 +1002,13 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
-		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
 		if err != nil {
 			return err
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1220,13 +1220,13 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
-		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
 		if err != nil {
 			return err
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1260,7 +1260,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	a, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+	a, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
 	if err != nil {
 		return err
 	}
@@ -1367,13 +1367,13 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
-		assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
 		if err != nil {
 			return err
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1408,13 +1408,13 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	for i := range response.Data {
 		var assets []asset.Item
 		if response.Argument.InstrumentType != "" {
-			assetType, err := AssetTypeFromInstrumentType(response.Argument.InstrumentType)
+			assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
 			if err != nil {
 				return err
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = ok.GetAssetsFromInstrumentID(response.Argument.InstrumentID)
+			assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
 			if err != nil {
 				return err
 			}

@@ -939,7 +939,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		return s.DeriveSubmitResponse(placeSpreadOrderResponse.OrderID)
 	}
-	orderTypeString, err := OrderTypeString(s.Type)
+	orderTypeString, err := orderTypeString(s.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -1427,7 +1427,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 	}
 	var oType string
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
-		oType, err = OrderTypeString(orderCancellation.Type)
+		oType, err = orderTypeString(orderCancellation.Type)
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
@@ -1583,7 +1583,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return nil, err
 	}
-	orderType, err := OrderTypeFromString(orderDetail.OrderType)
+	orderType, err := orderTypeFromString(orderDetail.OrderType)
 	if err != nil {
 		return nil, err
 	}
@@ -1748,7 +1748,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	var orderType string
 	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = OrderTypeString(req.Type)
+		orderType, err = orderTypeString(req.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1798,7 +1798,7 @@ allOrders:
 				return nil, err
 			}
 			var oType order.Type
-			oType, err = OrderTypeFromString(orderList[i].OrderType)
+			oType, err = orderTypeFromString(orderList[i].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1846,7 +1846,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := OrderTypeString(req.Type)
+		oType, err := orderTypeString(req.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1942,7 +1942,7 @@ allOrders:
 				}
 				orderSide := orderList[i].Side
 				var oType order.Type
-				oType, err = OrderTypeFromString(orderList[i].OrderType)
+				oType, err = orderTypeFromString(orderList[i].OrderType)
 				if err != nil {
 					return nil, err
 				}
@@ -2650,7 +2650,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			}
 			orderSide := positions[j].Side
 			var oType order.Type
-			oType, err = OrderTypeFromString(positions[j].OrderType)
+			oType, err = orderTypeFromString(positions[j].OrderType)
 			if err != nil {
 				return nil, err
 			}

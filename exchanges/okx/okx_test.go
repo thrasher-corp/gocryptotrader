@@ -37,9 +37,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "fdb19ca4-c895-4056-b028-9236983c5669"
-	apiSecret               = "1CCB5710FE47ED3D5796A4FB78FE7DDC"
-	passphrase              = "0631Okx!"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -3275,7 +3275,7 @@ var instrumentTypeToAssetTypeMap = map[string]struct {
 func TestAssetTypeFromInstrumentType(t *testing.T) {
 	t.Parallel()
 	for k, v := range instrumentTypeToAssetTypeMap {
-		assetItem, err := AssetTypeFromInstrumentType(k)
+		assetItem, err := assetTypeFromInstrumentType(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.AssetType, assetItem)
 	}
@@ -4745,11 +4745,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	ok := new(Okx) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(ok), "Setup must not error")
 
-	_, err := ok.GetAssetsFromInstrumentID("")
+	_, err := ok.getAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := ok.GetAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := ok.getAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		switch a {
 		case asset.Spot, asset.Margin:
@@ -4761,13 +4761,13 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		assert.Contains(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	_, err = ok.GetAssetsFromInstrumentID("test")
+	_, err = ok.getAssetsFromInstrumentID("test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = ok.GetAssetsFromInstrumentID("test-test")
+	_, err = ok.getAssetsFromInstrumentID("test-test")
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := ok.GetAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := ok.getAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}
@@ -6331,7 +6331,7 @@ func TestOrderTypeString(t *testing.T) {
 		order.Trigger:                          {Expected: "trigger"},
 	}
 	for oType, val := range orderTypesToStringMap {
-		orderTypeString, err := OrderTypeString(oType)
+		orderTypeString, err := orderTypeString(oType)
 		require.ErrorIs(t, err, val.Error)
 		assert.Equal(t, val.Expected, orderTypeString)
 	}
@@ -6359,7 +6359,7 @@ func TestGetHistoricIndexCandlesticksHistory(t *testing.T) {
 
 func TestAssetTypeString(t *testing.T) {
 	t.Parallel()
-	_, err := AssetTypeString(asset.LinearContract)
+	_, err := assetTypeString(asset.LinearContract)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	assetTypes := ok.GetAssetTypes(false)
@@ -6367,7 +6367,7 @@ func TestAssetTypeString(t *testing.T) {
 		if assetTypes[a] == asset.Spread {
 			continue
 		}
-		_, err := AssetTypeString(assetTypes[a])
+		_, err := assetTypeString(assetTypes[a])
 		assert.NoError(t, err)
 	}
 }
@@ -6616,7 +6616,7 @@ func TestOrderTypeFromString(t *testing.T) {
 		"abcd":              {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 	}
 	for a := range orderTypeStrings {
-		oType, err := OrderTypeFromString(a)
+		oType, err := orderTypeFromString(a)
 		assert.ErrorIs(t, err, orderTypeStrings[a].Error)
 		assert.Equal(t, oType, orderTypeStrings[a].OType)
 	}
