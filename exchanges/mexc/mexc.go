@@ -41,6 +41,9 @@ var (
 	errInvalidSubAccountName      = errors.New("invalid sub-account name")
 	errInvalidSubAccountNote      = errors.New("invalid sub-account note")
 	errUnsupportedPermissionValue = errors.New("permission is unsupported")
+	errAddressRequired            = errors.New("address is required")
+	errNetworkNameRequired        = errors.New("network name required")
+	errAccountTypeRequired        = errors.New("account type information required")
 )
 
 // Start implementing public and private exchange API funcs below
@@ -379,6 +382,170 @@ func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) (interface{}, error) {
 		Data []string `json:"data"`
 	}{}
 	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "selfSymbols", nil, &resp, true)
+}
+
+// GetCurrencyInformation get currency information
+func (me *MEXC) GetCurrencyInformation(ctx context.Context) ([]CurrencyInformation, error) {
+	var resp []CurrencyInformation
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/config/getall", nil, &resp, true)
+}
+
+// WithdrawCapital withdraws an asset through chains
+func (me *MEXC) WithdrawCapital(ctx context.Context, amount float64, coin currency.Code, withdrawID, network, contractAddress, address, memo, remark string) (*IDResponse, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if address == "" {
+		return nil, fmt.Errorf("%w, withdrawal address 'address' is unset", errAddressRequired)
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("address", address)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if withdrawID != "" {
+		params.Set("withdrawOrderId", withdrawID)
+	}
+	if network != "" {
+		params.Set("netWork", network)
+	}
+	if contractAddress != "" {
+		params.Set("contractAddress", contractAddress)
+	}
+	if memo != "" {
+		params.Set("memo", memo)
+	}
+	var resp *IDResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/withdraw", params, &resp, true)
+}
+
+// CancelWithdrawal cancels an pending withdrawal order
+func (me *MEXC) CancelWithdrawal(ctx context.Context, id string) (*IDResponse, error) {
+	if id == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("id", id)
+	var resp *IDResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "capital/withdraw", params, &resp, true)
+}
+
+// GetFundDepositHistory retrieves a list of fund deposit transaction details
+func (me *MEXC) GetFundDepositHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]FundDepositInfo, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FundDepositInfo
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/deposit/hisrec", params, &resp, true)
+}
+
+// GetWithdrawalHistory represents currency withdrawl history
+// possible values of withdraw status,1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
+func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]WithdrawalInfo, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []WithdrawalInfo
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/withdraw/history", params, &resp, true)
+}
+
+// GenerateDepositAddress generates a deposit address given the currency code and netowrk name
+func (me *MEXC) GenerateDepositAddress(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if network == "" {
+		return nil, errNetworkNameRequired
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("network", network)
+	var resp []DepositAddressInfo
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/deposit/address", params, &resp, true)
+}
+
+// GetDepositAddressOfCoin retrieves a deposit address detail of an asset
+func (me *MEXC) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	if network != "" {
+		params.Set("network", network)
+	}
+	var resp []DepositAddressInfo
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/deposit/address", params, &resp, true)
+}
+
+// GetWithdrawalAddress retrieves a list of previously used deposit addresses
+func (me *MEXC) GetWithdrawalAddress(ctx context.Context, coin currency.Code, page, limit int64) (*WithdrawalAddressesDetail, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *WithdrawalAddressesDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/withdraw/address", params, &resp, true)
+}
+
+// UserUniversalTransfer transfers an asset transfer between account types of same account
+func (me *MEXC) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType string, asset currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
+	if fromAccountType == "" {
+		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
+	}
+	if toAccountType == "" {
+		return nil, fmt.Errorf("%w, toAccountType is required", errAccountTypeRequired)
+	}
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("fromAccountType", fromAccountType)
+	params.Set("toAccountType", toAccountType)
+	params.Set("asset", asset.String())
+	var resp []UserUniversalTransferResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer", params, &resp, true)
 }
 
 // NewTestOrder creates and validates a new order but does not send it into the matching engine.

@@ -344,3 +344,98 @@ type SymbolCommissionFee struct {
 	Message   string     `json:"msg"`
 	Timestamp types.Time `json:"timestamp"`
 }
+
+// CurrencyInformation represents a exchange's currency item details
+type CurrencyInformation struct {
+	Coin        string `json:"coin"`
+	Name        string `json:"Name"`
+	NetworkList []struct {
+		Coin                    string       `json:"coin"`
+		DepositDesc             string       `json:"depositDesc"`
+		DepositEnable           bool         `json:"depositEnable"`
+		MinConfirm              int64        `json:"minConfirm"`
+		Name                    string       `json:"Name"`
+		Network                 string       `json:"network"`
+		WithdrawEnable          bool         `json:"withdrawEnable"`
+		WithdrawFee             types.Number `json:"withdrawFee"`
+		WithdrawIntegerMultiple string       `json:"withdrawIntegerMultiple"`
+		WithdrawMax             types.Number `json:"withdrawMax"`
+		WithdrawMin             types.Number `json:"withdrawMin"`
+		SameAddress             bool         `json:"sameAddress"`
+		Contract                string       `json:"contract"`
+		WithdrawTips            string       `json:"withdrawTips"`
+		DepositTips             string       `json:"depositTips"`
+		NetWork                 string       `json:"netWork,omitempty"`
+	} `json:"networkList"`
+}
+
+// IDResponse represents response data which specify id of an order or related
+type IDResponse struct {
+	ID string `json:"id"`
+}
+
+// FundDepositInfo represents a fund deposit detailed information
+type FundDepositInfo struct {
+	Amount        types.Number `json:"amount"`
+	Coin          string       `json:"coin"`
+	Network       string       `json:"network"`
+	Status        int          `json:"status"`
+	Address       string       `json:"address"`
+	TransactionID string       `json:"txId"`
+	InsertTime    types.Time   `json:"insertTime"`
+	UnlockConfirm string       `json:"unlockConfirm"`
+	ConfirmTimes  types.Time   `json:"confirmTimes"`
+	Memo          string       `json:"memo"`
+}
+
+// WithdrawalInfo represents an asset withdrawal detailed information
+type WithdrawalInfo struct {
+	ID             string       `json:"id"`
+	TransactionID  any          `json:"txId"`
+	Coin           string       `json:"coin"`
+	Network        string       `json:"network"`
+	Address        string       `json:"address"`
+	Amount         types.Number `json:"amount"`
+	TransferType   int64        `json:"transferType"`
+	Status         int64        `json:"status"`
+	TransactionFee types.Number `json:"transactionFee"`
+	ConfirmNo      any          `json:"confirmNo"`
+	ApplyTime      types.Time   `json:"applyTime"`
+	Remark         string       `json:"remark"`
+	Memo           string       `json:"memo"`
+	TransHash      string       `json:"transHash"`
+	UpdateTime     types.Time   `json:"updateTime"`
+	CoinID         string       `json:"coinId"`
+	VcoinID        string       `json:"vcoinId"`
+}
+
+// DepositAddressInfo represents a deposit address information
+type DepositAddressInfo struct {
+	Coin    string `json:"coin"`
+	Network string `json:"network"`
+	Address string `json:"address"`
+	Tag     string `json:"tag,omitempty"`
+	Memo    string `json:"memo,omitempty"`
+}
+
+// WithdrawalAddressTag represents an asset withdrawal address detail
+type WithdrawalAddressTag struct {
+	Coin       string `json:"coin"`
+	Network    string `json:"network"`
+	Address    string `json:"address"`
+	AddressTag string `json:"addressTag"`
+	Memo       string `json:"memo"`
+}
+
+// WithdrawalAddressesDetail represents a detailed list of previously used withdrawal addresses
+type WithdrawalAddressesDetail struct {
+	Data         []WithdrawalAddressTag `json:"data"`
+	TotalRecords int64                  `json:"totalRecords"`
+	Page         int64                  `json:"page"`
+	TotalPageNum int64                  `json:"totalPageNum"`
+}
+
+// UserUniversalTransferResponse represents a user account asset transfer response
+type UserUniversalTransferResponse struct {
+	TranID string `json:"tranId"`
+}

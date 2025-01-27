@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -493,6 +494,105 @@ func TestGetSymbolTradingFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.GetSymbolTradingFee(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrencyInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetCurrencyInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWithdrawCapital(t *testing.T) {
+	t.Parallel()
+	_, err := me.WithdrawCapital(context.Background(), 1.2, currency.EMPTYCODE, "", "BNB", "1234", core.BitcoinDonationAddress, "abcd", "")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.WithdrawCapital(context.Background(), 1.2, currency.BTC, "", "BNB", "", "", "abcd", "")
+	require.ErrorIs(t, err, errAddressRequired)
+	_, err = me.WithdrawCapital(context.Background(), 0, currency.BTC, "", "BNB", "1234", core.BitcoinDonationAddress, "abcd", "")
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.WithdrawCapital(context.Background(), 1.2, currency.BTC, "", "BNB", "1234", core.BitcoinDonationAddress, "abcd", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	_, err := me.CancelWithdrawal(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CancelWithdrawal(context.Background(), "1231212")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFundDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetFundDepositHistory(context.Background(), currency.BTC, "", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetWithdrawalHistory(context.Background(), currency.USDT, "APPLY", time.Now().Add(-10*time.Hour), time.Now(), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGenerateDepositAddress(t *testing.T) {
+	t.Parallel()
+	_, err := me.GenerateDepositAddress(context.Background(), currency.EMPTYCODE, "TRC20")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.GenerateDepositAddress(context.Background(), currency.USDT, "")
+	require.ErrorIs(t, err, errNetworkNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.GenerateDepositAddress(context.Background(), currency.USDT, "TRC20")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDepositAddressOfCoin(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetDepositAddressOfCoin(context.Background(), currency.EMPTYCODE, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetDepositAddressOfCoin(context.Background(), currency.USDT, "ERC20")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWithdrawalAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetWithdrawalAddress(context.Background(), currency.USDT, 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUserUniversalTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := me.UserUniversalTransfer(context.Background(), "", "SPOT", currency.USDT, 1000)
+	require.ErrorIs(t, err, errAccountTypeRequired)
+	_, err = me.UserUniversalTransfer(context.Background(), "FUTURES", "", currency.USDT, 1000)
+	require.ErrorIs(t, err, errAccountTypeRequired)
+	_, err = me.UserUniversalTransfer(context.Background(), "FUTURES", "SPOT", currency.EMPTYCODE, 1000)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.UserUniversalTransfer(context.Background(), "FUTURES", "SPOT", currency.USDT, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.UserUniversalTransfer(context.Background(), "FUTURES", "SPOT", currency.USDT, 1000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
