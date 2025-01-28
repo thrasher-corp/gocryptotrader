@@ -96,9 +96,8 @@ jobs:
 
     - name: Set test flags
       run: |
-        TEST_FLAGS=""
         if [ "${{ matrix.sonic }}" = "true" ]; then
-          TEST_FLAGS="-tags sonic"
+          echo "TEST_FLAGS=-tags sonic" >> $GITHUB_ENV
         fi
       shell: bash
 
