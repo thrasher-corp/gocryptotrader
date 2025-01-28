@@ -2,3 +2,4 @@
 skip = ./.git,./web,./currency/code_types.go,*.json,*.sum,*.html
 exclude-file = ./contrib/spellcheck/exclude_lines.txt
 ignore-words = ./contrib/spellcheck/ignore_words.txt
+ignore-regex = currency\.\w+
