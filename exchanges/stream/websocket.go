@@ -682,7 +682,10 @@ func (w *Websocket) FlushChannels() error {
 // updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
 // have been subscribed to or unsubscribed from.
 func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription.Store, incoming subscription.List) error {
-	subs, unsubs := w.GetChannelDifference(c, incoming)
+	if store == nil {
+		return fmt.Errorf("%w for %T", common.ErrNilPointer, store)
+	}
+	subs, unsubs := store.Diff(incoming)
 	if len(unsubs) != 0 {
 		prevState := store.Len()
 		if err := w.UnsubscribeChannels(c, unsubs); err != nil {
@@ -851,21 +854,6 @@ func (w *Websocket) GetName() string {
 	return w.exchangeName
 }
 
-// GetChannelDifference finds the difference between the subscribed channels
-// and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(conn Connection, newSubs subscription.List) (sub, unsub subscription.List) {
-	var subscriptionStore **subscription.Store
-	if wrapper, ok := w.connections[conn]; ok && conn != nil {
-		subscriptionStore = &wrapper.Subscriptions
-	} else {
-		subscriptionStore = &w.subscriptions
-	}
-	if *subscriptionStore == nil {
-		*subscriptionStore = subscription.NewStore()
-	}
-	return (*subscriptionStore).Diff(newSubs)
-}
-
 // UnsubscribeChannels unsubscribes from a list of websocket channel
 func (w *Websocket) UnsubscribeChannels(conn Connection, channels subscription.List) error {
 	if len(channels) == 0 {
@@ -876,6 +864,11 @@ func (w *Websocket) UnsubscribeChannels(conn Connection, channels subscription.L
 			return wrapper.Setup.Unsubscriber(context.TODO(), conn, channels)
 		})
 	}
+
+	if w.Unsubscriber == nil {
+		return fmt.Errorf("%w: Global Unsubscriber not set", common.ErrNilPointer)
+	}
+
 	return w.unsubscribe(w.subscriptions, channels, func(channels subscription.List) error {
 		return w.Unsubscriber(channels)
 	})

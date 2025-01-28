@@ -445,7 +445,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	subs, err := ws.GenerateSubs()
 	require.NoError(t, err, "Generating test subscriptions should not error")
-	assert.NoError(t, new(Websocket).UnsubscribeChannels(nil, subs), "Should not error when w.subscriptions is nil")
+	assert.ErrorIs(t, new(Websocket).UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubsribe function")
 	assert.NoError(t, ws.UnsubscribeChannels(nil, nil), "Unsubscribing from nil should not error")
 	assert.ErrorIs(t, ws.UnsubscribeChannels(nil, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, ws.GetSubscription(42), "GetSubscription on empty internal map should return")
@@ -503,8 +503,8 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
 	require.NoError(t, err, "Generating test subscriptions should not error")
-	assert.NoError(t, new(Websocket).UnsubscribeChannels(nil, subs), "Should not error when w.subscriptions is nil")
-	assert.NoError(t, new(Websocket).UnsubscribeChannels(amazingConn, subs), "Should not error when w.subscriptions is nil")
+	assert.ErrorIs(t, new(Websocket).UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubsribe function")
+	assert.ErrorIs(t, new(Websocket).UnsubscribeChannels(amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubsribe function")
 	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, nil), "Unsubscribing from nil should not error")
 	assert.ErrorIs(t, multi.UnsubscribeChannels(amazingConn, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
@@ -1021,52 +1021,6 @@ func TestCheckWebsocketURL(t *testing.T) {
 
 	err = checkWebsocketURL("ws://websocketconnection.place")
 	assert.NoError(t, err, "checkWebsocketURL should not error")
-}
-
-// TestGetChannelDifference exercises GetChannelDifference
-// See subscription.TestStoreDiff for further testing
-func TestGetChannelDifference(t *testing.T) {
-	t.Parallel()
-
-	w := &Websocket{}
-	assert.NotPanics(t, func() { w.GetChannelDifference(nil, subscription.List{}) }, "Should not panic when called without a store")
-	subs, unsubs := w.GetChannelDifference(nil, subscription.List{{Channel: subscription.CandlesChannel}})
-	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
-	require.Empty(t, unsubs, "Should get no unsubs")
-	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
-	subs, unsubs = w.GetChannelDifference(nil, subscription.List{{Channel: subscription.TickerChannel}})
-	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
-	assert.Equal(t, 1, len(unsubs), "Should get the correct number of unsubs")
-
-	w = &Websocket{}
-	sweetConn := &WebsocketConnection{}
-	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
-	require.Equal(t, 1, len(subs))
-	require.Empty(t, unsubs, "Should get no unsubs")
-
-	w.connections = map[Connection]*ConnectionWrapper{
-		sweetConn: {Setup: &ConnectionSetup{URL: "ws://localhost:8080/ws"}},
-	}
-
-	naughtyConn := &WebsocketConnection{}
-	subs, unsubs = w.GetChannelDifference(naughtyConn, subscription.List{{Channel: subscription.CandlesChannel}})
-	require.Equal(t, 1, len(subs))
-	require.Empty(t, unsubs, "Should get no unsubs")
-
-	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
-	require.Equal(t, 1, len(subs))
-	require.Empty(t, unsubs, "Should get no unsubs")
-
-	err := w.connections[sweetConn].Subscriptions.Add(&subscription.Subscription{Channel: subscription.CandlesChannel})
-	require.NoError(t, err)
-
-	subs, unsubs = w.GetChannelDifference(sweetConn, subscription.List{{Channel: subscription.CandlesChannel}})
-	require.Empty(t, subs, "Should get no subs")
-	require.Empty(t, unsubs, "Should get no unsubs")
-
-	subs, unsubs = w.GetChannelDifference(sweetConn, nil)
-	require.Empty(t, subs, "Should get no subs")
-	require.Equal(t, 1, len(unsubs))
 }
 
 // GenSubs defines a theoretical exchange with pair management
@@ -1625,4 +1579,48 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestUpdateChannelSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ws := Websocket{}
+	err := ws.updateChannelSubscriptions(nil, nil, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	store := subscription.NewStore()
+
+	err = ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.Zero(t, store.Len())
+
+	ws.Subscriber = func(subs subscription.List) error {
+		for _, sub := range subs {
+			if err := store.Add(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	ws.subscriptions = store
+	err = ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	require.NoError(t, err)
+	require.Equal(t, 1, store.Len())
+
+	err = ws.updateChannelSubscriptions(nil, store, subscription.List{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	ws.Unsubscriber = func(subs subscription.List) error {
+		for _, sub := range subs {
+			if err := store.Remove(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	err = ws.updateChannelSubscriptions(nil, store, subscription.List{})
+	require.NoError(t, err)
+	require.Zero(t, store.Len())
 }
