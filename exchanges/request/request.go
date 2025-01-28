@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -265,9 +266,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		if p.HeaderResponse != nil {
-			for k, v := range resp.Header {
-				(*p.HeaderResponse)[k] = v
-			}
+			maps.Copy(*p.HeaderResponse, resp.Header)
 		}
 
 		if resp.StatusCode < http.StatusOK ||

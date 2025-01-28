@@ -12,12 +12,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+type jwtStruct struct {
+	jwt       string
+	jwtExpire time.Time
+	m         sync.RWMutex
+}
+
+type aliasStruct struct {
+	associatedAliases map[currency.Pair]currency.Pairs
+	m                 sync.RWMutex
+}
+
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	jwt       string
-	jwtExpire time.Time
-	mut       sync.RWMutex
+	jwtStruct   jwtStruct
+	aliasStruct aliasStruct
 }
 
 // Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality
@@ -150,8 +160,8 @@ type Product struct {
 	BaseCurrencyID            currency.Code            `json:"base_currency_id"`
 	FCMTradingSessionDetails  FCMTradingSessionDetails `json:"fcm_trading_session_details"`
 	MidMarketPrice            types.Number             `json:"mid_market_price"`
-	Alias                     string                   `json:"alias"`
-	AliasTo                   []string                 `json:"alias_to"`
+	Alias                     currency.Pair            `json:"alias"`
+	AliasTo                   []currency.Pair          `json:"alias_to"`
 	BaseDisplaySymbol         string                   `json:"base_display_symbol"`
 	QuoteDisplaySymbol        string                   `json:"quote_display_symbol"`
 	ViewOnly                  bool                     `json:"view_only"`

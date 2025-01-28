@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -1069,6 +1070,10 @@ func TestFetchTradablePairs(t *testing.T) {
 	resp, err = c.FetchTradablePairs(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	time.Sleep(5 * time.Second)
+	c.aliasStruct.m.RLock()
+	fmt.Printf("%+v\n", c.aliasStruct.associatedAliases)
+	c.aliasStruct.m.RUnlock()
 }
 
 func TestUpdateTradablePairs(t *testing.T) {

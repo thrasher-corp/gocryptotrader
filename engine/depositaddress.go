@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 
@@ -98,9 +99,7 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 	}
 
 	cpy := make(map[string][]deposit.Address, len(r))
-	for k, v := range r {
-		cpy[k] = v
-	}
+	maps.Copy(cpy, r)
 	return cpy, nil
 }
 

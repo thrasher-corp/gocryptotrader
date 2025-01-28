@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -151,9 +153,13 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		if err != nil {
 			return warnString, err
 		}
+		c.aliasStruct.m.RLock()
+		aliases := make(map[currency.Pair]currency.Pairs)
+		maps.Copy(aliases, c.aliasStruct.associatedAliases)
+		c.aliasStruct.m.RUnlock()
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
-				sliToSend = append(sliToSend, ticker.Price{
+				newTick := ticker.Price{
 					LastUpdated:  timestamp,
 					Pair:         wsTicker[i].Tickers[j].ProductID,
 					AssetType:    asset.Spot,
@@ -162,7 +168,14 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 					Low:          wsTicker[i].Tickers[j].Low24H,
 					Last:         wsTicker[i].Tickers[j].Price,
 					Volume:       wsTicker[i].Tickers[j].Volume24H,
-				})
+				}
+				sliToSend = append(sliToSend, newTick)
+				if aliases[newTick.Pair] != nil {
+					for k := range aliases[newTick.Pair] {
+						sliToSend = append(sliToSend, newTick)
+						sliToSend[len(sliToSend)-1].Pair = aliases[newTick.Pair][k]
+					}
+				}
 			}
 		}
 		c.Websocket.DataHandler <- sliToSend
@@ -372,7 +385,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 	if err != nil {
 		return err
 	}
-	return c.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+	book := &orderbook.Base{
 		Bids:            bids,
 		Asks:            asks,
 		Exchange:        c.Name,
@@ -380,7 +393,19 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 		Asset:           asset.Spot,
 		LastUpdated:     timestamp,
 		VerifyOrderbook: c.CanVerifyOrderbook,
-	})
+	}
+	errs := c.Websocket.Orderbook.LoadSnapshot(book)
+	c.aliasStruct.m.RLock()
+	aliases := c.aliasStruct.associatedAliases[snapshot.ProductID]
+	c.aliasStruct.m.RUnlock()
+	for i := range aliases {
+		book.Pair = aliases[i]
+		err = c.Websocket.Orderbook.LoadSnapshot(book)
+		if err != nil {
+			errs = fmt.Errorf("%v %v", errs, err)
+		}
+	}
+	return errs
 }
 
 // ProcessUpdate updates the orderbook local cache
@@ -389,14 +414,25 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 	if err != nil {
 		return err
 	}
-	obU := orderbook.Update{
+	obU := &orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       update.ProductID,
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-	return c.Websocket.Orderbook.Update(&obU)
+	errs := c.Websocket.Orderbook.Update(obU)
+	c.aliasStruct.m.RLock()
+	aliases := c.aliasStruct.associatedAliases[update.ProductID]
+	c.aliasStruct.m.RUnlock()
+	for i := range aliases {
+		obU.Pair = aliases[i]
+		err = c.Websocket.Orderbook.Update(obU)
+		if err != nil {
+			errs = fmt.Errorf("%v %v", errs, err)
+		}
+	}
+	return errs
 }
 
 // GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
@@ -464,18 +500,18 @@ func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
 func (c *CoinbasePro) GetWSJWT() (string, error) {
-	c.mut.RLock()
-	if c.jwtExpire.After(time.Now()) {
-		retStr := c.jwt
-		c.mut.RUnlock()
+	c.jwtStruct.m.RLock()
+	if c.jwtStruct.jwtExpire.After(time.Now()) {
+		retStr := c.jwtStruct.jwt
+		c.jwtStruct.m.RUnlock()
 		return retStr, nil
 	}
-	c.mut.RUnlock()
-	c.mut.Lock()
-	defer c.mut.Unlock()
+	c.jwtStruct.m.RUnlock()
+	c.jwtStruct.m.Lock()
+	defer c.jwtStruct.m.Unlock()
 	var err error
-	c.jwt, c.jwtExpire, err = c.GetJWT(context.Background(), "")
-	return c.jwt, err
+	c.jwtStruct.jwt, c.jwtStruct.jwtExpire, err = c.GetJWT(context.Background(), "")
+	return c.jwtStruct.jwt, err
 }
 
 // getTimestamp is a helper function which pulls a RFC3339-formatted timestamp from a byte slice of JSON data

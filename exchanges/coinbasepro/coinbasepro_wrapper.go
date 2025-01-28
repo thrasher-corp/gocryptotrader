@@ -194,6 +194,7 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 		}
 	}
 	pairs := make([]currency.Pair, 0, len(products.Products))
+	aliases := make(map[currency.Pair]currency.Pairs)
 	for x := range products.Products {
 		if products.Products[x].TradingDisabled {
 			continue
@@ -202,7 +203,23 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 			continue
 		}
 		pairs = append(pairs, products.Products[x].ID)
+		if !products.Products[x].Alias.IsEmpty() {
+			aliases[products.Products[x].Alias] = aliases[products.Products[x].Alias].Add(products.Products[x].ID)
+		}
+		if products.Products[x].AliasTo != nil && len(products.Products[x].AliasTo) > 0 {
+			aliases[products.Products[x].ID] = aliases[products.Products[x].ID].Add(products.Products[x].AliasTo...)
+		}
 	}
+	go func() {
+		c.aliasStruct.m.Lock()
+		defer c.aliasStruct.m.Unlock()
+		if c.aliasStruct.associatedAliases == nil {
+			c.aliasStruct.associatedAliases = make(map[currency.Pair]currency.Pairs)
+		}
+		for k, v := range aliases {
+			c.aliasStruct.associatedAliases[k] = c.aliasStruct.associatedAliases[k].Add(v...)
+		}
+	}()
 	return pairs, nil
 }
 
@@ -380,6 +397,20 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	err = book.Process()
 	if err != nil {
 		return book, err
+	}
+	c.aliasStruct.m.RLock()
+	aliases := c.aliasStruct.associatedAliases[p]
+	c.aliasStruct.m.RUnlock()
+	var errs error
+	for i := range aliases {
+		book.Pair = aliases[i]
+		err = book.Process()
+		if err != nil {
+			errs = fmt.Errorf("%v %v", errs, err)
+		}
+	}
+	if errs != nil {
+		return book, errs
 	}
 	return orderbook.Get(c.Name, p, assetType)
 }

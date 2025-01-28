@@ -3,6 +3,7 @@ package base
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 
@@ -125,9 +126,7 @@ func (f *FXHandler) backupGetRate(base string, currencies []string) (map[string]
 				continue
 			}
 
-			for k, v := range newRate {
-				rate[k] = v
-			}
+			maps.Copy(rate, newRate)
 
 			if len(shunt) != 0 {
 				continue
@@ -142,9 +141,7 @@ func (f *FXHandler) backupGetRate(base string, currencies []string) (map[string]
 			continue
 		}
 
-		for k, v := range newRate {
-			rate[k] = v
-		}
+		maps.Copy(rate, newRate)
 
 		if len(shunt) != 0 {
 			continue

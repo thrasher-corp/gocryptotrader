@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"sort"
@@ -1323,9 +1324,7 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
 	var urlMap = make(map[string]string)
-	for k, v := range e.defaults {
-		urlMap[k] = v
-	}
+	maps.Copy(urlMap, e.defaults)
 	e.mu.RUnlock()
 	return urlMap
 }
