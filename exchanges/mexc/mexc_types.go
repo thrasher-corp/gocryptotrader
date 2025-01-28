@@ -3,6 +3,7 @@ package mexc
 import (
 	"encoding/json"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -221,16 +222,14 @@ type SubAccountsAPIs struct {
 	SubAccount []SubAccountAPIDetail `json:"subAccount"`
 }
 
-// UniversalTransferResponse represents a universal asset transfer response
-type UniversalTransferResponse struct {
+// AssetTransferResponse represents an asset transfer response
+type AssetTransferResponse struct {
 	TransferID int64 `json:"tranId"`
 }
 
 // UniversalTransferHistoryData represents a universal asset transfer history detail
 type UniversalTransferHistoryData struct {
 	TranID          string       `json:"tranId"`
-	FromAccount     string       `json:"fromAccount"`
-	ToAccount       string       `json:"toAccount"`
 	ClientTranID    string       `json:"clientTranId"`
 	Asset           string       `json:"asset"`
 	Amount          types.Number `json:"amount"`
@@ -240,6 +239,10 @@ type UniversalTransferHistoryData struct {
 	ToSymbol        string       `json:"toSymbol"`
 	Status          string       `json:"status"`
 	Timestamp       types.Time   `json:"timestamp"`
+
+	// Used with sub-account universal asset transfers
+	FromAccount string `json:"fromAccount"`
+	ToAccount   string `json:"toAccount"`
 }
 
 // SubAccountAssetBalances represents a sub-account asset balances
@@ -439,3 +442,59 @@ type WithdrawalAddressesDetail struct {
 type UserUniversalTransferResponse struct {
 	TranID string `json:"tranId"`
 }
+
+// AssetConvertableToMX represents assets that can be converted to MX token
+type AssetConvertableToMX struct {
+	CommissionFeeMX   string        `json:"convertMx"`
+	CommissionFeeUSDT string        `json:"convertUsdt"`
+	Balance           types.Number  `json:"balance"`
+	Asset             currency.Code `json:"asset"`
+	Code              string        `json:"code"`
+	Message           string        `json:"message"`
+}
+
+// DustConvertResponse represents a dust asset convertion response
+type DustConvertResponse struct {
+	SuccessList  []currency.Code `json:"successList"`
+	FailedList   []currency.Code `json:"failedList"`
+	TotalConvert types.Number    `json:"totalConvert"`
+	ConvertFee   types.Number    `json:"convertFee"`
+}
+
+// DustLogDetail represents a dust log detail
+type DustLogDetail struct {
+	Data []struct {
+		TotalConvert   types.Number `json:"totalConvert"`
+		TotalFee       types.Number `json:"totalFee"`
+		ConvertTime    types.Time   `json:"convertTime"`
+		ConvertDetails []struct {
+			ID      string        `json:"id"`
+			Convert types.Number  `json:"convert"`
+			Fee     types.Number  `json:"fee"`
+			Amount  string        `json:"amount"`
+			Time    types.Time    `json:"time"`
+			Asset   currency.Code `json:"asset"`
+		} `json:"convertDetails"`
+	} `json:"data"`
+	Page         int64 `json:"page"`
+	TotalRecords int64 `json:"totalRecords"`
+	TotalPageNum int64 `json:"totalPageNum"`
+}
+
+// InternalTransferDetail represents an internal asset transfer list
+type InternalTransferDetail struct {
+	Page         int64 `json:"page"`
+	TotalRecords int64 `json:"totalRecords"`
+	TotalPageNum int64 `json:"totalPageNum"`
+	Data         []struct {
+		TransferID    string       `json:"tranId"`
+		Asset         string       `json:"asset"`
+		Amount        types.Number `json:"amount"`
+		ToAccountType string       `json:"toAccountType"`
+		ToAccount     string       `json:"toAccount"`
+		FromAccount   string       `json:"fromAccount"`
+		Status        string       `json:"status"`
+		Timestamp     types.Time   `json:"timestamp"`
+	} `json:"data"`
+}
+

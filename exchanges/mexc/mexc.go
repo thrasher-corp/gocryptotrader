@@ -44,6 +44,7 @@ var (
 	errAddressRequired            = errors.New("address is required")
 	errNetworkNameRequired        = errors.New("network name required")
 	errAccountTypeRequired        = errors.New("account type information required")
+	errTransactionIDRequired      = errors.New("missing transaction ID")
 )
 
 // Start implementing public and private exchange API funcs below
@@ -291,8 +292,8 @@ func (me *MEXC) DeleteAPIKeySubAccount(ctx context.Context, subAccountName strin
 	return resp.SubAccount, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "sub-account/apiKey", params, &resp, true)
 }
 
-// UniversalTransfer requires SPOT_TRANSFER_WRITE permission
-func (me *MEXC) UniversalTransfer(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) (*UniversalTransferResponse, error) {
+// SubAccountUniversalTransfer requires SPOT_TRANSFER_WRITE permission
+func (me *MEXC) SubAccountUniversalTransfer(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) (*AssetTransferResponse, error) {
 	if !me.SupportsAsset(fromAccountType) {
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
@@ -316,12 +317,12 @@ func (me *MEXC) UniversalTransfer(ctx context.Context, fromAccount, toAccount st
 	if toAccount != "" {
 		params.Set("toAccount", toAccount)
 	}
-	var resp *UniversalTransferResponse
+	var resp *AssetTransferResponse
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/sub-account/universalTransfer", params, &resp, true)
 }
 
-// GetUnversalTransferHistory retrieves universal assets transfer history of master account
-func (me *MEXC) GetUnversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
+// GetSubAccountUnversalTransferHistory retrieves universal assets transfer history of master account
+func (me *MEXC) GetSubAccountUnversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
 	if !me.SupportsAsset(fromAccountType) {
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
@@ -546,6 +547,173 @@ func (me *MEXC) UserUniversalTransfer(ctx context.Context, fromAccountType, toAc
 	params.Set("asset", asset.String())
 	var resp []UserUniversalTransferResponse
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer", params, &resp, true)
+}
+
+// GetUniversalTransferHistory retrieves users universal asset transfer history
+func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType string, startTime, endTime time.Time, page, size int64) ([]UniversalTransferHistoryData, error) {
+	if fromAccountType == "" {
+		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
+	}
+	if toAccountType == "" {
+		return nil, fmt.Errorf("%w, toAccountType is required", errAccountTypeRequired)
+	}
+	params := url.Values{}
+	params.Set("fromAccountType", fromAccountType)
+	params.Set("toAccountType", toAccountType)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp []UniversalTransferHistoryData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer", params, &resp, true)
+}
+
+// GetUniversalTransferDetailByID retrieves a universal asset transfer history item detail
+func (me *MEXC) GetUniversalTransferDetailByID(ctx context.Context, transactionID string) (*UniversalTransferHistoryData, error) {
+	if transactionID == "" {
+		return nil, errTransactionIDRequired
+	}
+	params := url.Values{}
+	params.Set("tranId", transactionID)
+	var resp *UniversalTransferHistoryData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer/tranId", params, &resp, true)
+}
+
+// GetAssetThatCanBeConvertedintoMX represents an asset that can be converted into an MX asset
+func (me *MEXC) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]AssetConvertableToMX, error) {
+	var resp []AssetConvertableToMX
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/convert/list", nil, &resp, true)
+}
+
+// DustTransfer transfer near-worthless crypto assets whose value is smaller than transaction fees
+func (me *MEXC) DustTransfer(ctx context.Context, assets []currency.Code) (*DustConvertResponse, error) {
+	if len(assets) == 0 {
+		return nil, fmt.Errorf("%w: at least one asset must be specified", currency.ErrCurrencyCodeEmpty)
+	}
+	assetsString := ""
+	for a := range assets {
+		if assets[a].IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		assetsString += assets[a].String() + ","
+	}
+	assetsString = strings.Trim(assetsString, ",")
+	params := url.Values{}
+	params.Set("asset", assetsString)
+	var resp *DustConvertResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/convert", params, &resp, true)
+}
+
+// DustLog retrieves a dust conversion history
+func (me *MEXC) DustLog(ctx context.Context, startTime, endTime time.Time, page, limit int64) (*DustLogDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *DustLogDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/convert", params, &resp, true)
+}
+
+// InternalTransfer allows an internal asset transfer between assets.
+func (me *MEXC) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, asset currency.Code, amount float64) (*AssetTransferResponse, error) {
+	if toAccountType == "" {
+		return nil, fmt.Errorf("%w: toAccountType is required", errAccountTypeRequired)
+	}
+	if toAccount == "" {
+		return nil, fmt.Errorf("%w: toAccount is required", errAddressRequired)
+	}
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("toAccountType", toAccountType)
+	params.Set("toAccount", toAccount)
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if areaCode != "" {
+		params.Set("areaCode", areaCode)
+	}
+	var resp *AssetTransferResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer/internal", params, &resp, true)
+}
+
+// GetInternalTransferHistory retrieves an internal asset transfer history
+func (me *MEXC) GetInternalTransferHistory(ctx context.Context, transferID string, startTime, endTime time.Time, page, limit int64) (*InternalTransferDetail, error) {
+	params := url.Values{}
+	if transferID != "" {
+		params.Set("tranId", transferID)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp *InternalTransferDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer/internal", params, &resp, true)
+}
+
+// CapitalWithdrawal withdraws an asset through a network
+func (me *MEXC) CapitalWithdrawal(ctx context.Context, coin currency.Code, withdrawOrderID, network, address, memo, remark string, amount float64) ([]IDResponse, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if address == "" {
+		return nil, errAddressRequired
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("address", address)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if withdrawOrderID != "" {
+		params.Set("withdrawOrderId", withdrawOrderID)
+	}
+	if network != "" {
+		params.Set("network", network)
+	}
+	if memo != "" {
+		params.Set("memo", memo)
+	}
+	if remark != "" {
+		params.Set("remark", remark)
+	}
+	var resp []IDResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/withdraw/apply", params, &resp, true)
 }
 
 // NewTestOrder creates and validates a new order but does not send it into the matching engine.

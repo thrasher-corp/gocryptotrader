@@ -232,30 +232,30 @@ func TestDeleteAPIKeySubAccount(t *testing.T) {
 
 func TestUniversalTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Futures, currency.USDT, 1234.)
+	_, err := me.SubAccountUniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Futures, currency.USDT, 1234.)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, currency.USDT, 1234.)
+	_, err = me.SubAccountUniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, currency.USDT, 1234.)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.EMPTYCODE, 1234.)
+	_, err = me.SubAccountUniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.EMPTYCODE, 1234.)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 0)
+	_, err = me.SubAccountUniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 0)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.UniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 1234.)
+	result, err := me.SubAccountUniversalTransfer(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 1234.)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetUnversalTransferHistory(t *testing.T) {
+func TestGetSubAccountUnversalTransferHistory(t *testing.T) {
 	t.Parallel()
-	_, err := me.GetUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	_, err := me.GetSubAccountUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = me.GetUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	_, err = me.GetSubAccountUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.GetUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	result, err := me.GetSubAccountUnversalTransferHistory(context.Background(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -584,15 +584,108 @@ func TestUserUniversalTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := me.UserUniversalTransfer(context.Background(), "", "SPOT", currency.USDT, 1000)
 	require.ErrorIs(t, err, errAccountTypeRequired)
-	_, err = me.UserUniversalTransfer(context.Background(), "FUTURES", "", currency.USDT, 1000)
+	_, err = me.UserUniversalTransfer(context.Background(), "FUTURE", "", currency.USDT, 1000)
 	require.ErrorIs(t, err, errAccountTypeRequired)
-	_, err = me.UserUniversalTransfer(context.Background(), "FUTURES", "SPOT", currency.EMPTYCODE, 1000)
+	_, err = me.UserUniversalTransfer(context.Background(), "FUTURE", "SPOT", currency.EMPTYCODE, 1000)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = me.UserUniversalTransfer(context.Background(), "FUTURES", "SPOT", currency.USDT, 0)
+	_, err = me.UserUniversalTransfer(context.Background(), "FUTURE", "SPOT", currency.USDT, 0)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.UserUniversalTransfer(context.Background(), "FUTURES", "SPOT", currency.USDT, 1000)
+	result, err := me.UserUniversalTransfer(context.Background(), "FUTURE", "SPOT", currency.USDT, 1000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnversalTransferHistory(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetUniversalTransferHistory(context.Background(), "", "FUTURE", time.Now().Add(-time.Hour*20), time.Now(), 0, 10)
+	require.ErrorIs(t, err, errAccountTypeRequired)
+	_, err = me.GetUniversalTransferHistory(context.Background(), "SPOT", "", time.Now().Add(-time.Hour*20), time.Now(), 0, 10)
+	require.ErrorIs(t, err, errAccountTypeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUniversalTransferHistory(context.Background(), "SPOT", "FUTURE", time.Now().Add(-time.Hour*20), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUniversalTransferDetailByID(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetUniversalTransferDetailByID(context.Background(), "")
+	require.ErrorIs(t, err, errTransactionIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUniversalTransferDetailByID(context.Background(), "12345678")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAssetThatCanBeConvertedintoMX(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAssetThatCanBeConvertedintoMX(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDustTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := me.DustTransfer(context.Background(), []currency.Code{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.DustTransfer(context.Background(), []currency.Code{currency.EMPTYCODE, currency.ETH})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.DustTransfer(context.Background(), []currency.Code{currency.BTC, currency.ETH})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDustLog(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.DustLog(context.Background(), time.Time{}, time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestInternalTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := me.InternalTransfer(context.Background(), "", "someone@example.com", "+251", currency.USDT, 1.2)
+	require.ErrorIs(t, err, errAccountTypeRequired)
+	_, err = me.InternalTransfer(context.Background(), "EMAIL", "", "+251", currency.USDT, 1.2)
+	require.ErrorIs(t, err, errAddressRequired)
+	_, err = me.InternalTransfer(context.Background(), "EMAIL", "someone@example.com", "+251", currency.EMPTYCODE, 1.2)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.InternalTransfer(context.Background(), "EMAIL", "someone@example.com", "+251", currency.USDT, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.InternalTransfer(context.Background(), "EMAIL", "someone@example.com", "+251", currency.USDT, 1.2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetInternalTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetInternalTransferHistory(context.Background(), "11945860693", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCapitalWithdrawal(t *testing.T) {
+	t.Parallel()
+	_, err := me.CapitalWithdrawal(context.Background(), currency.EMPTYCODE, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 1234)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.CapitalWithdrawal(context.Background(), currency.BTC, "12345678", "TRC20", "", "", "", 1234)
+	require.ErrorIs(t, err, errAddressRequired)
+	_, err = me.CapitalWithdrawal(context.Background(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CapitalWithdrawal(context.Background(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 1234)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
