@@ -1094,8 +1094,8 @@ func TestFetchOrderbook(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+// Not parallel; being parallel causes intermittent errors with the last test here for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
-	t.Parallel()
 	_, err := c.UpdateOrderbook(context.Background(), currency.Pair{}, asset.Empty)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = c.UpdateOrderbook(context.Background(), testPair, asset.Empty)
