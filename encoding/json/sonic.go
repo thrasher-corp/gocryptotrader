@@ -3,8 +3,6 @@
 package json
 
 import (
-	"log"
-
 	"github.com/bytedance/sonic"
 )
 
@@ -25,7 +23,3 @@ var (
 	// Valid reports whether data is a valid JSON encoding. See the "github.com/bytedance/sonic" documentation for Valid
 	Valid = sonic.ConfigStd.Valid
 )
-
-func init() {
-	log.Printf("Using %s for JSON encoding\n", Version)
-}
