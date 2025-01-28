@@ -767,7 +767,7 @@ func TestPlaceOrder(t *testing.T) {
 		Side:         order.Buy.String(),
 		OrderType:    "limit",
 		Amount:       2.6,
-		Price:        2000000.1,
+		Price:        2.1,
 		Currency:     "BTC",
 		AssetType:    asset.Margin,
 	})

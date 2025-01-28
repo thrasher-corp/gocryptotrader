@@ -1301,7 +1301,7 @@ type CrossMarginBalance struct {
 	BorrowedNet         string       `json:"borrowed_net"`
 	TotalNetAssetInUSDT string       `json:"net"`
 	PositionLeverage    string       `json:"leverage"`
-	Risk                string       `json:"risk"` // Risk percentage; Liquidation is triggered when this below required margin Calculation: total / (borrowed+interest)
+	Risk                string       `json:"risk"` // Risk percentage; Liquidation is triggered when this falls below required margin. Calculation: total / (borrowed+interest)
 }
 
 // WalletSavedAddress represents currency saved address

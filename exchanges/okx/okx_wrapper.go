@@ -1124,8 +1124,10 @@ func priceTypeString(pt order.PriceType) string {
 	}
 }
 
+var allowedMarginTypes = margin.Isolated | margin.NoMargin | margin.SpotIsolated
+
 func (ok *Okx) marginTypeToString(m margin.Type) string {
-	if (margin.Isolated|margin.NoMargin|margin.SpotIsolated)&m == m {
+	if (allowedMarginTypes)&m == m {
 		return m.String()
 	} else if margin.Multi == m {
 		return TradeModeCross
