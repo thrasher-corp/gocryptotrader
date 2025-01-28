@@ -394,25 +394,35 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 			Price:  orderbookNew.Pricebook.Asks[x].Price,
 		}
 	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
 	c.aliasStruct.m.RLock()
 	aliases := c.aliasStruct.associatedAliases[p]
 	c.aliasStruct.m.RUnlock()
+	aliases = aliases.Add(p)
 	var errs error
+	var validPairs currency.Pairs
 	for i := range aliases {
-		book.Pair = aliases[i]
-		err = book.Process()
+		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], assetType)
 		if err != nil {
 			errs = fmt.Errorf("%v %v", errs, err)
+			continue
+		}
+		if isEnabled {
+			book.Pair = aliases[i]
+			err = book.Process()
+			if err != nil {
+				errs = fmt.Errorf("%v %v", errs, err)
+				continue
+			}
+			validPairs = append(validPairs, book.Pair)
 		}
 	}
 	if errs != nil {
 		return book, errs
 	}
-	return orderbook.Get(c.Name, p, assetType)
+	if len(validPairs) == 0 {
+		return book, errPairsDisabledOrErrored
+	}
+	return orderbook.Get(c.Name, validPairs[0], assetType)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals

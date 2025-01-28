@@ -305,7 +305,7 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		ExchangeName:             w.exchangeName,
 		URL:                      connectionURL,
 		ProxyURL:                 w.GetProxyAddress(),
-		Verbose:                  true,
+		Verbose:                  w.verbose,
 		ResponseMaxLimit:         c.ResponseMaxLimit,
 		Traffic:                  w.TrafficAlert,
 		readMessageErrors:        w.ReadMessageErrors,

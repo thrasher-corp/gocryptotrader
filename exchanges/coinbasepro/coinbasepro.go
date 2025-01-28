@@ -157,6 +157,7 @@ var (
 	errUnrecognisedStrategyType = errors.New("unrecognised strategy type")
 	errIntervalNotSupported     = errors.New("interval not supported")
 	errEndpointPathInvalid      = errors.New("endpoint path invalid, should start with https://")
+	errPairsDisabledOrErrored   = errors.New("pairs are either disabled or errored")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}

@@ -159,9 +159,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		c.aliasStruct.m.RUnlock()
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
+				tickAlias := aliases[wsTicker[i].Tickers[j].ProductID]
+				tickAlias = tickAlias.Add(wsTicker[i].Tickers[j].ProductID)
 				newTick := ticker.Price{
 					LastUpdated:  timestamp,
-					Pair:         wsTicker[i].Tickers[j].ProductID,
 					AssetType:    asset.Spot,
 					ExchangeName: c.Name,
 					High:         wsTicker[i].Tickers[j].High24H,
@@ -169,11 +170,16 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 					Last:         wsTicker[i].Tickers[j].Price,
 					Volume:       wsTicker[i].Tickers[j].Volume24H,
 				}
-				sliToSend = append(sliToSend, newTick)
-				if aliases[newTick.Pair] != nil {
-					for k := range aliases[newTick.Pair] {
+				var errs error
+				for k := range tickAlias {
+					isEnabled, err := c.CurrencyPairs.IsPairEnabled(tickAlias[k], asset.Spot)
+					if err != nil {
+						errs = fmt.Errorf("%v %v", errs, err)
+						continue
+					}
+					if isEnabled {
+						newTick.Pair = tickAlias[k]
 						sliToSend = append(sliToSend, newTick)
-						sliToSend[len(sliToSend)-1].Pair = aliases[newTick.Pair][k]
 					}
 				}
 			}
@@ -394,15 +400,23 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 		LastUpdated:     timestamp,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	errs := c.Websocket.Orderbook.LoadSnapshot(book)
 	c.aliasStruct.m.RLock()
 	aliases := c.aliasStruct.associatedAliases[snapshot.ProductID]
 	c.aliasStruct.m.RUnlock()
+	aliases = aliases.Add(snapshot.ProductID)
+	var errs error
 	for i := range aliases {
-		book.Pair = aliases[i]
-		err = c.Websocket.Orderbook.LoadSnapshot(book)
+		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
 		if err != nil {
 			errs = fmt.Errorf("%v %v", errs, err)
+			continue
+		}
+		if isEnabled {
+			book.Pair = aliases[i]
+			err = c.Websocket.Orderbook.LoadSnapshot(book)
+			if err != nil {
+				errs = fmt.Errorf("%v %v", errs, err)
+			}
 		}
 	}
 	return errs
@@ -421,15 +435,23 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-	errs := c.Websocket.Orderbook.Update(obU)
 	c.aliasStruct.m.RLock()
 	aliases := c.aliasStruct.associatedAliases[update.ProductID]
 	c.aliasStruct.m.RUnlock()
+	aliases = aliases.Add(update.ProductID)
+	var errs error
 	for i := range aliases {
-		obU.Pair = aliases[i]
-		err = c.Websocket.Orderbook.Update(obU)
+		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
 		if err != nil {
 			errs = fmt.Errorf("%v %v", errs, err)
+			continue
+		}
+		if isEnabled {
+			obU.Pair = aliases[i]
+			err = c.Websocket.Orderbook.Update(obU)
+			if err != nil {
+				errs = fmt.Errorf("%v %v", errs, err)
+			}
 		}
 	}
 	return errs
