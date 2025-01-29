@@ -375,8 +375,8 @@ func (w *Websocket) connect() error {
 				return err
 			}
 
-			if _, unmatched := w.subscriptions.PartitionByPresence(subs); len(unmatched) > 0 {
-				return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, unmatched)
+			if missing := w.subscriptions.Missing(subs); len(missing) > 0 {
+				return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing)
 			}
 		}
 		return nil
@@ -461,8 +461,8 @@ func (w *Websocket) connect() error {
 			break
 		}
 
-		if _, unmatched := w.connectionManager[i].Subscriptions.PartitionByPresence(subs); len(subs) > 0 && len(unmatched) > 0 {
-			multiConnectFatalError = fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, unmatched)
+		if missing := w.connectionManager[i].Subscriptions.Missing(subs); len(missing) > 0 {
+			multiConnectFatalError = fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing)
 			break
 		}
 
@@ -688,8 +688,8 @@ func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription
 			return err
 		}
 
-		if matched, _ := store.PartitionByPresence(unsubs); len(matched) > 0 {
-			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotRemoved, matched)
+		if contained := store.Contained(unsubs); len(contained) > 0 {
+			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotRemoved, contained)
 		}
 	}
 	if len(subs) != 0 {
@@ -697,8 +697,8 @@ func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription
 			return err
 		}
 
-		if _, unmatched := store.PartitionByPresence(subs); len(unmatched) > 0 {
-			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, unmatched)
+		if missing := store.Missing(subs); len(missing) > 0 {
+			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing)
 		}
 	}
 	return nil

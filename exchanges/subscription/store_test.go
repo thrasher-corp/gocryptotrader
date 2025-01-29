@@ -205,34 +205,55 @@ func EqualLists(tb testing.TB, a, b List) {
 	}
 }
 
-func TestPartitionByPresence(t *testing.T) {
+func TestContained(t *testing.T) {
 	t.Parallel()
 
 	var s *Store
-	matched, unmatched := s.PartitionByPresence(nil)
+	matched := s.Contained(nil)
 	assert.Nil(t, matched)
+
+	matched = s.Contained(List{{Channel: TickerChannel}})
+	assert.Nil(t, matched)
+
+	s = NewStore()
+	matched = s.Contained(nil)
+	assert.Nil(t, matched)
+
+	matched = s.Contained(List{})
+	assert.Nil(t, matched)
+
+	matched = s.Contained(List{{Channel: TickerChannel}})
+	assert.Nil(t, matched)
+
+	require.NoError(t, s.add(&Subscription{Channel: TickerChannel}))
+
+	matched = s.Contained(List{{Channel: TickerChannel}})
+	assert.Len(t, matched, 1)
+}
+
+func TestMissing(t *testing.T) {
+	t.Parallel()
+
+	var s *Store
+
+	unmatched := s.Missing(nil)
 	assert.Nil(t, unmatched)
 
-	matched, unmatched = s.PartitionByPresence(List{{Channel: TickerChannel}})
-	assert.Nil(t, matched)
+	unmatched = s.Missing(List{{Channel: TickerChannel}})
 	assert.Len(t, unmatched, 1)
 
 	s = NewStore()
-	matched, unmatched = s.PartitionByPresence(nil)
-	assert.Nil(t, matched)
+	unmatched = s.Missing(nil)
 	assert.Nil(t, unmatched)
 
-	matched, unmatched = s.PartitionByPresence(List{})
-	assert.Nil(t, matched)
+	unmatched = s.Missing(List{})
 	assert.Nil(t, unmatched)
 
-	matched, unmatched = s.PartitionByPresence(List{{Channel: TickerChannel}})
-	assert.Nil(t, matched)
+	unmatched = s.Missing(List{{Channel: TickerChannel}})
 	assert.Len(t, unmatched, 1)
 
 	require.NoError(t, s.add(&Subscription{Channel: TickerChannel}))
 
-	matched, unmatched = s.PartitionByPresence(List{{Channel: TickerChannel}})
-	assert.Len(t, matched, 1)
+	unmatched = s.Missing(List{{Channel: TickerChannel}})
 	assert.Nil(t, unmatched)
 }

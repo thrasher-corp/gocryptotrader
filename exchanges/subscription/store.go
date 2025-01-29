@@ -207,20 +207,34 @@ func (s *Store) Len() int {
 	return len(s.m)
 }
 
-// PartitionByPresence returns two lists; one with the subscriptions that are present in the store and one with the
-// subscriptions that are not
-func (s *Store) PartitionByPresence(compare List) (matched, unmatched List) {
+// Contained returns a list of subscriptions in `compare` that are already in the store.
+func (s *Store) Contained(compare List) List {
 	if s == nil || s.m == nil {
-		return nil, compare // All are unmatched
+		return nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	var matched List
 	for _, sub := range compare {
 		if found := s.get(sub); found != nil {
 			matched = append(matched, found)
-		} else {
+		}
+	}
+	return matched
+}
+
+// Missing returns a list of subscriptions in `compare` that are not in the store.
+func (s *Store) Missing(compare List) List {
+	if s == nil || s.m == nil {
+		return compare // All are unmatched
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var unmatched List
+	for _, sub := range compare {
+		if found := s.get(sub); found == nil {
 			unmatched = append(unmatched, sub)
 		}
 	}
-	return
+	return unmatched
 }
