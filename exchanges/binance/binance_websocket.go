@@ -363,7 +363,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Amount:       t.Quantity.Float64(),
 				Exchange:     b.Name,
 				AssetType:    asset.Spot,
-				TID:          strconv.FormatInt(t.TradeID, 10),
+				Side: func() order.Side {
+					if t.IsBuyerMaker {
+						return order.Sell
+					}
+					return order.Buy
+				}(),
+				TID: strconv.FormatInt(t.TradeID, 10),
 			})
 	case "ticker":
 		var t TickerStream
