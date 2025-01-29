@@ -123,6 +123,8 @@ var (
 	}
 )
 
+var errSubscriptionFailureDetected = errors.New("subscription failure detected")
+
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
@@ -779,6 +781,7 @@ func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
+		"fmt":             formatPerpetualPairWithSettlement,
 	}).
 		Parse(subTplText)
 }
@@ -805,18 +808,19 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 	if err != nil || len(subs) == 0 {
 		return err
 	}
+
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
 		Method:         method,
-		Params: map[string][]string{
-			"channels": subs.QualifiedChannels(),
-		},
+		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
+
 	data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}
+
 	var response wsSubscriptionResponse
 	err = json.Unmarshal(data, &response)
 	if err != nil {
@@ -827,23 +831,23 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		subAck[c] = true
 	}
 	if len(subAck) != len(subs) {
-		err = common.ErrUnknownError
+		err = errSubscriptionFailureDetected
 	}
 	for _, s := range subs {
 		if _, ok := subAck[s.QualifiedChannel]; ok {
-			err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
+			if strings.Contains(method, "subscribe") {
+				err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
+			} else {
+				err = common.AppendError(err, d.Websocket.RemoveSubscriptions(d.Websocket.Conn, s))
+			}
 		} else {
-			err = common.AppendError(err, errors.New(s.String()))
+			err = common.AppendError(err, errors.New(s.String()+"failed to"+method))
 		}
 	}
 	if err != nil {
 		return err
 	}
-
-	if method == "unsubscribe" {
-		return d.Websocket.RemoveSubscriptions(d.Websocket.Conn, subs...)
-	}
-	return d.Websocket.AddSubscriptions(d.Websocket.Conn, subs...)
+	return nil
 }
 
 func getValidatedCurrencyCode(pair currency.Pair) string {
@@ -906,11 +910,18 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
+func formatPerpetualPairWithSettlement(pair currency.Pair) string {
+	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
+		pair.Delimiter = "_"
+	}
+	return pair.String()
+}
+
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- $p }}
+			{{- channelName $.S -}} . {{- fmt $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}
