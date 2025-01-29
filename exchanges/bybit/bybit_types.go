@@ -38,7 +38,7 @@ type SubscriptionArgument struct {
 	RequestID      string            `json:"req_id"`
 	Operation      string            `json:"op"`
 	Arguments      []string          `json:"args"`
-	associatedSubs subscription.List `json:"-"` // Used to store associated subscriptions
+	associatedSubs subscription.List `json:"-"`
 }
 
 // Fee holds fee information

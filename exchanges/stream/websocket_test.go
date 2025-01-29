@@ -252,7 +252,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) {
-		return subscription.List{{}}, nil
+		return subscription.List{{Channel: "test"}}, nil
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errNoConnectFunc)
@@ -1585,12 +1585,8 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	ws := Websocket{}
-	err := ws.updateChannelSubscriptions(nil, nil, nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
 	store := subscription.NewStore()
-
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	err := ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	require.Zero(t, store.Len())
 

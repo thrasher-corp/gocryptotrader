@@ -375,8 +375,8 @@ func (w *Websocket) connect() error {
 				return err
 			}
 
-			if w.subscriptions.Len() != len(subs) {
-				return fmt.Errorf("%s %w expecting %d subscribed", w.exchangeName, errSubscriptionsNotAdded, len(subs))
+			if _, unmatched := w.subscriptions.PartitionByPresence(subs); len(unmatched) > 0 {
+				return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, unmatched)
 			}
 		}
 		return nil
@@ -461,8 +461,8 @@ func (w *Websocket) connect() error {
 			break
 		}
 
-		if len(subs) != 0 && w.connectionManager[i].Subscriptions.Len() != len(subs) {
-			multiConnectFatalError = fmt.Errorf("%v %w expecting %d subscribed %v", w.exchangeName, errSubscriptionsNotAdded, len(subs), subs)
+		if _, unmatched := w.connectionManager[i].Subscriptions.PartitionByPresence(subs); len(subs) > 0 && len(unmatched) > 0 {
+			multiConnectFatalError = fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, unmatched)
 			break
 		}
 
@@ -682,26 +682,23 @@ func (w *Websocket) FlushChannels() error {
 // updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
 // have been subscribed to or unsubscribed from.
 func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription.Store, incoming subscription.List) error {
-	if store == nil {
-		return fmt.Errorf("%w for %T", common.ErrNilPointer, store)
-	}
 	subs, unsubs := store.Diff(incoming)
 	if len(unsubs) != 0 {
-		prevState := store.Len()
 		if err := w.UnsubscribeChannels(c, unsubs); err != nil {
 			return err
 		}
-		if diff := prevState - store.Len(); diff != len(unsubs) {
-			return fmt.Errorf("%v %w expected %d unsubscribed", w.exchangeName, errSubscriptionsNotRemoved, len(unsubs))
+
+		if matched, _ := store.PartitionByPresence(unsubs); len(matched) > 0 {
+			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotRemoved, matched)
 		}
 	}
 	if len(subs) != 0 {
-		prevState := store.Len()
 		if err := w.SubscribeToChannels(c, subs); err != nil {
 			return err
 		}
-		if diff := store.Len() - prevState; diff != len(subs) {
-			return fmt.Errorf("%v %w expected %d subscribed", w.exchangeName, errSubscriptionsNotAdded, len(subs))
+
+		if _, unmatched := store.PartitionByPresence(subs); len(unmatched) > 0 {
+			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, unmatched)
 		}
 	}
 	return nil

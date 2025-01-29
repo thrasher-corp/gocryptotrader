@@ -167,32 +167,19 @@ func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (
 	if err != nil {
 		return
 	}
-	var chans subscription.List
-	var authChans subscription.List
-	for _, s := range subs {
-		if s.Authenticated {
-			authChans = append(authChans, s)
-		} else {
-			chans = append(chans, s)
+
+	for _, list := range []subscription.List{subs.Public(), subs.Private()} {
+		for _, b := range common.Batch(list, 10) {
+			args = append(args, SubscriptionArgument{
+				auth:           b[0].Authenticated,
+				Operation:      operation,
+				RequestID:      strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+				Arguments:      b.QualifiedChannels(),
+				associatedSubs: b,
+			})
 		}
 	}
-	for _, b := range common.Batch(chans, 10) {
-		args = append(args, SubscriptionArgument{
-			Operation:      operation,
-			RequestID:      strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-			Arguments:      b.QualifiedChannels(),
-			associatedSubs: b,
-		})
-	}
-	if len(authChans) != 0 {
-		args = append(args, SubscriptionArgument{
-			auth:           true,
-			Operation:      operation,
-			RequestID:      strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-			Arguments:      authChans.QualifiedChannels(),
-			associatedSubs: authChans,
-		})
-	}
+
 	return
 }
 

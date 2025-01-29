@@ -204,3 +204,35 @@ func EqualLists(tb testing.TB, a, b List) {
 		assert.Fail(tb, fail, "Subscriptions should be equal")
 	}
 }
+
+func TestPartitionByPresence(t *testing.T) {
+	t.Parallel()
+
+	var s *Store
+	matched, unmatched := s.PartitionByPresence(nil)
+	assert.Nil(t, matched)
+	assert.Nil(t, unmatched)
+
+	matched, unmatched = s.PartitionByPresence(List{{Channel: TickerChannel}})
+	assert.Nil(t, matched)
+	assert.Len(t, unmatched, 1)
+
+	s = NewStore()
+	matched, unmatched = s.PartitionByPresence(nil)
+	assert.Nil(t, matched)
+	assert.Nil(t, unmatched)
+
+	matched, unmatched = s.PartitionByPresence(List{})
+	assert.Nil(t, matched)
+	assert.Nil(t, unmatched)
+
+	matched, unmatched = s.PartitionByPresence(List{{Channel: TickerChannel}})
+	assert.Nil(t, matched)
+	assert.Len(t, unmatched, 1)
+
+	require.NoError(t, s.add(&Subscription{Channel: TickerChannel}))
+
+	matched, unmatched = s.PartitionByPresence(List{{Channel: TickerChannel}})
+	assert.Len(t, matched, 1)
+	assert.Nil(t, unmatched)
+}

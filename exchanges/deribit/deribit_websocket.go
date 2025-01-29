@@ -123,8 +123,6 @@ var (
 	}
 )
 
-var errSubscriptionFailureDetected = errors.New("subscription failure detected")
-
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
@@ -831,19 +829,25 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		subAck[c] = true
 	}
 	if len(subAck) != len(subs) {
-		err = errSubscriptionFailureDetected
+		err = stream.ErrSubscriptionFailure
 	}
 	for _, s := range subs {
 		if _, ok := subAck[s.QualifiedChannel]; ok {
+			delete(subAck, s.QualifiedChannel)
 			if !strings.Contains(method, "unsubscribe") {
 				err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
 			} else {
 				err = common.AppendError(err, d.Websocket.RemoveSubscriptions(d.Websocket.Conn, s))
 			}
 		} else {
-			err = common.AppendError(err, errors.New(s.String()+"failed to"+method))
+			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))
 		}
 	}
+
+	for key := range subAck {
+		err = common.AppendError(err, fmt.Errorf("unexpected channel `%s` in result", key))
+	}
+
 	if err != nil {
 		return err
 	}
