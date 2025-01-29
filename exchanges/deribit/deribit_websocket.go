@@ -835,7 +835,7 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 	}
 	for _, s := range subs {
 		if _, ok := subAck[s.QualifiedChannel]; ok {
-			if strings.Contains(method, "subscribe") {
+			if !strings.Contains(method, "unsubscribe") {
 				err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
 			} else {
 				err = common.AppendError(err, d.Websocket.RemoveSubscriptions(d.Websocket.Conn, s))
