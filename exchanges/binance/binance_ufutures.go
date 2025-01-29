@@ -16,55 +16,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
-
 	// Unauth
-	ufuturesServerTime         = "/fapi/v1/time"
-	ufuturesExchangeInfo       = "/fapi/v1/exchangeInfo"
-	ufuturesOrderbook          = "/fapi/v1/depth"
-	ufuturesRecentTrades       = "/fapi/v1/trades"
-	ufuturesHistoricalTrades   = "/fapi/v1/historicalTrades"
-	ufuturesCompressedTrades   = "/fapi/v1/aggTrades"
-	ufuturesKlineData          = "/fapi/v1/klines"
 	ufuturesMarkPrice          = "/fapi/v1/premiumIndex"
-	ufuturesFundingRateHistory = "/fapi/v1/fundingRate"
-	ufuturesFundingRateInfo    = "/fapi/v1/fundingInfo"
 	ufuturesTickerPriceStats   = "/fapi/v1/ticker/24hr"
-	ufuturesSymbolPriceTicker  = "/fapi/v1/ticker/price"
-	ufuturesSymbolOrderbook    = "/fapi/v1/ticker/bookTicker"
-	ufuturesOpenInterest       = "/fapi/v1/openInterest"
-	ufuturesOpenInterestStats  = "/futures/data/openInterestHist"
-	ufuturesTopAccountsRatio   = "/futures/data/topLongShortAccountRatio"
-	ufuturesTopPositionsRatio  = "/futures/data/topLongShortPositionRatio"
-	ufuturesLongShortRatio     = "/futures/data/globalLongShortAccountRatio"
-	ufuturesBuySellVolume      = "/futures/data/takerlongshortRatio"
 	ufuturesCompositeIndexInfo = "/fapi/v1/indexInfo"
-	fundingRate                = "/fapi/v1/fundingRate"
 
 	// Auth
-	ufuturesOrder                 = "/fapi/v1/order"
-	ufuturesBatchOrder            = "/fapi/v1/batchOrders"
-	ufuturesCancelAllOrders       = "/fapi/v1/allOpenOrders"
-	ufuturesCountdownCancel       = "/fapi/v1/countdownCancelAll"
-	ufuturesOpenOrder             = "/fapi/v1/openOrder"
-	ufuturesAllOpenOrders         = "/fapi/v1/openOrders"
-	ufuturesAllOrders             = "/fapi/v1/allOrders"
-	ufuturesAccountBalance        = "/fapi/v2/balance"
-	ufuturesAccountInfo           = "/fapi/v2/account"
-	ufuturesChangeInitialLeverage = "/fapi/v1/leverage"
-	ufuturesChangeMarginType      = "/fapi/v1/marginType"
-	ufuturesModifyMargin          = "/fapi/v1/positionMargin"
-	ufuturesMarginChangeHistory   = "/fapi/v1/positionMargin/history"
-	ufuturesPositionInfo          = "/fapi/v2/positionRisk"
-	ufuturesCommissionRate        = "/fapi/v1/commissionRate"
-	ufuturesAccountTradeList      = "/fapi/v1/userTrades"
-	ufuturesIncomeHistory         = "/fapi/v1/income"
-	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
-	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
-	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
-	uFuturesMultiAssetsMargin     = "/fapi/v1/multiAssetsMargin"
+	ufuturesOrder             = "/fapi/v1/order"
+	ufuturesBatchOrder        = "/fapi/v1/batchOrders"
+	uFuturesMultiAssetsMargin = "/fapi/v1/multiAssetsMargin"
 )
 
 // UServerTime gets the server time
@@ -72,7 +36,7 @@ func (b *Binance) UServerTime(ctx context.Context) (time.Time, error) {
 	var data struct {
 		ServerTime int64 `json:"serverTime"`
 	}
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesServerTime, uFuturesDefaultRate, &data)
+	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/fapi/v1/time", uFuturesDefaultRate, &data)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -82,7 +46,7 @@ func (b *Binance) UServerTime(ctx context.Context) (time.Time, error) {
 // UExchangeInfo stores usdt margined futures data
 func (b *Binance) UExchangeInfo(ctx context.Context) (*UFuturesExchangeInfo, error) {
 	var resp *UFuturesExchangeInfo
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesExchangeInfo, uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/fapi/v1/exchangeInfo", uFuturesDefaultRate, &resp)
 }
 
 // UFuturesOrderbook gets orderbook data for usdt margined futures
@@ -112,7 +76,7 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol string, limit in
 	}
 
 	var resp *OrderBook
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesOrderbook, params), rateBudget, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/depth", params), rateBudget, &resp)
 }
 
 // URecentTrades gets recent trades for usdt margined futures
@@ -129,7 +93,7 @@ func (b *Binance) URecentTrades(ctx context.Context, symbol, fromID string, limi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UPublicTradesData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesRecentTrades, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/trades", params), uFuturesDefaultRate, &resp)
 }
 
 // UFuturesHistoricalTrades gets historical public trades for USDTMarginedFutures
@@ -146,7 +110,7 @@ func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol, fromID s
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UPublicTradesData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesHistoricalTrades, params, uFuturesHistoricalTradesRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/historicalTrades", params, uFuturesHistoricalTradesRate, nil, &resp)
 }
 
 // UCompressedTrades gets compressed public trades for usdt margined futures
@@ -170,7 +134,7 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol, fromID string, 
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []UCompressedTradeData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesCompressedTrades, params), uFuturesHistoricalTradesRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/aggTrades", params), uFuturesHistoricalTradesRate, &resp)
 }
 
 // UKlineData gets kline data for usdt margined futures
@@ -208,7 +172,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol, interval string, limit
 		rateBudget = uFuturesKlineMaxRate
 	}
 	var data []UFuturesCandleStick
-	return data, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesKlineData, params), rateBudget, &data)
+	return data, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/klines", params), rateBudget, &data)
 }
 
 // GetUFuturesContinuousKlineData kline/candlestick bars for a specific contract type.
@@ -341,7 +305,7 @@ func (b *Binance) UGetMarkPrice(ctx context.Context, symbol string) ([]UMarkPric
 // UGetFundingRateInfo returns extra details about funding rates
 func (b *Binance) UGetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
 	var resp []FundingRateInfoResponse
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesFundingRateInfo, uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/fapi/v1/fundingInfo", uFuturesDefaultRate, &resp)
 }
 
 // UGetFundingHistory gets funding history for USDTMarginedFutures
@@ -361,7 +325,7 @@ func (b *Binance) UGetFundingHistory(ctx context.Context, symbol string, limit i
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FundingRateHistory
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesFundingRateHistory, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/fundingRate", params), uFuturesDefaultRate, &resp)
 }
 
 // U24HTickerPriceChangeStats gets 24hr ticker price change stats for USDTMarginedFutures
@@ -386,7 +350,7 @@ func (b *Binance) U24HTickerPriceChangeStats(ctx context.Context, symbol currenc
 
 // USymbolPriceTickerV1 gets symbol price ticker for USDTMarginedFutures V1
 func (b *Binance) USymbolPriceTickerV1(ctx context.Context, symbol currency.Pair) ([]USymbolPriceTicker, error) {
-	return b.uSymbolPriceTicker(ctx, symbol, ufuturesSymbolPriceTicker)
+	return b.uSymbolPriceTicker(ctx, symbol, "/fapi/v1/ticker/price")
 }
 
 // USymbolPriceTickerV2 gets symbol price ticker for USDTMarginedFutures V2
@@ -425,7 +389,7 @@ func (b *Binance) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pa
 		}
 		params.Set("symbol", symbolValue)
 		var tempResp USymbolOrderbookTicker
-		err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesSymbolOrderbook, params), uFuturesDefaultRate, &tempResp)
+		err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/ticker/bookTicker", params), uFuturesDefaultRate, &tempResp)
 		if err != nil {
 			return nil, err
 		}
@@ -443,7 +407,7 @@ func (b *Binance) UOpenInterest(ctx context.Context, symbol string) (*UOpenInter
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *UOpenInterestData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesOpenInterest, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/openInterest", params), uFuturesDefaultRate, &resp)
 }
 
 // GetQuarterlyContractSettlementPrice retrieves quarterly contract settlement price
@@ -477,7 +441,7 @@ func (b *Binance) UOpenInterestStats(ctx context.Context, symbol, period string,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []UOpenInterestStats
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesOpenInterestStats, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/openInterestHist", params), uFuturesDefaultRate, &resp)
 }
 
 // UTopAcccountsLongShortRatio gets long/short ratio data for top trader accounts in ufutures
@@ -502,7 +466,7 @@ func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol, perio
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []ULongShortRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesTopAccountsRatio, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/topLongShortAccountRatio", params), uFuturesDefaultRate, &resp)
 }
 
 // UTopPostionsLongShortRatio gets long/short ratio data for top positions' in ufutures
@@ -527,7 +491,7 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol, period
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []ULongShortRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesTopPositionsRatio, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/topLongShortPositionRatio", params), uFuturesDefaultRate, &resp)
 }
 
 // UGlobalLongShortRatio gets the global long/short ratio data for USDTMarginedFutures
@@ -552,7 +516,7 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol, period stri
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []ULongShortRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesLongShortRatio, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/globalLongShortAccountRatio", params), uFuturesDefaultRate, &resp)
 }
 
 // UTakerBuySellVol gets takers' buy/sell ratio for USDTMarginedFutures
@@ -577,7 +541,7 @@ func (b *Binance) UTakerBuySellVol(ctx context.Context, symbol, period string, l
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UTakerVolumeData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesBuySellVolume, params), uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/takerlongshortRatio", params), uFuturesDefaultRate, &resp)
 }
 
 // GetBasis retrieves the basis price difference between the index price and futures trading of pairs.
@@ -868,7 +832,7 @@ func (b *Binance) UCancelAllOpenOrders(ctx context.Context, symbol string) (*Gen
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *GenericAuthResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, ufuturesCancelAllOrders, params, uFuturesOrdersDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/fapi/v1/allOpenOrders", params, uFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // UCancelBatchOrders cancel batch order for USDTMarginedFutures
@@ -905,7 +869,7 @@ func (b *Binance) UAutoCancelAllOpenOrders(ctx context.Context, symbol string, c
 	params.Set("symbol", symbol)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
 	var resp *AutoCancelAllOrdersData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCountdownCancel, params, uFuturesCountdownCancelRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/countdownCancelAll", params, uFuturesCountdownCancelRate, nil, &resp)
 }
 
 // UFetchOpenOrder sends a request to fetch open order data for USDTMarginedFutures
@@ -925,7 +889,7 @@ func (b *Binance) UFetchOpenOrder(ctx context.Context, symbol currency.Pair, ord
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *UOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesOpenOrder, params, uFuturesOrdersDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/openOrder", params, uFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // UAllAccountOpenOrders gets all account's orders for USDTMarginedFutures
@@ -944,7 +908,7 @@ func (b *Binance) UAllAccountOpenOrders(ctx context.Context, symbol currency.Pai
 		params.Set("recvWindow", "10000")
 	}
 	var resp []UOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAllOpenOrders, params, rateLimit, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/openOrders", params, rateLimit, nil, &resp)
 }
 
 // UAllAccountOrders gets all account's orders for USDTMarginedFutures
@@ -966,19 +930,19 @@ func (b *Binance) UAllAccountOrders(ctx context.Context, symbol string, orderID,
 		params.Set("symbol", symbol)
 	}
 	var resp []UFuturesOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAllOrders, params, uFuturesGetAllOrdersRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/allOrders", params, uFuturesGetAllOrdersRate, nil, &resp)
 }
 
 // UAccountBalanceV2 gets V2 account balance data
 func (b *Binance) UAccountBalanceV2(ctx context.Context) ([]UAccountBalanceV2Data, error) {
 	var resp []UAccountBalanceV2Data
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAccountBalance, nil, uFuturesOrdersDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v2/balance", nil, uFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // UAccountInformationV2 gets V2 account balance data
 func (b *Binance) UAccountInformationV2(ctx context.Context) (*UAccountInformationV2Data, error) {
 	var resp *UAccountInformationV2Data
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAccountInfo, nil, uFuturesAccountInformationRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v2/account", nil, uFuturesAccountInformationRate, nil, &resp)
 }
 
 // UChangeInitialLeverageRequest sends a request to change account's initial leverage
@@ -992,7 +956,7 @@ func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol stri
 	}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	var resp *UChangeInitialLeverage
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesChangeInitialLeverage, params, uFuturesDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/leverage", params, uFuturesDefaultRate, nil, &resp)
 }
 
 // UChangeInitialMarginType sends a request to change account's initial margin type
@@ -1007,7 +971,7 @@ func (b *Binance) UChangeInitialMarginType(ctx context.Context, symbol currency.
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	params.Set("marginType", marginType)
-	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesChangeMarginType, params, uFuturesDefaultRate, nil, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/marginType", params, uFuturesDefaultRate, nil, &struct{}{})
 }
 
 // UModifyIsolatedPositionMarginReq sends a request to modify isolated margin for USDTMarginedFutures
@@ -1026,7 +990,7 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(ctx context.Context, symbol, 
 		params.Set("positionSide", positionSide)
 	}
 	var resp *UModifyIsolatedPosMargin
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesModifyMargin, params, uFuturesDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/positionMargin", params, uFuturesDefaultRate, nil, &resp)
 }
 
 // UPositionMarginChangeHistory gets margin change history for USDTMarginedFutures
@@ -1051,7 +1015,7 @@ func (b *Binance) UPositionMarginChangeHistory(ctx context.Context, symbol, chan
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []UPositionMarginChangeHistoryData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesMarginChangeHistory, params, uFuturesDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/positionMargin/history", params, uFuturesDefaultRate, nil, &resp)
 }
 
 // UPositionsInfoV2 gets positions' info for USDTMarginedFutures
@@ -1065,7 +1029,7 @@ func (b *Binance) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([
 		params.Set("symbol", symbolValue)
 	}
 	var resp []UPositionInformationV2
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPositionInfo, params, uFuturesDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v2/positionRisk", params, uFuturesDefaultRate, nil, &resp)
 }
 
 // UGetCommissionRates returns the commission rates for USDTMarginedFutures
@@ -1076,7 +1040,7 @@ func (b *Binance) UGetCommissionRates(ctx context.Context, symbol string) (*UPos
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *UPositionInformationV2
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesCommissionRate, params, uFuturesDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/commissionRate", params, uFuturesDefaultRate, nil, &resp)
 }
 
 // GetUSDTUserRateLimits retrieves users rate limit information.
@@ -1156,7 +1120,7 @@ func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol, fromID stri
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []UAccountTradeHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAccountTradeList, params, uFuturesAccountInformationRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/userTrades", params, uFuturesAccountInformationRate, nil, &resp)
 }
 
 // UAccountIncomeHistory gets account's income history data for USDTMarginedFutures
@@ -1182,7 +1146,7 @@ func (b *Binance) UAccountIncomeHistory(ctx context.Context, symbol, incomeType 
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []UAccountIncomeHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesIncomeHistory, params, uFuturesIncomeHistoryRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/income", params, uFuturesIncomeHistoryRate, nil, &resp)
 }
 
 // UGetNotionalAndLeverageBrackets gets account's notional and leverage brackets for USDTMarginedFutures
@@ -1196,7 +1160,7 @@ func (b *Binance) UGetNotionalAndLeverageBrackets(ctx context.Context, symbol cu
 		params.Set("symbol", symbolValue)
 	}
 	var resp []UNotionalLeverageAndBrakcetsData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesNotionalBracket, params, uFuturesDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/leverageBracket", params, uFuturesDefaultRate, nil, &resp)
 }
 
 // UPositionsADLEstimate gets estimated ADL data for USDTMarginedFutures positions
@@ -1210,7 +1174,7 @@ func (b *Binance) UPositionsADLEstimate(ctx context.Context, symbol currency.Pai
 		params.Set("symbol", symbolValue)
 	}
 	var resp *UPositionADLEstimationData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesADLQuantile, params, uFuturesAccountInformationRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/adlQuantile", params, uFuturesAccountInformationRate, nil, &resp)
 }
 
 // UAccountForcedOrders gets account's forced (liquidation) orders for USDTMarginedFutures
@@ -1242,7 +1206,7 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []UForceOrdersData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesUsersForceOrders, params, rateLimit, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/forceOrders", params, rateLimit, nil, &resp)
 }
 
 // UFuturesTradingWuantitativeRulesIndicators retrieves rules that regulate general trading based on the quantitative indicators
@@ -1337,4 +1301,18 @@ func (b *Binance) ChangePositionMode(ctx context.Context, dualPositionMode bool)
 func (b *Binance) GetCurrentPositionMode(ctx context.Context) (*PositionMode, error) {
 	var resp *PositionMode
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/positionSide/dual", nil, uFuturesDefaultRate, nil, &resp)
+}
+
+// -----------------------------------  Copy Trading endpoints  -----------------------------------------
+
+// GetFuturesLeadTraderStatus retrieves futures lead trader status
+func (b *Binance) GetFuturesLeadTraderStatus(ctx context.Context) (*LeadTraderStatus, error) {
+	var resp *LeadTraderStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/copyTrading/futures/userStatus", nil, request.UnAuth, nil, &resp)
+}
+
+// GetFuturesLeadTradingSymbolWhitelist retrieves a futures lead trading symbol whitelist
+func (b *Binance) GetFuturesLeadTradingSymbolWhitelist(ctx context.Context) ([]LeadTradingSymbolItem, error) {
+	var resp []LeadTradingSymbolItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/copyTrading/futures/leadSymbol", nil, request.UnAuth, nil, &resp)
 }

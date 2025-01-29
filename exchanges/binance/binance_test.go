@@ -6201,7 +6201,7 @@ func TestNewCMConditionalOrder(t *testing.T) {
 		PositionSide: "LONG",
 	}
 	_, err = b.NewCMConditionalOrder(context.Background(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = "BTCUSD_200925"
 	_, err = b.NewCMConditionalOrder(context.Background(), arg)
@@ -6911,6 +6911,25 @@ func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetCMPositionADLQuantileEstimation(context.Background(), "BTCUSD_200925")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserRateLimits(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUserRateLimits(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioMarginAssetIndexPrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetPortfolioMarginAssetIndexPrice(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPortfolioMarginAssetIndexPrice(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -8432,6 +8451,18 @@ func TestGetPortfolioMarginAssetLeverage(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetUserNegativeBalanceAutoExchangeRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUserNegativeBalanceAutoExchangeRecord(context.Background(), time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errStartAndEndTimeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUserNegativeBalanceAutoExchangeRecord(context.Background(), time.Now().Add(-time.Hour*24), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetBLVTInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -9049,4 +9080,22 @@ func TestUnmarshalJSONOrderbookTranches(t *testing.T) {
 	assert.EqualValues(t, 321.0, resp[0].Amount)
 	assert.EqualValues(t, 123.6, resp[1].Price)
 	assert.EqualValues(t, 9, resp[1].Amount)
+}
+
+// ----------------- Copy Trading endpoints unit-tests ----------------
+
+func TestGetFuturesLeadTraderStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesLeadTraderStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesLeadTradingSymbolWhitelist(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesLeadTradingSymbolWhitelist(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

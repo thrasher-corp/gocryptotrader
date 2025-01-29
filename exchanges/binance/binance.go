@@ -5555,6 +5555,23 @@ func (b *Binance) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]PMAsse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/margin-asset-leverage", nil, pmAssetLeverageRate, nil, &resp)
 }
 
+// GetUserNegativeBalanceAutoExchangeRecord retrives user negative balance auto exchange record
+func (b *Binance) GetUserNegativeBalanceAutoExchangeRecord(ctx context.Context, startTime, endTime time.Time) (*UserNegativeBalanceRecord, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	} else {
+		return nil, errStartAndEndTimeRequired
+	}
+	var resp *UserNegativeBalanceRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/portfolio/negative-balance-exchange-record", params, request.UnAuth, nil, &resp)
+}
+
 // ----------------------------------  Binance Leverate Token(BLVT) Endpoints  ------------------------------
 
 // GetBLVTInfo retrieves details of binance leverage tokens.

@@ -52,12 +52,7 @@ type EOptionExchangeInfo struct {
 		QuantityScale        float64      `json:"quantityScale"`
 		QuoteAsset           string       `json:"quoteAsset"`
 	} `json:"optionSymbols"`
-	RateLimits []struct {
-		RateLimitType string `json:"rateLimitType"`
-		Interval      string `json:"interval"`
-		IntervalNum   int64  `json:"intervalNum"`
-		Limit         int64  `json:"limit"`
-	} `json:"rateLimits"`
+	RateLimits []RateLimitInfo `json:"rateLimits"`
 }
 
 // EOptionsOrderbook represents an european orderbook option information.

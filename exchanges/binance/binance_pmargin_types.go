@@ -521,3 +521,10 @@ type ADLQuantileEstimation struct {
 		Hedge float64 `json:"HEDGE"` // only a sign, ignore the value
 	} `json:"adlQuantile,omitempty"` // adl qunatile for position in one-way mode
 }
+
+// PortfolioMarginAssetIndexPrice holds a portfolio margin asset index price in usd
+type PortfolioMarginAssetIndexPrice struct {
+	Asset                string       `json:"asset"`
+	AssetIndexPriceInUSD types.Number `json:"assetIndexPrice"`
+	Time                 types.Time   `json:"time"`
+}

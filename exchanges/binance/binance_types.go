@@ -72,6 +72,7 @@ var (
 	errUsernameRequired             = errors.New("user name is required")
 	errTransferTypeRequired         = errors.New("transfer type is required")
 	errNameRequired                 = errors.New("name is required")
+	errStartAndEndTimeRequired      = errors.New("startTime and endTime must be specified")
 	errTradeTypeRequired            = errors.New("trade type is required")
 	errPositionIDRequired           = errors.New("position ID is required")
 	errOptionTypeRequired           = errors.New("optionType is required")
@@ -5389,4 +5390,31 @@ type ListenKeyResponse struct {
 type ErrResponse struct {
 	Code    types.Number `json:"code"`
 	Message string       `json:"msg"`
+}
+
+// LeadTraderStatus holds infomration about whether the user is a lead trader or not.
+type LeadTraderStatus struct {
+	IsLeadTrader bool       `json:"isLeadTrader"`
+	Time         types.Time `json:"time"`
+}
+
+// LeadTradingSymbolItem holds lead trading symbol detail
+type LeadTradingSymbolItem struct {
+	Symbol     string `json:"symbol"`
+	BaseAsset  string `json:"baseAsset"`
+	QuoteAsset string `json:"quoteAsset"`
+}
+
+// UserNegativeBalanceRecord holds details of users negative balance
+type UserNegativeBalanceRecord struct {
+	Total int64 `json:"total"`
+	Rows  []struct {
+		StartTime types.Time `json:"startTime"`
+		EndTime   types.Time `json:"endTime"`
+		Details   []struct {
+			Asset                string       `json:"asset"`
+			NegativeBalance      types.Number `json:"negativeBalance"`
+			NegativeMaxThreshold types.Number `json:"negativeMaxThreshold"`
+		} `json:"details"`
+	} `json:"rows"`
 }

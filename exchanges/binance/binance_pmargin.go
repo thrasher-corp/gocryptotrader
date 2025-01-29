@@ -1178,3 +1178,20 @@ func (b *Binance) getUMCMPositionADLQuantileEstimation(ctx context.Context, symb
 	var resp []ADLQuantileEstimation
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, endpointLimit, nil, &resp)
 }
+
+// GetUserRateLimits retrieves list of user's account rate-limit information
+func (b *Binance) GetUserRateLimits(ctx context.Context) ([]RateLimitInfo, error) {
+	var resp []RateLimitInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/papi/v1/rateLimit/order", nil, request.UnAuth, nil, &resp)
+}
+
+// GetPortfolioMarginAssetIndexPrice query portfolio margin asset index price
+func (b *Binance) GetPortfolioMarginAssetIndexPrice(ctx context.Context, asset currency.Code) ([]PortfolioMarginAssetIndexPrice, error) {
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", asset.String())
+	var resp []PortfolioMarginAssetIndexPrice
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/portfolio/asset-index-price", params), request.UnAuth, &resp)
+}
