@@ -555,10 +555,10 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 
 func TestGetInstrumentsData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetInstruments(context.Background(), currency.EMPTYCODE, "", false)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	result, err := d.GetInstruments(context.Background(), currency.BTC, "", false)
+	result, err := d.GetInstruments(context.Background(), currency.EMPTYCODE, "future", false)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	result, err = d.GetInstruments(context.Background(), currency.BTC, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	result, err = d.GetInstruments(context.Background(), currency.BTC, "", true)
