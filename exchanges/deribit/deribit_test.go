@@ -4130,16 +4130,13 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestFormatPerpetualPairWithSettlement(t *testing.T) {
+func TestFormatChannelPair(t *testing.T) {
 	t.Parallel()
-
 	pair := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
 	pair.Delimiter = "-"
-	result := formatPerpetualPairWithSettlement(pair)
-	assert.Equal(t, "BTC_USDC-PERPETUAL", result)
+	assert.Equal(t, "BTC_USDC-PERPETUAL", formatChannelPair(pair))
 
 	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
 	pair.Delimiter = "-"
-	result = formatPerpetualPairWithSettlement(pair)
-	assert.Equal(t, "BTC-PERPETUAL", result)
+	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
 }

@@ -779,7 +779,7 @@ func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
-		"fmt":             formatPerpetualPairWithSettlement,
+		"fmt":             formatChannelPair,
 	}).
 		Parse(subTplText)
 }
@@ -914,7 +914,7 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-func formatPerpetualPairWithSettlement(pair currency.Pair) string {
+func formatChannelPair(pair currency.Pair) string {
 	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
 		pair.Delimiter = "_"
 	}
