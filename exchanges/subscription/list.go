@@ -96,7 +96,7 @@ func (l List) SetStates(state State) error {
 
 func fillAssetPairs(ap assetPairs, a asset.Item, e IExchange) error {
 	p, err := e.GetEnabledPairs(a)
-	if err != nil {
+	if err != nil || len(p) == 0 {
 		return err
 	}
 	f, err := e.GetPairFormat(a, true)

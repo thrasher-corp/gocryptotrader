@@ -114,6 +114,17 @@ func TestAssetPairs(t *testing.T) {
 	}
 }
 
+// TestFillAssetPairs exercises AssetPairs handling with no enabled pairs
+// All other code is covered under TestAssetPairs and TestExpandTemplates
+func TestFillAssetPairs(t *testing.T) {
+	e := newMockEx()
+	e.pairs = currency.Pairs{}
+	ap := assetPairs{}
+	err := fillAssetPairs(ap, asset.Spot, e)
+	require.NoError(t, err, "fillAssetPairs must not error with no pairs enabled")
+	assert.Empty(t, ap, "fillAssetPairs should return an empty map with no pairs enabled")
+}
+
 func TestListClone(t *testing.T) {
 	t.Parallel()
 	l := List{{Channel: TickerChannel}, {Channel: OrderbookChannel}}
