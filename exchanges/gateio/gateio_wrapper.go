@@ -40,6 +40,11 @@ import (
 // this error.
 const unfundedFuturesAccount = `please transfer funds first to create futures account`
 
+var (
+	errNoResponseReceived  = errors.New("no response received")
+	errSingleAssetRequired = errors.New("single asset type required")
+)
+
 // SetDefaults sets default values for the exchange
 func (g *Gateio) SetDefaults() {
 	g.Name = "GateIO"
@@ -237,6 +242,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Unsubscriber:             g.FuturesUnsubscribe,
 		GenerateSubscriptions:    func() (subscription.List, error) { return g.GenerateFuturesDefaultSubscriptions(currency.USDT) },
 		Connector:                g.WsFuturesConnect,
+		Authenticate:             g.authenticateFutures,
 		MessageFilter:            asset.USDTMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
@@ -1057,34 +1063,14 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 	s.Pair = s.Pair.Upper()
+
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		switch {
-		case s.Side.IsLong():
-			s.Side = order.Buy
-		case s.Side.IsShort():
-			s.Side = order.Sell
-		default:
-			return nil, errInvalidOrderSide
-		}
-		timeInForce, err := getTimeInForce(s)
+		req, err := g.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
-
-		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
-			Side:    s.Side.Lower(),
-			Type:    s.Type.Lower(),
-			Account: g.assetTypeToString(s.AssetType),
-			// When doing spot market orders when purchasing base currency, the
-			// quote currency amount is used. When selling the base currency the
-			// base currency amount is used.
-			Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
-			Price:        types.Number(s.Price),
-			CurrencyPair: s.Pair,
-			Text:         s.ClientOrderID,
-			TimeInForce:  timeInForce,
-		})
+		sOrder, err := g.PlaceSpotOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -1129,7 +1115,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
+		fOrder, err := g.PlaceFuturesOrder(ctx, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
@@ -1145,7 +1131,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var status = order.Open
-		if fOrder.Status != "open" {
+		if fOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1175,7 +1161,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
+		newOrder, err := g.PlaceDeliveryOrder(ctx, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
@@ -1192,7 +1178,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var status = order.Open
-		if newOrder.Status != "open" {
+		if newOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(newOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1510,7 +1496,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			return nil, err
 		}
 		orderStatus := order.Open
-		if fOrder.Status != "open" {
+		if fOrder.Status != statusOpen {
 			orderStatus, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
@@ -1669,7 +1655,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				return nil, err
 			}
 			for y := range spotOrders[x].Orders {
-				if spotOrders[x].Orders[y].Status != "open" {
+				if spotOrders[x].Orders[y].Status != statusOpen {
 					continue
 				}
 				var side order.Side
@@ -1732,9 +1718,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 
 			var futuresOrders []Order
 			if req.AssetType == asset.Futures {
-				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, "open", "", settlement, 0, 0, 0)
+				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, statusOpen, "", settlement, 0, 0, 0)
 			} else {
-				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, "open", settlement, "", 0, 0, 0)
+				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settlement, "", 0, 0, 0)
 			}
 			if err != nil {
 				if strings.Contains(err.Error(), unfundedFuturesAccount) {
@@ -1750,7 +1736,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return nil, err
 				}
 
-				if futuresOrders[x].Status != "open" || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
+				if futuresOrders[x].Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
 					continue
 				}
 
@@ -1773,14 +1759,14 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Type:                 order.Limit,
 					SettlementCurrency:   settlement,
 					ReduceOnly:           futuresOrders[x].IsReduceOnly,
-					PostOnly:             futuresOrders[x].TimeInForce == "poc",
+					PostOnly:             futuresOrders[x].TimeInForce == pocTIF,
 					AverageExecutedPrice: futuresOrders[x].FillPrice.Float64(),
 				})
 			}
 		}
 	case asset.Options:
 		var optionsOrders []OptionOrderResponse
-		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", "open", 0, 0, req.StartTime, req.EndTime)
+		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", statusOpen, 0, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -2543,11 +2529,11 @@ func getClientOrderIDFromText(text string) string {
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string) (orderType order.Type, postOnly bool) {
 	switch tif {
-	case "ioc":
+	case iocTIF:
 		return order.Market, false
-	case "fok":
+	case fokTIF:
 		return order.Market, false
-	case "poc":
+	case pocTIF:
 		return order.Limit, true
 	default:
 		return order.Limit, false
@@ -2581,16 +2567,16 @@ var errPostOnlyOrderTypeUnsupported = errors.New("post only is only supported fo
 func getTimeInForce(s *order.Submit) (string, error) {
 	timeInForce := "gtc" // limit order taker/maker
 	if s.Type == order.Market || s.ImmediateOrCancel {
-		timeInForce = "ioc" // market taker only
+		timeInForce = iocTIF // market taker only
 	}
 	if s.PostOnly {
 		if s.Type != order.Limit {
 			return "", fmt.Errorf("%w not for %v", errPostOnlyOrderTypeUnsupported, s.Type)
 		}
-		timeInForce = "poc" // limit order maker only
+		timeInForce = pocTIF // limit order maker only
 	}
 	if s.FillOrKill {
-		timeInForce = "fok" // market order entire fill or kill
+		timeInForce = fokTIF // limit order entire fill or kill
 	}
 	return timeInForce, nil
 }
@@ -2612,4 +2598,289 @@ func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+// WebsocketSubmitOrder submits an order to the exchange through the websocket
+// connection.
+// NOTE: Regarding spot orders, fee is applied to purchased currency.
+func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	err := s.Validate(g.GetTradingRequirements())
+	if err != nil {
+		return nil, err
+	}
+
+	s.Pair, err = g.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	s.Pair = s.Pair.Upper()
+
+	switch s.AssetType {
+	case asset.Spot:
+		var req *CreateOrderRequest
+		req, err = g.getSpotOrderRequest(s)
+		if err != nil {
+			return nil, err
+		}
+
+		var got []WebsocketOrderResponse
+		got, err = g.WebsocketSpotSubmitOrder(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		var sr []*order.SubmitResponse
+		sr, err = g.DeriveSpotSubmitOrderResponses(got)
+		if err != nil {
+			return nil, err
+		}
+		return sr[0], nil
+	case asset.Futures:
+		var amountWithDirection float64
+		amountWithDirection, err = getFutureOrderSize(s)
+		if err != nil {
+			return nil, err
+		}
+
+		var timeInForce string
+		timeInForce, err = getTimeInForce(s)
+		if err != nil {
+			return nil, err
+		}
+
+		var got []WebsocketFuturesOrderResponse
+		got, err = g.WebsocketFuturesSubmitOrder(ctx, &ContractOrderCreateParams{
+			Contract:    s.Pair,
+			Size:        amountWithDirection,
+			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
+			ReduceOnly:  s.ReduceOnly,
+			TimeInForce: timeInForce,
+			Text:        s.ClientOrderID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		var sr []*order.SubmitResponse
+		sr, err = g.DeriveFuturesSubmitOrderResponses(got)
+		if err != nil {
+			return nil, err
+		}
+		return sr[0], nil
+	default:
+		return nil, common.ErrNotYetImplemented
+	}
+}
+
+// WebsocketSubmitBatchOrders submits multiple orders to the exchange through the websocket
+// RE: Spot batch orders; cannot derive purchased amount as the average price is omitted from the response and the fill
+// price is not accurate.
+func (g *Gateio) WebsocketSubmitBatchOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	var a asset.Item
+	for x := range orders {
+		if err = orders[x].Validate(g.GetTradingRequirements()); err != nil {
+			return nil, err
+		}
+
+		if !a.IsValid() {
+			a = orders[x].AssetType
+			continue
+		}
+
+		if a != orders[x].AssetType {
+			return nil, fmt.Errorf("%w %v", errSingleAssetRequired, a)
+		}
+	}
+
+	if !g.CurrencyPairs.IsAssetSupported(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	switch a {
+	case asset.Spot:
+		reqs := make([]*CreateOrderRequest, len(orders))
+		for x := range orders {
+			reqs[x], err = g.getSpotOrderRequest(orders[x])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		got, err := g.WebsocketSpotSubmitOrders(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+
+		resps, err := g.DeriveSpotSubmitOrderResponses(got)
+		if err != nil {
+			return nil, err
+		}
+		return resps, nil
+	default:
+		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+	}
+}
+
+// DeriveSpotSubmitOrderResponses returns the order submission responses for spot
+func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
+	if len(responses) == 0 {
+		return nil, errNoResponseReceived
+	}
+
+	out := make([]*order.SubmitResponse, 0, len(responses))
+	for x := range responses {
+		if responses[x].Label != "" { // Only returned in a batch order response context
+			out = append(out, &order.SubmitResponse{
+				Exchange:      g.Name,
+				ClientOrderID: responses[x].Text,
+				Error:         fmt.Errorf("%w reason label:%s message:%s", order.ErrUnableToPlaceOrder, responses[x].Label, responses[x].Message),
+			})
+			continue
+		}
+
+		side, err := order.StringToOrderSide(responses[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		status := order.Open
+		if responses[x].FinishAs != "" && responses[x].FinishAs != statusOpen {
+			status, err = order.StringToOrderStatus(responses[x].FinishAs)
+			if err != nil {
+				return nil, err
+			}
+		}
+		oType, err := order.StringToOrderType(responses[x].Type)
+		if err != nil {
+			return nil, err
+		}
+
+		var cost float64
+		var purchased float64
+		if responses[x].AverageDealPrice != 0 {
+			if side.IsLong() {
+				cost = responses[x].FilledTotal.Float64()
+				purchased = responses[x].FilledTotal.Decimal().Div(responses[x].AverageDealPrice.Decimal()).InexactFloat64()
+			} else {
+				cost = responses[x].Amount.Float64()
+				purchased = responses[x].FilledTotal.Float64()
+			}
+		}
+
+		out = append(out, &order.SubmitResponse{
+			Exchange:             g.Name,
+			OrderID:              responses[x].ID,
+			AssetType:            responses[x].Account,
+			Pair:                 responses[x].CurrencyPair,
+			ClientOrderID:        responses[x].Text,
+			Date:                 responses[x].CreateTimeMs.Time(),
+			LastUpdated:          responses[x].UpdateTimeMs.Time(),
+			RemainingAmount:      responses[x].Left.Float64(),
+			Amount:               responses[x].Amount.Float64(),
+			Price:                responses[x].Price.Float64(),
+			AverageExecutedPrice: responses[x].AverageDealPrice.Float64(),
+			Type:                 oType,
+			Side:                 side,
+			Status:               status,
+			ImmediateOrCancel:    responses[x].TimeInForce == iocTIF,
+			FillOrKill:           responses[x].TimeInForce == fokTIF,
+			PostOnly:             responses[x].TimeInForce == pocTIF,
+			Cost:                 cost,
+			Purchased:            purchased,
+			Fee:                  responses[x].Fee.Float64(),
+			FeeAsset:             responses[x].FeeCurrency,
+		})
+	}
+	return out, nil
+}
+
+// DeriveFuturesSubmitOrderResponses returns the order submission responses for futures
+func (g *Gateio) DeriveFuturesSubmitOrderResponses(responses []WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
+	if len(responses) == 0 {
+		return nil, errNoResponseReceived
+	}
+
+	out := make([]*order.SubmitResponse, 0, len(responses))
+	for x := range responses {
+		status := order.Open
+		if responses[x].FinishAs != "" && responses[x].FinishAs != statusOpen {
+			var err error
+			status, err = order.StringToOrderStatus(responses[x].FinishAs)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		oType := order.Market
+		if responses[x].Price != 0 {
+			oType = order.Limit
+		}
+
+		side := order.Long
+		if responses[x].Size < 0 {
+			side = order.Short
+		}
+
+		if responses[x].IsReduceOnly {
+			if side.IsLong() {
+				side = order.Short
+			} else {
+				side = order.Long
+			}
+		}
+
+		var clientOrderID string
+		if responses[x].Text != "" && strings.HasPrefix(responses[x].Text, "t-") {
+			clientOrderID = responses[x].Text
+		}
+
+		out = append(out, &order.SubmitResponse{
+			Exchange:             g.Name,
+			OrderID:              strconv.FormatInt(responses[x].ID, 10),
+			AssetType:            asset.Futures,
+			Pair:                 responses[x].Contract,
+			ClientOrderID:        clientOrderID,
+			Date:                 responses[x].CreateTime.Time(),
+			LastUpdated:          responses[x].UpdateTime.Time(),
+			RemainingAmount:      math.Abs(responses[x].Left),
+			Amount:               math.Abs(responses[x].Size),
+			Price:                responses[x].Price.Float64(),
+			AverageExecutedPrice: responses[x].FillPrice.Float64(),
+			Type:                 oType,
+			Side:                 side,
+			Status:               status,
+			ImmediateOrCancel:    responses[x].TimeInForce == iocTIF,
+			FillOrKill:           responses[x].TimeInForce == fokTIF,
+			PostOnly:             responses[x].TimeInForce == pocTIF,
+			ReduceOnly:           responses[x].IsReduceOnly,
+		})
+	}
+	return out, nil
+}
+
+func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, error) {
+	switch {
+	case s.Side.IsLong():
+		s.Side = order.Buy
+	case s.Side.IsShort():
+		s.Side = order.Sell
+	default:
+		return nil, errInvalidOrderSide
+	}
+
+	timeInForce, err := getTimeInForce(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CreateOrderRequest{
+		Side:    s.Side.Lower(),
+		Type:    s.Type.Lower(),
+		Account: g.assetTypeToString(s.AssetType),
+		// When doing spot market orders when purchasing base currency, the quote currency amount is used. When selling
+		// the base currency the base currency amount is used.
+		Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
+		Price:        types.Number(s.Price),
+		CurrencyPair: s.Pair,
+		Text:         s.ClientOrderID,
+		TimeInForce:  timeInForce,
+	}, nil
 }

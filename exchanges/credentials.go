@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -111,6 +112,10 @@ func (b *Base) GetDefaultCredentials() *account.Credentials {
 // GetCredentials checks and validates current credentials, context credentials
 // override default credentials, if no credentials found, will return an error.
 func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error) {
+	if request.IsMockResponse(ctx) {
+		return &account.Credentials{}, nil
+	}
+
 	value := ctx.Value(account.ContextCredentialsFlag)
 	if value != nil {
 		ctxCredStore, ok := value.(*account.ContextCredentialsStore)

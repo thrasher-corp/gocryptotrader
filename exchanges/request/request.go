@@ -194,7 +194,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		start := time.Now()
 
-		resp, err := r._HTTPClient.do(req)
+		var resp *http.Response
+		if IsMockResponse(ctx) {
+			resp = getRESTResponseFromMock(ctx)
+		} else {
+			resp, err = r._HTTPClient.do(req)
+		}
 
 		if r.reporter != nil && err == nil {
 			r.reporter.Latency(r.name, p.Method, p.Path, time.Since(start))
@@ -204,7 +209,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return checkErr
 		} else if retry {
 			if err == nil {
-				// If the body isn't fully read, the connection cannot be re-used
+				// If the body isn't fully read, the connection cannot be reused
 				r.drainBody(resp.Body)
 			}
 
@@ -383,10 +388,8 @@ func WithVerbose(ctx context.Context) context.Context {
 // IsVerbose checks main verbosity first then checks context verbose values
 // for specific request verbosity.
 func IsVerbose(ctx context.Context, verbose bool) bool {
-	if verbose {
-		return true
+	if !verbose {
+		verbose, _ = ctx.Value(contextVerboseFlag).(bool)
 	}
-
-	isCtxVerbose, _ := ctx.Value(contextVerboseFlag).(bool)
-	return isCtxVerbose
+	return verbose
 }

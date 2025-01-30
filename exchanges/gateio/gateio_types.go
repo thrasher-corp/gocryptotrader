@@ -14,7 +14,7 @@ const (
 	// Order time in force variables
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
-	pocTIF = "poc"
+	pocTIF = "poc" // pending-or-cancel - post only
 	fokTIF = "fok" // fill-or-kill
 
 	// Frequently used order Status
@@ -1301,7 +1301,7 @@ type CrossMarginBalance struct {
 	BorrowedNet         string       `json:"borrowed_net"`
 	TotalNetAssetInUSDT string       `json:"net"`
 	PositionLeverage    string       `json:"leverage"`
-	Risk                string       `json:"risk"` // Risk rate. When it belows 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
+	Risk                string       `json:"risk"` // Risk rate. When it falls below 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
 }
 
 // WalletSavedAddress represents currency saved address
@@ -1364,8 +1364,8 @@ type SpotAccount struct {
 	Locked    types.Number `json:"locked"`
 }
 
-// CreateOrderRequestData represents a single order creation param.
-type CreateOrderRequestData struct {
+// CreateOrderRequest represents a single order creation param.
+type CreateOrderRequest struct {
 	Text         string        `json:"text,omitempty"`
 	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
 	Type         string        `json:"type,omitempty"`
@@ -1376,6 +1376,8 @@ type CreateOrderRequestData struct {
 	Price        types.Number  `json:"price,omitempty"`
 	TimeInForce  string        `json:"time_in_force,omitempty"`
 	AutoBorrow   bool          `json:"auto_borrow,omitempty"`
+	AutoRepay    bool          `json:"auto_repay,omitempty"`
+	StpAct       string        `json:"stp_act,omitempty"`
 }
 
 // SpotOrder represents create order response.
@@ -1800,18 +1802,19 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
-// OrderCreateParams represents future order creation parameters
-type OrderCreateParams struct {
+// ContractOrderCreateParams represents future order creation parameters
+type ContractOrderCreateParams struct {
 	Contract      currency.Pair `json:"contract"`
-	Size          float64       `json:"size"`
-	Iceberg       int64         `json:"iceberg"`
-	Price         string        `json:"price"` // NOTE: Market orders require string "0"
+	Size          float64       `json:"size"`    // positive long, negative short
+	Iceberg       int64         `json:"iceberg"` // required; can be zero
+	Price         string        `json:"price"`   // NOTE: Market orders require string "0"
 	TimeInForce   string        `json:"tif"`
 	Text          string        `json:"text,omitempty"`  // Omitempty required as payload sent as `text:""` will return error message: Text content not starting with `t-`"
 	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
-	AutoSize      string        `json:"auto_size,omitempty"`
-	Settle        currency.Code `json:"-"` // Used in URL.
+	AutoSize      string        `json:"auto_size,omitempty"` // either close_long or close_short, requires zero in size field
+	Settle        currency.Code `json:"-"`                   // Used in URL. REST Calls only.
+	StpAct        string        `json:"stp_act,omitempty"`
 }
 
 // Order represents future order response

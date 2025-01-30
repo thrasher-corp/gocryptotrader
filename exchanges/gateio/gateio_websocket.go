@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -96,11 +97,6 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 		MessageType: websocket.TextMessage,
 	})
 	return nil
-}
-
-// authenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
-	return g.websocketLogin(ctx, conn, "spot.login")
 }
 
 // websocketLogin authenticates the websocket connection
@@ -815,4 +811,73 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		}
 	}
 	return errs
+}
+
+// ResultHolder is used to unmarshal the result of a websocket request back to the required caller type
+type ResultHolder struct {
+	Result any `json:"result"`
+}
+
+// SendWebsocketRequest sends a websocket request to the exchange
+func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
+	paramPayload, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+
+	conn, err := g.Websocket.GetConnection(ctx, connSignature)
+	if err != nil {
+		return err
+	}
+
+	tn := time.Now().Unix()
+	req := &WebsocketRequest{
+		Time:    tn,
+		Channel: channel,
+		Event:   "api",
+		Payload: WebsocketPayload{
+			// This request ID associated with the payload is the match to the
+			// response.
+			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestParam: paramPayload,
+			Timestamp:    strconv.FormatInt(tn, 10),
+		},
+	}
+
+	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
+	if err != nil {
+		return err
+	}
+
+	if len(responses) == 0 {
+		return common.ErrNoResponse
+	}
+
+	var inbound WebsocketAPIResponse
+	// The last response is the one we want to unmarshal, the other is just
+	// an ack. If the request fails on the ACK then we can unmarshal the error
+	// from that as the next response won't come anyway.
+	endResponse := responses[len(responses)-1]
+
+	if err := json.Unmarshal(endResponse, &inbound); err != nil {
+		return err
+	}
+
+	if inbound.Header.Status != "200" {
+		var wsErr WebsocketErrors
+		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
+			return err
+		}
+		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	}
+
+	return json.Unmarshal(inbound.Data, &ResultHolder{Result: result})
+}
+
+type wsRespAckInspector struct{}
+
+// IsFinal checks the payload for an ack, it returns true if the payload does not contain an ack.
+// This will force the cancellation of further waiting for responses.
+func (wsRespAckInspector) IsFinal(data []byte) bool {
+	return !strings.Contains(string(data), "ack")
 }

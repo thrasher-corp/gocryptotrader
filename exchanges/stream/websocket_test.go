@@ -1531,38 +1531,43 @@ func TestMonitorTraffic(t *testing.T) {
 func TestGetConnection(t *testing.T) {
 	t.Parallel()
 	var ws *Websocket
-	_, err := ws.GetConnection(nil)
+	_, err := ws.GetConnection(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	ws = &Websocket{}
 
-	_, err = ws.GetConnection(nil)
+	_, err = ws.GetConnection(context.Background(), nil)
 	require.ErrorIs(t, err, errMessageFilterNotSet)
 
-	_, err = ws.GetConnection("testURL")
+	_, err = ws.GetConnection(context.Background(), "testURL")
 	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
 
 	ws.useMultiConnectionManagement = true
 
-	_, err = ws.GetConnection("testURL")
+	_, err = ws.GetConnection(context.Background(), "testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	ws.setState(connectedState)
 
-	_, err = ws.GetConnection("testURL")
+	_, err = ws.GetConnection(context.Background(), "testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
 	ws.connectionManager = []*ConnectionWrapper{{
 		Setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
 	}}
 
-	_, err = ws.GetConnection("testURL")
+	_, err = ws.GetConnection(context.Background(), "testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &WebsocketConnection{}
 	ws.connectionManager[0].Connection = expected
 
-	conn, err := ws.GetConnection("testURL")
+	conn, err := ws.GetConnection(context.Background(), "testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+
+	conn, err = ws.GetConnection(request.WithMockResponse(context.Background(), []byte("mock")), "testURL")
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Empty(t, conn)
 }
