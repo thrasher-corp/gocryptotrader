@@ -391,6 +391,9 @@ func (w *Websocket) connect() error {
 	// be shutdown and the websocket to be disconnected.
 	var multiConnectFatalError error
 
+	// subscriptionError is a non-fatal error that does not shutdown connections
+	var subscriptionError error
+
 	// TODO: Implement concurrency below.
 	for i := range w.connectionManager {
 		if w.connectionManager[i].Setup.GenerateSubscriptions == nil {
@@ -449,21 +452,20 @@ func (w *Websocket) connect() error {
 		if w.connectionManager[i].Setup.Authenticate != nil && w.CanUseAuthenticatedEndpoints() {
 			err = w.connectionManager[i].Setup.Authenticate(context.TODO(), conn)
 			if err != nil {
-				// Opted to not fail entirely here for POC. This should be
-				// revisited and handled more gracefully.
-				log.Errorf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] failed to authenticate %v", w.exchangeName, i+1, conn.URL, err)
+				multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to authenticate %w", w.exchangeName, i+1, conn.URL, err)
+				break
 			}
 		}
 
 		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
 		if err != nil {
-			multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
-			break
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v Error subscribing %w", w.exchangeName, err))
+			continue
 		}
 
 		if missing := w.connectionManager[i].Subscriptions.Missing(subs); len(missing) > 0 {
-			multiConnectFatalError = fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing)
-			break
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing))
+			continue
 		}
 
 		if w.verbose {
@@ -507,7 +509,7 @@ func (w *Websocket) connect() error {
 		go w.monitorFrame(nil, w.monitorConnection)
 	}
 
-	return nil
+	return subscriptionError
 }
 
 // Disable disables the exchange websocket protocol

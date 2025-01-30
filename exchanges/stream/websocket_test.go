@@ -288,10 +288,20 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].Setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+		return errDastardlyReason
+	}
+	ws.connectionManager[0].Setup.Authenticate = nil
+	err = ws.Connect()
+	require.ErrorIs(t, err, errDastardlyReason)
+	require.NoError(t, ws.shutdown())
+
+	ws.connectionManager[0].Setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return nil
 	}
+	ws.connectionManager[0].Setup.Authenticate = nil
 	err = ws.Connect()
 	require.ErrorIs(t, err, errSubscriptionsNotAdded)
+	require.NoError(t, ws.shutdown())
 
 	ws.connectionManager[0].Subscriptions = subscription.NewStore()
 	ws.connectionManager[0].Setup.Subscriber = func(context.Context, Connection, subscription.List) error {
