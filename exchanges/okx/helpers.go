@@ -57,7 +57,7 @@ func orderTypeString(orderType order.Type) (string, error) {
 	case order.TrailingStop:
 		return "move_order_stop", nil
 	default:
-		return "", fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, orderType)
+		return "", fmt.Errorf("%w: `%v`", order.ErrUnsupportedOrderType, orderType)
 	}
 }
 
@@ -77,7 +77,7 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 	}
 	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: `%s`", err, instrumentID)
 	}
 	switch {
 	case len(splitSymbol) == 2:
@@ -100,31 +100,20 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 			return resp, nil
 		}
 	case len(splitSymbol) > 2:
-		switch splitSymbol[len(splitSymbol)-1] {
-		case "SWAP", "swap":
-			enabled, err := ok.IsPairEnabled(pair, asset.PerpetualSwap)
-			if err != nil {
-				return nil, err
-			}
-			if enabled {
-				return []asset.Item{asset.PerpetualSwap}, nil
-			}
-		case "C", "P", "c", "p":
-			enabled, err := ok.IsPairEnabled(pair, asset.Options)
-			if err != nil {
-				return nil, err
-			}
-			if enabled {
-				return []asset.Item{asset.Options}, nil
-			}
+		var aType asset.Item
+		switch strings.ToLower(splitSymbol[len(splitSymbol)-1]) {
+		case "swap":
+			aType = asset.PerpetualSwap
+		case "c", "p":
+			aType = asset.Options
 		default:
-			enabled, err := ok.IsPairEnabled(pair, asset.Futures)
-			if err != nil {
-				return nil, err
-			}
-			if enabled {
-				return []asset.Item{asset.Futures}, nil
-			}
+			aType = asset.Futures
+		}
+		enabled, err := ok.IsPairEnabled(pair, aType)
+		if err != nil {
+			return nil, err
+		} else if enabled {
+			return []asset.Item{aType}, nil
 		}
 	}
 	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotSupported, instrumentID)
