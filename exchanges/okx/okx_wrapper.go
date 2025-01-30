@@ -987,7 +987,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
 	case "trigger":
-		result, err = ok.TriggerAlgoOrder(ctx, &AlgoOrderParams{
+		result, err = ok.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
 			Side:             s.Side.Lower(),

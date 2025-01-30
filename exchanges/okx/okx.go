@@ -68,7 +68,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*Or
 	err = ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, SCode: %s SMsg: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w, error code: %s error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		}
 		var errs error
 		for x := range resp {
-			errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].StatusCode, resp[x].StatusMessage))
+			errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %v", resp[x].StatusCode, resp[x].StatusMessage))
 		}
 		return nil, errs
 	}
@@ -117,7 +117,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, SCode: %s and SMsg: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w,  error code: %s and  error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -475,7 +475,7 @@ func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderP
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "conditional" {
-		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
+		return nil, fmt.Errorf("%w for TPSL: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.StopLossTriggerPrice <= 0 {
 		return nil, order.ErrPriceBelowMin
@@ -498,18 +498,18 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	}
 	if (arg.MaxChaseType == "" || arg.MaxChaseValue == 0) &&
 		(arg.MaxChaseType != "" || arg.MaxChaseValue != 0) {
-		return nil, fmt.Errorf("%w, either non or both maxChaseType and macChaseValue has to be provided", errPriceTrackingNotSet)
+		return nil, fmt.Errorf("%w, either non or both MaxChaseType and MaxChaseValue has to be provided", errPriceTrackingNotSet)
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// TriggerAlgoOrder fetches algo trigger orders for SWAP market types
-func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+// PlaceTriggerAlgoOrder fetches algo trigger orders for SWAP market types
+func (ok *Okx) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "trigger" {
-		return nil, order.ErrTypeIsInvalid
+		return nil, fmt.Errorf("%w for Trigger: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.TriggerPrice <= 0 {
 		return nil, fmt.Errorf("%w, trigger price must be greater than 0", order.ErrPriceBelowMin)
@@ -549,7 +549,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 			return nil, common.ErrEmptyParams
 		}
 		if args[x].AlgoOrderID == "" {
-			return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+			return nil, fmt.Errorf("%w, AlgoOrderID is required", order.ErrOrderIDNotSet)
 		} else if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
@@ -558,7 +558,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, SCode: %s, SMsg: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w,  error code: %s,  error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -575,20 +575,20 @@ func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*A
 		return nil, errMissingInstrumentID
 	}
 	if arg.AlgoID == "" && arg.ClientSuppliedAlgoOrderID == "" {
-		return nil, fmt.Errorf("%w either 'algoId' or 'algoClOrdId' is required", order.ErrOrderIDNotSet)
+		return nil, fmt.Errorf("%w either AlgoID or ClientSuppliedAlgoOrderID is required", order.ErrOrderIDNotSet)
 	}
 	var resp *AmendAlgoResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodPost, "trade/amend-algos", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetAlgoOrderDetail retrieves algo order details
-func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID string) (*AlgoOrderDetail, error) {
-	if algoID == "" && algoClientOrderID == "" {
-		return nil, fmt.Errorf("%w either 'algoId' or 'algoClOrdId' is required", order.ErrOrderIDNotSet)
+func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, clientSuppliedAlgoID string) (*AlgoOrderDetail, error) {
+	if algoID == "" && clientSuppliedAlgoID == "" {
+		return nil, fmt.Errorf("%w either AlgoID or ClientSuppliedAlgoID is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
-	params.Set("algoClOrdId", algoClientOrderID)
+	params.Set("algoClOrdId", clientSuppliedAlgoID)
 	var resp *AlgoOrderDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, request.AuthenticatedRequest)
 }
@@ -676,10 +676,10 @@ func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context, source string) (*
 // PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10
 func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) ([]EasyConvertItem, error) {
 	if len(arg.FromCurrency) == 0 {
-		return nil, fmt.Errorf("%w, missing 'fromCcy'", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w, missing FromCurrency", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.ToCurrency == "" {
-		return nil, fmt.Errorf("%w, missing 'toCcy'", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w, missing ToCurrency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp []EasyConvertItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, "trade/easy-convert", &arg, &resp, request.AuthenticatedRequest)
@@ -742,9 +742,9 @@ func (ok *Okx) GetOneClickRepayHistory(ctx context.Context, after, before time.T
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOneClickRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/one-click-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// MassCancelOrder cancel all the MMP pending orders of an instrument family.
+// CancelAllMMPOrders cancel all the MMP pending orders of an instrument family.
 // Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
-func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFamily string, lockInterval int64) (*CancelMMPResponse, error) {
+func (ok *Okx) CancelAllMMPOrders(ctx context.Context, instrumentType, instrumentFamily string, lockInterval int64) (*CancelMMPResponse, error) {
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
@@ -752,7 +752,7 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 		return nil, errInstrumentFamilyRequired
 	}
 	if lockInterval < 0 || lockInterval > 10000 {
-		return nil, fmt.Errorf("%w, lockInterval value range should be between 0 and 10000", errMissingIntervalValue)
+		return nil, fmt.Errorf("%w, LockInterval value range should be between 0 and 10000", errMissingIntervalValue)
 	}
 	arg := &struct {
 		InstrumentType   string `json:"instType,omitempty"`
@@ -767,9 +767,9 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, "trade/mass-cancel", arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllMMPOrdersAfterCountdown cancel all MMP pending orders after the countdown timeout.
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required
-func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout int64, orderTag string) (*CancelResponse, error) {
+// CancelAllDelayed cancel all pending orders after the countdown timeout.
+// Applicable to all trading symbols through order book (except Spread trading)
+func (ok *Okx) CancelAllDelayed(ctx context.Context, timeout int64, orderTag string) (*CancelResponse, error) {
 	if (timeout != 0) && (timeout < 10 || timeout > 120) {
 		return nil, fmt.Errorf("%w, Range of value can be 0, [10, 120]", errCountdownTimeoutRequired)
 	}
@@ -791,9 +791,9 @@ func (ok *Okx) GetTradeAccountRateLimit(ctx context.Context) (*AccountRateLimit,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradeAccountRateLimitEPL, http.MethodGet, "trade/account-rate-limit", nil, &resp, request.AuthenticatedRequest)
 }
 
-// OrderPreCheck precheck the account information before and after placing the order.
+// PreCheckOrder returns the account information before and after placing a potential order
 // Only applicable to Multi-currency margin mode, and Portfolio margin mode
-func (ok *Okx) OrderPreCheck(ctx context.Context, arg *OrderPreCheckParams) (*OrderPreCheckResponse, error) {
+func (ok *Okx) PreCheckOrder(ctx context.Context, arg *OrderPreCheckParams) (*OrderPreCheckResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -836,7 +836,7 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg *CreateRFQInput) (*RFQResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRFQEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelRFQ Cancel an existing active RFQ that you has previously created
+// CancelRFQ cancels an Request for quotation
 func (ok *Okx) CancelRFQ(ctx context.Context, rfqID, clientRFQID string) (*CancelRFQResponse, error) {
 	if rfqID == "" && clientRFQID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -2981,7 +2981,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	isSpotGridOrder := arg.QuoteSize > 0 || arg.BaseSize > 0
 	if !isSpotGridOrder {
 		if arg.Size <= 0 {
-			return nil, fmt.Errorf("%w 'size' is required", order.ErrAmountMustBeSet)
+			return nil, fmt.Errorf("%w: parameter Size is required", order.ErrAmountMustBeSet)
 		}
 		arg.Direction = strings.ToLower(arg.Direction)
 		if !slices.Contains([]string{positionSideLong, positionSideShort, "neutral"}, arg.Direction) {
@@ -2995,7 +2995,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, SCode %s SMsg %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w, error code: %s error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -3017,7 +3017,7 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAmend) 
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage == "" {
-			return nil, fmt.Errorf("%w, SMsg: %s and SCode: %s", err, resp.StatusMessage, resp.StatusCode)
+			return nil, fmt.Errorf("%w, error code: %s and error message: %s", err, resp.StatusMessage, resp.StatusCode)
 		}
 		return nil, err
 	}
@@ -3054,7 +3054,7 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 		if len(resp) == 0 {
 			return nil, err
 		}
-		return nil, fmt.Errorf("error code:%s message: %v", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, fmt.Errorf("error code:%s error message: %v", resp[0].StatusCode, resp[0].StatusMessage)
 	}
 	return resp, nil
 }
@@ -4267,7 +4267,7 @@ func (ok *Okx) GetPremiumHistory(ctx context.Context, instrumentID string, after
 // GetIndexTickers Retrieves index tickers
 func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency currency.Code, instID string) ([]IndexTicker, error) {
 	if instID == "" && quoteCurrency.IsEmpty() {
-		return nil, fmt.Errorf("%w, quoteCcy or instId is required", errEitherInstIDOrCcyIsRequired)
+		return nil, fmt.Errorf("%w, QuoteCurrency or InstrumentID is required", errEitherInstIDOrCcyIsRequired)
 	}
 	params := url.Values{}
 	if !quoteCurrency.IsEmpty() {

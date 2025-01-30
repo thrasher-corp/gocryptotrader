@@ -1255,21 +1255,21 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 
 func TestTriggerAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ok.TriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{})
+	_, err := ok.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	_, err = ok.TriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234"})
+	_, err = ok.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234"})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	_, err = ok.TriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger"})
+	_, err = ok.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger"})
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
-	_, err = ok.TriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger", TriggerPrice: 123., TriggerPriceType: "abcd"})
+	_, err = ok.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger", TriggerPrice: 123., TriggerPriceType: "abcd"})
 	require.ErrorIs(t, err, order.ErrUnknownPriceType)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.TriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{
+	result, err := ok.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{
 		AlgoClientOrderID: "681096944655273984",
 		TriggerPriceType:  "mark",
 		TriggerPrice:      1234,
@@ -5111,26 +5111,26 @@ func TestGetMMPConfig(t *testing.T) {
 
 func TestMassCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ok.MassCancelOrder(contextGenerate(), "", "BTC-USD", 2000)
+	_, err := ok.CancelAllMMPOrders(contextGenerate(), "", "BTC-USD", 2000)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
-	_, err = ok.MassCancelOrder(contextGenerate(), "OPTION", "", 2000)
+	_, err = ok.CancelAllMMPOrders(contextGenerate(), "OPTION", "", 2000)
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
-	_, err = ok.MassCancelOrder(contextGenerate(), "OPTION", "BTC-USD", -1)
+	_, err = ok.CancelAllMMPOrders(contextGenerate(), "OPTION", "BTC-USD", -1)
 	require.ErrorIs(t, err, errMissingIntervalValue)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.MassCancelOrder(contextGenerate(), "OPTION", "BTC-USD", 2000)
+	result, err := ok.CancelAllMMPOrders(contextGenerate(), "OPTION", "BTC-USD", 2000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestCancelAllMMPOrdersAfterCountdown(t *testing.T) {
+func TestCancelAllDelayed(t *testing.T) {
 	t.Parallel()
-	_, err := ok.CancelAllMMPOrdersAfterCountdown(contextGenerate(), 2, "")
+	_, err := ok.CancelAllDelayed(contextGenerate(), 2, "")
 	require.ErrorIs(t, err, errCountdownTimeoutRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.CancelAllMMPOrdersAfterCountdown(contextGenerate(), 60, "")
+	result, err := ok.CancelAllDelayed(contextGenerate(), 60, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5143,35 +5143,35 @@ func TestGetTradeAccountRateLimit(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestOrderPreCheck(t *testing.T) {
+func TestPreCheckOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ok.OrderPreCheck(contextGenerate(), nil)
+	_, err := ok.PreCheckOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &OrderPreCheckParams{
 		ClientOrderID: "b15",
 	}
-	_, err = ok.OrderPreCheck(contextGenerate(), arg)
+	_, err = ok.PreCheckOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	arg.InstrumentID = "BTC-USDT"
-	_, err = ok.OrderPreCheck(contextGenerate(), arg)
+	_, err = ok.PreCheckOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
 	arg.TradeMode = "cash"
-	_, err = ok.OrderPreCheck(contextGenerate(), arg)
+	_, err = ok.PreCheckOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = "buy"
-	_, err = ok.OrderPreCheck(contextGenerate(), arg)
+	_, err = ok.PreCheckOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	arg.OrderType = "limit"
-	_, err = ok.OrderPreCheck(contextGenerate(), arg)
+	_, err = ok.PreCheckOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.OrderPreCheck(contextGenerate(), &OrderPreCheckParams{
+	result, err := ok.PreCheckOrder(contextGenerate(), &OrderPreCheckParams{
 		InstrumentID:  "BTC-USDT",
 		TradeMode:     "cash",
 		ClientOrderID: "b15",

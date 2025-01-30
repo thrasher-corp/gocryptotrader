@@ -1555,7 +1555,7 @@ func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 					return nil, err
 				}
 				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
+					return nil, fmt.Errorf("error code:%s error message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
 				}
 				return dataHolder, nil
 			}
@@ -1627,12 +1627,12 @@ func (ok *Okx) WsPlaceMultipleOrders(ctx context.Context, args []PlaceOrderReque
 					return nil, err
 				}
 				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
+					return nil, fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
 				}
 				var errs error
 				for x := range resp.Data {
 					if resp.Data[x].StatusCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %s", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
+						errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %s", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
 					}
 				}
 				return nil, errs
@@ -1691,7 +1691,7 @@ func (ok *Okx) WsCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 					return nil, err
 				}
 				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
+					return nil, fmt.Errorf("error code:%s error message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
 				}
 				return dataHolder, nil
 			}
@@ -1752,7 +1752,7 @@ func (ok *Okx) WsCancelMultipleOrder(ctx context.Context, args []CancelOrderRequ
 					return resp.Data, nil
 				}
 				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
+					return nil, fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
 				}
 				var resp WsOrderActionResponse
 				err = resp.populateFromIncomingData(data)
@@ -1766,7 +1766,7 @@ func (ok *Okx) WsCancelMultipleOrder(ctx context.Context, args []CancelOrderRequ
 				var errs error
 				for x := range resp.Data {
 					if resp.Data[x].StatusCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
+						errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %v", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
 					}
 				}
 				return nil, errs
@@ -1828,7 +1828,7 @@ func (ok *Okx) WsAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 					return nil, err
 				}
 				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
+					return nil, fmt.Errorf("error code:%s error message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
 				}
 				return dataHolder, nil
 			}
@@ -1891,7 +1891,7 @@ func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 					return resp.Data, nil
 				}
 				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
+					return nil, fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
 				}
 				var resp WsOrderActionResponse
 				err = resp.populateFromIncomingData(data)
@@ -1905,7 +1905,7 @@ func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 				var errs error
 				for x := range resp.Data {
 					if resp.Data[x].StatusCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
+						errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %v", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
 					}
 				}
 				return nil, errs
@@ -2368,7 +2368,7 @@ func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder any) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("error code:%s message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
+	return fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
 }
 
 // WsPlaceSpreadOrder places a spread order thought the websocket connection stream, and returns a SubmitResponse and error message.
