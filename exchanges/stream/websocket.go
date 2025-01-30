@@ -24,8 +24,10 @@ const jobBuffer = 5000
 var (
 	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
 	ErrSubscriptionFailure      = errors.New("subscription failure")
-	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
 	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
+	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
+	ErrSubscriptionsNotAdded    = errors.New("subscriptions not added")
+	ErrSubscriptionsNotRemoved  = errors.New("subscriptions not removed")
 	ErrAlreadyDisabled          = errors.New("websocket already disabled")
 	ErrNotConnected             = errors.New("websocket is not connected")
 	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
@@ -56,8 +58,6 @@ var (
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
-	errSubscriptionsNotAdded                = errors.New("subscriptions not added")
-	errSubscriptionsNotRemoved              = errors.New("subscriptions not removed")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
@@ -376,7 +376,7 @@ func (w *Websocket) connect() error {
 			}
 
 			if missing := w.subscriptions.Missing(subs); len(missing) > 0 {
-				return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing)
+				return fmt.Errorf("%v %w `%s`", w.exchangeName, ErrSubscriptionsNotAdded, missing)
 			}
 		}
 		return nil
@@ -464,7 +464,7 @@ func (w *Websocket) connect() error {
 		}
 
 		if missing := w.connectionManager[i].Subscriptions.Missing(subs); len(missing) > 0 {
-			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing))
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w `%s`", w.exchangeName, ErrSubscriptionsNotAdded, missing))
 			continue
 		}
 
@@ -691,7 +691,7 @@ func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription
 		}
 
 		if contained := store.Contained(unsubs); len(contained) > 0 {
-			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotRemoved, contained)
+			return fmt.Errorf("%v %w `%s`", w.exchangeName, ErrSubscriptionsNotRemoved, contained)
 		}
 	}
 	if len(subs) != 0 {
@@ -700,7 +700,7 @@ func (w *Websocket) updateChannelSubscriptions(c Connection, store *subscription
 		}
 
 		if missing := store.Missing(subs); len(missing) > 0 {
-			return fmt.Errorf("%v %w `%s`", w.exchangeName, errSubscriptionsNotAdded, missing)
+			return fmt.Errorf("%v %w `%s`", w.exchangeName, ErrSubscriptionsNotAdded, missing)
 		}
 	}
 	return nil

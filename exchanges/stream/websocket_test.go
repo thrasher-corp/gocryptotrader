@@ -193,7 +193,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.trafficTimeout = time.Minute
 	ws.connector = connect
 
-	require.ErrorIs(t, ws.Connect(), errSubscriptionsNotAdded)
+	require.ErrorIs(t, ws.Connect(), ErrSubscriptionsNotAdded)
 	require.NoError(t, ws.Shutdown())
 
 	ws.Subscriber = func(subs subscription.List) error {
@@ -299,7 +299,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		return nil
 	}
 	err = ws.Connect()
-	require.ErrorIs(t, err, errSubscriptionsNotAdded)
+	require.ErrorIs(t, err, ErrSubscriptionsNotAdded)
 	require.NoError(t, ws.shutdown())
 
 	ws.connectionManager[0].Subscriptions = subscription.NewStore()
@@ -370,7 +370,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.connector = func() error { return nil }
 
-	require.ErrorIs(t, ws.Connect(), errSubscriptionsNotAdded)
+	require.ErrorIs(t, ws.Connect(), ErrSubscriptionsNotAdded)
 	require.NoError(t, ws.Shutdown())
 
 	ws.Subscriber = func(subs subscription.List) error {
@@ -1106,7 +1106,7 @@ func TestFlushChannels(t *testing.T) {
 	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
 
-	require.ErrorIs(t, w.FlushChannels(), errSubscriptionsNotAdded, "FlushChannels should error correctly on no subscriptions added")
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "FlushChannels should error correctly on no subscriptions added")
 
 	w.Subscriber = func(subs subscription.List) error {
 		for _, sub := range subs {
@@ -1125,7 +1125,7 @@ func TestFlushChannels(t *testing.T) {
 
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
 
-	require.ErrorIs(t, w.FlushChannels(), errSubscriptionsNotRemoved)
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved)
 
 	w.Unsubscriber = func(subs subscription.List) error {
 		for _, sub := range subs {
@@ -1184,7 +1184,7 @@ func TestFlushChannels(t *testing.T) {
 		Handler:               func(context.Context, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
-	require.ErrorIs(t, w.FlushChannels(), errSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
 
 	w.connectionManager[0].Setup.Subscriber = func(ctx context.Context, c Connection, s subscription.List) error {
 		return currySimpleSubConn(w)(ctx, c, s)
@@ -1199,7 +1199,7 @@ func TestFlushChannels(t *testing.T) {
 	// of the connection from management.
 	w.features.Subscribe = true
 	w.connectionManager[0].Setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
-	require.ErrorIs(t, w.FlushChannels(), errSubscriptionsNotRemoved, "Must error when no subscriptions are removed from subscription store")
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved, "Must error when no subscriptions are removed from subscription store")
 
 	w.connectionManager[0].Setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
 		return currySimpleUnsubConn(w)(ctx, c, s)
