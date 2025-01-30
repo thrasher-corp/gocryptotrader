@@ -836,7 +836,7 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg *CreateRFQInput) (*RFQResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRFQEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelRFQ cancels an Request for quotation
+// CancelRFQ cancels a request for quotation
 func (ok *Okx) CancelRFQ(ctx context.Context, rfqID, clientRFQID string) (*CancelRFQResponse, error) {
 	if rfqID == "" && clientRFQID == "" {
 		return nil, order.ErrOrderIDNotSet
