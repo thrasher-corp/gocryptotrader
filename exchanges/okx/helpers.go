@@ -116,7 +116,7 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 			return []asset.Item{aType}, nil
 		}
 	}
-	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotSupported, instrumentID)
+	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotEnabled, instrumentID)
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

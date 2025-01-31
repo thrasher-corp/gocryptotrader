@@ -1834,7 +1834,7 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*Set
 	switch arg.AssetType {
 	case asset.Futures, asset.PerpetualSwap:
 		if arg.PositionSide == "" && arg.MarginMode == "isolated" {
-			return nil, fmt.Errorf("%w, position side is required", order.ErrSideIsInvalid)
+			return nil, fmt.Errorf("%w: `%s`", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
