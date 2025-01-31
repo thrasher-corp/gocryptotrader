@@ -83,6 +83,7 @@ var (
 	errPortfolioDetailRequired      = errors.New("portfolio detail is required")
 	errPlanTypeRequired             = errors.New("planType is required")
 	errTransactionIDRequired        = errors.New("transaction ID is required")
+	errQuestionnaireRequired        = errors.New("questionnaire payload missing")
 	errRequestIDRequired            = errors.New("request ID is required")
 	errStartTimeRequired            = errors.New("start time is required")
 	errStrategyTypeRequired         = errors.New("strategy type is required")
@@ -5392,7 +5393,7 @@ type ErrResponse struct {
 	Message string       `json:"msg"`
 }
 
-// LeadTraderStatus holds infomration about whether the user is a lead trader or not.
+// LeadTraderStatus holds information about whether the user is a lead trader or not.
 type LeadTraderStatus struct {
 	IsLeadTrader bool       `json:"isLeadTrader"`
 	Time         types.Time `json:"time"`
@@ -5417,4 +5418,60 @@ type UserNegativeBalanceRecord struct {
 			NegativeMaxThreshold types.Number `json:"negativeMaxThreshold"`
 		} `json:"details"`
 	} `json:"rows"`
+}
+
+// LocalWithdrawalResponse holds local withdrawal response
+type LocalWithdrawalResponse struct {
+	TrID    int    `json:"trId"`
+	Accpted bool   `json:"accpted"`
+	Info    string `json:"info"`
+}
+
+// LocalEntityWithdrawalDetail represents a local entity withdrawal detail
+type LocalEntityWithdrawalDetail struct {
+	ID                 string       `json:"id"`
+	TravelRuleRecordID int64        `json:"trId"`
+	Amount             types.Number `json:"amount"`
+	TransactionFee     types.Number `json:"transactionFee"`
+	Coin               string       `json:"coin"`
+	WithdrawalStatus   int64        `json:"withdrawalStatus"`
+	TravelRuleStatus   int64        `json:"travelRuleStatus"`
+	Address            string       `json:"address"`
+	AddressTag         string       `json:"addressTag,omitempty"`
+	TransactionID      string       `json:"txId"`
+	ApplyTime          types.Time   `json:"applyTime"`
+	Network            string       `json:"network"`
+	TransferType       int64        `json:"transferType"`
+	WithdrawOrderID    string       `json:"withdrawOrderId,omitempty"`
+	Info               string       `json:"info"`
+	ConfirmNo          int64        `json:"confirmNo"`
+	WalletType         int64        `json:"walletType"`
+	TransactionKey     string       `json:"txKey"`
+	Questionnaire      string       `json:"questionnaire"`
+	CompleteTime       types.Time   `json:"completeTime"`
+}
+
+// QuestionnaireDepositResponse represents a questionnaire deposit operation response
+type QuestionnaireDepositResponse struct {
+	TransactionID int64  `json:"trId"`
+	Accepted      bool   `json:"accepted"`
+	Info          string `json:"info"`
+}
+
+// JapanQuestionnaireParams represents questionnaire params for japan
+type JapanQuestionnaireParams struct {
+	IsAddressOwner           int64  `json:"isAddressOwner"`
+	BNFType                  int64  `json:"bnfType"`
+	KanjiName                string `json:"kanjiName"`
+	KanaName                 string `json:"kanaName"`
+	LatinName                string `json:"latinName"`
+	Country                  string `json:"country"`
+	City                     string `json:"city"`
+	SentTo                   int64  `json:"sendTo"`
+	VaspCode                 string `json:"vasp"`
+	VaspCountry              string `json:"vaspCountry"`
+	VaspRegion               string `json:"vaspRegion"`
+	TransactionPurpose       string `json:"txnPurpose"`
+	TranasactionPurposeOther string `json:"txnPurposeOther"`
+	IsAttested               bool   `json:"isAttested"`
 }

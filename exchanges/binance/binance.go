@@ -5555,7 +5555,7 @@ func (b *Binance) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]PMAsse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/margin-asset-leverage", nil, pmAssetLeverageRate, nil, &resp)
 }
 
-// GetUserNegativeBalanceAutoExchangeRecord retrives user negative balance auto exchange record
+// GetUserNegativeBalanceAutoExchangeRecord retrieves user negative balance auto exchange record
 func (b *Binance) GetUserNegativeBalanceAutoExchangeRecord(ctx context.Context, startTime, endTime time.Time) (*UserNegativeBalanceRecord, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -6380,4 +6380,107 @@ func (b *Binance) CloseCrossMarginListenKey(ctx context.Context, symbol, listenK
 	params.Set("listenKey", listenKey)
 	params.Set("symbol", symbol)
 	return b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues("/sapi/v1/userDataStream/isolated", params), sapiDefaultRate, &struct{}{})
+}
+
+// LocalEntitiesWithdraw submits a withdrawal request for local
+func (b *Binance) LocalEntitiesWithdraw(ctx context.Context, coin currency.Code, withdrawalOrderID, network, address, addressTag, name, walletType, questionnaire string, amount float64, transactionFeeFlag bool) (interface{}, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if address == "" {
+		return nil, errAddressRequired
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("address", address)
+	if withdrawalOrderID != "" {
+		params.Set("withdrawOrderId", withdrawalOrderID)
+	}
+	if network != "" {
+		params.Set("network", network)
+	}
+	if addressTag != "" {
+		params.Set("addressTag", addressTag)
+	}
+	if transactionFeeFlag {
+		params.Set("transactionFeeFlag", "true")
+	}
+	if name != "" {
+		params.Set("name", name)
+	}
+	if walletType != "" {
+		params.Set("walletType", walletType)
+	}
+	var resp *LocalWithdrawalResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/localentity/withdraw/apply", params, request.UnAuth, nil, &resp)
+}
+
+// WithdrawalHistory fetch withdraw history for local entities that required travel rule through the V1 API.
+// for local entities that require travel rule
+func (b *Binance) WithdrawalHistoryV1(ctx context.Context, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs []string, network, travelRuleStatus string, offset, limit int64, startTime, endTime time.Time) ([]LocalEntityWithdrawalDetail, error) {
+	return b.withdrawalHistory(ctx, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs, network, travelRuleStatus, "/sapi/v1/localentity/withdraw/history", offset, limit, startTime, endTime)
+}
+
+// WithdrawalHistoryV2 fetch withdraw history for local entities that required travel rule through the V2 API.
+func (b *Binance) WithdrawalHistoryV2(ctx context.Context, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs []string, network, travelRuleStatus string, offset, limit int64, startTime, endTime time.Time) ([]LocalEntityWithdrawalDetail, error) {
+	return b.withdrawalHistory(ctx, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs, network, travelRuleStatus, "/sapi/v2/localentity/withdraw/history", offset, limit, startTime, endTime)
+}
+
+func (b *Binance) withdrawalHistory(ctx context.Context, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs []string, network, travelRuleStatus, path string, offset, limit int64, startTime, endTime time.Time) ([]LocalEntityWithdrawalDetail, error) {
+	params := url.Values{}
+	if len(travelRuleRecordIDs) != 0 {
+		params.Set("trId", strings.Join(travelRuleRecordIDs, ","))
+	}
+	if len(transactionIDs) != 0 {
+		params.Set("txId", strings.Join(transactionIDs, ","))
+	}
+	if len(withdrawalOrderIDs) != 0 {
+		params.Set("withdrawOrderId", strings.Join(withdrawalOrderIDs, ","))
+	}
+	if network != "" {
+		params.Set("network", network)
+	}
+	if travelRuleStatus != "" {
+		params.Set("travelRuleStatus", travelRuleStatus)
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp []LocalEntityWithdrawalDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, request.Auth, nil, &resp)
+}
+
+// SubmitDepositQuestionnaire submit questionnaire for local entities that require travel rule.
+// The questionnaire is only applies to transactions from unhosted wallets or VASPs that are not yet onboarded with GTR.
+func (b *Binance) SubmitDepositQuestionnaire(ctx context.Context, walletTransactionID string, questionnaire any) (*QuestionnaireDepositResponse, error) {
+	if walletTransactionID == "" {
+		return nil, fmt.Errorf("%w: WalletTransactionID is required", errTransactionIDRequired)
+	}
+	if questionnaire == "" {
+		return nil, errQuestionnaireRequired
+	}
+	params := url.Values{}
+	params.Set("tranId", walletTransactionID)
+	questionnaireJSON, err := json.Marshal(questionnaire)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("questionnaire", string(questionnaireJSON))
+	var resp *QuestionnaireDepositResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "/sapi/v1/localentity/deposit/provide-info", params, request.Auth, nil, &resp)
 }

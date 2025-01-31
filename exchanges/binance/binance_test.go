@@ -5042,7 +5042,7 @@ func TestToMap(t *testing.T) {
 }
 
 func TestSortingTest(t *testing.T) {
-	params := map[string]interface{}{"apiKey": "wwhj3r3amR", "signature": "f89c6e5c0b", "timestamp": 1704873175325, "symbol": "BTCUSDT", "startTime": 1704009175325, "endTime": 1704873175325, "limit": 5}
+	params := map[string]any{"apiKey": "wwhj3r3amR", "signature": "f89c6e5c0b", "timestamp": 1704873175325, "symbol": "BTCUSDT", "startTime": 1704009175325, "endTime": 1704873175325, "limit": 5}
 	sortedKeys := []string{"apiKey", "endTime", "limit", "signature", "startTime", "symbol", "timestamp"}
 	keys := SortMap(params)
 	require.Len(t, keys, len(sortedKeys), "unexptected keys length")
@@ -9096,6 +9096,51 @@ func TestGetFuturesLeadTradingSymbolWhitelist(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetFuturesLeadTradingSymbolWhitelist(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestLocalEntitiesWithdraw(t *testing.T) {
+	t.Parallel()
+	_, err := b.LocalEntitiesWithdraw(context.Background(), currency.EMPTYCODE, "1234", "", core.BitcoinDonationAddress, "", "", "1", "", 123, false)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.LocalEntitiesWithdraw(context.Background(), currency.USDT, "1234", "", "", "", "", "1", "", 123, false)
+	require.ErrorIs(t, err, errAddressRequired)
+	_, err = b.LocalEntitiesWithdraw(context.Background(), currency.USDT, "1234", "", core.BitcoinDonationAddress, "", "", "1", "", 0, false)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.LocalEntitiesWithdraw(context.Background(), currency.USDT, "1234", "", core.BitcoinDonationAddress, "", "", "1", "", 123, false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.WithdrawalHistoryV1(context.Background(), []string{"1234"}, []string{"0xb5ef8c13b968a406cc62a93a8bd80f9e9a906ef1b3fcf20a2e48573c17659268"}, []string{}, "", "0", 0, 100, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWithdrawalHistoryV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.WithdrawalHistoryV2(context.Background(), []string{"1234"}, []string{"0xb5ef8c13b968a406cc62a93a8bd80f9e9a906ef1b3fcf20a2e48573c17659268"}, []string{}, "", "0", 0, 100, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubmitDepositQuestionnaire(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.SubmitDepositQuestionnaire(context.Background(), "765127651", &JapanQuestionnaireParams{
+		IsAddressOwner:     2,
+		SentTo:             1,
+		VaspCountry:        "cn",
+		VaspRegion:         "notNortheasternProvinces",
+		TransactionPurpose: "3",
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
