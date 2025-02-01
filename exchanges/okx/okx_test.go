@@ -4764,7 +4764,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	_, err = ok.getAssetsFromInstrumentID("test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
 	_, err = ok.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
 		assets, err2 := ok.getAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
