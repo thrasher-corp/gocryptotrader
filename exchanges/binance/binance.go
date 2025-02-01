@@ -3856,6 +3856,70 @@ func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collat
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/repay/history", params, flexibleLoanRepaymentHistoryRate, nil, &resp)
 }
 
+// FlexibleLoanCollateralRepayment flexible loan collateral repayment
+func (b *Binance) FlexibleLoanCollateralRepayment(ctx context.Context, loanCoin, collateralCoin currency.Code, repaymentAmount float64, fullRepayment bool) (*FlexibleLoanCollateralRepaymentResponse, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	if repaymentAmount <= 0 {
+		return nil, fmt.Errorf("%w: repayment amount is required", order.ErrAmountBelowMin)
+	}
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	params.Set("collateralCoin", collateralCoin.String())
+	params.Set("repaymentAmount", strconv.FormatFloat(repaymentAmount, 'f', -1, 64))
+	if fullRepayment {
+		params.Set("fullRepayment", "true")
+	}
+	var resp *FlexibleLoanCollateralRepaymentResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v2/loan/flexible/repay/collateral", params, flexibleLoanCollateralRepaymentRate, nil, &resp)
+}
+
+// CheckCollateralRepayRate checks collateral loan repayment rate of the account
+func (b *Binance) CheckCollateralRepayRate(ctx context.Context, loanCoin, collateralCoin currency.Code) (*CollateralRepayRate, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	params.Set("collateralCoin", collateralCoin.String())
+	var resp *CollateralRepayRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/repay/rate", params, request.Auth, nil, &resp)
+}
+
+// GetFlexibleLoanLiquidiationHistory retrieves flexible loan liquidiation history of an account
+func (b *Binance) GetFlexibleLoanLiquidiationHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanLiquidiationhistory, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *FlexibleLoanLiquidiationhistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/liquidation/history", params, request.Auth, nil, &resp)
+}
+
 // FlexibleLoanAdjustLTV adjusts the LTV of a flexible loan
 func (b *Binance) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64, reduce bool) (*FlexibleLoanAdjustLTV, error) {
 	if loanCoin.IsEmpty() {
@@ -6467,6 +6531,7 @@ func (b *Binance) withdrawalHistory(ctx context.Context, travelRuleRecordIDs, tr
 
 // SubmitDepositQuestionnaire submit questionnaire for local entities that require travel rule.
 // The questionnaire is only applies to transactions from unhosted wallets or VASPs that are not yet onboarded with GTR.
+// details of key and values of questionnaire for each country can be found here: https://developers.binance.com/docs/wallet/travel-rule/withdraw-questionnaire
 func (b *Binance) SubmitDepositQuestionnaire(ctx context.Context, walletTransactionID string, questionnaire any) (*QuestionnaireDepositResponse, error) {
 	if walletTransactionID == "" {
 		return nil, fmt.Errorf("%w: WalletTransactionID is required", errTransactionIDRequired)
@@ -6483,4 +6548,52 @@ func (b *Binance) SubmitDepositQuestionnaire(ctx context.Context, walletTransact
 	params.Set("questionnaire", string(questionnaireJSON))
 	var resp *QuestionnaireDepositResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "/sapi/v1/localentity/deposit/provide-info", params, request.Auth, nil, &resp)
+}
+
+// GetLocalEntitiesDepositHistory fetch deposit history for local entities that required travel rule.
+func (b *Binance) GetLocalEntitiesDepositHistory(ctx context.Context, travelRuleRecordIDs, transactionIDs, walletTransactionIDs []string, network string, coin currency.Code, travelRuleStatus string, pendingQuestionnaire bool, startTime, endTime time.Time, offset, limit int64) ([]LocalEntityDepositDetail, error) {
+	params := url.Values{}
+	if len(travelRuleRecordIDs) != 0 {
+		params.Set("trId", strings.Join(travelRuleRecordIDs, ","))
+	}
+	if len(transactionIDs) != 0 {
+		params.Set("txId", strings.Join(transactionIDs, ","))
+	}
+	if len(walletTransactionIDs) != 0 {
+		params.Set("withdrawOrderId", strings.Join(walletTransactionIDs, ","))
+	}
+	if network != "" {
+		params.Set("network", network)
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if travelRuleStatus != "" {
+		params.Set("travelRuleStatus", travelRuleStatus)
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if pendingQuestionnaire {
+		params.Set("pendingQuestionnaire", "true")
+	}
+	var resp []LocalEntityDepositDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/localentity/deposit/history", params, request.Auth, nil, &resp)
+}
+
+// GetOnboardedVASPList retrieves the onboarded virtual asset service provider(VASP) list for local entities that required travel rule.
+func (b *Binance) GetOnboardedVASPList(ctx context.Context) ([]VASPItemInfo, error) {
+	var resp []VASPItemInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/localentity/vasp", nil, request.Auth, nil, &resp)
 }

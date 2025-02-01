@@ -5458,20 +5458,56 @@ type QuestionnaireDepositResponse struct {
 	Info          string `json:"info"`
 }
 
-// JapanQuestionnaireParams represents questionnaire params for japan
-type JapanQuestionnaireParams struct {
-	IsAddressOwner           int64  `json:"isAddressOwner"`
-	BNFType                  int64  `json:"bnfType"`
-	KanjiName                string `json:"kanjiName"`
-	KanaName                 string `json:"kanaName"`
-	LatinName                string `json:"latinName"`
-	Country                  string `json:"country"`
-	City                     string `json:"city"`
-	SentTo                   int64  `json:"sendTo"`
-	VaspCode                 string `json:"vasp"`
-	VaspCountry              string `json:"vaspCountry"`
-	VaspRegion               string `json:"vaspRegion"`
-	TransactionPurpose       string `json:"txnPurpose"`
-	TranasactionPurposeOther string `json:"txnPurposeOther"`
-	IsAttested               bool   `json:"isAttested"`
+// LocalEntityDepositDetail holds asset deposit information for local entities
+type LocalEntityDepositDetail struct {
+	TrID                 int64         `json:"trId"`
+	TranID               int64         `json:"tranId"`
+	Amount               types.Number  `json:"amount"`
+	Coin                 currency.Code `json:"coin"`
+	Network              string        `json:"network"`
+	DepositStatus        int64         `json:"depositStatus"`
+	TravelRuleStatus     int64         `json:"travelRuleStatus"`
+	Address              string        `json:"address"`
+	AddressTag           string        `json:"addressTag"`
+	TransactionID        string        `json:"txId"`
+	InsertTime           types.Time    `json:"insertTime"`
+	TransferType         int64         `json:"transferType"`
+	ConfirmTimes         string        `json:"confirmTimes"`
+	UnlockConfirm        int           `json:"unlockConfirm"`
+	WalletType           int           `json:"walletType"`
+	RequireQuestionnaire bool          `json:"requireQuestionnaire"`
+	Questionnaire        any           `json:"questionnaire"`
+}
+
+// VASPItemInfo holds a single virtual assep service provider(VASP) instance information
+type VASPItemInfo struct {
+	VaspName string `json:"vaspName"`
+	VaspCode string `json:"vaspCode"`
+}
+
+// FlexibleLoanCollateralRepaymentResponse holds details of flexible loan repayment response
+type FlexibleLoanCollateralRepaymentResponse struct {
+	LoanCoin            string       `json:"loanCoin"`
+	CollateralCoin      string       `json:"collateralCoin"`
+	RemainingDebt       types.Number `json:"remainingDebt"`
+	RemainingCollateral types.Number `json:"remainingCollateral"`
+	FullRepayment       bool         `json:"fullRepayment"`
+	CurrentLTV          string       `json:"currentLTV"`
+	RepayStatus         string       `json:"repayStatus"`
+}
+
+// FlexibleLoanLiquidiationhistory holds flexible loan liquidiations list
+type FlexibleLoanLiquidiationhistory struct {
+	Rows []struct {
+		LoanCoin                    string       `json:"loanCoin"`
+		LiquidationDebt             types.Number `json:"liquidationDebt"`
+		CollateralCoin              string       `json:"collateralCoin"`
+		LiquidationCollateralAmount types.Number `json:"liquidationCollateralAmount"`
+		ReturnCollateralAmount      types.Number `json:"returnCollateralAmount"`
+		LiquidationFee              types.Number `json:"liquidationFee"`
+		LiquidationStartingPrice    types.Number `json:"liquidationStartingPrice"`
+		LiquidationStartingTime     types.Time   `json:"liquidationStartingTime"`
+		Status                      string       `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
 }

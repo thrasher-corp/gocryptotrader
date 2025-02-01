@@ -368,6 +368,7 @@ const (
 	flexibleBorrowHistoryRate
 	repayFlexibleLoanHistoryRate
 	flexibleLoanRepaymentHistoryRate
+	flexibleLoanCollateralRepaymentRate
 	adjustFlexibleLoanRate
 	flexibleLoanAdjustLTVRate
 	flexibleLoanAssetDataRate
@@ -752,26 +753,27 @@ func GetRateLimits() request.RateLimitDefinitions {
 		marginManualLiquidiationRate:             request.GetRateLimiterWithWeight(marginAccountTradeLimiter, 3000),
 
 		// Crypto-Loan Endpoints.
-		cryptoLoansIncomeHistory:         request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		cryptoRepayLoanRate:              request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		adjustLTVRate:                    request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		checkCollateralRepayRate:         request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		cryptoLoanCustomizeMarginRate:    request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		borrowFlexibleRate:               request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		repayFlexibleLoanHistoryRate:     request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		adjustFlexibleLoanRate:           request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		getLoanBorrowHistoryRate:         request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		repaymentHistoryRate:             request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		getLoanLTVAdjustmentHistoryRate:  request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		getLoanableAssetsDataRate:        request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		collateralAssetsDataRate:         request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		flexibleBorrowHistoryRate:        request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		flexibleLoanRepaymentHistoryRate: request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		flexibleLoanAdjustLTVRate:        request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		flexibleLoanAssetDataRate:        request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		flexibleLoanCollateralAssetRate:  request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
-		getBorrowOngoingOrdersRate:       request.GetRateLimiterWithWeight(cryptoLoanLimiter, 300),
-		getFlexibleLoanOngoingOrdersRate: request.GetRateLimiterWithWeight(cryptoLoanLimiter, 300),
+		cryptoLoansIncomeHistory:            request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		cryptoRepayLoanRate:                 request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		adjustLTVRate:                       request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		checkCollateralRepayRate:            request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		cryptoLoanCustomizeMarginRate:       request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		borrowFlexibleRate:                  request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		repayFlexibleLoanHistoryRate:        request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		adjustFlexibleLoanRate:              request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		getLoanBorrowHistoryRate:            request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		repaymentHistoryRate:                request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		getLoanLTVAdjustmentHistoryRate:     request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		getLoanableAssetsDataRate:           request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		collateralAssetsDataRate:            request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		flexibleBorrowHistoryRate:           request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		flexibleLoanRepaymentHistoryRate:    request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		flexibleLoanCollateralRepaymentRate: request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		flexibleLoanAdjustLTVRate:           request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		flexibleLoanAssetDataRate:           request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		flexibleLoanCollateralAssetRate:     request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
+		getBorrowOngoingOrdersRate:          request.GetRateLimiterWithWeight(cryptoLoanLimiter, 300),
+		getFlexibleLoanOngoingOrdersRate:    request.GetRateLimiterWithWeight(cryptoLoanLimiter, 300),
 	}
 }
 

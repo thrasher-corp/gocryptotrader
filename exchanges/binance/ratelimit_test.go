@@ -381,6 +381,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"flexibleBorrowHistoryRate":                              flexibleBorrowHistoryRate,
 		"repayFlexibleLoanHistoryRate":                           repayFlexibleLoanHistoryRate,
 		"flexibleLoanRepaymentHistoryRate":                       flexibleLoanRepaymentHistoryRate,
+		"flexibleLoanCollateralRepaymentRate":                    flexibleLoanCollateralRepaymentRate,
 		"adjustFlexibleLoanRate":                                 adjustFlexibleLoanRate,
 		"flexibleLoanAdjustLTVRate":                              flexibleLoanAdjustLTVRate,
 		"flexibleLoanAssetDataRate":                              flexibleLoanAssetDataRate,

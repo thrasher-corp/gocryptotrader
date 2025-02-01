@@ -38,8 +38,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "heHuW7gV9n1PeiwrLWARCSnfqbIMXMoruRC5VxfO9Km9nd2ptW6WG6hBq2DEjsmg"
+	apiSecret               = "YaEHis8Z0dQKoEUZwu3Wo9r8XlTzl1t5nfCRNAoRzqoAWLmSkGlwiBbysVBmgB3z"
 	canManipulateRealOrders = false
 	useTestNet              = false
 
@@ -4438,6 +4438,43 @@ func TestFlexibleLoanRepayHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.FlexibleLoanRepayHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFlexibleLoanCollateralRepayment(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	_, err := b.FlexibleLoanCollateralRepayment(context.Background(), currency.EMPTYCODE, currency.USDT, 1000, true)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.FlexibleLoanCollateralRepayment(context.Background(), currency.BTC, currency.EMPTYCODE, 1000, true)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.FlexibleLoanCollateralRepayment(context.Background(), currency.BTC, currency.USDT, 0, true)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.FlexibleLoanCollateralRepayment(context.Background(), currency.BTC, currency.USDT, 1000, true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCheckCollateralRepayRate(t *testing.T) {
+	t.Parallel()
+	_, err := b.CheckCollateralRepayRate(context.Background(), currency.EMPTYCODE, currency.USDT)
+	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.CheckCollateralRepayRate(context.Background(), currency.BTC, currency.EMPTYCODE)
+	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CheckCollateralRepayRate(context.Background(), currency.BTC, currency.USDT)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlexibleLoanLiquidiationHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexibleLoanLiquidiationHistory(context.Background(), currency.BTC, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -9133,14 +9170,33 @@ func TestWithdrawalHistoryV2(t *testing.T) {
 
 func TestSubmitDepositQuestionnaire(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.SubmitDepositQuestionnaire(context.Background(), "765127651", &JapanQuestionnaireParams{
-		IsAddressOwner:     2,
-		SentTo:             1,
-		VaspCountry:        "cn",
-		VaspRegion:         "notNortheasternProvinces",
-		TransactionPurpose: "3",
+	b.Verbose = true
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubmitDepositQuestionnaire(context.Background(), "765127651", map[string]interface{}{
+		"isAddressOwner": 2,
+		"sendTo":         1,
+		"vaspCountry":    "cn",
+		"vaspRegion":     "notNortheasternProvinces",
+		"txnPurpose":     "3",
 	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLocalEntitiesDepositHistory(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLocalEntitiesDepositHistory(context.Background(), []string{}, []string{}, []string{}, "BNB", currency.USDT, "1", false, time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOnboardedVASPList(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOnboardedVASPList(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
