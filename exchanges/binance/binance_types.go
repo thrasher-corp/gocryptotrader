@@ -198,7 +198,7 @@ type TradeStream struct {
 	BuyerOrderID   int64        `json:"b"`
 	SellerOrderID  int64        `json:"a"`
 	TimeStamp      time.Time    `json:"T"`
-	Maker          bool         `json:"m"`
+	IsBuyerMaker   bool         `json:"m"`
 	BestMatchPrice bool         `json:"M"`
 }
 
@@ -288,7 +288,7 @@ type AggregatedTrade struct {
 	FirstTradeID   int64     `json:"f"`
 	LastTradeID    int64     `json:"l"`
 	TimeStamp      time.Time `json:"T"`
-	Maker          bool      `json:"m"`
+	IsBuyerMaker   bool      `json:"m"`
 	BestMatchPrice bool      `json:"M"`
 }
 
