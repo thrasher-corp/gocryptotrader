@@ -155,10 +155,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, conn stream.Connection, 
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !conn.RouteIncomingWebsocketData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return conn.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {

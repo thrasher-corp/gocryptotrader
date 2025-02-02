@@ -173,15 +173,11 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, conn stream.Connection, res
 	}
 
 	if push.RequestID != "" {
-		// TODO: RouteIncomingWebsocketData should be used here and updated to return error.
-		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+		return conn.RequireMatchWithData(push.RequestID, respRaw)
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !conn.RouteIncomingWebsocketData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return conn.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result

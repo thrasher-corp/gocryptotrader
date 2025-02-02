@@ -38,9 +38,8 @@ type Connection interface {
 	GetURL() string
 	Shutdown() error
 
-	// RouteIncomingWebsocketData routes incoming websocket data to the correct handler.
-	// Returns true if a handler was found and data was passed to it.
-	RouteIncomingWebsocketData(signature any, incoming []byte) (matched bool)
+	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+	RequireMatchWithData(signature any, incoming []byte) error
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection

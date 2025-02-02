@@ -380,8 +380,7 @@ func removeURLQueryString(url string) string {
 	return url
 }
 
-// RouteIncomingWebsocketData routes incoming websocket data to the correct handler.
-// Returns true if a handler was found and data was passed to it.
-func (w *WebsocketConnection) RouteIncomingWebsocketData(signature any, incoming []byte) (matched bool) {
-	return w.Match.IncomingWithData(signature, incoming)
+// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+func (w *WebsocketConnection) RequireMatchWithData(signature any, incoming []byte) error {
+	return w.Match.RequireMatchWithData(signature, incoming)
 }
