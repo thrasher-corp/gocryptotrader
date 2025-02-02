@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -75,7 +75,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
 		Websocket:   true,
 		MessageType: websocket.PingMessage,
 		Delay:       time.Second * 15,
@@ -88,11 +88,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe,
-			futuresOrdersChannel,
-			futuresUserTradesChannel,
-			futuresBalancesChannel,
-		)
+		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
 	pairs, err := g.GetEnabledPairs(asset.Futures)
@@ -103,28 +99,17 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 		return nil, err
 	}
 
+	switch {
+	case settlement.Equal(currency.USDT):
+		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return !p.Quote.Equal(currency.USDT) })
+	case settlement.Equal(currency.BTC):
+		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return p.Quote.Equal(currency.USDT) })
+	default:
+		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
+	}
+
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
-		switch {
-		case settlement.Equal(currency.USDT):
-			pairs, err = pairs.GetPairsByQuote(currency.USDT)
-			if err != nil {
-				return nil, err
-			}
-		case settlement.Equal(currency.BTC):
-			offset := 0
-			for x := range pairs {
-				if pairs[x].Quote.Equal(currency.USDT) {
-					continue // skip USDT pairs
-				}
-				pairs[offset] = pairs[x]
-				offset++
-			}
-			pairs = pairs[:offset]
-		default:
-			return nil, fmt.Errorf("settlement currency %s not supported", settlement)
-		}
-
 		for j := range pairs {
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
@@ -145,6 +130,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
+				Asset:   asset.Futures,
 			})
 		}
 	}
@@ -163,8 +149,7 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleFuturesData handles futures websocket data
 func (g *Gateio) WsHandleFuturesData(_ context.Context, conn stream.Connection, respRaw []byte, a asset.Item) error {
-	var push WsResponse
-	err := json.Unmarshal(respRaw, &push)
+	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
@@ -182,7 +167,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, conn stream.Connection, 
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, a)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.Time.Time())
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.Time)
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
@@ -367,7 +352,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
 		trades[x] = trade.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     g.Name,
@@ -453,7 +438,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 		}
 	}
 	updates := orderbook.Update{
-		UpdateTime: data.TimestampInMs.Time(),
+		UpdateTime: data.Timestamp.Time(),
 		Pair:       data.ContractName,
 		Asset:      assetType,
 	}
@@ -484,7 +469,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            data.Contract,
-			LastUpdated:     data.TimestampInMs.Time(),
+			LastUpdated:     data.Timestamp.Time(),
 			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
@@ -588,13 +573,13 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
-			LastUpdated:    resp.Result[x].FinishTimeMs.Time(),
-			Date:           resp.Result[x].CreateTimeMs.Time(),
+			LastUpdated:    resp.Result[x].FinishTime.Time(),
+			Date:           resp.Result[x].CreateTime.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
 			AssetType:      assetType,
 			AccountID:      resp.Result[x].User,
-			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
+			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
 	return orderDetails, nil
@@ -618,7 +603,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,

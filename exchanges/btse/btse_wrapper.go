@@ -140,6 +140,7 @@ func (b *BTSE) SetDefaults() {
 				GlobalResultLimit: 300,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	b.Requester, err = request.New(b.Name,
@@ -190,7 +191,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
@@ -1280,7 +1281,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 	var errs error
 	limits := make([]order.MinMaxLevel, 0, len(summary))
 	for _, marketInfo := range summary {
-		p, err := marketInfo.Pair() //nolint:govet // Deliberately shadow err
+		p, err := marketInfo.Pair()
 		if err != nil {
 			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
 			continue

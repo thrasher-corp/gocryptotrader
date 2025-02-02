@@ -88,6 +88,19 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
+var subscriptionNames = map[asset.Item]map[string]string{
+	asset.Futures: {
+		subscription.TickerChannel:    futuresTickerChannel,
+		subscription.OrderbookChannel: futuresOrderbookDepth5Channel, // This does not require a REST request to get the orderbook.
+	},
+	asset.All: {
+		subscription.TickerChannel:    marketTickerChannel,
+		subscription.OrderbookChannel: marketOrderbookDepth5Channel, // This does not require a REST request to get the orderbook.
+		subscription.CandlesChannel:   marketCandlesChannel,
+		subscription.AllTradesChannel: marketMatchChannel,
+	},
+}
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
@@ -202,18 +215,14 @@ func (ku *Kucoin) wsReadData() {
 // wsHandleData processes a websocket incoming data.
 func (ku *Kucoin) wsHandleData(respData []byte) error {
 	resp := WsPushData{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
 	if resp.Type == "pong" || resp.Type == "welcome" {
 		return nil
 	}
 	if resp.ID != "" {
-		if !ku.Websocket.Match.IncomingWithData("msgID:"+resp.ID, respData) {
-			return fmt.Errorf("%w: %s", stream.ErrNoMessageListener, resp.ID)
-		}
-		return nil
+		return ku.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {
@@ -1061,11 +1070,8 @@ func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
 func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
-			"channelName": channelName,
-			"removeSpotFromMargin": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
-				spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
-				return removeSpotFromMargin(s, ap, spotPairs)
-			},
+			"channelName":           channelName,
+			"mergeMarginPairs":      ku.mergeMarginPairs,
 			"isCurrencyChannel":     isCurrencyChannel,
 			"isSymbolChannel":       isSymbolChannel,
 			"channelInterval":       channelInterval,
@@ -1664,32 +1670,58 @@ func (ku *Kucoin) checkSubscriptions() {
 
 // channelName returns the correct channel name for the asset
 func channelName(s *subscription.Subscription, a asset.Item) string {
-	switch s.Channel {
-	case subscription.TickerChannel:
-		if a == asset.Futures {
-			return futuresTickerChannel
+	if byAsset, hasAsset := subscriptionNames[a]; hasAsset {
+		if name, ok := byAsset[s.Channel]; ok {
+			return name
 		}
-		return marketTickerChannel
-	case subscription.OrderbookChannel:
-		if a == asset.Futures {
-			return futuresOrderbookDepth5Channel
+	}
+	if allAssets, hasAll := subscriptionNames[asset.All]; hasAll {
+		if name, ok := allAssets[s.Channel]; ok {
+			return name
 		}
-		return marketOrderbookDepth5Channel // This does not require a REST request to get the orderbook.
-	case subscription.CandlesChannel:
-		return marketCandlesChannel // No support in GCT yet for Futures candles
-	case subscription.AllTradesChannel:
-		return marketMatchChannel // No support in GCT yet for Futures all trades
 	}
 	return s.Channel
 }
 
-// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map for subscriptions to non-margin endpoints
-func removeSpotFromMargin(s *subscription.Subscription, ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+// mergeMarginPairs merges margin pairs into spot pairs for shared subs (ticker, orderbook, etc) if Spot asset and sub are enabled,
+// because Kucoin errors on duplicate pairs in separate subs, and doesn't have separate subs for spot and margin
+func (ku *Kucoin) mergeMarginPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
 	if strings.HasPrefix(s.Channel, "/margin") {
 		return ""
 	}
-	if p, ok := ap[asset.Margin]; ok {
-		ap[asset.Margin] = p.Remove(spotPairs...)
+	wantKey := &subscription.IgnoringAssetKey{Subscription: s}
+	switch s.Asset {
+	case asset.All:
+		_, marginEnabled := ap[asset.Margin]
+		_, spotEnabled := ap[asset.Spot]
+		if marginEnabled && spotEnabled {
+			marginPairs, _ := ku.GetEnabledPairs(asset.Margin)
+			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
+			ap[asset.Margin] = currency.Pairs{}
+		}
+	case asset.Spot:
+		// If there's a margin sub then we should merge the pairs into spot
+		hasMarginSub := slices.ContainsFunc(ku.Features.Subscriptions, func(sB *subscription.Subscription) bool {
+			if sB.Asset != asset.Margin && sB.Asset != asset.All {
+				return false
+			}
+			return wantKey.Match(&subscription.IgnoringAssetKey{Subscription: sB})
+		})
+		if hasMarginSub {
+			marginPairs, _ := ku.GetEnabledPairs(asset.Margin)
+			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
+		}
+	case asset.Margin:
+		// If there's a spot sub, all margin pairs are already merged, so empty the margin pairs
+		hasSpotSub := slices.ContainsFunc(ku.Features.Subscriptions, func(sB *subscription.Subscription) bool {
+			if sB.Asset != asset.Spot && sB.Asset != asset.All {
+				return false
+			}
+			return wantKey.Match(&subscription.IgnoringAssetKey{Subscription: sB})
+		})
+		if hasSpotSub {
+			ap[asset.Margin] = currency.Pairs{}
+		}
 	}
 	return ""
 }
@@ -1746,27 +1778,27 @@ func joinPairsWithInterval(b currency.Pairs, s *subscription.Subscription) strin
 }
 
 const subTplText = `
-{{- removeSpotFromMargin $.S $.AssetPairs -}}
+{{- mergeMarginPairs $.S $.AssetPairs }}
 {{- if isCurrencyChannel $.S }}
-	{{ channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join -}}
+	{{- channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join }}
 {{- else if isSymbolChannel $.S }}
-	{{ range $asset, $pairs := $.AssetPairs }}
+	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S $asset }}
-			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) -}}
+			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) }}
 				{{- $name -}} :all
-				{{- with $i := channelInterval $.S -}}_{{- $i -}}{{- end -}}
-				{{- $.BatchSize -}} {{ len $pairs }}
-			{{- else -}}
-				{{- range $b := batch $pairs 100 -}}
-					{{- $name -}} : {{- joinPairsWithInterval $b $.S -}}
-					{{ $.PairSeparator }}
-				{{- end -}}
+				{{- with $i := channelInterval $.S }}_{{ $i }}{{ end }}
+				{{- $.BatchSize }} {{- len $pairs }}
+			{{- else }}
+				{{- range $b := batch $pairs 100 }}
+					{{- $name -}} : {{- joinPairsWithInterval $b $.S }}
+					{{- $.PairSeparator }}
+				{{- end }}
 				{{- $.BatchSize -}} 100
 			{{- end }}
 		{{- end }}
-		{{ $.AssetSeparator }}
+		{{- $.AssetSeparator }}
 	{{- end }}
-{{- else -}}
-	{{ channelName $.S $.S.Asset }}
+{{- else }}
+	{{- channelName $.S $.S.Asset }}
 {{- end }}
 `

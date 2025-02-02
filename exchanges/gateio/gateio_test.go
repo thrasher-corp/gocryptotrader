@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -262,26 +263,17 @@ func TestGetTicker(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetOrderbook(context.Background(), getPair(t, asset.Spot).String(), "0.1", 10, false)
-	if err != nil {
-		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
-	}
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.GetFuturesOrderbook(context.Background(), settle, getPair(t, asset.Futures).String(), "", 10, false); err != nil {
-		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
-	}
-	settle, err = g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.GetDeliveryOrderbook(context.Background(), settle, "0.1", getPair(t, asset.DeliveryFutures), 10, false); err != nil {
-		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
-	}
-	if _, err = g.GetOptionsOrderbook(context.Background(), getPair(t, asset.Options), "0.1", 10, false); err != nil {
-		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
-	}
+	assert.NoError(t, err, "GetOrderbook should not error")
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	assert.NoError(t, err, "getSettlementFromCurrency should not error")
+	_, err = g.GetFuturesOrderbook(context.Background(), settle, getPair(t, asset.Futures).String(), "", 10, false)
+	assert.NoError(t, err, "GetFuturesOrderbook should not error")
+	settle, err = getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "getSettlementFromCurrency should not error")
+	_, err = g.GetDeliveryOrderbook(context.Background(), settle, "0.1", getPair(t, asset.DeliveryFutures), 10, false)
+	assert.NoError(t, err, "GetDeliveryOrderbook should not error")
+	_, err = g.GetOptionsOrderbook(context.Background(), getPair(t, asset.Options), "0.1", 10, false)
+	assert.NoError(t, err, "GetOptionsOrderbook should not error")
 }
 
 func TestGetMarketTrades(t *testing.T) {
@@ -341,7 +333,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -447,12 +439,11 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 	}
 }
 
-func TestGetPersonalTradingHistory(t *testing.T) {
+func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GateIOGetPersonalTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMySpotTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -911,9 +902,8 @@ func TestGetSubAccountMarginBalances(t *testing.T) {
 func TestGetSubAccountFuturesBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSubAccountFuturesBalances(context.Background(), "", ""); err != nil {
-		t.Errorf("%s GetSubAccountFuturesBalance() error %v", g.Name, err)
-	}
+	_, err := g.GetSubAccountFuturesBalances(context.Background(), "", currency.EMPTYCODE)
+	assert.Error(t, err, "GetSubAccountFuturesBalances should not error")
 }
 
 func TestGetSubAccountCrossMarginBalances(t *testing.T) {
@@ -935,9 +925,8 @@ func TestGetSavedAddresses(t *testing.T) {
 func TestGetPersonalTradingFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetPersonalTradingFee(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, ""); err != nil {
-		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, err)
-	}
+	_, err := g.GetPersonalTradingFee(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, currency.EMPTYCODE)
+	assert.NoError(t, err, "GetPersonalTradingFee should not error")
 }
 
 func TestGetUsersTotalBalance(t *testing.T) {
@@ -971,205 +960,156 @@ func TestGetOrderbookOfLendingLoans(t *testing.T) {
 
 func TestGetAllFutureContracts(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAllFutureContracts(context.Background(), settleUSD)
-	if err != nil {
-		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
-	}
-	if _, err = g.GetAllFutureContracts(context.Background(), settleUSDT); err != nil {
-		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
-	}
-	if _, err = g.GetAllFutureContracts(context.Background(), settleBTC); err != nil {
-		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
+	for _, settlementCurrency := range settlementCurrencies {
+		if _, err := g.GetAllFutureContracts(context.Background(), settlementCurrency); err != nil {
+			assert.Errorf(t, err, "GetAllFutureContracts %s should not error", settlementCurrency)
+		}
 	}
 }
-func TestGetSingleContract(t *testing.T) {
+
+func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.GetSingleContract(context.Background(), settle, getPair(t, asset.Futures).String()); err != nil {
-		t.Errorf("%s GetSingleContract() error %s", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetFuturesContract(context.Background(), settle, getPair(t, asset.Futures).String())
+	assert.NoError(t, err, "GetFuturesContract should not error")
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetFuturesOrderbook(context.Background(), settle, getPair(t, asset.Futures).String(), "", 0, false); err != nil {
-		t.Errorf("%s GetFuturesOrderbook() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetFuturesOrderbook(context.Background(), settle, getPair(t, asset.Futures).String(), "", 0, false)
+	assert.NoError(t, err, "GetFuturesOrderbook should not error")
 }
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetFuturesTradingHistory(context.Background(), settle, getPair(t, asset.Futures), 0, 0, "", time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetFuturesTradingHistory() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetFuturesTradingHistory(context.Background(), settle, getPair(t, asset.Futures), 0, 0, "", time.Time{}, time.Time{})
+	assert.NoError(t, err, "GetFuturesTradingHistory should not error")
 }
 
 func TestGetFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetFuturesCandlesticks(context.Background(), settle, getPair(t, asset.Futures).String(), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
-		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetFuturesCandlesticks(context.Background(), settle, getPair(t, asset.Futures).String(), time.Time{}, time.Time{}, 0, kline.OneWeek)
+	assert.NoError(t, err, "GetFuturesCandlesticks should not error")
 }
 
 func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := g.PremiumIndexKLine(context.Background(), settle, getPair(t, asset.Futures), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
-		t.Errorf("%s PremiumIndexKLine() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.PremiumIndexKLine(context.Background(), settle, getPair(t, asset.Futures), time.Time{}, time.Time{}, 0, kline.OneWeek)
+	assert.NoError(t, err, "PremiumIndexKLine should not error")
 }
 
 func TestGetFutureTickers(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetFuturesTickers(context.Background(), settle, getPair(t, asset.Futures)); err != nil {
-		t.Errorf("%s GetFuturesTickers() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetFuturesTickers(context.Background(), settle, getPair(t, asset.Futures))
+	assert.NoError(t, err, "GetFutureTickers should not error")
 }
 
 func TestGetFutureFundingRates(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetFutureFundingRates(context.Background(), settle, getPair(t, asset.Futures), 0); err != nil {
-		t.Errorf("%s GetFutureFundingRates() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetFutureFundingRates(context.Background(), settle, getPair(t, asset.Futures), 0)
+	assert.NoError(t, err, "GetFutureFundingRates should not error")
 }
 
 func TestGetFuturesInsuranceBalanceHistory(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetFuturesInsuranceBalanceHistory(context.Background(), settleUSDT, 0); err != nil {
-		t.Errorf("%s GetFuturesInsuranceBalanceHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetFuturesInsuranceBalanceHistory(context.Background(), currency.USDT, 0)
+	assert.NoError(t, err, "GetFuturesInsuranceBalanceHistory should not error")
 }
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Error(err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
 	_, err = g.GetFutureStats(context.Background(), settle, getPair(t, asset.Futures), time.Time{}, 0, 0)
-	if err != nil {
-		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
-	}
+	assert.NoError(t, err, "GetFutureStats should not error")
 }
 
 func TestGetIndexConstituent(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetIndexConstituent(context.Background(), settleUSDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}.String()); err != nil {
-		t.Errorf("%s GetIndexConstituent() error %v", g.Name, err)
-	}
+	_, err := g.GetIndexConstituent(context.Background(), currency.USDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}.String())
+	assert.NoError(t, err, "GetIndexConstituent should not error")
 }
 
 func TestGetLiquidationHistory(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := g.GetLiquidationHistory(context.Background(), settle, getPair(t, asset.Futures), time.Time{}, time.Time{}, 0); err != nil {
-		t.Errorf("%s GetLiquidationHistory() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetLiquidationHistory(context.Background(), settle, getPair(t, asset.Futures), time.Time{}, time.Time{}, 0)
+	assert.NoError(t, err, "GetLiquidationHistory should not error")
 }
 func TestQueryFuturesAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.QueryFuturesAccount(context.Background(), settleUSDT); err != nil {
-		t.Errorf("%s QueryFuturesAccount() error %v", g.Name, err)
-	}
+	_, err := g.QueryFuturesAccount(context.Background(), currency.USDT)
+	assert.NoError(t, err, "QueryFuturesAccount should not error")
 }
 
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetFuturesAccountBooks(context.Background(), settleUSDT, 0, time.Time{}, time.Time{}, "dnw"); err != nil {
-		t.Errorf("%s GetFuturesAccountBooks() error %v", g.Name, err)
-	}
+	_, err := g.GetFuturesAccountBooks(context.Background(), currency.USDT, 0, time.Time{}, time.Time{}, "dnw")
+	assert.NoError(t, err, "GetFuturesAccountBooks should not error")
 }
 
-func TestGetAllPositionsOfUsers(t *testing.T) {
+func TestGetAllFuturesPositionsOfUsers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetAllFuturesPositionsOfUsers(context.Background(), settleUSDT, true); err != nil {
-		t.Errorf("%s GetAllPositionsOfUsers() error %v", g.Name, err)
-	}
+	_, err := g.GetAllFuturesPositionsOfUsers(context.Background(), currency.USDT, true)
+	assert.NoError(t, err, "GetAllPositionsOfUsers should not error")
 }
 
 func TestGetSinglePosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSinglePosition(context.Background(), settleUSDT, currency.Pair{Quote: currency.BTC, Base: currency.USDT}); err != nil {
-		t.Errorf("%s GetSinglePosition() error %v", g.Name, err)
-	}
+	_, err := g.GetSinglePosition(context.Background(), currency.USDT, currency.Pair{Quote: currency.BTC, Base: currency.USDT})
+	assert.NoError(t, err, "GetSinglePosition should not error")
 }
 
-func TestUpdatePositionMargin(t *testing.T) {
+func TestUpdateFuturesPositionMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.UpdateFuturesPositionMargin(context.Background(), settle, 0.01, getPair(t, asset.Futures)); err != nil {
-		t.Errorf("%s UpdatePositionMargin() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdateFuturesPositionMargin(context.Background(), settle, 0.01, getPair(t, asset.Futures))
+	assert.NoError(t, err, "UpdateFuturesPositionMargin should not error")
 }
 
-func TestUpdatePositionLeverage(t *testing.T) {
+func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.UpdateFuturesPositionLeverage(context.Background(), settle, getPair(t, asset.Futures), 1, 0); err != nil {
-		t.Errorf("%s UpdatePositionLeverage() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdateFuturesPositionLeverage(context.Background(), settle, getPair(t, asset.Futures), 1, 0)
+	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error")
 }
 
-func TestUpdatePositionRiskLimit(t *testing.T) {
+func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.UpdateFuturesPositionRiskLimit(context.Background(), settle, getPair(t, asset.Futures), 10); err != nil {
-		t.Errorf("%s UpdatePositionRiskLimit() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdateFuturesPositionRiskLimit(context.Background(), settle, getPair(t, asset.Futures), 10)
+	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error")
 }
 
-func TestCreateDeliveryOrder(t *testing.T) {
+func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1177,96 +1117,76 @@ func TestCreateDeliveryOrder(t *testing.T) {
 		Text:        "t-my-custom-id",
 		Settle:      settle,
 		TimeInForce: gtcTIF,
-	}); err != nil {
-		t.Errorf("%s CreateDeliveryOrder() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "CreateDeliveryOrder should not error")
 }
 
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetDeliveryOrders(context.Background(), getPair(t, asset.DeliveryFutures), "open", settle, "", 0, 0, 1); err != nil {
-		t.Errorf("%s GetDeliveryOrders() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetDeliveryOrders(context.Background(), getPair(t, asset.DeliveryFutures), "open", settle, "", 0, 0, 1)
+	assert.NoError(t, err, "GetDeliveryOrders should not error")
 }
 
-func TestCancelAllDeliveryOrders(t *testing.T) {
+func TestCancelMultipleDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.CancelMultipleDeliveryOrders(context.Background(), getPair(t, asset.DeliveryFutures), "ask", settle); err != nil {
-		t.Errorf("%s CancelAllDeliveryOrders() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.CancelMultipleDeliveryOrders(context.Background(), getPair(t, asset.DeliveryFutures), "ask", settle)
+	assert.NoError(t, err, "CancelMultipleDeliveryOrders should not error")
 }
 
 func TestGetSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
+	_, err := g.GetSingleDeliveryOrder(context.Background(), currency.EMPTYCODE, "123456")
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "GetSingleDeliveryOrder should return errEmptyOrInvalidSettlementCurrency")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSDT, "123456"); err != nil {
-		t.Errorf("%s GetSingleDeliveryOrder() error %v", g.Name, err)
-	}
-	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleBTC, "123456"); err != nil {
-		t.Errorf("%s GetSingleDeliveryOrder() error %v", g.Name, err)
-	}
-	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSD, "123456"); !errors.Is(err, errEmptySettlementCurrency) {
-		t.Errorf("%s GetSingleDeliveryOrder() expected %v, but found %v", g.Name, errEmptySettlementCurrency, err)
-	}
+	_, err = g.GetSingleDeliveryOrder(context.Background(), currency.USDT, "123456")
+	assert.NoError(t, err, "GetSingleDeliveryOrder should not error")
 }
 
 func TestCancelSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CancelSingleDeliveryOrder(context.Background(), settleUSDT, "123456"); err != nil {
-		t.Errorf("%s CancelSingleDeliveryOrder() error %v", g.Name, err)
-	}
-	if _, err := g.CancelSingleDeliveryOrder(context.Background(), settleBTC, "123456"); err != nil {
-		t.Errorf("%s CancelSingleDeliveryOrder() error %v", g.Name, err)
-	}
+	_, err := g.CancelSingleDeliveryOrder(context.Background(), currency.USDT, "123456")
+	assert.NoError(t, err, "CancelSingleDeliveryOrder should not error")
 }
 
-func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
+func TestGetMyDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryPersonalTradingHistory(context.Background(), settleUSDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, ""); err != nil {
-		t.Errorf("%s GetDeliveryPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMyDeliveryTradingHistory(context.Background(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
+	assert.NoError(t, err, "GetMyDeliveryTradingHistory should not error")
 }
 
 func TestGetDeliveryPositionCloseHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryPositionCloseHistory(context.Background(), settleUSDT, getPair(t, asset.DeliveryFutures), 0, 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetDeliveryPositionCloseHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryPositionCloseHistory(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0, 0, time.Time{}, time.Time{})
+	assert.NoError(t, err, "GetDeliveryPositionCloseHistory should not error")
 }
 
 func TestGetDeliveryLiquidationHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryLiquidationHistory(context.Background(), settleUSDT, getPair(t, asset.DeliveryFutures), 0, time.Now()); err != nil {
-		t.Errorf("%s GetDeliveryLiquidationHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryLiquidationHistory(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0, time.Now())
+	assert.NoError(t, err, "GetDeliveryLiquidationHistory should not error")
 }
 
 func TestGetDeliverySettlementHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliverySettlementHistory(context.Background(), settleUSDT, getPair(t, asset.DeliveryFutures), 0, time.Now()); err != nil {
-		t.Errorf("%s GetDeliverySettlementHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliverySettlementHistory(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0, time.Now())
+	assert.NoError(t, err, "GetDeliverySettlementHistory should not error")
 }
 
 func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, &FuturesPriceTriggeredOrderParam{
+	_, err := g.GetDeliveryPriceTriggeredOrder(context.Background(), currency.USDT, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
 			Price:    1234.,
 			Size:     12,
@@ -1277,110 +1197,88 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 			OrderType: "close-short-position",
 			Price:     123400,
 		},
-	}); err != nil {
-		t.Errorf("%s GetDeliveryPriceTriggeredOrder() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "GetDeliveryPriceTriggeredOrder should not error")
 }
 
 func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryAllAutoOrder(context.Background(), "open", settleUSDT, getPair(t, asset.DeliveryFutures), 0, 1); err != nil {
-		t.Errorf("%s GetDeliveryAllAutoOrder() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryAllAutoOrder(context.Background(), "open", currency.USDT, getPair(t, asset.DeliveryFutures), 0, 1)
+	assert.NoError(t, err, "GetDeliveryAllAutoOrder should not error")
 }
 
 func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settle, getPair(t, asset.DeliveryFutures)); err != nil {
-		t.Errorf("%s CancelAllDeliveryPriceTriggeredOrder() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settle, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "CancelAllDeliveryPriceTriggeredOrder should not error")
 }
 
 func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), settleBTC, "12345"); err != nil {
-		t.Errorf("%s GetSingleDeliveryPriceTriggeredOrder() error %v", g.Name, err)
-	}
+	_, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), currency.USDT, "12345")
+	assert.NoError(t, err, "GetSingleDeliveryPriceTriggeredOrder should not error")
 }
 
 func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CancelDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, "12345"); err != nil {
-		t.Errorf("%s CancelDeliveryPriceTriggeredOrder() error %v", g.Name, err)
-	}
+	_, err := g.CancelDeliveryPriceTriggeredOrder(context.Background(), currency.USDT, "12345")
+	assert.NoError(t, err, "CancelDeliveryPriceTriggeredOrder should not error")
 }
 
 func TestEnableOrDisableDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.EnableOrDisableDualMode(context.Background(), settleBTC, true); err != nil {
-		t.Errorf("%s EnableOrDisableDualMode() error %v", g.Name, err)
-	}
+	_, err := g.EnableOrDisableDualMode(context.Background(), currency.BTC, true)
+	assert.NoError(t, err, "EnableOrDisableDualMode should not error")
 }
 
 func TestRetrivePositionDetailInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.RetrivePositionDetailInDualMode(context.Background(), settle, getPair(t, asset.Futures)); err != nil {
-		t.Errorf("%s RetrivePositionDetailInDualMode() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.RetrivePositionDetailInDualMode(context.Background(), settle, getPair(t, asset.Futures))
+	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error")
 }
 
 func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.UpdatePositionMarginInDualMode(context.Background(), settle, getPair(t, asset.Futures), 0.001, "dual_long"); err != nil {
-		t.Errorf("%s UpdatePositionMarginInDualMode() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdatePositionMarginInDualMode(context.Background(), settle, getPair(t, asset.Futures), 0.001, "dual_long")
+	assert.NoError(t, err, "UpdatePositionMarginInDualMode should not error")
 }
 func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.UpdatePositionLeverageInDualMode(context.Background(), settle, getPair(t, asset.Futures), 0.001, 0.001); err != nil {
-		t.Errorf("%s UpdatePositionLeverageInDualMode() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdatePositionLeverageInDualMode(context.Background(), settle, getPair(t, asset.Futures), 0.001, 0.001)
+	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error")
 }
 
-func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
+func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = g.UpdatePositionRiskLimitInDualMode(context.Background(), settle, getPair(t, asset.Futures), 10); err != nil {
-		t.Errorf("%s UpdatePositionRiskLimitinDualMode() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdatePositionRiskLimitInDualMode(context.Background(), settle, getPair(t, asset.Futures), 10)
+	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error")
 }
 
-func TestCreateFuturesOrder(t *testing.T) {
+func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.PlaceFuturesOrder(context.Background(), &OrderCreateParams{
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.PlaceFuturesOrder(context.Background(), &OrderCreateParams{
 		Contract:    getPair(t, asset.Futures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1388,51 +1286,44 @@ func TestCreateFuturesOrder(t *testing.T) {
 		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
 		Settle:      settle,
-	}); err != nil {
-		t.Errorf("%s CreateFuturesOrder() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "PlaceFuturesOrder should not error")
 }
 
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", "", settleBTC, 0, 0, 1); err != nil {
-		t.Errorf("%s GetFuturesOrders() error %v", g.Name, err)
-	}
+	_, err := g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", "", currency.BTC, 0, 0, 1)
+	assert.NoError(t, err, "GetFuturesOrders should not error")
 }
 
 func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CancelMultipleFuturesOpenOrders(context.Background(), getPair(t, asset.Futures), "ask", settleUSDT); err != nil {
-		t.Errorf("%s CancelAllOpenOrdersMatched() error %v", g.Name, err)
-	}
+	_, err := g.CancelMultipleFuturesOpenOrders(context.Background(), getPair(t, asset.Futures), "ask", currency.USDT)
+	assert.NoError(t, err, "CancelMultipleFuturesOpenOrders should not error")
 }
 
 func TestGetSingleFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSingleFuturesPriceTriggeredOrder(context.Background(), settleBTC, "12345"); err != nil {
-		t.Errorf("%s GetSingleFuturesPriceTriggeredOrder() error %v", g.Name, err)
-	}
+	_, err := g.GetSingleFuturesPriceTriggeredOrder(context.Background(), currency.BTC, "12345")
+	assert.NoError(t, err, "GetSingleFuturesPriceTriggeredOrder should not error")
 }
 
 func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CancelFuturesPriceTriggeredOrder(context.Background(), settleUSDT, "12345"); err != nil {
-		t.Errorf("%s CancelFuturesPriceTriggeredOrder() error %v", g.Name, err)
-	}
+	_, err := g.CancelFuturesPriceTriggeredOrder(context.Background(), currency.USDT, "12345")
+	assert.NoError(t, err, "CancelFuturesPriceTriggeredOrder should not error")
 }
 
-func TestCreateBatchFuturesOrders(t *testing.T) {
+func TestPlaceBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.PlaceBatchFuturesOrders(context.Background(), settleBTC, []OrderCreateParams{
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.PlaceBatchFuturesOrders(context.Background(), currency.BTC, []OrderCreateParams{
 		{
 			Contract:    getPair(t, asset.Futures),
 			Size:        6024,
@@ -1449,79 +1340,69 @@ func TestCreateBatchFuturesOrders(t *testing.T) {
 			Price:       "376225",
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
-			Settle:      settleBTC,
+			Settle:      currency.BTC,
 		},
-	}); err != nil {
-		t.Errorf("%s CreateBatchFuturesOrders() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "PlaceBatchFuturesOrders should not error")
 }
 
 func TestGetSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSingleFuturesOrder(context.Background(), settleBTC, "12345"); err != nil {
-		t.Errorf("%s GetSingleFuturesOrder() error %v", g.Name, err)
-	}
+	_, err := g.GetSingleFuturesOrder(context.Background(), currency.BTC, "12345")
+	assert.NoError(t, err, "GetSingleFuturesOrder should not error")
 }
 func TestCancelSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CancelSingleFuturesOrder(context.Background(), settleBTC, "12345"); err != nil {
-		t.Errorf("%s CancelSingleFuturesOrder() error %v", g.Name, err)
-	}
+	_, err := g.CancelSingleFuturesOrder(context.Background(), currency.BTC, "12345")
+	assert.NoError(t, err, "CancelSingleFuturesOrder should not error")
 }
 func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.AmendFuturesOrder(context.Background(), settleBTC, "1234", AmendFuturesOrderParam{
+	_, err := g.AmendFuturesOrder(context.Background(), currency.BTC, "1234", AmendFuturesOrderParam{
 		Price: 12345.990,
-	}); err != nil {
-		t.Errorf("%s AmendFuturesOrder() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "AmendFuturesOrder should not error")
 }
 
-func TestGetMyPersonalTradingHistory(t *testing.T) {
+func TestGetMyFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetMyPersonalTradingHistory(context.Background(), settleBTC, "", "", getPair(t, asset.Futures), 0, 0, 0); err != nil {
-		t.Errorf("%s GetMyPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMyFuturesTradingHistory(context.Background(), currency.BTC, "", "", getPair(t, asset.Futures), 0, 0, 0)
+	assert.NoError(t, err, "GetMyFuturesTradingHistory should not error")
 }
 
-func TestGetPositionCloseHistory(t *testing.T) {
+func TestGetFuturesPositionCloseHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetFuturesPositionCloseHistory(context.Background(), settleBTC, getPair(t, asset.Futures), 0, 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetPositionCloseHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetFuturesPositionCloseHistory(context.Background(), currency.BTC, getPair(t, asset.Futures), 0, 0, time.Time{}, time.Time{})
+	assert.NoError(t, err, "GetFuturesPositionCloseHistory should not error")
 }
 
 func TestGetFuturesLiquidationHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetFuturesLiquidationHistory(context.Background(), settleBTC, getPair(t, asset.Futures), 0, time.Time{}); err != nil {
-		t.Errorf("%s GetFuturesLiquidationHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetFuturesLiquidationHistory(context.Background(), currency.BTC, getPair(t, asset.Futures), 0, time.Time{})
+	assert.NoError(t, err, "GetFuturesLiquidationHistory should not error")
 }
 
 func TestCountdownCancelOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CountdownCancelOrders(context.Background(), settleBTC, CountdownParams{
+	_, err := g.CountdownCancelOrders(context.Background(), currency.BTC, CountdownParams{
 		Timeout: 8,
-	}); err != nil {
-		t.Errorf("%s CountdownCancelOrders() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "CountdownCancelOrders should not error")
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settle, &FuturesPriceTriggeredOrderParam{
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.CreatePriceTriggeredFuturesOrder(context.Background(), settle, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
 			Price:    1234.,
 			Size:     2,
@@ -1531,10 +1412,9 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 			Rule:      1,
 			OrderType: "close-short-position",
 		},
-	}); err != nil {
-		t.Errorf("%s CreatePriceTriggeredFuturesOrder() error %v", g.Name, err)
-	}
-	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settle, &FuturesPriceTriggeredOrderParam{
+	})
+	assert.NoError(t, err, "CreatePriceTriggeredFuturesOrder should not error")
+	_, err = g.CreatePriceTriggeredFuturesOrder(context.Background(), settle, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
 			Price:    1234.,
 			Size:     1,
@@ -1543,152 +1423,137 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 		Trigger: FuturesTrigger{
 			Rule: 1,
 		},
-	}); err != nil {
-		t.Errorf("%s CreatePriceTriggeredFuturesOrder() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "CreatePriceTriggeredFuturesOrder should not error")
 }
 
 func TestListAllFuturesAutoOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.ListAllFuturesAutoOrders(context.Background(), "open", settleBTC, currency.EMPTYPAIR, 0, 0); err != nil {
-		t.Errorf("%s ListAllFuturesAutoOrders() error %v", g.Name, err)
-	}
+	_, err := g.ListAllFuturesAutoOrders(context.Background(), "open", currency.BTC, currency.EMPTYPAIR, 0, 0)
+	assert.NoError(t, err, "ListAllFuturesAutoOrders should not error")
 }
 
 func TestCancelAllFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.Futures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.CancelAllFuturesOpenOrders(context.Background(), settle, getPair(t, asset.Futures)); err != nil {
-		t.Errorf("%s CancelAllFuturesOpenOrders() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.CancelAllFuturesOpenOrders(context.Background(), settle, getPair(t, asset.Futures))
+	assert.NoError(t, err, "CancelAllFuturesOpenOrders should not error")
 }
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetAllDeliveryContracts(context.Background(), settleUSDT); err != nil {
-		t.Errorf("%s GetAllDeliveryContracts() error %v", g.Name, err)
+	r, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
+	r, err = g.GetAllDeliveryContracts(context.Background(), currency.BTC)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	// The test below will fail if support for BTC settlement is added. This is intentional, as it ensures we are alerted when it's time to reintroduce support
+	if !assert.Empty(t, r, "GetAllDeliveryContracts should not return any data with unsupported settlement currency BTC") {
+		t.Error("BTC settlement for delivery futures appears to be supported again by the API. Please raise an issue to reintroduce BTC support for this exchange")
 	}
 }
 
-func TestGetSingleDeliveryContracts(t *testing.T) {
+func TestGetDeliveryContract(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := g.GetSingleDeliveryContracts(context.Background(), settle, getPair(t, asset.DeliveryFutures)); err != nil {
-		t.Errorf("%s GetSingleDeliveryContracts() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetDeliveryContract(context.Background(), settle, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "GetDeliveryContract should not error")
 }
 
 func TestGetDeliveryOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetDeliveryOrderbook(context.Background(), settleUSDT, "0", getPair(t, asset.DeliveryFutures), 0, false); err != nil {
-		t.Errorf("%s GetDeliveryOrderbook() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryOrderbook(context.Background(), currency.USDT, "0", getPair(t, asset.DeliveryFutures), 0, false)
+	assert.NoError(t, err, "GetDeliveryOrderbook should not error")
 }
 
 func TestGetDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := g.GetDeliveryTradingHistory(context.Background(), settle, "", getPair(t, asset.DeliveryFutures), 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetDeliveryTradingHistory() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetDeliveryTradingHistory(context.Background(), settle, "", getPair(t, asset.DeliveryFutures), 0, time.Time{}, time.Time{})
+	assert.NoError(t, err, "GetDeliveryTradingHistory should not error")
 }
+
 func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := g.GetDeliveryFuturesCandlesticks(context.Background(), settle, getPair(t, asset.DeliveryFutures), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
-		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetDeliveryFuturesCandlesticks(context.Background(), settle, getPair(t, asset.DeliveryFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
+	assert.NoError(t, err, "GetDeliveryFuturesCandlesticks should not error")
 }
 
 func TestGetDeliveryFutureTickers(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := g.GetDeliveryFutureTickers(context.Background(), settle, getPair(t, asset.DeliveryFutures)); err != nil {
-		t.Errorf("%s GetDeliveryFutureTickers() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.GetDeliveryFutureTickers(context.Background(), settle, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "GetDeliveryFutureTickers should not error")
 }
 
 func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetDeliveryInsuranceBalanceHistory(context.Background(), settleBTC, 0); err != nil {
-		t.Errorf("%s GetDeliveryInsuranceBalanceHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryInsuranceBalanceHistory(context.Background(), currency.BTC, 0)
+	assert.NoError(t, err, "GetDeliveryInsuranceBalanceHistory should not error")
 }
 
 func TestQueryDeliveryFuturesAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryFuturesAccounts(context.Background(), settleUSDT); err != nil {
-		t.Errorf("%s QueryDeliveryFuturesAccounts() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryFuturesAccounts(context.Background(), currency.USDT)
+	assert.NoError(t, err, "GetDeliveryFuturesAccounts should not error")
 }
 func TestGetDeliveryAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetDeliveryAccountBooks(context.Background(), settleUSDT, 0, time.Time{}, time.Now(), "dnw"); err != nil {
-		t.Errorf("%s GetDeliveryAccountBooks() error %v", g.Name, err)
-	}
+	_, err := g.GetDeliveryAccountBooks(context.Background(), currency.USDT, 0, time.Time{}, time.Now(), "dnw")
+	assert.NoError(t, err, "GetDeliveryAccountBooks should not error")
 }
 
 func TestGetAllDeliveryPositionsOfUser(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetAllDeliveryPositionsOfUser(context.Background(), settleUSDT); err != nil {
-		t.Errorf("%s GetAllDeliveryPositionsOfUser() error %v", g.Name, err)
-	}
+	_, err := g.GetAllDeliveryPositionsOfUser(context.Background(), currency.USDT)
+	assert.NoError(t, err, "GetAllDeliveryPositionsOfUser should not error")
 }
 
 func TestGetSingleDeliveryPosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSingleDeliveryPosition(context.Background(), settleUSDT, getPair(t, asset.DeliveryFutures)); err != nil {
-		t.Errorf("%s GetSingleDeliveryPosition() error %v", g.Name, err)
-	}
+	_, err := g.GetSingleDeliveryPosition(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "GetSingleDeliveryPosition should not error")
 }
 
 func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionMargin(context.Background(), currency.EMPTYCODE, 0.001, currency.Pair{})
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	settle, err := g.getSettlementFromCurrency(getPair(t, asset.DeliveryFutures), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.UpdateDeliveryPositionMargin(context.Background(), settle, 0.001, getPair(t, asset.DeliveryFutures)); err != nil {
-		t.Errorf("%s UpdateDeliveryPositionMargin() error %v", g.Name, err)
-	}
+	settle, err := getSettlementFromCurrency(getPair(t, asset.DeliveryFutures))
+	require.NoError(t, err, "getSettlementFromCurrency must not error")
+	_, err = g.UpdateDeliveryPositionMargin(context.Background(), settle, 0.001, getPair(t, asset.DeliveryFutures))
+	assert.NoError(t, err, "UpdateDeliveryPositionMargin should not error")
 }
 
 func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionLeverage(context.Background(), currency.EMPTYCODE, currency.Pair{}, 0.001)
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.UpdateDeliveryPositionLeverage(context.Background(), "usdt", getPair(t, asset.DeliveryFutures), 0.001); err != nil {
-		t.Errorf("%s UpdateDeliveryPositionLeverage() error %v", g.Name, err)
-	}
+	_, err = g.UpdateDeliveryPositionLeverage(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
+	assert.NoError(t, err, "UpdateDeliveryPositionLeverage should not error")
 }
 
 func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	t.Parallel()
+	_, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.EMPTYCODE, currency.Pair{}, 0)
+	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), "usdt", getPair(t, asset.DeliveryFutures), 30); err != nil {
-		t.Errorf("%s UpdateDeliveryPositionRiskLimit() error %v", g.Name, err)
-	}
+	_, err = g.UpdateDeliveryPositionRiskLimit(context.Background(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
+	assert.NoError(t, err, "UpdateDeliveryPositionRiskLimit should not error")
 }
 
 func TestGetAllOptionsUnderlyings(t *testing.T) {
@@ -1901,12 +1766,12 @@ func TestCancelSingleOrder(t *testing.T) {
 	}
 }
 
-func TestGetOptionsPersonalTradingHistory(t *testing.T) {
+func TestGetMyOptionsTradingHistory(t *testing.T) {
 	t.Parallel()
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{}); err != nil {
-		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, err)
-	}
+	_, err := g.GetMyOptionsTradingHistory(context.Background(), "BTC_USDT", currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
 }
 
 func TestWithdrawCurrency(t *testing.T) {
@@ -2970,8 +2835,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
 	for _, s := range g.Features.Subscriptions {
-		for _, a := range g.GetAssetTypes(true) {
+		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
@@ -3021,13 +2887,14 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 }
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT); err != nil {
-		t.Error(err)
-	}
-
-	if _, err := g.GenerateFuturesDefaultSubscriptions(currency.BTC); err != nil {
-		t.Error(err)
-	}
+	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	subs, err = g.GenerateFuturesDefaultSubscriptions(currency.BTC)
+	require.NoError(t, err)
+	require.NotEmpty(t, subs)
+	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
+	require.Error(t, err)
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -3148,42 +3015,20 @@ func TestUnlockSubAccount(t *testing.T) {
 	}
 }
 
-func TestSettlement(t *testing.T) {
-	availablePairs, err := g.GetAvailablePairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for x := range availablePairs {
-		t.Run(strconv.Itoa(x), func(t *testing.T) {
-			_, err = g.getSettlementFromCurrency(availablePairs[x], true)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-	}
-	availablePairs, err = g.GetAvailablePairs(asset.DeliveryFutures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for x := range availablePairs {
-		t.Run(strconv.Itoa(x), func(t *testing.T) {
-			_, err = g.getSettlementFromCurrency(availablePairs[x], false)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-	}
-	availablePairs, err = g.GetAvailablePairs(asset.Options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for x := range availablePairs {
-		t.Run(strconv.Itoa(x), func(t *testing.T) {
-			_, err := g.getSettlementFromCurrency(availablePairs[x], false)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
+func TestGetSettlementFromCurrency(t *testing.T) {
+	t.Parallel()
+	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(g), "Setup must not error")
+	for _, assetType := range []asset.Item{asset.Futures, asset.DeliveryFutures, asset.Options} {
+		availPairs, err := g.GetAvailablePairs(assetType)
+		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", assetType)
+		for i, pair := range availPairs {
+			t.Run(strconv.Itoa(i)+":"+assetType.String(), func(t *testing.T) {
+				t.Parallel()
+				_, err := getSettlementFromCurrency(pair)
+				assert.NoErrorf(t, err, "getSettlementFromCurrency should not error for pair %s and asset %s", pair, assetType)
+			})
+		}
 	}
 }
 
@@ -3340,22 +3185,20 @@ func TestForceFileStandard(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetFuturesContractDetails(context.Background(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	_, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	exp, err := g.GetAllDeliveryContracts(context.Background(), currency.USDT)
+	require.NoError(t, err, "GetAllDeliveryContracts must not error")
+	c, err := g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.Equal(t, len(exp), len(c), "GetFuturesContractDetails should return same number of Delivery contracts as exist")
+
+	c, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
+	require.NoError(t, err, "GetFuturesContractDetails must not error for DeliveryFutures")
+	assert.NotEmpty(t, c, "GetFuturesContractDetails should return same number of Future contracts as exist")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3681,4 +3524,29 @@ func TestHandleSubscriptions(t *testing.T) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
+}
+
+func TestParseWSHeader(t *testing.T) {
+	in := []string{
+		`{"time":1726121320,"time_ms":1726121320745,"id":1,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time_ms":1726121320746,"id":2,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+		`{"time":1726121321,"id":3,"channel":"spot.tickers","event":"subscribe","result":{"status":"success"},"request_id":"a4"}`,
+	}
+	for _, i := range in {
+		h, err := parseWSHeader([]byte(i))
+		require.NoError(t, err)
+		require.NotEmpty(t, h.ID)
+		assert.Equal(t, "a4", h.RequestID)
+		assert.Equal(t, "spot.tickers", h.Channel)
+		assert.Equal(t, "subscribe", h.Event)
+		assert.NotEmpty(t, h.Result)
+		switch h.ID {
+		case 1:
+			assert.Equal(t, int64(1726121320745), h.Time.UnixMilli())
+		case 2:
+			assert.Equal(t, int64(1726121320746), h.Time.UnixMilli())
+		case 3:
+			assert.Equal(t, int64(1726121321), h.Time.Unix())
+		}
+	}
 }

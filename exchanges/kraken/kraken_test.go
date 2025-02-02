@@ -1001,7 +1001,7 @@ func TestWsSubscribe(t *testing.T) {
 			Channel: c,
 			Pairs:   currency.Pairs{spotTestPair},
 		}})
-		assert.ErrorIs(t, err, subscription.ErrPrivateChannelName, "Must error when trying to use a private channel name")
+		assert.ErrorIs(t, err, subscription.ErrUseConstChannelName, "Must error when trying to use a private channel name")
 		assert.ErrorContains(t, err, c+" => subscription.CandlesChannel", "Must error when trying to use a private channel name")
 	}
 }
@@ -1703,6 +1703,6 @@ func TestEnforceStandardChannelNames(t *testing.T) {
 	}
 	for _, n := range []string{krakenWsOrderbook, krakenWsOHLC, krakenWsTrade, krakenWsOwnTrades, krakenWsOpenOrders, krakenWsOrderbook + "-5"} {
 		err := enforceStandardChannelNames(&subscription.Subscription{Channel: n})
-		assert.ErrorIsf(t, err, subscription.ErrPrivateChannelName, "Private channel names should not be allowed for %s", n)
+		assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "Private channel names should not be allowed for %s", n)
 	}
 }

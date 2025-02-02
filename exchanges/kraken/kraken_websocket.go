@@ -231,7 +231,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		return nil
 	case krakenWsCancelOrderStatus, krakenWsCancelAllOrderStatus, krakenWsAddOrderStatus, krakenWsSubscriptionStatus:
 		// All of these should have found a listener already
-		return fmt.Errorf("%w: %s %v", stream.ErrNoMessageListener, event, reqID)
+		return fmt.Errorf("%w: %s %v", stream.ErrSignatureNotMatched, event, reqID)
 	case krakenWsSystemStatus:
 		return k.wsProcessSystemStatus(respRaw)
 	default:
@@ -1237,7 +1237,7 @@ func channelName(s *subscription.Subscription) string {
 func enforceStandardChannelNames(s *subscription.Subscription) error {
 	name := strings.Split(s.Channel, "-") // Protect against attempted usage of book-N as a channel name
 	if n, ok := reverseChannelNames[name[0]]; ok && n != s.Channel {
-		return fmt.Errorf("%w: %s => subscription.%s%sChannel", subscription.ErrPrivateChannelName, s.Channel, bytes.ToUpper([]byte{n[0]}), n[1:])
+		return fmt.Errorf("%w: %s => subscription.%s%sChannel", subscription.ErrUseConstChannelName, s.Channel, bytes.ToUpper([]byte{n[0]}), n[1:])
 	}
 	return nil
 }

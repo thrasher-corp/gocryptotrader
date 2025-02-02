@@ -31,6 +31,9 @@ const (
 	AllTradesChannel = "allTrades"
 	MyTradesChannel  = "myTrades"
 	MyOrdersChannel  = "myOrders"
+	MyWalletChannel  = "myWallet"
+	MyAccountChannel = "myAccount"
+	HeartbeatChannel = "heartbeat"
 )
 
 // Public errors
@@ -41,7 +44,8 @@ var (
 	ErrInStateAlready       = errors.New("subscription already in state")
 	ErrInvalidState         = errors.New("invalid subscription state")
 	ErrDuplicate            = errors.New("duplicate subscription")
-	ErrPrivateChannelName   = errors.New("must use standard channel name constants")
+	ErrUseConstChannelName  = errors.New("must use standard channel name constants")
+	ErrNotSupported         = errors.New("subscription channel not supported")
 )
 
 // State tracks the status of a subscription channel

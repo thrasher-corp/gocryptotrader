@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -1775,7 +1776,7 @@ type SubscriptionResponse struct {
 type WebsocketResponse struct {
 	Topic         string          `json:"topic"`
 	Type          string          `json:"type"`
-	Timestamp     types.Time      `json:"ts"`
+	PushTimestamp types.Time      `json:"ts"` // The timestamp (ms) that the system generates the data
 	Data          json.RawMessage `json:"data"`
 	CrossSequence int64           `json:"cs"`
 
@@ -1784,6 +1785,9 @@ type WebsocketResponse struct {
 
 	// for subscription response checks.
 	RequestID string `json:"req_id"`
+
+	// The timestamp from the match engine when orderbook data is produced. It can be correlated with T from public trade channel
+	OrderbookLastUpdated types.Time `json:"cts"`
 }
 
 // WebsocketPublicTrades represents
@@ -2031,4 +2035,27 @@ type Error struct {
 	ReturnMessageV5 string `json:"retMsg"`
 	ExtCode         string `json:"ext_code"`
 	ExtMsg          string `json:"ext_info"`
+}
+
+// accountTypeHolder holds the account type associated with the loaded API key.
+type accountTypeHolder struct {
+	accountType AccountType
+	m           sync.Mutex
+}
+
+// AccountType constants
+type AccountType uint8
+
+// String returns the account type as a string
+func (a AccountType) String() string {
+	switch a {
+	case 0:
+		return "unset"
+	case accountTypeNormal:
+		return "normal"
+	case accountTypeUnified:
+		return "unified"
+	default:
+		return "unknown"
+	}
 }
