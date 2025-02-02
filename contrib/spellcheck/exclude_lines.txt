@@ -4,16 +4,6 @@
 	tt, errOt := order.StringToOrderType(genOrderDetail.Type)
 	if errOt != nil {
 		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
-	currency.CANN:       0.2,
-	currency.DOTA:       0.01,
-	currency.SCRPT:      0.01,
-	currency.NOO:        0.002,
-	currency.BU:       0.1,
-	currency.HAV:      10,
-	currency.GARD:     100,
-	currency.DASHS:      0.01,
-	currency.ALIS:       0.05,
-	currency.MIS:        0.002,
 	const pressXToJSON = `[0,"bu",[4131.85,4131.85]]`
 	wsTradeExecuted                        = "te"
 	wsBalanceUpdate                        = "bu"
