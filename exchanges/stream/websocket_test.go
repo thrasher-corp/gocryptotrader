@@ -1566,3 +1566,18 @@ func TestGetConnection(t *testing.T) {
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
 }
+
+func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
+	t.Parallel()
+	ws := WebsocketConnection{Match: NewMatch()}
+	err := ws.RequireMatchWithData(0, nil)
+	require.ErrorIs(t, err, ErrSignatureNotMatched)
+
+	ch, err := ws.Match.Set(0, 1)
+	require.NoError(t, err)
+
+	err = ws.RequireMatchWithData(0, []byte("test"))
+	require.NoError(t, err)
+
+	require.Equal(t, []byte("test"), <-ch)
+}
