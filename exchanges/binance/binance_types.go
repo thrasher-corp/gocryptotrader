@@ -61,7 +61,7 @@ var (
 	errValidEmailRequired           = errors.New("valid email address is required")
 	errPageNumberRequired           = errors.New("page number is required")
 	errLimitNumberRequired          = errors.New("invalid limit")
-	errEmptySubAccountEPIKey        = errors.New("invalid sub-account API key")
+	errEmptySubAccountAPIKey        = errors.New("invalid sub-account API key")
 	errInvalidFuturesType           = errors.New("invalid futures types")
 	errInvalidAccountType           = errors.New("invalid account type specified")
 	errProductIDRequired            = errors.New("product ID is required")
@@ -116,6 +116,8 @@ var (
 	errMarginChangeTypeInvalid      = errors.New("invalid margin changeType")
 	errCancelReplaceModeRequired    = errors.New("cancelReplaceMode is required")
 	errExpirationTimeRequired       = errors.New("expiration time is required")
+	errSubAccountMissing            = errors.New("sub-account is missing")
+	errSubAccountStatusMissing      = errors.New("sub-account status missing")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
@@ -5510,4 +5512,64 @@ type FlexibleLoanLiquidiationhistory struct {
 		Status                      string       `json:"status"`
 	} `json:"rows"`
 	Total int64 `json:"total"`
+}
+
+// AccountInfo holds an user's account information
+type AccountInfo struct {
+	VipLevel                       int  `json:"vipLevel"`
+	IsMarginEnabled                bool `json:"isMarginEnabled"`
+	IsFutureEnabled                bool `json:"isFutureEnabled"`
+	IsOptionsEnabled               bool `json:"isOptionsEnabled"`
+	IsPortfolioMarginRetailEnabled bool `json:"isPortfolioMarginRetailEnabled"`
+}
+
+// CreatesSubAccount holds subaccount details after subaccount creation
+type CreatesSubAccount struct {
+	SubaccountID string `json:"subaccountId"`
+	Email        string `json:"email"`
+	Tag          string `json:"tag"`
+}
+
+// SubAccountInstance holds subaccount details
+type SubAccountInstance struct {
+	SubaccountID          string     `json:"subaccountId"`
+	Email                 string     `json:"email"`
+	Tag                   string     `json:"tag"`
+	MakerCommission       float64    `json:"makerCommission"`
+	TakerCommission       float64    `json:"takerCommission"`
+	MarginMakerCommission float64    `json:"marginMakerCommission"`
+	MarginTakerCommission float64    `json:"marginTakerCommission"`
+	CreateTime            types.Time `json:"createTime"`
+}
+
+// FuturesSubAccountEnableResponse holds a response detail after enabling sub-account for futures asset type
+type FuturesSubAccountEnableResponse struct {
+	SubaccountID  string     `json:"subaccountId"`
+	EnableFutures bool       `json:"enableFutures"`
+	UpdateTime    types.Time `json:"updateTime"`
+}
+
+// SubAccountAPIKey holds sub-accounts API key details
+type SubAccountAPIKey struct {
+	SubaccountID string `json:"subaccountId"`
+	APIKey       string `json:"apiKey"`
+	SecretKey    string `json:"secretKey"`
+	CanTrade     bool   `json:"canTrade"`
+	MarginTrade  bool   `json:"marginTrade"`
+	FuturesTrade bool   `json:"futuresTrade"`
+}
+
+// SubAccountUniversalTransferEnableResponse holds subaccounts universal transfer enabling response
+type SubAccountUniversalTransferEnableResponse struct {
+	SubaccountID         string `json:"subaccountId"`
+	Apikey               string `json:"apikey"`
+	CanUniversalTransfer bool   `json:"canUniversalTransfer"`
+}
+
+// SubAccountIPRestrictioin holds subaccount IP restrictions detail
+type SubAccountIPRestrictioin struct {
+	Status     string     `json:"status"`
+	IPList     []string   `json:"ipList"`
+	UpdateTime types.Time `json:"updateTime"`
+	APIKey     string     `json:"apiKey"`
 }

@@ -2373,6 +2373,12 @@ func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, cli
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage", params, cloudMiningPaymentAndRefundHistoryRate, nil, &resp)
 }
 
+// GetUserAccountInfo retrieves users account information
+func (b *Binance) GetUserAccountInfo(ctx context.Context) (interface{}, error) {
+	var resp *AccountInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/info", nil, request.Auth, nil, &resp)
+}
+
 // GetAPIKeyPermission retrieves API key ermissions detail.
 func (b *Binance) GetAPIKeyPermission(ctx context.Context) (*APIKeyPermissions, error) {
 	var resp *APIKeyPermissions
@@ -2872,7 +2878,7 @@ func (b *Binance) GetIPRestrictionForSubAccountAPIKeyV2(ctx context.Context, ema
 		return nil, errValidEmailRequired
 	}
 	if subAccountAPIKey == "" {
-		return nil, errEmptySubAccountEPIKey
+		return nil, errEmptySubAccountAPIKey
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -2887,7 +2893,7 @@ func (b *Binance) DeleteIPListForSubAccountAPIKey(ctx context.Context, email, su
 		return nil, errValidEmailRequired
 	}
 	if subAccountAPIKey == "" {
-		return nil, errEmptySubAccountEPIKey
+		return nil, errEmptySubAccountAPIKey
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -2905,7 +2911,7 @@ func (b *Binance) AddIPRestrictionForSubAccountAPIkey(ctx context.Context, email
 		return nil, errValidEmailRequired
 	}
 	if subAccountAPIKey == "" {
-		return nil, errEmptySubAccountEPIKey
+		return nil, errEmptySubAccountAPIKey
 	}
 	params := url.Values{}
 	if restricted {
@@ -6494,6 +6500,12 @@ func (b *Binance) WithdrawalHistoryV2(ctx context.Context, travelRuleRecordIDs, 
 	return b.withdrawalHistory(ctx, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs, network, travelRuleStatus, "/sapi/v2/localentity/withdraw/history", offset, limit, startTime, endTime)
 }
 
+// GetOnboardedVASPList retrieves the onboarded virtual asset service provider(VASP) list for local entities that required travel rule.
+func (b *Binance) GetOnboardedVASPList(ctx context.Context) ([]VASPItemInfo, error) {
+	var resp []VASPItemInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/localentity/vasp", nil, request.Auth, nil, &resp)
+}
+
 func (b *Binance) withdrawalHistory(ctx context.Context, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs []string, network, travelRuleStatus, path string, offset, limit int64, startTime, endTime time.Time) ([]LocalEntityWithdrawalDetail, error) {
 	params := url.Values{}
 	if len(travelRuleRecordIDs) != 0 {
@@ -6592,8 +6604,151 @@ func (b *Binance) GetLocalEntitiesDepositHistory(ctx context.Context, travelRule
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/localentity/deposit/history", params, request.Auth, nil, &resp)
 }
 
-// GetOnboardedVASPList retrieves the onboarded virtual asset service provider(VASP) list for local entities that required travel rule.
-func (b *Binance) GetOnboardedVASPList(ctx context.Context) ([]VASPItemInfo, error) {
-	var resp []VASPItemInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/localentity/vasp", nil, request.Auth, nil, &resp)
+// --------------------------------- Sub Account endpoints --------------------------------
+
+// CreateSubAccount creates a link sub-account
+func (b *Binance) CreateSubAccount(ctx context.Context, tag string) (*CreatesSubAccount, error) {
+	params := url.Values{}
+	if tag != "" {
+		params.Set("tag", tag)
+	}
+	var resp *CreatesSubAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount", nil, request.Auth, nil, &resp)
 }
+
+// GetSubAccounts retrieves sub-accounts of the given account
+func (b *Binance) GetSubAccounts(ctx context.Context, subAccountID string, page, size int64) ([]SubAccountInstance, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp []SubAccountInstance
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount", params, request.Auth, nil, &resp)
+}
+
+// EnableFuturesForSubAccount enabled futures for sub-account
+func (b *Binance) EnableFuturesForSubAccount(ctx context.Context, subAccountID string, futures bool) (*FuturesSubAccountEnableResponse, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountMissing
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	if futures {
+		params.Set("futures", "true")
+	}
+	var resp *FuturesSubAccountEnableResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount/futures", params, request.Auth, nil, &resp)
+}
+
+// CreateAPIKeyForSubAccount creates a new API key for the specified subaccount
+func (b *Binance) CreateAPIKeyForSubAccount(ctx context.Context, subAccountID string, canTrade, marginTrade, futuresTrade bool) (*SubAccountAPIKey, error) {
+	params := url.Values{}
+	if subAccountID == "" {
+		return nil, errSubAccountMissing
+	}
+	if canTrade {
+		params.Set("canTrade", "true")
+	} else {
+		params.Set("canTrade", "false")
+	}
+	if marginTrade {
+		params.Set("marginTrade", "true")
+	}
+	if futuresTrade {
+		params.Set("futuresTrade", "true")
+	}
+	var resp *SubAccountAPIKey
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi", params, request.Auth, nil, &resp)
+}
+
+// ChangeSubAccountAPIPermission changes sub-account's api permission
+func (b *Binance) ChangeSubAccountAPIPermission(ctx context.Context, subAccountID, subAccountAPIKey string, canTrade, marginTrade, futuresTrade bool) (*SubAccountAPIKey, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountMissing
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountAPIKey
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	if canTrade {
+		params.Set("canTrade", "true")
+	}
+	if marginTrade {
+		params.Set("marginTrade", "true")
+	}
+	if futuresTrade {
+		params.Set("futuresTrade", "true")
+	}
+	var resp *SubAccountAPIKey
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi/permission", params, request.Auth, nil, &resp)
+}
+
+// EnableUniversalTransferPermissionForSubAccountAPIKey enables universal transfer permission for subaccount API key
+func (b *Binance) EnableUniversalTransferPermissionForSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey string, canUniversalTransfer bool) (*SubAccountUniversalTransferEnableResponse, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountMissing
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountAPIKey
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	if canUniversalTransfer {
+		params.Set("canUniversalTransfer", "true")
+	} else {
+		params.Set("canUniversalTransfer", "false")
+	}
+	var resp *SubAccountUniversalTransferEnableResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi/permission/universalTransfer", params, request.Auth, nil, &resp)
+}
+
+// UpdateIPRestrictionForSubAccountAPIKey updates IP restriction for sub-account api key
+func (b *Binance) UpdateIPRestrictionForSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey, status, ipAddress string) (*SubAccountIPRestrictioin, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountMissing
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountAPIKey
+	}
+	if status == "" {
+		return nil, errSubAccountStatusMissing
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	params.Set("status", status)
+	if ipAddress != "" {
+		params.Set("ipAddress", ipAddress)
+	}
+	var resp *SubAccountIPRestrictioin
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/broker/subAccountApi/ipRestriction", params, request.Auth, nil, &resp)
+}
+
+// DeleteIPRestrictionForSubAccountAPIKey deletes an IP restriction for sub account api key
+func (b *Binance) DeleteIPRestrictionForSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey, ipAddress string) (*SubAccountIPRestrictioin, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountMissing
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountAPIKey
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	if ipAddress != "" {
+		params.Set("ipAddress", ipAddress)
+	}
+	var resp *SubAccountIPRestrictioin
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi/ipRestriction/ipList", nil, request.Auth, nil, &resp)
+}
+
+// func (b *Binance)

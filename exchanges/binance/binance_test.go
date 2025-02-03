@@ -38,8 +38,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = "heHuW7gV9n1PeiwrLWARCSnfqbIMXMoruRC5VxfO9Km9nd2ptW6WG6hBq2DEjsmg"
-	apiSecret               = "YaEHis8Z0dQKoEUZwu3Wo9r8XlTzl1t5nfCRNAoRzqoAWLmSkGlwiBbysVBmgB3z"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 
@@ -1796,6 +1796,14 @@ func TestGetCloudMiningPaymentAndRefundHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetUserAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUserAccountInfo(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetAPIKeyPermission(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -2130,7 +2138,7 @@ func TestGetIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	_, err := b.GetIPRestrictionForSubAccountAPIKeyV2(context.Background(), "emailaddress", apiKey)
 	require.ErrorIs(t, err, errValidEmailRequired)
 	_, err = b.GetIPRestrictionForSubAccountAPIKeyV2(context.Background(), "emailaddress@thrasher.io", "")
-	require.ErrorIs(t, err, errEmptySubAccountEPIKey)
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetIPRestrictionForSubAccountAPIKeyV2(context.Background(), "emailaddress@thrasher.io", apiKey)
@@ -2143,7 +2151,7 @@ func TestDeleteIPListForSubAccountAPIKey(t *testing.T) {
 	_, err := b.DeleteIPListForSubAccountAPIKey(context.Background(), "emailaddress", apiKey, "196.168.4.1")
 	require.ErrorIs(t, err, errValidEmailRequired)
 	_, err = b.DeleteIPListForSubAccountAPIKey(context.Background(), "emailaddress@thrasher.io", "", "196.168.4.1")
-	require.ErrorIs(t, err, errEmptySubAccountEPIKey)
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.DeleteIPListForSubAccountAPIKey(context.Background(), "emailaddress@thrasher.io", apiKey, "196.168.4.1")
@@ -2156,7 +2164,7 @@ func TestAddIPRestrictionForSubAccountAPIkey(t *testing.T) {
 	_, err := b.AddIPRestrictionForSubAccountAPIkey(context.Background(), "addressthrasher", apiKey, "", true)
 	require.ErrorIs(t, err, errValidEmailRequired)
 	_, err = b.AddIPRestrictionForSubAccountAPIkey(context.Background(), "address@thrasher.io", "", "", true)
-	require.ErrorIs(t, err, errEmptySubAccountEPIKey)
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.AddIPRestrictionForSubAccountAPIkey(context.Background(), "address@thrasher.io", apiKey, "", true)
@@ -9197,6 +9205,98 @@ func TestGetOnboardedVASPList(t *testing.T) {
 	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetOnboardedVASPList(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CreateSubAccount(context.Background(), "tag-here")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccounts(context.Background(), "1", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableFuturesForSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := b.EnableFuturesForSubAccount(context.Background(), "", false)
+	require.ErrorIs(t, err, errSubAccountMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.EnableFuturesForSubAccount(context.Background(), "1", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateAPIKeyForSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateAPIKeyForSubAccount(context.Background(), "", false, true, true)
+	require.ErrorIs(t, err, errSubAccountMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CreateAPIKeyForSubAccount(context.Background(), "1", false, true, true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeSubAccountAPIPermission(t *testing.T) {
+	t.Parallel()
+	_, err := b.ChangeSubAccountAPIPermission(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", false, true, true)
+	require.ErrorIs(t, err, errSubAccountMissing)
+	_, err = b.ChangeSubAccountAPIPermission(context.Background(), "1", "", false, true, true)
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeSubAccountAPIPermission(context.Background(), "", "", false, true, true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableUniversalTransferPermissionForSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.EnableUniversalTransferPermissionForSubAccountAPIKey(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", false)
+	require.ErrorIs(t, err, errSubAccountMissing)
+	_, err = b.EnableUniversalTransferPermissionForSubAccountAPIKey(context.Background(), "1", "", false)
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.EnableUniversalTransferPermissionForSubAccountAPIKey(context.Background(), "1", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUpdateIPRestrictionForSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "", "", "2", "")
+	require.ErrorIs(t, err, errSubAccountMissing)
+	_, err = b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "123", "", "2", "")
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
+	_, err = b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "123", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "", "")
+	require.ErrorIs(t, err, errSubAccountStatusMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "123", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "2", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDeleteIPRestrictionForSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.DeleteIPRestrictionForSubAccountAPIKey(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "")
+	require.ErrorIs(t, err, errSubAccountMissing)
+	_, err = b.DeleteIPRestrictionForSubAccountAPIKey(context.Background(), "123", "", "")
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.DeleteIPRestrictionForSubAccountAPIKey(context.Background(), "123", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
