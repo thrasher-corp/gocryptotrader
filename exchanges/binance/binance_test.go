@@ -9228,7 +9228,7 @@ func TestGetSubAccounts(t *testing.T) {
 func TestEnableFuturesForSubAccount(t *testing.T) {
 	t.Parallel()
 	_, err := b.EnableFuturesForSubAccount(context.Background(), "", false)
-	require.ErrorIs(t, err, errSubAccountMissing)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.EnableFuturesForSubAccount(context.Background(), "1", false)
@@ -9239,7 +9239,7 @@ func TestEnableFuturesForSubAccount(t *testing.T) {
 func TestCreateAPIKeyForSubAccount(t *testing.T) {
 	t.Parallel()
 	_, err := b.CreateAPIKeyForSubAccount(context.Background(), "", false, true, true)
-	require.ErrorIs(t, err, errSubAccountMissing)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.CreateAPIKeyForSubAccount(context.Background(), "1", false, true, true)
@@ -9250,7 +9250,7 @@ func TestCreateAPIKeyForSubAccount(t *testing.T) {
 func TestChangeSubAccountAPIPermission(t *testing.T) {
 	t.Parallel()
 	_, err := b.ChangeSubAccountAPIPermission(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", false, true, true)
-	require.ErrorIs(t, err, errSubAccountMissing)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
 	_, err = b.ChangeSubAccountAPIPermission(context.Background(), "1", "", false, true, true)
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
@@ -9263,7 +9263,7 @@ func TestChangeSubAccountAPIPermission(t *testing.T) {
 func TestEnableUniversalTransferPermissionForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := b.EnableUniversalTransferPermissionForSubAccountAPIKey(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", false)
-	require.ErrorIs(t, err, errSubAccountMissing)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
 	_, err = b.EnableUniversalTransferPermissionForSubAccountAPIKey(context.Background(), "1", "", false)
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
@@ -9276,7 +9276,7 @@ func TestEnableUniversalTransferPermissionForSubAccountAPIKey(t *testing.T) {
 func TestUpdateIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "", "", "2", "")
-	require.ErrorIs(t, err, errSubAccountMissing)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
 	_, err = b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "123", "", "2", "")
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 	_, err = b.UpdateIPRestrictionForSubAccountAPIKey(context.Background(), "123", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "", "")
@@ -9291,12 +9291,137 @@ func TestUpdateIPRestrictionForSubAccountAPIKey(t *testing.T) {
 func TestDeleteIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := b.DeleteIPRestrictionForSubAccountAPIKey(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "")
-	require.ErrorIs(t, err, errSubAccountMissing)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
 	_, err = b.DeleteIPRestrictionForSubAccountAPIKey(context.Background(), "123", "", "")
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.DeleteIPRestrictionForSubAccountAPIKey(context.Background(), "123", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDeleteSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.DeleteSubAccountAPIKey(context.Background(), "", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A")
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+	_, err = b.DeleteSubAccountAPIKey(context.Background(), "123", "")
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.DeleteSubAccountAPIKey(context.Background(), "123", "vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeSubAccountCommission(t *testing.T) {
+	t.Parallel()
+	_, err := b.ChangeSubAccountCommission(context.Background(), "", 1., 2., 0, 0)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+	_, err = b.ChangeSubAccountCommission(context.Background(), "2", 0, 2., 0, 0)
+	require.ErrorIs(t, err, errCommissionValueRequired)
+	_, err = b.ChangeSubAccountCommission(context.Background(), "2", 1., 0, 0, 0)
+	require.ErrorIs(t, err, errCommissionValueRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeSubAccountCommission(context.Background(), "2", 1., 2., 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBNBBurnStatusForSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetBNBBurnStatusForSubAccount(context.Background(), "")
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBNBBurnStatusForSubAccount(context.Background(), "1")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableOrDisableBNBBurnForSubAccountMarginInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.EnableOrDisableBNBBurnForSubAccountMarginInterest(context.Background(), "", false)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.EnableOrDisableBNBBurnForSubAccountMarginInterest(context.Background(), "3", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableOrDisableBNBBurnForSubAccountSpotAndMargin(t *testing.T) {
+	t.Parallel()
+	_, err := b.EnableOrDisableBNBBurnForSubAccountSpotAndMargin(context.Background(), "", true)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.EnableOrDisableBNBBurnForSubAccountSpotAndMargin(context.Background(), "1", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestLinkAccountInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.LinkAccountInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(t *testing.T) {
+	t.Parallel()
+	_, err := b.ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(context.Background(), "", spotTradablePair.String(), 1, 10)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+	_, err = b.ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(context.Background(), "234", "", 1, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(context.Background(), "234", spotTradablePair.String(), 0, 10)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(context.Background(), "234", spotTradablePair.String(), 1, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(context.Background(), "234", spotTradablePair.String(), 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountUSDMarginedFuturesCommissionAdjustment(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSubAccountUSDMarginedFuturesCommissionAdjustment(context.Background(), "", usdtmTradablePair.String())
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountUSDMarginedFuturesCommissionAdjustment(context.Background(), "123", usdtmTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeSubAccountCoinMarginedFuturesCommissionAdjustment(t *testing.T) {
+	t.Parallel()
+	_, err := b.ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "", coinmTradablePair.String(), 1., 2.)
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+	_, err = b.ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "231", "", 1., 2.)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "231", coinmTradablePair.String(), 0, 2.)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	_, err = b.ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "231", coinmTradablePair.String(), 1., 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "231", coinmTradablePair.String(), 1., 2.)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountCoinMarginedFuturesCommissionAdjustment(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "", coinmTradablePair.String())
+	require.ErrorIs(t, err, errSubAccountIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "123", coinmTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

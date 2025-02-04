@@ -116,8 +116,9 @@ var (
 	errMarginChangeTypeInvalid      = errors.New("invalid margin changeType")
 	errCancelReplaceModeRequired    = errors.New("cancelReplaceMode is required")
 	errExpirationTimeRequired       = errors.New("expiration time is required")
-	errSubAccountMissing            = errors.New("sub-account is missing")
+	errSubAccountIDMissing          = errors.New("sub-account id is missing")
 	errSubAccountStatusMissing      = errors.New("sub-account status missing")
+	errCommissionValueRequired      = errors.New("commission value is required")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
@@ -5572,4 +5573,70 @@ type SubAccountIPRestrictioin struct {
 	IPList     []string   `json:"ipList"`
 	UpdateTime types.Time `json:"updateTime"`
 	APIKey     string     `json:"apiKey"`
+}
+
+// BNBBurnStatus holds status for sub-account
+type BNBBurnStatus struct {
+	SubAccountID    int  `json:"subAccountId"`
+	SpotBNBBurn     bool `json:"spotBNBBurn"`
+	InterestBNBBurn bool `json:"interestBNBBurn"`
+}
+
+// BNBBurnToggleResponse represents a BNB Burn subaccount toggle response
+type BNBBurnToggleResponse struct {
+	SubAccountID    int64 `json:"subAccountId"`
+	InterestBNBBurn bool  `json:"interestBNBBurn"`
+}
+
+// BNBBurnToggleSpot enables or disables bnb burn for spot and margin subaccounts
+type BNBBurnToggleSpot struct {
+	SubAccountID int64 `json:"subAccountId"`
+	SpotBNBBurn  bool  `json:"spotBNBBurn"`
+}
+
+// LinkAccountInformation account information
+type LinkAccountInformation struct {
+	MaxMakerCommission float64 `json:"maxMakerCommission"`
+	MinMakerCommission float64 `json:"minMakerCommission"`
+	MaxTakerCommission float64 `json:"maxTakerCommission"`
+	MinTakerCommission float64 `json:"minTakerCommission"`
+	SubAccountQty      int64   `json:"subAccountQty"`
+	MaxSubAccountQty   int64   `json:"maxSubAccountQty"`
+}
+
+// SubAccountCommission holds subaccount commissiong detail
+type SubAccountCommission struct {
+	SubAccountID          string  `json:"subAccountId"`
+	MakerCommission       float64 `json:"makerCommission"`
+	TakerCommission       float64 `json:"takerCommission"`
+	MarginMakerCommission float64 `json:"marginMakerCommission"`
+	MarginTakerCommission float64 `json:"marginTakerCommission"`
+}
+
+// SubAccountFuturesUSDMarginedCommissionAdjustment holds USD margined futures commission adjustment
+type SubAccountFuturesUSDMarginedCommissionAdjustment struct {
+	SubAccountID    int64  `json:"subAccountId"`
+	Symbol          string `json:"symbol"`
+	MakerAdjustment int64  `json:"makerAdjustment"`
+	TakerAdjustment int64  `json:"takerAdjustment"`
+	MakerCommission int64  `json:"makerCommission"`
+	TakerCommission int64  `json:"takerCommission"`
+}
+
+// FuturesSubAccountCommissionAdjustments holds futures subaccount commission adjustments
+type FuturesSubAccountCommissionAdjustments struct {
+	SubAccountID    int64   `json:"subAccountId"`
+	Symbol          string  `json:"symbol"`
+	MakerCommission float64 `json:"makerCommission"`
+	TakerCommission float64 `json:"takerCommission"`
+}
+
+// FSubAccountCommissionAdjustment holds futures subaccount coin margined futures commission adjustment
+type FSubAccountCommissionAdjustment struct {
+	SubAccountID    int64   `json:"subAccountId"`
+	Pair            string  `json:"pair"`
+	MakerAdjustment float64 `json:"makerAdjustment"`
+	TakerAdjustment float64 `json:"takerAdjustment"`
+	MakerCommission float64 `json:"makerCommission"`
+	TakerCommission float64 `json:"takerCommission"`
 }

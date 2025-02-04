@@ -6635,7 +6635,7 @@ func (b *Binance) GetSubAccounts(ctx context.Context, subAccountID string, page,
 // EnableFuturesForSubAccount enabled futures for sub-account
 func (b *Binance) EnableFuturesForSubAccount(ctx context.Context, subAccountID string, futures bool) (*FuturesSubAccountEnableResponse, error) {
 	if subAccountID == "" {
-		return nil, errSubAccountMissing
+		return nil, errSubAccountIDMissing
 	}
 	params := url.Values{}
 	params.Set("subAccountId", subAccountID)
@@ -6650,7 +6650,7 @@ func (b *Binance) EnableFuturesForSubAccount(ctx context.Context, subAccountID s
 func (b *Binance) CreateAPIKeyForSubAccount(ctx context.Context, subAccountID string, canTrade, marginTrade, futuresTrade bool) (*SubAccountAPIKey, error) {
 	params := url.Values{}
 	if subAccountID == "" {
-		return nil, errSubAccountMissing
+		return nil, errSubAccountIDMissing
 	}
 	if canTrade {
 		params.Set("canTrade", "true")
@@ -6670,7 +6670,7 @@ func (b *Binance) CreateAPIKeyForSubAccount(ctx context.Context, subAccountID st
 // ChangeSubAccountAPIPermission changes sub-account's api permission
 func (b *Binance) ChangeSubAccountAPIPermission(ctx context.Context, subAccountID, subAccountAPIKey string, canTrade, marginTrade, futuresTrade bool) (*SubAccountAPIKey, error) {
 	if subAccountID == "" {
-		return nil, errSubAccountMissing
+		return nil, errSubAccountIDMissing
 	}
 	if subAccountAPIKey == "" {
 		return nil, errEmptySubAccountAPIKey
@@ -6694,7 +6694,7 @@ func (b *Binance) ChangeSubAccountAPIPermission(ctx context.Context, subAccountI
 // EnableUniversalTransferPermissionForSubAccountAPIKey enables universal transfer permission for subaccount API key
 func (b *Binance) EnableUniversalTransferPermissionForSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey string, canUniversalTransfer bool) (*SubAccountUniversalTransferEnableResponse, error) {
 	if subAccountID == "" {
-		return nil, errSubAccountMissing
+		return nil, errSubAccountIDMissing
 	}
 	if subAccountAPIKey == "" {
 		return nil, errEmptySubAccountAPIKey
@@ -6714,7 +6714,7 @@ func (b *Binance) EnableUniversalTransferPermissionForSubAccountAPIKey(ctx conte
 // UpdateIPRestrictionForSubAccountAPIKey updates IP restriction for sub-account api key
 func (b *Binance) UpdateIPRestrictionForSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey, status, ipAddress string) (*SubAccountIPRestrictioin, error) {
 	if subAccountID == "" {
-		return nil, errSubAccountMissing
+		return nil, errSubAccountIDMissing
 	}
 	if subAccountAPIKey == "" {
 		return nil, errEmptySubAccountAPIKey
@@ -6736,7 +6736,7 @@ func (b *Binance) UpdateIPRestrictionForSubAccountAPIKey(ctx context.Context, su
 // DeleteIPRestrictionForSubAccountAPIKey deletes an IP restriction for sub account api key
 func (b *Binance) DeleteIPRestrictionForSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey, ipAddress string) (*SubAccountIPRestrictioin, error) {
 	if subAccountID == "" {
-		return nil, errSubAccountMissing
+		return nil, errSubAccountIDMissing
 	}
 	if subAccountAPIKey == "" {
 		return nil, errEmptySubAccountAPIKey
@@ -6751,4 +6751,165 @@ func (b *Binance) DeleteIPRestrictionForSubAccountAPIKey(ctx context.Context, su
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi/ipRestriction/ipList", nil, request.Auth, nil, &resp)
 }
 
-// func (b *Binance)
+// DeleteSubAccountAPIKey delete sub account api key
+func (b *Binance) DeleteSubAccountAPIKey(ctx context.Context, subAccountID, subAccountAPIKey string) (interface{}, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountAPIKey
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	var resp interface{}
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi", params, request.Auth, nil, &resp)
+}
+
+// LinkAccountInformation link account information
+func (b *Binance) LinkAccountInformation(ctx context.Context) (*LinkAccountInformation, error) {
+	var resp *LinkAccountInformation
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/info", nil, request.Auth, nil, &resp)
+}
+
+// EnableOrDisableBNBBurnForSubAccountSpotAndMargin enables or disables BNB burn for spot and margin subaccounts
+func (b *Binance) EnableOrDisableBNBBurnForSubAccountSpotAndMargin(ctx context.Context, subAccountID string, spotBNBBurn bool) (*BNBBurnToggleSpot, error) {
+	params := url.Values{}
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	params.Set("subAccountId", subAccountID)
+	if spotBNBBurn {
+		params.Set("spotBNBBurn", "true")
+	} else {
+		params.Set("spotBNBBurn", "false")
+	}
+	var resp *BNBBurnToggleSpot
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/bnbBurn/spot", params, request.Auth, nil, &resp)
+}
+
+// EnableOrDisableBNBBurnForSubAccountMarginInterest toggles to enable or disable BNB burn for sub-account margin interest
+// subaccount must be enabled margin before using this switch
+func (b *Binance) EnableOrDisableBNBBurnForSubAccountMarginInterest(ctx context.Context, subAccountID string, interestBNBburn bool) (*BNBBurnToggleResponse, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	if interestBNBburn {
+		params.Set("interestBNBBurn", "true")
+	} else {
+		params.Set("interestBNBBurn", "false")
+	}
+	var resp *BNBBurnToggleResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/bnbBurn/marginInterest", params, request.Auth, nil, &resp)
+}
+
+// GetBNBBurnStatusForSubAccount retrieves BNB burn status for sub-account
+func (b *Binance) GetBNBBurnStatusForSubAccount(ctx context.Context, subAccountID string) (*BNBBurnStatus, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	var resp *BNBBurnStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/bnbBurn/status", params, request.Auth, nil, &resp)
+}
+
+// ChangeSubAccountCommission changes subaccount commission
+func (b *Binance) ChangeSubAccountCommission(ctx context.Context, subAccountID string, makerCommission, takerCommission, marginMakerCommission, marginTakerCommission float64) (*SubAccountCommission, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	if makerCommission <= 0 {
+		return nil, fmt.Errorf("%w: makerCommission is required", errCommissionValueRequired)
+	}
+	if takerCommission <= 0 {
+		return nil, fmt.Errorf("%w: takerCommission is required", errCommissionValueRequired)
+	}
+	params := url.Values{}
+	params.Set("makerCommission", strconv.FormatFloat(makerCommission, 'f', -1, 64))
+	params.Set("takerCommission", strconv.FormatFloat(takerCommission, 'f', -1, 64))
+	if marginMakerCommission <= 0 {
+		params.Set("marginMakerCommission", strconv.FormatFloat(marginMakerCommission, 'f', -1, 64))
+	}
+	if marginTakerCommission <= 0 {
+		params.Set("marginTakerCommission", strconv.FormatFloat(marginTakerCommission, 'f', -1, 64))
+	}
+	var resp *SubAccountCommission
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi/commission", params, request.Auth, nil, &resp)
+}
+
+// ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment changes subaccount USDT margined futures commission adjustment
+func (b *Binance) ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID, symbol string, makerAdjustment, takerAdjustment int64) (*SubAccountFuturesUSDMarginedCommissionAdjustment, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if makerAdjustment <= 0 {
+		return nil, fmt.Errorf("%w: makerAdjustment", order.ErrAmountBelowMin)
+	}
+	if takerAdjustment <= 0 {
+		return nil, fmt.Errorf("%w: takerAdjustment", order.ErrAmountBelowMin)
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("symbol", symbol)
+	params.Set("makerAdjustment", strconv.FormatInt(makerAdjustment, 10))
+	params.Set("takerAdjustment", strconv.FormatInt(takerAdjustment, 10))
+	var resp *SubAccountFuturesUSDMarginedCommissionAdjustment
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi/commission/futures", params, request.Auth, nil, &resp)
+}
+
+// GetSubAccountUSDMarginedFuturesCommissionAdjustment retrieves subaccount USDT margined futures commission adjustment
+func (b *Binance) GetSubAccountUSDMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID, symbol string) ([]FuturesSubAccountCommissionAdjustments, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []FuturesSubAccountCommissionAdjustments
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi/commission/futures", params, request.Auth, nil, &resp)
+}
+
+// ChangeSubAccountCoinMarginedFuturesCommissionAdjustment changes subaccount coind margined futures commission adjustments
+func (b *Binance) ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID, symbol string, makerAdjustment, takerAdjustment int64) ([]FSubAccountCommissionAdjustment, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if makerAdjustment <= 0 {
+		return nil, fmt.Errorf("%w: makerAdjustment is required", order.ErrAmountBelowMin)
+	}
+	if takerAdjustment <= 0 {
+		return nil, fmt.Errorf("%w: takerAdjustment is required", order.ErrAmountBelowMin)
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	params.Set("pair", symbol)
+	params.Set("makerAdjustment", strconv.FormatInt(makerAdjustment, 10))
+	params.Set("takerAdjustment", strconv.FormatInt(takerAdjustment, 10))
+	var resp []FSubAccountCommissionAdjustment
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi/commission/coinFutures", params, request.Auth, nil, &resp)
+}
+
+// GetSubAccountCoinMarginedFuturesCommissionAdjustment sub-account's COIN-Ⓜ futures commission of a symbol equals to the base commission of the symbol on the sub-account's fee tier plus the commission adjustment.
+func (b *Binance) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx context.Context, subAccountID, symbol string) ([]FSubAccountCommissionAdjustment, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
+	params := url.Values{}
+	params.Set("subAccountId", subAccountID)
+	if symbol != "" {
+		params.Set("pair", symbol)
+	}
+	var resp []FSubAccountCommissionAdjustment
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi/commission/coinFutures", params, request.Auth, nil, &resp)
+}
