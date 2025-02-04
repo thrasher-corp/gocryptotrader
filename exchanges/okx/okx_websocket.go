@@ -736,6 +736,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 			return err
 		}
 		orderDetails[x] = order.Detail{
+			AssetType:            asset.Spread,
 			Amount:               resp.Data[x].Size.Float64(),
 			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
