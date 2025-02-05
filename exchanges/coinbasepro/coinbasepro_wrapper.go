@@ -718,14 +718,23 @@ func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency curr
 	if targetWalletID == "" {
 		return nil, errNoWalletForCurrency
 	}
-	resp, err := c.CreateAddress(ctx, targetWalletID, "")
-	if err != nil {
-		return nil, err
+	resp, err := c.GetAllAddresses(ctx, targetWalletID, PaginationInp{})
+	if err != nil || len(resp.Data) == 0 {
+		resp2, err2 := c.CreateAddress(ctx, targetWalletID, "")
+		if err2 != nil {
+			err = fmt.Errorf("%v %v", err, err2)
+			return nil, err
+		}
+		return &deposit.Address{
+			Address: resp2.Address,
+			Tag:     resp2.Name,
+			Chain:   resp2.Network,
+		}, nil
 	}
 	return &deposit.Address{
-		Address: resp.Address,
-		Tag:     resp.Name,
-		Chain:   resp.Network,
+		Address: resp.Data[0].Address,
+		Tag:     resp.Data[0].Name,
+		Chain:   resp.Data[0].Network,
 	}, nil
 }
 
