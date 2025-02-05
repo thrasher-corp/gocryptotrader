@@ -37,42 +37,18 @@ const (
 	cryptodotcomWebsocketMarketAPI = "wss://stream.crypto.com/v2/market"
 
 	// Public endpoints
-	publicAuth    = "public/auth"
-	publicTickers = "public/get-ticker"
+	publicAuth = "public/auth"
 
-	// Authenticated endpoints
-	privateSetCancelOnDisconnect = "private/set-cancel-on-disconnect"
-	privateGetCancelOnDisconnect = "private/get-cancel-on-disconnect"
-
-	privateCreateSubAccountTransfer = "private/create-sub-account-transfer"
-
-	privateCreateOrder     = "private/create-order"
-	privateCancelOrder     = "private/cancel-order"
-	privateCreateOrderList = "private/create-order-list"
-	privateCancelOrderList = "private/cancel-order-list"
-	privateCancelAllOrders = "private/cancel-all-orders"
-	privateGetOrderHistory = "private/get-order-history"
-	privateGetOpenOrders   = "private/get-open-orders"
-	privateGetOrderDetail  = "private/get-order-detail"
-	privateGetTrades       = "private/get-trades"
-	privateGetTransactions = "private/get-transactions"
-
-	// Wallet management API
-	privateWithdrawal = "private/create-withdrawal"
-
-	privateGetAccounts      = "private/get-accounts"
-	privateCreateSubAccount = "private/create-subaccount-transfer"
-
-	// OTC Trading API
-	privateGetOTCUser         = "private/otc/get-otc-user"
-	privateGetOTCInstruments  = "private/otc/get-instruments"
-	privateOTCRequestQuote    = "private/otc/request-quote"
-	privateOTCAcceptQuote     = "private/otc/accept-quote"
-	privateGetOTCQuoteHistory = "private/otc/get-quote-history"
-	privateGetOTCTradeHistory = "private/otc/get-trade-history"
-
-	privateCreateOTCOrder = "private/otc/create-order"
-
+	privateCreateOrder          = "private/create-order"
+	privateCancelOrder          = "private/cancel-order"
+	privateCreateOrderList      = "private/create-order-list"
+	privateCancelOrderList      = "private/cancel-order-list"
+	privateCancelAllOrders      = "private/cancel-all-orders"
+	privateGetOrderHistory      = "private/get-order-history"
+	privateGetOpenOrders        = "private/get-open-orders"
+	privateGetOrderDetail       = "private/get-order-detail"
+	privateGetTrades            = "private/get-trades"
+	privateWithdrawal           = "private/create-withdrawal"
 	privateGetWithdrawalHistory = "private/get-withdrawal-history"
 
 	// Spot Trading API
@@ -133,7 +109,7 @@ func (cr *Cryptodotcom) GetTickers(ctx context.Context, symbol string) (*Tickers
 		params.Set("instrument_name", symbol)
 	}
 	var resp *TickersResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTickers, params), publicTickerRate, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-ticker", params), publicTickerRate, &resp)
 }
 
 // GetTrades fetches the public trades for a particular instrument.
@@ -403,7 +379,7 @@ func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, symbol stri
 // GetAccounts retrieves Account and its Sub Accounts
 func (cr *Cryptodotcom) GetAccounts(ctx context.Context) (*AccountResponse, error) {
 	var resp *AccountResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetAccountsRate, privateGetAccounts, nil, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetAccountsRate, "private/get-accounts", nil, &resp)
 }
 
 // SubAccountTransfer transfer between subaccounts (and master account).
@@ -426,7 +402,7 @@ func (cr *Cryptodotcom) SubAccountTransfer(ctx context.Context, from, to string,
 	params["to"] = to
 	params["currency"] = ccy.String()
 	params["amount"] = amount
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateSubAccountRate, privateCreateSubAccount, params, nil)
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateSubAccountRate, "private/create-subaccount-transfer", params, nil)
 }
 
 // GetTransactions fetches recent transactions
@@ -448,7 +424,7 @@ func (cr *Cryptodotcom) GetTransactions(ctx context.Context, symbol, journalType
 		params["limit"] = limit
 	}
 	var resp *TransactionResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetTransactionsRate, privateGetTransactions, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetTransactionsRate, "private/get-transactions", params, &resp)
 }
 
 // GetUserAccountFeeRate get fee rates for user’s account.
@@ -487,7 +463,7 @@ func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to s
 	params["to"] = to
 	params["currency"] = ccy.String()
 	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateSubAccountTransferRate, privateCreateSubAccountTransfer, params, nil)
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateSubAccountTransferRate, "private/create-sub-account-transfer", params, nil)
 }
 
 // GetPersonalOrderHistory gets the order history for a particular instrument
@@ -569,13 +545,13 @@ func (cr *Cryptodotcom) GetPrivateTrades(ctx context.Context, symbol string, sta
 // GetOTCUser retrieves OTC User.
 func (cr *Cryptodotcom) GetOTCUser(ctx context.Context) (*OTCTrade, error) {
 	var resp *OTCTrade
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCUserRate, privateGetOTCUser, nil, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCUserRate, "private/otc/get-otc-user", nil, &resp)
 }
 
 // GetOTCInstruments retrieve tradable OTC instruments.
 func (cr *Cryptodotcom) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsResponse, error) {
 	var resp *OTCInstrumentsResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCInstrumentsRate, privateGetOTCInstruments, nil, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCInstrumentsRate, "private/otc/get-instruments", nil, &resp)
 }
 
 // RequestOTCQuote request a quote to buy or sell with either base currency or quote currency.
@@ -603,7 +579,7 @@ func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair curren
 		params["quote_currency_size"] = strconv.FormatFloat(quoteCurrencySize, 'f', -1, 64)
 	}
 	var resp *OTCQuoteResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCRequestQuoteRate, privateOTCRequestQuote, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCRequestQuoteRate, "private/otc/request-quote", params, &resp)
 }
 
 // AcceptOTCQuote accept a quote from request quote.
@@ -617,7 +593,7 @@ func (cr *Cryptodotcom) AcceptOTCQuote(ctx context.Context, quoteID, direction s
 	}
 	params["quote_id"] = quoteID
 	var resp *AcceptQuoteResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCAcceptQuoteRate, privateOTCAcceptQuote, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCAcceptQuoteRate, "private/otc/accept-quote", params, &resp)
 }
 
 // GetOTCQuoteHistory retrieves quote history.
@@ -643,7 +619,7 @@ func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, currencyPair cur
 		params["page"] = page
 	}
 	var resp *QuoteHistoryResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, privateGetOTCQuoteHistory, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, "private/otc/get-quote-history", params, &resp)
 }
 
 // GetOTCTradeHistory retrieves otc trade history
@@ -668,7 +644,7 @@ func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, currencyPair cur
 		params["page"] = page
 	}
 	var resp *OTCTradeHistoryResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, privateGetOTCTradeHistory, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, "private/otc/get-trade-history", params, &resp)
 }
 
 // CreateOTCOrder creates a new BUY or SELL OTC order.
@@ -700,7 +676,7 @@ func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, symbol, side, client
 	}
 	params["settle_later"] = settleLater
 	var resp *OTCOrderResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, privateCreateOTCOrder, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, "private/otc/create-order", params, &resp)
 }
 
 var intervalMap = map[kline.Interval]string{

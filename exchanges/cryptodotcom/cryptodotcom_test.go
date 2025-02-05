@@ -1163,3 +1163,17 @@ func TestStakingConversionRate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestOrderTypeToString(t *testing.T) {
+	t.Parallel()
+	mapOrderTypeString := map[order.Type]string{
+		order.StopLimit:  "STOP_LIMIT",
+		order.TakeProfit: "TAKE_PROFIT",
+		order.Limit:      "LIMIT",
+		order.Market:     "MARKET",
+	}
+	for k := range mapOrderTypeString {
+		result := OrderTypeToString(k)
+		require.Equal(t, mapOrderTypeString[k], result)
+	}
+}

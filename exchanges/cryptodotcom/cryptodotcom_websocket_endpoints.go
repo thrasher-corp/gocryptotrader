@@ -22,13 +22,13 @@ func (cr *Cryptodotcom) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconne
 	params := make(map[string]interface{})
 	params["scope"] = scope
 	var resp *CancelOnDisconnectScope
-	return resp, cr.SendWebsocketRequest(privateSetCancelOnDisconnect, params, &resp, true)
+	return resp, cr.SendWebsocketRequest("private/set-cancel-on-disconnect", params, &resp, true)
 }
 
 // WsRetriveCancelOnDisconnect retrieves cancel-on-disconnect scope information.
 func (cr *Cryptodotcom) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope, error) {
 	var resp *CancelOnDisconnectScope
-	return resp, cr.SendWebsocketRequest(privateGetCancelOnDisconnect, nil, &resp, true)
+	return resp, cr.SendWebsocketRequest("private/get-cancel-on-disconnect", nil, &resp, true)
 }
 
 // WsCreateWithdrawal creates a withdrawal request. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Key, this feature is not yet available for you.
