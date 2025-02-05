@@ -7,7 +7,3 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: codespell-project/actions-codespell@master
-        with:
-          exclude_file: contrib/spellcheck/exclude_lines.txt
-          skip: ./.git,./web,./currency/code_types.go,*.json,*.sum,*.html
-          ignore_words_file: contrib/spellcheck/ignore_words.txt
