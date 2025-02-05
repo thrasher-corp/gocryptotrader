@@ -206,7 +206,7 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 		if !products.Products[x].Alias.IsEmpty() {
 			aliases[products.Products[x].Alias] = aliases[products.Products[x].Alias].Add(products.Products[x].ID)
 		}
-		if products.Products[x].AliasTo != nil && len(products.Products[x].AliasTo) > 0 {
+		if len(products.Products[x].AliasTo) > 0 {
 			aliases[products.Products[x].ID] = aliases[products.Products[x].ID].Add(products.Products[x].AliasTo...)
 		}
 	}
