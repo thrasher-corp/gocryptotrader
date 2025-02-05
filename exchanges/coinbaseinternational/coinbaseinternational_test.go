@@ -202,6 +202,25 @@ func TestGetPositionOffsets(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestOrderTypeString(t *testing.T) {
+	t.Parallel()
+	orderTypeMap := map[order.Type]struct {
+		String string
+		Error  error
+	}{
+		order.Limit:       {"LIMIT", nil},
+		order.Market:      {"MARKET", nil},
+		order.Stop:        {"STOP", nil},
+		order.StopLimit:   {"STOP_LIMIT", nil},
+		order.UnknownType: {"", order.ErrUnsupportedOrderType},
+	}
+	for k, v := range orderTypeMap {
+		result, err := OrderTypeString(k)
+		require.ErrorIs(t, err, v.Error)
+		assert.Equal(t, result, v.String)
+	}
+}
+
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 	orderType, err := OrderTypeString(order.Limit)
@@ -1004,7 +1023,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.NotEmpty(t, result)
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {

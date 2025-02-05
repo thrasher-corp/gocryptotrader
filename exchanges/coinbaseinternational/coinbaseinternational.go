@@ -841,9 +841,7 @@ func (co *CoinbaseInternational) CreateCounterPartyID(ctx context.Context, portf
 	var resp *CounterpartyIDCreationResponse
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/create-counterparty-id", nil, &struct {
 		Portfolio string `json:"portfolio,omitempty"`
-	}{
-		Portfolio: portfolio,
-	}, &resp, true)
+	}{Portfolio: portfolio}, &resp, true)
 }
 
 // ValidateCounterpartyID validate counterparty Id

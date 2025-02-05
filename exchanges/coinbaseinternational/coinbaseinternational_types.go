@@ -34,42 +34,44 @@ type AssetInfoWithSupportedNetwork struct {
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
 type InstrumentInfo struct {
-	InstrumentID        string              `json:"instrument_id"`
-	InstrumentUUID      string              `json:"instrument_uuid"`
-	Symbol              string              `json:"symbol"`
-	Type                string              `json:"type"`
-	BaseAssetID         string              `json:"base_asset_id"`
-	BaseAssetUUID       string              `json:"base_asset_uuid"`
-	BaseAssetName       string              `json:"base_asset_name"`
-	QuoteAssetID        string              `json:"quote_asset_id"`
-	QuoteAssetUUID      string              `json:"quote_asset_uuid"`
-	QuoteAssetName      string              `json:"quote_asset_name"`
-	BaseIncrement       types.Number        `json:"base_increment"`
-	QuoteIncrement      types.Number        `json:"quote_increment"`
-	PriceBandPercent    float64             `json:"price_band_percent"`
-	MarketOrderPercent  float64             `json:"market_order_percent"`
-	Qty24Hr             types.Number        `json:"qty_24hr"`
-	Notional24Hr        types.Number        `json:"notional_24hr"`
-	AvgDailyQty         types.Number        `json:"avg_daily_qty"`
-	AvgDailyNotional    types.Number        `json:"avg_daily_notional"`
-	PreviousDayQty      types.Number        `json:"previous_day_qty"`
-	OpenInterest        types.Number        `json:"open_interest"`
-	PositionLimitQty    types.Number        `json:"position_limit_qty"`
-	PositionLimitAdqPct float64             `json:"position_limit_adq_pct"`
-	ReplacementCost     types.Number        `json:"replacement_cost"`
-	BaseImf             float64             `json:"base_imf"`
-	MinNotionalValue    string              `json:"min_notional_value"`
-	FundingInterval     string              `json:"funding_interval"`
-	TradingState        string              `json:"trading_state"`
-	PositionLimitAdv    float64             `json:"position_limit_adv"`
-	InitialMarginAdv    float64             `json:"initial_margin_adv"`
-	Mode                string              `json:"mode"`
-	Avg30DayNotional    string              `json:"avg_30day_notional"`
-	Avg30DayQty         string              `json:"avg_30day_qty"`
-	Quote               ContractQuoteDetail `json:"quote,omitempty"`
-	DefaultImf          float64             `json:"default_imf,omitempty"`
-	BaseAssetMultiplier string              `json:"base_asset_multiplier"`
-	UnderlyingType      string              `json:"underlying_type"`
+	InstrumentID              string              `json:"instrument_id"`
+	InstrumentUUID            string              `json:"instrument_uuid"`
+	Symbol                    string              `json:"symbol"`
+	Type                      string              `json:"type"`
+	BaseAssetID               string              `json:"base_asset_id"`
+	BaseAssetUUID             string              `json:"base_asset_uuid"`
+	BaseAssetName             string              `json:"base_asset_name"`
+	QuoteAssetID              string              `json:"quote_asset_id"`
+	QuoteAssetUUID            string              `json:"quote_asset_uuid"`
+	QuoteAssetName            string              `json:"quote_asset_name"`
+	BaseIncrement             types.Number        `json:"base_increment"`
+	QuoteIncrement            types.Number        `json:"quote_increment"`
+	PriceBandPercent          float64             `json:"price_band_percent"`
+	MarketOrderPercent        float64             `json:"market_order_percent"`
+	Qty24Hr                   types.Number        `json:"qty_24hr"`
+	Notional24Hr              types.Number        `json:"notional_24hr"`
+	AvgDailyQty               types.Number        `json:"avg_daily_qty"`
+	AvgDailyNotional          types.Number        `json:"avg_daily_notional"`
+	PreviousDayQty            types.Number        `json:"previous_day_qty"`
+	OpenInterest              types.Number        `json:"open_interest"`
+	PositionLimitQty          types.Number        `json:"position_limit_qty"`
+	PositionLimitAdqPct       float64             `json:"position_limit_adq_pct"`
+	PositionNotionalLimit     types.Number        `json:"position_notional_limit"`
+	OpenInterestNotionalLimit types.Number        `json:"open_interest_notional_limit"`
+	ReplacementCost           types.Number        `json:"replacement_cost"`
+	BaseImf                   float64             `json:"base_imf"`
+	MinNotionalValue          string              `json:"min_notional_value"`
+	FundingInterval           string              `json:"funding_interval"`
+	TradingState              string              `json:"trading_state"`
+	PositionLimitAdv          float64             `json:"position_limit_adv"`
+	InitialMarginAdv          float64             `json:"initial_margin_adv"`
+	Mode                      string              `json:"mode"`
+	Avg30DayNotional          string              `json:"avg_30day_notional"`
+	Avg30DayQty               string              `json:"avg_30day_qty"`
+	Quote                     ContractQuoteDetail `json:"quote,omitempty"`
+	DefaultImf                float64             `json:"default_imf,omitempty"`
+	BaseAssetMultiplier       string              `json:"base_asset_multiplier"`
+	UnderlyingType            string              `json:"underlying_type"`
 }
 
 // ContractQuoteDetail represents a contract quote detail
@@ -579,28 +581,33 @@ type Transfers struct {
 
 // FundTransfer represents a fund transfer instance.
 type FundTransfer struct {
-	TransferUUID   string    `json:"transfer_uuid"`
-	TransferType   string    `json:"type"`
-	Amount         float64   `json:"amount"`
-	Asset          string    `json:"asset"`
-	TransferStatus string    `json:"status"`
-	NetworkName    string    `json:"network_name"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	FromPortfolio  struct {
-		ID   string `json:"id"`
-		UUID string `json:"uuid"`
-		Name string `json:"name"`
-	} `json:"from_portfolio"`
-	ToPortfolio struct {
-		ID   string `json:"id"`
-		UUID string `json:"uuid"`
-		Name string `json:"name"`
-	} `json:"to_portfolio"`
-	FromAddress         int64  `json:"from_address"`
-	ToAddress           int64  `json:"to_address"`
-	FromCoinbaseAccount string `json:"from_cb_account"`
-	ToCoinbaseAccount   string `json:"to_cb_account"`
+	TransferUUID        string            `json:"transfer_uuid"`
+	TransferType        string            `json:"type"`
+	Amount              float64           `json:"amount"`
+	Asset               string            `json:"asset"`
+	TransferStatus      string            `json:"status"`
+	NetworkName         string            `json:"network_name"`
+	CreatedAt           time.Time         `json:"created_at"`
+	UpdatedAt           time.Time         `json:"updated_at"`
+	FromPortfolio       PortfolioIDDetail `json:"from_portfolio"`
+	ToPortfolio         PortfolioIDDetail `json:"to_portfolio"`
+	FromAddress         int64             `json:"from_address"`
+	ToAddress           int64             `json:"to_address"`
+	FromCoinbaseAccount string            `json:"from_cb_account"`
+	ToCoinbaseAccount   string            `json:"to_cb_account"`
+	TransactionHash     string            `json:"txn_hash"`
+	PositionID          string            `json:"position_id"`
+	InstrumentSymbol    string            `json:"instrument_symbol"`
+	InstrumentID        string            `json:"instrument_id"`
+	ToCounterpartyID    string            `json:"to_counterparty_id"`
+	FromCounterpartyID  string            `json:"from_counterparty_id"`
+}
+
+// PortfolioIDDetail portfolio id detail
+type PortfolioIDDetail struct {
+	ID   string `json:"id"`
+	UUID string `json:"uuid"`
+	Name string `json:"name"`
 }
 
 // WithdrawToCoinbaseINTXParam holds withdraw funds parameters.
