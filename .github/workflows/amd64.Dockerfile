@@ -1,4 +1,7 @@
-FROM arm64v8/golang:1.23
+FROM golang:1.23-alpine
+
+# Install GCC and musl-dev (needed for C libraries)
+RUN apk add --no-cache gcc musl-dev
 
 WORKDIR /app
 
@@ -6,7 +9,5 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY . /app
-
-RUN go build
 
 CMD ["go", "test", "./..."]
