@@ -71,10 +71,10 @@ var subscriptionNames = map[asset.Item]map[string]string{
 }
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
@@ -773,7 +773,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			resp := make([]stream.IncompleteKline, len(candles))
+			resp := make([]stream.KlineData, len(candles))
 			for i := range candles {
 				ts, err := strconv.ParseInt(candles[i][0], 10, 64)
 				if err != nil {
@@ -799,7 +799,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				resp[i] = stream.IncompleteKline{
+				resp[i] = stream.KlineData{
 					Timestamp:  wsResponse.Timestamp.Time(),
 					Pair:       pair,
 					AssetType:  itemDecoder(wsResponse.Arg.InstrumentType),

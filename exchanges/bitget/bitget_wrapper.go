@@ -2376,7 +2376,7 @@ func (bi *Bitget) withdrawalHistGrabber(ctx context.Context, currency currency.C
 // PairFromStringHelper is a helper function that does some checks to help with common ambiguous cases in this exchange
 func pairFromStringHelper(s string) (currency.Pair, error) {
 	pair := currency.Pair{}
-	i := strings.Index(s, "USD")
+	i := strings.LastIndex(s, "USD")
 	if i == -1 {
 		i = strings.Index(s, "PERP")
 		if i == -1 {

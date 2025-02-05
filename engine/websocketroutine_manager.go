@@ -265,24 +265,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 					d)
 			}
 		}
-	case stream.IncompleteKline:
-		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s incomplete kline updated %+v",
-				exchName,
-				m.FormatCurrency(d.Pair),
-				d.AssetType,
-				d)
-		}
-	case []stream.IncompleteKline:
-		for x := range d {
-			if m.verbose {
-				log.Infof(log.WebsocketMgr, "%s websocket %s %s incomplete kline updated %+v",
-					exchName,
-					m.FormatCurrency(d[x].Pair),
-					d[x].AssetType,
-					d)
-			}
-		}
 	case *orderbook.Depth:
 		base, err := d.Retrieve()
 		if err != nil {
