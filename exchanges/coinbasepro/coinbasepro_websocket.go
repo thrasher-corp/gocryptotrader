@@ -48,7 +48,7 @@ var subscriptionNames = map[string]string{
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.HeartbeatChannel},
 	// Subscriptions to status return an "authentication failure" error, despite the endpoint not being authenticated and other authenticated channels working fine.
-	{Enabled: false, Channel: "status"},
+	{Enabled: false, Asset: asset.All, Channel: "status", Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
