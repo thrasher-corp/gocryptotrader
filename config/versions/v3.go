@@ -19,7 +19,7 @@ func init() {
 // Exchanges returns all exchanges: "*"
 func (v *Version3) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange will remove the orderbook and publishPeriod from the exchange config
+// UpgradeExchange will remove the publishPeriod from the exchange's orderbook config
 func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	e = jsonparser.Delete(e, "orderbook", "publishPeriod")
 	return e, nil
