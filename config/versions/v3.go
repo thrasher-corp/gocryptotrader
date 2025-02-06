@@ -8,7 +8,7 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version3 is an ExchangeVersion to remove the orderbook and publishPeriod from the exchange config
+// Version3 is an ExchangeVersion to remove the publishPeriod from the exchange's orderbook config
 type Version3 struct {
 }
 
