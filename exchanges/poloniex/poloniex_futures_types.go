@@ -335,7 +335,7 @@ func (v *V3FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
 type ProductInfo struct {
 	Alias                 string       `json:"alias"`
 	BaseAsset             string       `json:"bAsset"`
-	BaseCcy               string       `json:"bCcy"`
+	BaseCurrency          string       `json:"bCcy"`
 	ContractType          string       `json:"ctType"`
 	ContractValue         types.Number `json:"ctVal"`
 	InitialMarginRate     types.Number `json:"iM"`
@@ -412,7 +412,7 @@ func (o *WsFuturesCandlesctick) UnmarshalJSON(data []byte) error {
 
 // FuturesTrades represents a futures trades detail
 type FuturesTrades struct {
-	ID           int          `json:"id"`
+	ID           int64        `json:"id"`
 	Timestamp    types.Time   `json:"ts"`
 	Symbol       string       `json:"s"`
 	Price        types.Number `json:"px"`

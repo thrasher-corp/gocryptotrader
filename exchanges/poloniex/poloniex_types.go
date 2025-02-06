@@ -2,11 +2,8 @@ package poloniex
 
 import (
 	"encoding/json"
-	"strconv"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -195,114 +192,28 @@ type OrderbookData struct {
 	PushTimestamp types.Time     `json:"ts"`
 }
 
-// CandlestickArrayData symbol at given timeframe (interval).
-type CandlestickArrayData [14]interface{}
-
 // CandlestickData represents a candlestick data for a specific symbol.
 type CandlestickData struct {
-	Low              float64
-	High             float64
-	Open             float64
-	Close            float64
-	Amount           float64
-	Quantity         float64
-	BuyTakeAmount    float64
-	BuyTakerQuantity float64
-	TradeCount       float64
-	PushTimestamp    time.Time
-	WeightedAverage  float64
-	Interval         kline.Interval
-	StartTime        time.Time
-	EndTime          time.Time
+	Low              types.Number
+	High             types.Number
+	Open             types.Number
+	Close            types.Number
+	Amount           types.Number
+	Quantity         types.Number
+	BuyTakeAmount    types.Number
+	BuyTakerQuantity types.Number
+	TradeCount       types.Number
+	PushTimestamp    types.Time
+	WeightedAverage  types.Number
+	Interval         string
+	StartTime        types.Time
+	EndTime          types.Time
 }
 
-func processCandlestickData(candlestickData []CandlestickArrayData) ([]CandlestickData, error) {
-	candles := make([]CandlestickData, len(candlestickData))
-	for i := range candlestickData {
-		candle, err := getCandlestickData(&candlestickData[i])
-		if err != nil {
-			return nil, err
-		}
-		candles[i] = *candle
-	}
-	return candles, nil
-}
-
-func getCandlestickData(candlestickData *CandlestickArrayData) (*CandlestickData, error) {
-	var err error
-	candle := &CandlestickData{}
-	candle.Low, err = strconv.ParseFloat(candlestickData[0].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.High, err = strconv.ParseFloat(candlestickData[1].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.Open, err = strconv.ParseFloat(candlestickData[2].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.Close, err = strconv.ParseFloat(candlestickData[3].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.Amount, err = strconv.ParseFloat(candlestickData[4].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.Quantity, err = strconv.ParseFloat(candlestickData[5].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.BuyTakeAmount, err = strconv.ParseFloat(candlestickData[6].(string), 64)
-	if err != nil {
-		return nil, err
-	}
-	buyTakerQuantity, okay := candlestickData[7].(string)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	candle.BuyTakerQuantity, err = strconv.ParseFloat(buyTakerQuantity, 64)
-	if err != nil {
-		return nil, err
-	}
-	candle.TradeCount, okay = candlestickData[8].(float64)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	puchTime, okay := candlestickData[9].(float64)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	candle.PushTimestamp = time.UnixMilli(int64(puchTime))
-	weightedAverage, okay := candlestickData[10].(string)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	candle.WeightedAverage, err = strconv.ParseFloat(weightedAverage, 64)
-	if err != nil {
-		return nil, err
-	}
-	intervalString, okay := candlestickData[11].(string)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	candle.Interval, err = stringToInterval(intervalString)
-	if err != nil {
-		return nil, err
-	}
-	timestamp, okay := candlestickData[12].(float64)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	candle.StartTime = time.UnixMilli(int64(timestamp))
-	timestamp, okay = candlestickData[13].(float64)
-	if !okay {
-		return nil, errUnexpectedIncomingDataType
-	}
-	candle.EndTime = time.UnixMilli(int64(timestamp))
-	return candle, nil
+// UnmarshalJSON deserializes byte data into CandlestickData structure
+func (c *CandlestickData) UnmarshalJSON(data []byte) error {
+	target := [14]any{&c.Low, &c.High, &c.Open, &c.Close, &c.Amount, &c.Quantity, &c.BuyTakeAmount, &c.BuyTakerQuantity, &c.TradeCount, &c.PushTimestamp, &c.WeightedAverage, &c.Interval, &c.StartTime, &c.EndTime}
+	return json.Unmarshal(data, &target)
 }
 
 // Trade represents a trade instance.
@@ -826,8 +737,7 @@ type SubscriptionPayload struct {
 
 // SubscriptionResponse represents a subscription response instance.
 type SubscriptionResponse struct {
-	ID string `json:"id"`
-
+	ID      string          `json:"id"`
 	Event   string          `json:"event"`
 	Channel string          `json:"channel"`
 	Action  string          `json:"action"`
@@ -865,8 +775,8 @@ type WsSymbol struct {
 	VisibleStartTime  types.Time `json:"visibleStartTime"`
 	TradableStartTime types.Time `json:"tradableStartTime"`
 	CrossMargin       struct {
-		SupportCrossMargin bool   `json:"supportCrossMargin"`
-		MaxLeverage        string `json:"maxLeverage"`
+		SupportCrossMargin bool         `json:"supportCrossMargin"`
+		MaxLeverage        types.Number `json:"maxLeverage"`
 	} `json:"crossMargin"`
 	SymbolTradeLimit struct {
 		Symbol        string       `json:"symbol"`

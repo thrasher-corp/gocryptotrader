@@ -9,11 +9,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 const mockfile = "../../testdata/http_mock/poloniex/poloniex.json"
@@ -21,25 +20,16 @@ const mockfile = "../../testdata/http_mock/poloniex/poloniex.json"
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	p = new(Poloniex)
+	if err := testexch.Setup(p); err != nil {
 		log.Fatal(err)
 	}
-	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
-	if err != nil {
-		log.Fatal(err)
-	}
-	p.SkipAuthCheck = true
-	poloniexConfig.API.AuthenticatedSupport = true
-	poloniexConfig.API.Credentials.Key = apiKey
-	poloniexConfig.API.Credentials.Secret = apiSecret
 
-	p.SetDefaults()
-	p.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = p.Setup(poloniexConfig)
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		p.API.AuthenticatedSupport = true
+		p.API.AuthenticatedWebsocketSupport = true
+		p.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		p.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)

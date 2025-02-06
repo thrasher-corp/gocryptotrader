@@ -107,7 +107,7 @@ func (p *Poloniex) CancelAllFuturesLimitOrders(ctx context.Context, symbol, side
 // The response is a list of orderIDs (or clientOids) of the canceled orders.
 func (p *Poloniex) CancelMultipleFuturesLimitOrders(ctx context.Context, orderIDs, clientOrderIDs []string) (*FuturesCancelOrderResponse, error) {
 	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	if len(orderIDs) > 0 {

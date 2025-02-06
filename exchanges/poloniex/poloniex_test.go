@@ -147,9 +147,6 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
-
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
@@ -1070,7 +1067,7 @@ func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	_, err := p.CancelMultipleOrdersByIDs(context.Background(), nil)
 	require.ErrorIs(t, err, errNilArgument)
 	_, err = p.CancelMultipleOrdersByIDs(context.Background(), &OrderCancellationParams{})
-	require.ErrorIs(t, err, errClientOrderIDOROrderIDsRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CancelMultipleOrdersByIDs(context.Background(), &OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
@@ -1138,7 +1135,7 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 	_, err := p.CancelReplaceSmartOrder(context.Background(), &CancelReplaceSmartOrderParam{})
 	require.ErrorIs(t, err, errNilArgument)
 	_, err = p.CancelReplaceSmartOrder(context.Background(), &CancelReplaceSmartOrderParam{Price: 18000})
-	require.ErrorIs(t, err, errClientOrderIDOROrderIDsRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CancelReplaceSmartOrder(context.Background(), &CancelReplaceSmartOrderParam{
@@ -1161,7 +1158,7 @@ func TestGetSmartOpenOrders(t *testing.T) {
 func TestGetSmartOrderDetail(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetSmartOrderDetail(context.Background(), "", "")
-	require.ErrorIs(t, err, errClientOrderIDOROrderIDsRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetSmartOrderDetail(context.Background(), "123313413", "")
@@ -1172,7 +1169,7 @@ func TestGetSmartOrderDetail(t *testing.T) {
 func TestCancelSmartOrderByID(t *testing.T) {
 	t.Parallel()
 	_, err := p.CancelSmartOrderByID(context.Background(), "", "")
-	require.ErrorIs(t, err, errClientOrderIDOROrderIDsRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CancelSmartOrderByID(context.Background(), "123313413", "")
@@ -1185,7 +1182,7 @@ func TestCancelMultipleSmartOrders(t *testing.T) {
 	_, err := p.CancelMultipleSmartOrders(context.Background(), nil)
 	require.ErrorIs(t, err, errNilArgument)
 	_, err = p.CancelMultipleSmartOrders(context.Background(), &OrderCancellationParams{})
-	require.ErrorIs(t, err, errClientOrderIDOROrderIDsRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CancelMultipleSmartOrders(context.Background(), &OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
@@ -1513,7 +1510,7 @@ func TestCancelAllFuturesLimitOrders(t *testing.T) {
 func TestCancelMultipleFuturesLimitOrders(t *testing.T) {
 	t.Parallel()
 	_, err := p.CancelMultipleFuturesLimitOrders(context.Background(), []string{}, []string{})
-	require.ErrorIs(t, err, errClientOrderIDOROrderIDsRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CancelMultipleFuturesLimitOrders(context.Background(), []string{"12345", "67867"}, []string{})

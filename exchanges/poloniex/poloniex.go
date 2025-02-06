@@ -29,19 +29,17 @@ const (
 )
 
 var (
-	errNilArgument                     = errors.New("nil argument")
-	errAddressRequired                 = errors.New("address is required")
-	errInvalidWithdrawalChain          = errors.New("invalid withdrawal chain")
-	errClientOrderIDOROrderIDsRequired = errors.New("either client order IDs or order IDs or both are required")
-	errInvalidTimeout                  = errors.New("timeout must not be empty")
-	errChainsNotFound                  = errors.New("chains not found")
-	errChannelNotSupported             = errors.New("channel not supported")
-	errAccountIDRequired               = errors.New("missing account ID")
-	errAccountTypeRequired             = errors.New("account type required")
-	errInvalidResponse                 = errors.New("invalid response data")
-	errUnexpectedIncomingDataType      = errors.New("unexpected incoming data type")
-	errMarginAdjustTypeMissing         = errors.New("margin adjust type invalid")
-	errPositionModeInvalid             = errors.New("invalid position mode")
+	errNilArgument             = errors.New("nil argument")
+	errAddressRequired         = errors.New("address is required")
+	errInvalidWithdrawalChain  = errors.New("invalid withdrawal chain")
+	errInvalidTimeout          = errors.New("timeout must not be empty")
+	errChainsNotFound          = errors.New("chains not found")
+	errChannelNotSupported     = errors.New("channel not supported")
+	errAccountIDRequired       = errors.New("missing account ID")
+	errAccountTypeRequired     = errors.New("account type required")
+	errInvalidResponse         = errors.New("invalid response data")
+	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
+	errPositionModeInvalid     = errors.New("invalid position mode")
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -174,12 +172,8 @@ func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []CandlestickArrayData
-	err = p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/candles", params), &resp)
-	if err != nil {
-		return nil, err
-	}
-	return processCandlestickData(resp)
+	var resp []CandlestickData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/candles", params), &resp)
 }
 
 // GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
@@ -506,23 +500,9 @@ func (p *Poloniex) NewCurrencyDepositAddress(ctx context.Context, ccy currency.C
 	return resp.Address, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
 }
 
+var intervalMap = map[string]kline.Interval{"MINUTE_1": kline.OneMin, "MINUTE_5": kline.FiveMin, "MINUTE_10": kline.TenMin, "MINUTE_15": kline.FifteenMin, "MINUTE_30": kline.ThirtyMin, "HOUR_1": kline.OneHour, "HOUR_2": kline.TwoHour, "HOUR_4": kline.FourHour, "HOUR_6": kline.SixHour, "HOUR_12": kline.TwelveHour, "DAY_1": kline.OneDay, "DAY_3": kline.ThreeDay, "WEEK_1": kline.SevenDay, "MONTH_1": kline.OneMonth}
+
 func stringToInterval(interval string) (kline.Interval, error) {
-	intervalMap := map[string]kline.Interval{
-		"MINUTE_1":  kline.OneMin,
-		"MINUTE_5":  kline.FiveMin,
-		"MINUTE_10": kline.TenMin,
-		"MINUTE_15": kline.FifteenMin,
-		"MINUTE_30": kline.ThirtyMin,
-		"HOUR_1":    kline.OneHour,
-		"HOUR_2":    kline.TwoHour,
-		"HOUR_4":    kline.FourHour,
-		"HOUR_6":    kline.SixHour,
-		"HOUR_12":   kline.TwelveHour,
-		"DAY_1":     kline.OneDay,
-		"DAY_3":     kline.ThreeDay,
-		"WEEK_1":    kline.SevenDay,
-		"MONTH_1":   kline.OneMonth,
-	}
 	intervalInstance, okay := intervalMap[strings.ToUpper(interval)]
 	if okay {
 		return intervalInstance, nil
@@ -716,7 +696,7 @@ func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCan
 		return nil, errNilArgument
 	}
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []CancelOrderResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
@@ -796,7 +776,7 @@ func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 	case arg.ClientOrderID != "":
 		path = "/smartorders/cid:" + arg.ClientOrderID
 	default:
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelReplaceSmartOrderResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp)
@@ -822,7 +802,7 @@ func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppl
 	case clientSuppliedID != "":
 		path = "/smartorders/cid:" + clientSuppliedID
 	default:
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []SmartOrderDetail
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
@@ -837,7 +817,7 @@ func (p *Poloniex) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 	case clientSuppliedID != "":
 		path = "/smartorders/cid:" + clientSuppliedID
 	default:
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelSmartOrderResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodDelete, path, nil, nil, &resp)
@@ -849,7 +829,7 @@ func (p *Poloniex) CancelMultipleSmartOrders(ctx context.Context, args *OrderCan
 		return nil, errNilArgument
 	}
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []CancelOrderResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
@@ -998,7 +978,6 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,
 	}
-
 	return p.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)

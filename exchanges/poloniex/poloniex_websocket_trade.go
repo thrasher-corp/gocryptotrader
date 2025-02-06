@@ -42,7 +42,7 @@ func (p *Poloniex) WsCancelMultipleOrdersByIDs(args *OrderCancellationParams) ([
 		return nil, errNilArgument
 	}
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
-		return nil, errClientOrderIDOROrderIDsRequired
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []WsCancelOrderResponse
 	return resp, p.SendWebsocketRequest("cancelOrders", args, &resp)
