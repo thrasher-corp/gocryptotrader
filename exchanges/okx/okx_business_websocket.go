@@ -43,7 +43,7 @@ var (
 	}
 )
 
-// WsConnectBusiness connects to a business wbesocket channel.
+// WsConnectBusiness connects to a business websocket channel.
 func (ok *Okx) WsConnectBusiness() error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
