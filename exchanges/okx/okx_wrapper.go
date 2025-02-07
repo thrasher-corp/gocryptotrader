@@ -569,14 +569,16 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 				VerifyOrderbook: ok.CanVerifyOrderbook,
 			}
 			book.Bids = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Bids))
-			for a := range spreadOrderbook[y].Bids {
+			for b := range spreadOrderbook[y].Bids {
 				// Skip order book bid depths where the price value is zero.
-				if spreadOrderbook[y].Bids[a][0].Float64() == 0 {
+				if spreadOrderbook[y].Bids[b][0].Float64() == 0 {
 					continue
 				}
-				book.Bids[a].Price = spreadOrderbook[y].Bids[a][0].Float64()
-				book.Bids[a].Amount = spreadOrderbook[y].Bids[a][1].Float64()
-				book.Bids[a].OrderCount = spreadOrderbook[y].Bids[a][2].Int64()
+				book.Bids = append(book.Bids, orderbook.Tranche{
+					Price:      spreadOrderbook[y].Bids[b][0].Float64(),
+					Amount:     spreadOrderbook[y].Bids[b][1].Float64(),
+					OrderCount: spreadOrderbook[y].Bids[b][2].Int64(),
+				})
 			}
 			book.Asks = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Asks))
 			for a := range spreadOrderbook[y].Asks {
@@ -584,9 +586,11 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 				if spreadOrderbook[y].Asks[a][0].Float64() == 0 {
 					continue
 				}
-				book.Asks[a].Price = spreadOrderbook[y].Asks[a][0].Float64()
-				book.Asks[a].Amount = spreadOrderbook[y].Asks[a][1].Float64()
-				book.Asks[a].OrderCount = spreadOrderbook[y].Asks[a][2].Int64()
+				book.Asks = append(book.Asks, orderbook.Tranche{
+					Price:      spreadOrderbook[y].Asks[a][0].Float64(),
+					Amount:     spreadOrderbook[y].Asks[a][1].Float64(),
+					OrderCount: spreadOrderbook[y].Asks[a][2].Int64(),
+				})
 			}
 			err = book.Process()
 			if err != nil {
