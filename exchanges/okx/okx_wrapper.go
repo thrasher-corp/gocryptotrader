@@ -568,14 +568,22 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 				Asset:           assetType,
 				VerifyOrderbook: ok.CanVerifyOrderbook,
 			}
-			book.Bids = make(orderbook.Tranches, len(spreadOrderbook[y].Bids))
+			book.Bids = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Bids))
 			for a := range spreadOrderbook[y].Bids {
+				// Skip order book bid depths where the price value is zero.
+				if spreadOrderbook[y].Bids[a][0].Float64() == 0 {
+					continue
+				}
 				book.Bids[a].Price = spreadOrderbook[y].Bids[a][0].Float64()
 				book.Bids[a].Amount = spreadOrderbook[y].Bids[a][1].Float64()
 				book.Bids[a].OrderCount = spreadOrderbook[y].Bids[a][2].Int64()
 			}
-			book.Asks = make(orderbook.Tranches, len(spreadOrderbook[y].Asks))
+			book.Asks = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Asks))
 			for a := range spreadOrderbook[y].Asks {
+				// Skip order book ask depths where the price value is zero.
+				if spreadOrderbook[y].Asks[a][0].Float64() == 0 {
+					continue
+				}
 				book.Asks[a].Price = spreadOrderbook[y].Asks[a][0].Float64()
 				book.Asks[a].Amount = spreadOrderbook[y].Asks[a][1].Float64()
 				book.Asks[a].OrderCount = spreadOrderbook[y].Asks[a][2].Int64()
