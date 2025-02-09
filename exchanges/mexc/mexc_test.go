@@ -21,8 +21,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
+	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
 	canManipulateRealOrders = false
 )
 
@@ -686,6 +686,86 @@ func TestCapitalWithdrawal(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.CapitalWithdrawal(context.Background(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetRebateHistoryRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetRebateHistoryRecords(context.Background(), time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetRebateRecordsDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetRebateRecordsDetail(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 1000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSelfRebateRecordsDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSelfRebateRecordsDetail(context.Background(), time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetReferCode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetReferCode(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAffiliateCommissionRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAffiliateCommissionRecord(context.Background(), time.Time{}, time.Time{}, "abcdef", 1, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAffiliateWithdrawRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAffiliateWithdrawRecord(context.Background(), time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAffiliateCommissionDetailRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAffiliateCommissionDetailRecord(context.Background(), time.Time{}, time.Time{}, "", "1", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAffiliateCampaignData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAffiliateCampaignData(context.Background(), time.Now().Add(-time.Hour*480), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAffiliateReferralData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAffiliateReferralData(context.Background(), time.Time{}, time.Time{}, "", "", 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAffiliateData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSubAffiliateData(context.Background(), time.Time{}, time.Time{}, "", 1, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

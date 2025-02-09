@@ -982,6 +982,211 @@ func (me *MEXC) GetSymbolTradingFee(ctx context.Context, symbol string) (*Symbol
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "tradeFee", params, &resp, true)
 }
 
+// GetRebateHistoryRecords retrieves a rebate history record
+func (me *MEXC) GetRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp *RebateHistory
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/taxQuery", params, &resp, true)
+}
+
+// GetRebateRecordsDetail retrieves a rebate record detail
+func (me *MEXC) GetRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp *RebateRecordDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail", params, &resp, true)
+}
+
+// GetSelfRebateRecordsDetail retrieves self rebate records details
+func (me *MEXC) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp *RebateRecordDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail/kickback", params, &resp, true)
+}
+
+// GetReferCode retrieves refer code
+func (me *MEXC) GetReferCode(ctx context.Context) (*ReferCode, error) {
+	var resp *ReferCode
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/referCode", nil, &resp, true)
+}
+
+// GetAffiliateCommissionRecord retrieves affiliate commission record
+func (me *MEXC) GetAffiliateCommissionRecord(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*AffiliateCommissionRecord, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if inviteCode != "" {
+		params.Set("inviteCode", inviteCode)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AffiliateCommissionRecord
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission", params, &resp, true)
+}
+
+// GetAffiliateWithdrawRecord retrieves affiliate withdrawal records
+func (me *MEXC) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateWithdrawRecords, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AffiliateWithdrawRecords
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/withdraw", params, &resp, true)
+}
+
+// GetAffiliateCommissionDetailRecord retrieves an affiliate commission detail record
+// Commission type possible values: '1':spot,'2':futures, and '3':ETF
+func (me *MEXC) GetAffiliateCommissionDetailRecord(ctx context.Context, startTime, endTime time.Time, inviteCode, commissionType string, page, pageSize int64) (*RebateAffiliateCommissionDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if inviteCode != "" {
+		params.Set("inviteCode", inviteCode)
+	}
+	if commissionType != "" {
+		params.Set("commissionType", commissionType)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *RebateAffiliateCommissionDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission/detail", params, &resp, true)
+}
+
+// GetAffiliateCampaignData retrieves an affiliate campaign data
+func (me *MEXC) GetAffiliateCampaignData(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateCampaignData, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AffiliateCampaignData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/campaign", params, &resp, true)
+}
+
+// GetAffiliateReferralData retrieves an affiliate referral data
+func (me *MEXC) GetAffiliateReferralData(ctx context.Context, startTime, endTime time.Time, uid, inviteCode string, page, pageSize int64) (*AffiliateReferralData, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if inviteCode != "" {
+		params.Set("inviteCode", inviteCode)
+	}
+	if uid != "" {
+		params.Set("uid", uid)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AffiliateReferralData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/referral", params, &resp, true)
+}
+
+// GetSubAffiliateData retrieve a sub-affiliate data
+func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (interface{}, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if inviteCode != "" {
+		params.Set("inviteCode", inviteCode)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/subaffiliates", params, &resp, true)
+}
+
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
 func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)

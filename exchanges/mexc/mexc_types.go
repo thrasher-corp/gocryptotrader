@@ -498,3 +498,171 @@ type InternalTransferDetail struct {
 	} `json:"data"`
 }
 
+// RebateHistory holds rebate transactions related to a user's trading activity
+type RebateHistory struct {
+	Page         int64 `json:"page"`
+	TotalRecords int64 `json:"totalRecords"`
+	TotalPageNum int64 `json:"totalPageNum"`
+	Data         []struct {
+		Spot       string       `json:"spot"`
+		Futures    string       `json:"futures"`
+		Total      types.Number `json:"total"`
+		UID        string       `json:"uid"`
+		Account    string       `json:"account"`
+		InviteTime types.Time   `json:"inviteTime"`
+	} `json:"data"`
+}
+
+// RebateRecordDetail holds rebate records detail
+type RebateRecordDetail struct {
+	Page         int64 `json:"page"`
+	TotalRecords int64 `json:"totalRecords"`
+	TotalPageNum int64 `json:"totalPageNum"`
+	Data         []struct {
+		Asset      string       `json:"asset"`
+		Type       string       `json:"type"`
+		Rate       types.Number `json:"rate"`
+		Amount     types.Number `json:"amount"`
+		UID        string       `json:"uid"`
+		Account    string       `json:"account"`
+		TradeTime  types.Time   `json:"tradeTime"`
+		UpdateTime types.Time   `json:"updateTime"`
+	} `json:"data"`
+}
+
+// ReferCode holds a refer code
+type ReferCode struct {
+	ReferCode string `json:"referCode"`
+}
+
+// AffiliateCommissionRecord holds an affiliate commission records as a list
+type AffiliateCommissionRecord struct {
+	Success bool   `json:"success"`
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		PageSize                  int64        `json:"pageSize"`
+		TotalCount                int64        `json:"totalCount"`
+		TotalPage                 int64        `json:"totalPage"`
+		CurrentPage               int64        `json:"currentPage"`
+		USDTAmount                types.Number `json:"usdtAmount"`
+		TotalCommissionUsdtAmount types.Number `json:"totalCommissionUsdtAmount"`
+		TotalTradeUsdtAmount      types.Number `json:"totalTradeUsdtAmount"`
+		Finished                  types.Number `json:"finished"`
+		ResultList                []struct {
+			UID              string       `json:"uid"`
+			Account          string       `json:"account"`
+			InviteCode       string       `json:"inviteCode"`
+			InviteTime       types.Time   `json:"inviteTime"`
+			Spot             string       `json:"spot"`
+			ETF              string       `json:"etf"`
+			Futures          string       `json:"futures"`
+			Total            types.Number `json:"total"`
+			Deposit          types.Number `json:"deposit"`
+			FirstDepositTime types.Time   `json:"firstDepositTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// AffiliateWithdrawRecords holds a list of withdrawal records
+type AffiliateWithdrawRecords struct {
+	Success bool   `json:"success"`
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			WithdrawTime types.Time   `json:"withdrawTime"`
+			Asset        string       `json:"asset"`
+			Amount       types.Number `json:"amount"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// RebateAffiliateCommissionDetail holds a rebate affiliate commission detail
+type RebateAffiliateCommissionDetail struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Message any   `json:"message"`
+	Data    struct {
+		PageSize                  int64        `json:"pageSize"`
+		TotalCount                int64        `json:"totalCount"`
+		TotalPage                 int64        `json:"totalPage"`
+		CurrentPage               int64        `json:"currentPage"`
+		TotalCommissionUsdtAmount types.Number `json:"totalCommissionUsdtAmount"`
+		TotalTradeUsdtAmount      types.Number `json:"totalTradeUsdtAmount"`
+		ResultList                []struct {
+			Type           int64        `json:"type"`
+			SourceType     int64        `json:"sourceType"`
+			State          int64        `json:"state"`
+			Date           types.Time   `json:"date"`
+			UID            string       `json:"uid"`
+			Rate           float64      `json:"rate"`
+			Symbol         string       `json:"symbol"`
+			TakerAmount    types.Number `json:"takerAmount"`
+			MakerAmount    types.Number `json:"makerAmount"`
+			AmountCurrency string       `json:"amountCurrency"`
+			UsdtAmount     types.Number `json:"usdtAmount"`
+			Commission     string       `json:"commission"`
+			Currency       string       `json:"currency"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// AffiliateCampaignData holds an affiliate campaign data
+type AffiliateCampaignData struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Message any   `json:"message"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			Campaign      string       `json:"campaign"`
+			InviteCode    string       `json:"inviteCode"`
+			ClickTime     types.Time   `json:"clickTime"`
+			CreateTime    types.Time   `json:"createTime"`
+			Signup        int64        `json:"signup"`
+			Traded        int64        `json:"traded"`
+			Deposited     int64        `json:"deposited"`
+			DepositAmount types.Number `json:"depositAmount"`
+			TradingAmount types.Number `json:"tradingAmount"`
+			Commission    types.Number `json:"commission"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// AffiliateReferralData holds an affiliate referral data
+type AffiliateReferralData struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Message any   `json:"message"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			UID              string       `json:"uid"`
+			NickName         string       `json:"nickName"`
+			Email            string       `json:"email"`
+			RegisterTime     types.Time   `json:"registerTime"`
+			InviteCode       string       `json:"inviteCode"`
+			DepositAmount    types.Number `json:"depositAmount"`
+			TradingAmount    types.Number `json:"tradingAmount"`
+			Commission       string       `json:"commission"`
+			FirstDepositTime types.Time   `json:"firstDepositTime"`
+			FirstTradeTime   types.Time   `json:"firstTradeTime"`
+			LastDepositTime  types.Time   `json:"lastDepositTime"`
+			LastTradeTime    types.Time   `json:"lastTradeTime"`
+			WithdrawAmount   types.Number `json:"withdrawAmount"`
+			Asset            string       `json:"asset"`
+			Identification   int64        `json:"identification"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
