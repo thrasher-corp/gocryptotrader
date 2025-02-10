@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -63,13 +62,6 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 	w.dataHandler = dataHandler
 	w.ob = make(map[key.PairAsset]*orderbookHolder)
 	w.verbose = exchangeConfig.Verbose
-
-	// set default publish period if missing
-	orderbookPublishPeriod := config.DefaultOrderbookPublishPeriod
-	if exchangeConfig.Orderbook.PublishPeriod != nil {
-		orderbookPublishPeriod = *exchangeConfig.Orderbook.PublishPeriod
-	}
-	w.publishPeriod = orderbookPublishPeriod
 	w.updateIDProgression = c.UpdateIDProgression
 	w.checksum = c.Checksum
 	return nil
@@ -172,25 +164,6 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	book.ob.Publish()
-
-	if book.ticker != nil {
-		select {
-		case <-book.ticker.C:
-			// Send update to engine websocket manager to update engine
-			// sync manager to reset websocket orderbook sync timeout. This will
-			// stop the fall over to REST protocol fetching of orderbook data.
-		default:
-			if !w.verbose {
-				// We do not need to send an update to the sync manager within
-				// this time window unless verbose is turned on.
-				return nil
-			}
-		}
-	}
-
-	// A nil ticker means that a zero publish period has been set and the entire
-	// websocket updates will be sent to the engine websocket manager for
-	// display purposes. Same as being verbose.
 	w.dataHandler <- book.ob
 	return nil
 }
@@ -320,11 +293,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		depth.AssignOptions(book)
 		buffer := make([]orderbook.Update, w.obBufferLimit)
 
-		var ticker *time.Ticker
-		if w.publishPeriod != 0 {
-			ticker = time.NewTicker(w.publishPeriod)
-		}
-		holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
+		holder = &orderbookHolder{ob: depth, buffer: &buffer}
 		w.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
 	}
 
