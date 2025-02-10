@@ -999,9 +999,14 @@ func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 
 // GenerateDefaultSubscriptions generates default subscriptions
 func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
-	enabledPairs, err := bi.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
+	at := bi.GetAssetTypes(false)
+	assetPairs := make(map[asset.Item]currency.Pairs)
+	for i := range at {
+		pairs, err := bi.GetEnabledPairs(at[i])
+		if err != nil {
+			return nil, err
+		}
+		assetPairs[at[i]] = pairs
 	}
 	subs := make(subscription.List, 0, len(defaultSubscriptions))
 	for _, sub := range defaultSubscriptions {
@@ -1015,7 +1020,7 @@ func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
 		switch subs[i].Channel {
 		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel, bitgetIndexPriceChannel, bitgetAccountCrossedChannel, bitgetAccountIsolatedChannel: // Not fully sure that bitgetIndexPriceChannel belongs here
 		default:
-			subs[i].Pairs = enabledPairs
+			subs[i].Pairs = assetPairs[subs[i].Asset]
 		}
 	}
 	return subs, nil
