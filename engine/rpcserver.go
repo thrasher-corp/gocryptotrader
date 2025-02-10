@@ -414,7 +414,7 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 		return nil, err
 	}
 
-	t, err := e.FetchTicker(ctx, pair, a)
+	t, err := e.FetchTickerCached(ctx, pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +488,7 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	ob, err := e.FetchOrderbook(ctx, pair, a)
+	ob, err := e.FetchOrderbookCached(ctx, pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +543,7 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRe
 				continue
 			}
 			for z := range currencies {
-				resp, err := exchanges[x].FetchOrderbook(ctx, currencies[z], assets[y])
+				resp, err := exchanges[x].FetchOrderbookCached(ctx, currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.RESTSys,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
@@ -603,7 +603,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, err
 	}
 
-	resp, err := exch.FetchAccountInfo(ctx, assetType)
+	resp, err := exch.FetchAccountInfoCached(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -681,7 +681,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	initAcc, err := exch.FetchAccountInfo(stream.Context(), assetType)
+	initAcc, err := exch.FetchAccountInfoCached(stream.Context(), assetType)
 	if err != nil {
 		return err
 	}
@@ -1309,7 +1309,7 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
+	o, err := exch.FetchOrderbookCached(ctx, p, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -1369,7 +1369,7 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, a)
+	o, err := exch.FetchOrderbookCached(ctx, p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -4875,7 +4875,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
-	ai, err := exch.FetchAccountInfo(ctx, a)
+	ai, err := exch.FetchAccountInfoCached(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -4931,9 +4931,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				// cannot price currency to calculate collateral
 				continue
 			}
-			tick, err = exch.FetchTicker(ctx, tickerCurr, asset.Spot)
+			tick, err = exch.FetchTickerCached(ctx, tickerCurr, asset.Spot)
 			if err != nil {
-				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err)
+				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via FetchTickerCached %s %s", exch.GetName(), err)
 				continue
 			}
 			if tick.Last == 0 {

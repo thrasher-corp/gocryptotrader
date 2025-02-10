@@ -2906,11 +2906,11 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
 }
 
-func TestFetchTicker(t *testing.T) {
+func TestFetchTickerCached(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.FetchTicker(context.Background(), pair, asset.Spot)
+	_, err := b.FetchTickerCached(context.Background(), pair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrNoTickerFound)
 
 	err = ticker.ProcessTicker(&ticker.Price{
@@ -2920,16 +2920,16 @@ func TestFetchTicker(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	tickerPrice, err := b.FetchTicker(context.Background(), pair, asset.Spot)
+	tickerPrice, err := b.FetchTickerCached(context.Background(), pair, asset.Spot)
 	assert.NoError(t, err)
 	assert.Equal(t, tickerPrice.Pair, pair)
 }
 
-func TestFetchOrderbook(t *testing.T) {
+func TestFetchOrderbookCached(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.FetchOrderbook(context.Background(), pair, asset.Spot)
+	_, err := b.FetchOrderbookCached(context.Background(), pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrCannotFindOrderbook)
 
 	err = (&orderbook.Base{
@@ -2939,12 +2939,12 @@ func TestFetchOrderbook(t *testing.T) {
 	}).Process()
 	assert.NoError(t, err)
 
-	ob, err := b.FetchOrderbook(context.Background(), pair, asset.Spot)
+	ob, err := b.FetchOrderbookCached(context.Background(), pair, asset.Spot)
 	assert.NoError(t, err)
 	assert.Equal(t, ob.Pair, pair)
 }
 
-func TestFetchAccountInfo(t *testing.T) {
+func TestFetchAccountInfoCached(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
@@ -2956,7 +2956,7 @@ func TestFetchAccountInfo(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	})
-	_, err := b.FetchAccountInfo(ctx, asset.Spot)
+	_, err := b.FetchAccountInfoCached(ctx, asset.Spot)
 	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
 
 	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
@@ -2964,7 +2964,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	}}, creds)
 	assert.NoError(t, err)
 
-	_, err = b.FetchAccountInfo(ctx, asset.Spot)
+	_, err = b.FetchAccountInfoCached(ctx, asset.Spot)
 	assert.NoError(t, err)
 }
 
@@ -3008,15 +3008,15 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) FetchAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
+func (f *FakeBase) FetchAccountInfoCached(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 
-func (f *FakeBase) FetchOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) FetchOrderbookCached(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
-func (f *FakeBase) FetchTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
+func (f *FakeBase) FetchTickerCached(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 

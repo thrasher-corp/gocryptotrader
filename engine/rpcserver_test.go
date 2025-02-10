@@ -303,7 +303,7 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 	return resp, nil
 }
 
-func (f fExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (f fExchange) FetchTickerCached(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{
 		Last:         1337,
 		High:         1337,
@@ -322,9 +322,9 @@ func (f fExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item)
 	}, nil
 }
 
-// FetchAccountInfo overrides testExchange's fetch account info function
+// FetchAccountInfoCached overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) FetchAccountInfoCached(_ context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{

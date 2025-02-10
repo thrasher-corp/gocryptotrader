@@ -57,13 +57,13 @@ for i := range bot.Exchanges {
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := c.FetchTicker()
+tick, err := c.FetchTickerCached()
 if err != nil {
 	// Handle error
 }
 
 // Fetches current orderbook information
-ob, err := c.FetchOrderbook()
+ob, err := c.FetchOrderbookCached()
 if err != nil {
 	// Handle error
 }

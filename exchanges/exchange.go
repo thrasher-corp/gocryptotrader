@@ -1946,26 +1946,26 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 	return b.Features.TradingRequirements
 }
 
-// FetchTicker returns the ticker for a currency pair and asset type
+// FetchTickerCached returns the ticker for a currency pair and asset type
 // associated with the exchange.
 // NOTE: UpdateTicker (or if supported UpdateTickers) method must be
 // called first to update the ticker map.
-func (b *Base) FetchTicker(_ context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Base) FetchTickerCached(_ context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// FetchOrderbook returns orderbook base on the currency pair and asset type
+// FetchOrderbookCached returns orderbook base on the currency pair and asset type
 // associated with the exchange.
 // NOTE: UpdateOrderbook method must be called first to update the orderbook
 // map.
-func (b *Base) FetchOrderbook(_ context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Base) FetchOrderbookCached(_ context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
+// FetchAccountInfoCached retrieves balances for all enabled currencies
 // NOTE: UpdateAccountInfo method must be called first to update the
 // account info map.
-func (b *Base) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (b *Base) FetchAccountInfoCached(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err

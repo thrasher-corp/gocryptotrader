@@ -326,7 +326,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 				continue
 			}
 			for z := range currencies {
-				ob, err := exchanges[x].FetchOrderbook(context.TODO(), currencies[z], assets[y])
+				ob, err := exchanges[x].FetchOrderbookCached(context.TODO(), currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.APIServerMgr,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
@@ -368,7 +368,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 				continue
 			}
 			for z := range currencies {
-				t, err := exchanges[x].FetchTicker(context.TODO(), currencies[z], assets[y])
+				t, err := exchanges[x].FetchTickerCached(context.TODO(), currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.APIServerMgr,
 						"Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
@@ -399,7 +399,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 		exchName := exchanges[x].GetName()
 		var exchangeAccounts AllEnabledExchangeAccounts
 		for y := range assets {
-			a, err := exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
+			a, err := exchanges[x].FetchAccountInfoCached(context.TODO(), assets[y])
 			if err != nil {
 				log.Errorf(log.APIServerMgr,
 					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
@@ -850,7 +850,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		}
 		return err
 	}
-	tick, err := exch.FetchTicker(context.TODO(), p, a)
+	tick, err := exch.FetchTickerCached(context.TODO(), p, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -910,7 +910,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		}
 		return err
 	}
-	ob, err := exch.FetchOrderbook(context.TODO(), p, a)
+	ob, err := exch.FetchOrderbookCached(context.TODO(), p, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)

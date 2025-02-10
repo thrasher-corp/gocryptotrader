@@ -3012,13 +3012,13 @@ func TestUpdateAccountInfo(t *testing.T) {
 	}
 }
 
-func TestFetchAccountInfo(t *testing.T) {
+func TestFetchAccountInfoCached(t *testing.T) {
 	t.Parallel()
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
+	_, err := b.FetchAccountInfoCached(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

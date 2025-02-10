@@ -591,7 +591,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				}
 				err = e.UpdateTickers(context.TODO(), c.Key.Asset)
 				if err == nil {
-					result, err = e.FetchTicker(context.TODO(), c.Pair, c.Key.Asset)
+					result, err = e.FetchTickerCached(context.TODO(), c.Pair, c.Key.Asset)
 				}
 				m.tickerBatchLastRequested[key.ExchangeAsset{
 					Exchange: c.Key.Exchange,
@@ -602,7 +602,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
 				}
-				result, err = e.FetchTicker(context.TODO(), c.Pair, c.Key.Asset)
+				result, err = e.FetchTickerCached(context.TODO(), c.Pair, c.Key.Asset)
 			}
 		} else {
 			result, err = e.UpdateTicker(context.TODO(),

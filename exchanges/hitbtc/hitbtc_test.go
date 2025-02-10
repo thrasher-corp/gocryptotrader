@@ -182,7 +182,7 @@ func TestUpdateTickers(t *testing.T) {
 	}
 
 	for j := range enabled {
-		_, err = h.FetchTicker(context.Background(), enabled[j], asset.Spot)
+		_, err = h.FetchTickerCached(context.Background(), enabled[j], asset.Spot)
 		if err != nil {
 			t.Error(err)
 		}

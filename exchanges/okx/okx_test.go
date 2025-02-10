@@ -3368,10 +3368,10 @@ func TestUpdateAccountInfo(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestFetchAccountInfo(t *testing.T) {
+func TestFetchAccountInfoCached(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.FetchAccountInfo(contextGenerate(), asset.Spot)
+	result, err := ok.FetchAccountInfoCached(contextGenerate(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

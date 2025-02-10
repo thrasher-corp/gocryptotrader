@@ -827,7 +827,7 @@ func (bot *Engine) GetAllActiveTickers(ctx context.Context) []EnabledExchangeCur
 				continue
 			}
 			for z := range currencies {
-				tp, err := exchanges[x].FetchTicker(ctx, currencies[z], assets[y])
+				tp, err := exchanges[x].FetchTickerCached(ctx, currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),

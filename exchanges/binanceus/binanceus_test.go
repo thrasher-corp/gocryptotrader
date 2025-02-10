@@ -133,11 +133,11 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestFetchAccountInfo(t *testing.T) {
+func TestFetchAccountInfoCached(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, err := bi.FetchAccountInfo(context.Background(), asset.Spot); err != nil {
-		t.Error("Binanceus FetchAccountInfo() error", err)
+	if _, err := bi.FetchAccountInfoCached(context.Background(), asset.Spot); err != nil {
+		t.Error("Binanceus FetchAccountInfoCached() error", err)
 	}
 }
 
