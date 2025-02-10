@@ -1,4 +1,5 @@
 [codespell]
-skip = ./.git,./web,./currency/code_types.go,*.json,*.sum,*.html
+skip = ./.git,./web,./currency/code_types.go,*.json,*.sum,*.html,./vendor
 exclude-file = ./contrib/spellcheck/exclude_lines.txt
 ignore-words = ./contrib/spellcheck/ignore_words.txt
+ignore-regex = currency\.\w+

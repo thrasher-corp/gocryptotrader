@@ -130,7 +130,7 @@ var (
 		"59508": errors.New("the sub account of {0} is suspended"),
 		"59509": errors.New("account does not have permission to reset MMP status"),
 		"59510": errors.New("sub-account does not exist"),
-		"59512": errors.New("unable to set up this permission for ND brokers sub accounts. by default, all ND sub accounts can transfer funds out"),
+		"59512": errors.New("unable to set up this permission for 'ND' brokers sub accounts"),
 		"59601": errors.New("this sub-account name already exists, try another name"),
 		"59602": errors.New("number of API keys exceeds the limit"),
 		"59603": errors.New("number of sub accounts exceeds the limit"),
