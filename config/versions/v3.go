@@ -25,7 +25,7 @@ func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 	return e, nil
 }
 
-var defaultOrderbookPublishPeriod = time.Second * 10
+const defaultOrderbookPublishPeriod = time.Second * 10
 
 // DowngradeExchange will downgrade the exchange's config by setting the default orderbook publish period
 func (v *Version3) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
