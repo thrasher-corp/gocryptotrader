@@ -2,161 +2,99 @@ package margin
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValid(t *testing.T) {
 	t.Parallel()
-	if !Isolated.Valid() {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !Multi.Valid() {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if Unset.Valid() {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if Unknown.Valid() {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if Type(137).Valid() {
-		t.Fatal("expected 'false', received 'true'")
-	}
+	require.True(t, Isolated.Valid())
+	require.True(t, Multi.Valid())
+	require.True(t, NoMargin.Valid())
+	require.True(t, SpotIsolated.Valid())
+	require.False(t, Unset.Valid())
+	require.False(t, Unknown.Valid())
+	require.False(t, Type(137).Valid())
 }
 
 func TestUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	type martian struct {
-		M Type `json:"margin"`
-	}
-
-	var alien martian
-	jason := []byte(`{"margin":"isolated"}`)
-	err := json.Unmarshal(jason, &alien)
-	if err != nil {
-		t.Error(err)
-	}
-	if alien.M != Isolated {
-		t.Errorf("received '%v' expected 'isolated'", alien.M)
-	}
-
-	jason = []byte(`{"margin":"cross"}`)
-	err = json.Unmarshal(jason, &alien)
-	if err != nil {
-		t.Error(err)
-	}
-	if alien.M != Multi {
-		t.Errorf("received '%v' expected 'Multi'", alien.M)
-	}
-
-	jason = []byte(`{"margin":"hello moto"}`)
-	err = json.Unmarshal(jason, &alien)
-	if !errors.Is(err, ErrInvalidMarginType) {
-		t.Error(err)
-	}
-	if alien.M != Unknown {
-		t.Errorf("received '%v' expected 'isolated'", alien.M)
+	for name, tc := range map[string]struct {
+		in   string
+		want Type
+		err  error
+	}{
+		"isolated":     {`{"margin":"isolated"}`, Isolated, nil},
+		"cross":        {`{"margin":"cross"}`, Multi, nil},
+		"cash":         {`{"margin":"cash"}`, NoMargin, nil},
+		"spotIsolated": {`{"margin":"spot_isolated"}`, SpotIsolated, nil},
+		"invalid":      {`{"margin":"hello moto"}`, Unknown, ErrInvalidMarginType},
+		"unset":        {`{"margin":""}`, Unset, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var alien struct {
+				M Type `json:"margin"`
+			}
+			err := json.Unmarshal([]byte(tc.in), &alien)
+			assert.ErrorIs(t, err, tc.err)
+			assert.Equal(t, tc.want, alien.M)
+		})
 	}
 }
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	if Unknown.String() != unknownStr {
-		t.Errorf("received '%v' expected '%v'", Unknown.String(), unknownStr)
-	}
-	if Isolated.String() != isolatedStr {
-		t.Errorf("received '%v' expected '%v'", Isolated.String(), isolatedStr)
-	}
-	if Multi.String() != multiStr {
-		t.Errorf("received '%v' expected '%v'", Multi.String(), multiStr)
-	}
-	if Unset.String() != unsetStr {
-		t.Errorf("received '%v' expected '%v'", Unset.String(), unsetStr)
-	}
+	assert.Equal(t, unknownStr, Unknown.String())
+	assert.Equal(t, isolatedStr, Isolated.String())
+	assert.Equal(t, multiStr, Multi.String())
+	assert.Equal(t, unsetStr, Unset.String())
+	assert.Equal(t, spotIsolatedStr, SpotIsolated.String())
+	assert.Equal(t, cashStr, NoMargin.String())
+	assert.Equal(t, "", Type(30).String())
 }
 
 func TestUpper(t *testing.T) {
 	t.Parallel()
-	if Unknown.Upper() != strings.ToUpper(unknownStr) {
-		t.Errorf("received '%v' expected '%v'", Unknown.String(), strings.ToUpper(unknownStr))
-	}
-	if Isolated.Upper() != strings.ToUpper(isolatedStr) {
-		t.Errorf("received '%v' expected '%v'", Isolated.String(), strings.ToUpper(isolatedStr))
-	}
-	if Multi.Upper() != strings.ToUpper(multiStr) {
-		t.Errorf("received '%v' expected '%v'", Multi.String(), strings.ToUpper(multiStr))
-	}
-	if Unset.Upper() != strings.ToUpper(unsetStr) {
-		t.Errorf("received '%v' expected '%v'", Unset.String(), strings.ToUpper(unsetStr))
-	}
+	assert.Equal(t, strings.ToUpper(unknownStr), Unknown.Upper())
+	assert.Equal(t, strings.ToUpper(isolatedStr), Isolated.Upper())
+	assert.Equal(t, strings.ToUpper(multiStr), Multi.Upper())
+	assert.Equal(t, strings.ToUpper(spotIsolatedStr), SpotIsolated.Upper())
+	assert.Equal(t, strings.ToUpper(cashStr), NoMargin.Upper())
+	assert.Equal(t, strings.ToUpper(unsetStr), Unset.Upper())
 }
 
 func TestIsValidString(t *testing.T) {
 	t.Parallel()
-	if IsValidString("lol") {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if !IsValidString("isolated") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !IsValidString("cross") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !IsValidString("multi") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !IsValidString("unset") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if IsValidString("") {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if IsValidString("unknown") {
-		t.Fatal("expected 'false', received 'true'")
-	}
+	assert.False(t, IsValidString("lol"))
+	assert.True(t, IsValidString("spot_isolated"))
+	assert.True(t, IsValidString("cash"))
+	assert.True(t, IsValidString("isolated"))
+	assert.True(t, IsValidString("cross"))
+	assert.True(t, IsValidString("multi"))
+	assert.True(t, IsValidString(""))
+	assert.False(t, IsValidString("unknown"))
 }
 
 func TestStringToMarginType(t *testing.T) {
 	t.Parallel()
-	resp, err := StringToMarginType("lol")
-	if !errors.Is(err, ErrInvalidMarginType) {
-		t.Error(err)
-	}
-	if resp != Unknown {
-		t.Errorf("received '%v' expected '%v'", resp, Unknown)
-	}
-
-	resp, err = StringToMarginType("")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != Unset {
-		t.Errorf("received '%v' expected '%v'", resp, Unset)
-	}
-
-	resp, err = StringToMarginType("cross")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != Multi {
-		t.Errorf("received '%v' expected '%v'", resp, Multi)
-	}
-
-	resp, err = StringToMarginType("multi")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != Multi {
-		t.Errorf("received '%v' expected '%v'", resp, Multi)
-	}
-
-	resp, err = StringToMarginType("isolated")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != Isolated {
-		t.Errorf("received '%v' expected '%v'", resp, Isolated)
+	for label, v := range map[string]struct {
+		MarginType Type
+		Error      error
+	}{
+		"lol":           {Unknown, ErrInvalidMarginType},
+		"":              {Unset, nil},
+		"cross":         {Multi, nil},
+		"multi":         {Multi, nil},
+		"isolated":      {Isolated, nil},
+		"cash":          {NoMargin, nil},
+		"spot_isolated": {SpotIsolated, nil},
+	} {
+		resp, err := StringToMarginType(label)
+		assert.ErrorIs(t, err, v.Error)
+		assert.Equal(t, v.MarginType.String(), resp.String())
 	}
 }
