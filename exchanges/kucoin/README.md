@@ -41,6 +41,9 @@ Default Authenticated Subscriptions:
 
 Subscriptions are subject to enabled assets and pairs.
 
+Margin subscriptions for ticker, orderbook and All trades are merged into Spot subscriptions because duplicates are not allowed,
+unless Spot subscription does not exist, i.e. Spot asset not enabled, or subscription configured only for Margin
+
 Limitations:
 - 100 symbols per subscription
 - 300 symbols per connection

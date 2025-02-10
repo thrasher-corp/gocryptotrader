@@ -32,6 +32,10 @@ func (t Type) String() string {
 		return isolatedStr
 	case Multi:
 		return multiStr
+	case SpotIsolated:
+		return spotIsolatedStr
+	case NoMargin:
+		return cashStr
 	case Unknown:
 		return unknownStr
 	}
@@ -46,7 +50,7 @@ func (t Type) Upper() string {
 // IsValidString checks to see if the supplied string is a valid margin type
 func IsValidString(m string) bool {
 	switch strings.ToLower(m) {
-	case isolatedStr, multiStr, unsetStr, crossedStr, crossStr:
+	case isolatedStr, multiStr, unsetStr, crossedStr, crossStr, spotIsolatedStr, cashStr:
 		return true
 	}
 	return false
@@ -60,6 +64,10 @@ func StringToMarginType(m string) (Type, error) {
 		return Isolated, nil
 	case multiStr, crossedStr, crossStr:
 		return Multi, nil
+	case spotIsolatedStr:
+		return SpotIsolated, nil
+	case cashStr:
+		return NoMargin, nil
 	case "":
 		return Unset, nil
 	}

@@ -3,10 +3,10 @@ package withdraw
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -17,11 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
-)
-
-var (
-	// ErrNoResults is the error returned if no results are found
-	ErrNoResults = errors.New("no results found")
 )
 
 // Event stores Withdrawal Response details in database
@@ -424,7 +419,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		}
 	}
 	if len(resp) == 0 {
-		return nil, ErrNoResults
+		return nil, common.ErrNoResults
 	}
 	return resp, nil
 }
