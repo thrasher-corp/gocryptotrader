@@ -38,7 +38,6 @@ const (
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
 	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
-	DefaultOrderbookPublishPeriod        = time.Second * 10
 	// DefaultSyncerWorkers limits the number of sync workers
 	DefaultSyncerWorkers = 15
 	// DefaultSyncerTimeoutREST the default time to switch from REST to websocket protocols without a response
@@ -368,7 +367,4 @@ type Orderbook struct {
 	VerificationBypass     bool `json:"verificationBypass"`
 	WebsocketBufferLimit   int  `json:"websocketBufferLimit"`
 	WebsocketBufferEnabled bool `json:"websocketBufferEnabled"`
-	// PublishPeriod here is a pointer because we want to distinguish
-	// between zeroed out and missing.
-	PublishPeriod *time.Duration `json:"publishPeriod"`
 }
