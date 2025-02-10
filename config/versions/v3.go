@@ -9,7 +9,7 @@ import (
 )
 
 // Version3 is an ExchangeVersion to remove the publishPeriod from the exchange's orderbook config
-type Version3 struct {
+type Version3 struct {}
 }
 
 func init() {
