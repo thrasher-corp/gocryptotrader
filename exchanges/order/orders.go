@@ -705,6 +705,14 @@ func (t Type) String() string {
 		return "STOP"
 	case ConditionalStop:
 		return "CONDITIONAL"
+	case MarketMakerProtection:
+		return "MMP"
+	case MarketMakerProtectionAndPostOnly:
+		return "MMP_AND_POST_ONLY"
+	case TWAP:
+		return "TWAP"
+	case Chase:
+		return "CHASE"
 	case StopLimit:
 		return "STOP LIMIT"
 	case StopMarket:
@@ -1139,7 +1147,7 @@ func StringToOrderType(oType string) (Type, error) {
 		return StopLimit, nil
 	case StopMarket.String(), "STOP_MARKET":
 		return StopMarket, nil
-	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
+	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
 	case FillOrKill.String(), "EXCHANGE FOK":
 		return FillOrKill, nil
@@ -1159,6 +1167,20 @@ func StringToOrderType(oType string) (Type, error) {
 		return SOR, nil
 	case ConditionalStop.String():
 		return ConditionalStop, nil
+	case MarketMakerProtection.String():
+		return MarketMakerProtection, nil
+	case MarketMakerProtectionAndPostOnly.String():
+		return MarketMakerProtectionAndPostOnly, nil
+	case TWAP.String():
+		return TWAP, nil
+	case Chase.String():
+		return Chase, nil
+	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+		return TakeProfitMarket, nil
+	case TakeProfit.String(), "TAKE_PROFIT":
+		return TakeProfit, nil
+	case Liquidation.String():
+		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
@@ -1370,5 +1392,30 @@ func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
 		return MarkPrice, nil
 	default:
 		return UnknownPriceType, ErrUnknownPriceType
+	}
+}
+
+// String implements the stringer interface
+func (t TrackingMode) String() string {
+	switch t {
+	case Distance:
+		return "distance"
+	case Percentage:
+		return "percentage"
+	default:
+		return ""
+	}
+}
+
+// StringToTrackingMode converts TrackingMode instance from string
+func StringToTrackingMode(mode string) TrackingMode {
+	mode = strings.ToLower(mode)
+	switch mode {
+	case "distance":
+		return Distance
+	case "percentage":
+		return Percentage
+	default:
+		return UnknownTrackingMode
 	}
 }
