@@ -22,18 +22,17 @@ const jobBuffer = 5000
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
-	ErrSubscriptionFailure      = errors.New("subscription failure")
-	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
-	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
-	ErrSubscriptionsNotAdded    = errors.New("subscriptions not added")
-	ErrSubscriptionsNotRemoved  = errors.New("subscriptions not removed")
-	ErrAlreadyDisabled          = errors.New("websocket already disabled")
-	ErrNotConnected             = errors.New("websocket is not connected")
-	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
-	ErrRequestRouteNotFound     = errors.New("request route not found")
-	ErrSignatureNotSet          = errors.New("signature not set")
-	ErrRequestPayloadNotSet     = errors.New("request payload not set")
+	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
+	ErrSubscriptionFailure     = errors.New("subscription failure")
+	ErrUnsubscribeFailure      = errors.New("unsubscribe failure")
+	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
+	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
+	ErrAlreadyDisabled         = errors.New("websocket already disabled")
+	ErrNotConnected            = errors.New("websocket is not connected")
+	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound    = errors.New("request route not found")
+	ErrSignatureNotSet         = errors.New("signature not set")
+	ErrRequestPayloadNotSet    = errors.New("request payload not set")
 )
 
 // Private websocket errors

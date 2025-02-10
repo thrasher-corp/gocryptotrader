@@ -848,10 +848,7 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		err = common.AppendError(err, fmt.Errorf("unexpected channel `%s` in result", key))
 	}
 
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func getValidatedCurrencyCode(pair currency.Pair) string {
