@@ -1135,7 +1135,7 @@ func TestFlushChannels(t *testing.T) {
 		}
 		return nil
 	}
-	assert.NoError(t, w.FlushChannels(), "Flush Channels should not error")
+	assert.NoError(t, w.FlushChannels(), "FlushChannels should not error")
 
 	w.GenerateSubs = newgen.generateSubs
 	subs, err := w.GenerateSubs()
