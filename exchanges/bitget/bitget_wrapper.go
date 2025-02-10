@@ -63,7 +63,7 @@ func (bi *Bitget) SetDefaults() {
 	bi.API.CredentialsValidator.RequiresSecret = true
 	bi.API.CredentialsValidator.RequiresClientID = true
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures, asset.Margin, asset.CrossMargin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -73,6 +73,7 @@ func (bi *Bitget) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:                    true, // Supported for spot and futures, but not margin
 				AutoPairUpdates:                   true,
 				AccountBalance:                    true,
 				CryptoDeposit:                     true,
@@ -90,12 +91,17 @@ func (bi *Bitget) SetDefaults() {
 				TradeHistory:                      true,
 				UserTradeHistory:                  true,
 				TradeFee:                          true,
+				FiatDepositFee:                    false,
+				FiatWithdrawalFee:                 false,
+				CryptoDepositFee:                  false,
+				CryptoWithdrawalFee:               false,
 				TickerFetching:                    true,
 				KlineFetching:                     true,
 				TradeFetching:                     true,
 				OrderbookFetching:                 true,
 				AccountInfo:                       true,
 				FiatDeposit:                       false,
+				DeadMansSwitch:                    false,
 				FundingRateFetching:               true,
 				AuthenticatedEndpoints:            true,
 				CandleHistory:                     true,
@@ -105,25 +111,45 @@ func (bi *Bitget) SetDefaults() {
 				HasAssetTypeAccountSegregation:    true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerBatching:    false,
-				AccountBalance:    true,
-				CryptoDeposit:     false,
-				CryptoWithdrawal:  false,
-				FiatWithdraw:      false,
-				GetOrder:          false,
-				GetOrders:         true,
-				CancelOrders:      false,
-				CancelOrder:       false,
-				SubmitOrder:       false,
-				SubmitOrders:      false,
-				ModifyOrder:       false,
-				DepositHistory:    false,
-				WithdrawalHistory: false,
-				TradeHistory:      false,
-				UserTradeHistory:  false,
-
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerBatching:                 false,
+				AccountBalance:                 true,
+				CryptoDeposit:                  false,
+				CryptoWithdrawal:               false,
+				FiatWithdraw:                   false,
+				GetOrder:                       false,
+				GetOrders:                      true,
+				CancelOrders:                   false,
+				CancelOrder:                    false,
+				SubmitOrder:                    false,
+				SubmitOrders:                   false,
+				ModifyOrder:                    false,
+				DepositHistory:                 false,
+				WithdrawalHistory:              false,
+				TradeHistory:                   false,
+				UserTradeHistory:               false,
+				TradeFee:                       false,
+				FiatDepositFee:                 false,
+				FiatWithdrawalFee:              false,
+				CryptoDepositFee:               false,
+				CryptoWithdrawalFee:            false,
+				TickerFetching:                 true,
+				KlineFetching:                  true,
+				TradeFetching:                  true,
+				OrderbookFetching:              true,
+				AccountInfo:                    true,
+				FiatDeposit:                    false,
+				DeadMansSwitch:                 false,
+				FundingRateFetching:            false,
+				PredictedFundingRate:           false,
+				Subscribe:                      true,
+				Unsubscribe:                    true,
+				AuthenticatedEndpoints:         true,
+				MessageCorrelation:             false,
+				MessageSequenceNumbers:         false,
+				CandleHistory:                  false,
+				MultiChainDeposits:             false,
+				MultiChainWithdrawals:          false,
+				HasAssetTypeAccountSegregation: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -1580,7 +1606,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					if !getOrdersRequest.Pairs[x].IsEmpty() {
 						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
 					} else {
-						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.OrderList[i].Symbol.String())
+						tempOrds[i].Pair, err = pairFromStringHelper(genOrds.OrderList[i].Symbol)
 						if err != nil {
 							return nil, err
 						}

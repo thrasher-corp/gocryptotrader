@@ -1864,23 +1864,23 @@ type MarginOpenOrds struct {
 
 // MarginOrdWithAveragePrice is a sub-struct containing information on a margin order with an average price
 type MarginOrdWithAveragePrice struct {
-	OrderID          int64         `json:"orderId,string"`
-	Symbol           currency.Pair `json:"symbol"`
-	OrderType        string        `json:"orderType"`
-	EnterPointSource string        `json:"enterPointSource"`
-	ClientOrderID    string        `json:"clientOid"`
-	LoanType         string        `json:"loanType"`
-	Price            float64       `json:"price,string"`
-	Side             string        `json:"side"`
-	Status           string        `json:"status"`
-	BaseSize         float64       `json:"baseSize,string"`
-	QuoteSize        float64       `json:"quoteSize,string"`
-	PriceAverage     float64       `json:"priceAvg,string"`
-	Size             float64       `json:"size,string"`
-	Amount           float64       `json:"amount,string"`
-	Force            string        `json:"force"`
-	CreationTime     types.Time    `json:"cTime"`
-	UpdateTime       types.Time    `json:"uTime"`
+	OrderID          int64      `json:"orderId,string"`
+	Symbol           string     `json:"symbol"`
+	OrderType        string     `json:"orderType"`
+	EnterPointSource string     `json:"enterPointSource"`
+	ClientOrderID    string     `json:"clientOid"`
+	LoanType         string     `json:"loanType"`
+	Price            float64    `json:"price,string"`
+	Side             string     `json:"side"`
+	Status           string     `json:"status"`
+	BaseSize         float64    `json:"baseSize,string"`
+	QuoteSize        float64    `json:"quoteSize,string"`
+	PriceAverage     float64    `json:"priceAvg,string"`
+	Size             float64    `json:"size,string"`
+	Amount           float64    `json:"amount,string"`
+	Force            string     `json:"force"`
+	CreationTime     types.Time `json:"cTime"`
+	UpdateTime       types.Time `json:"uTime"`
 }
 
 // MarginHistOrds contains information on historical margin orders
@@ -1945,7 +1945,7 @@ type IsoRepayment struct {
 	RepayType      string        `json:"repayType"`
 	RepayInterest  float64       `json:"repayInterest,string"`
 	RepayPrincipal float64       `json:"repayPrincipal,string"`
-	Symbol         currency.Pair `json:"symbol"`
+	Symbol         string        `json:"symbol"`
 	CreationTime   types.Time    `json:"cTime"`
 	UpdateTime     types.Time    `json:"uTime"`
 }
@@ -1963,7 +1963,7 @@ type IsoBorrow struct {
 	Coin         currency.Code `json:"coin"`
 	BorrowAmount float64       `json:"borrowAmount,string"`
 	BorrowType   string        `json:"borrowType"`
-	Symbol       currency.Pair `json:"symbol"`
+	Symbol       string        `json:"symbol"`
 	CreationTime types.Time    `json:"cTime"`
 	UpdateTime   types.Time    `json:"uTime"`
 }
@@ -2021,7 +2021,7 @@ type IsoFinHist struct {
 	MarginID     int64         `json:"marginId,string"`
 	Amount       float64       `json:"amount,string"`
 	Coin         currency.Code `json:"coin"`
-	Symbol       currency.Pair `json:"symbol"`
+	Symbol       string        `json:"symbol"`
 	Balance      float64       `json:"balance,string"`
 	Fee          float64       `json:"fee,string"`
 	MarginType   string        `json:"marginType"`
@@ -2118,7 +2118,7 @@ type TierConfigIso struct {
 
 // MaxBorrowIso contains information on the maximum amount that can be borrowed for isolated margin
 type MaxBorrowIso struct {
-	Symbol                       currency.Pair `json:"symbol"`
+	Symbol                       string        `json:"symbol"`
 	BaseCoin                     currency.Code `json:"baseCoin"`
 	BaseCoinMaxBorrowableAmount  float64       `json:"baseCoinmaxBorrowAmount,string"`
 	QuoteCoin                    currency.Code `json:"quoteCoin"`
