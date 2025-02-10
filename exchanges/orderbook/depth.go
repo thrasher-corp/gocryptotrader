@@ -84,6 +84,8 @@ func (d *Depth) Retrieve() (*Base, error) {
 		VerifyOrderbook:        d.verifyOrderbook,
 		MaxDepth:               d.maxDepth,
 		ChecksumStringRequired: d.checksumStringRequired,
+		RestSnapshot:           d.restSnapshot,
+		IDAlignment:            d.idAligned,
 	}, nil
 }
 
