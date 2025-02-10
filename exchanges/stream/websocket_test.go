@@ -1106,7 +1106,7 @@ func TestFlushChannels(t *testing.T) {
 	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
 
-	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "FlushChannels should error correctly on no subscriptions added")
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
 
 	w.Subscriber = func(subs subscription.List) error {
 		for _, sub := range subs {
@@ -1117,7 +1117,7 @@ func TestFlushChannels(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, w.FlushChannels(), "Flush Channels must not error")
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 
 	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
 	err = w.FlushChannels()                                                               // error on full subscribeToChannels
@@ -1135,7 +1135,7 @@ func TestFlushChannels(t *testing.T) {
 		}
 		return nil
 	}
-	assert.NoError(t, w.FlushChannels(), "Flush Channels should not error")
+	assert.NoError(t, w.FlushChannels(), "FlushChannels should not error")
 
 	w.GenerateSubs = newgen.generateSubs
 	subs, err := w.GenerateSubs()
