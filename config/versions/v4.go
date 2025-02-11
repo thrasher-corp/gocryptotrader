@@ -12,7 +12,7 @@ type Version4 struct {
 }
 
 func init() {
-	Manager.registerVersion(3, &Version4{})
+	Manager.registerVersion(4, &Version4{})
 }
 
 // Exchanges returns all exchanges: "*"

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVersion3UpgradeExchange(t *testing.T) {
+func TestVersion4UpgradeExchange(t *testing.T) {
 	t.Parallel()
 
 	got, err := (&Version4{}).UpgradeExchange(context.Background(), nil)
@@ -26,7 +26,7 @@ func TestVersion3UpgradeExchange(t *testing.T) {
 	require.Equal(t, payload, got)
 }
 
-func TestVersion3DowngradeExchange(t *testing.T) {
+func TestVersion4DowngradeExchange(t *testing.T) {
 	t.Parallel()
 
 	got, err := (&Version4{}).DowngradeExchange(context.Background(), nil)
@@ -40,7 +40,7 @@ func TestVersion3DowngradeExchange(t *testing.T) {
 	require.Equal(t, expected, got)
 }
 
-func TestVersion3Exchanges(t *testing.T) {
+func TestVersion4Exchanges(t *testing.T) {
 	t.Parallel()
 	assert := require.New(t)
 	assert.Equal([]string{"*"}, (&Version4{}).Exchanges())
