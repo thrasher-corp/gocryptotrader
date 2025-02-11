@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"testing"
@@ -766,6 +767,126 @@ func TestGetSubAffiliateData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.GetSubAffiliateData(context.Background(), time.Time{}, time.Time{}, "", 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractsDetail(t *testing.T) {
+	t.Parallel()
+	result, err := me.GetContractsDetail(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.GetContractsDetail(context.Background(), result.Data[0].Symbol)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	detail := `{"symbol":"BTC_USDT","displayName":"BTC_USDT永续","displayNameEn":"BTC_USDT PERPETUAL","positionOpenType":3,"baseCoin":"BTC","quoteCoin":"USDT","baseCoinName":"BTC","quoteCoinName":"USDT","futureType":1,"settleCoin":"USDT","contractSize":0.0001,"minLeverage":1,"maxLeverage":400,"countryConfigContractMaxLeverage":0,"priceScale":1,"volScale":0,"amountScale":4,"priceUnit":0.1,"volUnit":1,"minVol":1,"maxVol":1500000,"bidLimitPriceRate":0.1,"askLimitPriceRate":0.1,"takerFeeRate":0.0002,"makerFeeRate":0,"maintenanceMarginRate":0.0015,"initialMarginRate":0.0025,"riskBaseVol":15000,"riskIncrVol":200000,"riskLongShortSwitch":0,"riskIncrMmr":0.005,"riskIncrImr":0.008,"riskLevelLimit":13,"priceCoefficientVariation":0.004,"indexOrigin":["BITGET","BYBIT","BINANCE","HTX","OKX","MEXC","KUCOIN"],"state":0,"isNew":false,"isHot":false,"isHidden":false,"conceptPlate":["mc-trade-zone-pow"],"conceptPlateId":[12],"riskLimitType":"BY_VOLUME","maxNumOrders":[200,50],"marketOrderMaxLevel":20,"marketOrderPriceLimitRate1":0.2,"marketOrderPriceLimitRate2":0.005,"triggerProtect":0.1,"appraisal":0,"showAppraisalCountdown":0,"automaticDelivery":0,"apiAllowed":false,"depthStepList":["0.1","1","10","100"],"limitMaxVol":10000000,"threshold":0,"baseCoinIconUrl":"https://public.mocortech.com/coin/F20210514192151938ROhGjOFp2Fpgb7.png","id":10,"vid":"128f589271cb4951b03e71e6323eb7be","baseCoinId":"febc9973be4d4d53bb374476239eb219","createTime":1591242684000,"openingTime":0,"openingCountdownOption":1,"showBeforeOpen":true,"isMaxLeverage":true,"isZeroFeeRate":false}`
+	details := `[` + detail + ",{}]"
+	var target FuturesContractsList
+	err := json.Unmarshal([]byte(detail), &target)
+	assert.NoError(t, err)
+	assert.Len(t, target, 1)
+
+	var targets FuturesContractsList
+	err = json.Unmarshal([]byte(details), &targets)
+	assert.NoError(t, err)
+	assert.Len(t, targets, 2)
+}
+
+func TestGetTransferableCurrencies(t *testing.T) {
+	t.Parallel()
+	result, err := me.GetTransferableCurrencies(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractDepthInformation(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractDepthInformation(context.Background(), "", 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetContractDepthInformation(context.Background(), "BTC_USDT", 2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDepthSnapshotOfContract(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetDepthSnapshotOfContract(context.Background(), "", 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.GetDepthSnapshotOfContract(context.Background(), "BTC_USDT", 0)
+	require.ErrorIs(t, err, errLimitIsRequired)
+
+	result, err := me.GetDepthSnapshotOfContract(context.Background(), "BTC_USDT", 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractIndexPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractIndexPrice(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetContractIndexPrice(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractFairPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractFairPrice(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetContractFairPrice(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractFundingPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractFundingPrice(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetContractFundingPrice(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestContractIntervalString(t *testing.T) {
+	t.Parallel()
+	var intervalToStringMap = map[kline.Interval]struct {
+		String string
+		Error  error
+	}{
+		kline.OneMin:     {"Min1", nil},
+		kline.FiveMin:    {"Min5", nil},
+		kline.FifteenMin: {"Min15", nil},
+		kline.ThirtyMin:  {"Min30", nil},
+		kline.OneHour:    {"Min60", nil},
+		kline.FourHour:   {"Hour4", nil},
+		kline.EightHour:  {"Hour8", nil},
+		kline.OneDay:     {"Day1", nil},
+		kline.OneWeek:    {"Week1", nil},
+		kline.OneMonth:   {"Month1", nil},
+		kline.SixMonth:   {"", kline.ErrUnsupportedInterval},
+	}
+	for key, result := range intervalToStringMap {
+		value, err := ContractIntervalString(key)
+		require.ErrorIs(t, err, result.Error)
+		assert.Equal(t, result.String, value)
+	}
+}
+
+func TestGetContractsCandlestickData(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractsCandlestickData(context.Background(), "", 0, time.Now().Add(-time.Hour*480), time.Now())
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetContractsCandlestickData(context.Background(), "BTC_USDT", kline.FifteenMin, time.Now().Add(-time.Hour*480), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -664,5 +665,180 @@ type AffiliateReferralData struct {
 			Asset            string       `json:"asset"`
 			Identification   int64        `json:"identification"`
 		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// FuturesContractsDetail holds a list of futures contracts detail
+type FuturesContractsDetail struct {
+	Success bool                 `json:"success"`
+	Code    int64                `json:"code"`
+	Data    FuturesContractsList `json:"data"`
+}
+
+// FuturesContractsList holds a list of futures contracts
+type FuturesContractsList []FuturesContractDetail
+
+// UnmarshalJSON deserializes a futures contract list byte data into FuturesContractsList instance
+func (fcl *FuturesContractsList) UnmarshalJSON(data []byte) error {
+	var target []FuturesContractDetail
+	err := json.Unmarshal(data, &target)
+	if err != nil {
+		var newTarget *FuturesContractDetail
+		err = json.Unmarshal(data, &newTarget)
+		if err != nil {
+			return err
+		}
+		target = append(target, *newTarget)
+	}
+	*fcl = target
+	return nil
+}
+
+// FuturesContractDetail holds a single futures contract detail
+type FuturesContractDetail struct {
+	Symbol                     string   `json:"symbol"`
+	DisplayName                string   `json:"displayName"`
+	DisplayNameEn              string   `json:"displayNameEn"`
+	PositionOpenType           int64    `json:"positionOpenType"`
+	BaseCoin                   string   `json:"baseCoin"`
+	QuoteCoin                  string   `json:"quoteCoin"`
+	SettleCoin                 string   `json:"settleCoin"`
+	ContractSize               float64  `json:"contractSize"`
+	MinLeverage                int64    `json:"minLeverage"`
+	MaxLeverage                int64    `json:"maxLeverage"`
+	PriceScale                 int64    `json:"priceScale"`
+	VolumeScale                int64    `json:"volScale"`
+	AmountScale                int64    `json:"amountScale"`
+	PriceUnit                  float64  `json:"priceUnit"`
+	VolUnit                    int64    `json:"volUnit"`
+	MinVol                     int64    `json:"minVol"`
+	MaxVol                     int64    `json:"maxVol"`
+	BidLimitPriceRate          float64  `json:"bidLimitPriceRate"`
+	AskLimitPriceRate          float64  `json:"askLimitPriceRate"`
+	TakerFeeRate               float64  `json:"takerFeeRate"`
+	MakerFeeRate               float64  `json:"makerFeeRate"`
+	MaintenanceMarginRate      float64  `json:"maintenanceMarginRate"`
+	InitialMarginRate          float64  `json:"initialMarginRate"`
+	RiskBaseVol                int64    `json:"riskBaseVol"`
+	RiskIncrVol                int64    `json:"riskIncrVol"`
+	RiskIncrMmr                float64  `json:"riskIncrMmr"`
+	RiskIncrImr                float64  `json:"riskIncrImr"`
+	RiskLevelLimit             int64    `json:"riskLevelLimit"`
+	PriceCoefficientVariation  float64  `json:"priceCoefficientVariation"`
+	IndexOrigin                []string `json:"indexOrigin"`
+	State                      int64    `json:"state"`
+	IsNew                      bool     `json:"isNew"`
+	IsHot                      bool     `json:"isHot"`
+	IsHidden                   bool     `json:"isHidden"`
+	ConceptPlate               []string `json:"conceptPlate"`
+	RiskLimitType              string   `json:"riskLimitType"`
+	MaxNumOrders               []int64  `json:"maxNumOrders"`
+	MarketOrderMaxLevel        int64    `json:"marketOrderMaxLevel"`
+	MarketOrderPriceLimitRate1 float64  `json:"marketOrderPriceLimitRate1"`
+	MarketOrderPriceLimitRate2 float64  `json:"marketOrderPriceLimitRate2"`
+	TriggerProtect             float64  `json:"triggerProtect"`
+	Appraisal                  int64    `json:"appraisal"`
+	ShowAppraisalCountdown     int64    `json:"showAppraisalCountdown"`
+	AutomaticDelivery          int64    `json:"automaticDelivery"`
+	APIAllowed                 bool     `json:"apiAllowed"`
+}
+
+// TransferableCurrencies holds a list of transferable currencies
+type TransferableCurrencies struct {
+	Success    bool     `json:"success"`
+	Code       int64    `json:"code"`
+	Currencies []string `json:"data"`
+}
+
+// ContractOrderbook holds futures contracts orderbook details
+type ContractOrderbook struct {
+	Asks      []OrderbookData `json:"asks"`
+	Bids      []OrderbookData `json:"bids"`
+	Version   int64           `json:"version"`
+	Timestamp types.Time      `json:"timestamp"`
+}
+
+// OrderbookData holds orderbook depth detail
+type OrderbookData orderbook.Tranche
+
+// UnmarshalJSON deserializes slice of byte data into OrderbookData
+func (od *OrderbookData) UnmarshalJSON(data []byte) error {
+	target := [2]any{&od.Price, &od.Amount}
+	return json.Unmarshal(data, &target)
+}
+
+// ContractOrderbookWithDepth holds orderbook depth details
+type ContractOrderbookWithDepth struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    []struct {
+		Asks    []OrderbookDataWithDepth `json:"asks"`
+		Bids    []OrderbookDataWithDepth `json:"bids"`
+		Version int64                    `json:"version"`
+	} `json:"data"`
+}
+
+// OrderbookDataWithDepth holds orderbook data with the depth
+type OrderbookDataWithDepth orderbook.Tranche
+
+// UnmarshalJSON deserializes slice of byte data into OrderbookDataWithDepth
+func (od *OrderbookDataWithDepth) UnmarshalJSON(data []byte) error {
+	target := [3]any{&od.Price, &od.Amount, &od.OrderCount}
+	return json.Unmarshal(data, &target)
+}
+
+// ContractIndexPriceDetail holds index price details
+type ContractIndexPriceDetail struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		Symbol     string     `json:"symbol"`
+		IndexPrice float64    `json:"indexPrice"`
+		Timestamp  types.Time `json:"timestamp"`
+	} `json:"data"`
+}
+
+// ContractFairPrice holds contracts fair price details
+type ContractFairPrice struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		Symbol    string     `json:"symbol"`
+		FairPrice float64    `json:"fairPrice"`
+		Timestamp types.Time `json:"timestamp"`
+	} `json:"data"`
+}
+
+// ContractFundingRate holds contract's funding rate details
+type ContractFundingRate struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		Symbol         string     `json:"symbol"`
+		FundingRate    float64    `json:"fundingRate"`
+		MaxFundingRate float64    `json:"maxFundingRate"`
+		MinFundingRate float64    `json:"minFundingRate"`
+		CollectCycle   int64      `json:"collectCycle"`
+		NextSettleTime types.Time `json:"nextSettleTime"`
+		Timestamp      types.Time `json:"timestamp"`
+	} `json:"data"`
+}
+
+// ContractCandlestickData holds futures contracts candlestick data
+type ContractCandlestickData struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		Time       []types.Time `json:"time"`
+		OpenPrice  []float64    `json:"open"`
+		ClosePrice []float64    `json:"close"`
+		HighPrice  []float64    `json:"high"`
+		LowPrice   []float64    `json:"low"`
+		Volume     []float64    `json:"vol"`
+		Amount     []float64    `json:"amount"`
+		RealOpen   []float64    `json:"realOpen"`
+		RealClose  []float64    `json:"realClose"`
+		RealHigh   []float64    `json:"realHigh"`
+		RealLow    []float64    `json:"realLow"`
 	} `json:"data"`
 }

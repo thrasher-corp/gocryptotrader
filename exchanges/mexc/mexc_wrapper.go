@@ -70,8 +70,9 @@ func (me *MEXC) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	me.API.Endpoints = me.NewEndpoints()
 	me.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      mexcAPIURL,
-		exchange.WebsocketSpot: mexcWSAPIURL,
+		exchange.RestSpot:      spotAPIURL,
+		exchange.WebsocketSpot: spotWSAPIURL,
+		exchange.RestFutures:   contractAPIURL,
 	})
 	me.Websocket = stream.NewWebsocket()
 	me.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

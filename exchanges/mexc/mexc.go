@@ -28,9 +28,10 @@ type MEXC struct {
 }
 
 const (
-	mexcAPIURL     = "https://api.mexc.com"
-	mexcWSAPIURL   = "https://api.mexc.com"
-	mexcAPIVersion = "/v3/"
+	spotAPIURL   = "https://api.mexc.com/api/v3/"
+	spotWSAPIURL = "https://api.mexc.com"
+
+	contractAPIURL = "https://contract.mexc.com/api/v1/"
 
 	// Public endpoints
 
@@ -45,6 +46,7 @@ var (
 	errNetworkNameRequired        = errors.New("network name required")
 	errAccountTypeRequired        = errors.New("account type information required")
 	errTransactionIDRequired      = errors.New("missing transaction ID")
+	errLimitIsRequired            = errors.New("limit is required")
 )
 
 // Start implementing public and private exchange API funcs below
@@ -1187,6 +1189,118 @@ func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/subaffiliates", params, &resp, true)
 }
 
+// ---------------------------------------------------------------- Futures endpoints ----------------------------------------------------------------
+
+// GetContractsDetail retrieves list of detailed futures contract
+func (me *MEXC) GetContractsDetail(ctx context.Context, symbol string) (*FuturesContractsDetail, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *FuturesContractsDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/detail", params, &resp)
+}
+
+// GetTransferableCurrencies returns list of transferabe currencies
+func (me *MEXC) GetTransferableCurrencies(ctx context.Context) (*TransferableCurrencies, error) {
+	var resp *TransferableCurrencies
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/support_currencies", nil, &resp)
+}
+
+// GetContractDepthInformation returns orderbook depth data of a contract
+func (me *MEXC) GetContractDepthInformation(ctx context.Context, symbol string, limit int64) (*ContractOrderbook, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *ContractOrderbook
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/depth/"+symbol, params, &resp)
+}
+
+// GetDepthSnapshotOfContract retrieves the order book details and depth information
+// for a given contract, filtered by symbol and depth.
+func (me *MEXC) GetDepthSnapshotOfContract(ctx context.Context, symbol string, limit int64) (*ContractOrderbookWithDepth, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if limit <= 0 {
+		return nil, errLimitIsRequired
+	}
+	var resp *ContractOrderbookWithDepth
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/depth_commits/"+symbol+"/"+strconv.FormatInt(limit, 10), nil, &resp)
+}
+
+// GetContractIndexPrice retrieves contract's index price details
+func (me *MEXC) GetContractIndexPrice(ctx context.Context, symbol string) (*ContractIndexPriceDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *ContractIndexPriceDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/index_price/"+symbol, nil, &resp)
+}
+
+// GetContractFairPrice retrieves contracts fair price detail
+func (me *MEXC) GetContractFairPrice(ctx context.Context, symbol string) (*ContractFairPrice, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *ContractFairPrice
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/fair_price/"+symbol, nil, &resp)
+}
+
+// GetContractFundingPrice holds contract's funding price
+func (me *MEXC) GetContractFundingPrice(ctx context.Context, symbol string) (*ContractFundingRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *ContractFundingRate
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/funding_rate/"+symbol, nil, &resp)
+}
+
+var contractIntervalToStringMap = map[kline.Interval]string{
+	kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30",
+	kline.OneHour: "Min60", kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1",
+	kline.OneWeek: "Week1", kline.OneMonth: "Month1",
+}
+
+// ContractIntervalString returns a string from kline.Interval instance
+func ContractIntervalString(interval kline.Interval) (string, error) {
+	intervalString, okay := contractIntervalToStringMap[interval]
+	if !okay {
+		return "", kline.ErrUnsupportedInterval
+	}
+	return intervalString, nil
+}
+
+// GetContractsCandlestickData retrieves futures contracts candlestick data
+func (me *MEXC) GetContractsCandlestickData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	if interval != 0 {
+		intervalString, err := ContractIntervalString(interval)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("interval", intervalString)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp *ContractCandlestickData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/kline/"+symbol, params, &resp)
+}
+
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
 func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)
@@ -1220,7 +1334,7 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.
 	return me.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		return &request.Item{
 			Method:  method,
-			Path:    ePoint + "/api" + mexcAPIVersion + common.EncodeURLValues(requestPath, values),
+			Path:    ePoint + common.EncodeURLValues(requestPath, values),
 			Headers: headers,
 			// Body:          bytes.NewBufferString(values.Encode()),
 			Result:        result,
