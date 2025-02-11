@@ -7,19 +7,19 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version3 is an ExchangeVersion to add the websocketMetricsLogging field
-type Version3 struct {
+// Version4 is an ExchangeVersion to add the websocketMetricsLogging field
+type Version4 struct {
 }
 
 func init() {
-	Manager.registerVersion(3, &Version3{})
+	Manager.registerVersion(3, &Version4{})
 }
 
 // Exchanges returns all exchanges: "*"
-func (v *Version3) Exchanges() []string { return []string{"*"} }
+func (v *Version4) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange will upgrade the exchange config with the websocketMetricsLogging field
-func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if len(e) == 0 {
 		return e, nil
 	}
@@ -34,6 +34,6 @@ func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 }
 
 // DowngradeExchange will downgrade the exchange config by removing the websocketMetricsLogging field
-func (v *Version3) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (v *Version4) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	return jsonparser.Delete(e, "websocketMetricsLogging"), nil
 }
