@@ -842,3 +842,117 @@ type ContractCandlestickData struct {
 		RealLow    []float64    `json:"realLow"`
 	} `json:"data"`
 }
+
+// ContractTransactions holds list of contract transactions
+type ContractTransactions struct {
+	Success bool                `json:"success"`
+	Code    int64               `json:"code"`
+	Data    []TransactionDetail `json:"data"`
+}
+
+// TransactionDetail holds a list of transaction details
+type TransactionDetail struct {
+	TransactionPrice float64    `json:"p"`
+	Quantity         float64    `json:"v"`
+	DealType         int64      `json:"T"` // Deal type,1:purchase,2:sell
+	OpenPosition     int64      `json:"O"` // Open position, 1: Yes,2: No, when O is 1, vol is additional position
+	SelfTransact     int64      `json:"M"` // Self-transact,1:yes,2:no
+	TransactionTime  types.Time `json:"t"`
+}
+
+// ContractTickers holds list of contracts ticker data and its details.
+type ContractTickers struct {
+	Success bool                `json:"success"`
+	Code    int64               `json:"code"`
+	Data    ContractTickersList `json:"data"`
+}
+
+// ContractTickerDetail holds a contract ticker detail
+type ContractTickerDetail struct {
+	Symbol        string     `json:"symbol"`
+	LastPrice     float64    `json:"lastPrice"`
+	Bid1          float64    `json:"bid1"`
+	Ask1          float64    `json:"ask1"`
+	Volume24      float64    `json:"volume24"`
+	Amount24      float64    `json:"amount24"`
+	HoldVol       float64    `json:"holdVol"`
+	Lower24Price  float64    `json:"lower24Price"`
+	High24Price   float64    `json:"high24Price"`
+	RiseFallRate  float64    `json:"riseFallRate"`
+	RiseFallValue float64    `json:"riseFallValue"`
+	IndexPrice    float64    `json:"indexPrice"`
+	FairPrice     float64    `json:"fairPrice"`
+	FundingRate   float64    `json:"fundingRate"`
+	MaxBidPrice   float64    `json:"maxBidPrice"`
+	MinAskPrice   float64    `json:"minAskPrice"`
+	Timestamp     types.Time `json:"timestamp"`
+}
+
+// ContractTickersList holds a list of contract ticker details.
+type ContractTickersList []ContractTickerDetail
+
+// UnmarshalJSON deserializes a contract ticker byte data into ContractTickersList
+func (cts *ContractTickersList) UnmarshalJSON(data []byte) error {
+	var targets []ContractTickerDetail
+	err := json.Unmarshal(data, &targets)
+	if err != nil {
+		var target *ContractTickerDetail
+		err := json.Unmarshal(data, &target)
+		if err != nil {
+			return err
+		}
+		targets = append(targets, *target)
+	}
+	*cts = targets
+	return nil
+}
+
+// ContractRiskFundBalances holds a list of contracts risk fund balance
+type ContractRiskFundBalances struct {
+	Success bool                      `json:"success"`
+	Code    int64                     `json:"code"`
+	Data    []ContractRiskFundBalance `json:"data"`
+}
+
+// ContractRiskFundBalance holds a contract fund balance
+type ContractRiskFundBalance struct {
+	Symbol    string     `json:"symbol"`
+	Currency  string     `json:"currency"`
+	Available float64    `json:"available"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// ContractRiskFundBalanceHistory holds list of contract risk fund balance history
+type ContractRiskFundBalanceHistory struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			Symbol       string     `json:"symbol"`
+			Currency     string     `json:"currency"`
+			Available    float64    `json:"available"`
+			SnapshotTime types.Time `json:"snapshotTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// ContractFundingRateHistory holds contract funding rate history
+type ContractFundingRateHistory struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			Symbol      string     `json:"symbol"`
+			FundingRate float64    `json:"fundingRate"`
+			SettleTime  types.Time `json:"settleTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}

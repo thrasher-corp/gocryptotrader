@@ -890,3 +890,79 @@ func TestGetContractsCandlestickData(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetKlineDataOfIndexPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetKlineDataOfIndexPrice(context.Background(), "", 0, time.Now().Add(-time.Hour*480), time.Now())
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetKlineDataOfIndexPrice(context.Background(), "BTC_USDT", kline.FifteenMin, time.Now().Add(-time.Hour*480), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetKlineDataOfFairPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetKlineDataOfFairPrice(context.Background(), "", 0, time.Now().Add(-time.Hour*480), time.Now())
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetKlineDataOfFairPrice(context.Background(), "BTC_USDT", kline.FifteenMin, time.Now().Add(-time.Hour*480), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractTransactionData(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractTransactionData(context.Background(), "", 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := me.GetContractTransactionData(context.Background(), "BTC_USDT", 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractTrendData(t *testing.T) {
+	t.Parallel()
+	result, err := me.GetContractTickers(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	result, err = me.GetContractTickers(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetAllContractRiskFundBalance(t *testing.T) {
+	t.Parallel()
+	result, err := me.GetAllContractRiskFundBalance(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractRiskFundBalanceHistory(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractRiskFundBalanceHistory(context.Background(), "", 1, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.GetContractRiskFundBalanceHistory(context.Background(), "BTC_USDT", 0, 10)
+	require.ErrorIs(t, err, errPageNumberRequired)
+	_, err = me.GetContractRiskFundBalanceHistory(context.Background(), "BTC_USDT", 1, 0)
+	require.ErrorIs(t, err, errPageSizeRequired)
+
+	result, err := me.GetContractRiskFundBalanceHistory(context.Background(), "BTC_USDT", 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractFundingRateHistory(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractFundingRateHistory(context.Background(), "", 1, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 0, 10)
+	require.ErrorIs(t, err, errPageNumberRequired)
+	_, err = me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 1, 0)
+	require.ErrorIs(t, err, errPageSizeRequired)
+
+	result, err := me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

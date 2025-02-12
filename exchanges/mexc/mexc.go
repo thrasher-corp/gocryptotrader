@@ -47,6 +47,8 @@ var (
 	errAccountTypeRequired        = errors.New("account type information required")
 	errTransactionIDRequired      = errors.New("missing transaction ID")
 	errLimitIsRequired            = errors.New("limit is required")
+	errPageSizeRequired           = errors.New("page size is required")
+	errPageNumberRequired         = errors.New("page number is required")
 )
 
 // Start implementing public and private exchange API funcs below
@@ -1278,6 +1280,20 @@ func ContractIntervalString(interval kline.Interval) (string, error) {
 
 // GetContractsCandlestickData retrieves futures contracts candlestick data
 func (me *MEXC) GetContractsCandlestickData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+	return me.getCandlestickData(ctx, symbol, "contract/kline/", interval, startTime, endTime)
+}
+
+// GetKlineDataOfIndexPrice retrieves kline data of an instrument by index price
+func (me *MEXC) GetKlineDataOfIndexPrice(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+	return me.getCandlestickData(ctx, symbol, "contract/kline/index_price/", interval, startTime, endTime)
+}
+
+// GetKlineDataOfFairPrice retrieves fair kline price data
+func (me *MEXC) GetKlineDataOfFairPrice(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+	return me.getCandlestickData(ctx, symbol, "contract/kline/fair_price/", interval, startTime, endTime)
+}
+
+func (me *MEXC) getCandlestickData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1298,7 +1314,74 @@ func (me *MEXC) GetContractsCandlestickData(ctx context.Context, symbol string, 
 		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *ContractCandlestickData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/kline/"+symbol, params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, path+symbol, params, &resp)
+}
+
+// GetContractTransactionData retrieves contract transaction data
+func (me *MEXC) GetContractTransactionData(ctx context.Context, symbol string, limit int64) (*ContractTransactions, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	if limit > 0 {
+		params.Set("symbol", symbol)
+	}
+	var resp *ContractTransactions
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/deals/"+symbol, params, &resp)
+}
+
+// GetContractTickers holds contract trend data
+func (me *MEXC) GetContractTickers(ctx context.Context, symbol string) (*ContractTickers, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *ContractTickers
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/ticker", params, &resp)
+}
+
+// GetAllContractRiskFundBalance holds a list of contracts risk fund balance
+func (me *MEXC) GetAllContractRiskFundBalance(ctx context.Context) (*ContractRiskFundBalance, error) {
+	var resp *ContractRiskFundBalance
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/risk_reverse", nil, &resp)
+}
+
+// GetContractRiskFundBalanceHistory holds a list of contracts risk fund balance history
+func (me *MEXC) GetContractRiskFundBalanceHistory(ctx context.Context, symbol string, pageNumber, pageSize int64) (*ContractRiskFundBalanceHistory, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if pageNumber <= 0 {
+		return nil, errPageNumberRequired
+	}
+	if pageSize <= 0 {
+		return nil, errPageSizeRequired
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	var resp *ContractRiskFundBalanceHistory
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/risk_reverse/history", params, &resp)
+}
+
+// GetContractFundingRateHistory holds contracts funding rate history
+func (me *MEXC) GetContractFundingRateHistory(ctx context.Context, symbol string, pageNumber, pageSize int64) (*ContractFundingRateHistory, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if pageNumber <= 0 {
+		return nil, errPageNumberRequired
+	}
+	if pageSize <= 0 {
+		return nil, errPageSizeRequired
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	var resp *ContractFundingRateHistory
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/funding_rate/history", params, &resp)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
