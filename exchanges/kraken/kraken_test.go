@@ -1680,7 +1680,7 @@ func TestErrorResponse(t *testing.T) {
 func TestGetFuturesErr(t *testing.T) {
 	t.Parallel()
 
-	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid character", "Bad JSON should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid char", "Bad JSON should error correctly")
 	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
 	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
 	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
