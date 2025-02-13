@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	maxTestVirtualMachines    uint8 = 30
-	testVirtualMachineTimeout       = time.Minute
-	scriptName                      = "1D01TH0RS3.gct"
+	maxTestVirtualMachines    uint64 = 30
+	testVirtualMachineTimeout        = time.Minute
+	scriptName                       = "1D01TH0RS3.gct"
 )
 
 var (
@@ -569,7 +569,7 @@ func TestVMCount(t *testing.T) {
 	}
 }
 
-func configHelper(enabled, imports bool, maxVMs uint8) *Config {
+func configHelper(enabled, imports bool, maxVMs uint64) *Config {
 	return &Config{
 		Enabled:            enabled,
 		AllowImports:       imports,

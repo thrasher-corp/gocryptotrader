@@ -1303,7 +1303,7 @@ type SubUIDAPIResponse struct {
 	ExpiredAt             time.Time `json:"expiredAt"`
 	CreatedAt             time.Time `json:"createdAt"`
 	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
-	IsUnifiedTradeAccount int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
+	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
 	UserID                int64     `json:"userID"`
 	InviterID             int64     `json:"inviterID"`
 	VipLevel              string    `json:"vipLevel"`
