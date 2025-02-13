@@ -159,7 +159,7 @@ func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 func (a *TransferHistory) UnmarshalJSON(data []byte) error {
 	type Alias TransferHistory
 	aux := &struct {
-		TimeStamp uint64 `json:"time"`
+		TimeStamp int64 `json:"time"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -167,8 +167,8 @@ func (a *TransferHistory) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
-	if aux.TimeStamp == 0 {
-		a.TimeStamp = time.UnixMilli(int64(aux.TimeStamp))
+	if aux.TimeStamp > 0 {
+		a.TimeStamp = time.UnixMilli(aux.TimeStamp)
 	}
 	return nil
 }
@@ -177,7 +177,7 @@ func (a *TransferHistory) UnmarshalJSON(data []byte) error {
 func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 	type Alias ExchangeInfo
 	chil := &struct {
-		Servertime uint64 `json:"serverTime"`
+		Servertime int64 `json:"serverTime"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -186,7 +186,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Servertime > 0 {
-		a.ServerTime = time.UnixMilli(int64(chil.Servertime))
+		a.ServerTime = time.UnixMilli(chil.Servertime)
 	}
 	return nil
 }

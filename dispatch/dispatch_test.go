@@ -386,7 +386,7 @@ func BenchmarkSubscribe(b *testing.B) {
 	newID, err := mux.GetID()
 	require.NoError(b, err, "GetID should not error")
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := mux.Subscribe(newID)
 		if err != nil {
 			b.Error(err)

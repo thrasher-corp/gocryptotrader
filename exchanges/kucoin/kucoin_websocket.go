@@ -266,9 +266,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		if resp.Subject == "order.done" {
 			var response WsMarginTradeOrderDoneEvent
 			return ku.processData(resp.Data, &response)
-		} else {
-			return ku.processMarginLendingTradeOrderEvent(resp.Data)
 		}
+		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case spotMarketAdvancedChannel:
 		return ku.processStopOrderEvent(resp.Data)
 	case futuresTickerChannel:

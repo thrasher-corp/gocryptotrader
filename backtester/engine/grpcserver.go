@@ -211,8 +211,8 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 
-	if io64 := int64(request.IntervalOverride); io64 > 0 {
-		if io64 < gctkline.FifteenSecond.Duration().Nanoseconds() {
+	if request.IntervalOverride > 0 {
+		if request.IntervalOverride < gctkline.FifteenSecond.Duration().Nanoseconds() {
 			return nil, fmt.Errorf("%w, interval must be >= 15 seconds, received '%v'", gctkline.ErrInvalidInterval, time.Duration(request.IntervalOverride))
 		}
 		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
@@ -528,7 +528,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			Driver:  request.Config.DataSettings.DatabaseData.Config.Driver,
 			ConnectionDetails: drivers.ConnectionDetails{
 				Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
-				Port:     uint16(request.Config.DataSettings.DatabaseData.Config.Config.Port),
+				Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
 				Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
 				Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
 				Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,

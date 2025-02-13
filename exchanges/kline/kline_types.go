@@ -161,13 +161,13 @@ type ExchangeCapabilitiesEnabled struct {
 	// across all intervals. This is used to determine if a request will exceed
 	// the exchange limits. Indivudal interval limits are stored in the
 	// ExchangeIntervals struct. If this is set to 0, it will be ignored.
-	GlobalResultLimit uint32
+	GlobalResultLimit uint64
 }
 
 // ExchangeIntervals stores the supported intervals in an optimized lookup table
 // with a supplementary aligned retrieval list
 type ExchangeIntervals struct {
-	supported map[Interval]int64
+	supported map[Interval]uint64
 	aligned   []IntervalCapacity
 }
 
@@ -180,7 +180,7 @@ type IntervalRangeHolder struct {
 	Start  IntervalTime
 	End    IntervalTime
 	Ranges []IntervalRange
-	Limit  int
+	Limit  uint64
 }
 
 // IntervalRange is a subset of candles based on exchange API request limits
@@ -209,5 +209,5 @@ type IntervalTime struct {
 // IntervalCapacity is used to store the interval and capacity for a candle return
 type IntervalCapacity struct {
 	Interval Interval
-	Capacity int64
+	Capacity uint64
 }

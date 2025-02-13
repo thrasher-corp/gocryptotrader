@@ -104,7 +104,7 @@ func TestLoad(t *testing.T) {
 // 84119028	        13.87 ns/op	       0 B/op	       0 allocs/op (new)
 func BenchmarkLoad(b *testing.B) {
 	ts := Tranches{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ts.load(ask)
 	}
 }
@@ -262,7 +262,7 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 		},
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		a.updateInsertByPrice(updates, 0)
 	}
 }
@@ -285,7 +285,7 @@ func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 		},
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		a.updateInsertByPrice(updates, 0)
 	}
 }
@@ -357,7 +357,7 @@ func BenchmarkUpdateByID(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := asks.updateByID(asksSnapshot)
 		if err != nil {
 			b.Fatal(err)
@@ -427,7 +427,7 @@ func BenchmarkDeleteByID(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := asks.deleteByID(asksSnapshot, false)
 		if err != nil {
 			b.Fatal(err)
@@ -702,7 +702,7 @@ func BenchmarkUpdateInsertByID_asks(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := asks.updateInsertByID(asksSnapshot, askCompare)
 		if err != nil {
 			b.Fatal(err)
@@ -974,7 +974,7 @@ func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 	}
 	bids.load(bidsSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := bids.updateInsertByID(bidsSnapshot, bidCompare)
 		if err != nil {
 			b.Fatal(err)
@@ -1878,7 +1878,7 @@ func BenchmarkRetrieve(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = asks.retrieve(6)
 	}
 }
