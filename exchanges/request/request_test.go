@@ -491,8 +491,7 @@ func TestGetNonce(t *testing.T) {
 func BenchmarkGetNonce(b *testing.B) {
 	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	require.NoError(b, err)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		r.GetNonce(nonce.UnixNano)
 		r.timedLock.UnlockIfLocked()
 	}

@@ -486,7 +486,7 @@ var filterOrdersByTypeBenchmark = &[]Detail{
 // 392455	      3226 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 9486490	       109.5 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByType(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		FilterOrdersByType(filterOrdersByTypeBenchmark, Limit)
 	}
 }
@@ -538,7 +538,7 @@ var filterOrdersBySideBenchmark = &[]Detail{
 // 372594	      3049 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 7412187	       148.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersBySide(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		FilterOrdersBySide(filterOrdersBySideBenchmark, Ask)
 	}
 }
@@ -623,7 +623,7 @@ var filterOrdersByTimeRangeBenchmark = &[]Detail{
 // 390822	      3335 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 6201034	       172.1 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		err := FilterOrdersByTimeRange(filterOrdersByTimeRangeBenchmark, time.Unix(50, 0), time.Unix(150, 0))
 		if err != nil {
 			b.Fatal(err)
@@ -705,7 +705,7 @@ var filterOrdersByPairsBenchmark = &[]Detail{
 // 6977242	       172.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByPairs(b *testing.B) {
 	pairs := []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		FilterOrdersByPairs(filterOrdersByPairsBenchmark, pairs)
 	}
 }
@@ -908,7 +908,7 @@ var sideBenchmark Side
 // 9756914	       126.7 ns/op	       0 B/op	       0 allocs/op // PREV
 // 25200660	        57.63 ns/op	       3 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderSide(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		sideBenchmark, _ = StringToOrderSide("any")
 	}
 }
@@ -986,7 +986,7 @@ var typeBenchmark Type
 // 5703705	       299.9 ns/op	       0 B/op	       0 allocs/op // PREV
 // 16353608	        81.23 ns/op	       8 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderType(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		typeBenchmark, _ = StringToOrderType("trigger")
 	}
 }
@@ -1063,7 +1063,7 @@ var statusBenchmark Status
 // 3569052	       351.8 ns/op	       0 B/op	       0 allocs/op // PREV
 // 11126791	       101.9 ns/op	      24 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderStatus(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		statusBenchmark, _ = StringToOrderStatus("market_unavailable")
 	}
 }
@@ -1662,7 +1662,7 @@ var activeBenchmark = Detail{Status: Pending, Amount: 1}
 // 610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
 // 1000000000	         1.188 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsActive(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		if !activeBenchmark.IsActive() {
 			b.Fatal("expected true")
 		}
@@ -1730,7 +1730,7 @@ var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
 
 // 1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsInactive(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		if !inactiveBenchmark.IsInactive() {
 			b.Fatal("expected true")
 		}

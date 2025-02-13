@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -49,7 +50,7 @@ var executeStrategyFromFileCommand = &cli.Command{
 			Aliases: []string{"e"},
 			Usage:   fmt.Sprintf("override the strategy file's end time using your local time. eg '%v'", time.Now().Truncate(time.Hour).Format(time.DateTime)),
 		},
-		&cli.Uint64Flag{
+		&cli.Int64Flag{
 			Name:    "intervaloverride",
 			Aliases: []string{"i"},
 			Usage:   "override the strategy file's candle interval, in seconds. eg 60 = 1 minute",
@@ -118,16 +119,19 @@ func executeStrategyFromFile(c *cli.Context) error {
 		}
 	}
 
-	var intervalOverride uint64
+	var intervalOverride int64
 	if c.IsSet("intervaloverride") {
-		intervalOverride = c.Uint64("intervaloverride")
+		intervalOverride = c.Int64("intervaloverride")
 	} else if c.Args().Get(5) != "" {
-		intervalOverride, err = strconv.ParseUint(c.Args().Get(5), 10, 64)
+		intervalOverride, err = strconv.ParseInt(c.Args().Get(5), 10, 64)
 		if err != nil {
 			return err
 		}
 	}
 	overrideDuration := time.Duration(intervalOverride) * time.Second
+	if overrideDuration < 0 {
+		return errors.New("interval override cannot be less than 0")
+	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
@@ -138,7 +142,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 			DoNotStore:          dns,
 			StartTimeOverride:   timestamppb.New(s),
 			EndTimeOverride:     timestamppb.New(e),
-			IntervalOverride:    uint64(overrideDuration),
+			IntervalOverride:    int64(overrideDuration),
 		},
 	)
 
@@ -503,7 +507,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	}
 
 	dataSettings := &btrpc.DataSettings{
-		Interval: uint64(defaultConfig.DataSettings.Interval.Duration().Nanoseconds()),
+		Interval: defaultConfig.DataSettings.Interval.Duration().Nanoseconds(),
 		Datatype: defaultConfig.DataSettings.DataType,
 	}
 	if defaultConfig.DataSettings.APIData != nil {
@@ -546,7 +550,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	if defaultConfig.DataSettings.DatabaseData != nil {
 		dbConnectionDetails := &btrpc.DatabaseConnectionDetails{
 			Host:     defaultConfig.DataSettings.DatabaseData.Config.Host,
-			Port:     uint32(defaultConfig.DataSettings.DatabaseData.Config.Port),
+			Port:     defaultConfig.DataSettings.DatabaseData.Config.Port,
 			Password: defaultConfig.DataSettings.DatabaseData.Config.Password,
 			Database: defaultConfig.DataSettings.DatabaseData.Config.Database,
 			SslMode:  defaultConfig.DataSettings.DatabaseData.Config.SSLMode,

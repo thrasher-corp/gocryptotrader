@@ -36,7 +36,7 @@ linters:
 #   - errorlint
 #   - exhaustive
 #   - exhaustruct
-    - exportloopref
+#   - exptostd
     - fatcontext
 #   - forbidigo
     - forcetypeassert
@@ -100,7 +100,7 @@ linters:
     - stylecheck
     - tagalign
 #   - tagliatelle
-    - tenv
+#   - tenv # Duplicate feature of another linter. Replaced by usetesting.
     - testableexamples
     - testifylint
 #   - testpackage
@@ -109,6 +109,7 @@ linters:
     - unconvert
     - unparam
     - usestdlibvars
+#   - usetesting
 #   - varnamelen
     - wastedassign
     - whitespace

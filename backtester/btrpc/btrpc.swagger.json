@@ -139,7 +139,7 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "format": "uint64"
+            "format": "int64"
           },
           {
             "name": "config.dataSettings.datatype",
@@ -427,7 +427,7 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "format": "uint64"
+            "format": "int64"
           }
         ],
         "tags": [
@@ -724,7 +724,7 @@
       "properties": {
         "interval": {
           "type": "string",
-          "format": "uint64"
+          "format": "int64"
         },
         "datatype": {
           "type": "string"

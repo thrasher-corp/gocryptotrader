@@ -618,7 +618,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
+	orderIDInt, err := strconv.ParseUint(orderID, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid orderID %w", err)
 	}
@@ -632,7 +632,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	var orderType order.Type
 	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
 		Symbol:  symbolValue,
-		OrderID: uint64(orderIDInt),
+		OrderID: orderIDInt,
 	})
 	if err != nil {
 		return nil, err
@@ -653,7 +653,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	return &order.Detail{
 		Amount:         resp.OrigQty,
 		Exchange:       bi.Name,
-		OrderID:        strconv.FormatInt(int64(resp.OrderID), 10),
+		OrderID:        strconv.FormatUint(resp.OrderID, 10),
 		ClientOrderID:  resp.ClientOrderID,
 		Side:           orderSide,
 		Type:           orderType,
@@ -764,7 +764,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time,
 			Exchange:      bi.Name,
-			OrderID:       strconv.FormatInt(int64(resp[x].OrderID), 10),
+			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
 			Side:          orderSide,
 			Type:          orderType,

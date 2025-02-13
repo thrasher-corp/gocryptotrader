@@ -822,7 +822,7 @@ type TradeGetBucketedParams struct {
 	Reverse bool `json:"reverse,omitempty"`
 
 	// Start - Starting point for results.
-	Start int32 `json:"start,omitempty"`
+	Start int64 `json:"start,omitempty"`
 
 	// StartTime - Starting date filter for results.
 	StartTime string `json:"startTime,omitempty"`

@@ -107,7 +107,7 @@ type ExchangeTuningSettings struct {
 
 // GCTScriptSettings defines settings related to the GCTScript virtual machine
 type GCTScriptSettings struct {
-	MaxVirtualMachines uint
+	MaxVirtualMachines uint64
 }
 
 // WithdrawSettings defines settings related to Withdrawing cryptocurrency

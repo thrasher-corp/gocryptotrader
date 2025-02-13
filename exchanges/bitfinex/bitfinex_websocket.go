@@ -105,7 +105,7 @@ var defaultSubscriptions = subscription.List{
 var comms = make(chan stream.Response)
 
 type checksum struct {
-	Token    int
+	Token    uint32
 	Sequence int64
 }
 
@@ -642,11 +642,11 @@ func (b *Bitfinex) handleWSChecksum(c *subscription.Subscription, d []interface{
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
-	var token int
+	var token uint32
 	if f, ok := d[2].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[2], "checksum")
 	} else { //nolint:revive // using lexical variable requires else statement
-		token = int(f)
+		token = uint32(f)
 	}
 	if len(d) < 4 {
 		return errNoSeqNo
@@ -2084,7 +2084,7 @@ func makeRequestInterface(channelName string, data interface{}) []interface{} {
 	return []interface{}{0, channelName, nil, data}
 }
 
-func validateCRC32(book *orderbook.Base, token int) error {
+func validateCRC32(book *orderbook.Base, token uint32) error {
 	// Order ID's need to be sub-sorted in ascending order, this needs to be
 	// done on the main book to ensure that we do not cut price levels out below
 	reOrderByID(book.Bids)
@@ -2132,14 +2132,14 @@ func validateCRC32(book *orderbook.Base, token int) error {
 
 	checksumStr := strings.TrimSuffix(check.String(), ":")
 	checksum := crc32.ChecksumIEEE([]byte(checksumStr))
-	if checksum == uint32(token) {
+	if checksum == token {
 		return nil
 	}
 	return fmt.Errorf("invalid checksum for %s %s: calculated [%d] does not match [%d]",
 		book.Asset,
 		book.Pair,
 		checksum,
-		uint32(token))
+		token)
 }
 
 // reOrderByID sub sorts orderbook items by its corresponding ID when price
@@ -2195,11 +2195,11 @@ func subToMap(s *subscription.Subscription, a asset.Item, p currency.Pair) map[s
 	for k, v := range s.Params {
 		switch k {
 		case CandlesPeriodKey:
-			if s, ok := v.(string); !ok {
+			s, ok := v.(string)
+			if !ok {
 				panic(common.GetTypeAssertError("string", v, "subscription.CandlesPeriodKey"))
-			} else {
-				fundingPeriod = ":" + s
 			}
+			fundingPeriod = ":" + s
 		case "key", "symbol", "len":
 			panic(fmt.Errorf("%w: %s", errParamNotAllowed, k)) // Ensure user's Params aren't silently overwritten
 		default:

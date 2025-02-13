@@ -486,7 +486,16 @@ func (h *HitBTC) GetTradableBalances(ctx context.Context) (map[string]map[string
 	for x, y := range result.Data {
 		balances[x] = make(map[string]float64)
 		for z, w := range y {
-			balances[x][z], _ = strconv.ParseFloat(w.(string), 64)
+			bal, ok := w.(string)
+			if !ok {
+				return nil, common.GetTypeAssertError("string", w, "balance")
+			}
+
+			balance, err := strconv.ParseFloat(bal, 64)
+			if err != nil {
+				return nil, err
+			}
+			balances[x][z] = balance
 		}
 	}
 
