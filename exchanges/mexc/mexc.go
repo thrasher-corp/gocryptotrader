@@ -1384,6 +1384,97 @@ func (me *MEXC) GetContractFundingRateHistory(ctx context.Context, symbol string
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/funding_rate/history", params, &resp)
 }
 
+// GetAllUserAssetsInformation retrieves all user asset balances
+func (me *MEXC) GetAllUserAssetsInformation(ctx context.Context) (*UserAssetsBalance, error) {
+	var resp *UserAssetsBalance
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/assets", nil, &resp, true)
+}
+
+// GetUserSingleCurrencyAssetInformation retrieves user's single asset balance
+func (me *MEXC) GetUserSingleCurrencyAssetInformation(ctx context.Context, ccy currency.Code) (*UserAssetBalance, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	resp := &struct {
+		Data *UserAssetBalance `json:"data"`
+	}{}
+	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/asset/"+ccy.String(), nil, &resp, true)
+}
+
+// GetUserAssetTransferRecords retrieves user's asset transfer records
+// possible values of status are: WAIT, SUCCESS, and FAILED
+func (me *MEXC) GetUserAssetTransferRecords(ctx context.Context, ccy currency.Code, status, transferType string, pageNumber, pageSize int64) (*AssetTransfers, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if status != "" {
+		params.Set("state", status)
+	}
+	if transferType != "" {
+		params.Set("type", transferType)
+	}
+	if pageNumber > 0 {
+		params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AssetTransfers
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/transfer_record", params, &resp)
+}
+
+// GetUserPositionHistory retrieves the user's position history.
+// Possible position type values are:
+// - '1' for long positions
+// - '2' for short positions.
+func (me *MEXC) GetUserPositionHistory(ctx context.Context, symbol, positionType string, pageNumber, pageSize int64) (*Positions, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if positionType != "" {
+		params.Set("type", positionType)
+	}
+	if pageNumber > 0 {
+		params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *Positions
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/list/history_positions", params, &resp, true)
+}
+
+// GetUsersCurrentHoldingPositions retrieves user's current holding positions
+func (me *MEXC) GetUsersCurrentHoldingPositions(ctx context.Context, symbol string) (*Positions, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *Positions
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/open_positions", params, &resp, true)
+}
+
+// GetUsersFundingRateDetails retrieves user's funding rate details
+func (me *MEXC) GetUsersFundingRateDetails(ctx context.Context, symbol string, positionID, pageNumber, pageSize int64) (interface{}, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if positionID != 0 {
+		params.Set("position_id", strconv.FormatInt(positionID, 10))
+	}
+	if pageNumber != 0 {
+		params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	}
+	if pageSize != 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *FundingRateHistory
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/funding_records", params, &resp, true)
+}
+
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
 func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)
@@ -1401,7 +1492,7 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.
 			return err
 		}
 		headers["X-MEXC-APIKEY"] = creds.Key
-		if values != nil {
+		if values == nil {
 			values = url.Values{}
 		}
 		values.Set("recvWindow", "5000")

@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -30,40 +30,19 @@ const (
 var me = &MEXC{}
 
 func TestMain(m *testing.M) {
-	me.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	me = new(MEXC)
+	if err := testexch.Setup(me); err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Mexc")
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		me.API.AuthenticatedSupport = true
+		me.API.AuthenticatedWebsocketSupport = true
+		me.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		me.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-
-	err = me.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	os.Exit(m.Run())
 }
-
-// Ensures that this exchange package is compatible with IBotExchange
-// func TestInterface(t *testing.T) {
-// 	var e exchange.IBotExchange
-// 	if e = new(MEXC); e == nil {
-// 		t.Fatal("unable to allocate exchange")
-// 	}
-// }
-
-// Implement tests for API endpoints below
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -963,6 +942,61 @@ func TestGetContractFundingRateHistory(t *testing.T) {
 	require.ErrorIs(t, err, errPageSizeRequired)
 
 	result, err := me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUserAssetsInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAllUserAssetsInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserSingleCurrencyAssetInformation(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetUserSingleCurrencyAssetInformation(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUserSingleCurrencyAssetInformation(context.Background(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserAssetTransferRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUserAssetTransferRecords(context.Background(), currency.ETH, "WAIT", "IN", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserPositionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUserPositionHistory(context.Background(), "BTC_USDT", "1", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersCurrentHoldingPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUsersCurrentHoldingPositions(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.GetUsersCurrentHoldingPositions(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersFundingRateDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUsersFundingRateDetails(context.Background(), "BTC_USDT", 123123, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

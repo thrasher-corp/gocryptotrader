@@ -956,3 +956,101 @@ type ContractFundingRateHistory struct {
 		} `json:"resultList"`
 	} `json:"data"`
 }
+
+// UserAssetsBalance holds user asset balances
+type UserAssetsBalance struct {
+	Success bool               `json:"success"`
+	Code    int64              `json:"code"`
+	Data    []UserAssetBalance `json:"data"`
+}
+
+// UserAssetBalance holds a user's single currency balance details
+type UserAssetBalance struct {
+	Currency         string  `json:"currency"`
+	PositionMargin   float64 `json:"positionMargin"`
+	AvailableBalance float64 `json:"availableBalance"`
+	CashBalance      float64 `json:"cashBalance"`
+	FrozenBalance    float64 `json:"frozenBalance"`
+	Equity           float64 `json:"equity"`
+	Unrealized       float64 `json:"unrealized"`
+	Bonus            float64 `json:"bonus"`
+}
+
+// AssetTransfers holds user's asset transfer records
+type AssetTransfers struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			ID            int64      `json:"id"`
+			TransactionID string     `json:"txid"`
+			Currency      string     `json:"currency"`
+			Amount        float64    `json:"amount"`
+			TransferType  string     `json:"type"`
+			State         string     `json:"state"`
+			CreateTime    types.Time `json:"createTime"`
+			UpdateTime    types.Time `json:"updateTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// Positions holds list position and their details
+type Positions struct {
+	Success bool                 `json:"success"`
+	Code    int64                `json:"code"`
+	Message string               `json:"message"`
+	Data    []UserPositionDetail `json:"data"`
+}
+
+// UserPositionDetail holds user's position detailed information
+type UserPositionDetail struct {
+	PositionID            int64      `json:"positionId"`
+	Symbol                string     `json:"symbol"`
+	PositionType          int64      `json:"positionType"`
+	OpenType              int64      `json:"openType"`
+	State                 int64      `json:"state"`
+	HoldVolume            float64    `json:"holdVol"`
+	FrozenVolume          float64    `json:"frozenVol"`
+	CloseVolume           float64    `json:"closeVol"`
+	HoldAvgPrice          float64    `json:"holdAvgPrice"`
+	OpenAvgPrice          float64    `json:"openAvgPrice"`
+	CloseAvgPrice         float64    `json:"closeAvgPrice"`
+	LiquidatePrice        float64    `json:"liquidatePrice"`
+	OriginalInitialMargin float64    `json:"oim"`
+	InitialMargin         float64    `json:"im"`
+	HoldFee               float64    `json:"holdFee"`
+	Realised              float64    `json:"realised"`
+	AdlLevel              int64      `json:"adlLevel"`
+	Leverage              int64      `json:"leverage"`
+	CreateTime            types.Time `json:"createTime"`
+	UpdateTime            types.Time `json:"updateTime"`
+	AutoAddIm             bool       `json:"autoAddIm"`
+}
+
+// FundingRateHistory holds list of funding rate details and their details
+type FundingRateHistory struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		PageSize    int64               `json:"pageSize"`
+		TotalCount  int64               `json:"totalCount"`
+		TotalPage   int64               `json:"totalPage"`
+		CurrentPage int64               `json:"currentPage"`
+		ResultList  []FundingRateDetail `json:"resultList"`
+	} `json:"data"`
+}
+
+// FundingRateDetail holds funding rate details
+type FundingRateDetail struct {
+	ID            int64      `json:"id"`
+	Symbol        string     `json:"symbol"`
+	PositionType  int64      `json:"positionType"`
+	PositionValue float64    `json:"positionValue"`
+	Funding       float64    `json:"funding"`
+	Rate          float64    `json:"rate"`
+	SettleTime    types.Time `json:"settleTime"`
+}
