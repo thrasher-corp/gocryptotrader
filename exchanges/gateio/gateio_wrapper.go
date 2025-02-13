@@ -755,7 +755,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		for i := range balances {
 			currencies[i] = account.Balance{
 				Currency: currency.NewCode(balances[i].Currency),
-				Total:    balances[i].Available.Float64() - balances[i].Locked.Float64(),
+				Total:    balances[i].Available.Float64() + balances[i].Locked.Float64(),
 				Hold:     balances[i].Locked.Float64(),
 				Free:     balances[i].Available.Float64(),
 			}
