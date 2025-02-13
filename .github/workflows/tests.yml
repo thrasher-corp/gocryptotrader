@@ -94,10 +94,10 @@ jobs:
         echo "CGO_ENABLED=1" >> $GITHUB_ENV
       shell: bash
 
-    - name: Set test flags
+    - name: Set GOFLAGS
       run: |
         if [ "${{ matrix.sonic }}" = "true" ]; then
-          echo "TEST_FLAGS=-tags sonic" >> $GITHUB_ENV
+          echo "GOFLAGS=${GOFLAGS} -tags=sonic" >> $GITHUB_ENV
         fi
       shell: bash
 
@@ -105,9 +105,9 @@ jobs:
       run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
         unset PGSERVICEFILE
         if [ "${{ matrix.goarch }}" = "386" ]; then
-          go test $TEST_FLAGS -coverprofile coverage.txt -covermode atomic ./...
+          go test -coverprofile coverage.txt -covermode atomic ./...
         else
-          go test $TEST_FLAGS -race -coverprofile coverage.txt -covermode atomic ./...
+          go test -race -coverprofile coverage.txt -covermode atomic ./...
         fi
       shell: bash
       env:
