@@ -869,9 +869,8 @@ func TestGetAllFutureContracts(t *testing.T) {
 	t.Parallel()
 
 	for _, c := range []currency.Code{currency.BTC, currency.USDT} {
-		if _, err := g.GetAllFutureContracts(context.Background(), c); err != nil {
-			assert.Errorf(t, err, "GetAllFutureContracts %s should not error", c)
-		}
+		_, err := g.GetAllFutureContracts(context.Background(), c)
+		assert.NoErrorf(t, err, "GetAllFutureContracts %s should not error", c)
 	}
 }
 
