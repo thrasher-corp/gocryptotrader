@@ -22,8 +22,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
-	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -997,6 +997,90 @@ func TestGetUsersFundingRateDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.GetUsersFundingRateDetails(context.Background(), "BTC_USDT", 123123, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserCurrentPendingOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetUserCurrentPendingOrder(context.Background(), "", 0, 10)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUserCurrentPendingOrder(context.Background(), "BTC_USDT", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUserHistoricalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAllUserHistoricalOrders(context.Background(), "BTC_USDT", "1", "1", "1", time.Time{}, time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderBasedOnExternalNumber(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetOrderBasedOnExternalNumber(context.Background(), "", "12312312")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.GetOrderBasedOnExternalNumber(context.Background(), "BTC_USDT", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetOrderBasedOnExternalNumber(context.Background(), "BTC_USDT", "12312312")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderByOrderNumber(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetOrderByOrderNumber(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetOrderByOrderNumber(context.Background(), "12312312")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBatchOrdersByOrderID(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetBatchOrdersByOrderID(context.Background(), nil)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetBatchOrdersByOrderID(context.Background(), []string{"123123"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderTransactionDetailsByOrderID(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetOrderTransactionDetailsByOrderID(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetOrderTransactionDetailsByOrderID(context.Background(), "1232131")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserOrderAllTransactionDetails(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetUserOrderAllTransactionDetails(context.Background(), "", time.Time{}, time.Time{}, 1, 100)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetUserOrderAllTransactionDetails(context.Background(), "BTC_USDT", time.Time{}, time.Time{}, 1, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTriggerOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetTriggerOrderList(context.Background(), "", "1", time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

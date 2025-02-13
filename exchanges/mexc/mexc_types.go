@@ -1054,3 +1054,91 @@ type FundingRateDetail struct {
 	Rate          float64    `json:"rate"`
 	SettleTime    types.Time `json:"settleTime"`
 }
+
+// FuturesOrders holds a futures orders history
+type FuturesOrders struct {
+	Success bool                 `json:"success"`
+	Code    int64                `json:"code"`
+	Message string               `json:"message"`
+	Data    []FuturesOrderDetail `json:"data"`
+}
+
+// FuturesOrderDetail holds futures order details
+type FuturesOrderDetail struct {
+	OrderID         int64      `json:"orderId"`
+	Symbol          string     `json:"symbol"`
+	PositionID      int64      `json:"positionId"`
+	Price           float64    `json:"price"`
+	Volume          float64    `json:"vol"`
+	Leverage        int64      `json:"leverage"`
+	Side            int64      `json:"side"`
+	Category        int64      `json:"category"`
+	OrderType       int64      `json:"orderType"`
+	DealAvgPrice    float64    `json:"dealAvgPrice"`
+	DealVol         float64    `json:"dealVol"`
+	OrderMargin     float64    `json:"orderMargin"`
+	TakerFee        float64    `json:"takerFee"`
+	MakerFee        float64    `json:"makerFee"`
+	Profit          float64    `json:"profit"`
+	FeeCurrency     string     `json:"feeCurrency"`
+	OpenType        int64      `json:"openType"`
+	State           int64      `json:"state"`
+	ExternalOid     string     `json:"externalOid"`
+	ErrorCode       int64      `json:"errorCode"`
+	UsedMargin      float64    `json:"usedMargin"`
+	CreateTime      types.Time `json:"createTime"`
+	UpdateTime      types.Time `json:"updateTime"`
+	StopLossPrice   float64    `json:"stopLossPrice"`
+	TakeProfitPrice float64    `json:"takeProfitPrice"`
+}
+
+// OrderTransactions holds list of transactions for an order.
+type OrderTransactions struct {
+	Success bool                      `json:"success"`
+	Code    int64                     `json:"code"`
+	Data    []FuturesOrderTransaction `json:"data"`
+}
+
+// FuturesOrderTransaction holds an order's transactions
+type FuturesOrderTransaction struct {
+	ID              string     `json:"id"`
+	Symbol          string     `json:"symbol"`
+	Side            int64      `json:"side"`
+	Volume          float64    `json:"vol"`
+	Price           float64    `json:"price"`
+	FeeCurrency     string     `json:"feeCurrency"`
+	Fee             float64    `json:"fee"`
+	Profit          float64    `json:"profit"`
+	Category        int64      `json:"category"`
+	OrderID         string     `json:"orderId"`
+	Taker           bool       `json:"taker"`
+	IsTaker         bool       `json:"isTaker"`
+	OpponentOrderID int64      `json:"opponentOrderId"`
+	Timestamp       types.Time `json:"timestamp"`
+}
+
+// FuturesTriggerOrders holds futures trigger orders
+type FuturesTriggerOrders struct {
+	Success bool   `json:"success"`
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+	Data    []struct {
+		ID           int64      `json:"id"`
+		Symbol       string     `json:"symbol"`
+		Leverage     int64      `json:"leverage"`
+		Side         int64      `json:"side"`
+		TriggerPrice float64    `json:"triggerPrice"`
+		Price        float64    `json:"price"`
+		Volume       float64    `json:"vol"`
+		OpenType     int64      `json:"openType"`
+		TriggerType  int64      `json:"triggerType"`
+		State        int64      `json:"state"`
+		ExecuteCycle int64      `json:"executeCycle"`
+		Trend        int64      `json:"trend"`
+		OrderType    int64      `json:"orderType"`
+		OrderID      int64      `json:"orderId"`
+		ErrorCode    int64      `json:"errorCode"`
+		CreateTime   types.Time `json:"createTime"`
+		UpdateTime   types.Time `json:"updateTime"`
+	} `json:"data"`
+}
