@@ -1110,7 +1110,7 @@ type SubAccountTransferParam struct {
 	SubAccount     string        `json:"sub_account"`
 	Direction      string        `json:"direction"`
 	Amount         types.Number  `json:"amount"`
-	SubAccountType string        `json:"sub_account_type"`
+	SubAccountType asset.Item    `json:"sub_account_type"`
 }
 
 // SubAccountTransferResponse represents transfer records between main and sub accounts

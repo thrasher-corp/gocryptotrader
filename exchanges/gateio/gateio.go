@@ -137,7 +137,7 @@ var (
 	errInvalidOrderSize                 = errors.New("invalid order size")
 	errInvalidOrderID                   = errors.New("invalid order id")
 	errInvalidAmount                    = errors.New("invalid amount")
-	errInvalidOrEmptySubaccount         = errors.New("invalid or empty subaccount")
+	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
 	errInvalidOrderSide                 = errors.New("invalid order side")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
@@ -1184,7 +1184,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if arg.SubAccount == "" {
-		return errInvalidOrEmptySubaccount
+		return errInvalidSubAccount
 	}
 	arg.Direction = strings.ToLower(arg.Direction)
 	if arg.Direction != "to" && arg.Direction != "from" {
@@ -1194,9 +1194,9 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 		return errInvalidAmount
 	}
 	switch arg.SubAccountType {
-	case "", "spot", "futures", "delivery":
+	case asset.Empty, asset.Spot, asset.Futures, asset.DeliveryFutures:
 	default:
-		return fmt.Errorf("%v; only spot, futures and delivery are allowed", asset.ErrNotSupported)
+		return fmt.Errorf("%w: `%s`", asset.ErrNotSupported, arg.SubAccountType)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }

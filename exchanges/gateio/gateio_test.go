@@ -744,15 +744,19 @@ func TestTransferCurrency(t *testing.T) {
 
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
+	req := SubAccountTransferParam{SubAccountType: asset.Index}
+	require.ErrorIs(t, g.SubAccountTransfer(ctx, req), currency.ErrCurrencyCodeEmpty)
+	req.Currency = currency.BTC
+	require.ErrorIs(t, g.SubAccountTransfer(ctx, req), errInvalidSubAccount)
+	req.SubAccount = "1337"
+	require.ErrorIs(t, g.SubAccountTransfer(ctx, req), errInvalidTransferDirection)
+	req.Direction = "to"
+	require.ErrorIs(t, g.SubAccountTransfer(ctx, req), errInvalidAmount)
+	req.Amount = 1.337
+	require.ErrorIs(t, g.SubAccountTransfer(ctx, req), asset.ErrNotSupported)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if err := g.SubAccountTransfer(context.Background(), SubAccountTransferParam{
-		Currency:   currency.BTC,
-		SubAccount: "12222",
-		Direction:  "to",
-		Amount:     1,
-	}); err != nil {
-		t.Errorf("%s SubAccountTransfer() error %v", g.Name, err)
-	}
+	require.NoError(t, g.SubAccountTransfer(ctx, req))
 }
 
 func TestGetSubAccountTransferHistory(t *testing.T) {
