@@ -1142,3 +1142,75 @@ type FuturesTriggerOrders struct {
 		UpdateTime   types.Time `json:"updateTime"`
 	} `json:"data"`
 }
+
+// FuturesStopLimitOrders holds list of futures stop limit orders details
+type FuturesStopLimitOrders struct {
+	Success bool                    `json:"success"`
+	Code    int64                   `json:"code"`
+	Message string                  `json:"message"`
+	Data    []FuturesStopLimitOrder `json:"data"`
+}
+
+// FuturesStopLimitOrder holds a stop-limit order detail
+type FuturesStopLimitOrder struct {
+	ID              int64      `json:"id"`
+	OrderID         int64      `json:"orderId"`
+	Symbol          string     `json:"symbol"`
+	PositionID      int64      `json:"positionId"`
+	StopLossPrice   float64    `json:"stopLossPrice"`
+	TakeProfitPrice float64    `json:"takeProfitPrice"`
+	State           int64      `json:"state"`
+	TriggerSide     int64      `json:"triggerSide"`
+	PositionType    int64      `json:"positionType"`
+	Volume          float64    `json:"vol"`
+	RealityVol      float64    `json:"realityVol"`
+	PlaceOrderID    int64      `json:"placeOrderId"`
+	ErrorCode       int64      `json:"errorCode"`
+	Version         int64      `json:"version"`
+	IsFinished      int64      `json:"isFinished"`
+	CreateTime      types.Time `json:"createTime"`
+	UpdateTime      types.Time `json:"updateTime"`
+}
+
+// FutureRiskLimit holds futures symbols risk limit
+type FutureRiskLimit struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    map[string][]struct {
+		Level                 int64   `json:"level"`
+		MaxVolume             int64   `json:"maxVol"`
+		MaxLeverage           int64   `json:"maxLeverage"`
+		MaintenanceMarginRate float64 `json:"mmr"`
+		InitialMarginRate     float64 `json:"imr"`
+		Symbol                string  `json:"symbol"`
+		PositionType          int64   `json:"positionType"`
+	} `json:"data"`
+}
+
+// FuturesTradingFeeRates holds trading fee details of a symbol
+type FuturesTradingFeeRates struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		Level            int64   `json:"level"`
+		DealAmount       float64 `json:"dealAmount"`
+		WalletBalance    float64 `json:"walletBalance"`
+		MakerFee         float64 `json:"makerFee"`
+		TakerFee         float64 `json:"takerFee"`
+		MakerFeeDiscount int64   `json:"makerFeeDiscount"`
+		TakerFeeDiscount int64   `json:"takerFeeDiscount"`
+	} `json:"data"`
+}
+
+// ContractLeverageInfo holds leverage information for an instrument
+type ContractLeverageInfo struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    struct {
+		PositionType          string  `json:"positionType"`
+		Level                 int64   `json:"level"`
+		MaintenanceMarginRate float64 `json:"mmr"`
+		InitialMarginRate     float64 `json:"imr"`
+		Leverage              int64   `json:"leverage"`
+	} `json:"data"`
+}

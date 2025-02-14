@@ -437,3 +437,82 @@ func (me *MEXC) GetTriggerOrderList(ctx context.Context, symbol, states string, 
 	var resp *FuturesTriggerOrders
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/planorder/list/orders", params, &resp, true)
 }
+
+// GetFuturesStopLimitOrderList retrieves futures stop limit orders list
+func (me *MEXC) GetFuturesStopLimitOrderList(ctx context.Context, symbol string, isFinished bool, startTime, endTime time.Time, pageNumber, pageSize int64) (interface{}, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if isFinished {
+		params.Set("is_finished", "1")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if pageNumber > 0 {
+		params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *FuturesStopLimitOrders
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/stoporder/list/orders", params, &resp, true)
+}
+
+// GetFuturesRiskLimit retrieves futures symbols risk limits
+func (me *MEXC) GetFuturesRiskLimit(ctx context.Context, symbol string) (*FutureRiskLimit, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *FutureRiskLimit
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/risk_limit", params, &resp, true)
+}
+
+// GetFuturesCurrentTradingFeeRate holds futures current trading fee rates
+func (me *MEXC) GetFuturesCurrentTradingFeeRate(ctx context.Context, symbol string) (*FuturesTradingFeeRates, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *FuturesTradingFeeRates
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/tiered_fee_rate", params, &resp, true)
+}
+
+// IncreaseDecreaseMargin adjusts the margin amount in a futures trading account.
+// Possible change type values:
+// - 'ADD' to increase the margin
+// - 'SUB' to decrease the margin.
+func (me *MEXC) IncreaseDecreaseMargin(ctx context.Context, positionID int64, amount float64, changeType string) error {
+	if positionID == 0 {
+		return fmt.Errorf("%w: positionID is required", order.ErrOrderIDNotSet)
+	}
+	if amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	if changeType == "" {
+		return fmt.Errorf("%w: changeType is required", order.ErrTypeIsInvalid)
+	}
+	params := url.Values{}
+	params.Set("positionId", strconv.FormatInt(positionID, 10))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("type", changeType)
+	return me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_margin", params, nil, true)
+}
+
+// GetContractLeverage retrieves leverage information for a contract
+func (me *MEXC) GetContractLeverage(ctx context.Context, symbol string) (*ContractLeverageInfo, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *ContractLeverageInfo
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/leverage", params, &resp, true)
+}

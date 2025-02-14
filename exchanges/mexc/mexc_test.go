@@ -1084,3 +1084,55 @@ func TestGetTriggerOrderList(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetFuturesStopLimitOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetFuturesStopLimitOrderList(context.Background(), "BTC_USDT", false, time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesRiskLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetFuturesRiskLimit(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesCurrentTradingFeeRate(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetFuturesCurrentTradingFeeRate(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetFuturesCurrentTradingFeeRate(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestIncreaseDecreaseMargin(t *testing.T) {
+	t.Parallel()
+	err := me.IncreaseDecreaseMargin(context.Background(), 0, 0, "ADD")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	err = me.IncreaseDecreaseMargin(context.Background(), 12312312, 0, "ADD")
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	err = me.IncreaseDecreaseMargin(context.Background(), 12312312, 1.5, "")
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	err = me.IncreaseDecreaseMargin(context.Background(), 1231231, 123.45, "SUB")
+	assert.NoError(t, err)
+}
+
+func TestGetContractLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetContractLeverage(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetContractLeverage(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
