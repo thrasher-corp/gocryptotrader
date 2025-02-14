@@ -66,14 +66,6 @@ func GenerateSupportedFunctionality(exch IBotExchange) protocol.FunctionalitySet
 
 			result := methodValue.Call(reflectArgs)
 			err, _ = result[len(result)-1].Interface().(error)
-			// if !ok {
-			// 	fmt.Println("Error type assertion failed", methodName)
-			// 	for i := range result {
-			// 		fmt.Println(result[i].Interface())
-			// 	}
-			// 	log.Warnf(log.Global, "generate supported functionality: method %s result error type assertion failed for %s", methodName, exch.GetName())
-			// 	continue
-			// }
 
 			isFunctional := err != nil && !errors.Is(err, common.ErrFunctionNotSupported) && !errors.Is(err, common.ErrNotYetImplemented) && !errors.Is(err, asset.ErrNotSupported)
 
