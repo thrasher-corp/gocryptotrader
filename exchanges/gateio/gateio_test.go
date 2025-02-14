@@ -2056,7 +2056,6 @@ func TestFuturesDataHandler(t *testing.T) {
 	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error { return g.WsHandleFuturesData(context.Background(), m, asset.CoinMarginedFutures) })
-	g.Websocket.DataHandler <- errors.New("hamster")
 	close(g.Websocket.DataHandler)
 	assert.Len(t, g.Websocket.DataHandler, 14, "Should see the correct number of messages")
 	for resp := range g.Websocket.DataHandler {
