@@ -29,12 +29,12 @@ func (v *Version5) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 	if err := json.Unmarshal(fsJSON, &fs); err != nil {
 		return e, err
 	}
-	futures, ok := fs["futures"]
+	f, ok := fs["futures"]
 	if !ok {
 		// Not our job to add CoinM, USDT. Only to split them
 		return e, nil
 	}
-	for _, p := range strings.Split(futures.Available, ",") {
+	for _, p := range strings.Split(f.Available, ",") {
 		where := "usdtmarginedfutures"
 		if strings.HasSuffix(p, "USD") {
 			where = "coinmarginedfutures"
@@ -44,7 +44,7 @@ func (v *Version5) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		}
 		fs[where].Available += p
 	}
-	for _, p := range strings.Split(futures.Enabled, ",") {
+	for _, p := range strings.Split(f.Enabled, ",") {
 		where := "usdtmarginedfutures"
 		if strings.HasSuffix(p, "USD") {
 			where = "coinmarginedfutures"
@@ -54,8 +54,8 @@ func (v *Version5) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		}
 		fs[where].Enabled += p
 	}
-	fs["usdtmarginedfutures"].AssetEnabled = futures.AssetEnabled
-	fs["coinmarginedfutures"].AssetEnabled = futures.AssetEnabled
+	fs["usdtmarginedfutures"].AssetEnabled = f.AssetEnabled
+	fs["coinmarginedfutures"].AssetEnabled = f.AssetEnabled
 	delete(fs, "futures")
 	val, err := json.Marshal(fs)
 	if err == nil {
