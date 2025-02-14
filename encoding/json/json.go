@@ -4,8 +4,8 @@ package json
 
 import "encoding/json" //nolint:depguard // This is a wrapper package for encoding/json. It serves as the default JSON package for GCT (GoCryptoTrader). All uses of JSON throughout the application should refer to this package with the default build.
 
-// Version is a constant string that represents the current JSON implementation package
-const Version = "encoding/json"
+// Implementation is a constant string that represents the current JSON implementation package
+const Implementation = "encoding/json"
 
 var (
 	// Marshal returns the JSON encoding of v. See the "encoding/json" documentation for Marshal
