@@ -3003,7 +3003,7 @@ func (f *FakeBase) GetFeeByType(context.Context, *FeeBuilder) (float64, error) {
 }
 
 func (f *FakeBase) SubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
-	return nil, errors.New("random error")
+	return nil, nil
 }
 
 func (f *FakeBase) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {

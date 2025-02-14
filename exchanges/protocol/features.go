@@ -86,8 +86,8 @@ func (t Type) String() string {
 
 // const for protocol types
 const (
-	REST      Type = 0
-	Websocket Type = 1
+	REST Type = iota + 1
+	Websocket
 )
 
 // Target holds the asset and protocol type for a map lookup
@@ -96,5 +96,8 @@ type Target struct {
 	Protocol Type
 }
 
-// FeatureSet holds the protocol type and asset type
-type FeatureSet map[Target]Features
+// FunctionalitySet holds the protocol type and asset type
+type FunctionalitySet map[Target]Functionality
+
+// Functionality holds the functionality map
+type Functionality map[string]bool

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -114,27 +113,38 @@ type Attributes struct {
 	Year            int
 	CapitalName     string
 	DonationAddress string
-	Features        []ProtocolFeature
+	Features        []ProtocolFunctionality
 }
 
-// ProtocolFeature defines a protocol feature set
-type ProtocolFeature struct {
+// ProtocolFunctionality defines a protocol feature set
+type ProtocolFunctionality struct {
 	Protocol string
-	Assets   []AssetFeature
+	Assets   []AssetFunctionality
 }
 
-func (a ProtocolFeature) String() string {
+func (a ProtocolFunctionality) String() string {
 	return a.Protocol
 }
 
-// AssetFeature defines an asset feature set
-type AssetFeature struct {
+// AssetFunctionality defines an asset feature set
+type AssetFunctionality struct {
 	Asset   string
-	Methods []string
+	Methods []MethodNameAndOperational
 }
 
-func (a AssetFeature) String() string {
+func (a AssetFunctionality) String() string {
 	return a.Asset
+}
+
+// MethodNameAndOperational defines a method name and if it is operational
+type MethodNameAndOperational struct {
+	MethodName  string
+	Operational bool
+}
+
+// String returns the method name
+func (m MethodNameAndOperational) String() string {
+	return m.MethodName
 }
 
 func main() {
@@ -461,7 +471,11 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 // GetTemplateFiles parses and returns all template files in the documentation
 // tree
 func GetTemplateFiles() (*template.Template, error) {
-	tmpl := template.New("")
+	tmpl := template.New("").Funcs(template.FuncMap{
+		"contains":   contains,
+		"append":     _append,
+		"emptySlice": emptySlice,
+	})
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -517,7 +531,7 @@ func GetDocumentationAttributes(packageName string, contributors []Contributor) 
 		Year:            time.Now().Year(),
 		CapitalName:     GetPackageName(packageName, true),
 		DonationAddress: core.BitcoinDonationAddress,
-		Features:        GetFeatures(name),
+		Features:        GetFunctionality(name),
 	}
 }
 
@@ -535,47 +549,44 @@ func GetPackageName(name string, capital bool) string {
 	return newStrings[i]
 }
 
-// GetFeatures returns a dynamic list of supported functionality for a specific asset type.
-func GetFeatures(name string) []ProtocolFeature {
-	if name != "gateio" { // TODO: Remove and implement across all exchanges after POC.
-		return nil
-	}
+// GetFunctionality returns a dynamic list of supported functionality for a specific asset type.
+func GetFunctionality(name string) []ProtocolFunctionality {
 	exch, _ := engine.NewExchangeByNameWithDefaults(context.Background(), name)
 	if exch == nil {
 		return nil
 	}
 
-	set := exchange.AutomaticPreFlightCheck(exch)
+	set := exchange.GenerateSupportedFunctionality(exch)
 	if set == nil {
 		return nil
 	}
 
-	lookup := make(map[string][]AssetFeature)
-	for k, v := range set {
-		var f AssetFeature
-		f.Asset = k.Asset.String()
-		t := reflect.TypeOf(v)
-
-		// Iterate over the struct fields
-		for i := range t.NumField() {
-			value := reflect.ValueOf(v).Field(i)
-			if value.Kind() != reflect.Bool || !value.Bool() {
-				continue
-			}
-			f.Methods = append(f.Methods, t.Field(i).Name)
+	lookup := make(map[string][]AssetFunctionality)
+	for ap, availableFunctionality := range set {
+		methods := make([]MethodNameAndOperational, 0, len(availableFunctionality))
+		for k, v := range availableFunctionality {
+			methods = append(methods, MethodNameAndOperational{
+				MethodName:  k,
+				Operational: v,
+			})
 		}
-		lookup[k.Protocol.String()] = append(lookup[k.Protocol.String()], f)
+		pName := ap.Protocol.String()
+		methods = common.SortStrings(methods)
+		lookup[pName] = append(lookup[pName], AssetFunctionality{
+			Asset:   ap.Asset.String(),
+			Methods: methods,
+		})
 	}
-	features := make([]ProtocolFeature, 0)
+	functionalityList := make([]ProtocolFunctionality, 0, len(lookup))
 	for k, v := range lookup {
 		v = common.SortStrings(v)
-		features = append(features, ProtocolFeature{
+		functionalityList = append(functionalityList, ProtocolFunctionality{
 			Protocol: k,
 			Assets:   v,
 		})
 	}
-	features = common.SortStrings(features)
-	return features
+	functionalityList = common.SortStrings(functionalityList)
+	return functionalityList
 }
 
 // GetGoDocURL returns a string for godoc package names
@@ -689,4 +700,21 @@ func runTemplate(details DocumentationDetails, mainPath, name string) error {
 
 	attr := GetDocumentationAttributes(name, details.Contributors)
 	return details.Tmpl.ExecuteTemplate(f, name, attr)
+}
+
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
+func emptySlice() []string {
+	return []string{}
+}
+
+func _append(slice []string, item string) []string {
+	return append(slice, item)
 }

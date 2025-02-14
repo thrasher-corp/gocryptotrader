@@ -239,10 +239,9 @@ type Base struct {
 	BaseCurrencies currency.Currencies
 	CurrencyPairs  currency.PairsManager
 	Features       Features
-	// ProtocolCapabilities is a map of supported features for each asset type
-	// and protocol type. This is mapped in the preflight check to determine
-	// if the method is functional and ready for that asset type.
-	ProtocolCapabilities          protocol.FeatureSet
+	// ProtocolCapabilities is a map of supported functionality for each asset type and protocol type. This is mapped in
+	// the supported features check to determine if the method is functional and ready for that asset type.
+	ProtocolCapabilities          protocol.FunctionalitySet
 	HTTPTimeout                   time.Duration
 	HTTPRecording                 bool
 	HTTPDebugging                 bool

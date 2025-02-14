@@ -24,6 +24,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + REST functions
 
+## Trading Methods Supported
+
+### Protocol: REST
+
+| Method Name | cross_margin | delivery | futures | margin | options | spot |
+|------------|---|---|---|---|---|---|
+| CancelAllOrders | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| CancelBatchOrders | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| CancelOrder | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| GetActiveOrders | 🟢  | 🚫  | 🟢  | 🟢  | 🟢  | 🟢  |
+| GetOrderHistory | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| GetOrderInfo | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| ModifyOrder | 🚫  | 🚫  | 🚫  | 🚫  | 🚫  | 🚫  |
+| SubmitOrder | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+
 ### How to enable
 
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
@@ -116,71 +131,6 @@ if err != nil {
 	// Exchanges will be abstracted out in further updates and examples will be
 	// supplied then
 ```
-
-## Trading Methods Supported
-
-### Protocol: REST
-
-#### Asset: cross_margin
-
-Supported Methods:
-- GetOrder
-- GetOrders
-- CancelOrders
-- CancelOrder
-- SubmitOrder
-- UserTradeHistory
-
-#### Asset: delivery
-
-Supported Methods:
-- GetOrder
-- CancelOrders
-- CancelOrder
-- SubmitOrder
-- UserTradeHistory
-
-#### Asset: futures
-
-Supported Methods:
-- GetOrder
-- GetOrders
-- CancelOrders
-- CancelOrder
-- SubmitOrder
-- UserTradeHistory
-
-#### Asset: margin
-
-Supported Methods:
-- GetOrder
-- GetOrders
-- CancelOrders
-- CancelOrder
-- SubmitOrder
-- UserTradeHistory
-
-#### Asset: options
-
-Supported Methods:
-- GetOrder
-- GetOrders
-- CancelOrders
-- CancelOrder
-- SubmitOrder
-- UserTradeHistory
-
-#### Asset: spot
-
-Supported Methods:
-- GetOrder
-- GetOrders
-- CancelOrders
-- CancelOrder
-- SubmitOrder
-- UserTradeHistory
-
-
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

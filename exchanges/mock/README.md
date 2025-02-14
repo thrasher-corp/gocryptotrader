@@ -24,6 +24,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + REST recording service
 + REST mock response server
 
+## Trading Methods Supported
+
+
+
 ### How to enable
 
 + Any exchange with mock testing will be enabled by default. This is done using build tags which are highlighted in the examples below via `//+build mock_test_off`. To disable and run live endpoint testing parse `-tags=mock_test_off` as a go test param.

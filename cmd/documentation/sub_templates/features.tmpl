@@ -2,17 +2,44 @@
 ## Trading Methods Supported
 
 {{range $feature := .Features -}}
-### Protocol: {{$feature.Protocol}}
+### Protocol: {{$feature.Protocol -}}
 
-{{range $assetFeatures := $feature.Assets -}}
-#### Asset: {{$assetFeatures.Asset}}
+{{- $assetTypes := emptySlice }}
+{{- $methodNames := emptySlice }}
 
-Supported Methods:
-{{- range $method := $assetFeatures.Methods }}
-- {{$method}}
+{{- /* Collect all unique asset types */ -}}
+{{- range $asset := $feature.Assets }}
+    {{- $assetTypes = append $assetTypes $asset.Asset }}
+    {{- range $method := $asset.Methods }}
+        {{- if not (contains $methodNames $method.MethodName) }}
+            {{- $methodNames = append $methodNames $method.MethodName }}
+        {{- end }}
+    {{- end }}
 {{- end }}
 
-{{end}}
+| Method Name |{{range $asset := $assetTypes}} {{$asset}} |{{end}}
+|------------|{{range $asset := $assetTypes}}---|{{end}}
+
+{{- /* Iterate over all unique method names */ -}}
+{{- range $methodName := $methodNames }}
+| {{$methodName}} |
+  {{- range $asset := $assetTypes }}
+    {{- $found := false }}
+    {{- range $lookup := $feature.Assets }}
+      {{- if eq $lookup.Asset $asset }}
+        {{- range $m := $lookup.Methods }}
+          {{- if eq $m.MethodName $methodName }}
+            {{- if $m.Operational }} 🟢 {{else}} 🚫 {{end}}
+            {{- $found = true }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if not $found }} 🚫 {{end}} |
+  {{- end }}
 {{- end }}
 
-{{- end }}
+{{- end -}}
+
+
+{{- end -}}

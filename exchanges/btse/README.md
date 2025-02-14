@@ -25,6 +25,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + REST Support
 + Websocket Support
 
+## Trading Methods Supported
+
+
+
 ### How to enable
 
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
