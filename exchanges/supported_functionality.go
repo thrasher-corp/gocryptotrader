@@ -15,11 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-type setter struct {
-	fn   func(f *protocol.Features) *bool
-	args func(asset.Item) []interface{}
-}
-
 // GenerateSupportedFunctionality analyzes the exchange's supported asset types and protocols, returning a set of dynamically
 // discovered features (ProtocolCapabilities) that the exchange supports. This process is based on the exchange's
 // specific implementation of wrapper functions.
