@@ -516,3 +516,114 @@ func (me *MEXC) GetContractLeverage(ctx context.Context, symbol string) (*Contra
 	var resp *ContractLeverageInfo
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/leverage", params, &resp, true)
 }
+
+// SwitchLeverage adjusts the leverage of an open position.
+// Possible open type values:
+// - 1: Isolated position
+// - 2: Full position
+// Possible position type values:
+// - 1: Long position
+// - 2: Short position
+func (me *MEXC) SwitchLeverage(ctx context.Context, positionID, leverage, openType, positionType int64, symbol string) (*PositionLeverageResponse, error) {
+	if positionID == 0 {
+		return nil, fmt.Errorf("%w: positionID is required", order.ErrOrderIDNotSet)
+	}
+	if leverage <= 0 {
+		return nil, errMissingLeverage
+	}
+	params := url.Values{}
+	params.Set("positionId", strconv.FormatInt(positionID, 10))
+	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	if openType != 0 {
+		params.Set("openType", strconv.FormatInt(openType, 10))
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if positionType != 0 {
+		params.Set("positionType", strconv.FormatInt(positionType, 10))
+	}
+	resp := &struct {
+		Data PositionLeverageResponse `json:"data"`
+	}{}
+	return &resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_leverage", params, &resp, true)
+}
+
+// GetPositionMode retrieves a list of position modes
+func (me *MEXC) GetPositionMode(ctx context.Context) (*PositionMode, error) {
+	var resp *PositionMode
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/position_mode", nil, &resp, true)
+}
+
+// ChangePositionMode updates the position mode.
+// Possible values:
+// - 1: Hedge mode
+// - 2: One-way mode
+//
+// The position mode can only be modified if there are no active orders,
+// plan ned orders, or open positions; otherwise, the modification is not allowed.
+//
+// When switching between One-way and Hedge mode, the risk limit level
+// will be reset to Level 1. If you need to change this setting via API, modify the call accordingly.
+func (me *MEXC) ChangePositionMode(ctx context.Context, positionMode int64) (*StatusResponse, error) {
+	if positionMode == 0 {
+		return nil, errPositionModeRequired
+	}
+	params := url.Values{}
+	params.Set("positionMode", strconv.FormatInt(positionMode, 10))
+	var resp *StatusResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_position_mode", params, &resp, true)
+}
+
+// PlaceFuturesOrder placed a futures order
+func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (interface{}, error) {
+	if arg == nil || *arg == (PlaceFuturesOrderParams{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Price <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	if arg.Volume <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("symbol", arg.Symbol)
+	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	params.Set("vol", strconv.FormatFloat(arg.Volume, 'f', -1, 64))
+	switch {
+	case arg.Side.IsLong():
+		params.Set("side", "1")
+	case arg.Side.IsShort():
+		params.Set("side", "2")
+	default:
+		return nil, fmt.Errorf("%w: order side is missing", order.ErrSideIsInvalid)
+	}
+	switch arg.OrderType {
+	case order.Market:
+		params.Set("type", "5")
+	case order.Limit:
+		params.Set("type", "1")
+	case order.FillOrKill:
+		params.Set("type", "4")
+	case order.PostOnly:
+		params.Set("type", "2")
+	case order.ImmediateOrCancel:
+		params.Set("type", "3")
+	case order.Chase:
+		params.Set("type", "6")
+	default:
+		return nil, fmt.Errorf("%w: type: %v", order.ErrUnsupportedOrderType, arg.OrderType)
+	}
+	var value int64
+	resp := &StatusResponse{
+		Data: &value,
+	}
+	return value, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/submit", params, &resp, true)
+}
+
+// func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values{})
+
+// func (me *MEXC) PostFuturesBatchOrders(ctx context.Context, )

@@ -49,6 +49,8 @@ var (
 	errLimitIsRequired            = errors.New("limit is required")
 	errPageSizeRequired           = errors.New("page size is required")
 	errPageNumberRequired         = errors.New("page number is required")
+	errMissingLeverage            = errors.New("leverage is required")
+	errPositionModeRequired       = errors.New("position mode is required")
 )
 
 // Start implementing public and private exchange API funcs below

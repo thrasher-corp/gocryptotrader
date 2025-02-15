@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1213,4 +1215,43 @@ type ContractLeverageInfo struct {
 		InitialMarginRate     float64 `json:"imr"`
 		Leverage              int64   `json:"leverage"`
 	} `json:"data"`
+}
+
+// PositionLeverageResponse holds position leverage switching response
+type PositionLeverageResponse struct {
+	PositionID   int64  `json:"positionId"`
+	Leverage     int64  `json:"leverage"`
+	PositionType int64  `json:"positionType"`
+	Symbol       string `json:"symbol"`
+}
+
+// PositionMode represents a position mode response
+type PositionMode struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    int64 `json:"data"` // position mode,1:hedge，2:one-way
+}
+
+// StatusResponse holds a status code and status message response
+type StatusResponse struct {
+	Success bool        `json:"success"`
+	Code    int64       `json:"code"`
+	Data    interface{} `json:"data"`
+}
+
+// PlaceFuturesOrderParams holds futures order creation parameters
+type PlaceFuturesOrderParams struct {
+	Symbol          string
+	Price           float64
+	Volume          float64
+	Leverage        int64
+	Side            order.Side
+	OrderType       order.Type
+	MarginType      margin.Type
+	ExternalOrderID string
+	StopLossPrice   float64
+	TakeProfitPrice float64
+	PositionID      int64
+	PositionMode    int64
+	ReduceOnly      bool
 }

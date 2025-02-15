@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -1133,6 +1134,72 @@ func TestGetContractLeverage(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.GetContractLeverage(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSwitchLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := me.SwitchLeverage(context.Background(), 123333, 25, 2, 1, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = me.SwitchLeverage(context.Background(), 123333, 0, 2, 1, "")
+	require.ErrorIs(t, err, errMissingLeverage)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.SwitchLeverage(context.Background(), 123333, 25, 2, 1, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetPositionMode(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangePositionMode(t *testing.T) {
+	t.Parallel()
+	_, err := me.ChangePositionMode(context.Background(), 0)
+	require.ErrorIs(t, err, errPositionModeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.ChangePositionMode(context.Background(), 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.PlaceFuturesOrder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &PlaceFuturesOrderParams{
+		ReduceOnly: true,
+	}
+	_, err = me.PlaceFuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	arg.Symbol = "BTC_USDT"
+	_, err = me.PlaceFuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	arg.Price = 1234
+	_, err = me.PlaceFuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	arg.Volume = 3
+	_, err = me.PlaceFuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell
+	_, err = me.PlaceFuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.OrderType = order.Limit
+	_, err = me.PlaceFuturesOrder(context.Background(), arg)
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.PlaceFuturesOrder(context.Background(), &PlaceFuturesOrderParams{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
