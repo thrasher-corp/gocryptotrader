@@ -11,9 +11,9 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
@@ -53,9 +53,7 @@ func TestWsHandleData(t *testing.T) {
 					},
 				},
 			},
-			Websocket: &stream.Websocket{
-				DataHandler: make(chan any, 1),
-			},
+			Websocket: websocket.NewWebsocket(),
 		},
 	}
 
@@ -69,10 +67,8 @@ func TestWsHandleData(t *testing.T) {
 	}
 
 	err = dummy.wsHandleData([]byte(`{"status":"1336","resmsg":"Failed"}`))
-	if !errors.Is(err, stream.ErrSubscriptionFailure) {
-		t.Fatalf("received: %v but expected: %v",
-			err,
-			stream.ErrSubscriptionFailure)
+	if !errors.Is(err, websocket.ErrSubscriptionFailure) {
+		t.Fatalf("received: %v but expected: %v", err, websocket.ErrSubscriptionFailure)
 	}
 
 	err = dummy.wsHandleData(wsTickerResp)

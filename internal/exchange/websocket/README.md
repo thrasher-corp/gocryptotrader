@@ -1,10 +1,10 @@
-# GoCryptoTrader Exchange Stream Package
+# GoCryptoTrader Exchange Websocket Package
 
-This package is part of the GoCryptoTrader project and is responsible for handling exchange streaming data.
+This package is part of the GoCryptoTrader project and is responsible for handling exchange websocket data.
 
 ## Overview
 
-The `stream` package uses Gorilla Websocket and provides functionalities to connect to various cryptocurrency exchanges and handle real-time data streams.
+The `websocket` package provides methods to manage connections and subscriptions for exchange websockets.
 
 ## Features
 
@@ -21,13 +21,14 @@ The `stream` package uses Gorilla Websocket and provides functionalities to conn
 ## Usage
 
 ### Default single websocket connection
-Here is a basic example of how to setup the `stream` package for websocket:
+
+Example setup for the `websocket` package connection:
 
 ```go
 package main
 
 import (
-    "github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
     exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
     "github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -38,7 +39,7 @@ type Exchange struct {
 
 // In the exchange wrapper this will set up the initial pointer field provided by exchange.Base
 func (e *Exchange) SetDefault() {
-    e.Websocket = stream.NewWebsocket()
+    e.Websocket = websocket.NewWebsocket()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -47,7 +48,7 @@ func (e *Exchange) SetDefault() {
 // In the exchange wrapper this is the original setup pattern for the websocket services 
 func (e *Exchange) Setup(exch *config.Exchange) error {
     // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-    if err := e.Websocket.Setup(&stream.WebsocketSetup{
+    if err := e.Websocket.Setup(&websocket.WebsocketSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             connectionURLString,
 		RunningURL:                             connectionURLString,
@@ -63,7 +64,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
     // This is a public websocket connection
-	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  connectionURLString,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
@@ -73,7 +74,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
     // This is a private websocket connection 
-	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  privateConnectionURLString,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
@@ -89,7 +90,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 ```go
 func (e *Exchange) Setup(exch *config.Exchange) error {
     // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-    if err := e.Websocket.Setup(&stream.WebsocketSetup{
+    if err := e.Websocket.Setup(&websocket.WebsocketSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
@@ -100,7 +101,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Spot connection
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      connectionURLStringForSpot,
 		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
@@ -117,7 +118,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Futures connection - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  connectionURLStringForSpotForFutures,
 		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,

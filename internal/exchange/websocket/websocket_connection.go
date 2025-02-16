@@ -1,4 +1,4 @@
-package stream
+package websocket
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -31,12 +31,12 @@ var (
 )
 
 // Dial sets proxy urls and then connects to the websocket
-func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
+func (w *WebsocketConnection) Dial(dialer *gws.Dialer, headers http.Header) error {
 	return w.DialContext(context.Background(), dialer, headers)
 }
 
 // DialContext sets proxy urls and then connects to the websocket
-func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *websocket.Dialer, headers http.Header) error {
+func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
@@ -128,7 +128,7 @@ func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handle
 	if handler.UseGorillaHandler {
 		w.Connection.SetPingHandler(func(msg string) error {
 			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
-			if err == websocket.ErrCloseSent {
+			if err == gws.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
 				return nil
@@ -205,7 +205,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 
 	var standardMessage []byte
 	switch mType {
-	case websocket.TextMessage:
+	case gws.TextMessage:
 		standardMessage = resp
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
@@ -321,7 +321,7 @@ func (w *WebsocketConnection) SendMessageReturnResponsesWithInspector(ctx contex
 	}
 
 	start := time.Now()
-	err = w.SendRawMessage(ctx, epl, websocket.TextMessage, outbound)
+	err = w.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
 	if err != nil {
 		return nil, err
 	}

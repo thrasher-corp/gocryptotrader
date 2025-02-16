@@ -23,8 +23,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -125,7 +125,7 @@ func (h *HitBTC) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.NewWebsocket()
+	h.Websocket = websocket.NewWebsocket()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -151,7 +151,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
+	err = h.Websocket.Setup(&websocket.WebsocketSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            hitbtcWebsocketAddress,
 		RunningURL:            wsRunningURL,
@@ -169,7 +169,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
