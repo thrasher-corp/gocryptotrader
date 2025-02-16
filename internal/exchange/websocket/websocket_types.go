@@ -1,18 +1,18 @@
-package stream
+package websocket
 
 import (
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/gorilla/websocket"
+	underlying "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 )
 
 // Websocket functionality list and state consts
@@ -94,10 +94,8 @@ type Websocket struct {
 	ReadMessageErrors chan error
 	features          *protocol.Features
 
-	// Standard stream connection
-	Conn Connection
-	// Authenticated stream connection
-	AuthConn Connection
+	Conn     Connection // Public connection
+	AuthConn Connection // Authenticated Privates connection
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter
@@ -154,8 +152,7 @@ type WebsocketConnection struct {
 	Verbose   bool
 	connected int32
 
-	// Gorilla websocket does not allow more than one goroutine to utilise
-	// writes methods
+	// Gorilla websocket does not allow more than one goroutine to utilise writes methods
 	writeControl sync.Mutex
 
 	// RateLimit is a rate limiter for the connection itself
@@ -168,7 +165,7 @@ type WebsocketConnection struct {
 	URL          string
 	ProxyURL     string
 	Wg           *sync.WaitGroup
-	Connection   *websocket.Conn
+	Connection   *underlying.Conn
 
 	// shutdown synchronises shutdown event across routines associated with this connection only e.g. ping handler
 	shutdown chan struct{}

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -58,12 +58,12 @@ var defaultFuturesSubscriptions = []string{
 }
 
 // WsFuturesConnect initiates a websocket connection for futures account
-func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) error {
+func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -75,9 +75,9 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
 		Websocket:   true,
-		MessageType: websocket.PingMessage,
+		MessageType: gws.PingMessage,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 	})
@@ -138,12 +138,12 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Gateio) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
@@ -199,14 +199,14 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresAutoOrdersChannel:
 		return g.processFuturesAutoOrderPushData(respRaw)
 	default:
-		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: g.Name + websocket.UnhandledMessage + string(respRaw),
 		}
-		return errors.New(stream.UnhandledMessage)
+		return errors.New(websocket.UnhandledMessage)
 	}
 }
 
-func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -375,7 +375,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 	if err != nil {
 		return err
 	}
-	klineDatas := make([]stream.KlineData, len(resp.Result))
+	klineDatas := make([]websocket.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -385,7 +385,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 		if err != nil {
 			return err
 		}
-		klineDatas[x] = stream.KlineData{
+		klineDatas[x] = websocket.KlineData{
 			Pair:       currencyPair,
 			AssetType:  assetType,
 			Exchange:   g.Name,

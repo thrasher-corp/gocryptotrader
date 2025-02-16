@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -246,7 +246,7 @@ type Base struct {
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
-	Websocket                     *stream.Websocket
+	Websocket                     *websocket.Websocket
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex

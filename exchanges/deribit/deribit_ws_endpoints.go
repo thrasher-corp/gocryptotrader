@@ -2319,7 +2319,7 @@ func (d *Deribit) WSMovePositions(ccy currency.Code, sourceSubAccountUID, target
 	return resp, d.SendWSRequest(nonMatchingEPL, movePositions, input, &resp, true)
 }
 
-// WsSimulateBlockTrade checks if a block trade can be executed through the websocket stream.
+// WsSimulateBlockTrade checks if a block trade can be executed through the websocket
 func (d *Deribit) WsSimulateBlockTrade(role string, trades []BlockTradeParam) (bool, error) {
 	if role != roleMaker && role != roleTaker {
 		return false, errInvalidTradeRole

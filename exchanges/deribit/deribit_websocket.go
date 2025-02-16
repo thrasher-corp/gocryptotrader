@@ -10,7 +10,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,10 +21,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -124,9 +124,9 @@ var (
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := d.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -299,8 +299,8 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		case "trades":
 			return d.processTrades(respRaw, channels)
 		default:
-			d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-				Message: d.Name + stream.UnhandledMessage + string(respRaw),
+			d.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+				Message: d.Name + websocket.UnhandledMessage + string(respRaw),
 			}
 			return nil
 		}
@@ -312,8 +312,8 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 				return nil
 			}
 		default:
-			d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-				Message: d.Name + stream.UnhandledMessage + string(respRaw),
+			d.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+				Message: d.Name + websocket.UnhandledMessage + string(respRaw),
 			}
 			return nil
 		}
@@ -616,7 +616,7 @@ func (d *Deribit) processCandleChart(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	d.Websocket.DataHandler <- stream.KlineData{
+	d.Websocket.DataHandler <- websocket.KlineData{
 		Timestamp:  time.UnixMilli(candleData.Tick),
 		Pair:       cp,
 		AssetType:  a,
@@ -829,7 +829,7 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		subAck[c] = true
 	}
 	if len(subAck) != len(subs) {
-		err = stream.ErrSubscriptionFailure
+		err = websocket.ErrSubscriptionFailure
 	}
 	for _, s := range subs {
 		if _, ok := subAck[s.QualifiedChannel]; ok {

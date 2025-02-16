@@ -16,7 +16,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -27,10 +27,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -100,7 +100,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Levels: 100, Params: map[string]any{"prec": "R0"}},
 }
 
-var comms = make(chan stream.Response)
+var comms = make(chan websocket.Response)
 
 type checksum struct {
 	Token    uint32
@@ -123,9 +123,9 @@ var subscriptionNames = map[string]string{
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
@@ -162,7 +162,7 @@ func (b *Bitfinex) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitfinex) wsReadData(ws stream.Connection) {
+func (b *Bitfinex) wsReadData(ws websocket.Connection) {
 	defer b.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -193,7 +193,7 @@ func (b *Bitfinex) WsDataHandler() {
 			}
 			return
 		case resp := <-comms:
-			if resp.Type != websocket.TextMessage {
+			if resp.Type != gws.TextMessage {
 				continue
 			}
 			err := b.wsHandleData(resp.Raw)
@@ -494,8 +494,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				b.Websocket.DataHandler <- wsFundingTrade
 			}
 		default:
-			b.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-				Message: b.Name + stream.UnhandledMessage + string(respRaw),
+			b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+				Message: b.Name + websocket.UnhandledMessage + string(respRaw),
 			}
 			return nil
 		}
@@ -581,12 +581,12 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 
 	c := b.Websocket.GetSubscription(subID)
 	if c == nil {
-		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, subscription.ErrNotFound, subID)
+		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, subscription.ErrNotFound, subID)
 	}
 
 	chanID, err := jsonparser.GetInt(respRaw, "chanId")
 	if err != nil {
-		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
+		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", websocket.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
 	}
 
 	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
@@ -596,7 +596,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	// subscribeToChan removes the old subID keyed Subscription
 	err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, c)
 	if err != nil {
-		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, err, subID)
+		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
 
 	if b.Verbose {
@@ -799,7 +799,7 @@ func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []any) e
 				return errors.New("invalid candleBundle length")
 			}
 			var err error
-			var klineData stream.KlineData
+			var klineData websocket.KlineData
 			if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
 				return fmt.Errorf("unable to convert candle timestamp: %w", err)
 			}
@@ -828,7 +828,7 @@ func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []any) e
 			return errors.New("invalid candleBundle length")
 		}
 		var err error
-		var klineData stream.KlineData
+		var klineData websocket.KlineData
 		if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
 			return fmt.Errorf("unable to convert candle timestamp: %w", err)
 		}

@@ -1852,7 +1852,7 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 
 // GetWsAuthStreamKey this method 'Creates User Data Stream' will retrieve a key to use for authorised WS streaming
 // Same as that of Binance
-// Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
+// Start a new user data websocket. The stream will close after 60 minutes unless a keepalive is sent.
 // If the account has an active listenKey,
 // that listenKey will be returned and its validity will be extended for 60 minutes.
 func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
@@ -1928,7 +1928,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 	}, request.AuthenticatedRequest)
 }
 
-// CloseUserDataStream Close out a user data stream.
+// CloseUserDataStream Close out a user data websocket.
 func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {

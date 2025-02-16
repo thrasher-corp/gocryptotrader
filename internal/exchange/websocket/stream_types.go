@@ -1,11 +1,11 @@
-package stream
+package websocket
 
 import (
 	"context"
 	"net/http"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
-// Connection defines a streaming services connection
+// Connection defines the interface for websocket connections
 type Connection interface {
-	Dial(*websocket.Dialer, http.Header) error
-	DialContext(context.Context, *websocket.Dialer, http.Header) error
+	Dial(*gws.Dialer, http.Header) error
+	DialContext(context.Context, *gws.Dialer, http.Header) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// GenerateMessageID generates a message ID for the individual connection. If a bespoke function is set

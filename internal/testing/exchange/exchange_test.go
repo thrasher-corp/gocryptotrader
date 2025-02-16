@@ -3,7 +3,7 @@ package exchange
 import (
 	"testing"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -31,6 +31,6 @@ func TestMockHTTPInstance(t *testing.T) {
 
 // TestMockWsInstance exercises MockWsInstance
 func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Binance](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *websocket.Conn) error { return nil }))
+	b := MockWsInstance[binance.Binance](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
 	require.NotNil(t, b, "MockWsInstance must not be nil")
 }

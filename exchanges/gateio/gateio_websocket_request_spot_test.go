@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -21,7 +21,7 @@ func TestWebsocketLogin(t *testing.T) {
 	err := g.websocketLogin(context.Background(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	err = g.websocketLogin(context.Background(), &stream.WebsocketConnection{}, "")
+	err = g.websocketLogin(context.Background(), &websocket.WebsocketConnection{}, "")
 	require.ErrorIs(t, err, errChannelEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
