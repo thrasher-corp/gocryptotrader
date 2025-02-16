@@ -1203,3 +1203,24 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestCancelOrderByClientOrderID(t *testing.T) {
+	t.Parallel()
+	_, err := me.CancelOrderByClientOrderID(context.Background(), "", "12345")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = me.CancelOrderByClientOrderID(context.Background(), "BTC_USDT", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CancelOrderByClientOrderID(context.Background(), "BTC_USDT", "12345")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.CancelAllOpenOrders(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

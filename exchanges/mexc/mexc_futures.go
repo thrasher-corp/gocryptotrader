@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -577,6 +578,18 @@ func (me *MEXC) ChangePositionMode(ctx context.Context, positionMode int64) (*St
 
 // PlaceFuturesOrder placed a futures order
 func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (interface{}, error) {
+	params, err := validateOrderParams(arg)
+	if err != nil {
+		return nil, err
+	}
+	var value int64
+	resp := &StatusResponse{
+		Data: &value,
+	}
+	return value, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/submit", params, &resp, true)
+}
+
+func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 	if arg == nil || *arg == (PlaceFuturesOrderParams{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -617,13 +630,78 @@ func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderPar
 	default:
 		return nil, fmt.Errorf("%w: type: %v", order.ErrUnsupportedOrderType, arg.OrderType)
 	}
-	var value int64
-	resp := &StatusResponse{
-		Data: &value,
+	switch arg.MarginType {
+	case margin.Isolated:
+		params.Set("openType", "1")
+	case margin.Multi:
+		params.Set("openType", "2")
+	default:
+		return nil, fmt.Errorf("%w: %v", margin.ErrInvalidMarginType, arg.MarginType)
 	}
-	return value, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/submit", params, &resp, true)
+	if arg.PositionID != 0 {
+		params.Set("positionId", strconv.FormatInt(arg.PositionID, 10))
+	}
+	if arg.ExternalOrderID != "" {
+		params.Set("externalOid", arg.ExternalOrderID)
+	}
+	if arg.StopLossPrice != 0 {
+		params.Set("stopLossPrice", strconv.FormatFloat(arg.StopLossPrice, 'f', -1, 64))
+	}
+	if arg.TakeProfitPrice != 0 {
+		params.Set("takeProfitPrice", strconv.FormatFloat(arg.TakeProfitPrice, 'f', -1, 64))
+	}
+	if arg.PositionMode != 0 {
+		params.Set("positionMode", strconv.FormatInt(arg.PositionMode, 10))
+	}
+	if arg.ReduceOnly {
+		params.Set("reduceOnly", "true")
+	}
+	return params, nil
 }
 
-// func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values{})
+// PostFuturesBatchOrders
+func (me *MEXC) PostFuturesBatchOrders(ctx context.Context, args []PlaceFuturesOrderParams) ([]FuturesOrderInfo, error) {
 
-// func (me *MEXC) PostFuturesBatchOrders(ctx context.Context, )
+	// for a := range args {
+	// 	params, err :=
+	// }
+
+	return nil, nil
+}
+
+// func (me *MEXC) CancelOrder(ctx context.Context, )
+
+// TODO: I skipped the place batch orders and cancel order endpoints because of the umbiguity of how the data payload should be sent.
+
+// CancelOrderByClientOrderID cancels a single order by client supplied(external) order ID
+func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, externalOrderID string) (*OrderCancellationResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if externalOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("externalOid", externalOrderID)
+	var resp *OrderCancellationResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/order/cancel_with_external", http.MethodPost, params, &resp, true)
+}
+
+// CancelAllOpenOrders cancels all open contracts under this account
+func (me *MEXC) CancelAllOpenOrders(ctx context.Context, symbol string) ([]OrderCancellationResponse, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []OrderCancellationResponse
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/cancel_all", params, &resp, true)
+}
+
+// PlaceFuturesTriggerOrder places a futures trigger order
+func (me *MEXC) PlaceFuturesTriggerOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (interface{}, error) {
+	params := url.Values{}
+
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/planorder/place", params, &resp, true)
+}

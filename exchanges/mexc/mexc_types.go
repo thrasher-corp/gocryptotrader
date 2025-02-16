@@ -1255,3 +1255,21 @@ type PlaceFuturesOrderParams struct {
 	PositionMode    int64
 	ReduceOnly      bool
 }
+
+// FuturesOrderInfo represents a futures order info
+type FuturesOrderInfo struct {
+	Symbol          string  `json:"symbol"`
+	Price           float64 `json:"price"`
+	Vol             float64 `json:"vol"`
+	Leverage        int64   `json:"leverage"`
+	Side            int64   `json:"side"`
+	Type            int64   `json:"type"`
+	OpenType        int64   `json:"openType"`
+	ExternalOrderID string  `json:"externalOid"`
+}
+
+// OrderCancellationResponse holds order cancellation response by ExternalOrderID
+type OrderCancellationResponse struct {
+	Symbol          string `json:"symbol"`
+	ExternalOrderID string `json:"externalOid"`
+}
