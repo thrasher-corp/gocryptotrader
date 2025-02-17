@@ -4452,7 +4452,6 @@ func TestFlexibleLoanRepayHistory(t *testing.T) {
 
 func TestFlexibleLoanCollateralRepayment(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.FlexibleLoanCollateralRepayment(context.Background(), currency.EMPTYCODE, currency.USDT, 1000, true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = b.FlexibleLoanCollateralRepayment(context.Background(), currency.BTC, currency.EMPTYCODE, 1000, true)
@@ -9178,8 +9177,7 @@ func TestWithdrawalHistoryV2(t *testing.T) {
 
 func TestSubmitDepositQuestionnaire(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SubmitDepositQuestionnaire(context.Background(), "765127651", map[string]interface{}{
 		"isAddressOwner": 2,
 		"sendTo":         1,
@@ -9193,7 +9191,6 @@ func TestSubmitDepositQuestionnaire(t *testing.T) {
 
 func TestGetLocalEntitiesDepositHistory(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetLocalEntitiesDepositHistory(context.Background(), []string{}, []string{}, []string{}, "BNB", currency.USDT, "1", false, time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
@@ -9202,7 +9199,6 @@ func TestGetLocalEntitiesDepositHistory(t *testing.T) {
 
 func TestGetOnboardedVASPList(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetOnboardedVASPList(context.Background())
 	require.NoError(t, err)

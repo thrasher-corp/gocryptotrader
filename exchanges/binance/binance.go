@@ -46,9 +46,6 @@ const (
 	pMarginAPIURL  = "https://papi.binance.com"
 	tradeBaseURL   = "https://www.binance.com/en/"
 
-	testnetSpotURL = "https://testnet.binance.vision/api"
-	testnetFutures = "https://testnet.binancefuture.com"
-
 	defaultRecvWindow = 5 * time.Second
 )
 
