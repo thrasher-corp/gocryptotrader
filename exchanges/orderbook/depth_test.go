@@ -96,7 +96,20 @@ func TestRetrieve(t *testing.T) {
 	assert.NoError(t, err, "Retrieve should not error")
 	assert.Len(t, ob.Asks, 1, "Should have correct Asks")
 	assert.Len(t, ob.Bids, 1, "Should have correct Bids")
+	assert.Equal(t, "THE BIG ONE!!!!!!", ob.Exchange, "Should have correct Exchange")
+	assert.Equal(t, currency.NewPair(currency.THETA, currency.USD), ob.Pair, "Should have correct Pair")
+	assert.Equal(t, asset.DownsideProfitContract, ob.Asset, "Should have correct Asset")
+	assert.Equal(t, d.options.lastUpdated, ob.LastUpdated, "Should have correct LastUpdated")
+	assert.Equal(t, d.options.updatePushedAt, ob.UpdatePushedAt, "Should have correct UpdatePushedAt")
+	assert.Equal(t, d.options.insertedAt, ob.InsertedAt, "Should have correct InsertedAt")
+	assert.EqualValues(t, 1337, ob.LastUpdateID, "Should have correct LastUpdateID")
+	assert.True(t, ob.PriceDuplication, "Should have correct PriceDuplication")
+	assert.True(t, ob.IsFundingRate, "Should have correct IsFundingRate")
+	assert.True(t, ob.VerifyOrderbook, "Should have correct VerifyOrderbook")
+	assert.True(t, ob.RestSnapshot, "Should have correct RestSnapshot")
+	assert.True(t, ob.IDAlignment, "Should have correct IDAligned")
 	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
+	assert.True(t, ob.ChecksumStringRequired, "Should have correct ChecksumStringRequired")
 }
 
 func TestTotalAmounts(t *testing.T) {
