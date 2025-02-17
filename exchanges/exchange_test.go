@@ -2936,7 +2936,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 	assert.Equal(t, ob.Pair, pair)
 }
 
-func TestFetchAccountInfoCached(t *testing.T) {
+func TestGetCachedAccountInfo(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
@@ -2948,7 +2948,7 @@ func TestFetchAccountInfoCached(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	})
-	_, err := b.FetchAccountInfoCached(ctx, asset.Spot)
+	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
 	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
 
 	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
@@ -2956,7 +2956,7 @@ func TestFetchAccountInfoCached(t *testing.T) {
 	}}, creds)
 	assert.NoError(t, err)
 
-	_, err = b.FetchAccountInfoCached(ctx, asset.Spot)
+	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
 	assert.NoError(t, err)
 }
 
@@ -3000,7 +3000,7 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) FetchAccountInfoCached(context.Context, asset.Item) (account.Holdings, error) {
+func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 

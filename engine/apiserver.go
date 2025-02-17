@@ -379,7 +379,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 		exchName := exchanges[x].GetName()
 		var exchangeAccounts AllEnabledExchangeAccounts
 		for y := range assets {
-			a, err := exchanges[x].FetchAccountInfoCached(context.TODO(), assets[y])
+			a, err := exchanges[x].GetCachedAccountInfo(context.TODO(), assets[y])
 			if err != nil {
 				log.Errorf(log.APIServerMgr,
 					"Exchange %s failed to retrieve %s ticker. Err: %s\n",

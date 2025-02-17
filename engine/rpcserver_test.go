@@ -322,9 +322,9 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 	}, nil
 }
 
-// FetchAccountInfoCached overrides testExchange's fetch account info function
+// GetCachedAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfoCached(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{
