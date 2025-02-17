@@ -954,11 +954,11 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	var wsTrades []*wsTrade
 	switch valueType {
 	case jsonparser.String:
-		if t, err := b.handleWSPublicTradeUpdate(respRaw); err != nil {
+		t, err := b.handleWSPublicTradeUpdate(respRaw)
+		if err != nil {
 			return fmt.Errorf("%w `tradesUpdate[2]`: %w", errParsingWSField, err)
-		} else {
-			wsTrades = []*wsTrade{t}
 		}
+		wsTrades = []*wsTrade{t}
 	case jsonparser.Array:
 		if wsTrades, err = b.handleWSPublicTradesSnapshot(v); err != nil {
 			return fmt.Errorf("%w `tradesSnapshot`: %w", errParsingWSField, err)
