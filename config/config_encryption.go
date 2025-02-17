@@ -184,9 +184,9 @@ func (c *Config) decryptConfigData(d, key []byte) ([]byte, error) {
 		}
 	} else {
 		d = d[len(encryptionVersionPrefix):]
-		switch ver := binary.BigEndian.Uint16(d[:2]); ver {
+		switch ver := binary.BigEndian.Uint16(d[:versionSize]); ver {
 		case 1: // TODO: Add support for version migration
-			d = d[2:]
+			d = d[versionSize:]
 			ciphertext, err = decryptAESGCMCiphertext(d, key)
 			if err != nil {
 				return nil, err
