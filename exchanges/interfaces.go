@@ -42,7 +42,7 @@ type IBotExchange interface {
 	// GetTradingRequirements returns trading requirements for the exchange
 	GetTradingRequirements() protocol.TradingRequirements
 
-	FetchTickerCached(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
+	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
 	FetchOrderbookCached(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)

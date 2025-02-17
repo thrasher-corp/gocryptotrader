@@ -392,7 +392,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
-func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
+func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -410,7 +410,7 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 		return nil, err
 	}
 
-	t, err := e.FetchTickerCached(ctx, pair, a)
+	t, err := e.GetCachedTicker(pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -432,18 +432,13 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
-	activeTickers := s.GetAllActiveTickers(ctx)
+func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
+	activeTickers := s.GetAllActiveTickers()
 	tickers := make([]*gctrpc.Tickers, len(activeTickers))
-
 	for x := range activeTickers {
-		t := &gctrpc.Tickers{
-			Exchange: activeTickers[x].ExchangeName,
-			Tickers:  make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues)),
-		}
-		for y := range activeTickers[x].ExchangeValues {
-			val := activeTickers[x].ExchangeValues[y]
-			t.Tickers[y] = &gctrpc.TickerResponse{
+		ticks := make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues))
+		for y, val := range activeTickers[x].ExchangeValues {
+			ticks[y] = &gctrpc.TickerResponse{
 				Pair: &gctrpc.CurrencyPair{
 					Delimiter: val.Pair.Delimiter,
 					Base:      val.Pair.Base.String(),
@@ -459,7 +454,7 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 				PriceAth:    val.PriceATH,
 			}
 		}
-		tickers[x] = t
+		tickers[x] = &gctrpc.Tickers{Exchange: activeTickers[x].ExchangeName, Tickers: ticks}
 	}
 
 	return &gctrpc.GetTickersResponse{Tickers: tickers}, nil
@@ -4862,9 +4857,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				// cannot price currency to calculate collateral
 				continue
 			}
-			tick, err = exch.FetchTickerCached(ctx, tickerCurr, asset.Spot)
+			tick, err = exch.GetCachedTicker(tickerCurr, asset.Spot)
 			if err != nil {
-				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via FetchTickerCached %s %s", exch.GetName(), err)
+				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via GetCachedTicker %s %s", exch.GetName(), err)
 				continue
 			}
 			if tick.Last == 0 {

@@ -2906,11 +2906,11 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
 }
 
-func TestFetchTickerCached(t *testing.T) {
+func TestGetCachedTicker(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.FetchTickerCached(context.Background(), pair, asset.Spot)
+	_, err := b.GetCachedTicker(pair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrNoTickerFound)
 
 	err = ticker.ProcessTicker(&ticker.Price{
@@ -2920,7 +2920,7 @@ func TestFetchTickerCached(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	tickerPrice, err := b.FetchTickerCached(context.Background(), pair, asset.Spot)
+	tickerPrice, err := b.GetCachedTicker(pair, asset.Spot)
 	assert.NoError(t, err)
 	assert.Equal(t, tickerPrice.Pair, pair)
 }
@@ -3016,7 +3016,7 @@ func (f *FakeBase) FetchOrderbookCached(context.Context, currency.Pair, asset.It
 	return nil, nil
 }
 
-func (f *FakeBase) FetchTickerCached(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
+func (f *FakeBase) GetCachedTicker(currency.Pair, asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 

@@ -1946,9 +1946,9 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 	return b.Features.TradingRequirements
 }
 
-// FetchTickerCached returns the ticker for a currency pair and asset type
+// GetCachedTicker returns the ticker for a currency pair and asset type
 // NOTE: UpdateTicker (or if supported UpdateTickers) method must be called first to update the ticker map
-func (b *Base) FetchTickerCached(_ context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Base) GetCachedTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

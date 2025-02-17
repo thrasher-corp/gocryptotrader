@@ -281,7 +281,7 @@ for i := range bot.Exchanges {
 pair := currency.NewPair(currency.BTC, currency.USD)
 
 // Fetches current ticker information
-tick, err := e.FetchTickerCached(context.Background(), pair, asset.Spot) // e -> f 
+tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot) // e -> f 
 if err != nil {
   // Handle error
 }

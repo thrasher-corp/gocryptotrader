@@ -792,7 +792,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		}
 		return err
 	}
-	tick, err := exch.FetchTickerCached(context.TODO(), position.Pair, position.Asset)
+	tick, err := exch.GetCachedTicker(position.Pair, position.Asset)
 	if err != nil {
 		return fmt.Errorf("%w when fetching ticker data for %v %v %v", err, exch.GetName(), position.Asset, position.Pair)
 	}

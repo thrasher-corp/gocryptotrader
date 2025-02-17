@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -351,38 +352,27 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 		return nil
 	}
 
-	tickers := make([]EnabledExchangeCurrencies, 0, len(exchanges))
-	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes(true)
-		exchName := exchanges[x].GetName()
-		var exchangeTickers EnabledExchangeCurrencies
-		exchangeTickers.ExchangeName = exchName
-
-		for y := range assets {
-			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+	exchangeTickers := make([]EnabledExchangeCurrencies, 0, len(exchanges))
+	for _, e := range exchanges {
+		var tickers []ticker.Price
+		for _, a := range e.GetAssetTypes(true) {
+			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
-					exchName,
-					err)
+				log.Errorf(log.APIServerMgr, "Exchange %s could not retrieve enabled currencies. Err: %s\n", e.GetName(), err)
 				continue
 			}
-			for z := range currencies {
-				t, err := exchanges[x].FetchTickerCached(context.TODO(), currencies[z], assets[y])
+			for _, pair := range pairs {
+				t, err := e.GetCachedTicker(pair, a)
 				if err != nil {
-					log.Errorf(log.APIServerMgr,
-						"Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
-						currencies[z].String(),
-						err)
+					log.Errorf(log.APIServerMgr, "Exchange %s failed to retrieve %s ticker. Err: %s\n", e.GetName(), pair.String(), err)
 					continue
 				}
-				exchangeTickers.ExchangeValues = append(exchangeTickers.ExchangeValues, *t)
+				tickers = append(tickers, *t)
 			}
-			tickers = append(tickers, exchangeTickers)
 		}
-		tickers = append(tickers, exchangeTickers)
+		exchangeTickers = append(exchangeTickers, EnabledExchangeCurrencies{ExchangeName: e.GetName(), ExchangeValues: tickers})
 	}
-	return tickers
+	return exchangeTickers
 }
 
 // getAllActiveAccounts returns all enabled exchanges accounts
@@ -850,7 +840,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		}
 		return err
 	}
-	tick, err := exch.FetchTickerCached(context.TODO(), p, a)
+	tick, err := exch.GetCachedTicker(p, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)

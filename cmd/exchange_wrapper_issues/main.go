@@ -363,8 +363,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{updateTickerResponse}),
 			})
 
-			var FetchTickerCachedResponse *ticker.Price
-			FetchTickerCachedResponse, err = e.FetchTickerCached(context.TODO(), p, assetTypes[i])
+			var GetCachedTickerResponse *ticker.Price
+			GetCachedTickerResponse, err = e.GetCachedTicker(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -372,9 +372,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
-				Function:   "FetchTickerCached",
+				Function:   "GetCachedTicker",
 				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{FetchTickerCachedResponse}),
+				Response:   jsonifyInterface([]interface{}{GetCachedTickerResponse}),
 			})
 
 			var updateOrderbookResponse *orderbook.Base
