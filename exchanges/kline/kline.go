@@ -493,9 +493,9 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 	remaining := count
 
 	for x := range ranges {
-		current := remaining
-		if current > limit {
-			current = limit
+		current := limit
+		if remaining < limit {
+			current = remaining
 		}
 
 		ranges[x].Start = CreateIntervalTime(requestStart)

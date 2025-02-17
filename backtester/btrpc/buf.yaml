@@ -14,4 +14,5 @@ breaking:
     - FILE
 deps:
   - buf.build/googleapis/googleapis
+  - buf.build/protocolbuffers/wellknowntypes
   - buf.build/grpc-ecosystem/grpc-gateway
