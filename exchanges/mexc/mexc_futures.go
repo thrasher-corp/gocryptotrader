@@ -25,13 +25,13 @@ func (me *MEXC) GetContractsDetail(ctx context.Context, symbol string) (*Futures
 		params.Set("symbol", symbol)
 	}
 	var resp *FuturesContractsDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/detail", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/detail", params, nil, &resp)
 }
 
 // GetTransferableCurrencies returns list of transferabe currencies
 func (me *MEXC) GetTransferableCurrencies(ctx context.Context) (*TransferableCurrencies, error) {
 	var resp *TransferableCurrencies
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/support_currencies", nil, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/support_currencies", nil, nil, &resp)
 }
 
 // GetContractDepthInformation returns orderbook depth data of a contract
@@ -45,7 +45,7 @@ func (me *MEXC) GetContractDepthInformation(ctx context.Context, symbol string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *ContractOrderbook
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/depth/"+symbol, params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/depth/"+symbol, params, nil, &resp)
 }
 
 // GetDepthSnapshotOfContract retrieves the order book details and depth information
@@ -58,7 +58,7 @@ func (me *MEXC) GetDepthSnapshotOfContract(ctx context.Context, symbol string, l
 		return nil, errLimitIsRequired
 	}
 	var resp *ContractOrderbookWithDepth
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/depth_commits/"+symbol+"/"+strconv.FormatInt(limit, 10), nil, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/depth_commits/"+symbol+"/"+strconv.FormatInt(limit, 10), nil, nil, &resp)
 }
 
 // GetContractIndexPrice retrieves contract's index price details
@@ -67,7 +67,7 @@ func (me *MEXC) GetContractIndexPrice(ctx context.Context, symbol string) (*Cont
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *ContractIndexPriceDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/index_price/"+symbol, nil, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/index_price/"+symbol, nil, nil, &resp)
 }
 
 // GetContractFairPrice retrieves contracts fair price detail
@@ -76,7 +76,7 @@ func (me *MEXC) GetContractFairPrice(ctx context.Context, symbol string) (*Contr
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *ContractFairPrice
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/fair_price/"+symbol, nil, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/fair_price/"+symbol, nil, nil, &resp)
 }
 
 // GetContractFundingPrice holds contract's funding price
@@ -85,7 +85,7 @@ func (me *MEXC) GetContractFundingPrice(ctx context.Context, symbol string) (*Co
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *ContractFundingRate
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/funding_rate/"+symbol, nil, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "contract/funding_rate/"+symbol, nil, nil, &resp)
 }
 
 var contractIntervalToStringMap = map[kline.Interval]string{
@@ -139,7 +139,7 @@ func (me *MEXC) getCandlestickData(ctx context.Context, symbol, path string, int
 		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *ContractCandlestickData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, path+symbol, params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, path+symbol, params, nil, &resp)
 }
 
 // GetContractTransactionData retrieves contract transaction data
@@ -152,7 +152,7 @@ func (me *MEXC) GetContractTransactionData(ctx context.Context, symbol string, l
 		params.Set("symbol", symbol)
 	}
 	var resp *ContractTransactions
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/deals/"+symbol, params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/deals/"+symbol, params, nil, &resp)
 }
 
 // GetContractTickers holds contract trend data
@@ -162,13 +162,13 @@ func (me *MEXC) GetContractTickers(ctx context.Context, symbol string) (*Contrac
 		params.Set("symbol", symbol)
 	}
 	var resp *ContractTickers
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/ticker", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/ticker", params, nil, &resp)
 }
 
 // GetAllContractRiskFundBalance holds a list of contracts risk fund balance
 func (me *MEXC) GetAllContractRiskFundBalance(ctx context.Context) (*ContractRiskFundBalance, error) {
 	var resp *ContractRiskFundBalance
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/risk_reverse", nil, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/risk_reverse", nil, nil, &resp)
 }
 
 // GetContractRiskFundBalanceHistory holds a list of contracts risk fund balance history
@@ -187,7 +187,7 @@ func (me *MEXC) GetContractRiskFundBalanceHistory(ctx context.Context, symbol st
 	params.Set("page_num", strconv.FormatInt(pageNumber, 10))
 	params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	var resp *ContractRiskFundBalanceHistory
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/risk_reverse/history", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/risk_reverse/history", params, nil, &resp)
 }
 
 // GetContractFundingRateHistory holds contracts funding rate history
@@ -206,7 +206,7 @@ func (me *MEXC) GetContractFundingRateHistory(ctx context.Context, symbol string
 	params.Set("page_num", strconv.FormatInt(pageNumber, 10))
 	params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	var resp *ContractFundingRateHistory
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/funding_rate/history", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.UnAuth, http.MethodGet, "contract/funding_rate/history", params, nil, &resp)
 }
 
 // GetAllUserAssetsInformation retrieves all user asset balances
@@ -246,7 +246,7 @@ func (me *MEXC) GetUserAssetTransferRecords(ctx context.Context, ccy currency.Co
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AssetTransfers
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/transfer_record", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/transfer_record", params, nil, &resp)
 }
 
 // GetUserPositionHistory retrieves the user's position history.
@@ -268,7 +268,7 @@ func (me *MEXC) GetUserPositionHistory(ctx context.Context, symbol, positionType
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *Positions
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/list/history_positions", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/list/history_positions", params, nil, &resp, true)
 }
 
 // GetUsersCurrentHoldingPositions retrieves user's current holding positions
@@ -278,7 +278,7 @@ func (me *MEXC) GetUsersCurrentHoldingPositions(ctx context.Context, symbol stri
 		params.Set("symbol", symbol)
 	}
 	var resp *Positions
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/open_positions", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/open_positions", params, nil, &resp, true)
 }
 
 // GetUsersFundingRateDetails retrieves user's funding rate details
@@ -297,7 +297,7 @@ func (me *MEXC) GetUsersFundingRateDetails(ctx context.Context, symbol string, p
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *FundingRateHistory
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/funding_records", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/funding_records", params, nil, &resp, true)
 }
 
 // GetUserCurrentPendingOrder holds users current pending orders
@@ -313,7 +313,7 @@ func (me *MEXC) GetUserCurrentPendingOrder(ctx context.Context, symbol string, p
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *FuturesOrders
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/list/open_orders/"+symbol, params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/list/open_orders/"+symbol, params, nil, &resp, true)
 }
 
 // GetAllUserHistoricalOrders retrieves user all order history
@@ -339,7 +339,7 @@ func (me *MEXC) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, 
 		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *FuturesOrders
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/list/history_orders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/list/history_orders", params, nil, &resp, true)
 }
 
 // GetOrderBasedOnExternalNumber retrieves a single order using the external order ID and symbol.
@@ -364,7 +364,7 @@ func (me *MEXC) GetOrderByOrderNumber(ctx context.Context, orderID string) (*Fut
 	resp := &struct {
 		Data *FuturesOrderDetail `json:"data"`
 	}{}
-	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/get/"+orderID, nil, &resp)
+	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/get/"+orderID, nil, nil, &resp)
 }
 
 // GetBatchOrdersByOrderID retrieves a batch of futures orders by order ids
@@ -375,7 +375,7 @@ func (me *MEXC) GetBatchOrdersByOrderID(ctx context.Context, orderIDs []string) 
 	params := url.Values{}
 	params.Set("order_ids", strings.Join(orderIDs, ","))
 	var resp *FuturesOrders
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/batch_query", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/batch_query", params, nil, &resp, true)
 }
 
 // GetOrderTransactionDetailsByOrderID retrieves an order transactions by order ID
@@ -386,7 +386,7 @@ func (me *MEXC) GetOrderTransactionDetailsByOrderID(ctx context.Context, orderID
 	params := url.Values{}
 	params.Set("order_id", orderID)
 	var resp *OrderTransactions
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/deal_details/"+orderID, params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/deal_details/"+orderID, params, nil, &resp, true)
 }
 
 // GetUserOrderAllTransactionDetails retrieves user order all transaction details.
@@ -410,7 +410,7 @@ func (me *MEXC) GetUserOrderAllTransactionDetails(ctx context.Context, symbol st
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *OrderTransactions
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/list/order_deals", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/order/list/order_deals", params, nil, &resp, true)
 }
 
 // GetTriggerOrderList retrieves a list of futures trigger orders
@@ -436,7 +436,7 @@ func (me *MEXC) GetTriggerOrderList(ctx context.Context, symbol, states string, 
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *FuturesTriggerOrders
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/planorder/list/orders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/planorder/list/orders", params, nil, &resp, true)
 }
 
 // GetFuturesStopLimitOrderList retrieves futures stop limit orders list
@@ -462,7 +462,7 @@ func (me *MEXC) GetFuturesStopLimitOrderList(ctx context.Context, symbol string,
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *FuturesStopLimitOrders
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/stoporder/list/orders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/stoporder/list/orders", params, nil, &resp, true)
 }
 
 // GetFuturesRiskLimit retrieves futures symbols risk limits
@@ -472,7 +472,7 @@ func (me *MEXC) GetFuturesRiskLimit(ctx context.Context, symbol string) (*Future
 		params.Set("symbol", symbol)
 	}
 	var resp *FutureRiskLimit
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/risk_limit", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/risk_limit", params, nil, &resp, true)
 }
 
 // GetFuturesCurrentTradingFeeRate holds futures current trading fee rates
@@ -483,7 +483,7 @@ func (me *MEXC) GetFuturesCurrentTradingFeeRate(ctx context.Context, symbol stri
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *FuturesTradingFeeRates
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/tiered_fee_rate", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/account/tiered_fee_rate", params, nil, &resp, true)
 }
 
 // IncreaseDecreaseMargin adjusts the margin amount in a futures trading account.
@@ -515,7 +515,7 @@ func (me *MEXC) GetContractLeverage(ctx context.Context, symbol string) (*Contra
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *ContractLeverageInfo
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/leverage", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/position/leverage", params, nil, &resp, true)
 }
 
 // SwitchLeverage adjusts the leverage of an open position.
@@ -547,7 +547,7 @@ func (me *MEXC) SwitchLeverage(ctx context.Context, positionID, leverage, openTy
 	resp := &struct {
 		Data PositionLeverageResponse `json:"data"`
 	}{}
-	return &resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_leverage", params, &resp, true)
+	return &resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_leverage", params, nil, &resp, true)
 }
 
 // GetPositionMode retrieves a list of position modes
@@ -573,7 +573,7 @@ func (me *MEXC) ChangePositionMode(ctx context.Context, positionMode int64) (*St
 	params := url.Values{}
 	params.Set("positionMode", strconv.FormatInt(positionMode, 10))
 	var resp *StatusResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_position_mode", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/position/change_position_mode", params, nil, &resp, true)
 }
 
 // PlaceFuturesOrder placed a futures order
@@ -586,7 +586,7 @@ func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderPar
 	resp := &StatusResponse{
 		Data: &value,
 	}
-	return value, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/submit", params, &resp, true)
+	return value, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/submit", params, nil, &resp, true)
 }
 
 func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
@@ -685,7 +685,7 @@ func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, external
 	params.Set("symbol", symbol)
 	params.Set("externalOid", externalOrderID)
 	var resp *OrderCancellationResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/order/cancel_with_external", http.MethodPost, params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/order/cancel_with_external", http.MethodPost, params, nil, &resp, true)
 }
 
 // CancelAllOpenOrders cancels all open contracts under this account
@@ -695,7 +695,7 @@ func (me *MEXC) CancelAllOpenOrders(ctx context.Context, symbol string) ([]Order
 		params.Set("symbol", symbol)
 	}
 	var resp []OrderCancellationResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/cancel_all", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/cancel_all", params, nil, &resp, true)
 }
 
 // PlaceFuturesTriggerOrder places a futures trigger order
@@ -703,5 +703,59 @@ func (me *MEXC) PlaceFuturesTriggerOrder(ctx context.Context, arg *PlaceFuturesO
 	params := url.Values{}
 
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/planorder/place", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/planorder/place", params, nil, &resp, true)
+}
+
+// SwitchStopLimitLimitedOrderPrice toggles stop limig limited order price
+func (me *MEXC) SwitchStopLimitLimitedOrderPrice(ctx context.Context, orderID string, stopLossPrice, takeProfitPrice float64) (interface{}, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("orderId", orderID)
+	if stopLossPrice > 0 {
+		params.Set("stopLossPrice", strconv.FormatFloat(stopLossPrice, 'f', -1, 64))
+	}
+	if takeProfitPrice > 0 {
+		params.Set("takeProfitPrice", strconv.FormatFloat(takeProfitPrice, 'f', -1, 64))
+	}
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/stoporder/change_price", params, nil, &resp, true)
+}
+
+// SwitchStopLimitPriceOfTriggerPrice toggles the stop limit price of trigger price order
+func (me *MEXC) SwitchStopLimitPriceOfTriggerPrice(ctx context.Context, stopPlanOrderID string, stopLossPrice, takeProfitPrice float64) (interface{}, error) {
+	if stopPlanOrderID == "" {
+		return nil, fmt.Errorf("%w: StopPlanOrderID is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("stopPlanOrderId", stopPlanOrderID)
+	if stopLossPrice > 0 {
+		params.Set("stopLossPrice", strconv.FormatFloat(stopLossPrice, 'f', -1, 64))
+	}
+	if takeProfitPrice > 0 {
+		params.Set("takeProfitPrice", strconv.FormatFloat(takeProfitPrice, 'f', -1, 64))
+	}
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/stoporder/change_plan_price", params, nil, &resp, true)
+}
+
+// CancelAllStopLimitPriceTriggerOrders cancels all price triggered stop limit orders given a position ID and contract symbol
+func (me *MEXC) CancelAllStopLimitPriceTriggerOrders(ctx context.Context, positionID, symbol string) (interface{}, error) {
+	params := url.Values{}
+	if positionID != "" {
+		params.Set("positionId", positionID)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/stoporder/cancel_all", params, nil, &resp, true)
+}
+
+// CancelStopLimitTriggerOrder cancels a stop limit trigger order by stop plan order ID
+func (me *MEXC) CancelStopLimitTriggerOrder(ctx context.Context, stopPlanOrderIDs []string) (interface{}, error) {
+	params := url.Values{}
+	var resp interface{}
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/stoporder/cancel", params, nil, &resp, true)
 }

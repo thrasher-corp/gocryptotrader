@@ -23,9 +23,10 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
+	apiKey                    = ""
+	apiSecret                 = ""
+	canManipulateRealOrders   = false
+	canManipulateAPIEndpoints = false
 )
 
 var me = &MEXC{}
@@ -1221,6 +1222,172 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.CancelAllOpenOrders(context.Background(), "BTC_USDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSwitchStopLimitPriceOfTriggerPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.SwitchStopLimitPriceOfTriggerPrice(context.Background(), "", 0., 1.0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.SwitchStopLimitPriceOfTriggerPrice(context.Background(), "1234", 1., 2.)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSwitchStopLimitLimitedOrderPrice(t *testing.T) {
+	t.Parallel()
+	_, err := me.SwitchStopLimitLimitedOrderPrice(context.Background(), "", 1., 2.)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.SwitchStopLimitLimitedOrderPrice(context.Background(), "1231234", 1, 2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerUniversalTransferHistory(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetBrokerUniversalTransferHistory(context.Background(), "", "", "test1@thrasher.io", "test2@thrasher.io", time.Time{}, time.Time{}, 0, 10)
+	require.ErrorIs(t, err, errAddressRequired)
+	_, err = me.GetBrokerUniversalTransferHistory(context.Background(), "FUTURES", "", "test1@thrasher.io", "test2@thrasher.io", time.Time{}, time.Time{}, 0, 10)
+	require.ErrorIs(t, err, errAddressRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetBrokerUniversalTransferHistory(context.Background(), "SPOT", "FUTURES", "test1@thrasher.io", "test2@thrasher.io", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateBrokerSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CreateBrokerSubAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerAccountSubAccountList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetBrokerAccountSubAccountList(context.Background(), "my-subaccount-name", 10, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountStatus(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetSubAccountStatus(context.Background(), "")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSubAccountStatus(context.Background(), "my-subaccount-name")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateBrokerSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := me.CreateBrokerSubAccountAPIKey(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &BrokerSubAccountAPIKeyParams{
+		IP: []string{"127.0.0.1"},
+	}
+	_, err = me.CreateBrokerSubAccountAPIKey(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+
+	arg.SubAccount = "my-subaccount-name"
+	_, err = me.CreateBrokerSubAccountAPIKey(context.Background(), arg)
+	require.ErrorIs(t, err, errUnsupportedPermissionValue)
+
+	arg.Permissions = []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"}
+	_, err = me.CreateBrokerSubAccountAPIKey(context.Background(), arg)
+	require.ErrorIs(t, err, errInvalidSubAccountNote)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
+	result, err := me.CreateBrokerSubAccountAPIKey(context.Background(), &BrokerSubAccountAPIKeyParams{
+		SubAccount:  "my-subaccount-name",
+		Permissions: []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"},
+		Note:        "note-here"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetBrokerSubAccountAPIKey(context.Background(), "my-subaccount-name")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarshalStringList(t *testing.T) {
+	t.Parallel()
+	data := &struct {
+		Data StringList `json:"data"`
+	}{
+		Data: []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"},
+	}
+	result, err := json.Marshal(data)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, []byte(`{"data":"SPOT_ACCOUNT_READ,SPOT_ACCOUNT_WRITE"}`), result)
+}
+
+func TestDeleteBrokerAPIKeySubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := me.DeleteBrokerAPIKeySubAccount(context.Background(), &BrokerSubAccountAPIKeyDeletionParams{APIKey: "api-key-here"})
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+	_, err = me.DeleteBrokerAPIKeySubAccount(context.Background(), &BrokerSubAccountAPIKeyDeletionParams{SubAccount: "sub-account-detail-here"})
+	require.ErrorIs(t, err, errAPIKeyMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
+	result, err := me.DeleteBrokerAPIKeySubAccount(context.Background(), &BrokerSubAccountAPIKeyDeletionParams{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGenerateBrokerSubAccountDepositAddress(t *testing.T) {
+	t.Parallel()
+	_, err := me.GenerateBrokerSubAccountDepositAddress(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = me.GenerateBrokerSubAccountDepositAddress(context.Background(), &BrokerSubAccountDepositAddressCreationParams{Network: "ERC20"})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.GenerateBrokerSubAccountDepositAddress(context.Background(), &BrokerSubAccountDepositAddressCreationParams{Coin: currency.ETH})
+	require.ErrorIs(t, err, errNetworkNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.GenerateBrokerSubAccountDepositAddress(context.Background(), &BrokerSubAccountDepositAddressCreationParams{Coin: currency.ETH, Network: "ERC20"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerSubAccountDepositAddress(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetBrokerSubAccountDepositAddress(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetBrokerSubAccountDepositAddress(context.Background(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetSubAccountDepositHistory(context.Background(), currency.ETH, "1", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllRecentSubAccountDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAllRecentSubAccountDepositHistory(context.Background(), currency.ETH, "1", time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

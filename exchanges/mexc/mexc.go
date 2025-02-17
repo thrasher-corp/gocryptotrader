@@ -40,6 +40,7 @@ const (
 
 var (
 	errInvalidSubAccountName      = errors.New("invalid sub-account name")
+	errAPIKeyMissing              = errors.New("API key is required")
 	errInvalidSubAccountNote      = errors.New("invalid sub-account note")
 	errUnsupportedPermissionValue = errors.New("permission is unsupported")
 	errAddressRequired            = errors.New("address is required")
@@ -64,7 +65,7 @@ func (me *MEXC) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConf
 		params.Set("symbol", symbols[0])
 	}
 	var resp *ExchangeConfig
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "exchangeInfo", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "exchangeInfo", params, nil, &resp)
 }
 
 // GetSystemTime check server time
@@ -72,7 +73,7 @@ func (me *MEXC) GetSystemTime(ctx context.Context) (types.Time, error) {
 	resp := &struct {
 		ServerTime types.Time `json:"serverTime"`
 	}{}
-	return resp.ServerTime, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "time", nil, &resp)
+	return resp.ServerTime, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "time", nil, nil, &resp)
 }
 
 // GetDefaultSumbols retrieves all default symbols
@@ -80,7 +81,7 @@ func (me *MEXC) GetDefaultSumbols(ctx context.Context) ([]string, error) {
 	resp := &struct {
 		Symbols []string `json:"data"`
 	}{}
-	return resp.Symbols, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "defaultSymbols", nil, &resp)
+	return resp.Symbols, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "defaultSymbols", nil, nil, &resp)
 }
 
 // GetOrderbook retrieves orderbook data of a symbol
@@ -94,7 +95,7 @@ func (me *MEXC) GetOrderbook(ctx context.Context, symbol string, limit int64) (*
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *Orderbook
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "depth", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "depth", params, nil, &resp)
 }
 
 // GetRecentTradesList retrieves recent trades list
@@ -108,7 +109,7 @@ func (me *MEXC) GetRecentTradesList(ctx context.Context, symbol string, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []TradeDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "trades", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "trades", params, nil, &resp)
 }
 
 // GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
@@ -130,7 +131,7 @@ func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTim
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AggregatedTradeDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "aggTrades", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
 var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}
@@ -168,7 +169,7 @@ func (me *MEXC) GetCandlestick(ctx context.Context, symbol string, interval klin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []CandlestickData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "klines", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "klines", params, nil, &resp)
 }
 
 // GetCurrentAveragePrice retrieves current average price of symbol
@@ -179,7 +180,7 @@ func (me *MEXC) GetCurrentAveragePrice(ctx context.Context, symbol string) (*Sym
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *SymbolAveragePrice
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "avgPrice", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "avgPrice", params, nil, &resp)
 }
 
 // Get24HourTickerPriceChangeStatistics retrieves ticker price change statistics
@@ -191,7 +192,7 @@ func (me *MEXC) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbol
 		params.Set("symbol", symbols[0])
 	}
 	var resp TickerList
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/24hr", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/24hr", params, nil, &resp)
 }
 
 // GetSymbolPriceTicker represents a symbol price ticker detail
@@ -203,7 +204,7 @@ func (me *MEXC) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]S
 		params.Set("symbol", symbols[0])
 	}
 	var resp SymbolPriceTickers
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/price", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/price", params, nil, &resp)
 }
 
 // GetSymbolOrderbookTicker represents an orderbook detail for a symbol
@@ -213,7 +214,7 @@ func (me *MEXC) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]
 		params.Set("symbol", symbol)
 	}
 	var resp SymbolOrderbookTickerList
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/bookTicker", params, &resp)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "ticker/bookTicker", params, nil, &resp)
 }
 
 // CreateSubAccount create a sub-account from the master account.
@@ -228,7 +229,7 @@ func (me *MEXC) CreateSubAccount(ctx context.Context, subAccountName, note strin
 	params.Set("subAccount", subAccountName)
 	params.Set("note", note)
 	var resp *SubAccountCreationResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "sub-account/virtualSubAccount", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "sub-account/virtualSubAccount", params, nil, &resp, true)
 }
 
 // GetSubAccountList get details of the sub-account list
@@ -247,7 +248,7 @@ func (me *MEXC) GetSubAccountList(ctx context.Context, subAccountName string, is
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccounts
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/list", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/list", params, nil, &resp, true)
 }
 
 // CreateAPIKeyForSubAccount creates an API key for sub-account
@@ -271,7 +272,7 @@ func (me *MEXC) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, n
 		params.Set("ip", ip)
 	}
 	var resp *SubAccountAPIDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "sub-account/apiKey", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "sub-account/apiKey", params, nil, &resp, true)
 }
 
 // GetSubAccountAPIKey applies to master accounts only
@@ -282,7 +283,7 @@ func (me *MEXC) GetSubAccountAPIKey(ctx context.Context, subAccountName string) 
 	params := url.Values{}
 	params.Set("subAccount", subAccountName)
 	var resp *SubAccountsAPIs
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/apiKey", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/apiKey", params, nil, &resp, true)
 }
 
 // DeleteAPIKeySubAccount delete the API Key of a sub-account
@@ -295,7 +296,7 @@ func (me *MEXC) DeleteAPIKeySubAccount(ctx context.Context, subAccountName strin
 	resp := &struct {
 		SubAccount string `json:"subAccount"`
 	}{}
-	return resp.SubAccount, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "sub-account/apiKey", params, &resp, true)
+	return resp.SubAccount, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "sub-account/apiKey", params, nil, &resp, true)
 }
 
 // SubAccountUniversalTransfer requires SPOT_TRANSFER_WRITE permission
@@ -324,7 +325,7 @@ func (me *MEXC) SubAccountUniversalTransfer(ctx context.Context, fromAccount, to
 		params.Set("toAccount", toAccount)
 	}
 	var resp *AssetTransferResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/sub-account/universalTransfer", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
 // GetSubAccountUnversalTransferHistory retrieves universal assets transfer history of master account
@@ -374,13 +375,13 @@ func (me *MEXC) GetSubAccountAsset(ctx context.Context, subAccount string, accou
 	params.Set("subAccount", subAccount)
 	params.Set("accountType", accountType.String())
 	var resp *SubAccountAssetBalances
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/asset", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "sub-account/asset", params, nil, &resp, true)
 }
 
 // GetKYCStatus retrieves accounts KYC(know your customer) status
 func (me *MEXC) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
 	var resp *KYCStatusInfo
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "kyc/status", nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "kyc/status", nil, nil, &resp, true)
 }
 
 // UserAPIDefaultSymbols retrieves a default user API symbols
@@ -388,13 +389,13 @@ func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) (interface{}, error) {
 	resp := &struct {
 		Data []string `json:"data"`
 	}{}
-	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "selfSymbols", nil, &resp, true)
+	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "selfSymbols", nil, nil, &resp, true)
 }
 
 // GetCurrencyInformation get currency information
 func (me *MEXC) GetCurrencyInformation(ctx context.Context) ([]CurrencyInformation, error) {
 	var resp []CurrencyInformation
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/config/getall", nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/config/getall", nil, nil, &resp, true)
 }
 
 // WithdrawCapital withdraws an asset through chains
@@ -425,7 +426,7 @@ func (me *MEXC) WithdrawCapital(ctx context.Context, amount float64, coin curren
 		params.Set("memo", memo)
 	}
 	var resp *IDResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/withdraw", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/withdraw", params, nil, &resp, true)
 }
 
 // CancelWithdrawal cancels an pending withdrawal order
@@ -436,7 +437,7 @@ func (me *MEXC) CancelWithdrawal(ctx context.Context, id string) (*IDResponse, e
 	params := url.Values{}
 	params.Set("id", id)
 	var resp *IDResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "capital/withdraw", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "capital/withdraw", params, nil, &resp, true)
 }
 
 // GetFundDepositHistory retrieves a list of fund deposit transaction details
@@ -460,7 +461,7 @@ func (me *MEXC) GetFundDepositHistory(ctx context.Context, coin currency.Code, s
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FundDepositInfo
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/deposit/hisrec", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/deposit/hisrec", params, nil, &resp, true)
 }
 
 // GetWithdrawalHistory represents currency withdrawl history
@@ -485,7 +486,7 @@ func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, st
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []WithdrawalInfo
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/withdraw/history", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/withdraw/history", params, nil, &resp, true)
 }
 
 // GenerateDepositAddress generates a deposit address given the currency code and netowrk name
@@ -500,7 +501,7 @@ func (me *MEXC) GenerateDepositAddress(ctx context.Context, coin currency.Code, 
 	params.Set("coin", coin.String())
 	params.Set("network", network)
 	var resp []DepositAddressInfo
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/deposit/address", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/deposit/address", params, nil, &resp, true)
 }
 
 // GetDepositAddressOfCoin retrieves a deposit address detail of an asset
@@ -513,7 +514,7 @@ func (me *MEXC) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code,
 		params.Set("network", network)
 	}
 	var resp []DepositAddressInfo
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/deposit/address", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/deposit/address", params, nil, &resp, true)
 }
 
 // GetWithdrawalAddress retrieves a list of previously used deposit addresses
@@ -529,7 +530,7 @@ func (me *MEXC) GetWithdrawalAddress(ctx context.Context, coin currency.Code, pa
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *WithdrawalAddressesDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/withdraw/address", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/withdraw/address", params, nil, &resp, true)
 }
 
 // UserUniversalTransfer transfers an asset transfer between account types of same account
@@ -552,7 +553,7 @@ func (me *MEXC) UserUniversalTransfer(ctx context.Context, fromAccountType, toAc
 	params.Set("toAccountType", toAccountType)
 	params.Set("asset", asset.String())
 	var resp []UserUniversalTransferResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer", params, nil, &resp, true)
 }
 
 // GetUniversalTransferHistory retrieves users universal asset transfer history
@@ -581,7 +582,7 @@ func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp []UniversalTransferHistoryData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer", params, nil, &resp, true)
 }
 
 // GetUniversalTransferDetailByID retrieves a universal asset transfer history item detail
@@ -592,13 +593,13 @@ func (me *MEXC) GetUniversalTransferDetailByID(ctx context.Context, transactionI
 	params := url.Values{}
 	params.Set("tranId", transactionID)
 	var resp *UniversalTransferHistoryData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer/tranId", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer/tranId", params, nil, &resp, true)
 }
 
 // GetAssetThatCanBeConvertedintoMX represents an asset that can be converted into an MX asset
 func (me *MEXC) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]AssetConvertableToMX, error) {
 	var resp []AssetConvertableToMX
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/convert/list", nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/convert/list", nil, nil, &resp, true)
 }
 
 // DustTransfer transfer near-worthless crypto assets whose value is smaller than transaction fees
@@ -617,7 +618,7 @@ func (me *MEXC) DustTransfer(ctx context.Context, assets []currency.Code) (*Dust
 	params := url.Values{}
 	params.Set("asset", assetsString)
 	var resp *DustConvertResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/convert", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/convert", params, nil, &resp, true)
 }
 
 // DustLog retrieves a dust conversion history
@@ -638,7 +639,7 @@ func (me *MEXC) DustLog(ctx context.Context, startTime, endTime time.Time, page,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *DustLogDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/convert", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/convert", params, nil, &resp, true)
 }
 
 // InternalTransfer allows an internal asset transfer between assets.
@@ -664,7 +665,7 @@ func (me *MEXC) InternalTransfer(ctx context.Context, toAccountType, toAccount, 
 		params.Set("areaCode", areaCode)
 	}
 	var resp *AssetTransferResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer/internal", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/transfer/internal", params, nil, &resp, true)
 }
 
 // GetInternalTransferHistory retrieves an internal asset transfer history
@@ -688,7 +689,7 @@ func (me *MEXC) GetInternalTransferHistory(ctx context.Context, transferID strin
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *InternalTransferDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer/internal", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer/internal", params, nil, &resp, true)
 }
 
 // CapitalWithdrawal withdraws an asset through a network
@@ -719,7 +720,7 @@ func (me *MEXC) CapitalWithdrawal(ctx context.Context, coin currency.Code, withd
 		params.Set("remark", remark)
 	}
 	var resp []IDResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/withdraw/apply", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "capital/withdraw/apply", params, nil, &resp, true)
 }
 
 // NewTestOrder creates and validates a new order but does not send it into the matching engine.
@@ -775,7 +776,7 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 		params.Set("newClientOrderId", newClientOrderID)
 	}
 	var resp *OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, path, params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, path, params, nil, &resp, true)
 }
 
 // OrderTypeString returns a string representation of an order.Type instance.
@@ -837,7 +838,7 @@ func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationP
 	params := url.Values{}
 	params.Set("batchOrders", string(jsonString))
 	var resp []OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "batchOrders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "batchOrders", params, nil, &resp, true)
 }
 
 // CancelTradeOrder cancels an order
@@ -860,7 +861,7 @@ func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol string, orderID, cl
 		params.Set("newClientOrderId", newClientOrderID)
 	}
 	var resp *OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "order", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "order", params, nil, &resp, true)
 }
 
 // CancelAllOpenOrdersBySymbol cancel all pending orders for a single symbol, including OCO pending orders.
@@ -871,7 +872,7 @@ func (me *MEXC) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol string) 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp []OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "openOrders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "openOrders", params, nil, &resp, true)
 }
 
 // GetOrderByID retrieves a single order
@@ -891,7 +892,7 @@ func (me *MEXC) GetOrderByID(ctx context.Context, symbol, clientOrderID, orderID
 		params.Set("orderId", orderID)
 	}
 	var resp *OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "order", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "order", params, nil, &resp, true)
 }
 
 // GetOpenOrders retrieves all open orders on a symbol. Careful when accessing this with no symbol.
@@ -902,7 +903,7 @@ func (me *MEXC) GetOpenOrders(ctx context.Context, symbol string) ([]OrderDetail
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp []OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "openOrders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "openOrders", params, nil, &resp, true)
 }
 
 // GetAllOrders retrieves all account orders including active, cancelled or completed orders(the query period is the latest 24 hours by default).
@@ -925,13 +926,13 @@ func (me *MEXC) GetAllOrders(ctx context.Context, symbol string, startTime, endT
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []OrderDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "allOrders", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "allOrders", params, nil, &resp, true)
 }
 
 // GetAccountInformation retrieves current account information,rate limit:2 times/s.
 func (me *MEXC) GetAccountInformation(ctx context.Context) (*AccountDetail, error) {
 	var resp *AccountDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "account", nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "account", nil, nil, &resp, true)
 }
 
 // GetAccountTradeList retrieves trades for a specific account and symbol,Only the transaction records in the past 1 month can be queried.
@@ -956,7 +957,7 @@ func (me *MEXC) GetAccountTradeList(ctx context.Context, symbol, orderID string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AccountTrade
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "myTrades", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "myTrades", params, nil, &resp, true)
 }
 
 // EnableMXDeduct enable or disable MX deduct for spot commission fee
@@ -968,13 +969,13 @@ func (me *MEXC) EnableMXDeduct(ctx context.Context, mxDeductEnable bool) (*MXDed
 		params.Set("mxDeductEnable", "false")
 	}
 	var resp *MXDeductResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "mxDeduct/enable", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "mxDeduct/enable", params, nil, &resp, true)
 }
 
 // GetMXDeductStatus retrieves MX deduct status detail
 func (me *MEXC) GetMXDeductStatus(ctx context.Context) (*MXDeductResponse, error) {
 	var resp *MXDeductResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "mxDeduct/enable", nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "mxDeduct/enable", nil, nil, &resp, true)
 }
 
 // GetSymbolTradingFee retrieves symbol commissions
@@ -985,7 +986,7 @@ func (me *MEXC) GetSymbolTradingFee(ctx context.Context, symbol string) (*Symbol
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *SymbolCommissionFee
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "tradeFee", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "tradeFee", params, nil, &resp, true)
 }
 
 // GetRebateHistoryRecords retrieves a rebate history record
@@ -1003,7 +1004,7 @@ func (me *MEXC) GetRebateHistoryRecords(ctx context.Context, startTime, endTime 
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateHistory
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/taxQuery", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/taxQuery", params, nil, &resp, true)
 }
 
 // GetRebateRecordsDetail retrieves a rebate record detail
@@ -1021,7 +1022,7 @@ func (me *MEXC) GetRebateRecordsDetail(ctx context.Context, startTime, endTime t
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateRecordDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail", params, nil, &resp, true)
 }
 
 // GetSelfRebateRecordsDetail retrieves self rebate records details
@@ -1039,13 +1040,13 @@ func (me *MEXC) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTi
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateRecordDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail/kickback", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail/kickback", params, nil, &resp, true)
 }
 
 // GetReferCode retrieves refer code
 func (me *MEXC) GetReferCode(ctx context.Context) (*ReferCode, error) {
 	var resp *ReferCode
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/referCode", nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/referCode", nil, nil, &resp, true)
 }
 
 // GetAffiliateCommissionRecord retrieves affiliate commission record
@@ -1069,7 +1070,7 @@ func (me *MEXC) GetAffiliateCommissionRecord(ctx context.Context, startTime, end
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateCommissionRecord
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission", params, nil, &resp, true)
 }
 
 // GetAffiliateWithdrawRecord retrieves affiliate withdrawal records
@@ -1090,7 +1091,7 @@ func (me *MEXC) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTi
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateWithdrawRecords
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/withdraw", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/withdraw", params, nil, &resp, true)
 }
 
 // GetAffiliateCommissionDetailRecord retrieves an affiliate commission detail record
@@ -1118,7 +1119,7 @@ func (me *MEXC) GetAffiliateCommissionDetailRecord(ctx context.Context, startTim
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *RebateAffiliateCommissionDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission/detail", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission/detail", params, nil, &resp, true)
 }
 
 // GetAffiliateCampaignData retrieves an affiliate campaign data
@@ -1139,7 +1140,7 @@ func (me *MEXC) GetAffiliateCampaignData(ctx context.Context, startTime, endTime
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateCampaignData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/campaign", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/campaign", params, nil, &resp, true)
 }
 
 // GetAffiliateReferralData retrieves an affiliate referral data
@@ -1166,7 +1167,7 @@ func (me *MEXC) GetAffiliateReferralData(ctx context.Context, startTime, endTime
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateReferralData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/referral", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/referral", params, nil, &resp, true)
 }
 
 // GetSubAffiliateData retrieve a sub-affiliate data
@@ -1190,11 +1191,11 @@ func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/subaffiliates", params, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/subaffiliates", params, nil, &resp, true)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
-func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, result interface{}, auth ...bool) error {
+func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
