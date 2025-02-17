@@ -1947,24 +1947,19 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 }
 
 // FetchTickerCached returns the ticker for a currency pair and asset type
-// associated with the exchange.
-// NOTE: UpdateTicker (or if supported UpdateTickers) method must be
-// called first to update the ticker map.
+// NOTE: UpdateTicker (or if supported UpdateTickers) method must be called first to update the ticker map
 func (b *Base) FetchTickerCached(_ context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // FetchOrderbookCached returns orderbook base on the currency pair and asset type
-// associated with the exchange.
-// NOTE: UpdateOrderbook method must be called first to update the orderbook
-// map.
+// NOTE: UpdateOrderbook method must be called first to update the orderbook map
 func (b *Base) FetchOrderbookCached(_ context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 
 // FetchAccountInfoCached retrieves balances for all enabled currencies
-// NOTE: UpdateAccountInfo method must be called first to update the
-// account info map.
+// NOTE: UpdateAccountInfo method must be called first to update the account info map
 func (b *Base) FetchAccountInfoCached(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {

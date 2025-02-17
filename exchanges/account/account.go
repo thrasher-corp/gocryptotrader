@@ -18,14 +18,14 @@ func init() {
 	service.mux = dispatch.GetNewMux(nil)
 }
 
+// Public errors
 var (
-	// ErrExchangeHoldingsNotFound is a common error for when an exchange
-	// holdings cannot be found
 	ErrExchangeHoldingsNotFound = errors.New("exchange holdings not found")
+)
 
-	errHoldingsIsNil     = errors.New("holdings cannot be nil")
-	errExchangeNameUnset = errors.New("exchange name unset")
-	// errAssetHoldingsNotFound        = errors.New("asset holdings not found")
+var (
+	errHoldingsIsNil                = errors.New("holdings cannot be nil")
+	errExchangeNameUnset            = errors.New("exchange name unset")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errBalanceIsNil                 = errors.New("balance is nil")
@@ -95,7 +95,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, ErrExchangeHoldingsNotFound)
+		return Holdings{}, fmt.Errorf("%s %w: `%s`", exch, ErrExchangeHoldingsNotFound, assetType)
 	}
 
 	subAccountHoldings, ok := accounts.SubAccounts[*creds]

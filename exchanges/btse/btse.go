@@ -79,7 +79,7 @@ func (b *BTSE) GetRawMarketSummary(ctx context.Context, symbol string, spot bool
 	return m, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &m, spot, queryFunc)
 }
 
-// FetchOrderbook gets orderbook data for a given pair
+// FetchOrderbook gets orderbook data for a given symbol
 func (b *BTSE) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}

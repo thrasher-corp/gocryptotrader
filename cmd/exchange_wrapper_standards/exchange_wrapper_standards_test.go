@@ -643,9 +643,9 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
-	account.ErrExchangeHoldingsNotFound,  // Is thrown when an exchange's holdings are not found
-	ticker.ErrNoTickerFound,              // Is thrown when no ticker is found
-	orderbook.ErrCannotFindOrderbook,     // Is thrown when no orderbook is found
+	account.ErrExchangeHoldingsNotFound,
+	ticker.ErrNoTickerFound,
+	orderbook.ErrCannotFindOrderbook,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
