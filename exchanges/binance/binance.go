@@ -6486,7 +6486,7 @@ func (b *Binance) LocalEntitiesWithdraw(ctx context.Context, coin currency.Code,
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/localentity/withdraw/apply", params, request.UnAuth, nil, &resp)
 }
 
-// WithdrawalHistory fetch withdraw history for local entities that required travel rule through the V1 API.
+// WithdrawalHistoryV1 fetch withdraw history for local entities that required travel rule through the V1 API.
 // for local entities that require travel rule
 func (b *Binance) WithdrawalHistoryV1(ctx context.Context, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs []string, network, travelRuleStatus string, offset, limit int64, startTime, endTime time.Time) ([]LocalEntityWithdrawalDetail, error) {
 	return b.withdrawalHistory(ctx, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs, network, travelRuleStatus, "/sapi/v1/localentity/withdraw/history", offset, limit, startTime, endTime)
