@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -311,35 +312,24 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	}
 
 	orderbookData := make([]EnabledExchangeOrderbooks, 0, len(exchanges))
-	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes(true)
-		exchName := exchanges[x].GetName()
-		var exchangeOB EnabledExchangeOrderbooks
-		exchangeOB.ExchangeName = exchName
-
-		for y := range assets {
-			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+	for _, e := range exchanges {
+		var orderbooks []orderbook.Base
+		for _, a := range e.GetAssetTypes(true) {
+			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
-					exchName,
-					err)
+				log.Errorf(log.APIServerMgr, "Exchange %s could not retrieve enabled currencies. Err: %s\n", e.GetName(), err)
 				continue
 			}
-			for z := range currencies {
-				ob, err := exchanges[x].FetchOrderbookCached(context.TODO(), currencies[z], assets[y])
+			for _, pair := range pairs {
+				ob, err := e.GetCachedOrderbook(pair, a)
 				if err != nil {
-					log.Errorf(log.APIServerMgr,
-						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
-						currencies[z].String(),
-						err)
+					log.Errorf(log.APIServerMgr, "Exchange %s failed to retrieve %s orderbook. Err: %s\n", e.GetName(), pair, err)
 					continue
 				}
-				exchangeOB.ExchangeValues = append(exchangeOB.ExchangeValues, *ob)
+				orderbooks = append(orderbooks, *ob)
 			}
-			orderbookData = append(orderbookData, exchangeOB)
 		}
-		orderbookData = append(orderbookData, exchangeOB)
+		orderbookData = append(orderbookData, EnabledExchangeOrderbooks{ExchangeName: e.GetName(), ExchangeValues: orderbooks})
 	}
 	return orderbookData
 }
@@ -867,14 +857,10 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		return common.GetTypeAssertError("[]byte", data)
 	}
 
-	wsResp := WebsocketEventResponse{
-		Event: "GetOrderbook",
-	}
 	var orderbookReq WebsocketOrderbookTickerRequest
 	err := json.Unmarshal(d, &orderbookReq)
 	if err != nil {
-		wsResp.Error = err.Error()
-		sendErr := client.SendWebsocketMessage(wsResp)
+		sendErr := client.SendWebsocketMessage(WebsocketEventResponse{Event: "GetOrderbook", Error: err.Error()})
 		if sendErr != nil {
 			log.Errorln(log.APIServerMgr, sendErr)
 		}
@@ -893,24 +879,22 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 
 	exch, err := client.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
 	if err != nil {
-		wsResp.Error = err.Error()
-		sendErr := client.SendWebsocketMessage(wsResp)
+		sendErr := client.SendWebsocketMessage(WebsocketEventResponse{Event: "GetOrderbook", Error: err.Error()})
 		if sendErr != nil {
 			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
-	ob, err := exch.FetchOrderbookCached(context.TODO(), p, a)
+	ob, err := exch.GetCachedOrderbook(p, a)
 	if err != nil {
-		wsResp.Error = err.Error()
-		sendErr := client.SendWebsocketMessage(wsResp)
+		sendErr := client.SendWebsocketMessage(WebsocketEventResponse{Event: "GetOrderbook", Error: err.Error()})
 		if sendErr != nil {
 			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
-	wsResp.Data = ob
-	return nil
+
+	return client.SendWebsocketMessage(WebsocketEventResponse{Event: "GetOrderbook", Data: ob})
 }
 
 func wsGetExchangeRates(client *websocketClient, _ interface{}) error {

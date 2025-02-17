@@ -34,7 +34,7 @@ exchange interface system set by exchange wrapper orderbook functions in
 Examples below:
 
 ```go
-ob, err := yobitExchange.FetchOrderbookCached()
+ob, err := yobitExchange.GetCachedOrderbook()
 if err != nil {
 	// Handle error
 }

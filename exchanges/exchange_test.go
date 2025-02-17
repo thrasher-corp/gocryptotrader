@@ -2913,11 +2913,7 @@ func TestGetCachedTicker(t *testing.T) {
 	_, err := b.GetCachedTicker(pair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrNoTickerFound)
 
-	err = ticker.ProcessTicker(&ticker.Price{
-		ExchangeName: "test",
-		Pair:         pair,
-		AssetType:    asset.Spot,
-	})
+	err = ticker.ProcessTicker(&ticker.Price{ExchangeName: "test", Pair: pair, AssetType: asset.Spot})
 	assert.NoError(t, err)
 
 	tickerPrice, err := b.GetCachedTicker(pair, asset.Spot)
@@ -2925,21 +2921,17 @@ func TestGetCachedTicker(t *testing.T) {
 	assert.Equal(t, tickerPrice.Pair, pair)
 }
 
-func TestFetchOrderbookCached(t *testing.T) {
+func TestGetCachedOrderbook(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.FetchOrderbookCached(context.Background(), pair, asset.Spot)
+	_, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrCannotFindOrderbook)
 
-	err = (&orderbook.Base{
-		Exchange: "test",
-		Pair:     pair,
-		Asset:    asset.Spot,
-	}).Process()
+	err = (&orderbook.Base{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
 	assert.NoError(t, err)
 
-	ob, err := b.FetchOrderbookCached(context.Background(), pair, asset.Spot)
+	ob, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.NoError(t, err)
 	assert.Equal(t, ob.Pair, pair)
 }
@@ -3012,7 +3004,7 @@ func (f *FakeBase) FetchAccountInfoCached(context.Context, asset.Item) (account.
 	return account.Holdings{}, nil
 }
 
-func (f *FakeBase) FetchOrderbookCached(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 

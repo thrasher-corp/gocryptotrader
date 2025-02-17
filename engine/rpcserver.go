@@ -462,7 +462,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
-func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
+func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -475,7 +475,7 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 
 	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	ob, err := e.FetchOrderbookCached(ctx, pair, a)
+	ob, err := e.GetCachedOrderbook(pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -510,60 +510,43 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRe
 	}
 	obResponse := make([]*gctrpc.Orderbooks, 0, len(exchanges))
 	var obs []*gctrpc.OrderbookResponse
-	for x := range exchanges {
-		if !exchanges[x].IsEnabled() {
+	for _, e := range exchanges {
+		if !e.IsEnabled() {
 			continue
 		}
-		assets := exchanges[x].GetAssetTypes(true)
-		exchName := exchanges[x].GetName()
-		for y := range assets {
-			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+		for _, a := range e.GetAssetTypes(true) {
+			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
-				log.Errorf(log.RESTSys,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
-					exchName,
-					err)
+				log.Errorf(log.RESTSys, "Exchange %s could not retrieve enabled currencies. Err: %s\n", e.GetName(), err)
 				continue
 			}
-			for z := range currencies {
-				resp, err := exchanges[x].FetchOrderbookCached(ctx, currencies[z], assets[y])
+			for _, pair := range pairs {
+				resp, err := e.GetCachedOrderbook(pair, a)
 				if err != nil {
-					log.Errorf(log.RESTSys,
-						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
-						currencies[z].String(),
-						err)
+					log.Errorf(log.RESTSys, "Exchange %s failed to retrieve %s orderbook. Err: %s\n", e.GetName(), pair, err)
 					continue
 				}
 				ob := &gctrpc.OrderbookResponse{
 					Pair: &gctrpc.CurrencyPair{
-						Delimiter: currencies[z].Delimiter,
-						Base:      currencies[z].Base.String(),
-						Quote:     currencies[z].Quote.String(),
+						Delimiter: pair.Delimiter,
+						Base:      pair.Base.String(),
+						Quote:     pair.Quote.String(),
 					},
-					AssetType:   assets[y].String(),
+					AssetType:   a.String(),
 					LastUpdated: s.unixTimestamp(resp.LastUpdated),
 					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
 					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
 				}
 				for i := range resp.Bids {
-					ob.Bids[i] = &gctrpc.OrderbookItem{
-						Amount: resp.Bids[i].Amount,
-						Price:  resp.Bids[i].Price,
-					}
+					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price}
 				}
 				for i := range resp.Asks {
-					ob.Asks[i] = &gctrpc.OrderbookItem{
-						Amount: resp.Asks[i].Amount,
-						Price:  resp.Asks[i].Price,
-					}
+					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price}
 				}
 				obs = append(obs, ob)
 			}
 		}
-		obResponse = append(obResponse, &gctrpc.Orderbooks{
-			Exchange:   exchanges[x].GetName(),
-			Orderbooks: obs,
-		})
+		obResponse = append(obResponse, &gctrpc.Orderbooks{Exchange: e.GetName(), Orderbooks: obs})
 	}
 
 	return &gctrpc.GetOrderbooksResponse{Orderbooks: obResponse}, nil
@@ -1280,7 +1263,7 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbookCached(ctx, p, asset.Spot)
+	o, err := exch.GetCachedOrderbook(p, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -1336,7 +1319,7 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbookCached(ctx, p, a)
+	o, err := exch.GetCachedOrderbook(p, a)
 	if err != nil {
 		return nil, err
 	}

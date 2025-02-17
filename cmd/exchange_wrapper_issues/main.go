@@ -391,8 +391,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{updateOrderbookResponse}),
 			})
 
-			var FetchOrderbookCachedResponse *orderbook.Base
-			FetchOrderbookCachedResponse, err = e.FetchOrderbookCached(context.TODO(), p, assetTypes[i])
+			var GetCachedOrderbookResponse *orderbook.Base
+			GetCachedOrderbookResponse, err = e.GetCachedOrderbook(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -400,9 +400,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
-				Function:   "FetchOrderbookCached",
+				Function:   "GetCachedOrderbook",
 				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{FetchOrderbookCachedResponse}),
+				Response:   jsonifyInterface([]interface{}{GetCachedOrderbookResponse}),
 			})
 
 			var fetchTradablePairsResponse []currency.Pair

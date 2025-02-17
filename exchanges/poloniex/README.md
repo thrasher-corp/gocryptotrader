@@ -63,7 +63,7 @@ if err != nil {
 }
 
 // Fetches current orderbook information
-ob, err := p.FetchOrderbookCached()
+ob, err := p.GetCachedOrderbook()
 if err != nil {
 	// Handle error
 }

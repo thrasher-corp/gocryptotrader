@@ -44,7 +44,7 @@ if err != nil {
 }
 
 // Fetches current orderbook information
-ob, err := k.FetchOrderbookCached()
+ob, err := k.GetCachedOrderbook()
 if err != nil {
 	// Handle error
 }

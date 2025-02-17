@@ -287,7 +287,7 @@ if err != nil {
 }
 
 // Fetches current orderbook information
-ob, err := e.FetchOrderbookCached(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
+ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
 if err != nil {
   // Handle error
 }
