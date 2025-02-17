@@ -695,7 +695,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "tradeFeed": true
     }
    },
    "bankAccounts": [
