@@ -344,7 +344,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 
 	exchangeTickers := make([]EnabledExchangeCurrencies, 0, len(exchanges))
 	for _, e := range exchanges {
-		var tickers []ticker.Price
+		var tickers []*ticker.Price
 		for _, a := range e.GetAssetTypes(true) {
 			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
@@ -357,7 +357,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 					log.Errorf(log.APIServerMgr, "Exchange %s failed to retrieve %s ticker. Err: %s\n", e.GetName(), pair.String(), err)
 					continue
 				}
-				tickers = append(tickers, *t)
+				tickers = append(tickers, t)
 			}
 		}
 		exchangeTickers = append(exchangeTickers, EnabledExchangeCurrencies{ExchangeName: e.GetName(), ExchangeValues: tickers})

@@ -829,7 +829,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName, currencies[z].String(), err)
 					continue
 				}
-				exchangeTicker.ExchangeValues = append(exchangeTicker.ExchangeValues, *tp)
+				exchangeTicker.ExchangeValues = append(exchangeTicker.ExchangeValues, tp)
 			}
 			tickerData = append(tickerData, exchangeTicker)
 		}
