@@ -20,6 +20,7 @@ import (
 const (
 	saltRandomLength  = 12
 	encryptionVersion = 1
+	versionSize       = 2 // 2 bytes as uint16, allows for 65535 versions (at our current rate of 1 version per decade, should last a few generations)
 )
 
 // Public errors
@@ -130,12 +131,18 @@ func (c *Config) encryptConfigData(configData []byte) ([]byte, error) {
 
 	ciphertext := aead.Seal(nil, nil, configData, nil)
 
-	appendedFile := append(bytes.Clone(encryptionPrefix), c.storedSalt...)
-	appendedFile = append(appendedFile, encryptionVersionPrefix...)
-	versionOffset := len(encryptionPrefix) + len(c.storedSalt) + len(encryptionVersionPrefix)
-	appendedFile = append(appendedFile, make([]byte, 2)...)
-	binary.BigEndian.PutUint16(appendedFile[versionOffset:], encryptionVersion)
-	appendedFile = append(appendedFile, ciphertext...)
+	totalLen := len(encryptionPrefix) + len(c.storedSalt) + len(encryptionVersionPrefix) + versionSize + len(ciphertext)
+	appendedFile := make([]byte, totalLen)
+	offset := 0
+	copy(appendedFile[offset:], encryptionPrefix)
+	offset += len(encryptionPrefix)
+	copy(appendedFile[offset:], c.storedSalt)
+	offset += len(c.storedSalt)
+	copy(appendedFile[offset:], encryptionVersionPrefix)
+	offset += len(encryptionVersionPrefix)
+	binary.BigEndian.PutUint16(appendedFile[offset:offset+versionSize], encryptionVersion)
+	offset += versionSize
+	copy(appendedFile[offset:], ciphertext)
 	return appendedFile, nil
 }
 

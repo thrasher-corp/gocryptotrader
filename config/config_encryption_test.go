@@ -115,7 +115,7 @@ func TestDecryptConfigFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"test":123}`, string(data))
 
-	badVersion := make([]byte, len(encryptionPrefix)+len(encryptionVersionPrefix)+2)
+	badVersion := make([]byte, len(encryptionPrefix)+len(encryptionVersionPrefix)+versionSize)
 	copy(badVersion, encryptionPrefix)
 	copy(badVersion[len(encryptionPrefix):], encryptionVersionPrefix)
 	binary.BigEndian.PutUint16(badVersion[len(encryptionPrefix)+len(encryptionVersionPrefix):], 69)
