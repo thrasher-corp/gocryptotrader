@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -50,10 +50,10 @@ var executeStrategyFromFileCommand = &cli.Command{
 			Aliases: []string{"e"},
 			Usage:   fmt.Sprintf("override the strategy file's end time using your local time. eg '%v'", time.Now().Truncate(time.Hour).Format(time.DateTime)),
 		},
-		&cli.Int64Flag{
+		&cli.DurationFlag{
 			Name:    "intervaloverride",
 			Aliases: []string{"i"},
-			Usage:   "override the strategy file's candle interval, in seconds. eg 60 = 1 minute",
+			Usage:   "override the strategy file's candle interval in the format of a time duration. eg '1m' for 1 minute",
 		},
 	},
 }
@@ -119,18 +119,17 @@ func executeStrategyFromFile(c *cli.Context) error {
 		}
 	}
 
-	var intervalOverride int64
+	var intervalOverride time.Duration
 	if c.IsSet("intervaloverride") {
-		intervalOverride = c.Int64("intervaloverride")
+		intervalOverride = c.Duration("intervaloverride")
 	} else if c.Args().Get(5) != "" {
-		intervalOverride, err = strconv.ParseInt(c.Args().Get(5), 10, 64)
+		intervalOverride, err = time.ParseDuration(c.Args().Get(5))
 		if err != nil {
 			return err
 		}
 	}
-	overrideDuration := time.Duration(intervalOverride) * time.Second
-	if overrideDuration < 0 {
-		return errors.New("interval override cannot be less than 0")
+	if intervalOverride < 0 {
+		return errors.New("interval override duration cannot be less than 0")
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
@@ -142,7 +141,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 			DoNotStore:          dns,
 			StartTimeOverride:   timestamppb.New(s),
 			EndTimeOverride:     timestamppb.New(e),
-			IntervalOverride:    int64(overrideDuration),
+			IntervalOverride:    durationpb.New(intervalOverride),
 		},
 	)
 
@@ -507,7 +506,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	}
 
 	dataSettings := &btrpc.DataSettings{
-		Interval: defaultConfig.DataSettings.Interval.Duration().Nanoseconds(),
+		Interval: durationpb.New(defaultConfig.DataSettings.Interval.Duration()),
 		Datatype: defaultConfig.DataSettings.DataType,
 	}
 	if defaultConfig.DataSettings.APIData != nil {
