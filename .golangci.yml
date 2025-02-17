@@ -164,21 +164,12 @@ issues:
     - text: 'shadow: declaration of "err" shadows declaration at'
       linters: [ govet ]
 
-
   exclude-dirs:
     - vendor
     - web/
     - testdata
     - database/models/
 
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-  exclude:
-    # The following silences false positives in table tests
-    #   https://github.com/kyoh86/scopelint/issues/4
-     - Using the variable on range scope `ti` in function literal
   include: 
     - EXC0012 # revive: Comment exported (.+) should have comment( \(or a comment on this block\))? or be unexported
     - EXC0014 # revive: Comment on exported (.+) should be of the form "(.+)..."
