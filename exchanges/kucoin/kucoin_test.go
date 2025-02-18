@@ -2838,17 +2838,6 @@ func getFirstTradablePairOfAssets() {
 	futuresTradablePair.Delimiter = ""
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	assetTypes := ku.GetAssetTypes(true)
-	for _, assetType := range assetTypes {
-		result, err := ku.GetCachedAccountInfo(context.Background(), assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)

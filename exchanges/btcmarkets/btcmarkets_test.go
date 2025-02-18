@@ -476,16 +476,6 @@ func TestCancelBatch(t *testing.T) {
 	}
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetCachedAccountInfo(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)

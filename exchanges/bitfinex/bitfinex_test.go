@@ -497,15 +497,6 @@ func TestGetAccountBalance(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetCachedAccountInfo(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestWalletTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)

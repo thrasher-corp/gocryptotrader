@@ -133,14 +133,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, err := bi.GetCachedAccountInfo(context.Background(), asset.Spot); err != nil {
-		t.Error("Binanceus GetCachedAccountInfo() error", err)
-	}
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
