@@ -18,11 +18,12 @@ const (
 	bookLengthIssue    = "Potential book issue for exchange %s pair %s asset %s length Bids %d length Asks %d"
 )
 
+// Public errors
 var (
-	// ErrCannotFindOrderbook is a common error for when an orderbook cannot be
-	// found
-	ErrCannotFindOrderbook = errors.New("cannot find orderbook(s)")
+	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+)
 
+var (
 	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
 	errPairNotSet           = errors.New("orderbook currency pair not set")
 	errAssetTypeNotSet      = errors.New("orderbook asset type not set")

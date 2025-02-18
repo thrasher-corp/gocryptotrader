@@ -644,8 +644,8 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
 	account.ErrExchangeHoldingsNotFound,
-	ticker.ErrNoTickerFound,
-	orderbook.ErrCannotFindOrderbook,
+	ticker.ErrTickerNotFound,
+	orderbook.ErrOrderbookNotFound,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

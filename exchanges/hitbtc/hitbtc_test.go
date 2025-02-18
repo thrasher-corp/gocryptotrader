@@ -179,7 +179,7 @@ func TestUpdateTickers(t *testing.T) {
 
 	for j := range enabled {
 		_, err = h.GetCachedTicker(enabled[j], asset.Spot)
-		require.NoError(t, err)
+		require.NoErrorf(t, err, "GetCached Ticker must not error for pair `%s`", enabled[j])
 	}
 }
 

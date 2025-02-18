@@ -2911,14 +2911,14 @@ func TestGetCachedTicker(t *testing.T) {
 	b := Base{Name: "test"}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := b.GetCachedTicker(pair, asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrNoTickerFound)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
 	err = ticker.ProcessTicker(&ticker.Price{ExchangeName: "test", Pair: pair, AssetType: asset.Spot})
 	assert.NoError(t, err)
 
 	tickerPrice, err := b.GetCachedTicker(pair, asset.Spot)
 	assert.NoError(t, err)
-	assert.Equal(t, tickerPrice.Pair, pair)
+	assert.Equal(t, pair, tickerPrice.Pair)
 }
 
 func TestGetCachedOrderbook(t *testing.T) {
@@ -2926,7 +2926,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 	b := Base{Name: "test"}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := b.GetCachedOrderbook(pair, asset.Spot)
-	assert.ErrorIs(t, err, orderbook.ErrCannotFindOrderbook)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
 	err = (&orderbook.Base{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
 	assert.NoError(t, err)
@@ -2954,7 +2954,7 @@ func TestGetCachedAccountInfo(t *testing.T) {
 	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
 		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
 	}}, creds)
-	assert.NoError(t, err)
+	require.NoError(t, err, "account.Process must not error")
 
 	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
 	assert.NoError(t, err)

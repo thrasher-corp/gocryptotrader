@@ -300,7 +300,7 @@ func TestCheckEventCondition(t *testing.T) {
 	}
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !errors.Is(err, ticker.ErrNoTickerFound) {
+	if err != nil && !errors.Is(err, ticker.ErrTickerNotFound) {
 		t.Error(err)
 	} else if err == nil {
 		t.Error("expected error")

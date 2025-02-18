@@ -2721,7 +2721,7 @@ func TestOptionsOrderbookPushData(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookTickerPushDataJSON)))
 	avail, err := g.GetAvailablePairs(asset.Options)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(fmt.Sprintf(optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String()))))
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotPushDataJSON)))
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
