@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -94,30 +95,29 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Manager
 	err := w.Setup(nil)
-	assert.ErrorIs(t, err, errWebsocketIsNil)
+	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
 
 	w = &Manager{DataHandler: make(chan any)}
 	err = w.Setup(nil)
-	assert.ErrorIs(t, err, errWebsocketSetupIsNil)
+	assert.ErrorContains(t, err, "nil pointer: *websocket.ManagerSetup")
 
 	websocketSetup := &ManagerSetup{}
-
 	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errExchangeConfigIsNil)
+	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.Exchange")
 
 	websocketSetup.ExchangeConfig = &config.Exchange{}
+	err = w.Setup(websocketSetup)
+	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.ExchangeConfig.Features")
+
+	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
+	err = w.Setup(websocketSetup)
+	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.Features")
+
+	websocketSetup.Features = &protocol.Features{}
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errExchangeConfigNameEmpty)
 
 	websocketSetup.ExchangeConfig.Name = "testname"
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketFeaturesIsUnset)
-
-	websocketSetup.Features = &protocol.Features{}
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errConfigFeaturesIsNil)
-
-	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
 	websocketSetup.Subscriber = func(subscription.List) error { return nil } // kicks off the setup
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errWebsocketConnectorUnset)
@@ -1229,7 +1229,7 @@ func TestSetupNewConnection(t *testing.T) {
 	t.Parallel()
 	var nonsenseWebsock *Manager
 	err := nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
-	assert.ErrorIs(t, err, errWebsocketIsNil, "SetupNewConnection should error correctly")
+	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
 
 	nonsenseWebsock = &Manager{}
 	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
@@ -1261,7 +1261,7 @@ func TestSetupNewConnection(t *testing.T) {
 	require.NoError(t, multi.Setup(set))
 
 	err = multi.SetupNewConnection(nil)
-	require.ErrorIs(t, err, errExchangeConfigEmpty)
+	assert.ErrorContains(t, err, "nil pointer: *websocket.ConnectionSetup")
 
 	connSetup := &ConnectionSetup{ResponseCheckTimeout: time.Millisecond}
 	err = multi.SetupNewConnection(connSetup)
@@ -1554,11 +1554,13 @@ func TestGetConnection(t *testing.T) {
 	var ws *Manager
 	_, err := ws.GetConnection(nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorContains(t, err, fmt.Sprintf("%T", ws))
 
 	ws = &Manager{}
 
 	_, err = ws.GetConnection(nil)
-	require.ErrorIs(t, err, errMessageFilterNotSet)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorContains(t, err, "messageFilter")
 
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, errCannotObtainOutboundConnection)
