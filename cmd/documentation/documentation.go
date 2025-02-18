@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -111,6 +113,38 @@ type Attributes struct {
 	Year            int
 	CapitalName     string
 	DonationAddress string
+	Features        []ProtocolFunctionality
+}
+
+// ProtocolFunctionality defines a protocol feature set
+type ProtocolFunctionality struct {
+	Protocol string
+	Assets   []AssetFunctionality
+}
+
+func (a ProtocolFunctionality) String() string {
+	return a.Protocol
+}
+
+// AssetFunctionality defines an asset feature set
+type AssetFunctionality struct {
+	Asset   string
+	Methods []MethodNameAndOperational
+}
+
+func (a AssetFunctionality) String() string {
+	return a.Asset
+}
+
+// MethodNameAndOperational defines a method name and if it is operational
+type MethodNameAndOperational struct {
+	MethodName  string
+	Operational bool
+}
+
+// String returns the method name
+func (m MethodNameAndOperational) String() string {
+	return m.MethodName
 }
 
 func main() {
@@ -437,7 +471,11 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 // GetTemplateFiles parses and returns all template files in the documentation
 // tree
 func GetTemplateFiles() (*template.Template, error) {
-	tmpl := template.New("")
+	tmpl := template.New("").Funcs(template.FuncMap{
+		"contains":   contains,
+		"append":     _append,
+		"emptySlice": emptySlice,
+	})
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -485,13 +523,15 @@ func GetContributorList(repo string, verbose bool) ([]Contributor, error) {
 
 // GetDocumentationAttributes returns specific attributes for a file template
 func GetDocumentationAttributes(packageName string, contributors []Contributor) Attributes {
+	name := GetPackageName(packageName, false)
 	return Attributes{
-		Name:            GetPackageName(packageName, false),
+		Name:            name,
 		Contributors:    contributors,
 		NameURL:         GetGoDocURL(packageName),
 		Year:            time.Now().Year(),
 		CapitalName:     GetPackageName(packageName, true),
 		DonationAddress: core.BitcoinDonationAddress,
+		Features:        GetFunctionality(name),
 	}
 }
 
@@ -507,6 +547,46 @@ func GetPackageName(name string, capital bool) string {
 		return strings.Replace(cases.Title(language.English).String(newStrings[i]), "_", " ", -1)
 	}
 	return newStrings[i]
+}
+
+// GetFunctionality returns a dynamic list of supported functionality for a specific asset type.
+func GetFunctionality(name string) []ProtocolFunctionality {
+	exch, _ := engine.NewExchangeByNameWithDefaults(context.Background(), name)
+	if exch == nil {
+		return nil
+	}
+
+	set := exchange.GenerateSupportedFunctionality(exch)
+	if set == nil {
+		return nil
+	}
+
+	lookup := make(map[string][]AssetFunctionality)
+	for ap, availableFunctionality := range set {
+		methods := make([]MethodNameAndOperational, 0, len(availableFunctionality))
+		for k, v := range availableFunctionality {
+			methods = append(methods, MethodNameAndOperational{
+				MethodName:  k,
+				Operational: v,
+			})
+		}
+		pName := ap.Protocol.String()
+		methods = common.SortStrings(methods)
+		lookup[pName] = append(lookup[pName], AssetFunctionality{
+			Asset:   ap.Asset.String(),
+			Methods: methods,
+		})
+	}
+	functionalityList := make([]ProtocolFunctionality, 0, len(lookup))
+	for k, v := range lookup {
+		v = common.SortStrings(v)
+		functionalityList = append(functionalityList, ProtocolFunctionality{
+			Protocol: k,
+			Assets:   v,
+		})
+	}
+	functionalityList = common.SortStrings(functionalityList)
+	return functionalityList
 }
 
 // GetGoDocURL returns a string for godoc package names
@@ -620,4 +700,21 @@ func runTemplate(details DocumentationDetails, mainPath, name string) error {
 
 	attr := GetDocumentationAttributes(name, details.Contributors)
 	return details.Tmpl.ExecuteTemplate(f, name, attr)
+}
+
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
+func emptySlice() []string {
+	return []string{}
+}
+
+func _append(slice []string, item string) []string {
+	return append(slice, item)
 }
