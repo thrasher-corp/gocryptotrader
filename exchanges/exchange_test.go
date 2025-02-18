@@ -2933,7 +2933,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 
 	ob, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.NoError(t, err)
-	assert.Equal(t, ob.Pair, pair)
+	assert.Equal(t, pair, ob.Pair)
 }
 
 func TestGetCachedAccountInfo(t *testing.T) {
