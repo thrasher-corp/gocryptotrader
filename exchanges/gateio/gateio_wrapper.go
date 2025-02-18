@@ -176,7 +176,7 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	g.Websocket = websocket.NewWebsocket()
+	g.Websocket = websocket.NewManager()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -197,7 +197,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Websocket.Setup(&websocket.WebsocketSetup{
+	err = g.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    g.Features.Enabled.FillsFeed,

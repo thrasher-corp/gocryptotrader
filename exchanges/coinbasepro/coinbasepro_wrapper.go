@@ -130,7 +130,7 @@ func (c *CoinbasePro) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = websocket.NewWebsocket()
+	c.Websocket = websocket.NewManager()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -156,7 +156,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&websocket.WebsocketSetup{
+	err = c.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinbaseproWebsocketURL,
 		RunningURL:            wsRunningURL,

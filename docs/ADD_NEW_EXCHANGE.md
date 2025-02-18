@@ -1070,7 +1070,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 	}
 
 	// Websocket details setup below
-	err = f.Websocket.Setup(&stream.WebsocketSetup{
+	err = f.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        	exch,
 		// DefaultURL defines the default endpoint in the event a rollback is 
 		// needed via gctcli.

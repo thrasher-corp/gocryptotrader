@@ -53,7 +53,7 @@ func TestWsHandleData(t *testing.T) {
 					},
 				},
 			},
-			Websocket: websocket.NewWebsocket(),
+			Websocket: websocket.NewManager(),
 		},
 	}
 

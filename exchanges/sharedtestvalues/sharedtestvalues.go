@@ -51,8 +51,8 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 }
 
 // NewTestWebsocket returns a test websocket object
-func NewTestWebsocket() *websocket.Websocket {
-	w := websocket.NewWebsocket()
+func NewTestWebsocket() *websocket.Manager {
+	w := websocket.NewManager()
 	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
 	w.ToRoutine = make(chan any, 1000)
 	return w

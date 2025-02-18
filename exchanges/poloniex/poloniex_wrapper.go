@@ -137,7 +137,7 @@ func (p *Poloniex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	p.Websocket = websocket.NewWebsocket()
+	p.Websocket = websocket.NewManager()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -163,7 +163,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = p.Websocket.Setup(&websocket.WebsocketSetup{
+	err = p.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,

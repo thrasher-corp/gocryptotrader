@@ -293,7 +293,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 		t.Fatal("unexpected data handlers registered")
 	}
 
-	mock := websocket.NewWebsocket()
+	mock := websocket.NewManager()
 	mock.ToRoutine = make(chan any)
 	m.state = readyState
 	err = m.websocketDataReceiver(mock)

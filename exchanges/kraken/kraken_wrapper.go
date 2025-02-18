@@ -169,7 +169,7 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = websocket.NewWebsocket()
+	k.Websocket = websocket.NewManager()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -194,7 +194,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = k.Websocket.Setup(&websocket.WebsocketSetup{
+	err = k.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,

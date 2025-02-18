@@ -104,7 +104,7 @@ func (c *COINUT) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = websocket.NewWebsocket()
+	c.Websocket = websocket.NewManager()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -130,7 +130,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&websocket.WebsocketSetup{
+	err = c.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinutWebsocketURL,
 		RunningURL:            wsRunningURL,
