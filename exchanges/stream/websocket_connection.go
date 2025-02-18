@@ -379,3 +379,8 @@ func removeURLQueryString(url string) string {
 	}
 	return url
 }
+
+// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+func (w *WebsocketConnection) RequireMatchWithData(signature any, incoming []byte) error {
+	return w.Match.RequireMatchWithData(signature, incoming)
+}
