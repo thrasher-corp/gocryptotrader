@@ -54,9 +54,7 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol string, limit in
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-
 	params := url.Values{}
-	params.Set("symbol", symbol)
 	strLimit := strconv.FormatInt(limit, 10)
 	if strLimit != "" {
 		if !slices.Contains(uValidOBLimits, strLimit) {
@@ -64,7 +62,6 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol string, limit in
 		}
 		params.Set("limit", strLimit)
 	}
-
 	rateBudget := uFuturesOrderbook1000Rate
 	switch {
 	case limit == 5, limit == 10, limit == 20, limit == 50:
@@ -74,6 +71,7 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol string, limit in
 	case limit == 0, limit >= 500 && limit < 1000:
 		rateBudget = uFuturesOrderbook500Rate
 	}
+	params.Set("symbol", symbol)
 
 	var resp *OrderBook
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/depth", params), rateBudget, &resp)

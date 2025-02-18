@@ -622,7 +622,6 @@ func (b *Binance) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinMa
 			maxOrderLimit = resp.RateLimits[a].Limit
 		}
 	}
-
 	limits := make([]order.MinMaxLevel, 0, len(resp.OptionSymbols))
 	for i := range resp.OptionSymbols {
 		var cp currency.Pair

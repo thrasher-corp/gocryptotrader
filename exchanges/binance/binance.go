@@ -6548,12 +6548,12 @@ func (b *Binance) SubmitDepositQuestionnaire(ctx context.Context, walletTransact
 	if questionnaire == "" {
 		return nil, errQuestionnaireRequired
 	}
-	params := url.Values{}
-	params.Set("tranId", walletTransactionID)
 	questionnaireJSON, err := json.Marshal(questionnaire)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
+	params.Set("tranId", walletTransactionID)
 	params.Set("questionnaire", string(questionnaireJSON))
 	var resp *QuestionnaireDepositResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "/sapi/v1/localentity/deposit/provide-info", params, request.Auth, nil, &resp)
@@ -6645,10 +6645,10 @@ func (b *Binance) EnableFuturesForSubAccount(ctx context.Context, subAccountID s
 
 // CreateAPIKeyForSubAccount creates a new API key for the specified subaccount
 func (b *Binance) CreateAPIKeyForSubAccount(ctx context.Context, subAccountID string, canTrade, marginTrade, futuresTrade bool) (*SubAccountAPIKey, error) {
-	params := url.Values{}
 	if subAccountID == "" {
 		return nil, errSubAccountIDMissing
 	}
+	params := url.Values{}
 	if canTrade {
 		params.Set("canTrade", "true")
 	} else {
