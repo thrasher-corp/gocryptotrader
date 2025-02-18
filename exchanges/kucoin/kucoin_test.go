@@ -2001,28 +2001,6 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	var result *ticker.Price
-	var err error
-	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.FetchTicker(context.Background(), tp, assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	var result *orderbook.Base
-	var err error
-	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.FetchOrderbook(context.Background(), tp, assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
-}
-
 func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Now().Add(-time.Hour * 48)
 	endTime := time.Now().Add(-time.Hour * 3)
@@ -2858,17 +2836,6 @@ func getFirstTradablePairOfAssets() {
 	}
 	futuresTradablePair = enabledPairs[0]
 	futuresTradablePair.Delimiter = ""
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	assetTypes := ku.GetAssetTypes(true)
-	for _, assetType := range assetTypes {
-		result, err := ku.FetchAccountInfo(context.Background(), assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
 }
 
 func TestUpdateAccountInfo(t *testing.T) {

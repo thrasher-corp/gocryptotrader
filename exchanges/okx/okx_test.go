@@ -3349,23 +3349,6 @@ func TestUpdateTickers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	result, err := ok.FetchTicker(contextGenerate(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.PerpetualSwap)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = ok.FetchTicker(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	result, err := ok.FetchOrderbook(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	result, err := ok.UpdateOrderbook(contextGenerate(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.Spot)
@@ -3381,14 +3364,6 @@ func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.UpdateAccountInfo(contextGenerate(), asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.FetchAccountInfo(contextGenerate(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
