@@ -30,9 +30,8 @@ const (
 	connectedState
 )
 
-// Websocket defines a return type for websocket connections via the interface
-// wrapper for routine processing
-type Websocket struct {
+// Manager provides connection and subscription management and routing
+type Manager struct {
 	canUseAuthenticatedEndpoints atomic.Bool
 	enabled                      atomic.Bool
 	state                        atomic.Uint32
@@ -109,8 +108,8 @@ type Websocket struct {
 	rateLimitDefinitions request.RateLimitDefinitions
 }
 
-// WebsocketSetup defines variables for setting up a websocket connection
-type WebsocketSetup struct {
+// ManagerSetup defines variables for setting up a websocket manager
+type ManagerSetup struct {
 	ExchangeConfig        *config.Exchange
 	DefaultURL            string
 	RunningURL            string

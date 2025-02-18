@@ -207,7 +207,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	switch mType {
 	case gws.TextMessage:
 		standardMessage = resp
-	case websocket.BinaryMessage:
+	case gws.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", w.ExchangeName, removeURLQueryString(w.URL), err)

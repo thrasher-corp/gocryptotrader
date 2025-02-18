@@ -153,7 +153,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Websocket) error {
+func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}

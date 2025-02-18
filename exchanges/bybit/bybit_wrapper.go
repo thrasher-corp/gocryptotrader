@@ -206,7 +206,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = websocket.NewWebsocket()
+	by.Websocket = websocket.NewManager()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -234,7 +234,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	err = by.Websocket.Setup(
-		&websocket.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            spotPublic,
 			RunningURL:            wsRunningEndpoint,

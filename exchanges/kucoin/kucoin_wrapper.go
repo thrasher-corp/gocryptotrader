@@ -164,7 +164,7 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ku.Websocket = websocket.NewWebsocket()
+	ku.Websocket = websocket.NewManager()
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -192,7 +192,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = ku.Websocket.Setup(
-		&websocket.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            kucoinWebsocketURL,
 			RunningURL:            wsRunningEndpoint,

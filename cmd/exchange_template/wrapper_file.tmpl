@@ -108,7 +108,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
-	{{.Variable}}.Websocket = websocket.NewWebsocket()
+	{{.Variable}}.Websocket = websocket.NewManager()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -138,7 +138,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	// If websocket is supported, please fill out the following
 
 	err = {{.Variable}}.Websocket.Setup(
-		&websocket.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:  exch,
 			DefaultURL:      {{.Name}}WSAPIURL,
 			RunningURL:      wsRunningEndpoint,
