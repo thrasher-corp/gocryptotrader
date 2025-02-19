@@ -1,4 +1,4 @@
-//go:build sonic_off
+//go:build sonic_off || 386
 
 package json
 
