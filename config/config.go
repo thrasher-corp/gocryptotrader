@@ -1504,7 +1504,7 @@ func (c *Config) readConfig(d io.Reader) error {
 		}
 	}
 
-	if j, err = versions.Manager.Deploy(context.Background(), j); err != nil {
+	if j, err = versions.Manager.Deploy(context.Background(), j, versions.LatestVersion); err != nil {
 		return err
 	}
 
@@ -1595,7 +1595,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 			}
 			c.sessionDK, c.storedSalt = sessionDK, storedSalt
 		}
-		payload, err = c.encryptConfigFile(payload)
+		payload, err = c.encryptConfigData(payload)
 		if err != nil {
 			return err
 		}
