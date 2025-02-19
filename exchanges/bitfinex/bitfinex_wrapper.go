@@ -339,36 +339,6 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *Bitfinex) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return nil, err
-	}
-	DFPair := fPair
-	b.appendOptionalDelimiter(&DFPair)
-	tick, err := ticker.GetTicker(b.Name, DFPair, a)
-	if err != nil {
-		return b.UpdateTicker(ctx, fPair, a)
-	}
-	return tick, nil
-}
-
-// FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitfinex) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	DFPair := fPair
-	b.appendOptionalDelimiter(&DFPair)
-	ob, err := orderbook.Get(b.Name, DFPair, assetType)
-	if err != nil {
-		return b.UpdateOrderbook(ctx, fPair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -491,19 +461,6 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	return response, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

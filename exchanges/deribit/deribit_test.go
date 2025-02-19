@@ -23,10 +23,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -3346,45 +3344,12 @@ func TestChannelName(t *testing.T) {
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: "wibble"}) }, "Unknown channels should panic")
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	var result *ticker.Price
-	var err error
-	for assetType, cp := range assetTypeToPairsMap {
-		result, err = d.FetchTicker(context.Background(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
-	}
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	var result *orderbook.Base
-	var err error
-	for assetType, cp := range assetTypeToPairsMap {
-		result, err = d.FetchOrderbook(context.Background(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s", assetType)
-	}
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	result, err := d.UpdateAccountInfo(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	assetTypes := d.GetAssetTypes(true)
-	for _, assetType := range assetTypes {
-		result, err := d.FetchAccountInfo(context.Background(), assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s", assetType)
-	}
 }
 
 func TestGetFundingHistory(t *testing.T) {

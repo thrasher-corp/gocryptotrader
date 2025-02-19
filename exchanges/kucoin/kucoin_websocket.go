@@ -509,7 +509,7 @@ func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 	if err != nil {
 		return err
 	}
-	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	orderbooks, err := ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
 	if err != nil {
 		return err
 	}

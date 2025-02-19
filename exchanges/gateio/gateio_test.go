@@ -3,6 +3,7 @@ package gateio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"slices"
@@ -2710,26 +2711,20 @@ func TestOptionsCandlesticksPushData(t *testing.T) {
 
 const (
 	optionsOrderbookTickerPushDataJSON              = `{	"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {    "t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`
-	optionsOrderbookUpdatePushDataJSON              = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
+	optionsOrderbookUpdatePushDataJSON              = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "%s",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
 	optionsOrderbookSnapshotPushDataJSON            = `{	"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {    "t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [        {            "p": "97.1",            "s": 2245        },		{            "p": "97.2",            "s": 2245        }    ],    "bids": [		{            "p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`
 	optionsOrderbookSnapshotUpdateEventPushDataJSON = `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [	  {		"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`
 )
 
 func TestOptionsOrderbookPushData(t *testing.T) {
 	t.Parallel()
-	err := g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookTickerPushDataJSON))
-	if err != nil {
-		t.Errorf("%s websocket options orderbook ticker push data error: %v", g.Name, err)
-	}
-	if err = g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options orderbook snapshot push data error: %v", g.Name, err)
-	}
-	if err = g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookUpdatePushDataJSON)); err != nil {
-		t.Errorf("%s websocket options orderbook update push data error: %v", g.Name, err)
-	}
-	if err = g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options orderbook snapshot update event push data error: %v", g.Name, err)
-	}
+	testexch.UpdatePairsOnce(t, g)
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookTickerPushDataJSON)))
+	avail, err := g.GetAvailablePairs(asset.Options)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(fmt.Sprintf(optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String()))))
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotPushDataJSON)))
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
 }
 
 const optionsOrderPushDataJSON = `{"time": 1630654851,"channel": "options.orders",	"event": "update",	"result": [	   {		  "contract": "BTC_USDT-20211130-65000-C",		  "create_time": 1637897000,		  "fill_price": 0,		  "finish_as": "cancelled",		  "iceberg": 0,		  "id": 106,		  "is_close": false,		  "is_liq": false,		  "is_reduce_only": false,		  "left": -10,		  "mkfr": 0.0004,		  "price": 15000,		  "refr": 0,		  "refu": 0,		  "size": -10,		  "status": "finished",		  "text": "web",		  "tif": "gtc",		  "tkfr": 0.0004,		  "underlying": "BTC_USDT",		  "user": "9xxx",		  "time": 1639051907,"time_ms": 1639051907000}]}`
