@@ -1,4 +1,4 @@
-//go:build sonic
+//go:build !sonic_off
 
 package json
 

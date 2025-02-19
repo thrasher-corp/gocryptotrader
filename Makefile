@@ -79,6 +79,6 @@ check-jq:
 	@printf "Checking if jq is installed... "
 	@command -v jq >/dev/null 2>&1 && { printf "OK\n"; } || { printf "FAILED. Please install jq to proceed.\n"; exit 1; }
 
-.PHONY: sonic
-sonic:
-	go build -tags=sonic ./...
+.PHONY: no_sonic
+no_sonic:
+	go build -tags=sonic_off ./...

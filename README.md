@@ -77,7 +77,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + WebGUI (discontinued).
 + Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
-+ Sonic JSON Integration. Swap between the default Go 'encoding/json' package and the sonic library using go build tags for optimized JSON handling `-tags=sonic` or by using the make file `make sonic`
++ Sonic JSON Integration. Revert back to the default Go 'encoding/json' package from the sonic library using go build tags `-tags=sonic_off` or by using the make file `make no_sonic`
 
 ## Development Tracking
 
@@ -150,10 +150,10 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 704 |
-| [shazbert](https://github.com/shazbert) | 358 |
+| [shazbert](https://github.com/shazbert) | 359 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 351 |
 | [gloriousCode](https://github.com/gloriousCode) | 236 |
-| [gbjk](https://github.com/gbjk) | 113 |
+| [gbjk](https://github.com/gbjk) | 115 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |

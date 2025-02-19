@@ -13,32 +13,32 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
-            sonic: false
+            sonic: true
           - os: ubuntu-latest
             goarch: 386
             psql: true
             skip_wrapper_tests: true
-            sonic: false
+            sonic: true
           - os: macos-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
-            sonic: false
+            sonic: true
           - os: macos-13 # beta
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
-            sonic: false
+            sonic: true
           - os: windows-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
-            sonic: false
+            sonic: true
           - os: ubuntu-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
-            sonic: true
+            sonic: false
 
     runs-on: ${{ matrix.os }}
 
@@ -96,8 +96,8 @@ jobs:
 
     - name: Set GOFLAGS
       run: |
-        if [ "${{ matrix.sonic }}" = "true" ]; then
-          echo "GOFLAGS=${GOFLAGS} -tags=sonic" >> $GITHUB_ENV
+        if [ "${{ matrix.sonic }}" = "false" ]; then
+          echo "GOFLAGS=${GOFLAGS} -tags=sonic_off" >> $GITHUB_ENV
         fi
       shell: bash
 

@@ -1,8 +1,8 @@
-//go:build !sonic
+//go:build sonic_off
 
 package json
 
-import "encoding/json" //nolint:depguard // This is a wrapper package for encoding/json. It serves as the default JSON package for GCT (GoCryptoTrader). All uses of JSON throughout the application should refer to this package with the default build.
+import "encoding/json" //nolint:depguard // This is a wrapper package for encoding/json. All uses of JSON throughout the application should refer to this when sonic_off build tag is used.
 
 // Implementation is a constant string that represents the current JSON implementation package
 const Implementation = "encoding/json"
