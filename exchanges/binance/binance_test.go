@@ -9421,3 +9421,144 @@ func TestGetSubAccountCoinMarginedFuturesCommissionAdjustment(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+// ---------- Binance Link endpoints ----------------------------------
+
+func TestGetInfoAboutIfUserIsNew(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSpotInfoAboutIfUserIsNew(context.Background(), "")
+	require.ErrorIs(t, err, errCodeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotInfoAboutIfUserIsNew(context.Background(), "1234")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCustomizeIDForClient(t *testing.T) {
+	t.Parallel()
+	_, err := b.CustomizeSpotPartnerClientID(context.Background(), "", "someone@thrasher.io")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.CustomizeSpotPartnerClientID(context.Background(), "1233", "")
+	require.ErrorIs(t, err, errValidEmailRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CustomizeSpotPartnerClientID(context.Background(), "1233", "someone@thrasher.io")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetClientEmailCustomizedID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotClientEmailCustomizedID(context.Background(), "", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesClientEmailCustomizedID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesClientEmailCustomizedID(context.Background(), "", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCustomizeOwnClientID(t *testing.T) {
+	t.Parallel()
+	_, err := b.CustomizeSpotOwnClientID(context.Background(), "", "ABCDEFG")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.CustomizeSpotOwnClientID(context.Background(), "the-unique-id", "")
+	require.ErrorIs(t, err, errCodeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CustomizeSpotOwnClientID(context.Background(), "the-unique-id", "ABCDEFG")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCustomizeFuturesOwnClientID(t *testing.T) {
+	t.Parallel()
+	_, err := b.CustomizeFuturesOwnClientID(context.Background(), "", "ABCDEFG")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.CustomizeFuturesOwnClientID(context.Background(), "the-unique-id", "")
+	require.ErrorIs(t, err, errCodeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CustomizeFuturesOwnClientID(context.Background(), "the-unique-id", "ABCDEFG")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersCustomizedID(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSpotUsersCustomizedID(context.Background(), "")
+	require.ErrorIs(t, err, errCodeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotUsersCustomizedID(context.Background(), "1234ABCD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesUsersCustomizedID(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesUsersCustomizedID(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesUsersCustomizedID(context.Background(), "1234ABCD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOthersRebateRecentRecord(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSpotOthersRebateRecentRecord(context.Background(), "", time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotOthersRebateRecentRecord(context.Background(), "123123", time.Now().Add(-time.Hour*24), time.Now(), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOwnRebateRecentRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotOwnRebateRecentRecords(context.Background(), time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesClientIfNewUser(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesClientIfNewUser(context.Background(), "", 1)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesClientIfNewUser(context.Background(), "1234", 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCustomizeFuturesPartnerClientID(t *testing.T) {
+	t.Parallel()
+	_, err := b.CustomizeFuturesPartnerClientID(context.Background(), "", "someone@thrasher.io")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.CustomizeFuturesPartnerClientID(context.Background(), "1233", "")
+	require.ErrorIs(t, err, errValidEmailRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CustomizeFuturesPartnerClientID(context.Background(), "1233", "someone@thrasher.io")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesUserIncomeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesUserIncomeHistory(context.Background(), "BTCUSDT", "COMMISSION", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

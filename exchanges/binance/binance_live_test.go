@@ -29,12 +29,11 @@ func TestMain(m *testing.M) {
 		b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-
 	if useTestNet {
 		for k, v := range map[exchange.URL]string{
-			exchange.RestUSDTMargined: testnetFutures,
-			exchange.RestCoinMargined: testnetFutures,
-			exchange.RestSpot:         testnetSpotURL,
+			exchange.RestUSDTMargined: "https://testnet.binancefuture.com",
+			exchange.RestCoinMargined: "https://testnet.binancefuture.com",
+			exchange.RestSpot:         "https://testnet.binance.vision/api",
 		} {
 			if err := b.API.Endpoints.SetRunning(k.String(), v); err != nil {
 				log.Fatalf("Testnet `%s` URL error with `%s`: %s", k, v, err)

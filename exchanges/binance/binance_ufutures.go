@@ -918,10 +918,11 @@ func (b *Binance) UAllAccountOrders(ctx context.Context, symbol string, orderID,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if symbol != "" {

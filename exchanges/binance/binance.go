@@ -50,11 +50,11 @@ const (
 )
 
 // GetExchangeServerTime retrieves the server time.
-func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) {
+func (b *Binance) GetExchangeServerTime(ctx context.Context) (types.Time, error) {
 	resp := &struct {
 		ServerTime types.Time `json:"serverTime"`
 	}{}
-	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpot, "/api/v3/time", spotDefaultRate, resp)
+	return resp.ServerTime, b.SendHTTPRequest(ctx, exchange.RestSpot, "/api/v3/time", spotDefaultRate, resp)
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -1081,7 +1081,7 @@ func (b *Binance) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, 
 // the initial risk ratio of 5x is 1.25, the initial risk ratio of 10x is 2.5.
 func (b *Binance) AdjustCrossMarginMaxLeverage(ctx context.Context, maxLeverage int64) (bool, error) {
 	if maxLeverage <= 0 {
-		return false, fmt.Errorf("%w, leverage value must be only adjust 3, 5 or 10", order.ErrSubmitLeverageNotSupported)
+		return false, fmt.Errorf("%w: possible leverage values are 3, 5 are 10", order.ErrSubmitLeverageNotSupported)
 	}
 	params := url.Values{}
 	params.Set("maxLeverage", strconv.FormatInt(maxLeverage, 10))
@@ -1270,7 +1270,7 @@ func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOr
 		return nil, order.ErrPriceBelowMin
 	}
 	if arg.StopPrice <= 0 {
-		return nil, fmt.Errorf("%w stopPrice is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w: stopPrice is required", order.ErrPriceBelowMin)
 	}
 	var resp *OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/order/oco", nil, marginOCOOrderRate, arg, &resp)
@@ -2058,10 +2058,11 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
 	if offset != 0 {
@@ -2096,14 +2097,14 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 		default:
 			return nil, fmt.Errorf("wrong param (status): %s", status)
 		}
-
 		params.Set("status", status)
 	}
 
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
 	if offset != 0 {
@@ -6910,3 +6911,187 @@ func (b *Binance) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx conte
 	var resp []FSubAccountCommissionAdjustment
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi/commission/coinFutures", params, request.Auth, nil, &resp)
 }
+
+// ---------------------------------------------------------------- Binance Link endpoints ----------------------------------------------------------------
+
+// GetSpotInfoAboutIfUserIsNew retrieves client details including information about whether the client is new or not
+func (b *Binance) GetSpotInfoAboutIfUserIsNew(ctx context.Context, apiAgentCode string) (*UserIsNewUserDetail, error) {
+	if apiAgentCode != "" {
+		return nil, fmt.Errorf("%w: apiAgentCode is required", errCodeRequired)
+	}
+	params := url.Values{}
+	params.Set("apiAgentCode", apiAgentCode)
+	var resp *UserIsNewUserDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
+}
+
+// CustomizeSpotPartnerClientID customizes partner's customer ID by user email
+func (b *Binance) CustomizeSpotPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
+	return b.customizePartnerClientID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
+}
+
+func (b *Binance) customizePartnerClientID(ctx context.Context, customerID, email, path string) (*CustomerIDResult, error) {
+	if customerID == "" {
+		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
+	}
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("customerId", customerID)
+	var resp *CustomerIDResult
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
+}
+
+// GetSpotClientEmailCustomizedID retrieves client email customized ID details
+func (b *Binance) GetSpotClientEmailCustomizedID(ctx context.Context, customerID, email string) ([]CustomerIDResult, error) {
+	return b.getClientEmailCustomizedID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
+}
+
+func (b *Binance) getClientEmailCustomizedID(ctx context.Context, customerID, email, path string) ([]CustomerIDResult, error) {
+	params := url.Values{}
+	if customerID != "" {
+		params.Set("customerId", customerID)
+	}
+	if common.MatchesEmailPattern(email) {
+		params.Set("email", email)
+	}
+	var resp []CustomerIDResult
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, request.Auth, nil, &resp)
+}
+
+// CustomizeSpotOwnClientID customize your own customer ID by broker ID
+func (b *Binance) CustomizeSpotOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
+	return b.customizeOwnClientID(ctx, customerID, apiAgentCode, "/sapi/v1/apiReferral/userCustomization")
+}
+
+func (b *Binance) customizeOwnClientID(ctx context.Context, customerID, apiAgentCode, path string) (*CustomerIDResult, error) {
+	if customerID == "" {
+		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
+	}
+	if apiAgentCode == "" {
+		return nil, fmt.Errorf("%w: apiAgentCode is required", errCodeRequired)
+	}
+	params := url.Values{}
+	params.Set("customerId", customerID)
+	params.Set("apiAgentCode", apiAgentCode)
+	var resp *CustomerIDResult
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
+}
+
+// GetSpotUsersCustomizedID retrieves user's customized ID
+func (b *Binance) GetSpotUsersCustomizedID(ctx context.Context, apiAgentCode string) (*CustomerIDResult, error) {
+	if apiAgentCode == "" {
+		return nil, fmt.Errorf("%w: apiAgentCode is required", errCodeRequired)
+	}
+	params := url.Values{}
+	params.Set("apiAgentCode", apiAgentCode)
+	var resp *CustomerIDResult
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+}
+
+// GetSpotOthersRebateRecentRecord retrieves a list of recent rabate records by customer ID
+func (b *Binance) GetSpotOthersRebateRecentRecord(ctx context.Context, customerID string, startTime, endTime time.Time, limit int64) ([]CustomerRabateRecord, error) {
+	if customerID == "" {
+		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("customerId", customerID)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []CustomerRabateRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/rebate/recentRecord", params, request.Auth, nil, &resp)
+}
+
+// GetSpotOwnRebateRecentRecords retrieves own recent rebate records
+func (b *Binance) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime, endTime time.Time, limit int64) ([]CustomerRabateRecord, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []CustomerRabateRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/kickback/recentRecord", params, request.Auth, nil, &resp)
+}
+
+// GetOwnRebateRecentRecords retrieves client if the new user is
+// margin type(mType) value of 1:USDT-margined Futures，2: Coin-margined Futures
+func (b *Binance) GetFuturesClientIfNewUser(ctx context.Context, brokerID string, mType int) (*FuturesNewUserDetail, error) {
+	if brokerID == "" {
+		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("brokerId", brokerID)
+	if mType != 0 {
+		params.Set("type", strconv.Itoa(mType))
+	}
+	var resp *FuturesNewUserDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
+}
+
+// CustomizeFuturesPartnerClientID customizes partner's customer ID by user email
+func (b *Binance) CustomizeFuturesPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
+	return b.customizePartnerClientID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
+}
+
+// GetFuturesClientEmailCustomizedID retrieves client email customized ID details for futures account
+func (b *Binance) GetFuturesClientEmailCustomizedID(ctx context.Context, customerID, email string) ([]CustomerIDResult, error) {
+	return b.getClientEmailCustomizedID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
+}
+
+// CustomizeFuturesOwnClientID customize your own customer ID by broker ID for futures account
+func (b *Binance) CustomizeFuturesOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
+	return b.customizeOwnClientID(ctx, customerID, apiAgentCode, "/fapi/v1/apiReferral/userCustomization")
+}
+
+// GetFuturesUsersCustomizedID retrieves user's customized ID for futures account
+func (b *Binance) GetFuturesUsersCustomizedID(ctx context.Context, brokerID string) (*FuturesCustomerID, error) {
+	if brokerID == "" {
+		return nil, fmt.Errorf("%w: brokerId is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("brokerId", brokerID)
+	var resp *FuturesCustomerID
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+}
+
+// GetFuturesUserIncomeHistory retrieves a futures user's income history
+func (b *Binance) GetFuturesUserIncomeHistory(ctx context.Context, symbol, incomeType string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if incomeType != "" {
+		params.Set("incomeType", incomeType)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FuturesUserIncomeDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/income", params, request.Auth, nil, &resp)
+}
+
+// GetFuturesTraderNumber retrieves
+// func (b *Binance) GetFuturesTraderNumber(ctx context.Context, tradeType string, startTime, endTime time.Time, limit int64)

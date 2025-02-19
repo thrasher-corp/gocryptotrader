@@ -5640,3 +5640,52 @@ type FSubAccountCommissionAdjustment struct {
 	MakerCommission float64 `json:"makerCommission"`
 	TakerCommission float64 `json:"takerCommission"`
 }
+
+// UserIsNewUserDetail represents users information including whether the user is new or old
+type UserIsNewUserDetail struct {
+	APIAgentCode  string `json:"apiAgentCode"`
+	RebateWorking bool   `json:"rebateWorking"`
+	IfNewUser     bool   `json:"ifNewUser"`
+	ReferrerID    int64  `json:"referrerId"`
+}
+
+// CustomerIDResult holds a request parameter and response data after customizing customer ID by email
+type CustomerIDResult struct {
+	CustomerID string `json:"customerId"`
+	Email      string `json:"email"`
+}
+
+// CustomerRabateRecord holds details of customers rabate records
+type CustomerRabateRecord struct {
+	CustomerID string     `json:"customerId"`
+	Email      string     `json:"email"`
+	Income     string     `json:"income"`
+	Asset      string     `json:"asset"`
+	Symbol     string     `json:"symbol"`
+	Time       types.Time `json:"time"`
+	OrderID    int64      `json:"orderId"`
+	TradeID    int64      `json:"tradeId"`
+}
+
+// FuturesNewUserDetail hodls futures user data and if the user is new user or not
+type FuturesNewUserDetail struct {
+	BrokerID      string `json:"brokerId"`
+	RebateWorking bool   `json:"rebateWorking"`
+	IfNewUser     bool   `json:"ifNewUser"`
+}
+
+// FuturesCustomerID holds futures users customer ID and broker ID details.
+type FuturesCustomerID struct {
+	BrokerID   string `json:"brokerId"`
+	CustomerID string `json:"customerId"`
+}
+
+// FuturesUserIncomeDetail holds a futures account user income details
+type FuturesUserIncomeDetail struct {
+	Symbol     string     `json:"symbol"`
+	IncomeType string     `json:"incomeType"`
+	Income     string     `json:"income"`
+	Asset      string     `json:"asset"`
+	Info       string     `json:"info"`
+	Time       types.Time `json:"time"`
+}

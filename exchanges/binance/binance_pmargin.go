@@ -512,10 +512,11 @@ func (b *Binance) getAllUMCMOrders(ctx context.Context, symbol, path, newClientS
 	if newClientStrategyID != "" {
 		params.Set("newClientStrategyId", newClientStrategyID)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
