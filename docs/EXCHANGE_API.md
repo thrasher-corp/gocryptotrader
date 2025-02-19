@@ -40,7 +40,7 @@ supplied meet the requirements to make an authenticated request.
 ```go
     var b bitstamp.Bitstamp
     b.SetDefaults()
-    ticker, err := b.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+    ticker, err := b.GetCachedTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
     if err != nil {
         // Handle error
     }

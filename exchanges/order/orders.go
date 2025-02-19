@@ -1193,15 +1193,15 @@ func StringToOrderStatus(status string) (Status, error) {
 	switch status {
 	case AnyStatus.String():
 		return AnyStatus, nil
-	case New.String(), "PLACED", "ACCEPTED":
+	case New.String(), "PLACED", "ACCEPTED", "SUBMITTED":
 		return New, nil
 	case Active.String(), "STATUS_ACTIVE", "LIVE":
 		return Active, nil
-	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
+	case PartiallyFilled.String(), "PARTIAL-FILLED", "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
 	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil

@@ -572,7 +572,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			}
 		}
 		if len(ticks) != 1 {
-			return nil, ticker.ErrNoTickerFound
+			return nil, ticker.ErrTickerNotFound
 		}
 		for t := range ticks {
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -643,7 +643,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			return nil, err
 		}
 		if len(tick) == 0 {
-			return nil, fmt.Errorf("%w, pair: %v", ticker.ErrNoTickerFound, p)
+			return nil, fmt.Errorf("%w, pair: %v", ticker.ErrTickerNotFound, p)
 		}
 		for a := range tick {
 			cp, err := currency.NewPairFromString(tick[a].Symbol)
@@ -875,19 +875,6 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return account.Holdings{}, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Binance) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
