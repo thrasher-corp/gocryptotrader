@@ -1,6 +1,6 @@
 package bybit
 
-import "encoding/json"
+import "github.com/thrasher-corp/gocryptotrader/encoding/json"
 
 // UnmarshalJSON deserializes incoming data into orderbookResponse instance.
 func (a *orderbookResponse) UnmarshalJSON(data []byte) error {

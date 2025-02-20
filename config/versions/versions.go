@@ -13,7 +13,7 @@ package versions
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
 	"errors"
 	"fmt"
 	"log"
