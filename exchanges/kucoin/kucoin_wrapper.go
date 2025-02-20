@@ -693,12 +693,12 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			if oType == order.Limit {
 				switch {
 				case s.TimeInForce == order.FOK:
-					timeInForce = "FOK"
+					timeInForce = order.FOK.String()
 				case s.TimeInForce == order.IOC:
-					timeInForce = "IOC"
+					timeInForce = order.IOC.String()
 				case s.PostOnly:
 				default:
-					timeInForce = "GTC"
+					timeInForce = order.GTC.String()
 				}
 			}
 			var stopType string
