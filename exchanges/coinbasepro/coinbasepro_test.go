@@ -1456,7 +1456,7 @@ func TestFormatExchangeKlineIntervalV3(t *testing.T) {
 			t.Errorf(errExpectMismatch, resp, testSequence[k])
 		}
 		if resp == "" {
-			assert.ErrorIs(t, err, errIntervalNotSupported)
+			assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 		}
 	}
 }

@@ -149,15 +149,11 @@ var (
 	errUnknownL2DataType        = errors.New("unknown l2update data type")
 	errOrderFailedToCancel      = errors.New("failed to cancel order")
 	errUnrecognisedStatusType   = errors.New("unrecognised status type")
-	errStringConvert            = errors.New("unable to convert into string value")
-	errFloatConvert             = errors.New("unable to convert into float64 value")
 	errWrappedAssetEmpty        = errors.New("wrapped asset cannot be empty")
-	errUnrecognisedOrderType    = errors.New("unrecognised order type")
-	errUnrecognisedAssetType    = errors.New("unrecognised asset type")
 	errUnrecognisedStrategyType = errors.New("unrecognised strategy type")
-	errIntervalNotSupported     = errors.New("interval not supported")
 	errEndpointPathInvalid      = errors.New("endpoint path invalid, should start with https://")
 	errPairsDisabledOrErrored   = errors.New("pairs are either disabled or errored")
+	errTypeAssert               = errors.New("type assertion failed")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -1172,85 +1168,15 @@ func (c *CoinbasePro) GetPairDetails(ctx context.Context, pair string) (*PairDat
 }
 
 // GetProductBookV1 returns the order book for the specified currency pair. Level 1 only returns the best bids and asks, Level 2 returns the full order book with orders at the same price aggregated, Level 3 returns the full non-aggregated order book.
-func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level uint8) (*OrderBook, error) {
+func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level uint8) (*OrderBookResp, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var resp OrderBookResp
+	var resp *OrderBookResp
 	vals := url.Values{}
 	vals.Set("level", strconv.FormatUint(uint64(level), 10))
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseBook
-	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
-	if err != nil {
-		return nil, err
-	}
-	ob := &OrderBook{
-		Sequence:    resp.Sequence,
-		Bids:        make([]Orders, len(resp.Bids)),
-		Asks:        make([]Orders, len(resp.Asks)),
-		AuctionMode: resp.AuctionMode,
-		Auction:     resp.Auction,
-		Time:        resp.Time,
-	}
-	for i := range resp.Bids {
-		tempS1, ok := resp.Bids[i][0].(string)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Bids[i][0])
-		}
-		tempF1, err := strconv.ParseFloat(tempS1, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempS2, ok := resp.Bids[i][1].(string)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Bids[i][1])
-		}
-		tempF2, err := strconv.ParseFloat(tempS2, 64)
-		if err != nil {
-			return nil, err
-		}
-		switch tempV := resp.Bids[i][2].(type) {
-		case string:
-			tempU, err := uuid.FromString(tempV)
-			if err != nil {
-				return nil, err
-			}
-			ob.Bids[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: 1, OrderID: tempU}
-		case float64:
-			tempU := uint64(tempV)
-			ob.Bids[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: tempU}
-		}
-	}
-	for i := range resp.Asks {
-		tempS1, ok := resp.Asks[i][0].(string)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Asks[i][0])
-		}
-		tempF1, err := strconv.ParseFloat(tempS1, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempS2, ok := resp.Asks[i][1].(string)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Asks[i][1])
-		}
-		tempF2, err := strconv.ParseFloat(tempS2, 64)
-		if err != nil {
-			return nil, err
-		}
-		switch tempV := resp.Asks[i][2].(type) {
-		case string:
-			tempU, err := uuid.FromString(tempV)
-			if err != nil {
-				return nil, err
-			}
-			ob.Asks[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: 1, OrderID: tempU}
-		case float64:
-			tempU := uint64(tempV)
-			ob.Asks[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: tempU}
-		}
-	}
-	return ob, nil
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
 
 // GetProductCandles returns historical market data for the specified currency pair.
@@ -1268,49 +1194,8 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 		params.Values.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
 	}
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseCandles
-	var resp []RawCandles
-	err = c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
-	if err != nil {
-		return nil, err
-	}
-	candles := make([]Candle, len(resp))
-	for i := range resp {
-		f1, ok := resp[i][0].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][0])
-		}
-		ti := int64(f1)
-		t := time.Unix(ti, 0)
-		f2, ok := resp[i][1].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][1])
-		}
-		f3, ok := resp[i][2].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][2])
-		}
-		f4, ok := resp[i][3].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][3])
-		}
-		f5, ok := resp[i][4].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][4])
-		}
-		f6, ok := resp[i][5].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][5])
-		}
-		candles[i] = Candle{
-			Time:   t,
-			Low:    f2,
-			High:   f3,
-			Open:   f4,
-			Close:  f5,
-			Volume: f6,
-		}
-	}
-	return candles, nil
+	var resp []Candle
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
 }
 
 // GetProductStats returns information on a specific pair's price and volume
@@ -1702,4 +1587,54 @@ func (f FiatTransferType) String() string {
 		return "withdrawal"
 	}
 	return "deposit"
+}
+
+// UnmarshalJSON unmarshals the JSON data
+func (o *Orders) UnmarshalJSON(data []byte) error {
+	var alias any
+	var str1, str2 string
+	temp := [3]any{&str1, &str2, &alias}
+	err := json.Unmarshal(data, &temp)
+	if err != nil {
+		return err
+	}
+	o.Price, err = strconv.ParseFloat(str1, 64)
+	if err != nil {
+		return err
+	}
+	o.Size, err = strconv.ParseFloat(str2, 64)
+	if err != nil {
+		return err
+	}
+	switch a := alias.(type) {
+	case string:
+		o.OrderID, err = uuid.FromString(a)
+		if err != nil {
+			return err
+		}
+		o.OrderCount = 1
+	case float64:
+		o.OrderCount = uint64(a)
+	default:
+		return errTypeAssert
+	}
+	return nil
+}
+
+// UnmarshalJSON unmarshals the JSON data
+func (c *Candle) UnmarshalJSON(data []byte) error {
+	var f1, f2, f3, f4, f5, f6 float64
+	temp := [6]any{&f1, &f2, &f3, &f4, &f5, &f6}
+	err := json.Unmarshal(data, &temp)
+	if err != nil {
+		return err
+	}
+	ti := int64(f1)
+	c.Time = time.Unix(ti, 0)
+	c.Low = f2
+	c.High = f3
+	c.Open = f4
+	c.Close = f5
+	c.Volume = f6
+	return nil
 }

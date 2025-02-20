@@ -52,7 +52,6 @@ const (
 
 // Public Errors
 var (
-	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
 	ErrSettingProxyAddress   = errors.New("setting proxy address error")
 	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
 	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
@@ -1323,8 +1322,7 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
-	var urlMap = make(map[string]string)
-	maps.Copy(urlMap, e.defaults)
+	urlMap := maps.Clone(e.defaults)
 	e.mu.RUnlock()
 	return urlMap
 }

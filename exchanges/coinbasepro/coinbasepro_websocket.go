@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -154,8 +153,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			return warnString, err
 		}
 		c.aliasStruct.m.RLock()
-		aliases := make(map[currency.Pair]currency.Pairs)
-		maps.Copy(aliases, c.aliasStruct.associatedAliases)
+		aliases := maps.Clone(c.aliasStruct.associatedAliases)
 		c.aliasStruct.m.RUnlock()
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
@@ -400,10 +398,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 		LastUpdated:     timestamp,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	c.aliasStruct.m.RLock()
-	aliases := c.aliasStruct.associatedAliases[snapshot.ProductID]
-	c.aliasStruct.m.RUnlock()
-	aliases = aliases.Add(snapshot.ProductID)
+	aliases := c.aliasStruct.LoadAlias(snapshot.ProductID)
 	var errs error
 	for i := range aliases {
 		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
@@ -435,10 +430,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-	c.aliasStruct.m.RLock()
-	aliases := c.aliasStruct.associatedAliases[update.ProductID]
-	c.aliasStruct.m.RUnlock()
-	aliases = aliases.Add(update.ProductID)
+	aliases := c.aliasStruct.LoadAlias(update.ProductID)
 	var errs error
 	for i := range aliases {
 		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
@@ -595,7 +587,7 @@ func stringToStandardType(str string) (order.Type, error) {
 	case "STOP_LIMIT_ORDER_TYPE":
 		return order.StopLimit, nil
 	default:
-		return order.UnknownType, fmt.Errorf("%w %v", errUnrecognisedOrderType, str)
+		return order.UnknownType, fmt.Errorf("%w %v", order.ErrUnrecognisedOrderType, str)
 	}
 }
 
@@ -607,7 +599,7 @@ func stringToStandardAsset(str string) (asset.Item, error) {
 	case "FUTURE":
 		return asset.Futures, nil
 	default:
-		return asset.Empty, fmt.Errorf("%w %v", errUnrecognisedAssetType, str)
+		return asset.Empty, asset.ErrNotSupported
 	}
 }
 

@@ -210,16 +210,14 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 			aliases[products.Products[x].ID] = aliases[products.Products[x].ID].Add(products.Products[x].AliasTo...)
 		}
 	}
-	go func() {
-		c.aliasStruct.m.Lock()
-		defer c.aliasStruct.m.Unlock()
-		if c.aliasStruct.associatedAliases == nil {
-			c.aliasStruct.associatedAliases = make(map[currency.Pair]currency.Pairs)
-		}
-		for k, v := range aliases {
-			c.aliasStruct.associatedAliases[k] = c.aliasStruct.associatedAliases[k].Add(v...)
-		}
-	}()
+	c.aliasStruct.m.Lock()
+	defer c.aliasStruct.m.Unlock()
+	if c.aliasStruct.associatedAliases == nil {
+		c.aliasStruct.associatedAliases = make(map[currency.Pair]currency.Pairs)
+	}
+	for k, v := range aliases {
+		c.aliasStruct.associatedAliases[k] = c.aliasStruct.associatedAliases[k].Add(v...)
+	}
 	return pairs, nil
 }
 
@@ -394,10 +392,7 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 			Price:  orderbookNew.Pricebook.Asks[x].Price,
 		}
 	}
-	c.aliasStruct.m.RLock()
-	aliases := c.aliasStruct.associatedAliases[p]
-	c.aliasStruct.m.RUnlock()
-	aliases = aliases.Add(p)
+	aliases := c.aliasStruct.LoadAlias(p)
 	var errs error
 	var validPairs currency.Pairs
 	for i := range aliases {
@@ -610,7 +605,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if resp.Status[o.OrderID] != order.Cancelled.String() {
 		return fmt.Errorf("%w %v", errOrderFailedToCancel, o.OrderID)
 	}
-	return err
+	return nil
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -722,8 +717,7 @@ func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency curr
 	if err != nil || len(resp.Data) == 0 {
 		resp2, err2 := c.CreateAddress(ctx, targetWalletID, "")
 		if err2 != nil {
-			err = fmt.Errorf("%v %v", err, err2)
-			return nil, err
+			return nil, common.AppendError(err, err2)
 		}
 		return &deposit.Address{
 			Address: resp2.Address,
@@ -1154,7 +1148,7 @@ func FormatExchangeKlineIntervalV3(interval kline.Interval) (string, error) {
 	case kline.OneDay:
 		return granOneDay, nil
 	}
-	return "", errIntervalNotSupported
+	return "", kline.ErrUnsupportedInterval
 }
 
 // getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory to convert data returned by the Coinbase API into a format suitable for the exchange package
@@ -1337,4 +1331,11 @@ func FormatAssetOutbound(a asset.Item) string {
 		return "FUTURE"
 	}
 	return a.Upper()
+}
+
+// LoadAlias returns the aliases for a currency pair, with the original pair included
+func (a *aliasStruct) LoadAlias(p currency.Pair) currency.Pairs {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	return a.associatedAliases[p].Add(p)
 }

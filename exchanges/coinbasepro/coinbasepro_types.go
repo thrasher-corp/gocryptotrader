@@ -1403,8 +1403,8 @@ type Auction struct {
 
 // OrderBookResp holds information on bids and asks for a particular currency pair, used for unmarshalling in GetProductBookV1
 type OrderBookResp struct {
-	Bids        [][3]any  `json:"bids"`
-	Asks        [][3]any  `json:"asks"`
+	Bids        []Orders  `json:"bids"`
+	Asks        []Orders  `json:"asks"`
 	Sequence    float64   `json:"sequence"`
 	AuctionMode bool      `json:"auction_mode"`
 	Auction     Auction   `json:"auction"`
@@ -1417,16 +1417,6 @@ type Orders struct {
 	Size       float64
 	OrderCount uint64
 	OrderID    uuid.UUID
-}
-
-// OrderBook holds information on bids and asks for a particular currency pair, used in GetProductBookV1
-type OrderBook struct {
-	Bids        []Orders
-	Asks        []Orders
-	Sequence    float64
-	AuctionMode bool
-	Auction     Auction
-	Time        time.Time
 }
 
 // RawCandles holds raw candle data, used in unmarshalling for GetProductCandles

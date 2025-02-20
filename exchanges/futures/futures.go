@@ -280,7 +280,7 @@ func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPosition
 		return nil, errNilSetup
 	}
 	if setup.Exchange == "" {
-		return nil, errExchangeNameEmpty
+		return nil, common.ErrExchangeNameUnset
 	}
 	var err error
 	setup.Exchange, err = checkTrackerPrerequisitesLowerExchange(setup.Exchange, setup.Asset, setup.Pair)
@@ -1121,7 +1121,7 @@ func CheckFundingRatePrerequisites(getFundingData, includePredicted, includePaym
 // checkTrackerPrerequisitesLowerExchange is a common set of checks for futures position tracking
 func checkTrackerPrerequisitesLowerExchange(exch string, item asset.Item, cp currency.Pair) (string, error) {
 	if exch == "" {
-		return "", errExchangeNameEmpty
+		return "", common.ErrExchangeNameUnset
 	}
 	exch = strings.ToLower(exch)
 	if !item.IsFutures() {

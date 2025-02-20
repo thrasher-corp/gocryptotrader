@@ -94,7 +94,7 @@ func TestTrackNewOrder(t *testing.T) {
 		t.Error(err)
 	}
 	err = c.TrackNewOrder(&order.Detail{}, false)
-	if !errors.Is(err, errExchangeNameEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -231,7 +231,7 @@ func TestSetupMultiPositionTracker(t *testing.T) {
 
 	setup := &MultiPositionTrackerSetup{}
 	_, err = SetupMultiPositionTracker(setup)
-	if !errors.Is(err, errExchangeNameEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 	setup.Exchange = testExchange
@@ -285,7 +285,7 @@ func TestMultiPositionTrackerTrackNewOrder(t *testing.T) {
 		ExchangePNLCalculation: &FakePNL{},
 	}
 	_, err := SetupMultiPositionTracker(setup)
-	if !errors.Is(err, errExchangeNameEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -304,7 +304,7 @@ func TestMultiPositionTrackerTrackNewOrder(t *testing.T) {
 		OrderID:   "1",
 		Amount:    1,
 	})
-	if !errors.Is(err, errExchangeNameEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -476,7 +476,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 		Side:      order.Long,
 		OrderID:   "lol",
 	})
-	if !errors.Is(err, errExchangeNameEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -591,8 +591,8 @@ func TestGetPositionsForExchange(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 
 	_, err := c.GetPositionsForExchange("", asset.Futures, p)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	pos, err := c.GetPositionsForExchange(testExchange, asset.Futures, p)
@@ -679,8 +679,8 @@ func TestClearPositionsForExchange(t *testing.T) {
 	c := &PositionController{}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	err := c.ClearPositionsForExchange("", asset.Futures, p)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
@@ -776,8 +776,8 @@ func TestSetupPositionTracker(t *testing.T) {
 	p, err = SetupPositionTracker(&PositionTrackerSetup{
 		Asset: asset.Spot,
 	})
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 	if p != nil {
 		t.Error("expected nil")
@@ -894,8 +894,8 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	pc := SetupPositionController()
 
 	_, err := pc.UpdateOpenPositionUnrealisedPNL("", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
@@ -956,8 +956,8 @@ func TestSetCollateralCurrency(t *testing.T) {
 	t.Parallel()
 	pc := SetupPositionController()
 	err := pc.SetCollateralCurrency("", asset.Spot, currency.EMPTYPAIR, currency.Code{})
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	err = pc.SetCollateralCurrency("hi", asset.Spot, currency.EMPTYPAIR, currency.Code{})
@@ -1093,7 +1093,7 @@ func TestMPTLiquidate(t *testing.T) {
 		Asset: item,
 	}
 	_, err = SetupPositionTracker(setup)
-	if !errors.Is(err, errExchangeNameEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -1204,8 +1204,8 @@ func TestGetOpenPosition(t *testing.T) {
 	tn := time.Now()
 
 	_, err := pc.GetOpenPosition("", asset.Futures, cp)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	_, err = pc.GetOpenPosition(testExchange, asset.Futures, cp)
@@ -1276,8 +1276,8 @@ func TestPCTrackFundingDetails(t *testing.T) {
 		Pair:  p,
 	}
 	err = pc.TrackFundingDetails(rates)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	rates.Exchange = testExchange
@@ -1343,8 +1343,8 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 		Pair:  cp,
 	}
 	err = mpt.TrackFundingDetails(rates)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	mpt.exchange = testExchange
@@ -1470,8 +1470,8 @@ func TestPTTrackFundingDetails(t *testing.T) {
 
 	rates.Exchange = ""
 	err = p.TrackFundingDetails(rates)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
 	p = nil
@@ -1566,8 +1566,8 @@ func TestGetCurrencyForRealisedPNL(t *testing.T) {
 func TestCheckTrackerPrerequisitesLowerExchange(t *testing.T) {
 	t.Parallel()
 	_, err := checkTrackerPrerequisitesLowerExchange("", asset.Spot, currency.EMPTYPAIR)
-	if !errors.Is(err, errExchangeNameEmpty) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 	upperExch := "IM UPPERCASE"
 	_, err = checkTrackerPrerequisitesLowerExchange(upperExch, asset.Spot, currency.EMPTYPAIR)
