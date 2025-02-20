@@ -1,12 +1,12 @@
 package margin
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestValid(t *testing.T) {

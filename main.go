@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -139,6 +140,8 @@ func main() {
 	config.SetConfig(engine.Bot.Config)
 
 	gctscript.Setup()
+
+	gctlog.Infof(gctlog.Global, "JSON encoding is set to package `%s`", json.Implementation)
 
 	engine.Bot.Settings.PrintLoadedSettings()
 
