@@ -3,13 +3,15 @@ package engine
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -252,24 +254,18 @@ func TestGetEventCounter(t *testing.T) {
 func TestCheckEventCondition(t *testing.T) {
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err, "setupEventManager must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 	m.m.Unlock()
-	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+
+	require.NoError(t, m.Start(), "Start must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(nil)
-	if !errors.Is(err, errNilEvent) {
-		t.Errorf("error '%v', expected '%v'", err, errNilEvent)
-	}
+	assert.ErrorIs(t, err, errNilEvent)
 	m.m.Unlock()
 
 	action := ActionSMSNotify + "," + ActionTest
@@ -279,67 +275,47 @@ func TestCheckEventCondition(t *testing.T) {
 		OrderbookAmount: 1337,
 	}
 	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
+
 	conf, err := exchange.GetDefaultConfig(context.Background(), exch)
-	if err != nil {
-		t.Error(err)
-	}
-	err = exch.Setup(conf)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "GetDefaultConfig must not error")
+
+	require.NoError(t, exch.Setup(conf), "Setup must not error")
+
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "ExchangeManager Add must not error")
+
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err, "eventManager Add must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !errors.Is(err, ticker.ErrNoTickerFound) {
-		t.Error(err)
-	} else if err == nil {
-		t.Error("expected error")
-	}
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 	m.m.Unlock()
-	_, err = exch.FetchTicker(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+
+	_, err = exch.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err, "checkEventCondition must not error")
 	m.m.Unlock()
 
 	m.events[0].Item = ItemOrderbook
 	m.events[0].Executed = false
 	m.events[0].Condition.CheckAsks = true
 	m.events[0].Condition.CheckBids = true
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !strings.Contains(err.Error(), "cannot find orderbook") {
-		t.Error(err)
-	} else if err == nil {
-		t.Error("expected error")
-	}
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 	m.m.Unlock()
 
-	_, err = exch.FetchOrderbook(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	_, err = exch.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	require.NoError(t, err, "UpdateOrderbook must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err, "checkEventCondition should not error")
 	m.m.Unlock()
 }

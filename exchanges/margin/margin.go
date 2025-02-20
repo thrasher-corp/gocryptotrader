@@ -1,9 +1,10 @@
 package margin
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Valid returns whether the margin type is valid

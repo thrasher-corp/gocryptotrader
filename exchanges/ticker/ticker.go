@@ -14,14 +14,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Public errors
 var (
-	// ErrNoTickerFound is when a ticker is not found
-	ErrNoTickerFound = errors.New("no ticker found")
-	// ErrBidEqualsAsk error for locked markets
-	ErrBidEqualsAsk = errors.New("bid equals ask this is a crossed or locked market")
+	ErrTickerNotFound = errors.New("no ticker found")
+	ErrBidEqualsAsk   = errors.New("bid equals ask this is a crossed or locked market")
+)
 
+var (
 	errInvalidTicker     = errors.New("invalid ticker")
-	errTickerNotFound    = errors.New("ticker not found")
 	errBidGreaterThanAsk = errors.New("bid greater than ask this is a crossed or locked market")
 	errExchangeNotFound  = errors.New("exchange not found")
 )
@@ -89,8 +89,7 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 		Asset:    a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w %s %s %s",
-			ErrNoTickerFound, exchange, p, a)
+		return nil, fmt.Errorf("%w %s %s %s", ErrTickerNotFound, exchange, p, a)
 	}
 
 	cpy := tick.Price // Don't let external functions have access to underlying
@@ -137,7 +136,7 @@ func FindLast(p currency.Pair, a asset.Item) (float64, error) {
 		}
 		return t.Last, nil
 	}
-	return 0, fmt.Errorf("%w %s %s", errTickerNotFound, p, a)
+	return 0, fmt.Errorf("%w %s %s", ErrTickerNotFound, p, a)
 }
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers list

@@ -13,22 +13,32 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
+            sonic: true
           - os: ubuntu-latest
             goarch: 386
             psql: true
             skip_wrapper_tests: true
+            sonic: true # sonic is disabled for 386 this ensures fall back to legacy code
           - os: macos-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: true
           - os: macos-13 # beta
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: true
           - os: windows-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: true
+          - os: ubuntu-latest
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: false
+            sonic: false
 
     runs-on: ${{ matrix.os }}
 
@@ -82,6 +92,13 @@ jobs:
       if: matrix.goarch == '386' || matrix.os == 'macos-latest'
       run: |
         echo "CGO_ENABLED=1" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Set GOFLAGS
+      run: |
+        if [ "${{ matrix.sonic }}" = "false" ]; then
+          echo "GOFLAGS=${GOFLAGS} -tags=sonic_off" >> $GITHUB_ENV
+        fi
       shell: bash
 
     - name: Test
