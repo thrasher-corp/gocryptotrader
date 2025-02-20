@@ -39,11 +39,7 @@ const (
 	apiV2OrderHistory   = "api/2/history/order"
 	apiv2OpenOrders     = "api/2/order"
 	apiV2FeeInfo        = "api/2/trading/fee"
-	orders              = "order"
 	apiOrder            = "api/2/order"
-	orderMove           = "moveOrder"
-	tradableBalances    = "returnTradableBalances"
-	transferBalance     = "transferBalance"
 )
 
 // HitBTC is the overarching type across the hitbtc package
@@ -253,18 +249,6 @@ func (h *HitBTC) GenerateNewAddress(ctx context.Context, currency string) (Depos
 	return resp, err
 }
 
-// GetActiveorders returns all your active orders
-func (h *HitBTC) GetActiveorders(ctx context.Context, currency string) ([]Order, error) {
-	var resp []Order
-	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		orders+"?symbol="+currency,
-		url.Values{},
-		tradingRequests,
-		&resp)
-
-	return resp, err
-}
-
 // GetTradeHistoryForCurrency returns your trade history
 func (h *HitBTC) GetTradeHistoryForCurrency(ctx context.Context, currency, start, end string) (AuthenticatedTradeHistoryResponse, error) {
 	values := url.Values{}
@@ -398,34 +382,6 @@ func (h *HitBTC) CancelAllExistingOrders(ctx context.Context) ([]Order, error) {
 		&result)
 }
 
-// MoveOrder generates a new move order
-func (h *HitBTC) MoveOrder(ctx context.Context, orderID int64, rate, amount float64) (MoveOrderResponse, error) {
-	result := MoveOrderResponse{}
-	values := url.Values{}
-	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-
-	if amount != 0 {
-		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	}
-
-	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		orderMove,
-		values,
-		tradingRequests,
-		&result)
-
-	if err != nil {
-		return result, err
-	}
-
-	if result.Success != 1 {
-		return result, errors.New(result.Error)
-	}
-
-	return result, nil
-}
-
 // Withdraw allows for the withdrawal to a specific address
 func (h *HitBTC) Withdraw(ctx context.Context, currency, address string, amount float64) (bool, error) {
 	result := Withdraw{}
@@ -462,62 +418,6 @@ func (h *HitBTC) GetFeeInfo(ctx context.Context, currencyPair string) (Fee, erro
 		&result)
 
 	return result, err
-}
-
-// GetTradableBalances returns current tradable balances
-func (h *HitBTC) GetTradableBalances(ctx context.Context) (map[string]map[string]float64, error) {
-	type Response struct {
-		Data map[string]map[string]interface{}
-	}
-	result := Response{}
-
-	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		tradableBalances,
-		url.Values{},
-		tradingRequests,
-		&result.Data)
-
-	if err != nil {
-		return nil, err
-	}
-
-	balances := make(map[string]map[string]float64)
-
-	for x, y := range result.Data {
-		balances[x] = make(map[string]float64)
-		for z, w := range y {
-			balances[x][z], _ = strconv.ParseFloat(w.(string), 64)
-		}
-	}
-
-	return balances, nil
-}
-
-// TransferBalance transfers a balance
-func (h *HitBTC) TransferBalance(ctx context.Context, currency, from, to string, amount float64) (bool, error) {
-	values := url.Values{}
-	result := GenericResponse{}
-
-	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	values.Set("fromAccount", from)
-	values.Set("toAccount", to)
-
-	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		transferBalance,
-		values,
-		otherRequests,
-		&result)
-
-	if err != nil {
-		return false, err
-	}
-
-	if result.Error != "" && result.Success != 1 {
-		return false, errors.New(result.Error)
-	}
-
-	return true, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

@@ -959,7 +959,7 @@ func TestGenerateMessageID(t *testing.T) {
 // 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_High(b *testing.B) {
 	wc := WebsocketConnection{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = wc.GenerateMessageID(true)
 	}
 }
@@ -967,7 +967,7 @@ func BenchmarkGenerateMessageID_High(b *testing.B) {
 // 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_Low(b *testing.B) {
 	wc := WebsocketConnection{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = wc.GenerateMessageID(false)
 	}
 }

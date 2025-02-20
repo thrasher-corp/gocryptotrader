@@ -11,7 +11,7 @@ import (
 )
 
 // RequestType used for easy matching of int type to Word
-type RequestType uint8
+type RequestType int64
 
 const (
 	// Crypto request type

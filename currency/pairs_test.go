@@ -424,7 +424,7 @@ func BenchmarkGetCrypto(b *testing.B) {
 		NewPair(LTC, USDT),
 	}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.GetCrypto()
 	}
 }
@@ -524,7 +524,7 @@ func BenchmarkPairsString(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.Strings()
 	}
 }
@@ -544,7 +544,7 @@ func BenchmarkPairsFormat(b *testing.B) {
 
 	formatting := PairFormat{Delimiter: "/", Uppercase: false}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.Format(formatting)
 	}
 }
@@ -562,7 +562,7 @@ func BenchmarkRemovePairsByFilter(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.RemovePairsByFilter(USD)
 	}
 }
@@ -916,7 +916,7 @@ func BenchmarkFindDifferences(b *testing.B) {
 	compare, err := NewPairsFromStrings([]string{"ETH-123", "LTC-123", "MEOW-123"})
 	require.NoError(b, err)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err = original.FindDifferences(compare, EMPTYFORMAT)
 		require.NoError(b, err)
 	}
