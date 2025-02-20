@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -205,33 +206,20 @@ func TestGetTicker(t *testing.T) {
 func TestFindLast(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.XRP)
 	_, err := FindLast(cp, asset.Spot)
-	if !errors.Is(err, errTickerNotFound) {
-		t.Errorf("received: %v but expected: %v", err, errTickerNotFound)
-	}
+	assert.ErrorIs(t, err, ErrTickerNotFound)
 
 	err = service.update(&Price{Last: 0, ExchangeName: "testerinos", Pair: cp, AssetType: asset.Spot})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "service update must not error")
 
 	_, err = FindLast(cp, asset.Spot)
-	if !errors.Is(err, errInvalidTicker) {
-		t.Errorf("received: %v but expected: %v", err, errInvalidTicker)
-	}
+	assert.ErrorIs(t, err, errInvalidTicker)
 
 	err = service.update(&Price{Last: 1337, ExchangeName: "testerinos", Pair: cp, AssetType: asset.Spot})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "service update must not error")
 
 	last, err := FindLast(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v but expected: %v", err, nil)
-	}
-
-	if last != 1337 {
-		t.Fatal("unexpected value")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 1337.0, last)
 }
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers

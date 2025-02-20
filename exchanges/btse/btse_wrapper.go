@@ -307,24 +307,6 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
-	if err != nil {
-		return b.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
-	if err != nil {
-		return b.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -343,7 +325,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return book, err
 	}
-	a, err := b.FetchOrderBook(ctx, fPair.String(), 0, 0, 0, assetType == asset.Spot)
+	a, err := b.FetchOrderbook(ctx, fPair.String(), 0, 0, 0, assetType == asset.Spot)
 	if err != nil {
 		return book, err
 	}
@@ -415,20 +397,6 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	}
 
 	return a, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

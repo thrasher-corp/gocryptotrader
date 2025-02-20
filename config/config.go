@@ -1002,14 +1002,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				defaultWebsocketOrderbookBufferLimit)
 			e.Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
 		}
-		if e.Orderbook.PublishPeriod == nil || e.Orderbook.PublishPeriod.Nanoseconds() < 0 {
-			log.Warnf(log.ConfigMgr,
-				"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
-				e.Name,
-				DefaultOrderbookPublishPeriod)
-			publishPeriod := DefaultOrderbookPublishPeriod
-			e.Orderbook.PublishPeriod = &publishPeriod
-		}
 		err := c.CheckPairConsistency(e.Name)
 		if err != nil {
 			log.Errorf(log.ConfigMgr,
@@ -1512,7 +1504,7 @@ func (c *Config) readConfig(d io.Reader) error {
 		}
 	}
 
-	if j, err = versions.Manager.Deploy(context.Background(), j); err != nil {
+	if j, err = versions.Manager.Deploy(context.Background(), j, versions.LatestVersion); err != nil {
 		return err
 	}
 
@@ -1603,7 +1595,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 			}
 			c.sessionDK, c.storedSalt = sessionDK, storedSalt
 		}
-		payload, err = c.encryptConfigFile(payload)
+		payload, err = c.encryptConfigData(payload)
 		if err != nil {
 			return err
 		}

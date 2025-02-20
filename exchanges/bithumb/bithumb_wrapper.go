@@ -251,24 +251,6 @@ func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *Bithumb) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, a)
-	if err != nil {
-		return b.UpdateTicker(ctx, p, a)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (b *Bithumb) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
-	if err != nil {
-		return b.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -359,19 +341,6 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bithumb) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

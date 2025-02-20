@@ -531,31 +531,6 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
-	if err != nil {
-		return b.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
-	if err != nil {
-		// TODO: Disconnect update orderbook functionality from fetch orderbook
-		// functionality across all wrappers as this mutes potential errors.
-		return b.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -721,19 +696,6 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	return info, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Binance) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Binance) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
@@ -783,7 +745,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			td := trade.Data{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -791,7 +753,13 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Quantity,
 				Timestamp:    tradeData[i].Time,
-			})
+			}
+			if tradeData[i].IsBuyerMaker { // Seller is Taker
+				td.Side = order.Sell
+			} else { // Buyer is Taker
+				td.Side = order.Buy
+			}
+			resp = append(resp, td)
 		}
 	case asset.USDTMarginedFutures:
 		tradeData, err := b.URecentTrades(ctx, pFmt, "", limit)
@@ -800,7 +768,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			td := trade.Data{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -808,7 +776,13 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Qty,
 				Timestamp:    tradeData[i].Time.Time(),
-			})
+			}
+			if tradeData[i].IsBuyerMaker { // Seller is Taker
+				td.Side = order.Sell
+			} else { // Buyer is Taker
+				td.Side = order.Buy
+			}
+			resp = append(resp, td)
 		}
 	case asset.CoinMarginedFutures:
 		tradeData, err := b.GetFuturesPublicTrades(ctx, pFmt, limit)
@@ -817,7 +791,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			td := trade.Data{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -825,7 +799,13 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Qty,
 				Timestamp:    tradeData[i].Time.Time(),
-			})
+			}
+			if tradeData[i].IsBuyerMaker { // Seller is Taker
+				td.Side = order.Sell
+			} else { // Buyer is Taker
+				td.Side = order.Buy
+			}
+			resp = append(resp, td)
 		}
 	}
 
@@ -864,7 +844,7 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	}
 	result := make([]trade.Data, len(trades))
 	for i := range trades {
-		result[i] = trade.Data{
+		td := trade.Data{
 			CurrencyPair: p,
 			TID:          strconv.FormatInt(trades[i].ATradeID, 10),
 			Amount:       trades[i].Quantity,
@@ -872,8 +852,13 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 			Price:        trades[i].Price,
 			Timestamp:    trades[i].TimeStamp,
 			AssetType:    a,
-			Side:         order.AnySide,
 		}
+		if trades[i].IsBuyerMaker { // Seller is Taker
+			td.Side = order.Sell
+		} else { // Buyer is Taker
+			td.Side = order.Buy
+		}
+		result[i] = td
 	}
 	return result, nil
 }

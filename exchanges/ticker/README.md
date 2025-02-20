@@ -35,7 +35,7 @@ exchange interface system set by exchange wrapper orderbook functions in
 Examples below:
 
 ```go
-tick, err := yobitExchange.FetchTicker()
+tick, err := yobitExchange.UpdateTicker(...)
 if err != nil {
 	// Handle error
 }
