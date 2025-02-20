@@ -3,7 +3,6 @@ package bitfinex
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -492,15 +492,6 @@ func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAccountBalance(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

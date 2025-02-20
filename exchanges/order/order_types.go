@@ -201,8 +201,7 @@ type ModifyResponse struct {
 }
 
 // Detail contains all properties of an order
-// Each exchange has their own requirements, so not all fields
-// are required to be populated
+// Each exchange has their own requirements, so not all fields are required to be populated
 type Detail struct {
 	ImmediateOrCancel    bool
 	HiddenOrder          bool

@@ -2,10 +2,10 @@ package versions
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Version3 is an ExchangeVersion to remove the publishPeriod from the exchange's orderbook config

@@ -1,12 +1,13 @@
 package mock
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var errUnsupportedType = errors.New("unsupported type")
