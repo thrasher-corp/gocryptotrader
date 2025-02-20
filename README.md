@@ -131,7 +131,7 @@ go build -tags=sonic_off
 ```
 
 + Make any necessary changes to the `config.json` file.
-+ Run the gocryptotrader binary file.
++ Run the `gocryptotrader` binary file.
 
 ## Donations
 
