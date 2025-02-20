@@ -7093,5 +7093,53 @@ func (b *Binance) GetFuturesUserIncomeHistory(ctx context.Context, symbol, incom
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/income", params, request.Auth, nil, &resp)
 }
 
-// GetFuturesTraderNumber retrieves
-// func (b *Binance) GetFuturesTraderNumber(ctx context.Context, tradeType string, startTime, endTime time.Time, limit int64)
+// GetFuturesReferredTradersNumber retrieve the number of new and existing traders associated with their referral program over specific time periods.
+// coinMargined is true if the type coin margined futures and false if it is usdt margined futures
+func (b *Binance) GetFuturesReferredTradersNumber(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) ([]BrokerTradersNumber, error) {
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BrokerTradersNumber
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/traderNum", params, request.Auth, nil, &resp)
+}
+
+// GetFuturesRebateDataOverview retrieves an overview of rebate data for brokers, including details like the number of new and existing traders referred, total trading volume, and total rebates earned.
+func (b *Binance) GetFuturesRebateDataOverview(ctx context.Context, coinMargined bool) (*RebateOverview, error) {
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
+	}
+	var resp *RebateOverview
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/overview", params, request.Auth, nil, &resp)
+}
+
+// GetUserTradeVolume retrieves user's trade volume at different timestamps
+func (b *Binance) GetUserTradeVolume(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) ([]UserTradeVolume, error) {
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []UserTradeVolume
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "", params, request.Auth, nil, &resp)
+}

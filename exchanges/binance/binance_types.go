@@ -5689,3 +5689,29 @@ type FuturesUserIncomeDetail struct {
 	Info       string     `json:"info"`
 	Time       types.Time `json:"time"`
 }
+
+// BrokerTradersNumber stores the number of traders referred to a broker along with the corresponding timestamp.
+type BrokerTradersNumber struct {
+	NewTraders types.Number `json:"newTrader"`
+	OldTraders types.Number `json:"oldTrader"`
+	Time       types.Time   `json:"time"`
+}
+
+// RebateOverview holds a futures account rebate overview
+type RebateOverview struct {
+	BrokerID                  string       `json:"brokerId"`
+	NewTraderRebateCommission types.Number `json:"newTraderRebateCommission"`
+	OldTraderRebateCommission types.Number `json:"oldTraderRebateCommission"`
+	TotalTradeUser            int64        `json:"totalTradeUser"`
+	Unit                      string       `json:"unit"`
+	TotalTradeVol             types.Number `json:"totalTradeVol"`
+	TotalRebateVol            types.Number `json:"totalRebateVol"`
+	Time                      types.Time   `json:"time"`
+}
+
+// UserTradeVolume holds trade volume infomration of a broker user at different timestamps
+type UserTradeVolume struct {
+	Unit     types.Number `json:"unit"`
+	TradeVol types.Number `json:"tradeVol"`
+	Time     types.Time   `json:"time"`
+}

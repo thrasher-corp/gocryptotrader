@@ -9562,3 +9562,27 @@ func TestGetFuturesUserIncomeHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetFuturesReferredTradersNumber(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesReferredTradersNumber(context.Background(), true, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesRebateDataOverview(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesRebateDataOverview(context.Background(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserTradeVolume(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUserTradeVolume(context.Background(), true, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
