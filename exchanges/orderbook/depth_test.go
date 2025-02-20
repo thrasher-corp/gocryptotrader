@@ -10,6 +10,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -96,7 +98,20 @@ func TestRetrieve(t *testing.T) {
 	assert.NoError(t, err, "Retrieve should not error")
 	assert.Len(t, ob.Asks, 1, "Should have correct Asks")
 	assert.Len(t, ob.Bids, 1, "Should have correct Bids")
+	assert.Equal(t, "THE BIG ONE!!!!!!", ob.Exchange, "Should have correct Exchange")
+	assert.Equal(t, currency.NewPair(currency.THETA, currency.USD), ob.Pair, "Should have correct Pair")
+	assert.Equal(t, asset.DownsideProfitContract, ob.Asset, "Should have correct Asset")
+	assert.Equal(t, d.options.lastUpdated, ob.LastUpdated, "Should have correct LastUpdated")
+	assert.Equal(t, d.options.updatePushedAt, ob.UpdatePushedAt, "Should have correct UpdatePushedAt")
+	assert.Equal(t, d.options.insertedAt, ob.InsertedAt, "Should have correct InsertedAt")
+	assert.EqualValues(t, 1337, ob.LastUpdateID, "Should have correct LastUpdateID")
+	assert.True(t, ob.PriceDuplication, "Should have correct PriceDuplication")
+	assert.True(t, ob.IsFundingRate, "Should have correct IsFundingRate")
+	assert.True(t, ob.VerifyOrderbook, "Should have correct VerifyOrderbook")
+	assert.True(t, ob.RestSnapshot, "Should have correct RestSnapshot")
+	assert.True(t, ob.IDAlignment, "Should have correct IDAligned")
 	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
+	assert.True(t, ob.ChecksumStringRequired, "Should have correct ChecksumStringRequired")
 }
 
 func TestTotalAmounts(t *testing.T) {
@@ -677,22 +692,6 @@ func TestGetTranches(t *testing.T) {
 	assert.Len(t, bidT, 5, "bids should have correct number of tranches")
 }
 
-func TestGetPair(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-
-	_, err := depth.GetPair()
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPair should error correctly")
-
-	expected := currency.NewPair(currency.BTC, currency.WABI)
-	depth.pair = expected
-
-	pair, err := depth.GetPair()
-	assert.NoError(t, err, "GetPair should not error")
-
-	assert.Equal(t, expected, pair, "GetPair should return correct pair")
-}
-
 func getInvalidDepth() *Depth {
 	depth := NewDepth(id)
 	_ = depth.Invalidate(errors.New("invalid reasoning"))
@@ -909,4 +908,40 @@ var movementTests = []struct {
 			{[]any{19.97787610619469, true}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.579646017701}},
 			{[]any{20.0, true}, Movement{NominalPercentage: 0.7105459985041137, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
 		}},
+}
+
+func TestPair(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Pair())
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	require.Equal(t, depth.pair, depth.Pair())
+}
+
+func TestAsset(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Asset())
+	depth.asset = asset.Spot
+	require.Equal(t, depth.asset, depth.Asset())
+}
+
+func TestExchange(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Exchange())
+	depth.exchange = "test"
+	require.Equal(t, depth.exchange, depth.Exchange())
+}
+
+func TestKey(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Key())
+	depth.exchange = "test"
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	depth.asset = asset.Spot
+	require.Equal(t,
+		key.ExchangePairAsset{Exchange: depth.exchange, Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset},
+		depth.Key())
 }
