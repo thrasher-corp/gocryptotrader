@@ -118,8 +118,6 @@ type SubmitResponse struct {
 	TriggerPrice         float64
 	ClientID             string
 	ClientOrderID        string
-	ImmediateOrCancel    bool
-	FillOrKill           bool
 	AverageExecutedPrice float64
 
 	LastUpdated time.Time

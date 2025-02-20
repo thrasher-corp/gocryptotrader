@@ -668,7 +668,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			Leverage:      s.Leverage,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
-			PostOnly:      s.PostOnly,
+			PostOnly:      s.TimeInForce == order.PostOnlyGTC,
 			Hidden:        s.Hidden,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
@@ -721,7 +721,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, 0, s.PostOnly, s.Hidden, s.Iceberg)
+					0, 0, s.TimeInForce == order.PostOnlyGTC || s.Type == order.PostOnly, s.Hidden, s.Iceberg)
 				if err != nil {
 					return nil, err
 				}
@@ -1020,6 +1020,17 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		} else {
 			oStatus = order.Closed
 		}
+		var tif order.TimeInForce
+		switch orderDetail.TimeInForce {
+		case "GTT":
+			tif = order.GTT
+		case "IOC":
+			tif = order.IOC
+		case "FOK":
+			tif = order.FOK
+		default:
+			tif = order.GTC
+		}
 		return &order.Detail{
 			Exchange:             ku.Name,
 			OrderID:              orderDetail.ID,
@@ -1033,6 +1044,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price,
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
+			TimeInForce:          tif,
 			PostOnly:             orderDetail.PostOnly,
 			ReduceOnly:           orderDetail.ReduceOnly,
 			Leverage:             orderDetail.Leverage,
@@ -1090,6 +1102,17 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		} else {
 			remainingSize = orderDetail.Size.Float64() - orderDetail.DealSize.Float64()
 		}
+		var tif order.TimeInForce
+		switch orderDetail.TimeInForce {
+		case "GTT":
+			tif = order.GTT
+		case "IOC":
+			tif = order.IOC
+		case "FOK":
+			tif = order.FOK
+		default:
+			tif = order.GTC
+		}
 		return &order.Detail{
 			Exchange:             ku.Name,
 			OrderID:              orderDetail.ID,
@@ -1104,6 +1127,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price.Float64(),
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
+			TimeInForce:          tif,
 			PostOnly:             orderDetail.PostOnly,
 			AverageExecutedPrice: orderDetail.Price.Float64(),
 			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
@@ -1262,6 +1286,17 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if err != nil {
 				return nil, err
 			}
+			var tif order.TimeInForce
+			switch futuresOrders.Items[x].TimeInForce {
+			case "GTT":
+				tif = order.GTT
+			case "IOC":
+				tif = order.IOC
+			case "FOK":
+				tif = order.FOK
+			default:
+				tif = order.GTC
+			}
 			orders = append(orders, order.Detail{
 				OrderID:            futuresOrders.Items[x].ID,
 				ClientOrderID:      futuresOrders.Items[x].ClientOid,
@@ -1276,6 +1311,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:               side,
 				Type:               oType,
 				Pair:               dPair,
+				TimeInForce:        tif,
 				PostOnly:           futuresOrders.Items[x].PostOnly,
 				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
 				Status:             status,
@@ -1360,6 +1396,17 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
+				var tif order.TimeInForce
+				switch response.Items[a].TimeInForce {
+				case "GTT":
+					tif = order.GTT
+				case "IOC":
+					tif = order.IOC
+				case "FOK":
+					tif = order.FOK
+				default:
+					tif = order.GTC
+				}
 				orders = append(orders, order.Detail{
 					OrderID:        response.Items[a].ID,
 					ClientOrderID:  response.Items[a].ClientOID,
@@ -1372,6 +1419,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
+					TimeInForce:    tif,
 					PostOnly:       response.Items[a].PostOnly,
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
@@ -1597,6 +1645,17 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
+				var tif order.TimeInForce
+				switch response.Items[a].TimeInForce {
+				case "GTT":
+					tif = order.GTT
+				case "IOC":
+					tif = order.IOC
+				case "FOK":
+					tif = order.FOK
+				default:
+					tif = order.GTC
+				}
 				orders = append(orders, order.Detail{
 					OrderID:        response.Items[a].ID,
 					ClientOrderID:  response.Items[a].ClientOID,
@@ -1610,6 +1669,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
+					TimeInForce:    tif,
 					PostOnly:       response.Items[a].PostOnly,
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
