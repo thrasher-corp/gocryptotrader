@@ -81,4 +81,4 @@ check-jq:
 
 .PHONY: no_sonic
 no_sonic:
-	go build -tags=sonic_off ./...
+	go build $(LDFLAGS) -tags "sonic_off" 
