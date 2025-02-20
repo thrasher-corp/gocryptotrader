@@ -1,9 +1,10 @@
 package binance
 
 import (
-	"encoding/json"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // timeString gets the time as Binance timestamp
