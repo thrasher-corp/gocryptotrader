@@ -668,7 +668,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			Leverage:      s.Leverage,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
-			PostOnly:      s.TimeInForce == order.PostOnlyGTC,
+			PostOnly:      s.PostOnly,
 			Hidden:        s.Hidden,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
@@ -721,7 +721,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, 0, s.TimeInForce == order.PostOnlyGTC || s.Type == order.PostOnly, s.Hidden, s.Iceberg)
+					0, 0, s.PostOnly, s.Hidden, s.Iceberg)
 				if err != nil {
 					return nil, err
 				}

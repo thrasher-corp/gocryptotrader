@@ -2539,23 +2539,28 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 	}
 }
 
-var errPostOnlyOrderTypeUnsupported = errors.New("post only is only supported for limit orders")
-
 // getTimeInForce returns the time in force for a given order. If Market order
 // IOC
 func getTimeInForce(s *order.Submit) (string, error) {
-	timeInForce := "gtc" // limit order taker/maker
-	if s.Type == order.Market || s.TimeInForce == order.IOC {
+	var timeInForce string
+	switch s.TimeInForce {
+	case order.IOC:
 		timeInForce = "ioc" // market taker only
-	}
-	if s.PostOnly {
-		if s.Type != order.Limit {
-			return "", fmt.Errorf("%w not for %v", errPostOnlyOrderTypeUnsupported, s.Type)
+	case order.FOK:
+		timeInForce = "fok"
+	case order.POC:
+		timeInForce = "poc"
+	case order.GTC:
+		timeInForce = "gtc"
+	case order.UnsetTIF:
+		switch s.Type {
+		case order.Market:
+			timeInForce = "ioc"
+		case order.Limit:
+			timeInForce = "gtc"
 		}
-		timeInForce = "poc" // limit order maker only
-	}
-	if s.TimeInForce == order.IOC {
-		timeInForce = "fok" // market order entire fill or kill
+	default:
+		return timeInForce, fmt.Errorf("%w: time-in-force value of %s", order.ErrInvalidTimeInForce, timeInForce)
 	}
 	return timeInForce, nil
 }

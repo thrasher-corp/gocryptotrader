@@ -747,6 +747,9 @@ func (t TimeInForce) String() string {
 		return "GTT"
 	case FOK:
 		return "FOK"
+	case POC:
+		// Added in GateIO exchange to represent Pending or Cancel
+		return "POC"
 	case PostOnlyGTC:
 		// Added in Bittrex exchange to represent PostOnly and GTC
 		return "POST_ONLY_GOOD_TIL_CANCELLED"
@@ -1267,6 +1270,8 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		return FOK, nil
 	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnlyGTC.String():
 		return PostOnlyGTC, nil
+	case "POC", "PENDINGORCANCEL":
+		return POC, nil
 	case "":
 		return UnsetTIF, nil
 	default:

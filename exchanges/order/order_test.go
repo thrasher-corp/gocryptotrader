@@ -1735,6 +1735,8 @@ func TestStringToTimeInForce(t *testing.T) {
 		"GOOD_TILL_DAY":                {TIF: GTD},
 		"GOODtillday":                  {TIF: GTD},
 		"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
+		"PoC":                          {TIF: POC},
+		"PendingORCANCEL":              {TIF: POC},
 	}
 
 	for tk := range timeInForceStringToValueMap {
@@ -1752,6 +1754,7 @@ func TestString(t *testing.T) {
 		GTT:         "GTT",
 		FOK:         "FOK",
 		PostOnlyGTC: "POST_ONLY_GOOD_TIL_CANCELLED",
+		POC:         "POC",
 		UnknownTIF:  "UNKNOWN",
 		UnsetTIF:    "",
 	}

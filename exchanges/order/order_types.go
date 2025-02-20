@@ -407,7 +407,7 @@ const (
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint8
+type TimeInForce uint16
 
 // TimeInForce types
 const (
@@ -417,10 +417,11 @@ const (
 	GTT                                 // GTT represents GoodTillTime
 	FOK                                 // FOK represents FillOrKill
 	IOC                                 // IOC represents ImmediateOrCancel
+	POC                                 // POC represents PendingOrCancel
 	PostOnlyGTC                         // PostOnlyGCT represents PostOnlyGoodTilCancelled
 	UnknownTIF
 
-	supportedTimeInForceFlag = GTC | GTD | GTT | FOK | IOC | PostOnlyGTC
+	supportedTimeInForceFlag = GTC | GTD | GTT | FOK | IOC | POC | PostOnlyGTC
 )
 
 // ByPrice used for sorting orders by price
