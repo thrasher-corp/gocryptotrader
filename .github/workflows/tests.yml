@@ -18,7 +18,7 @@ jobs:
             goarch: 386
             psql: true
             skip_wrapper_tests: true
-            sonic: true
+            sonic: true # sonic is disabled for 386 this ensures fall back to legacy code
           - os: macos-latest
             goarch: amd64
             psql: true
