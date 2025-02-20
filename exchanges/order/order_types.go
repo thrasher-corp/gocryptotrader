@@ -367,6 +367,8 @@ const (
 	StopLimit
 	StopMarket
 	TakeProfit
+	TakeProfitLimit
+	StopLoss
 	TakeProfitMarket
 	TrailingStop
 	FillOrKill
