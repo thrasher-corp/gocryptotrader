@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -509,7 +509,7 @@ func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 	if err != nil {
 		return err
 	}
-	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	orderbooks, err := ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
 	if err != nil {
 		return err
 	}

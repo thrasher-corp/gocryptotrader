@@ -1,8 +1,9 @@
 package binance
 
 import (
-	"encoding/json"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {

@@ -1,9 +1,10 @@
 package collateral
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Valid returns whether the collateral mode is valid

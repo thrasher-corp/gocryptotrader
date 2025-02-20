@@ -1,13 +1,13 @@
 package asset
 
 import (
-	"encoding/json"
 	"errors"
 	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestString(t *testing.T) {
