@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -3009,18 +3009,6 @@ func TestUpdateAccountInfo(t *testing.T) {
 				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should match")
 			}
 		}
-	}
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
 	}
 }
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,9 +11,10 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
 )
 
-var commands = []string{"upgrade", "encrypt", "decrypt"}
+var commands = []string{"upgrade", "downgrade", "encrypt", "decrypt"}
 
 func main() {
 	fmt.Println("GoCryptoTrader: config-helper tool")
@@ -22,6 +23,7 @@ func main() {
 
 	var in, out, keyStr string
 	var inplace bool
+	var version int
 
 	fs := flag.NewFlagSet("config", flag.ExitOnError)
 	fs.Usage = func() { usage(fs) }
@@ -29,6 +31,7 @@ func main() {
 	fs.StringVar(&out, "out", "[in].out", "The config output file")
 	fs.BoolVar(&inplace, "edit", false, "Edit; Save result to the original file")
 	fs.StringVar(&keyStr, "key", "", "The key to use for AES encryption")
+	fs.IntVar(&version, "version", 0, "The version to downgrade to")
 
 	cmd, args := parseCommand(os.Args[1:])
 	if cmd == "" {
@@ -46,83 +49,66 @@ func main() {
 		out = in + ".out"
 	}
 
-	key := []byte(keyStr)
 	var err error
-	switch cmd {
-	case "upgrade":
-		err = upgradeFile(in, out, key)
-	case "decrypt":
-		err = encryptWrapper(in, out, key, false, decryptFile)
-	case "encrypt":
-		err = encryptWrapper(in, out, key, true, encryptFile)
+	key := []byte(keyStr)
+	data := readFile(in)
+	isEncrypted := config.IsEncrypted(data)
+
+	if cmd == "encrypt" && isEncrypted {
+		fatal("Error: File is already encrypted")
+	}
+	if cmd == "decrypt" && !isEncrypted {
+		fatal("Error: File is already decrypted")
 	}
 
-	if err != nil {
-		fatal(err.Error())
+	if len(key) == 0 && (isEncrypted || cmd == "encrypt") {
+		if key, err = config.PromptForConfigKey(cmd == "encrypt"); err != nil {
+			fatal(err.Error())
+		}
+	}
+
+	if isEncrypted {
+		if data, err = config.DecryptConfigData(data, key); err != nil {
+			fatal(err.Error())
+		}
+	}
+
+	switch cmd {
+	case "decrypt":
+		if data, err = jsonparser.Set(data, []byte("-1"), "encryptConfig"); err != nil {
+			fatal("Unable to decrypt config data; Error: " + err.Error())
+		}
+	case "downgrade", "upgrade":
+		if version == 0 {
+			if cmd == "downgrade" {
+				fmt.Fprintln(os.Stderr, "Error: downgrade requires a version")
+				usage(fs)
+				os.Exit(3)
+			}
+			version = versions.LatestVersion
+		} else if version < 0 {
+			fmt.Fprintln(os.Stderr, "Error: version must be positive")
+			usage(fs)
+			os.Exit(3)
+		}
+		if data, err = versions.Manager.Deploy(context.Background(), data, version); err != nil {
+			fatal("Unable to " + cmd + " config; Error: " + err.Error())
+		}
+		if !isEncrypted {
+			break
+		}
+		fallthrough
+	case "encrypt":
+		if data, err = config.EncryptConfigData(data, key); err != nil {
+			fatal("Unable to encrypt config data; Error: " + err.Error())
+		}
+	}
+
+	if err := file.Write(out, data); err != nil {
+		fatal("Unable to write output file `" + out + "`; Error: " + err.Error())
 	}
 
 	fmt.Println("Success! File written to " + out)
-}
-
-func upgradeFile(in, out string, key []byte) error {
-	c := &config.Config{
-		EncryptionKeyProvider: func(_ bool) ([]byte, error) {
-			if len(key) != 0 {
-				return key, nil
-			}
-			return config.PromptForConfigKey(false)
-		},
-	}
-
-	if err := c.ReadConfigFromFile(in, true); err != nil {
-		return err
-	}
-
-	return c.SaveConfigToFile(out)
-}
-
-type encryptFunc func(string, []byte) ([]byte, error)
-
-func encryptWrapper(in, out string, key []byte, confirmKey bool, fn encryptFunc) error {
-	if len(key) == 0 {
-		var err error
-		if key, err = config.PromptForConfigKey(confirmKey); err != nil {
-			return err
-		}
-	}
-	outData, err := fn(in, key)
-	if err != nil {
-		return err
-	}
-	if err := file.Write(out, outData); err != nil {
-		return fmt.Errorf("unable to write output file %s; Error: %w", out, err)
-	}
-	return nil
-}
-
-func encryptFile(in string, key []byte) ([]byte, error) {
-	if config.IsFileEncrypted(in) {
-		return nil, errors.New("file is already encrypted")
-	}
-	outData, err := config.EncryptConfigFile(readFile(in), key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to encrypt config data. Error: %w", err)
-	}
-	return outData, nil
-}
-
-func decryptFile(in string, key []byte) ([]byte, error) {
-	if !config.IsFileEncrypted(in) {
-		return nil, errors.New("file is already decrypted")
-	}
-	outData, err := config.DecryptConfigFile(readFile(in), key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to decrypt config data. Error: %w", err)
-	}
-	if outData, err = jsonparser.Set(outData, []byte("-1"), "encryptConfig"); err != nil {
-		return nil, fmt.Errorf("unable to decrypt config data. Error: %w", err)
-	}
-	return outData, nil
 }
 
 func readFile(in string) []byte {
@@ -152,7 +138,7 @@ func parseCommand(a []string) (cmd string, args []string) {
 	switch len(cmds) {
 	case 0:
 		fmt.Fprintln(os.Stderr, "No command provided")
-	case 1: //
+	case 1:
 		return cmds[0], rem
 	default:
 		fmt.Fprintln(os.Stderr, "Too many commands provided: "+strings.Join(cmds, ", "))
@@ -171,6 +157,7 @@ The commands are:
 	encrypt 	encrypt infile and write to outfile
 	decrypt 	decrypt infile and write to outfile
 	upgrade 	upgrade the version of a decrypted config file
+	downgrade 	downgrade the version of a decrypted config file to a specific version
 
 The arguments are:`)
 	fs.PrintDefaults()

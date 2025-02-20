@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +8,7 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func mockWsServer(tb testing.TB, msg []byte, w *websocket.Conn) error {

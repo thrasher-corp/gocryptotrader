@@ -96,13 +96,13 @@ func TestGetMarketsSummary(t *testing.T) {
 
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchOrderBook(context.Background(), spotPair.String(), 0, 1, 1, true)
+	_, err := b.FetchOrderbook(context.Background(), spotPair.String(), 0, 1, 1, true)
 	assert.NoError(t, err, "FetchOrderBook should not error")
 
-	_, err = b.FetchOrderBook(context.Background(), futuresPair.String(), 0, 1, 1, false)
+	_, err = b.FetchOrderbook(context.Background(), futuresPair.String(), 0, 1, 1, false)
 	assert.NoError(t, err, "FetchOrderBook should not error")
 
-	_, err = b.FetchOrderBook(context.Background(), spotPair.String(), 1, 1, 1, true)
+	_, err = b.FetchOrderbook(context.Background(), spotPair.String(), 1, 1, 1, true)
 	assert.NoError(t, err, "FetchOrderBook should not error")
 }
 
@@ -117,7 +117,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestFetchOrderBookL2(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchOrderBookL2(context.Background(), spotPair.String(), 20)
+	_, err := b.FetchOrderbookL2(context.Background(), spotPair.String(), 20)
 	assert.NoError(t, err, "FetchOrderBookL2 should not error")
 }
 
