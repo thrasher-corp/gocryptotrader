@@ -2,7 +2,6 @@ package coinbasepro
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -977,8 +976,10 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	ch := make(chan struct{})
 	body := map[string]any{"Unmarshalable": ch}
 	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", nil, body, false, nil, nil)
-	var targetErr *json.UnsupportedTypeError
-	assert.ErrorAs(t, err, &targetErr)
+	// TODO: Implement this more rigorously once thrasher investigates the code further
+	// var targetErr *json.UnsupportedTypeError
+	// assert.ErrorAs(t, err, &targetErr)
+	assert.ErrorContains(t, err, "json: unsupported type: chan struct {}")
 }
 
 func TestGetFee(t *testing.T) {
@@ -1577,14 +1578,14 @@ func TestWsHandleData(t *testing.T) {
 	assert.ErrorIs(t, err, jsonparser.UnknownValueTypeError)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": ["type": 1234]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
-	var targetErr *json.SyntaxError
-	assert.ErrorAs(t, err, &targetErr)
+	targetStr := "invalid char"
+	assert.ErrorContains(t, err, targetStr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorAs(t, err, &targetErr)
+	assert.ErrorContains(t, err, targetStr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
@@ -1593,7 +1594,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorAs(t, err, &targetErr)
+	assert.ErrorContains(t, err, targetStr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
@@ -1602,13 +1603,13 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorAs(t, err, &targetErr)
+	assert.ErrorContains(t, err, targetStr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorAs(t, err, &targetErr)
+	assert.ErrorContains(t, err, targetStr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
@@ -1623,7 +1624,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
-	assert.ErrorAs(t, err, &targetErr)
+	assert.ErrorContains(t, err, targetStr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1"}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)

@@ -57,7 +57,7 @@ func TestBackupGetRate(t *testing.T) {
 		},
 	})
 	_, err = f.backupGetRate("", []string{"XRP"})
-	assert.ErrorAs(t, err, &errCurrencyNotSupported)
+	assert.ErrorIs(t, err, errCurrencyNotSupported)
 	_, err = f.backupGetRate("", []string{"NOTREALCURRENCY"})
 	assert.ErrorIs(t, err, errUnsupportedCurrencies)
 	f.Support[0].SupportedCurrencies = []string{"BTC", "ETH"}
