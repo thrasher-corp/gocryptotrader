@@ -1,11 +1,11 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestRoleString(t *testing.T) {

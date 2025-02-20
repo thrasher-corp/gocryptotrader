@@ -10,6 +10,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -690,22 +692,6 @@ func TestGetTranches(t *testing.T) {
 	assert.Len(t, bidT, 5, "bids should have correct number of tranches")
 }
 
-func TestGetPair(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-
-	_, err := depth.GetPair()
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPair should error correctly")
-
-	expected := currency.NewPair(currency.BTC, currency.WABI)
-	depth.pair = expected
-
-	pair, err := depth.GetPair()
-	assert.NoError(t, err, "GetPair should not error")
-
-	assert.Equal(t, expected, pair, "GetPair should return correct pair")
-}
-
 func getInvalidDepth() *Depth {
 	depth := NewDepth(id)
 	_ = depth.Invalidate(errors.New("invalid reasoning"))
@@ -922,4 +908,40 @@ var movementTests = []struct {
 			{[]any{19.97787610619469, true}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.579646017701}},
 			{[]any{20.0, true}, Movement{NominalPercentage: 0.7105459985041137, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
 		}},
+}
+
+func TestPair(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Pair())
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	require.Equal(t, depth.pair, depth.Pair())
+}
+
+func TestAsset(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Asset())
+	depth.asset = asset.Spot
+	require.Equal(t, depth.asset, depth.Asset())
+}
+
+func TestExchange(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Exchange())
+	depth.exchange = "test"
+	require.Equal(t, depth.exchange, depth.Exchange())
+}
+
+func TestKey(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Key())
+	depth.exchange = "test"
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	depth.asset = asset.Spot
+	require.Equal(t,
+		key.ExchangePairAsset{Exchange: depth.exchange, Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset},
+		depth.Key())
 }

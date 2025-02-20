@@ -2906,6 +2906,60 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
 }
 
+func TestGetCachedTicker(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.GetCachedTicker(pair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
+
+	err = ticker.ProcessTicker(&ticker.Price{ExchangeName: "test", Pair: pair, AssetType: asset.Spot})
+	assert.NoError(t, err)
+
+	tickerPrice, err := b.GetCachedTicker(pair, asset.Spot)
+	assert.NoError(t, err)
+	assert.Equal(t, pair, tickerPrice.Pair)
+}
+
+func TestGetCachedOrderbook(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.GetCachedOrderbook(pair, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
+
+	err = (&orderbook.Base{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
+	assert.NoError(t, err)
+
+	ob, err := b.GetCachedOrderbook(pair, asset.Spot)
+	assert.NoError(t, err)
+	assert.Equal(t, pair, ob.Pair)
+}
+
+func TestGetCachedAccountInfo(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	creds := &account.Credentials{
+		Key:    "test",
+		Secret: "test",
+	}
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
+	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
+
+	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
+		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
+	}}, creds)
+	require.NoError(t, err, "account.Process must not error")
+
+	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
+	assert.NoError(t, err)
+}
+
 // FakeBase is used to override functions
 type FakeBase struct{ Base }
 
@@ -2946,15 +3000,15 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) FetchAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
+func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 
-func (f *FakeBase) FetchOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
-func (f *FakeBase) FetchTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
+func (f *FakeBase) GetCachedTicker(currency.Pair, asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 

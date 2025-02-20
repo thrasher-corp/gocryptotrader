@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -349,20 +349,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		log.Printf("Executing wrappers for %v %v %v", base.GetName(), assetTypes[i], p)
 
 		if !authenticatedOnly {
-			var fetchTickerResponse *ticker.Price
-			fetchTickerResponse, err = e.FetchTicker(context.TODO(), p, assetTypes[i])
-			msg = ""
-			if err != nil {
-				msg = err.Error()
-				responseContainer.ErrorCount++
-			}
-			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
-				Function:   "FetchTicker",
-				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{fetchTickerResponse}),
-			})
-
 			var updateTickerResponse *ticker.Price
 			updateTickerResponse, err = e.UpdateTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
@@ -377,8 +363,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{updateTickerResponse}),
 			})
 
-			var fetchOrderbookResponse *orderbook.Base
-			fetchOrderbookResponse, err = e.FetchOrderbook(context.TODO(), p, assetTypes[i])
+			var GetCachedTickerResponse *ticker.Price
+			GetCachedTickerResponse, err = e.GetCachedTicker(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -386,9 +372,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
-				Function:   "FetchOrderbook",
+				Function:   "GetCachedTicker",
 				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{fetchOrderbookResponse}),
+				Response:   jsonifyInterface([]interface{}{GetCachedTickerResponse}),
 			})
 
 			var updateOrderbookResponse *orderbook.Base
@@ -403,6 +389,20 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Function:   "UpdateOrderbook",
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{updateOrderbookResponse}),
+			})
+
+			var GetCachedOrderbookResponse *orderbook.Base
+			GetCachedOrderbookResponse, err = e.GetCachedOrderbook(p, assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+				Function:   "GetCachedOrderbook",
+				Error:      msg,
+				Response:   jsonifyInterface([]interface{}{GetCachedOrderbookResponse}),
 			})
 
 			var fetchTradablePairsResponse []currency.Pair
@@ -553,17 +553,17 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 		}
 
-		var fetchAccountInfoResponse account.Holdings
-		fetchAccountInfoResponse, err = e.FetchAccountInfo(context.TODO(), assetTypes[i])
+		var GetCachedAccountInfoResponse account.Holdings
+		GetCachedAccountInfoResponse, err = e.GetCachedAccountInfo(context.TODO(), assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "FetchAccountInfo",
+			Function: "GetCachedAccountInfo",
 			Error:    msg,
-			Response: jsonifyInterface([]interface{}{fetchAccountInfoResponse}),
+			Response: jsonifyInterface([]interface{}{GetCachedAccountInfoResponse}),
 		})
 
 		var getFundingHistoryResponse []exchange.FundingHistory
@@ -1028,7 +1028,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 }
 
 func jsonifyInterface(params []interface{}) json.RawMessage {
-	response, _ := json.MarshalIndent(params, "", " ") //nolint:errchkjson // TODO: ignore this for now
+	response, _ := json.MarshalIndent(params, "", " ")
 	return response
 }
 

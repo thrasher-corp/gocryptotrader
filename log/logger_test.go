@@ -1,7 +1,6 @@
 package log
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (
