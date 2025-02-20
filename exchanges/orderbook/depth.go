@@ -787,29 +787,29 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 	return d.askTranches.retrieve(count), d.bidTranches.retrieve(count), nil
 }
 
-// GetPair returns the pair associated with the depth
-func (d *Depth) GetPair() currency.Pair {
+// Pair returns the pair associated with the depth
+func (d *Depth) Pair() currency.Pair {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	return d.pair
 }
 
-// GetAsset returns the asset associated with the depth
-func (d *Depth) GetAsset() asset.Item {
+// Asset returns the asset associated with the depth
+func (d *Depth) Asset() asset.Item {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	return d.asset
 }
 
-// GetExchange returns the exchange associated with the depth
-func (d *Depth) GetExchange() string {
+// Exchange returns the exchange associated with the depth
+func (d *Depth) Exchange() string {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	return d.exchange
 }
 
-// GetKey returns the key associated with the depth
-func (d *Depth) GetKey() key.ExchangePairAsset {
+// Key returns a combined key for the depth
+func (d *Depth) Key() key.ExchangePairAsset {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	return key.ExchangePairAsset{Exchange: d.exchange, Base: d.pair.Base.Item, Quote: d.pair.Quote.Item, Asset: d.asset}

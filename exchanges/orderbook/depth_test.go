@@ -910,38 +910,38 @@ var movementTests = []struct {
 		}},
 }
 
-func TestGetPair(t *testing.T) {
+func TestPair(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	require.Empty(t, depth.GetPair())
+	require.Empty(t, depth.Pair())
 	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
-	require.Equal(t, depth.pair, depth.GetPair())
+	require.Equal(t, depth.pair, depth.Pair())
 }
 
-func TestGetAsset(t *testing.T) {
+func TestAsset(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	require.Empty(t, depth.GetAsset())
+	require.Empty(t, depth.Asset())
 	depth.asset = asset.Spot
-	require.Equal(t, depth.asset, depth.GetAsset())
+	require.Equal(t, depth.asset, depth.Asset())
 }
 
-func TestGetExchange(t *testing.T) {
+func TestExchange(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	require.Empty(t, depth.GetExchange())
+	require.Empty(t, depth.Exchange())
 	depth.exchange = "test"
-	require.Equal(t, depth.exchange, depth.GetExchange())
+	require.Equal(t, depth.exchange, depth.Exchange())
 }
 
-func TestGetKey(t *testing.T) {
+func TestKey(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	require.Empty(t, depth.GetKey())
+	require.Empty(t, depth.Key())
 	depth.exchange = "test"
 	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
 	depth.asset = asset.Spot
 	require.Equal(t,
 		key.ExchangePairAsset{Exchange: depth.exchange, Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset},
-		depth.GetKey())
+		depth.Key())
 }
