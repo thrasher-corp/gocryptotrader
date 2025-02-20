@@ -100,7 +100,7 @@ When submitting a PR, please abide by our coding guidelines:
 + Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
-## Compilation and run instructions
+## Compiling and Running instructions
 
 Download and install Go from [Go Downloads](https://golang.org/dl/) for your platform.
 
