@@ -118,23 +118,45 @@ func MockWsInstance[T any, PT interface {
 	return e
 }
 
-// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData)
+// FixtureError contains an error and the message that caused it
+type FixtureError struct {
+	Err error
+	Msg []byte
+}
+
+// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
 func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
 	tb.Helper()
 
+	for _, e := range FixtureToDataHandlerWithErrors(tb, fixturePath, reader) {
+		assert.NoErrorf(tb, e.Err, "Should not error handling message:\n%s", e.Msg)
+	}
+}
+
+// FixtureToDataHandlerWithErrors squirts the contents of a file to a reader function (probably e.wsHandleData) and returns handler errors
+// Any errors setting up the fixture will fail tests
+func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func([]byte) error) []FixtureError {
+	tb.Helper()
+
 	fixture, err := os.Open(fixturePath)
-	assert.NoError(tb, err, "Opening fixture '%s' should not error", fixturePath)
+	require.NoError(tb, err, "Opening fixture '%s' must not error", fixturePath)
 	defer func() {
 		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
 	}()
 
+	errs := []FixtureError{}
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		err := reader(msg)
-		assert.NoErrorf(tb, err, "Fixture message should not error:\n%s", msg)
+		if err := reader(msg); err != nil {
+			errs = append(errs, FixtureError{
+				Err: err,
+				Msg: msg,
+			})
+		}
 	}
 	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
+	return errs
 }
 
 var setupWsMutex sync.Mutex
@@ -178,6 +200,7 @@ var updatePairsOnce = make(map[string]*currency.PairsManager)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
 // A clone of the cache of the updated pairs is used to populate duplicate requests
+// Any pairs enabled after this is called will be lost on the next call
 func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 

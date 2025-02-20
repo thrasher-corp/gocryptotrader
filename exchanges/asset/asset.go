@@ -1,10 +1,11 @@
 package asset
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Public errors related to assets
