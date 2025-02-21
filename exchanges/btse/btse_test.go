@@ -765,18 +765,14 @@ func TestMarketPair(t *testing.T) {
 	}{
 		{symbol: "RUNEPFC", base: currency.RUNE.String(), quote: currency.USD.String(), futures: true, expectedSymbol: "RUNEPFC"},
 		{symbol: "TRUMPPFC", base: "TRUMPSOL", quote: currency.USD.String(), futures: true, expectedSymbol: "TRUMPPFC"},
-		{symbol: "BTCUSD", base: "NAUGHTYBASE", quote: currency.USD.String(), futures: true, expectedSymbol: "BTCUSD", expectedErr: errInvalidPairSymbol},
+		{symbol: "BTCUSD", base: "NAUGHTYBASE", quote: currency.USD.String(), futures: true, expectedErr: errInvalidPairSymbol},
 		{symbol: "NAUGHTYSYMBOL", base: currency.BTC.String(), quote: currency.USD.String(), expectedErr: errInvalidPairSymbol},
 		{symbol: "BTC-USD", base: currency.BTC.String(), quote: currency.USD.String(), expectedSymbol: currency.NewPair(currency.BTC, currency.USD).String()},
 	} {
 		mp := MarketPair{Symbol: test.symbol, Base: test.base, Quote: test.quote, Futures: test.futures}
 		p, err := mp.Pair()
-		if test.expectedErr != nil {
-			assert.ErrorIs(t, err, test.expectedErr, "Pair should not error")
-		} else {
-			assert.NoError(t, err, "Pair should not error")
-			assert.Equal(t, test.expectedSymbol, p.String(), "Pair should return expected symbol")
-		}
+		assert.ErrorIs(t, err, test.expectedErr, "Pair should not error")
+		assert.Equal(t, test.expectedSymbol, p.String(), "Pair should return the expected symbol")
 	}
 }
 
