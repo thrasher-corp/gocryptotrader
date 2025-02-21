@@ -7141,5 +7141,138 @@ func (b *Binance) GetUserTradeVolume(ctx context.Context, coinMargined bool, sta
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UserTradeVolume
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/tradeVol", params, request.Auth, nil, &resp)
+}
+
+// GetRebateVolume retrieve rebate volume data for a user's futures trading account
+func (b *Binance) GetRebateVolume(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []UserRebateVolume
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/rebateVol", params, request.Auth, nil, &resp)
+}
+
+// GetTraderDetail retrieves detailed trading and rebate volume data for referred traders under the Binance Futures Referral Program
+func (b *Binance) GetTraderDetail(ctx context.Context, customerID string, coinMargined bool, startTime, endTime time.Time, limit int64) ([]TradingAndRebateVolumeData, error) {
+	params := url.Values{}
+	if customerID != "" {
+		params.Set("customerId", customerID)
+	}
+	if coinMargined {
+		params.Set("type", "2")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []TradingAndRebateVolumeData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, request.Auth, nil, &resp)
+}
+
+// GetFuturesClientIfNewUser retrieves futures client detail if new user
+func (b *Binance) GetFuturesClientifNewUser(ctx context.Context, brokerID string, coinMargined bool) (*FuturesClientIfNewUser, error) {
+	if brokerID == "" {
+		return nil, fmt.Errorf("%w: brokerId is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("brokerId", brokerID)
+	if coinMargined {
+		params.Set("type", "2")
+	}
+	var resp *FuturesClientIfNewUser
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
+}
+
+// CustomizeIDForClientToReferredUser allows a broker (referrer) to assign a custom unique identifier (customerId) to a referred user.
+func (b *Binance) CustomizeIDForClientToReferredUser(ctx context.Context, customerID, brokerID string) (*BrokerAndCustomerID, error) {
+	if customerID == "" {
+		return nil, fmt.Errorf("%w: customerID is required", order.ErrOrderIDNotSet)
+	}
+	if brokerID == "" {
+		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("customerId", customerID)
+	params.Set("brokerId", brokerID)
+	var resp *BrokerAndCustomerID
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+}
+
+// GetUsersCustomizeIDs retrieves user's customize ID
+func (b *Binance) GetUsersCustomizeIDs(ctx context.Context, brokerID string) (*BrokerAndCustomerID, error) {
+	if brokerID == "" {
+		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("brokerId", brokerID)
+	var resp *BrokerAndCustomerID
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+}
+
+// GetFastAPIUserStatus retrieves whether user's futures account is new or existing
+func (b *Binance) GetFastAPIUserStatus(ctx context.Context) (*FuturesUserStatus, error) {
+	var resp *FuturesUserStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v1/api-key/user-status", nil, request.Auth, nil, &resp)
+}
+
+// CreateAPIKey creates a new API key
+func (b *Binance) CreateAPIKey(ctx context.Context, apiName, publicKey, status, ipAddress, thirdPartyName string, enableTrade, enableFutureTrade, enableMargin, enableEuropeanOptions bool) (*UserAPIKeyCreationResponse, error) {
+	if apiName == "" {
+		return nil, errAPIKeyNameRequired
+	}
+	if publicKey == "" {
+		return nil, fmt.Errorf("%w: publicKey is required", errEmptySubAccountAPIKey)
+	}
+	params := url.Values{}
+	params.Set("apiName", apiName)
+	params.Set("publicKey", publicKey)
+	if enableTrade {
+		params.Set("enableTrade", "true")
+	} else {
+		params.Set("enableTrade", "false")
+	}
+	if enableFutureTrade {
+		params.Set("enableFutureTrade", "true")
+	} else {
+		params.Set("enableFutureTrade", "false")
+	}
+	if enableMargin {
+		params.Set("enableMargin", "true")
+	} else {
+		params.Set("enableMargin", "false")
+	}
+	if enableEuropeanOptions {
+		params.Set("enableEuropeanOptions", "true")
+	} else {
+		params.Set("enableEuropeanOptions", "false")
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if ipAddress != "" {
+		params.Set("ipAddress", ipAddress)
+	}
+	if thirdPartyName != "" {
+		params.Set("thirdPartyName", thirdPartyName)
+	}
+	var resp *UserAPIKeyCreationResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v1/api-key/create", params, request.Auth, nil, &resp)
 }

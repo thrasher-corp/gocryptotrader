@@ -119,6 +119,7 @@ var (
 	errSubAccountIDMissing          = errors.New("sub-account id is missing")
 	errSubAccountStatusMissing      = errors.New("sub-account status missing")
 	errCommissionValueRequired      = errors.New("commission value is required")
+	errAPIKeyNameRequired           = errors.New("api key name required")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
@@ -5714,4 +5715,60 @@ type UserTradeVolume struct {
 	Unit     types.Number `json:"unit"`
 	TradeVol types.Number `json:"tradeVol"`
 	Time     types.Time   `json:"time"`
+}
+
+// UserRebateVolume holds rebate volume information of a broker user at different timestamp
+type UserRebateVolume struct {
+	Unit         string       `json:"unit"`
+	RebateVolume types.Number `json:"rebateVol"`
+	Time         types.Time   `json:"time"`
+}
+
+// TradingAndRebateVolumeData holds a trading and rebate volume
+type TradingAndRebateVolumeData struct {
+	CustomerID string       `json:"customerId"`
+	Unit       string       `json:"unit"`
+	TradeVol   types.Number `json:"tradeVol"`
+	RebateVol  types.Number `json:"rebateVol"`
+	Time       types.Time   `json:"time"`
+}
+
+// FuturesClientIfNewUser holds details of a futures client account and indicates whether the user is new.
+type FuturesClientIfNewUser struct {
+	BrokerID      string `json:"brokerId"`
+	RebateWorking bool   `json:"rebateWorking"`
+	IfNewUser     bool   `json:"ifNewUser"`
+}
+
+// BrokerAndCustomerID holds customized client ids information
+type BrokerAndCustomerID struct {
+	BrokerID   string `json:"brokerId"`
+	CustomerID string `json:"customerId"`
+}
+
+// FuturesUserStatus holds futures user status info
+type FuturesUserStatus struct {
+	Code    string `json:"code"`
+	Message any    `json:"message"`
+	Data    struct {
+		IsExistFutureAccount bool `json:"isExistFutureAccount"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// UserAPIKeyCreationResponse holds user API key detailes
+type UserAPIKeyCreationResponse struct {
+	Code    string `json:"code"`
+	Message any    `json:"message"`
+	Data    struct {
+		APIKey                string     `json:"apiKey"`
+		APIName               string     `json:"apiName"`
+		SecretKey             string     `json:"secretKey"`
+		EnableTrade           bool       `json:"enableTrade"`
+		EnableFutureTrade     bool       `json:"enableFutureTrade"`
+		EnableMargin          bool       `json:"enableMargin"`
+		EnableEuropeanOptions bool       `json:"enableEuropeanOptions"`
+		CreateTime            types.Time `json:"createTime"`
+	} `json:"data"`
+	Success bool `json:"success"`
 }

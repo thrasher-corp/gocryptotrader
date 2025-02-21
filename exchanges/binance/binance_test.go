@@ -9586,3 +9586,75 @@ func TestGetUserTradeVolume(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetRebateVolume(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetRebateVolume(context.Background(), false, time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTraderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetTraderDetail(context.Background(), "sde001", true, time.Now().Add(-time.Hour*48), time.Now(), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesClientifNewUser(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesClientifNewUser(context.Background(), "", false)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesClientifNewUser(context.Background(), "123123", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCustomizeIDForClientToReferredUser(t *testing.T) {
+	t.Parallel()
+	_, err := b.CustomizeIDForClientToReferredUser(context.Background(), "", "1234")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = b.CustomizeIDForClientToReferredUser(context.Background(), "1234", "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CustomizeIDForClientToReferredUser(context.Background(), "", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersCustomizeIDs(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetUsersCustomizeIDs(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUsersCustomizeIDs(context.Background(), "1234")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFastAPIUserStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateAPIKey(context.Background(), "", "12312", "1", "", "", true, true, false, true)
+	require.ErrorIs(t, err, errAPIKeyNameRequired)
+	_, err = b.CreateAPIKey(context.Background(), "12345", "", "1", "", "", true, true, false, true)
+	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CreateAPIKey(context.Background(), "", "", "1", "", "", true, true, false, true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
