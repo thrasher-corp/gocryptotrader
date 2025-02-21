@@ -23,12 +23,12 @@ jobs:
             goarch: arm64
             psql: false # Not supported
             skip_wrapper_tests: true
-            sonic: true
+            sonic: false # Disabled temporarily until OKX's unmarshalling is changed for sonic arm64 compatibility
           - os: macos-latest
             goarch: arm64
             psql: true
             skip_wrapper_tests: true
-            sonic: true
+            sonic: false # Same reason as the arm64 ubuntu-latest runner
           - os: windows-latest
             goarch: amd64
             psql: true
@@ -38,7 +38,7 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
-            sonic: false
+            sonic: false # Disabled intentionally to test GCT's standard encoding/json implementation
 
     runs-on: ${{ matrix.os }}
 
