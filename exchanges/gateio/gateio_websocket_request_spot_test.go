@@ -195,7 +195,7 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Spot)
 
 	pair, err := currency.NewPairFromString("BTC_USDT")
 	require.NoError(t, err)
@@ -208,10 +208,11 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 // getWebsocketInstance returns a websocket instance copy for testing.
 // This restricts the pairs to a single pair per asset type to reduce test time.
 func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Gateio {
+	t.Helper()
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
-	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := new(Gateio)
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, g)
 	g.API.AuthenticatedSupport = true

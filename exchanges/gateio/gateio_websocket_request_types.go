@@ -109,7 +109,7 @@ type WebsocketFuturesOrderResponse struct {
 	Text                      string        `json:"text"`
 	TakerFee                  types.Number  `json:"tkfr"`
 	MakerFee                  types.Number  `json:"mkfr"`
-	ReferenceUserId           int64         `json:"refu"`
+	ReferenceUserID           int64         `json:"refu"`
 	SelfTradePreventionID     int64         `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
