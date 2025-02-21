@@ -90,25 +90,32 @@ type WebsocketOrderResponse struct {
 
 // WebsocketFuturesOrderResponse defines a websocket futures order response
 type WebsocketFuturesOrderResponse struct {
-	Text         string        `json:"text"`
-	Price        types.Number  `json:"price"`
-	BizInfo      string        `json:"biz_info"`
-	TimeInForce  string        `json:"tif"`
-	AmendText    string        `json:"amend_text"`
-	Status       string        `json:"status"`
-	Contract     currency.Pair `json:"contract"`
-	STPAct       string        `json:"stp_act"`
-	FinishAs     string        `json:"finish_as"`
-	FillPrice    types.Number  `json:"fill_price"`
-	ID           int64         `json:"id"`
-	CreateTime   types.Time    `json:"create_time"`
-	UpdateTime   types.Time    `json:"update_time"`
-	FinishTime   types.Time    `json:"finish_time"`
-	Size         float64       `json:"size"`
-	Left         float64       `json:"left"`
-	User         int64         `json:"user"`
-	Succeeded    *bool         `json:"succeeded"` // Nil if not present in returned response.
-	IsReduceOnly bool          `json:"is_reduce_only"`
+	ID                        int64         `json:"id"`
+	User                      int64         `json:"user"`
+	CreateTime                types.Time    `json:"create_time"`
+	FinishTime                types.Time    `json:"finish_time"`
+	FinishAs                  string        `json:"finish_as"`
+	Status                    string        `json:"status"`
+	Contract                  currency.Pair `json:"contract"`
+	Size                      float64       `json:"size"`
+	Iceberg                   int64         `json:"iceberg"`
+	Price                     types.Number  `json:"price"`
+	IsClose                   bool          `json:"is_close"`
+	IsReduceOnly              bool          `json:"is_reduce_only"`
+	IsForLiquidation          bool          `json:"is_liq"`
+	TimeInForce               string        `json:"tif"`
+	Left                      float64       `json:"left"`
+	FillPrice                 types.Number  `json:"fill_price"`
+	Text                      string        `json:"text"`
+	TakerFee                  types.Number  `json:"tkfr"`
+	MakerFee                  types.Number  `json:"mkfr"`
+	ReferenceUserId           int64         `json:"refu"`
+	SelfTradePreventionID     int64         `json:"stp_id"`
+	SelfTradePreventionAction string        `json:"stp_act"`
+	AmendText                 string        `json:"amend_text"`
+	BizInfo                   string        `json:"biz_info"`
+	UpdateTime                types.Time    `json:"update_time"`
+	Succeeded                 *bool         `json:"succeeded"` // Nil if not present in returned response.
 }
 
 // WebsocketOrderBatchRequest defines a websocket order batch request

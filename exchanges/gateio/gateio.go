@@ -142,7 +142,6 @@ var (
 	errInvalidAmount                    = errors.New("invalid amount")
 	errInvalidOrEmptySubaccount         = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
-	errInvalidOrderSide                 = errors.New("invalid order side")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
 	errInvalidPrice                     = errors.New("invalid price")
 	errNoValidParameterPassed           = errors.New("no valid parameter passed")
@@ -576,7 +575,7 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 		}
 		args[x].Side = strings.ToLower(args[x].Side)
 		if args[x].Side != "buy" && args[x].Side != "sell" {
-			return nil, errInvalidOrderSide
+			return nil, order.ErrSideIsInvalid
 		}
 		if !strings.EqualFold(args[x].Account, asset.Spot.String()) &&
 			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
@@ -642,7 +641,7 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) (*
 	}
 	arg.Side = strings.ToLower(arg.Side)
 	if arg.Side != "buy" && arg.Side != "sell" {
-		return nil, errInvalidOrderSide
+		return nil, order.ErrSideIsInvalid
 	}
 	if !strings.EqualFold(arg.Account, asset.Spot.String()) &&
 		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
@@ -852,7 +851,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, errors.New("invalid order type, only order type 'limit' is allowed")
 	}
 	if arg.Put.Side != "buy" && arg.Put.Side != "sell" {
-		return nil, errInvalidOrderSide
+		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Put.Price < 0 {
 		return nil, fmt.Errorf("%w, %s", errInvalidPrice, "put price has to be greater than 0")
@@ -1445,7 +1444,7 @@ func (g *Gateio) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*
 // GetMarginAllLoans retrieves all loans (borrow and lending) orders.
 func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]MarginLoanResponse, error) {
 	if side != sideLend && side != sideBorrow {
-		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", errInvalidOrderSide)
+		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", order.ErrSideIsInvalid)
 	}
 	params := url.Values{}
 	params.Set("side", side)
@@ -2271,7 +2270,7 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
@@ -2360,7 +2359,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 	}
 	for x := range args {
 		if args[x].Size == 0 {
-			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
 		if args[x].TimeInForce != gtcTIF &&
 			args[x].TimeInForce != iocTIF &&
@@ -2847,7 +2846,7 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce

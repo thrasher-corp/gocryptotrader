@@ -1378,6 +1378,12 @@ type CreateOrderRequest struct {
 	AutoBorrow   bool          `json:"auto_borrow,omitempty"`
 	AutoRepay    bool          `json:"auto_repay,omitempty"`
 	StpAct       string        `json:"stp_act,omitempty"`
+	// ActionMode specifies the processing mode for an order request, determining the fields returned in the response.
+	// Valid only during the request and omitted from the response. Options:
+	// - ACK: Asynchronous mode, returns only key order fields
+	// - RESULT: Excludes clearing information
+	// - FULL: Full mode (default)
+	ActionMode string `json:"action_mode,omitempty"`
 }
 
 // SpotOrder represents create order response.

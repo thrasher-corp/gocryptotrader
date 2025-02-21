@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 func TestWebsocketFuturesSubmitOrder(t *testing.T) {
@@ -30,8 +30,7 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	out.AutoSize = ""
 
 	got, err := g.WebsocketFuturesSubmitOrder(context.Background(), out)
@@ -83,8 +82,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
 	got, err := g.WebsocketFuturesSubmitOrders(request.WithVerbose(context.Background()), out)
@@ -99,7 +97,6 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	t.Parallel()
-
 	_, err := g.WebsocketFuturesCancelOrder(context.Background(), "", currency.EMPTYPAIR)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -108,8 +105,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	pair, err := currency.NewPairFromString("BTC_USDT")
 	require.NoError(t, err)
@@ -131,8 +127,7 @@ func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	got, err := g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), pair, "bid")
 	require.NoError(t, err)
@@ -141,7 +136,6 @@ func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 
 func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	t.Parallel()
-
 	_, err := g.WebsocketFuturesAmendOrder(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -163,8 +157,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	amend.OrderID = "513170215869"
 	got, err := g.WebsocketFuturesAmendOrder(context.Background(), amend)
@@ -174,7 +167,6 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 
 func TestWebsocketFuturesOrderList(t *testing.T) {
 	t.Parallel()
-
 	_, err := g.WebsocketFuturesOrderList(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -190,8 +182,7 @@ func TestWebsocketFuturesOrderList(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	list.Status = statusOpen
 	got, err := g.WebsocketFuturesOrderList(context.Background(), list)
@@ -201,7 +192,6 @@ func TestWebsocketFuturesOrderList(t *testing.T) {
 
 func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 	t.Parallel()
-
 	_, err := g.WebsocketFuturesGetOrderStatus(context.Background(), currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -213,8 +203,7 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	got, err := g.WebsocketFuturesGetOrderStatus(context.Background(), pair, "513170215869")
 	require.NoError(t, err)

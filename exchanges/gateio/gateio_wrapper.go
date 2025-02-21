@@ -2518,7 +2518,7 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 	case s.Side.IsShort():
 		return -s.Amount, nil
 	default:
-		return 0, errInvalidOrderSide
+		return 0, order.ErrSideIsInvalid
 	}
 }
 
@@ -2579,39 +2579,33 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 
 	switch s.AssetType {
 	case asset.Spot:
-		var req *CreateOrderRequest
-		req, err = g.getSpotOrderRequest(s)
+		req, err := g.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
 
-		var got []WebsocketOrderResponse
-		got, err = g.WebsocketSpotSubmitOrder(ctx, req)
+		got, err := g.WebsocketSpotSubmitOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
 
-		var sr []*order.SubmitResponse
-		sr, err = g.DeriveSpotSubmitOrderResponses(got)
+		sr, err := g.DeriveSpotWebsocketOrderResponses(got)
 		if err != nil {
 			return nil, err
 		}
 		return sr[0], nil
 	case asset.Futures:
-		var amountWithDirection float64
-		amountWithDirection, err = getFutureOrderSize(s)
+		amountWithDirection, err := getFutureOrderSize(s)
 		if err != nil {
 			return nil, err
 		}
 
-		var timeInForce string
-		timeInForce, err = getTimeInForce(s)
+		timeInForce, err := getTimeInForce(s)
 		if err != nil {
 			return nil, err
 		}
 
-		var got []WebsocketFuturesOrderResponse
-		got, err = g.WebsocketFuturesSubmitOrder(ctx, &ContractOrderCreateParams{
+		got, err := g.WebsocketFuturesSubmitOrder(ctx, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
@@ -2622,8 +2616,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		if err != nil {
 			return nil, err
 		}
-		var sr []*order.SubmitResponse
-		sr, err = g.DeriveFuturesSubmitOrderResponses(got)
+		sr, err := g.DeriveFuturesWebsocketOrderResponses(got)
 		if err != nil {
 			return nil, err
 		}
@@ -2633,8 +2626,8 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	}
 }
 
-// DeriveSpotSubmitOrderResponses returns the order submission responses for spot
-func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
+// DeriveSpotWebsocketOrderResponses returns the order submission responses for spot
+func (g *Gateio) DeriveSpotWebsocketOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, errNoResponseReceived
 	}
@@ -2696,8 +2689,8 @@ func (g *Gateio) DeriveSpotSubmitOrderResponses(responses []WebsocketOrderRespon
 	return out, nil
 }
 
-// DeriveFuturesSubmitOrderResponses returns the order submission responses for futures
-func (g *Gateio) DeriveFuturesSubmitOrderResponses(responses []WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
+// DeriveFuturesWebsocketOrderResponses returns the order submission responses for futures
+func (g *Gateio) DeriveFuturesWebsocketOrderResponses(responses []WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, errNoResponseReceived
 	}
@@ -2767,7 +2760,7 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, erro
 	case s.Side.IsShort():
 		s.Side = order.Sell
 	default:
-		return nil, errInvalidOrderSide
+		return nil, order.ErrSideIsInvalid
 	}
 
 	timeInForce, err := getTimeInForce(s)
