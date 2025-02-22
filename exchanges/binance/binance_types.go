@@ -5576,6 +5576,61 @@ type SubAccountIPRestrictioin struct {
 	APIKey     string     `json:"apiKey"`
 }
 
+// BrokerCreateSubAccount represents a a subaccount creation response through a broker
+type BrokerCreateSubAccount struct {
+	SubaccountID string `json:"subaccountId"`
+	Email        string `json:"email"`
+	Tag          string `json:"tag"`
+}
+
+// BrokerCreatedSubAccountDetail holds subaccount information created by a broker
+type BrokerCreatedSubAccountDetail struct {
+	SubAccountID          string     `json:"subaccountId"`
+	Email                 string     `json:"email"`
+	Tag                   string     `json:"tag"`
+	MakerCommission       float64    `json:"makerCommission"`
+	TakerCommission       float64    `json:"takerCommission"`
+	MarginMakerCommission float64    `json:"marginMakerCommission"`
+	MarginTakerCommission float64    `json:"marginTakerCommission"`
+	CreateTime            types.Time `json:"createTime"`
+}
+
+// BrokerSubAccountTransfer holds a sub-account transfer between a through broker
+type BrokerSubAccountTransfer struct {
+	Success       bool   `json:"success"`
+	TransactionID string `json:"txnId"`
+	ClientTranID  string `json:"clientTranId"`
+}
+
+// SubAccountTransferRecord holds a sub-account transfer record performed through broker
+type SubAccountTransferRecord struct {
+	FromID        string       `json:"fromId"`
+	ToID          string       `json:"toId"`
+	Asset         string       `json:"asset"`
+	Quantity      types.Number `json:"qty"`
+	Time          types.Time   `json:"time"`
+	TransactionID string       `json:"txnId"`
+	ClientTranID  string       `json:"clientTranId"`
+	Status        string       `json:"status"`
+}
+
+// FuturesSubAccountTransfers holds futures subaccount transfer histories of futures assets
+type FuturesSubAccountTransfers struct {
+	Success     bool `json:"success"`
+	FuturesType int  `json:"futuresType"`
+	Transfers   []struct {
+		From         string       `json:"from,omitempty"`
+		To           string       `json:"to,omitempty"`
+		Asset        string       `json:"asset"`
+		Quantity     types.Number `json:"qty"`
+		TransferID   string       `json:"tranId"`
+		ClientTranID string       `json:"clientTranId"`
+		Time         types.Time   `json:"time"`
+		FromID       string       `json:"fromId,omitempty"`
+		ToID         string       `json:"toId,omitempty"`
+	} `json:"transfers"`
+}
+
 // BNBBurnStatus holds status for sub-account
 type BNBBurnStatus struct {
 	SubAccountID    int  `json:"subAccountId"`

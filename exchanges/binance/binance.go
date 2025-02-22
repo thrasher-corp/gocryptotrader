@@ -6814,6 +6814,143 @@ func (b *Binance) GetBNBBurnStatusForSubAccount(ctx context.Context, subAccountI
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/bnbBurn/status", params, request.Auth, nil, &resp)
 }
 
+// SubAccountTransferWithSpotBroker applies a subaccount transfer through a broker on spot account
+func (b *Binance) SubAccountTransferWithSpotBroker(ctx context.Context, asset currency.Code, fromID, toID, clientTransferID string, amount float64) (*BrokerSubAccountTransfer, error) {
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if fromID != "" {
+		params.Set("fromId", fromID)
+	}
+	if toID != "" {
+		params.Set("toId", toID)
+	}
+	if clientTransferID != "" {
+		params.Set("clientTranId", clientTransferID)
+	}
+	var resp *BrokerSubAccountTransfer
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/transfer", params, request.Auth, nil, &resp)
+}
+
+// GetSpotBrokerSubAccountTransferHistory retrieves sub-account assets transfers of spot account through a broker account
+func (b *Binance) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, fromID, toID, clientTransferID string, showAllStatus bool, startTime, endTime time.Time, page, limit int64) ([]SubAccountTransferRecord, error) {
+	params := url.Values{}
+	if fromID != "" {
+		params.Set("fromId", fromID)
+	}
+	if toID != "" {
+		params.Set("toId", toID)
+	}
+	if clientTransferID != "" {
+		params.Set("clientTranId", clientTransferID)
+	}
+	if showAllStatus {
+		params.Set("showAllStatus", "true")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp []SubAccountTransferRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/transfer", params, request.Auth, nil, &resp)
+}
+
+// SubAccountTransferWithFuturesBroker applies a subaccount transfer through a broker on futures account
+func (b *Binance) SubAccountTransferWithFuturesBroker(ctx context.Context, asset currency.Code, fromID, toID, clientTransferID string, futuresType int, amount float64) (*BrokerSubAccountTransfer, error) {
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if futuresType != 0 {
+		params.Set("futuresType", strconv.Itoa(futuresType))
+	}
+	if fromID != "" {
+		params.Set("fromId", fromID)
+	}
+	if toID != "" {
+		params.Set("toId", toID)
+	}
+	if clientTransferID != "" {
+		params.Set("clientTranId", clientTransferID)
+	}
+	var resp *BrokerSubAccountTransfer
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/transfer/futures", params, request.Auth, nil, &resp)
+}
+
+// GetFuturesBrokerSubAccountTransferHistory retrieves sub-account assets transfers of futures account through a broker account
+func (b *Binance) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context, futuresType int, subAccountID, clientTransferID string, startTime, endTime time.Time, page, limit int64) (*FuturesSubAccountTransfers, error) {
+	params := url.Values{}
+	if futuresType != 0 {
+		params.Set("futuresType", strconv.Itoa(futuresType))
+	}
+	if clientTransferID != "" {
+		params.Set("clientTranId", clientTransferID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp *FuturesSubAccountTransfers
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/transfer/futures", params, request.Auth, nil, &resp)
+}
+
+// func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, subAccountID , )
+
+// CreateBrokerSubAccount creates a new sub-account through broker
+func (b *Binance) CreateBrokerSubAccount(ctx context.Context, tag string) (*BrokerCreateSubAccount, error) {
+	params := url.Values{}
+	if tag != "" {
+		params.Set("tag", tag)
+	}
+	var resp *BrokerCreateSubAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount", params, request.Auth, nil, &resp)
+}
+
+// GetBrokerSubAccounts retrieves sub-accounts of a user created by broker
+func (b *Binance) GetBrokerSubAccounts(ctx context.Context, subAccountID string, page, size int64) ([]BrokerCreatedSubAccountDetail, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp []BrokerCreatedSubAccountDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount", params, request.Auth, nil, &resp)
+}
+
 // ChangeSubAccountCommission changes subaccount commission
 func (b *Binance) ChangeSubAccountCommission(ctx context.Context, subAccountID string, makerCommission, takerCommission, marginMakerCommission, marginTakerCommission float64) (*SubAccountCommission, error) {
 	if subAccountID == "" {

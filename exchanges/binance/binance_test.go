@@ -9336,6 +9336,64 @@ func TestGetBNBBurnStatusForSubAccount(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestSubAccountTransferWithSpotBroker(t *testing.T) {
+	t.Parallel()
+	_, err := b.SubAccountTransferWithSpotBroker(context.Background(), currency.EMPTYCODE, "", "", "", 1)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.SubAccountTransferWithSpotBroker(context.Background(), currency.BTC, "", "", "", 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubAccountTransferWithSpotBroker(context.Background(), currency.BTC, "", "", "", 13)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSpotBrokerSubAccountTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotBrokerSubAccountTransferHistory(context.Background(), "", "", "", true, time.Time{}, time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubAccountTransferWithFuturesBroker(t *testing.T) {
+	t.Parallel()
+	_, err := b.SubAccountTransferWithFuturesBroker(context.Background(), currency.EMPTYCODE, "", "", "", 1, 1)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.SubAccountTransferWithFuturesBroker(context.Background(), currency.BTC, "", "", "", 2, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubAccountTransferWithFuturesBroker(context.Background(), currency.BTC, "", "", "", 1, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesBrokerSubAccountTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesBrokerSubAccountTransferHistory(context.Background(), 1, "", "", time.Time{}, time.Time{}, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateBrokerSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CreateBrokerSubAccount(context.Background(), "1234")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerSubAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBrokerSubAccounts(context.Background(), "123", 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestEnableOrDisableBNBBurnForSubAccountMarginInterest(t *testing.T) {
 	t.Parallel()
 	_, err := b.EnableOrDisableBNBBurnForSubAccountMarginInterest(context.Background(), "", false)
