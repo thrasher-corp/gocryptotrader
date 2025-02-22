@@ -1811,14 +1811,16 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		require.True(t, ok, "%s type must be in contractExpiryNames", cType)
 		assert.Equal(t, currency.BTC, p.Base, "pair Base should be the same")
 		assert.Equal(t, exp, p.Quote, "pair Quote should be the same")
-		d, err := time.Parse("060102", p.Quote.String())
+		tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
+		require.NoError(t, err, "LoadLocation must not error")
+		d, err := time.ParseInLocation("060102", p.Quote.String(), tz)
 		require.NoError(t, err, "currency code must be a parsable date")
 		require.Falsef(t, d.Before(n), "%s expiry must be today or after", cType)
 		switch cType {
 		case "CW", "NW":
-			require.True(t, d.Before(n.Add(24*time.Hour*14)), "%s expiry must be within 2 weeks", cType)
+			require.Truef(t, d.Before(n.AddDate(0, 0, 14)), "%s expiry must be within 14 days; Got: `%s`", cType, d)
 		case "CQ", "NQ":
-			require.True(t, d.Before(n.Add(24*time.Hour*90*2)), "%s expiry must be within 2 quarters", cType)
+			require.Truef(t, d.Before(n.AddDate(0, 6, 0)), "%s expiry must be within 6 months; Got: `%s`", cType, d)
 		}
 	}
 }
