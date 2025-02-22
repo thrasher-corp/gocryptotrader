@@ -1,6 +1,6 @@
 FROM golang:1.23-alpine
 
-# Install GCC and musl-dev (needed for C libraries)
+# Install GCC and musl-dev (needed for SQLite library)
 RUN apk add --no-cache gcc musl-dev
 
 WORKDIR /app
