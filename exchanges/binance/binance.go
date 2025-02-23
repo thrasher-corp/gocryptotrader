@@ -619,13 +619,13 @@ func (b *Binance) NewOCOOrderList(ctx context.Context, arg *OCOOrderListParams) 
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, fmt.Errorf("%w, quantity must be greater than 0", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: quantity must be greater than 0", order.ErrAmountBelowMin)
 	}
 	if arg.AboveType == "" {
-		return nil, fmt.Errorf("%w, aboveType is required", order.ErrTypeIsInvalid)
+		return nil, fmt.Errorf("%w: aboveType is required", order.ErrTypeIsInvalid)
 	}
 	if arg.BelowType == "" {
-		return nil, fmt.Errorf("%w, belowType is required", order.ErrTypeIsInvalid)
+		return nil, fmt.Errorf("%w: belowType is required", order.ErrTypeIsInvalid)
 	}
 	var resp *OCOListOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/orderList/oco", nil, spotOrderRate, arg, &resp)
@@ -856,7 +856,7 @@ func (b *Binance) GetPreventedMatches(ctx context.Context, symbol string, preven
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if preventedMatchID == 0 && orderID == 0 {
-		return nil, fmt.Errorf("%w, either preventedMatchID or orderID", order.ErrOrderIDNotSet)
+		return nil, fmt.Errorf("%w: either preventedMatchID or orderID", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -1597,7 +1597,7 @@ func (b *Binance) MarginSmallLiabilityExchange(ctx context.Context, assetNames [
 // GetSmallLiabilityExchangeHistory retrieves small liability exchange history
 func (b *Binance) GetSmallLiabilityExchangeHistory(ctx context.Context, current, size int64, startTime, endTime time.Time) (*SmallLiabilityExchange, error) {
 	if current <= 0 {
-		return nil, fmt.Errorf("%w, current page is empty", errPageNumberRequired)
+		return nil, fmt.Errorf("%w: current page is empty", errPageNumberRequired)
 	}
 	if size <= 0 {
 		return nil, errPageSizeRequired
@@ -1891,7 +1891,7 @@ func (b *Binance) CheckLimit(limit int64) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%w, incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000", errLimitNumberRequired)
+	return fmt.Errorf("%w: incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000", errLimitNumberRequired)
 }
 
 // SetValues sets the default valid values
@@ -2120,9 +2120,12 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 }
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
+func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, coin currency.Code, chain string) (*DepositAddress, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
 	params := url.Values{}
-	params.Set("coin", currency)
+	params.Set("coin", coin.String())
 	if chain != "" {
 		params.Set("network", chain)
 	}
@@ -2144,7 +2147,7 @@ func (b *Binance) GetAssetsThatCanBeConvertedIntoBNB(ctx context.Context, accoun
 // DustTransfer convert dust assets to BNB.
 func (b *Binance) DustTransfer(ctx context.Context, assets []string, accountType string) (*Dusts, error) {
 	if len(assets) == 0 {
-		return nil, fmt.Errorf("%w, assets must not be empty", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: assets must not be empty", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("assets", strings.Join(assets, ","))
@@ -2178,13 +2181,9 @@ func (b *Binance) GetAssetDevidendRecords(ctx context.Context, asset currency.Co
 }
 
 // GetAssetDetail fetches details of assets supported on Binance
-func (b *Binance) GetAssetDetail(ctx context.Context, asset currency.Code) (map[string]DividendAsset, error) {
-	params := url.Values{}
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
-	}
+func (b *Binance) GetAssetDetail(ctx context.Context) (map[string]DividendAsset, error) {
 	var resp map[string]DividendAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDetail", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDetail", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetTradeFees fetch trade fee
@@ -2233,7 +2232,7 @@ func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferT
 		return nil, errTransferTypeRequired
 	}
 	if size <= 0 {
-		return nil, fmt.Errorf("%w, 'size' is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: 'size' is required", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("type", transferType.String())
@@ -2402,21 +2401,21 @@ func (b *Binance) SwitchOnOffBUSDAndStableCoinsConversion(ctx context.Context, c
 
 // OneClickArrivalDepositApply apply deposit credit for expired address
 func (b *Binance) OneClickArrivalDepositApply(ctx context.Context, transactionID string, subAccountID, subUserID, depositID int64) (bool, error) {
-	params := url.Values{}
+	params := map[string]string{}
 	if transactionID != "" {
-		params.Set("txId", transactionID)
+		params["txId"] = transactionID
 	}
 	if depositID != 0 {
-		params.Set("depositId", strconv.FormatInt(depositID, 10))
+		params["depositId"] = strconv.FormatInt(depositID, 10)
 	}
 	if subAccountID != 0 {
-		params.Set("subAccountId", strconv.FormatInt(subAccountID, 10))
+		params["subAccountId"] = strconv.FormatInt(subAccountID, 10)
 	}
 	if subUserID != 0 {
-		params.Set("subUserID", strconv.FormatInt(subUserID, 10))
+		params["subUserID"] = strconv.FormatInt(subUserID, 10)
 	}
 	var resp bool
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/credit-apply", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/credit-apply", nil, sapiDefaultRate, params, &resp)
 }
 
 // GetDepositAddressListWithNetwork fetch deposit address list with network.
@@ -2434,9 +2433,13 @@ func (b *Binance) GetDepositAddressListWithNetwork(ctx context.Context, coin cur
 }
 
 // GetUserWalletBalance retrieves user wallet balance.
-func (b *Binance) GetUserWalletBalance(ctx context.Context) ([]UserWalletBalance, error) {
+func (b *Binance) GetUserWalletBalance(ctx context.Context, quoteAsset currency.Code) ([]UserWalletBalance, error) {
+	params := url.Values{}
+	if quoteAsset.IsEmpty() {
+		params.Set("quoteAsset", quoteAsset.String())
+	}
 	var resp []UserWalletBalance
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/wallet/balance", nil, getUserWalletBalanceRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/wallet/balance", params, getUserWalletBalanceRate, nil, &resp)
 }
 
 // GetUserDelegationHistory query User Delegation History for Master account.
@@ -2574,10 +2577,10 @@ func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, 
 func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail, toEmail string, futuresType int64,
 	asset currency.Code, amount float64) (*FuturesAssetTransfer, error) {
 	if !common.MatchesEmailPattern(fromEmail) {
-		return nil, fmt.Errorf("%w, fromEmail=%s", errValidEmailRequired, fromEmail)
+		return nil, fmt.Errorf("%w: fromEmail=%s", errValidEmailRequired, fromEmail)
 	}
 	if !common.MatchesEmailPattern(toEmail) {
-		return nil, fmt.Errorf("%w, toEmail=%s", errValidEmailRequired, toEmail)
+		return nil, fmt.Errorf("%w: toEmail=%s", errValidEmailRequired, toEmail)
 	}
 	if futuresType != 0 && futuresType != 1 {
 		return nil, fmt.Errorf("%w 1: USDT-margined Futures or 2: Coin-margined Futures", errInvalidFuturesType)
@@ -2719,7 +2722,7 @@ func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, 
 		return nil, errValidEmailRequired
 	}
 	if coin == "" {
-		return nil, fmt.Errorf("%w, coin=%s", currency.ErrCurrencyCodeEmpty, coin)
+		return nil, fmt.Errorf("%w: coin=%s", currency.ErrCurrencyCodeEmpty, coin)
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -2929,7 +2932,7 @@ func (b *Binance) AddIPRestrictionForSubAccountAPIkey(ctx context.Context, email
 // DepositAssetsIntoTheManagedSubAccount deposits an asset into managed sub-account (for investor master account).
 func (b *Binance) DepositAssetsIntoTheManagedSubAccount(ctx context.Context, toEmail string, asset currency.Code, amount float64) (string, error) {
 	if !common.MatchesEmailPattern(toEmail) {
-		return "", fmt.Errorf("%w, toEmail = %s", errValidEmailRequired, toEmail)
+		return "", fmt.Errorf("%w: toEmail = %s", errValidEmailRequired, toEmail)
 	}
 	if asset.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
@@ -3027,7 +3030,7 @@ func (b *Binance) GetManagedSubAccountTransferLogForTradingTeam(ctx context.Cont
 
 func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, transfers, transferFunctionAccountType, path string, startTime, endTime time.Time, page, limit int64, epl request.EndpointLimit) (*SubAccountTransferLog, error) {
 	if !common.MatchesEmailPattern(email) {
-		return nil, fmt.Errorf("%w, email = %s", errValidEmailRequired, email)
+		return nil, fmt.Errorf("%w: email = %s", errValidEmailRequired, email)
 	}
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
@@ -3210,10 +3213,10 @@ func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *Un
 		return nil, common.ErrEmptyParams
 	}
 	if arg.FromAccountType == "" {
-		return nil, fmt.Errorf("%w, fromAccountType=%s", errInvalidAccountType, arg.FromAccountType)
+		return nil, fmt.Errorf("%w: fromAccountType=%s", errInvalidAccountType, arg.FromAccountType)
 	}
 	if arg.ToAccountType == "" {
-		return nil, fmt.Errorf("%w, toAccountType = %s", errInvalidAccountType, arg.ToAccountType)
+		return nil, fmt.Errorf("%w: toAccountType = %s", errInvalidAccountType, arg.ToAccountType)
 	}
 	if arg.Asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -3511,7 +3514,7 @@ func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, 
 		return nil, errLoanTermMustBeSet
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
-		return nil, fmt.Errorf("%w, either loan or collateral amounts must be set", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3529,7 +3532,10 @@ func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, 
 
 // CryptoLoanBorrowHistory gets loan borrow history
 func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*LoanBorrowHistory, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
+	}
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
@@ -3538,17 +3544,6 @@ func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, lo
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3600,14 +3595,9 @@ func (b *Binance) CryptoLoanRepay(ctx context.Context, orderID int64, amount flo
 
 // CryptoLoanRepaymentHistory gets the crypto loan repayment history
 func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*CryptoLoanRepayHistory, error) {
-	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
 	}
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -3617,9 +3607,6 @@ func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64,
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3650,14 +3637,9 @@ func (b *Binance) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduce
 
 // CryptoLoanLTVAdjustmentHistory gets the crypto loan LTV adjustment history
 func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*CryptoLoanLTVAdjustmentHistory, error) {
-	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
 	}
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -3667,9 +3649,6 @@ func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID in
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3726,7 +3705,7 @@ func (b *Binance) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanCo
 // CryptoLoanCustomiseMarginCall customises a loan's margin call
 func (b *Binance) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID int64, collateralCoin currency.Code, marginCallValue float64) (*CustomiseMarginCall, error) {
 	if marginCallValue <= 0 {
-		return nil, fmt.Errorf("%w, marginCallValue must not be <= 0", errMarginCallValueRequired)
+		return nil, fmt.Errorf("%w: marginCallValue must not be <= 0", errMarginCallValueRequired)
 	}
 	params := url.Values{}
 	if orderID != 0 {
@@ -3749,7 +3728,7 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 		return nil, errCollateralCoinMustBeSet
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
-		return nil, fmt.Errorf("%w, either loan or collateral amounts must be set", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3785,23 +3764,15 @@ func (b *Binance) FlexibleLoanOngoingOrders(ctx context.Context, loanCoin, colla
 
 // FlexibleLoanBorrowHistory gets the flexible loan borrow history
 func (b *Binance) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanBorrowHistory, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
+	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3835,23 +3806,15 @@ func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoi
 
 // FlexibleLoanRepayHistory gets the flexible loan repayment history
 func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanRepayHistory, error) {
-	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
 	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3899,23 +3862,15 @@ func (b *Binance) CheckCollateralRepayRate(ctx context.Context, loanCoin, collat
 
 // GetFlexibleLoanLiquidiationHistory retrieves flexible loan liquidiation history of an account
 func (b *Binance) GetFlexibleLoanLiquidiationHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanLiquidiationhistory, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
+	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3950,23 +3905,15 @@ func (b *Binance) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collatera
 
 // FlexibleLoanLTVAdjustmentHistory gets the flexible loan LTV adjustment history
 func (b *Binance) FlexibleLoanLTVAdjustmentHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanLTVAdjustmentHistory, error) {
-	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
 	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -4190,7 +4137,10 @@ func (b *Binance) GetLockedRedemptionRecord(ctx context.Context, productID, rede
 }
 
 func fillSubscriptionAndRedemptionRecord(productID, purchaseID, redeemID, rewardType string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (url.Values, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
 	if productID != "" {
 		params.Set("productId", productID)
 	}
@@ -4205,20 +4155,6 @@ func fillSubscriptionAndRedemptionRecord(productID, purchaseID, redeemID, reward
 	}
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	return params, nil
 }
@@ -4336,23 +4272,12 @@ func (b *Binance) GetLockedSubscriptionPreview(ctx context.Context, projectID st
 
 // GetSimpleEarnRatehistory retrieves rate history for simple-rean products
 func (b *Binance) GetSimpleEarnRatehistory(ctx context.Context, projectID string, startTime, endTime time.Time, current, size int64) (*SimpleEarnRateHistory, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
 	if projectID != "" {
 		params.Set("projectId", projectID)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *SimpleEarnRateHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/rateHistory", params, simpleEarnRateHistoryRate, nil, &resp)
@@ -4360,23 +4285,12 @@ func (b *Binance) GetSimpleEarnRatehistory(ctx context.Context, projectID string
 
 // GetSimpleEarnCollateralRecord retrieves simple earn collateral records
 func (b *Binance) GetSimpleEarnCollateralRecord(ctx context.Context, productID string, startTime, endTime time.Time, current, size int64) (*SimpleEarnCollateralRecords, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
 	if productID != "" {
 		params.Set("productId", productID)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *SimpleEarnCollateralRecords
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/collateralRecord", params, sapiDefaultRate, nil, &resp)
@@ -4391,10 +4305,10 @@ func (b *Binance) GetDualInvestmentProductList(ctx context.Context, optionType s
 		return nil, errOptionTypeRequired
 	}
 	if exerciseCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w, exerciseCoin is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: exerciseCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if investCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w, investCoin is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: investCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("optionType", optionType)
@@ -4427,7 +4341,7 @@ func (b *Binance) SubscribeDualInvestmentProducts(ctx context.Context, id, order
 		return nil, order.ErrAmountBelowMin
 	}
 	if autoCompoundPlan == "" {
-		return nil, fmt.Errorf("%w, accountCompoundPlan is required", errPlanTypeRequired)
+		return nil, fmt.Errorf("%w: accountCompoundPlan is required", errPlanTypeRequired)
 	}
 	params := url.Values{}
 	params.Set("id", id)
@@ -4552,7 +4466,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 		return nil, errPlanTypeRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, fmt.Errorf("%w, subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+		return nil, fmt.Errorf("%w: subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if arg.SubscriptionStartDay <= 0 {
 		return nil, errInvalidSubscriptionStartTime
@@ -4569,7 +4483,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 	params := url.Values{}
 	for a := range arg.Details {
 		if arg.Details[a].TargetAsset.IsEmpty() {
-			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
+			return nil, fmt.Errorf("%w: targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.Details[a].Percentage < 0 {
 			return nil, errInvalidPercentageAmount
@@ -4590,10 +4504,10 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 		return nil, errPlanIDRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, fmt.Errorf("%w, subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+		return nil, fmt.Errorf("%w: subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if !slices.Contains(subscriptionCycleList, arg.SubscriptionCycle) {
-		return nil, fmt.Errorf("%w, subscription cycle %s", errInvalidSubscriptionCycle, arg.SubscriptionCycle)
+		return nil, fmt.Errorf("%w: subscription cycle %s", errInvalidSubscriptionCycle, arg.SubscriptionCycle)
 	}
 	if arg.SubscriptionStartTime < 0 {
 		return nil, errInvalidSubscriptionStartTime
@@ -4607,7 +4521,7 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 	params := url.Values{}
 	for a := range arg.Details {
 		if arg.Details[a].TargetAsset.IsEmpty() {
-			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
+			return nil, fmt.Errorf("%w: targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.Details[a].Percentage < 0 {
 			return nil, errInvalidPercentageAmount
@@ -4666,22 +4580,12 @@ func (b *Binance) GetSubscriptionsTransactionHistory(ctx context.Context, planID
 	if planID > 0 {
 		params.Set("planId", strconv.FormatInt(planID, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
 	}
 	if planType != "" {
 		params.Set("planType", planType)
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if !targetAsset.IsEmpty() {
 		params.Set("targetAsset", targetAsset.String())
@@ -4725,7 +4629,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.SourceAsset.IsEmpty() {
-		return nil, fmt.Errorf("%w, sourceAsset is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: sourceAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if len(arg.Details) == 0 {
 		return nil, errPortfolioDetailRequired
@@ -4733,7 +4637,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 	params := url.Values{}
 	for a := range arg.Details {
 		if arg.Details[a].TargetAsset.IsEmpty() {
-			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
+			return nil, fmt.Errorf("%w: targetAsset is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.Details[a].Percentage <= 0 {
 			return nil, errInvalidPercentageAmount
@@ -4769,7 +4673,7 @@ func (b *Binance) IndexLinkedPlanRedemption(ctx context.Context, indexID, redemp
 		return 0, errIndexIDIsRequired
 	}
 	if redemptionPercentage <= 0 {
-		return 0, fmt.Errorf("%w, invalid redemption percentage value %v", errInvalidPercentageAmount, redemptionPercentage)
+		return 0, fmt.Errorf("%w: invalid redemption percentage value %v", errInvalidPercentageAmount, redemptionPercentage)
 	}
 	params := url.Values{}
 	params.Set("indexId", strconv.FormatInt(indexID, 10))
@@ -4788,25 +4692,13 @@ func (b *Binance) GetIndexLinkedPlanRedemption(ctx context.Context, requestID st
 	if requestID == "" {
 		return nil, errRequestIDRequired
 	}
-	params := url.Values{}
-	params.Set("requestId", requestID)
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		// Max 30 day difference between startTime and endTime
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
 	}
+	params.Set("requestId", requestID)
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.String())
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp []PlanRedemption
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/redeem/history", params, sapiDefaultRate, nil, &resp)
@@ -4814,21 +4706,9 @@ func (b *Binance) GetIndexLinkedPlanRedemption(ctx context.Context, requestID st
 
 // GetIndexLinkedPlanRebalanceDetails retrieves the history of Index Linked Plan Redemption transactions
 func (b *Binance) GetIndexLinkedPlanRebalanceDetails(ctx context.Context, startTime, endTime time.Time, current, size int64) ([]IndexLinkedPlanRebalanceDetail, error) {
-	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		// Max 30 day difference between startTime and endTime
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
 	}
 	var resp []IndexLinkedPlanRebalanceDetail
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/rebalance/history", params, sapiDefaultRate, nil, &resp)
@@ -4877,7 +4757,7 @@ func (b *Binance) RedeemETH(ctx context.Context, amount float64, assetName curre
 
 // GetETHStakingHistory retrieves ETH staking history
 func (b *Binance) GetETHStakingHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*ETHStakingHistory, error) {
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4887,7 +4767,7 @@ func (b *Binance) GetETHStakingHistory(ctx context.Context, startTime, endTime t
 
 // GetETHRedemptionHistory retrieves ETH redemption history
 func (b *Binance) GetETHRedemptionHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*ETHRedemptionHistory, error) {
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4897,7 +4777,7 @@ func (b *Binance) GetETHRedemptionHistory(ctx context.Context, startTime, endTim
 
 // GetBETHRewardsDistributionHistory retrieves BETH reward distribution history
 func (b *Binance) GetBETHRewardsDistributionHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*BETHRewardDistribution, error) {
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4913,7 +4793,7 @@ func (b *Binance) GetCurrentETHStakingQuota(ctx context.Context) (*ETHStakingQuo
 
 // GetWBETHRateHistory retrieves WBETH rate history
 func (b *Binance) GetWBETHRateHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHRateHistory, error) {
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4921,7 +4801,7 @@ func (b *Binance) GetWBETHRateHistory(ctx context.Context, startTime, endTime ti
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/rateHistory", params, getWBETHRateHistoryRate, nil, &resp)
 }
 
-func fillHistoryRetrievalParams(startTime, endTime time.Time, current, size int64) (url.Values, error) {
+func fillHistoryParams(startTime, endTime time.Time, current, size int64) (url.Values, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -4975,7 +4855,7 @@ func (b *Binance) GetWBETHUnwrapHistory(ctx context.Context, startTime, endTime 
 }
 
 func (b *Binance) getWBETHWrapOrUnwrapHistory(ctx context.Context, startTime, endTime time.Time, current, size int64, path string) (*WBETHWrapHistory, error) {
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4985,12 +4865,114 @@ func (b *Binance) getWBETHWrapOrUnwrapHistory(ctx context.Context, startTime, en
 
 // GetWBETHRewardHistory retrieves WBETH rewards history
 func (b *Binance) GetWBETHRewardHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHRewardHistory, error) {
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
 	var resp *WBETHRewardHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/wbethRewardsHistory", params, wbethRewardsHistoryRate, nil, &resp)
+}
+
+// GetSOLStakingAccount retrieves SOL staking account
+func (b *Binance) GetSOLStakingAccount(ctx context.Context) (*SOLStakingAccountDetail, error) {
+	var resp *SOLStakingAccountDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/account", nil, request.Auth, nil, &resp)
+}
+
+// GetSOLStakingQuotaDetails retrieves SOL staking quota
+func (b *Binance) GetSOLStakingQuotaDetails(ctx context.Context) (*SOLStakingQuotaDetail, error) {
+	var resp *SOLStakingQuotaDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/quota", nil, request.Auth, nil, &resp)
+}
+
+// SubscribeToSOLStaking subscribes to SOL staking
+func (b *Binance) SubscribeToSOLStaking(ctx context.Context, amount float64) (*SOLStakingSubscriptionResponse, error) {
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *SOLStakingSubscriptionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/stake", params, request.Auth, nil, &resp)
+}
+
+// RedeemSOL redeem BNSOL and SOL
+func (b *Binance) RedeemSOL(ctx context.Context, amount float64) (*SOLRedemptionResponse, error) {
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *SOLRedemptionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/redeem", nil, request.Auth, nil, &resp)
+}
+
+// ClaimBoostRewards claim boost APR airdrop rewards
+func (b *Binance) ClaimBoostRewards(ctx context.Context) (bool, error) {
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/claim", nil, request.Auth, nil, &resp)
+}
+
+// GetSOLStakingHistory retrieves SOL staking history
+func (b *Binance) GetSOLStakingHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*SOLStakingHistory, error) {
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *SOLStakingHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/stakingHistory", params, request.Auth, nil, &resp)
+}
+
+// GetSOLRedemptionHistory retrieves SOL redemption history
+func (b *Binance) GetSOLRedemptionHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*SOLStakingHistory, error) {
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *SOLStakingHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/redemptionHistory", params, request.Auth, nil, &resp)
+}
+
+// GetBNSOLRewardsHistory retrieves a BNSOL rewards history
+func (b *Binance) GetBNSOLRewardsHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*BNSOLRewardHistory, error) {
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *BNSOLRewardHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/bnsolRewardsHistory", params, request.Auth, nil, &resp)
+}
+
+// GetBNSOLRateHistory retrieves BNSOL rate history
+func (b *Binance) GetBNSOLRateHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*BNSOLRewardHistory, error) {
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *BNSOLRewardHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/rateHistory", params, request.Auth, nil, &resp)
+}
+
+// GetBoostRewardsHistory retrieves boosts reward history
+func (b *Binance) GetBoostRewardsHistory(ctx context.Context, rewardType string, startTime, endTime time.Time, current, size int64) (*RewardBoostResponse, error) {
+	if rewardType == "" {
+		return nil, errRewardTypeMissing
+	}
+	params, err := fillHistoryParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("type", rewardType)
+	var resp *RewardBoostResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/boostRewardsHistory", params, request.Auth, nil, &resp)
+}
+
+// GetUnclaimedRewards get unclaimed rewards
+func (b *Binance) GetUnclaimedRewards(ctx context.Context) ([]Reward, error) {
+	var resp []Reward
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/unclaimedRewards", nil, request.Auth, nil, &resp)
 }
 
 // -----------------------------------  Mining Endpoints  -----------------------------
@@ -5012,7 +4994,7 @@ func (b *Binance) GetCoinNames(ctx context.Context) (*CoinNames, error) {
 // GetDetailMinerList retrieves list of miners name and other details.
 func (b *Binance) GetDetailMinerList(ctx context.Context, algorithm, userName, workerName string) (*MinersDetailList, error) {
 	if workerName == "" {
-		return nil, fmt.Errorf("%w, worker's name is required", errNameRequired)
+		return nil, fmt.Errorf("%w: worker's name is required", errNameRequired)
 	}
 	params, err := fillMinersRetrivalParams(algorithm, userName, workerName)
 	if err != nil {
@@ -5055,7 +5037,7 @@ func fillMinersRetrivalParams(algorithm, userName, workerName string) (url.Value
 		return nil, errTransferAlgorithmRequired
 	}
 	if userName == "" {
-		return nil, fmt.Errorf("%w, mining account name is missing", errNameRequired)
+		return nil, fmt.Errorf("%w: mining account name is missing", errNameRequired)
 	}
 	params := url.Values{}
 	params.Set("algo", algorithm)
@@ -5167,10 +5149,10 @@ func (b *Binance) HashRateRescaleRequest(ctx context.Context, userName, algorith
 		params.Set("startDate", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endDate", strconv.FormatInt(endTime.UnixMilli(), 10))
 	} else {
-		return nil, fmt.Errorf("%w, start time and end time are required", common.ErrDateUnset)
+		return nil, fmt.Errorf("%w: start time and end time are required", common.ErrDateUnset)
 	}
 	if toPoolUser == "" {
-		return nil, fmt.Errorf("%w, receiver mining account is required", errAccountRequired)
+		return nil, fmt.Errorf("%w: receiver mining account is required", errAccountRequired)
 	}
 	if hashRate <= 0 {
 		return nil, errHashRateRequired
@@ -5263,7 +5245,7 @@ func (b *Binance) GetMiningAccountEarningRate(ctx context.Context, algorithm str
 // 4: transfer from COIN-Ⓜ futures account to spot account.
 func (b *Binance) NewFuturesAccountTransfer(ctx context.Context, assetName currency.Code, amount float64, transferType int64) (*FundTransferResponse, error) {
 	if assetName.IsEmpty() {
-		return nil, fmt.Errorf("%w, assetName is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: assetName is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -5286,7 +5268,7 @@ func (b *Binance) GetFuturesAccountTransactionHistoryList(ctx context.Context, a
 	if startTime.IsZero() {
 		return nil, errStartTimeRequired
 	}
-	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	params, err := fillHistoryParams(startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -5318,7 +5300,7 @@ func (b *Binance) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx cont
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	} else {
-		return nil, fmt.Errorf("%w, start time and end time are required", errStartTimeRequired)
+		return nil, fmt.Errorf("%w: start time and end time are required", errStartTimeRequired)
 	}
 	var resp *HistoricalOrderbookDownloadLink
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/futures/histDataLink", params, futureTickLevelOrderbookHistoricalDataDownloadLinkRate, nil, &resp)
@@ -5370,7 +5352,7 @@ func (b *Binance) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (*
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Duration == 0 {
-		return nil, fmt.Errorf("%w, duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
+		return nil, fmt.Errorf("%w: duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
 	}
 	var resp *AlgoOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/algo/futures/newOrderTwap", nil, placeTWAveragePriceNewOrderRate, arg, &resp)
@@ -5386,7 +5368,7 @@ func (b *Binance) CancelFuturesAlgoOrder(ctx context.Context, algoID int64) (*Al
 
 func (b *Binance) cancelAlgoOrder(ctx context.Context, algoID int64, path string) (*AlgoOrderResponse, error) {
 	if algoID == 0 {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, fmt.Errorf("%w: algoId is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", strconv.FormatInt(algoID, 10))
@@ -5444,7 +5426,7 @@ func (b *Binance) GetFuturesSubOrders(ctx context.Context, algoID, page, pageSiz
 
 func (b *Binance) getSubOrders(ctx context.Context, algoID, page, pageSize int64, path string) (*AlgoSubOrders, error) {
 	if algoID == 0 {
-		return nil, fmt.Errorf("%w, algoId is required", order.ErrOrderIDNotSet)
+		return nil, fmt.Errorf("%w: algoId is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", strconv.FormatInt(algoID, 10))
@@ -5478,7 +5460,7 @@ func (b *Binance) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam)
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Duration == 0 {
-		return nil, fmt.Errorf("%w, duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
+		return nil, fmt.Errorf("%w: duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
 	}
 	var resp *AlgoOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/algo/spot/newOrderTwap", nil, spotTwapNewOrderRate, arg, &resp)
@@ -5655,7 +5637,7 @@ func (b *Binance) GetBLVTInfo(ctx context.Context, tokenName string) ([]BLVTToke
 // SubscribeBLVT subscribe to BLVT token
 func (b *Binance) SubscribeBLVT(ctx context.Context, tokenName string, cost float64) (*BLVTSubscriptionResponse, error) {
 	if tokenName == "" {
-		return nil, fmt.Errorf("%w, tokenName is missing", errNameRequired)
+		return nil, fmt.Errorf("%w: tokenName is missing", errNameRequired)
 	}
 	if cost <= 0 {
 		return nil, errCostRequired
@@ -5695,7 +5677,7 @@ func (b *Binance) GetSusbcriptionRecords(ctx context.Context, tokenName string, 
 // You need to openEnable Spot&Margin Trading permission for the API Key which requests this endpoint.
 func (b *Binance) RedeemBLVT(ctx context.Context, symbol string, amount float64) (*BLVTRedemption, error) {
 	if symbol == "" {
-		return nil, fmt.Errorf("%w, tokenName is missing", currency.ErrSymbolStringEmpty)
+		return nil, fmt.Errorf("%w: tokenName is missing", currency.ErrSymbolStringEmpty)
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountBelowMin
@@ -5770,7 +5752,7 @@ func fillFiatFetchParams(beginTime, endTime time.Time, transactionType, page, ro
 // transactionType possible values are 0 for deposit and 1 for withdrawal
 func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatTransactionHistory, error) {
 	if transactionType != 0 && transactionType != 1 {
-		return nil, fmt.Errorf("%w, possible values are 0 for 'deposit' and '1' for withdrawal", errInvalidTransactionType)
+		return nil, fmt.Errorf("%w: possible values are 0 for 'deposit' and '1' for withdrawal", errInvalidTransactionType)
 	}
 	params, err := fillFiatFetchParams(beginTime, endTime, transactionType, page, rows)
 	if err != nil {
@@ -5789,7 +5771,7 @@ func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginT
 // - Bank Transfer
 func (b *Binance) GetFiatPaymentHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatPaymentHistory, error) {
 	if transactionType != 0 && transactionType != 1 {
-		return nil, fmt.Errorf("%w, possible values are 0 for 'buy' and 1 for 'sell'", errInvalidTransactionType)
+		return nil, fmt.Errorf("%w: possible values are 0 for 'buy' and 1 for 'sell'", errInvalidTransactionType)
 	}
 	params, err := fillFiatFetchParams(beginTime, endTime, transactionType, page, rows)
 	if err != nil {
@@ -5917,7 +5899,7 @@ func (b *Binance) CheckLockedValueVIPCollateralAccount(ctx context.Context, orde
 		return nil, order.ErrOrderIDNotSet
 	}
 	if collateralAccountID == 0 {
-		return nil, fmt.Errorf("%w, collateral Account ID is missing", errAccountIDRequired)
+		return nil, fmt.Errorf("%w: collateral Account ID is missing", errAccountIDRequired)
 	}
 	params := url.Values{}
 	params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -5929,19 +5911,19 @@ func (b *Binance) CheckLockedValueVIPCollateralAccount(ctx context.Context, orde
 // VIPLoanBorrow VIP loan is available for VIP users only.
 func (b *Binance) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm int64, loanCoin, collateralCoin currency.Code, loanAmount float64, collateralAccountID string, isFlexibleRate bool) ([]VIPLoanBorrow, error) {
 	if loanAccountID == 0 {
-		return nil, fmt.Errorf("%w, loanAccountId is required", errAccountIDRequired)
+		return nil, fmt.Errorf("%w: loanAccountId is required", errAccountIDRequired)
 	}
 	if loanCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w, loanCoin is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: loanCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if loanAmount <= 0 {
-		return nil, fmt.Errorf("%w, loanAmount is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: loanAmount is required", order.ErrAmountBelowMin)
 	}
 	if collateralAccountID == "" {
-		return nil, fmt.Errorf("%w, collateralAccountID is required", errAccountIDRequired)
+		return nil, fmt.Errorf("%w: collateralAccountID is required", errAccountIDRequired)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w, collateralCoin is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: collateralCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if loanTerm == 0 {
 		return nil, errLoanTermMustBeSet
@@ -6001,7 +5983,7 @@ func (b *Binance) GetVIPApplicationStatus(ctx context.Context, current, limit in
 // GetVIPBorrowInterestRate represents an interest rates of loaned coin.
 func (b *Binance) GetVIPBorrowInterestRate(ctx context.Context, loanCoin currency.Code) ([]BorrowInterestRate, error) {
 	if loanCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w, loanCoin is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: loanCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -6038,7 +6020,7 @@ func (b *Binance) GetPayTradeHistory(ctx context.Context, startTime, endTime tim
 // If not defined for both fromAsset and toAsset, only partial token pairs will be return
 func (b *Binance) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset currency.Code) ([]ConvertPairInfo, error) {
 	if fromAsset.IsEmpty() && toAsset.IsEmpty() {
-		return nil, fmt.Errorf("%w, either fromAsset or toAsset is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: either fromAsset or toAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if !fromAsset.IsEmpty() {
@@ -6062,13 +6044,13 @@ func (b *Binance) GetOrderQuantityPrecisionPerAsset(ctx context.Context) ([]Orde
 // quoteId will be returned only if you have enough funds to convert
 func (b *Binance) SendQuoteRequest(ctx context.Context, fromAsset, toAsset currency.Code, fromAmount, toAmount float64, walletType, validTime string) (*ConvertQuoteResponse, error) {
 	if fromAsset.IsEmpty() {
-		return nil, fmt.Errorf("%w, fromAsset is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: fromAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if toAsset.IsEmpty() {
-		return nil, fmt.Errorf("%w, toAsset is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: toAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if fromAmount <= 0 && toAmount <= 0 {
-		return nil, fmt.Errorf("%w, fromAmount or toAmount is required", order.ErrAmountIsInvalid)
+		return nil, fmt.Errorf("%w: fromAmount or toAmount is required", order.ErrAmountIsInvalid)
 	}
 	params := url.Values{}
 	params.Set("fromAsset", fromAsset.String())
@@ -6119,13 +6101,13 @@ func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrd
 		return nil, common.ErrEmptyParams
 	}
 	if arg.BaseAsset.IsEmpty() {
-		return nil, fmt.Errorf("%w, baseAsset is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: baseAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.QuoteAsset.IsEmpty() {
-		return nil, fmt.Errorf("%w, quoteAsset is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: quoteAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.LimitPrice <= 0 {
-		return nil, fmt.Errorf("%w, limitPrice is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w: limitPrice is required", order.ErrPriceBelowMin)
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
@@ -6289,16 +6271,16 @@ func (b *Binance) CreateSingleTokenGiftCard(ctx context.Context, token currency.
 // CreateDualTokenGiftCard creating a dual-token ( stablecoin-denominated) Binance Gift Card.
 func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceToken currency.Code, baseTokenAmount, discount float64) (*DualTokenGiftCard, error) {
 	if baseToken.IsEmpty() {
-		return nil, fmt.Errorf("%w, baseToken is empty", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: baseToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	if faceToken.IsEmpty() {
-		return nil, fmt.Errorf("%w, faceToken is empty", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: faceToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	if baseTokenAmount <= 0 {
-		return nil, fmt.Errorf("%w, baseTokenAmount is %f", order.ErrAmountBelowMin, baseTokenAmount)
+		return nil, fmt.Errorf("%w: baseTokenAmount is %f", order.ErrAmountBelowMin, baseTokenAmount)
 	}
 	if discount <= 0 {
-		return nil, fmt.Errorf("%w, discount must be greater than zero", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: discount must be greater than zero", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("baseToken", baseToken.String())
@@ -6348,7 +6330,7 @@ func (b *Binance) FetchRSAPublicKey(ctx context.Context) (*RSAPublicKeyResponse,
 // you to create Stablecoin-Denominated gift cards as mentioned in section 2 and its’ limitation.
 func (b *Binance) FetchTokenLimit(ctx context.Context, baseToken currency.Code) (*TokenLimitInfo, error) {
 	if baseToken.IsEmpty() {
-		return nil, fmt.Errorf("%w, baseToken is empty", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: baseToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("baseToken", baseToken.String())
@@ -7008,10 +6990,10 @@ func (b *Binance) GetSubAccountFuturesAssetInfo(ctx context.Context, subAccountI
 // UniversalTransferWithBroker retrieves a universal transfer history with broker
 func (b *Binance) UniversalTransferWithBroker(ctx context.Context, fromAccountType, toAccountType, fromID, toID, clientTransferID string, asset currency.Code, amount float64) (*UniversalTransferResponse, error) {
 	if fromAccountType == "" {
-		return nil, fmt.Errorf("%w, fromAccountType=%s", errInvalidAccountType, fromAccountType)
+		return nil, fmt.Errorf("%w: fromAccountType=%s", errInvalidAccountType, fromAccountType)
 	}
 	if toAccountType == "" {
-		return nil, fmt.Errorf("%w, toAccountType=%s", errInvalidAccountType, toAccountType)
+		return nil, fmt.Errorf("%w: toAccountType=%s", errInvalidAccountType, toAccountType)
 	}
 	if asset.IsEmpty() {
 		return nil, fmt.Errorf("%w: asset is required", currency.ErrCurrencyCodeEmpty)
@@ -7608,3 +7590,7 @@ func (b *Binance) CreateAPIKey(ctx context.Context, apiName, publicKey, status, 
 	var resp *UserAPIKeyCreationResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v1/api-key/create", params, request.Auth, nil, &resp)
 }
+
+// ---------------------- Auto Invest endpoints --------------------------------------------------------------------------------------
+
+// func (b *Binance) GetAllSourceAssetAndTargetAsset(ctx context.Context)

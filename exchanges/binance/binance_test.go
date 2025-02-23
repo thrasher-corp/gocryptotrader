@@ -1652,8 +1652,11 @@ func TestGetTickerData(t *testing.T) {
 
 func TestGetDepositAddressForCurrency(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetDepositAddressForCurrency(context.Background(), currency.EMPTYCODE, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetDepositAddressForCurrency(context.Background(), "BTC", "")
+	result, err := b.GetDepositAddressForCurrency(context.Background(), currency.BTC, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1706,7 +1709,7 @@ func TestGetAssetDevidendRecords(t *testing.T) {
 func TestGetAssetDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetAssetDetail(context.Background(), currency.BTC)
+	result, err := b.GetAssetDetail(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1852,7 +1855,7 @@ func TestGetDepositAddressListWithNetwork(t *testing.T) {
 func TestGetUserWalletBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetUserWalletBalance(context.Background())
+	result, err := b.GetUserWalletBalance(context.Background(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -8029,6 +8032,101 @@ func TestGetWBETHRewardHistory(t *testing.T) {
 	result, err := b.GetWBETHRewardHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetSOLStakingAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSOLStakingAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSOLStakingQuotaDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSOLStakingQuotaDetails(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubscribeToSOLStaking(t *testing.T) {
+	t.Parallel()
+	_, err := b.SubscribeToSOLStaking(context.Background(), 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubscribeToSOLStaking(context.Background(), 1.2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemSOL(t *testing.T) {
+	t.Parallel()
+	_, err := b.RedeemSOL(context.Background(), 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.RedeemSOL(context.Background(), 1.2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestClaimBoostRewards(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ClaimBoostRewards(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSOLStakingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSOLStakingHistory(context.Background(), time.Now().Add(-time.Hour*30), time.Now(), 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSOLRedemptionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSOLRedemptionHistory(context.Background(), time.Now().Add(-time.Hour*30), time.Now(), 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBNSOLRewardsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBNSOLRewardsHistory(context.Background(), time.Now().Add(-time.Hour*30), time.Now(), 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBNSOLRateHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBNSOLRateHistory(context.Background(), time.Now().Add(-time.Hour*30), time.Now(), 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBoostRewardsHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetBoostRewardsHistory(context.Background(), "", time.Now().Add(-time.Hour*30), time.Now(), 0, 100)
+	require.ErrorIs(t, err, errRewardTypeMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBoostRewardsHistory(context.Background(), "CLAIM", time.Now().Add(-time.Hour*30), time.Now(), 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnclaimedRewards(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUnclaimedRewards(context.Background())
 }
 
 func TestAcquiringAlgorithm(t *testing.T) {

@@ -1703,7 +1703,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Binance) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	addr, err := b.GetDepositAddressForCurrency(ctx, cryptocurrency.String(), chain)
+	addr, err := b.GetDepositAddressForCurrency(ctx, cryptocurrency, chain)
 	if err != nil {
 		return nil, err
 	}

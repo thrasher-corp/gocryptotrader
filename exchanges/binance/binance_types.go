@@ -120,6 +120,7 @@ var (
 	errSubAccountStatusMissing      = errors.New("sub-account status missing")
 	errCommissionValueRequired      = errors.New("commission value is required")
 	errAPIKeyNameRequired           = errors.New("api key name required")
+	errRewardTypeMissing            = errors.New("reward type is required")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
@@ -4464,6 +4465,95 @@ type WBETHRewardHistory struct {
 		AnnualPercentageRate types.Number `json:"annualPercentageRate"`
 	} `json:"rows"`
 	Total int64 `json:"total"`
+}
+
+// SOLStakingAccountDetail holds a SOL staking account detail
+type SOLStakingAccountDetail struct {
+	BnsolAmount           types.Number `json:"bnsolAmount"`
+	HoldingInSOL          types.Number `json:"holdingInSOL"`
+	ThirtyDaysProfitInSOL types.Number `json:"thirtyDaysProfitInSOL"`
+}
+
+// SOLStakingQuotaDetail holds a SOL staking quota detail
+type SOLStakingQuotaDetail struct {
+	LeftStakingPersonalQuota    types.Number `json:"leftStakingPersonalQuota"`
+	LeftRedemptionPersonalQuota types.Number `json:"leftRedemptionPersonalQuota"`
+	MinStakeAmount              types.Number `json:"minStakeAmount"`
+	MinRedeemAmount             types.Number `json:"minRedeemAmount"`
+	RedeemPeriod                int          `json:"redeemPeriod"`
+	Stakeable                   bool         `json:"stakeable"`
+	Redeemable                  bool         `json:"redeemable"`
+	SoldOut                     bool         `json:"soldOut"`
+	CommissionFee               types.Number `json:"commissionFee"`
+	NextEpochTime               types.Time   `json:"nextEpochTime"`
+	Calculating                 bool         `json:"calculating"`
+}
+
+// SOLStakingSubscriptionResponse represents a SOL staking subscription response
+type SOLStakingSubscriptionResponse struct {
+	Success      bool         `json:"success"`
+	BNSOLAmount  types.Number `json:"bnsolAmount"`
+	ExchangeRate types.Number `json:"exchangeRate"`
+}
+
+// SOLRedemptionResponse holds the response details for a SOL redemption request.
+type SOLRedemptionResponse struct {
+	Success      bool         `json:"success"`
+	SolAmount    types.Number `json:"solAmount"`
+	ExchangeRate types.Number `json:"exchangeRate"`
+	ArrivalTime  int64        `json:"arrivalTime"`
+}
+
+// SOLStakingHistory represents a SOL stakings
+type SOLStakingHistory struct {
+	Rows  []SOLStakingResponse `json:"rows"`
+	Total int64                `json:"total"`
+}
+
+// SOLStakingResponse represents a SOL staking detail
+type SOLStakingResponse struct {
+	Time             types.Time   `json:"time"`
+	Asset            string       `json:"asset"`
+	ArrivalTime      types.Time   `json:"arrivalTime"`
+	Amount           types.Number `json:"amount"`
+	DistributeAsset  string       `json:"distributeAsset"`
+	DistributeAmount types.Number `json:"distributeAmount"`
+	ExchangeRate     types.Number `json:"exchangeRate"`
+	Status           string       `json:"status"`
+}
+
+// BNSOLRewardHistory holds a BNSOL reward history
+type BNSOLRewardHistory struct {
+	EstRewardsInSOL string            `json:"estRewardsInSOL"`
+	Rows            []BNSOLRewardItem `json:"rows"`
+	Total           int64             `json:"total"`
+}
+
+// BNSOLRewardItem represents a BNSOL reward item detail
+type BNSOLRewardItem struct {
+	Time                 types.Time   `json:"time"`
+	RewardAmountInSOL    types.Number `json:"amountInSOL"`
+	BNSOLHoldingBalance  types.Number `json:"holding"`
+	HoldingInSOL         types.Number `json:"holdingInSOL"`
+	AnnualPercentageRate types.Number `json:"annualPercentageRate"`
+}
+
+// RewardBoostResponse holds a boost reward detail
+type RewardBoostResponse struct {
+	Rows []struct {
+		Time         types.Time   `json:"time"`
+		Token        string       `json:"token"`
+		Amount       types.Number `json:"amount"`
+		BnsolHolding types.Number `json:"bnsolHolding"`
+		Status       string       `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// Reward holds a reward and amount information
+type Reward struct {
+	Amount       types.Number `json:"amount"`
+	RewardsAsset string       `json:"rewardsAsset"`
 }
 
 // AlgorithmsList represents list of mining algorithms.
