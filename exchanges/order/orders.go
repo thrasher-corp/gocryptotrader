@@ -735,6 +735,8 @@ func (t Type) String() string {
 		return "OPTIMAL_LIMIT_IOC"
 	case OCO:
 		return "OCO"
+	case SOR:
+		return "SOR"
 	default:
 		return "UNKNOWN"
 	}
@@ -1161,6 +1163,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return OptimalLimitIOC, nil
 	case OCO.String():
 		return OCO, nil
+	case "sor", SOR.String():
+		return SOR, nil
 	case ConditionalStop.String():
 		return ConditionalStop, nil
 	case MarketMakerProtection.String():
