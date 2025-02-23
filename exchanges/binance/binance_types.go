@@ -2893,19 +2893,22 @@ type UniversalTransferResponse struct {
 
 // UniversalTransfersDetail represents a list of universal transfers.
 type UniversalTransfersDetail struct {
-	Result []struct {
-		TransactionID   int64        `json:"tranId"`
-		FromEmail       string       `json:"fromEmail"`
-		ToEmail         string       `json:"toEmail"`
-		Asset           string       `json:"asset"`
-		Amount          types.Number `json:"amount"`
-		CreateTimeStamp types.Time   `json:"createTimeStamp"`
-		FromAccountType string       `json:"fromAccountType"`
-		ToAccountType   string       `json:"toAccountType"`
-		Status          string       `json:"status"`
-		ClientTranID    string       `json:"clientTranId"`
-	} `json:"result"`
-	TotalCount int64 `json:"totalCount"`
+	Result     []AssetUniversalTransferDetail `json:"result"`
+	TotalCount int64                          `json:"totalCount"`
+}
+
+// AssetUniversalTransferDetail holds an asset universal transfer detail.
+type AssetUniversalTransferDetail struct {
+	TransactionID   int64        `json:"tranId"`
+	FromEmail       string       `json:"fromEmail"`
+	ToEmail         string       `json:"toEmail"`
+	Asset           string       `json:"asset"`
+	Amount          types.Number `json:"amount"`
+	CreateTimeStamp types.Time   `json:"createTimeStamp"`
+	FromAccountType string       `json:"fromAccountType"`
+	ToAccountType   string       `json:"toAccountType"`
+	Status          string       `json:"status"`
+	ClientTranID    string       `json:"clientTranId"`
 }
 
 // MarginedFuturesAccount sub-account's futures account
@@ -5631,6 +5634,68 @@ type FuturesSubAccountTransfers struct {
 	} `json:"transfers"`
 }
 
+// SubAccountTransferWithBroker holds a sub-account transfer history item through a broker
+type SubAccountTransferWithBroker struct {
+	DepositID        int64        `json:"depositId"`
+	SubAccountID     string       `json:"subAccountId"`
+	Address          string       `json:"address"`
+	AddressTag       string       `json:"addressTag"`
+	Amount           types.Number `json:"amount"`
+	Coin             string       `json:"coin"`
+	InsertTime       types.Time   `json:"insertTime"`
+	TransferType     int64        `json:"transferType"`
+	Network          string       `json:"network"`
+	Status           int64        `json:"status"`
+	TransactionID    string       `json:"txId"`
+	SourceAddress    string       `json:"sourceAddress"`
+	ConfirmTimes     string       `json:"confirmTimes"`
+	SelfReturnStatus int64        `json:"selfReturnStatus"`
+}
+
+// SpotSubAccountAssetInfo holds spot account sub-account info
+type SpotSubAccountAssetInfo struct {
+	Data []struct {
+		SubAccountID      string       `json:"subAccountId"`
+		TotalBalanceOfBTC types.Number `json:"totalBalanceOfBtc"`
+	} `json:"data"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// MarginSubAccountAssetInfo holds margin account sub-account info
+type MarginSubAccountAssetInfo struct {
+	Data []struct {
+		MarginEnable        bool         `json:"marginEnable"`
+		SubAccountID        string       `json:"subAccountId"`
+		TotalAssetOfBtc     types.Number `json:"totalAssetOfBtc,omitempty"`
+		TotalLiabilityOfBtc types.Number `json:"totalLiabilityOfBtc,omitempty"`
+		TotalNetAssetOfBtc  types.Number `json:"totalNetAssetOfBtc,omitempty"`
+		MarginLevel         string       `json:"marginLevel,omitempty"`
+	} `json:"data"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// FuturesSubAccountAssetInfo holds a margin account sub-account information
+type FuturesSubAccountAssetInfo struct {
+	Data []struct {
+		SubAccountID                string       `json:"subAccountId"`
+		TotalInitialMargin          types.Number `json:"totalInitialMargin,omitempty"`
+		TotalMaintenanceMargin      types.Number `json:"totalMaintenanceMargin,omitempty"`
+		TotalWalletBalance          types.Number `json:"totalWalletBalance,omitempty"`
+		TotalUnrealizedProfit       types.Number `json:"totalUnrealizedProfit,omitempty"`
+		TotalMarginBalance          types.Number `json:"totalMarginBalance,omitempty"`
+		TotalPositionInitialMargin  types.Number `json:"totalPositionInitialMargin,omitempty"`
+		TotalOpenOrderInitialMargin types.Number `json:"totalOpenOrderInitialMargin,omitempty"`
+		FuturesEnable               bool         `json:"futuresEnable"`
+		Asset                       string       `json:"asset,omitempty"`
+
+		// Returned with coin margined futures assets information
+		TotalWalletBalanceOfUsdt    string `json:"totalWalletBalanceOfUsdt,omitempty"`
+		TotalUnrealizedProfitOfUsdt string `json:"totalUnrealizedProfitOfUsdt,omitempty"`
+		TotalMarginBalanceOfUsdt    string `json:"totalMarginBalanceOfUsdt,omitempty"`
+	} `json:"data"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
 // BNBBurnStatus holds status for sub-account
 type BNBBurnStatus struct {
 	SubAccountID    int  `json:"subAccountId"`
@@ -5763,6 +5828,17 @@ type RebateOverview struct {
 	TotalTradeVol             types.Number `json:"totalTradeVol"`
 	TotalRebateVol            types.Number `json:"totalRebateVol"`
 	Time                      types.Time   `json:"time"`
+}
+
+// CommissionRebateRecord holds a spot account broker commission rebate record detail
+type CommissionRebateRecord struct {
+	SubaccountID string     `json:"subaccountId"`
+	Income       string     `json:"income"`
+	Asset        string     `json:"asset"`
+	Symbol       string     `json:"symbol"`
+	TradeID      int64      `json:"tradeId"`
+	Time         types.Time `json:"time"`
+	Status       int64      `json:"status"`
 }
 
 // UserTradeVolume holds trade volume infomration of a broker user at different timestamps

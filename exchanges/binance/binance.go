@@ -1013,7 +1013,7 @@ func (b *Binance) GetMarginPriceIndex(ctx context.Context, symbol string) (*Marg
 }
 
 // PostMarginAccountOrder post a new order for margin account.
-// autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
+// autoRepayAtCancel is suggested to set as “FALSE" to keep liability unrepaid under high frequent new order/cancel order execution
 func (b *Binance) PostMarginAccountOrder(ctx context.Context, arg *MarginAccountOrderParam) (*MarginAccountOrder, error) {
 	if *arg == (MarginAccountOrderParam{}) {
 		return nil, common.ErrEmptyParams
@@ -1252,7 +1252,7 @@ func (b *Binance) GetMarginAccountAllOrders(ctx context.Context, symbol string, 
 // ICEBERG quantities however do not have to be the same.
 // Order Rate Limit
 // OCO counts as 2 orders against the order rate limit.
-// autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
+// autoRepayAtCancel is suggested to set as “FALSE" to keep liability unrepaid under high frequent new order/cancel order execution
 func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOrderParam) (*OCOOrder, error) {
 	if *arg == (MarginOCOOrderParam{}) {
 		return nil, common.ErrEmptyParams
@@ -4620,7 +4620,7 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 }
 
 // ChangePlanStatus change Plan Status
-// status: “ONGOING”,”PAUSED","REMOVED"
+// status: “ONGOING","PAUSED","REMOVED"
 func (b *Binance) ChangePlanStatus(ctx context.Context, planID int64, status string) (*ChangePlanStatusResponse, error) {
 	if planID == 0 {
 		return nil, errPlanIDRequired
@@ -4713,7 +4713,7 @@ func (b *Binance) GetIndexLinkedPlanPositionDetails(ctx context.Context, indexID
 }
 
 // OneTimeTransaction posts one time transactions
-// sourceType possible values are "MAIN_SITE" for Binance,“TR” for Binance Turkey
+// sourceType possible values are "MAIN_SITE" for Binance,“TR" for Binance Turkey
 func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactionParams) (*OneTimeTransactionResponse, error) {
 	if arg == nil {
 		return nil, common.ErrEmptyParams
@@ -6264,7 +6264,7 @@ func (b *Binance) GetNFTAsset(ctx context.Context, limit, page int64) (*NFTAsset
 // --------------------------------------------------- Binance Gift Card Endpoints --------------------------------------------------
 // Binance Gift Card allows simple crypto transfer and exchange through secured and prepaid codes.
 // Binance Gift Card API solution is to facilitate instant creation, redemption and value-checking for Binance Gift Card.
-// Binance Gift Card product feature consists of two parts: “Gift Card Number” and “Binance Gift Card Redemption Code”.
+// Binance Gift Card product feature consists of two parts: “Gift Card Number" and “Binance Gift Card Redemption Code".
 // The Gift Card Number can be circulated in public, and it is used to verify the validity of the Binance Gift Card;
 // Binance Gift Card Redemption Code should be kept confidential, because as long as someone knows the redemption code, that person can redeem it anytime.
 
@@ -6923,7 +6923,148 @@ func (b *Binance) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context,
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/transfer/futures", params, request.Auth, nil, &resp)
 }
 
-// func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, subAccountID , )
+// GetSubAccountDepositHistoryWithBroker holds a sub-account deposit history through broker
+func (b *Binance) GetSubAccountDepositHistoryWithBroker(ctx context.Context, subAccountID string, coin currency.Code, startTime, endTime time.Time, status, limit, offset int64) ([]SubAccountTransferWithBroker, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if status >= 0 {
+		params.Set("status", strconv.FormatInt(status, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	var resp []SubAccountTransferWithBroker
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/depositHist", params, request.Auth, nil, &resp)
+}
+
+// GetSubAccountSpotAssetInfo retrieves a spot accounts sub-account asset information
+func (b *Binance) GetSubAccountSpotAssetInfo(ctx context.Context, subAccountID string, page, size int64) (*SpotSubAccountAssetInfo, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *SpotSubAccountAssetInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/spotSummary", params, request.Auth, nil, &resp)
+}
+
+// GetSubAccountMarginAssetInfo retrieves a margin account sub-account asset information
+func (b *Binance) GetSubAccountMarginAssetInfo(ctx context.Context, subAccountID string, page, size int64) (*MarginSubAccountAssetInfo, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *MarginSubAccountAssetInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount/marginSummary", params, request.Auth, nil, &resp)
+}
+
+// GetSubAccountFuturesAssetInfo holds a futures sub-account asset information
+func (b *Binance) GetSubAccountFuturesAssetInfo(ctx context.Context, subAccountID string, coinMargined bool, page, size int64) (*FuturesSubAccountAssetInfo, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if coinMargined {
+		params.Set("futuresType", "2")
+	} else {
+		params.Set("futuresType", "1")
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *FuturesSubAccountAssetInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v3/broker/subAccount/futuresSummary", params, request.Auth, nil, &resp)
+}
+
+// UniversalTransferWithBroker retrieves a universal transfer history with broker
+func (b *Binance) UniversalTransferWithBroker(ctx context.Context, fromAccountType, toAccountType, fromID, toID, clientTransferID string, asset currency.Code, amount float64) (*UniversalTransferResponse, error) {
+	if fromAccountType == "" {
+		return nil, fmt.Errorf("%w, fromAccountType=%s", errInvalidAccountType, fromAccountType)
+	}
+	if toAccountType == "" {
+		return nil, fmt.Errorf("%w, toAccountType=%s", errInvalidAccountType, toAccountType)
+	}
+	if asset.IsEmpty() {
+		return nil, fmt.Errorf("%w: asset is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("fromAccountType", fromAccountType)
+	params.Set("toAccountType", toAccountType)
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if fromID != "" {
+		params.Set("fromId", fromID)
+	}
+	if toID != "" {
+		params.Set("toId", toID)
+	}
+	if clientTransferID != "" {
+		params.Set("clientTranId", clientTransferID)
+	}
+	var resp *UniversalTransferResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/universalTransfer", params, request.Auth, nil, &resp)
+}
+
+// GetUniversalTransferHistoryThroughBroker retrieves a universal asset transfer history throught broker
+func (b *Binance) GetUniversalTransferHistoryThroughBroker(ctx context.Context, fromID, toID, clientTransferID string, startTime, endTime time.Time, page, limit int64) ([]AssetUniversalTransferDetail, error) {
+	params := url.Values{}
+	if fromID != "" {
+		params.Set("fromId", fromID)
+	}
+	if toID != "" {
+		params.Set("toId", toID)
+	}
+	if clientTransferID != "" {
+		params.Set("clientTranId", clientTransferID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []AssetUniversalTransferDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/universalTransfer", params, request.Auth, nil, &resp)
+}
 
 // CreateBrokerSubAccount creates a new sub-account through broker
 func (b *Binance) CreateBrokerSubAccount(ctx context.Context, tag string) (*BrokerCreateSubAccount, error) {
@@ -7047,6 +7188,60 @@ func (b *Binance) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx conte
 	}
 	var resp []FSubAccountCommissionAdjustment
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccountApi/commission/coinFutures", params, request.Auth, nil, &resp)
+}
+
+// GetSpotBrokerCommissionRebateRecentRecord retrieves broker commission rebate recent records spot
+func (b *Binance) GetSpotBrokerCommissionRebateRecentRecord(ctx context.Context, subAccountID string, startTime, endTime time.Time, page, limit int64) ([]CommissionRebateRecord, error) {
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []CommissionRebateRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/rebate/recentRecord", params, request.Auth, nil, &resp)
+}
+
+// GetFuturesBrokerCommissionRebateRecentRecord retrieves a broker futures commission rebate record
+func (b *Binance) GetFuturesBrokerCommissionRebateRecentRecord(ctx context.Context, coinMargined, filterResult bool, startTime, endTime time.Time, page, size int64) ([]CommissionRebateRecord, error) {
+	params := url.Values{}
+	if coinMargined {
+		params.Set("futuresType", "2")
+	} else {
+		params.Set("futuresType", "1")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if filterResult {
+		params.Set("filterResult", "true")
+	}
+	var resp []CommissionRebateRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/rebate/futures/recentRecord", params, request.Auth, nil, &resp)
 }
 
 // ---------------------------------------------------------------- Binance Link endpoints ----------------------------------------------------------------

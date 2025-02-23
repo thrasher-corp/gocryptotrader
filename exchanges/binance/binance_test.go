@@ -9378,6 +9378,63 @@ func TestGetFuturesBrokerSubAccountTransferHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetSubAccountDepositHistoryWithBroker(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountDepositHistoryWithBroker(context.Background(), "", currency.BTC, time.Time{}, time.Time{}, 0, 10, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountSpotAssetInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountSpotAssetInfo(context.Background(), "1234", 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountMarginAssetInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountMarginAssetInfo(context.Background(), "", 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountFuturesAssetInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountFuturesAssetInfo(context.Background(), "1234", true, 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUniversalTransferWithBroker(t *testing.T) {
+	t.Parallel()
+	_, err := b.UniversalTransferWithBroker(context.Background(), "", "USDT_FUTURE", "", "", "", currency.BTC, 1)
+	require.ErrorIs(t, err, errInvalidAccountType)
+	_, err = b.UniversalTransferWithBroker(context.Background(), "SPOT", "", "", "", "", currency.BTC, 1)
+	require.ErrorIs(t, err, errInvalidAccountType)
+	_, err = b.UniversalTransferWithBroker(context.Background(), "SPOT", "USDT_FUTURE", "", "", "", currency.EMPTYCODE, 1)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = b.UniversalTransferWithBroker(context.Background(), "SPOT", "USDT_FUTURE", "", "", "", currency.BTC, 0)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.UniversalTransferWithBroker(context.Background(), "SPOT", "USDT_FUTURE", "", "", "", currency.BTC, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUniversalTransferHistoryThroughBroker(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUniversalTransferHistoryThroughBroker(context.Background(), "", "", "", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestCreateBrokerSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -9476,6 +9533,21 @@ func TestGetSubAccountCoinMarginedFuturesCommissionAdjustment(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetSubAccountCoinMarginedFuturesCommissionAdjustment(context.Background(), "123", coinmTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerCommissionRebateRecentRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotBrokerCommissionRebateRecentRecord(context.Background(), "1234", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+func TestGetFuturesBrokerCommissionRebateRecentRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesBrokerCommissionRebateRecentRecord(context.Background(), false, false, time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
