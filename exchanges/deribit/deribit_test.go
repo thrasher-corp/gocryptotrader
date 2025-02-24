@@ -4094,3 +4094,14 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
+
+func TestFormatChannelPair(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
+	pair.Delimiter = "-"
+	assert.Equal(t, "BTC_USDC-PERPETUAL", formatChannelPair(pair))
+
+	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
+	pair.Delimiter = "-"
+	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
+}

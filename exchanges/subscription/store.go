@@ -206,3 +206,33 @@ func (s *Store) Len() int {
 	defer s.mu.RUnlock()
 	return len(s.m)
 }
+
+// Contained returns a list of subscriptions in `compare` that are already in the store.
+func (s *Store) Contained(compare List) (matched List) {
+	if s == nil || s.m == nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, sub := range compare {
+		if found := s.get(sub); found != nil {
+			matched = append(matched, found)
+		}
+	}
+	return matched
+}
+
+// Missing returns a list of subscriptions in `compare` that are not in the store.
+func (s *Store) Missing(compare List) (missing List) {
+	if s == nil || s.m == nil {
+		return compare // All are missing
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, sub := range compare {
+		if found := s.get(sub); found == nil {
+			missing = append(missing, sub)
+		}
+	}
+	return missing
+}
