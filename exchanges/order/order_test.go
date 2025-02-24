@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
@@ -2191,4 +2192,32 @@ func TestTrackingModeString(t *testing.T) {
 	for k, v := range inputs {
 		require.Equal(t, v, k.String())
 	}
+}
+
+func TestUnmarshalOrder(t *testing.T) {
+	t.Parallel()
+	btx := currency.NewBTCUSDT()
+	btx.Delimiter = "-"
+	orderSubmit := Submit{
+		Exchange:  "test",
+		Pair:      btx,
+		AssetType: asset.Spot,
+		Side:      Buy,
+		Type:      Market,
+		Amount:    1,
+		Price:     1000,
+	}
+	jOrderSubmit, err := json.Marshal(orderSubmit)
+	require.NoError(t, err)
+	var os2 Submit
+	err = json.Unmarshal(jOrderSubmit, &os2)
+	require.NoError(t, err)
+	require.Equal(t, orderSubmit, os2)
+	// Margin-type regression test
+	orderSubmit.MarginType = margin.Multi
+	jOrderSubmit, err = json.Marshal(orderSubmit)
+	require.NoError(t, err)
+	err = json.Unmarshal(jOrderSubmit, &os2)
+	require.NoError(t, err)
+	require.Equal(t, orderSubmit, os2)
 }

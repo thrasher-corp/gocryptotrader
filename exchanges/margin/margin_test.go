@@ -1,6 +1,7 @@
 package margin
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -33,6 +34,7 @@ func TestUnmarshalJSON(t *testing.T) {
 		"spotIsolated": {`{"margin":"spot_isolated"}`, SpotIsolated, nil},
 		"invalid":      {`{"margin":"hello moto"}`, Unknown, ErrInvalidMarginType},
 		"unset":        {`{"margin":""}`, Unset, nil},
+		"":             {`{"margin":""}`, Unset, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -46,6 +48,28 @@ func TestUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		in   Type
+		want string
+	}{
+		{Isolated, fmt.Sprintf(`%q`, isolatedStr)},
+		{Multi, fmt.Sprintf(`%q`, multiStr)},
+		{NoMargin, fmt.Sprintf(`%q`, cashStr)},
+		{SpotIsolated, fmt.Sprintf(`%q`, spotIsolatedStr)},
+		{Type(uint8(123)), fmt.Sprintf(`%q`, unknownStr)},
+		{Unset, fmt.Sprintf(`%q`, unsetStr)},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
+			resp, err := json.Marshal(tc.in)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, string(resp))
+		})
+	}
+}
+
 func TestString(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, unknownStr, Unknown.String())
@@ -54,7 +78,8 @@ func TestString(t *testing.T) {
 	assert.Equal(t, unsetStr, Unset.String())
 	assert.Equal(t, spotIsolatedStr, SpotIsolated.String())
 	assert.Equal(t, cashStr, NoMargin.String())
-	assert.Equal(t, "", Type(30).String())
+	assert.Equal(t, unknownStr, Type(30).String())
+	assert.Equal(t, "", Unset.String())
 }
 
 func TestUpper(t *testing.T) {
