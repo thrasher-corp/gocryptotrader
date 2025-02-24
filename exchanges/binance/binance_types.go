@@ -75,6 +75,7 @@ var (
 	errStartAndEndTimeRequired      = errors.New("startTime and endTime must be specified")
 	errTradeTypeRequired            = errors.New("trade type is required")
 	errPositionIDRequired           = errors.New("position ID is required")
+	errRedemptionAccountRequired    = errors.New("redemption account not specified")
 	errOptionTypeRequired           = errors.New("optionType is required")
 	errInvalidPositionSide          = errors.New("invalid positionSide")
 	errInvalidWorkingType           = errors.New("invalid workingType")
@@ -5390,6 +5391,19 @@ type VIPLoanRepaymentHistoryResponse struct {
 	Total int64 `json:"total"`
 }
 
+// VIPLoanAccruedInterests holds a list of accrued interests
+type VIPLoanAccruedInterests struct {
+	Rows []struct {
+		LoanCoin           string       `json:"loanCoin"`
+		PrincipalAmount    types.Number `json:"principalAmount"`
+		InterestAmount     types.Number `json:"interestAmount"`
+		AnnualInterestRate types.Number `json:"annualInterestRate"`
+		AccrualTime        types.Time   `json:"accrualTime"`
+		OrderID            int64        `json:"orderId"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
 // LoanRenewResponse represents loan renew
 type LoanRenewResponse struct {
 	LoanAccountID       string       `json:"loanAccountId"` // loan receiving account
@@ -5477,6 +5491,16 @@ type BorrowInterestRate struct {
 	FlexibleDailyInterestRate  types.Number `json:"flexibleDailyInterestRate"`
 	FlexibleYearlyInterestRate types.Number `json:"flexibleYearlyInterestRate"`
 	Time                       types.Time   `json:"time"`
+}
+
+// VIPLoanInterestRate holds list of VIP loan interest rate details
+type VIPLoanInterestRate struct {
+	Rows []struct {
+		Coin                   string       `json:"coin"`
+		AnnualizedInterestRate types.Number `json:"annualizedInterestRate"`
+		Time                   types.Time   `json:"time"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
 }
 
 // ListenKeyResponse represents a listen-key response instance.

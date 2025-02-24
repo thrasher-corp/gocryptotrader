@@ -4270,6 +4270,24 @@ func (b *Binance) GetLockedSubscriptionPreview(ctx context.Context, projectID st
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/subscriptionPreview", params, subscriptionPreviewRate, nil, &resp)
 }
 
+// SetLockedProductRedeemOption
+// possible values of redeemTo are 'SPOT' and 'FLEXIBLE'.
+func (b *Binance) SetLockedProductRedeemOption(ctx context.Context, positionID, redeemTo string) (interface{}, error) {
+	if positionID == "" {
+		return nil, errPositionIDRequired
+	}
+	if redeemTo == "" {
+		return nil, errRedemptionAccountRequired
+	}
+	params := url.Values{}
+	params.Set("positionId", positionID)
+	params.Set("redeemTo", redeemTo)
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/setRedeemOption", params, request.Auth, nil, &resp)
+}
+
 // GetSimpleEarnRatehistory retrieves rate history for simple-rean products
 func (b *Binance) GetSimpleEarnRatehistory(ctx context.Context, projectID string, startTime, endTime time.Time, current, size int64) (*SimpleEarnRateHistory, error) {
 	params, err := fillHistoryParams(startTime, endTime, current, size)
@@ -5854,29 +5872,40 @@ func (b *Binance) VIPLoanRepay(ctx context.Context, orderID int64, amount float6
 
 // GetVIPLoanRepaymentHistory retrieves VIP loan repayment history
 func (b *Binance) GetVIPLoanRepaymentHistory(ctx context.Context, loanCoin currency.Code, startTime, endTime time.Time, orderID, current, limit int64) (*VIPLoanRepaymentHistoryResponse, error) {
-	params := url.Values{}
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
+	}
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTimestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTimestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *VIPLoanRepaymentHistoryResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/repay/history", params, getVIPLoanRepaymentHistoryRate, nil, &resp)
+}
+
+// GetVIPLoanAccruedInterest retrieves VIP loan accrued interest
+func (b *Binance) GetVIPLoanAccruedInterest(ctx context.Context, orderID string, loanCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*VIPLoanAccruedInterests, error) {
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *VIPLoanAccruedInterests
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/accruedInterest", params, request.Auth, nil, &resp)
 }
 
 // VIPLoanRenew represents VIP loan is available for VIP users only.
@@ -5989,6 +6018,23 @@ func (b *Binance) GetVIPBorrowInterestRate(ctx context.Context, loanCoin currenc
 	params.Set("loanCoin", loanCoin.String())
 	var resp []BorrowInterestRate
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/interestRate", params, getVIPBorrowInterestRate, nil, &resp)
+}
+
+// GetVIPLoanInterestRateHistory retrieves VIP Loan Interest Rate History
+func (b *Binance) GetVIPLoanInterestRateHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, current, limit int64) (*VIPLoanInterestRate, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params, err := fillHistoryParams(startTime, endTime, current, 0)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("coin", coin.String())
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *VIPLoanInterestRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/interestRateHistory", params, request.Auth, nil, &resp)
 }
 
 // ------------- Crypto Loan Endpoints ---------------------------------------------------------------

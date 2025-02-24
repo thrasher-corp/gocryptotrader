@@ -7521,6 +7521,18 @@ func TestGetLockedSubscriptionPreview(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestSetLockedProductRedeemOption(t *testing.T) {
+	t.Parallel()
+	_, err := b.SetLockedProductRedeemOption(context.Background(), "", "abcdefg")
+	require.ErrorIs(t, err, errPositionIDRequired)
+	_, err = b.SetLockedProductRedeemOption(context.Background(), "12345", "")
+	require.ErrorIs(t, err, errRedemptionAccountRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.SetLockedProductRedeemOption(context.Background(), "12345", "abcdefg")
+	assert.NoError(t, err)
+}
+
 func TestGetSimpleEarnRatehistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -8127,6 +8139,8 @@ func TestGetUnclaimedRewards(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetUnclaimedRewards(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestAcquiringAlgorithm(t *testing.T) {
@@ -9039,6 +9053,25 @@ func TestGetVIPBorrowInterestRate(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetVIPBorrowInterestRate(context.Background(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPLoanAccruedInterest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPLoanAccruedInterest(context.Background(), "12345", currency.BTC, time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPLoanInterestRateHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetVIPLoanInterestRateHistory(context.Background(), currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 10)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPLoanInterestRateHistory(context.Background(), currency.BTC, time.Now().Add(-time.Hour*48), time.Now(), 0, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
