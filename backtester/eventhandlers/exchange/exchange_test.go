@@ -215,8 +215,8 @@ func TestPlaceOrder(t *testing.T) {
 		Base: &event.Base{},
 	}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
-	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
-		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNameIsEmpty)
+	if !errors.Is(err, gctcommon.ErrExchangeNameUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrExchangeNameUnset)
 	}
 
 	f.Exchange = testExchange
