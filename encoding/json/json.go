@@ -1,4 +1,4 @@
-//go:build sonic_off || 386
+//go:build sonic_off || 386 || arm64
 
 package json
 

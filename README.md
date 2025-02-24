@@ -124,7 +124,7 @@ mkdir %AppData%\GoCryptoTrader
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
-By default, GoCryptoTrader uses the [Sonic JSON](https://github.com/bytedance/sonic) library for improved performance unless compiling for a 32-bit architecture (GOARCH=386). To disable Sonic and revert to Go's encoding/json, build with the sonic_off tag:
+By default, GoCryptoTrader uses the [Sonic JSON](https://github.com/bytedance/sonic) library for improved performance unless compiling for 32-bit or arm64 architectures. To disable Sonic and revert to Go's encoding/json, build with the sonic_off tag:
 
 ```bash
 go build -tags=sonic_off
@@ -152,7 +152,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 704 |
-| [shazbert](https://github.com/shazbert) | 359 |
+| [shazbert](https://github.com/shazbert) | 361 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 351 |
 | [gloriousCode](https://github.com/gloriousCode) | 236 |
 | [gbjk](https://github.com/gbjk) | 115 |
