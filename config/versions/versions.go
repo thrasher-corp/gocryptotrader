@@ -30,7 +30,6 @@ import (
 const LatestVersion = -1
 
 var (
-	errMissingVersion      = errors.New("missing version")
 	errVersionIncompatible = errors.New("version does not implement ConfigVersion or ExchangeVersion")
 	errModifyingExchange   = errors.New("error modifying exchange config")
 	errNoVersions          = errors.New("error retrieving latest config version: No config versions are registered")
@@ -217,12 +216,9 @@ func (m *manager) checkVersions() error {
 	defer m.m.RUnlock()
 	for ver, v := range m.versions {
 		switch v.(type) {
-		case ExchangeVersion, ConfigVersion:
+		case ExchangeVersion, ConfigVersion, nil:
 		default:
 			return fmt.Errorf("%w: %v", errVersionIncompatible, ver)
-		}
-		if v == nil {
-			return fmt.Errorf("%w: v%v", errMissingVersion, ver)
 		}
 	}
 	return nil
