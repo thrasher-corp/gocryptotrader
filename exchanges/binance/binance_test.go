@@ -2205,8 +2205,7 @@ func TestWsBalanceUpdate(t *testing.T) {
   "E": 1573200697110,           
   "a": "BTC",                   
   "d": "100.00000000",          
-  "T": 1573200697068            
-}}`)
+  "T": 1573200697068}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)

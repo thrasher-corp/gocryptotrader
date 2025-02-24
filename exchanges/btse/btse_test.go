@@ -752,6 +752,29 @@ func TestStripExponent(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidPairSymbol, "Should error on a symbol with too many underscores")
 }
 
+func TestMarketPair(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		symbol         string
+		base           string
+		futures        bool
+		expectedErr    error
+		expectedSymbol string
+	}{
+		{symbol: "RUNEPFC", base: currency.RUNE.String(), futures: true, expectedSymbol: "RUNEPFC"},
+		{symbol: "TRUMPPFC", base: "TRUMPSOL", futures: true, expectedSymbol: "TRUMPPFC"},
+		{symbol: "BTCUSD", base: "NAUGHTYBASE", futures: true, expectedErr: errInvalidPairSymbol},
+		{symbol: "NAUGHTYSYMBOL", base: currency.BTC.String(), expectedErr: errInvalidPairSymbol},
+		{symbol: "BTC-USD", base: currency.BTC.String(), expectedSymbol: "BTCUSD"},
+	} {
+		mp := MarketPair{Symbol: tt.symbol, Base: tt.base, Quote: "USD", Futures: tt.futures}
+		p, err := mp.Pair()
+		assert.ErrorIs(t, err, tt.expectedErr, "Pair should not error")
+		assert.Equal(t, tt.expectedSymbol, p.String(), "Pair should return the expected symbol")
+	}
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
