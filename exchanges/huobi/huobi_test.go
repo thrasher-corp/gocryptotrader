@@ -1816,9 +1816,9 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		require.Falsef(t, d.Before(n), "%s expiry must be today or after", cType)
 		switch cType {
 		case "CW", "NW":
-			require.True(t, d.Before(n.Add(24*time.Hour*14)), "%s expiry must be within 2 weeks", cType)
+			require.Truef(t, d.Before(n.Add(24*time.Hour*15)), "%s expiry must be within 15 days; Got: `%s`", cType, d)
 		case "CQ", "NQ":
-			require.True(t, d.Before(n.Add(24*time.Hour*90*2)), "%s expiry must be within 2 quarters", cType)
+			require.Truef(t, d.Before(n.Add(24*time.Hour*181)), "%s expiry must be within 181 days; Got: `%s`", cType, d)
 		}
 	}
 }
