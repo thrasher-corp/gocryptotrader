@@ -168,28 +168,18 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FetchTicker(context.Background(), pairs[1], asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestUpdateTickers(t *testing.T) {
-	err := h.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	t.Parallel()
+	require.NoError(t, h.UpdateTickers(context.Background(), asset.Spot))
 
 	enabled, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	for j := range enabled {
-		_, err = h.FetchTicker(context.Background(), enabled[j], asset.Spot)
-		if err != nil {
-			t.Error(err)
-		}
+		_, err = h.GetCachedTicker(enabled[j], asset.Spot)
+		require.NoErrorf(t, err, "GetCached Ticker must not error for pair `%s`", enabled[j])
 	}
 }
 

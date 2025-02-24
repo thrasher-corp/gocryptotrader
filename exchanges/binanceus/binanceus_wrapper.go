@@ -309,33 +309,6 @@ func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (bi *Binanceus) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPairs, er := bi.FormatExchangeCurrency(p, assetType)
-	if er != nil {
-		return nil, er
-	}
-
-	tickerNew, er := ticker.GetTicker(bi.Name, fPairs, assetType)
-	if er != nil {
-		return bi.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (bi *Binanceus) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := bi.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-	ob, err := orderbook.Get(bi.Name, fPair, assetType)
-	if err != nil {
-		return bi.UpdateOrderbook(ctx, pair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if pair.IsEmpty() {
@@ -413,19 +386,6 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return account.Holdings{}, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (bi *Binanceus) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := bi.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(bi.Name, creds, assetType)
-	if err != nil {
-		return bi.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals

@@ -3,8 +3,8 @@ name: CI
 env:
   GO_VERSION: 1.23.x
 jobs:
-  backend-psql:
-    name: GoCryptoTrader back-end
+  backend:
+    name: GoCryptoTrader backend (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic && matrix.goarch != '386' }})
     strategy:
       fail-fast: false
       matrix:
@@ -13,22 +13,32 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
+            sonic: true
           - os: ubuntu-latest
             goarch: 386
             psql: true
             skip_wrapper_tests: true
+            sonic: true # Sonic is not supported on 386 systems, this ensures our build tag condition defaults to and tests the standard encoding/json implementation
+          - os: ubuntu-24.04-arm
+            goarch: arm64
+            psql: false # Not supported
+            skip_wrapper_tests: true
+            sonic: false # Disabled temporarily until OKX's unmarshalling is changed for sonic arm64 compatibility
           - os: macos-latest
-            goarch: amd64
+            goarch: arm64
             psql: true
             skip_wrapper_tests: true
-          - os: macos-13 # beta
-            goarch: amd64
-            psql: true
-            skip_wrapper_tests: true
+            sonic: false # Same reason as the arm64 ubuntu-latest runner
           - os: windows-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
+            sonic: true
+          - os: ubuntu-latest
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: false
+            sonic: false # Disabled intentionally to test GCT's standard encoding/json implementation
 
     runs-on: ${{ matrix.os }}
 
@@ -84,6 +94,13 @@ jobs:
         echo "CGO_ENABLED=1" >> $GITHUB_ENV
       shell: bash
 
+    - name: Set GOFLAGS
+      run: |
+        if [ "${{ matrix.sonic }}" = "false" ]; then
+          echo "GOFLAGS=${GOFLAGS} -tags=sonic_off" >> $GITHUB_ENV
+        fi
+      shell: bash
+
     - name: Test
       run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
         unset PGSERVICEFILE
@@ -100,9 +117,9 @@ jobs:
       uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  backend-arm64:
-    name: GoCryptoTrader back-end (ubuntu-latest, arm64, false, true)
+  
+  backend-docker:
+    name: GoCryptoTrader backend docker (ubuntu-latest, amd64, psql=false, skip_wrapper_tests=true, sonic=true)
     runs-on: ubuntu-latest
 
     steps:
@@ -113,11 +130,6 @@ jobs:
 
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Set up QEMU 
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: linux/arm64
 
     - name: Set up Docker buildx
       uses: docker/setup-buildx-action@v3
@@ -126,28 +138,27 @@ jobs:
       uses: actions/cache@v4
       with:
         path: /tmp/.docker-buildx-cache
-        key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/arm64.Dockerfile') }}-${{ github.sha }}
+        key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/amd64.Dockerfile') }}-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/arm64.Dockerfile') }}-
+          ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/amd64.Dockerfile') }}-
           ${{ runner.os }}-docker-buildx-
     
     - name: Build Docker image
       run: |
         docker buildx build \
           --load \
-          --platform linux/arm64 \
           --cache-to=type=local,dest=/tmp/.docker-buildx-cache,mode=max \
           --cache-from=type=local,src=/tmp/.docker-buildx-cache \
-          --tag gct-backend-arm64 \
-          -f ./.github/workflows/arm64.Dockerfile \
+          --tag gct-backend-amd64 \
+          -f ./.github/workflows/amd64.Dockerfile \
           .
     
     - name: Run Docker image
       run: |
-        docker run --platform linux/arm64 --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --env GCT_DOCKER_CI=true --rm gct-backend-arm64
+        docker run --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --env GCT_DOCKER_CI=true --rm gct-backend-amd64
 
   frontend:
-    name: GoCryptoTrader front-end
+    name: GoCryptoTrader frontend
     runs-on: ubuntu-latest
     steps:
     - name: Cancel previous workflow runs
