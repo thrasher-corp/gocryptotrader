@@ -531,7 +531,10 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 	if !ok {
 		return errors.New("received invalid trade data")
 	}
-	if !k.IsSaveTradeDataEnabled() {
+	saveTradeData := k.IsSaveTradeDataEnabled()
+	tradeFeed := k.IsTradeFeedEnabled()
+	if !saveTradeData &&
+		!tradeFeed {
 		return nil
 	}
 	trades := make([]trade.Data, len(data))
@@ -573,7 +576,13 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 			Side:         tSide,
 		}
 	}
-	return trade.AddTradesToBuffer(k.Name, trades...)
+	if tradeFeed {
+		k.Websocket.DataHandler <- trades
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(k.Name, trades...)
+	}
+	return nil
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates
