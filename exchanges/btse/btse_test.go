@@ -755,24 +755,23 @@ func TestStripExponent(t *testing.T) {
 func TestMarketPair(t *testing.T) {
 	t.Parallel()
 
-	for _, test := range []struct {
+	for _, tt := range []struct {
 		symbol         string
 		base           string
-		quote          string
 		futures        bool
 		expectedErr    error
 		expectedSymbol string
 	}{
-		{symbol: "RUNEPFC", base: currency.RUNE.String(), quote: currency.USD.String(), futures: true, expectedSymbol: "RUNEPFC"},
-		{symbol: "TRUMPPFC", base: "TRUMPSOL", quote: currency.USD.String(), futures: true, expectedSymbol: "TRUMPPFC"},
-		{symbol: "BTCUSD", base: "NAUGHTYBASE", quote: currency.USD.String(), futures: true, expectedErr: errInvalidPairSymbol},
-		{symbol: "NAUGHTYSYMBOL", base: currency.BTC.String(), quote: currency.USD.String(), expectedErr: errInvalidPairSymbol},
-		{symbol: "BTC-USD", base: currency.BTC.String(), quote: currency.USD.String(), expectedSymbol: currency.NewPair(currency.BTC, currency.USD).String()},
+		{symbol: "RUNEPFC", base: currency.RUNE.String(), futures: true, expectedSymbol: "RUNEPFC"},
+		{symbol: "TRUMPPFC", base: "TRUMPSOL", futures: true, expectedSymbol: "TRUMPPFC"},
+		{symbol: "BTCUSD", base: "NAUGHTYBASE", futures: true, expectedErr: errInvalidPairSymbol},
+		{symbol: "NAUGHTYSYMBOL", base: currency.BTC.String(), expectedErr: errInvalidPairSymbol},
+		{symbol: "BTC-USD", base: currency.BTC.String(), expectedSymbol: "BTCUSD"},
 	} {
-		mp := MarketPair{Symbol: test.symbol, Base: test.base, Quote: test.quote, Futures: test.futures}
+		mp := MarketPair{Symbol: tt.symbol, Base: tt.base, Quote: "USD", Futures: tt.futures}
 		p, err := mp.Pair()
-		assert.ErrorIs(t, err, test.expectedErr, "Pair should not error")
-		assert.Equal(t, test.expectedSymbol, p.String(), "Pair should return the expected symbol")
+		assert.ErrorIs(t, err, tt.expectedErr, "Pair should not error")
+		assert.Equal(t, tt.expectedSymbol, p.String(), "Pair should return the expected symbol")
 	}
 }
 
