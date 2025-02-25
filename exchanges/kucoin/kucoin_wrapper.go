@@ -698,7 +698,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 					timeInForce = order.IOC.String()
 				case s.PostOnly:
 				default:
-					timeInForce = order.GTC.String()
+					timeInForce = order.GoodTillCancel.String()
 				}
 			}
 			var stopType string
@@ -1020,17 +1020,6 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		} else {
 			oStatus = order.Closed
 		}
-		var tif order.TimeInForce
-		switch orderDetail.TimeInForce {
-		case "GTT":
-			tif = order.GTT
-		case "IOC":
-			tif = order.IOC
-		case "FOK":
-			tif = order.FOK
-		default:
-			tif = order.GTC
-		}
 		return &order.Detail{
 			Exchange:             ku.Name,
 			OrderID:              orderDetail.ID,
@@ -1044,7 +1033,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price,
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
-			TimeInForce:          tif,
+			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce),
 			PostOnly:             orderDetail.PostOnly,
 			ReduceOnly:           orderDetail.ReduceOnly,
 			Leverage:             orderDetail.Leverage,
@@ -1102,17 +1091,6 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		} else {
 			remainingSize = orderDetail.Size.Float64() - orderDetail.DealSize.Float64()
 		}
-		var tif order.TimeInForce
-		switch orderDetail.TimeInForce {
-		case "GTT":
-			tif = order.GTT
-		case "IOC":
-			tif = order.IOC
-		case "FOK":
-			tif = order.FOK
-		default:
-			tif = order.GTC
-		}
 		return &order.Detail{
 			Exchange:             ku.Name,
 			OrderID:              orderDetail.ID,
@@ -1127,7 +1105,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price.Float64(),
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
-			TimeInForce:          tif,
+			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce),
 			PostOnly:             orderDetail.PostOnly,
 			AverageExecutedPrice: orderDetail.Price.Float64(),
 			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
@@ -1286,17 +1264,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if err != nil {
 				return nil, err
 			}
-			var tif order.TimeInForce
-			switch futuresOrders.Items[x].TimeInForce {
-			case "GTT":
-				tif = order.GTT
-			case "IOC":
-				tif = order.IOC
-			case "FOK":
-				tif = order.FOK
-			default:
-				tif = order.GTC
-			}
 			orders = append(orders, order.Detail{
 				OrderID:            futuresOrders.Items[x].ID,
 				ClientOrderID:      futuresOrders.Items[x].ClientOid,
@@ -1311,7 +1278,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:               side,
 				Type:               oType,
 				Pair:               dPair,
-				TimeInForce:        tif,
+				TimeInForce:        StringToTimeInForce(futuresOrders.Items[x].TimeInForce),
 				PostOnly:           futuresOrders.Items[x].PostOnly,
 				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
 				Status:             status,
@@ -1396,17 +1363,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				var tif order.TimeInForce
-				switch response.Items[a].TimeInForce {
-				case "GTT":
-					tif = order.GTT
-				case "IOC":
-					tif = order.IOC
-				case "FOK":
-					tif = order.FOK
-				default:
-					tif = order.GTC
-				}
 				orders = append(orders, order.Detail{
 					OrderID:        response.Items[a].ID,
 					ClientOrderID:  response.Items[a].ClientOID,
@@ -1419,7 +1375,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
-					TimeInForce:    tif,
+					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce),
 					PostOnly:       response.Items[a].PostOnly,
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
@@ -1645,17 +1601,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if err != nil {
 					return nil, err
 				}
-				var tif order.TimeInForce
-				switch response.Items[a].TimeInForce {
-				case "GTT":
-					tif = order.GTT
-				case "IOC":
-					tif = order.IOC
-				case "FOK":
-					tif = order.FOK
-				default:
-					tif = order.GTC
-				}
 				orders = append(orders, order.Detail{
 					OrderID:        response.Items[a].ID,
 					ClientOrderID:  response.Items[a].ClientOID,
@@ -1669,7 +1614,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
-					TimeInForce:    tif,
+					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce),
 					PostOnly:       response.Items[a].PostOnly,
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
@@ -2514,4 +2459,17 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+// StringToTimeInForce returns an order.TimeInForder instance from string
+func StringToTimeInForce(tif string) order.TimeInForce {
+	switch tif {
+	case "GTT":
+		return order.GoodTillTime
+	case "IOC":
+		return order.IOC
+	case "FOK":
+		return order.FOK
+	}
+	return order.GoodTillCancel
 }

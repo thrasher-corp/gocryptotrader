@@ -593,10 +593,10 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	var timeInForce string
 	switch s.TimeInForce {
-	case order.GTC:
+	case order.GoodTillCancel:
 		timeInForce = "good_til_cancelled"
-	case order.GTD:
-		timeInForce = strings.ToLower(order.GTD.String())
+	case order.GoodTillDay:
+		timeInForce = "good_till_day"
 	case order.FOK:
 		timeInForce = "fill_or_kill"
 	case order.IOC:
@@ -790,9 +790,9 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 	var tif order.TimeInForce
 	switch orderInfo.TimeInForce {
 	case "good_til_cancelled":
-		tif = order.GTC
+		tif = order.GoodTillCancel
 	case "good_til_day":
-		tif = order.GTD
+		tif = order.GoodTillDay
 	case "fill_or_kill":
 		tif = order.FOK
 	case "immediate_or_cancel":

@@ -961,7 +961,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	require.ErrorIs(t, err, ErrOrderDetailIsNil)
 
 	om := &Detail{
-		TimeInForce:     GTC,
+		TimeInForce:     GoodTillCancel,
 		HiddenOrder:     true,
 		PostOnly:        true,
 		Leverage:        1,
@@ -999,7 +999,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, od.InternalOrderID, id)
-	assert.Equal(t, GTC, od.TimeInForce)
+	assert.Equal(t, GoodTillCancel, od.TimeInForce)
 	require.True(t, od.HiddenOrder)
 	assert.True(t, od.PostOnly)
 	assert.Equal(t, 1., od.Leverage)
@@ -1306,7 +1306,9 @@ var activeBenchmark = Detail{Status: Pending, Amount: 1}
 // 1000000000	         1.188 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsActive(b *testing.B) {
 	for x := 0; x < b.N; x++ {
-		require.True(b, activeBenchmark.IsActive())
+		if !activeBenchmark.IsActive() {
+			b.Fatal("expected true")
+		}
 	}
 }
 
@@ -1696,9 +1698,9 @@ func TestIsValid(t *testing.T) {
 	var timeInForceValidityMap = map[TimeInForce]bool{
 		TimeInForce(1): false,
 		IOC:            true,
-		GTT:            true,
-		GTC:            true,
-		GTD:            true,
+		GoodTillTime:   true,
+		GoodTillCancel: true,
+		GoodTillDay:    true,
 		FOK:            true,
 		PostOnlyGTC:    true,
 		UnsetTIF:       true,
@@ -1718,10 +1720,10 @@ func TestStringToTimeInForce(t *testing.T) {
 		Error error
 	}{
 		"Unknown":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-		"GoodTillCancel":               {TIF: GTC},
-		"GOOD_TILL_CANCELED":           {TIF: GTC},
-		"GTT":                          {TIF: GTT},
-		"GOOD_TIL_TIME":                {TIF: GTT},
+		"GoodTillCancel":               {TIF: GoodTillCancel},
+		"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
+		"GTT":                          {TIF: GoodTillTime},
+		"GOOD_TIL_TIME":                {TIF: GoodTillTime},
 		"FILLORKILL":                   {TIF: FOK},
 		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: PostOnlyGTC},
 		"immedIate_Or_Cancel":          {TIF: IOC},
@@ -1730,13 +1732,14 @@ func TestStringToTimeInForce(t *testing.T) {
 		"immediate_or_cancel":          {TIF: IOC},
 		"IMMEDIATE_OR_CANCEL":          {TIF: IOC},
 		"IMMEDIATEORCANCEL":            {TIF: IOC},
-		"GOOD_TILL_CANCELLED":          {TIF: GTC},
-		"good_till_day":                {TIF: GTD},
-		"GOOD_TILL_DAY":                {TIF: GTD},
-		"GOODtillday":                  {TIF: GTD},
+		"GOOD_TILL_CANCELLED":          {TIF: GoodTillCancel},
+		"good_till_day":                {TIF: GoodTillDay},
+		"GOOD_TILL_DAY":                {TIF: GoodTillDay},
+		"GTD":                          {TIF: GoodTillDay},
+		"GOODtillday":                  {TIF: GoodTillDay},
 		"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-		"PoC":                          {TIF: POC},
-		"PendingORCANCEL":              {TIF: POC},
+		"PoC":                          {TIF: IOC},
+		"PendingORCANCEL":              {TIF: IOC},
 	}
 
 	for tk := range timeInForceStringToValueMap {
@@ -1749,20 +1752,28 @@ func TestStringToTimeInForce(t *testing.T) {
 func TestString(t *testing.T) {
 	t.Parallel()
 	valMap := map[TimeInForce]string{
-		IOC:         "IOC",
-		GTC:         "GTC",
-		GTT:         "GTT",
-		FOK:         "FOK",
-		PostOnlyGTC: "POST_ONLY_GOOD_TIL_CANCELLED",
-		POC:         "POC",
-		UnknownTIF:  "UNKNOWN",
-		UnsetTIF:    "",
+		IOC:            "IOC",
+		GoodTillCancel: "GTC",
+		GoodTillTime:   "GTT",
+		GoodTillDay:    "GTD",
+		FOK:            "FOK",
+		PostOnlyGTC:    "POST_ONLY_GOOD_TIL_CANCELLED",
+		UnknownTIF:     "UNKNOWN",
+		UnsetTIF:       "",
 	}
 	for x := range valMap {
 		result := x.String()
 		assert.Equalf(t, result, valMap[x], "expected %v, got %v", x, result)
 	}
 }
+
+func TestIsIOC(t *testing.T) {
+	t.Parallel()
+	require.True(t, IOC.IsIOC())
+	require.False(t, FOK.IsIOC())
+	require.False(t, TimeInForce(0).IsIOC())
+}
+
 func TestSideMarshalJSON(t *testing.T) {
 	t.Parallel()
 	b, err := Buy.MarshalJSON()

@@ -3424,7 +3424,7 @@ func TestGetTimeInForce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ioc", ret)
 
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.POC})
+	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.PostOnlyGTC})
 	require.NoError(t, err)
 	assert.Equal(t, "poc", ret)
 

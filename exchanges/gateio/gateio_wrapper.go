@@ -2548,9 +2548,9 @@ func getTimeInForce(s *order.Submit) (string, error) {
 		timeInForce = "ioc" // market taker only
 	case order.FOK:
 		timeInForce = "fok"
-	case order.POC:
+	case order.PostOnlyGTC:
 		timeInForce = "poc"
-	case order.GTC:
+	case order.GoodTillCancel:
 		timeInForce = "gtc"
 	case order.UnsetTIF:
 		switch s.Type {

@@ -739,17 +739,14 @@ func (t TimeInForce) String() string {
 	switch t {
 	case IOC:
 		return "IOC"
-	case GTC:
+	case GoodTillCancel:
 		return "GTC"
-	case GTD:
-		return "GOOD_TILL_DAY"
-	case GTT:
+	case GoodTillDay:
+		return "GTD"
+	case GoodTillTime:
 		return "GTT"
 	case FOK:
 		return "FOK"
-	case POC:
-		// Added in GateIO exchange to represent Pending or Cancel
-		return "POC"
 	case PostOnlyGTC:
 		// Added in Bittrex exchange to represent PostOnly and GTC
 		return "POST_ONLY_GOOD_TIL_CANCELLED"
@@ -758,6 +755,11 @@ func (t TimeInForce) String() string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+// IsIOC determines whether the TimeInForce value is set to IOC (Immediate or Cancel).
+func (t TimeInForce) IsIOC() bool {
+	return t == IOC
 }
 
 // Lower returns the type lower case string
@@ -1258,24 +1260,22 @@ func StringToOrderStatus(status string) (Status, error) {
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
-	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", IOC.String():
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", IOC.String(), "POC", "PENDINGORCANCEL":
 		return IOC, nil
-	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GTC.String():
-		return GTC, nil
-	case "GOODTILLDAY", "GTD", GTD.String():
-		return GTD, nil
-	case "GOODTILLTIME", "GOOD_TIL_TIME", GTT.String():
-		return GTT, nil
+	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String():
+		return GoodTillCancel, nil
+	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
+		return GoodTillDay, nil
+	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
+		return GoodTillTime, nil
 	case "FILLORKILL", "FILL_OR_KILL", FOK.String():
 		return FOK, nil
 	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnlyGTC.String():
 		return PostOnlyGTC, nil
-	case "POC", "PENDINGORCANCEL":
-		return POC, nil
 	case "":
 		return UnsetTIF, nil
 	default:
-		return UnknownTIF, fmt.Errorf("%w, tif=%s", ErrInvalidTimeInForce, timeInForce)
+		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
 }
 

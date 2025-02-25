@@ -411,17 +411,16 @@ type TimeInForce uint16
 
 // TimeInForce types
 const (
-	UnsetTIF    TimeInForce = 0
-	GTC         TimeInForce = 1 << iota // GTC represents GoodTillCancel
-	GTD                                 // GTD represents GoodTillDay
-	GTT                                 // GTT represents GoodTillTime
-	FOK                                 // FOK represents FillOrKill
-	IOC                                 // IOC represents ImmediateOrCancel
-	POC                                 // POC represents PendingOrCancel
-	PostOnlyGTC                         // PostOnlyGCT represents PostOnlyGoodTilCancelled
+	UnsetTIF       TimeInForce = 0
+	GoodTillCancel TimeInForce = 1 << iota
+	GoodTillDay
+	GoodTillTime
+	FOK         // FOK represents FillOrKill
+	IOC         // IOC represents ImmediateOrCancel
+	PostOnlyGTC // PostOnlyGCT represents PostOnlyGoodTilCancelled
 	UnknownTIF
 
-	supportedTimeInForceFlag = GTC | GTD | GTT | FOK | IOC | POC | PostOnlyGTC
+	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | FOK | IOC | PostOnlyGTC
 )
 
 // ByPrice used for sorting orders by price

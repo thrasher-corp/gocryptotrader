@@ -1420,7 +1420,7 @@ func TestNewOrderTest(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: order.GTC.String(),
+		TimeInForce: order.GoodTillCancel.String(),
 	}
 
 	err := b.NewOrderTest(context.Background(), req)
