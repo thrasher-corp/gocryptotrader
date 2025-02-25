@@ -1740,7 +1740,7 @@ func (ok *Okx) ApplyBillDetails(ctx context.Context, year, quarter string) ([]Bi
 		return nil, errQuarterValueRequired
 	}
 	var resp []BillsDetailResp
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsHistoryArchive retrieves bill data archive
@@ -1755,7 +1755,7 @@ func (ok *Okx) GetBillsHistoryArchive(ctx context.Context, year, quarter string)
 	params.Set("year", year)
 	params.Set("quarter", quarter)
 	var resp []BillsArchiveInfo
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsDetail retrieves the bills of the account
@@ -1807,7 +1807,7 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 // GetAccountConfiguration retrieves current account configuration
 func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurationResponse, error) {
 	var resp []AccountConfigurationResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
@@ -5281,8 +5281,8 @@ func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrume
 
 // GetSupportCoins retrieves the currencies supported by the trading data endpoints
 func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
-	var response *SupportedCoinsData
-	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &response, request.UnauthenticatedRequest, true)
+	var resp *SupportedCoinsData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &resp, request.UnauthenticatedRequest, true)
 }
 
 // GetTakerVolume retrieves the taker volume for both buyers and sellers
@@ -5507,7 +5507,7 @@ func (ok *Okx) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam) (*
 		return nil, errLendingTermIsRequired
 	}
 	var resp *LendingOrderResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, request.AuthenticatedRequest, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendLendingOrder amends a lending order
