@@ -294,24 +294,6 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	return ticker.GetTicker(d.Name, p, assetType)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (d *Deribit) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(d.Name, p, assetType)
-	if err != nil {
-		return d.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (d *Deribit) FetchOrderbook(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(d.Name, currencyPair, assetType)
-	if err != nil {
-		return d.UpdateOrderbook(ctx, currencyPair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	p, err := d.FormatExchangeCurrency(p, assetType)
@@ -389,19 +371,6 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.
 		resp.Accounts[x] = subAcc
 	}
 	return resp, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (d *Deribit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := d.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	accountData, err := account.GetHoldings(d.Name, creds, assetType)
-	if err != nil {
-		return d.UpdateAccountInfo(ctx, assetType)
-	}
-	return accountData, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals

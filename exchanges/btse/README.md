@@ -27,7 +27,18 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Trading Methods Supported
 
+### Protocol: REST
 
+| Method Name | futures | spot |
+|------------|---|---|
+| CancelAllOrders | 🟢  | 🟢  |
+| CancelBatchOrders | 🚫  | 🚫  |
+| CancelOrder | 🟢  | 🟢  |
+| GetActiveOrders | 🟢  | 🟢  |
+| GetOrderHistory | 🟢  | 🟢  |
+| GetOrderInfo | 🟢  | 🟢  |
+| ModifyOrder | 🚫  | 🚫  |
+| SubmitOrder | 🟢  | 🟢  |
 
 ### How to enable
 
@@ -61,13 +72,13 @@ for i := range bot.Exchanges {
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := b.FetchTicker()
+tick, err := b.UpdateTicker(...)
 if err != nil {
 	// Handle error
 }
 
 // Fetches current orderbook information
-ob, err := b.FetchOrderbook()
+ob, err := b.UpdateOrderbook(...)
 if err != nil {
 	// Handle error
 }

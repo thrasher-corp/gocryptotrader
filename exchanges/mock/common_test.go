@@ -1,9 +1,10 @@
 package mock
 
 import (
-	"encoding/json"
 	"net/url"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestMatchURLVals(t *testing.T) {

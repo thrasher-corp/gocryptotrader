@@ -1,10 +1,11 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"unicode"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // EMPTYFORMAT defines an empty pair format

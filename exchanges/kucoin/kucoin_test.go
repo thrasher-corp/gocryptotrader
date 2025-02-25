@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -2001,28 +2001,6 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	var result *ticker.Price
-	var err error
-	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.FetchTicker(context.Background(), tp, assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	var result *orderbook.Base
-	var err error
-	for assetType, tp := range assertToTradablePairMap {
-		result, err = ku.FetchOrderbook(context.Background(), tp, assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
-}
-
 func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Now().Add(-time.Hour * 48)
 	endTime := time.Now().Add(-time.Hour * 3)
@@ -2712,8 +2690,8 @@ func TestCancelAllOrders(t *testing.T) {
 
 const (
 	subUserResponseJSON              = `{"userId":"635002438793b80001dcc8b3", "uid":62356, "subName":"margin01", "status":2, "type":4, "access":"Margin", "createdAt":1666187844000, "remarks":null }`
-	transferFuturesFundsResponseJSON = `{"applyId": "620a0bbefeaa6a000110e833", "bizNo": "620a0bbefeaa6a000110e832", "payAccountType": "CONTRACT", "payTag": "DEFAULT", "remark": "", "recAccountType": "MAIN", "recTag": "DEFAULT", "recRemark": "", "recSystem": "KUCOIN", "status": "PROCESSING", "currency": "USDT", "amount": "0.001", "fee": "0", "sn": 889048787670001, "reason": "", "createdAt": 1644825534000, "updatedAt": 1644825534000 }`
-	modifySubAccountSpotAPIs         = `{"subName": "AAAAAAAAAA0007", "remark": "remark", "apiKey": "630325e0e750870001829864", "apiSecret": "110f31fc-61c5-4baf-a29f-3f19a62bbf5d", "passphrase": "passphrase", "permission": "General", "ipWhitelist": "", "createdAt": 1661150688000 }`
+	transferFuturesFundsResponseJSON = `{"applyId": "620a0bbefeaa6a000110e833", "bizNo": "620a0bbefeaa6a000110e832", "payAccountType": "CONTRACT", "payTag": "DEFAULT", "remark": "", "recAccountType": "MAIN", "recTag": "DEFAULT", "recRemark": "", "recSystem": "KUCOIN", "status": "PROCESSING", "currency": "USDT", "amount": "0.001", "fee": "0", "sn": 889048787670001, "reason": "", "createdAt": 1644825534000, "updatedAt": 1644825534000}`
+	modifySubAccountSpotAPIs         = `{"subName": "AAAAAAAAAA0007", "remark": "remark", "apiKey": "630325e0e750870001829864", "apiSecret": "110f31fc-61c5-4baf-a29f-3f19a62bbf5d", "passphrase": "passphrase", "permission": "General", "ipWhitelist": "", "createdAt": 1661150688000}`
 )
 
 func TestCreateSubUser(t *testing.T) {
@@ -2858,17 +2836,6 @@ func getFirstTradablePairOfAssets() {
 	}
 	futuresTradablePair = enabledPairs[0]
 	futuresTradablePair.Delimiter = ""
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	assetTypes := ku.GetAssetTypes(true)
-	for _, assetType := range assetTypes {
-		result, err := ku.FetchAccountInfo(context.Background(), assetType)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	}
 }
 
 func TestUpdateAccountInfo(t *testing.T) {

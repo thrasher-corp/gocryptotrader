@@ -3,7 +3,6 @@ package btse
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -79,8 +79,8 @@ func (b *BTSE) GetRawMarketSummary(ctx context.Context, symbol string, spot bool
 	return m, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &m, spot, queryFunc)
 }
 
-// FetchOrderBook gets orderbook data for a given pair
-func (b *BTSE) FetchOrderBook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
+// FetchOrderbook gets orderbook data for a given symbol
+func (b *BTSE) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -97,8 +97,8 @@ func (b *BTSE) FetchOrderBook(ctx context.Context, symbol string, group, limitBi
 		common.EncodeURLValues(btseOrderbook, urlValues), &o, spot, queryFunc)
 }
 
-// FetchOrderBookL2 retrieve level 2 orderbook for requested symbol and depth
-func (b *BTSE) FetchOrderBookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
+// FetchOrderbookL2 retrieve level 2 orderbook for requested symbol and depth
+func (b *BTSE) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
