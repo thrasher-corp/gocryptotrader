@@ -551,10 +551,12 @@ func GetPackageName(name string, capital bool) string {
 
 // GetFunctionality returns a dynamic list of supported functionality for a specific asset type.
 func GetFunctionality(name string) []ProtocolFunctionality {
-	exch, _ := engine.NewExchangeByNameWithDefaults(context.Background(), name)
+	exch, _ := engine.NewSupportedExchangeByName(name)
 	if exch == nil {
 		return nil
 	}
+
+	exch.SetDefaults()
 
 	set := exchange.GenerateSupportedFunctionality(exch)
 	if set == nil {

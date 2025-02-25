@@ -30,12 +30,12 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 | Method Name | spot |
 |------------|---|
-| CancelAllOrders | 🟢  |
+| CancelAllOrders | 🚫  |
 | CancelBatchOrders | 🚫  |
 | CancelOrder | 🟢  |
-| GetActiveOrders | 🟢  |
+| GetActiveOrders | 🚫  |
 | GetOrderHistory | 🟢  |
-| GetOrderInfo | 🟢  |
+| GetOrderInfo | 🚫  |
 | ModifyOrder | 🚫  |
 | SubmitOrder | 🟢  |
 

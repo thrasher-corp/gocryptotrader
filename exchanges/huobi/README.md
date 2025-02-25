@@ -31,7 +31,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 | Method Name | coinmarginedfutures | futures | spot |
 |------------|---|---|---|
-| CancelAllOrders | 🟢  | 🟢  | 🟢  |
+| CancelAllOrders | 🟢  | 🟢  | 🚫  |
 | CancelBatchOrders | 🟢  | 🟢  | 🟢  |
 | CancelOrder | 🟢  | 🟢  | 🟢  |
 | GetActiveOrders | 🟢  | 🟢  | 🟢  |

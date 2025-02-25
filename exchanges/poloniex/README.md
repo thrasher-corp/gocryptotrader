@@ -27,7 +27,18 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Trading Methods Supported
 
+### Protocol: REST
 
+| Method Name | spot |
+|------------|---|
+| CancelAllOrders | 🟢  |
+| CancelBatchOrders | 🟢  |
+| CancelOrder | 🟢  |
+| GetActiveOrders | 🟢  |
+| GetOrderHistory | 🟢  |
+| GetOrderInfo | 🟢  |
+| ModifyOrder | 🟢  |
+| SubmitOrder | 🟢  |
 
 ### How to enable
 
