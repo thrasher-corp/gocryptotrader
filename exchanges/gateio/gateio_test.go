@@ -3417,14 +3417,14 @@ func TestGetFutureOrderSize(t *testing.T) {
 func TestGetTimeInForce(t *testing.T) {
 	t.Parallel()
 
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, PostOnly: true})
-	assert.ErrorIs(t, err, errPostOnlyOrderTypeUnsupported)
+	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.PostOnlyGTC})
+	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
 	require.NoError(t, err)
 	assert.Equal(t, "ioc", ret)
 
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, PostOnly: true})
+	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.PostOnlyGTC})
 	require.NoError(t, err)
 	assert.Equal(t, "poc", ret)
 
@@ -3432,7 +3432,7 @@ func TestGetTimeInForce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gtc", ret)
 
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, FillOrKill: true})
+	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FOK})
 	require.NoError(t, err)
 	assert.Equal(t, "fok", ret)
 }

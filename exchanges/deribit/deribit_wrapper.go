@@ -591,8 +591,15 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
-	timeInForce := ""
-	if s.ImmediateOrCancel {
+	var timeInForce string
+	switch s.TimeInForce {
+	case order.GoodTillCancel:
+		timeInForce = "good_til_cancelled"
+	case order.GoodTillDay:
+		timeInForce = "good_till_day"
+	case order.FOK:
+		timeInForce = "fill_or_kill"
+	case order.IOC:
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData
@@ -780,10 +787,21 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 			return nil, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
 		}
 	}
+	var tif order.TimeInForce
+	switch orderInfo.TimeInForce {
+	case "good_til_cancelled":
+		tif = order.GoodTillCancel
+	case "good_til_day":
+		tif = order.GoodTillDay
+	case "fill_or_kill":
+		tif = order.FOK
+	case "immediate_or_cancel":
+		tif = order.IOC
+	}
 	return &order.Detail{
 		AssetType:       assetType,
 		Exchange:        d.Name,
-		PostOnly:        orderInfo.PostOnly,
+		TimeInForce:     tif,
 		Price:           orderInfo.Price,
 		Amount:          orderInfo.Amount,
 		ExecutedAmount:  orderInfo.FilledAmount,
