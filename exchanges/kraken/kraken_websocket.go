@@ -533,8 +533,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 	}
 	saveTradeData := k.IsSaveTradeDataEnabled()
 	tradeFeed := k.IsTradeFeedEnabled()
-	if !saveTradeData &&
-		!tradeFeed {
+	if !saveTradeData && !tradeFeed {
 		return nil
 	}
 	trades := make([]trade.Data, len(data))
@@ -543,17 +542,27 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		if !ok {
 			return errors.New("unidentified trade data received")
 		}
-		timeData, err := strconv.ParseFloat(t[2].(string), 64)
+		ts, ok := t[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[2], "timeData")
+		}
+		timeData, err := strconv.ParseFloat(ts, 64)
 		if err != nil {
 			return err
 		}
-
-		price, err := strconv.ParseFloat(t[0].(string), 64)
+		p, ok := t[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[0], "price")
+		}
+		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(t[1].(string), 64)
+		a, ok := t[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[1], "amount")
+		}
+		amount, err := strconv.ParseFloat(a, 64)
 		if err != nil {
 			return err
 		}
