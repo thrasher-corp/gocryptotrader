@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -4042,6 +4043,36 @@ func setupWS() {
 	err := ok.WsConnect()
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func TestWSProcessTrades(t *testing.T) {
+	t.Parallel()
+
+	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+	err := ok.Websocket.AddSubscriptions(ok.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}, Channel: subscription.AllTradesChannel, Key: 18788})
+	require.NoError(t, err, "AddSubscriptions must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ok.WsHandleData)
+	expJSON := []string{
+		`{"TID":"674510826","AssetType":"spot","Side":"BUY","Price":95634.9,"Amount":0.00011186,"Timestamp":"2025-03-26T08:56:01.685Z"}`,
+	}
+	require.Len(t, ok.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
+	for resp := range ok.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case []trade.Data:
+			exp := []trade.Data{{
+				Exchange:     ok.Name,
+				CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			},
+			}
+			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[0]), &exp[0]), "Must not error unmarshalling json %d: %s", 0, expJSON[0])
+			require.Equalf(t, exp, v, "Trade [%d] should be correct", 0)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+		}
 	}
 }
 
