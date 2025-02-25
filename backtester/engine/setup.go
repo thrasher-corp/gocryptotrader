@@ -211,7 +211,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, &gctconfig.OrderManager{
 		Verbose:                       verbose,
 		ActivelyTrackFuturesPositions: trackFuturesPositions,
-		RespectOrderHistoryLimits:     convert.BoolPtr(true),
+		RespectOrderHistoryLimits:     true,
 	})
 	if err != nil {
 		return err
