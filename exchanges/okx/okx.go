@@ -5837,9 +5837,20 @@ func (ok *Okx) GetFiatDepositPaymentMethods(ctx context.Context, ccy currency.Co
 		common.EncodeURLValues("fiat/deposit-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SendHTTPRequest sends an authenticated http request to a desired
-// path with a JSON payload (of present)
-// URL arguments must be in the request path and not as url.URL values
+/*
+SendHTTPRequest sends an http request, optionally with a JSON payload
+URL arguments must be encoded in the request path
+result must be a pointer
+If useAsItIs is true resp.Data is unmarshaled directly into result,
+When false resp.Data is unmarshaled into a slice; []any{result}
+useAsItIs default value when omitted is:
+
+  - true when result is a pointer to a slice
+
+  - false true for all other types
+
+    There are only a few rare API exceptions where useAsIs default value is correct: resp.Data is an object or resp.Data is a slice containing a slice
+*/
 func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
 	rv := reflect.ValueOf(result)
 	if rv.Kind() != reflect.Pointer {
