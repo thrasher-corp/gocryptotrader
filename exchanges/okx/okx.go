@@ -1793,8 +1793,8 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 }
 
 // GetAccountConfiguration retrieves current account configuration
-func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurationResponse, error) {
-	var resp []AccountConfigurationResponse
+func (ok *Okx) GetAccountConfiguration(ctx context.Context) (*AccountConfigurationResponse, error) {
+	var resp *AccountConfigurationResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest)
 }
 
