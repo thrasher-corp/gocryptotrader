@@ -864,10 +864,8 @@ func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequestsPar
 
 // CancelAllRFQs cancels all active RFQs
 func (ok *Okx) CancelAllRFQs(ctx context.Context) (types.Time, error) {
-	var resp types.Time
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &struct {
-		Timestamp *types.Time `json:"ts"`
-	}{Timestamp: &resp}, request.AuthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, resp, request.AuthenticatedRequest)
 }
 
 // ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
@@ -914,7 +912,6 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, "rfq/maker-instrument-settings", &args, &resp, request.AuthenticatedRequest)
 }
 
-// ResetRFQMMPStatus reset the MMP status to be inactive
 func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 	resp := &struct {
 		Timestamp types.Time `json:"ts"`
@@ -976,11 +973,8 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 
 // CancelAllRFQQuotes cancels all active quote orders
 func (ok *Okx) CancelAllRFQQuotes(ctx context.Context) (types.Time, error) {
-	var resp types.Time
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil,
-		&struct {
-			Timestamp *types.Time `json:"ts"`
-		}{Timestamp: &resp}, request.AuthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil, resp, request.AuthenticatedRequest)
 }
 
 // GetRFQs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
@@ -1492,11 +1486,9 @@ func (ok *Okx) ApplyForMonthlyStatement(ctx context.Context, month string) (type
 	if month == "" {
 		return types.Time{}, errMonthNameRequired
 	}
-	resp := &struct {
-		Timestamp types.Time `json:"ts"`
-	}{}
+	resp := &tsResp{}
 	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, applyForMonthlyStatementEPL,
-		http.MethodPost, "asset/monthly-statement", &map[string]string{"month": month}, &resp, request.AuthenticatedRequest)
+		http.MethodPost, "asset/monthly-statement", &map[string]string{"month": month}, resp, request.AuthenticatedRequest)
 }
 
 // GetMonthlyStatement retrieves monthly statements for the past year.
@@ -2652,10 +2644,8 @@ func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*R
 
 // ActivateOption activates option
 func (ok *Okx) ActivateOption(ctx context.Context) (types.Time, error) {
-	resp := &struct {
-		Timestamp types.Time `json:"ts"`
-	}{}
-	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, request.AuthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, resp, request.AuthenticatedRequest)
 }
 
 // SetAutoLoan only applicable to Multi-currency margin and Portfolio margin
@@ -5051,8 +5041,8 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, ccy curr
 
 // GetSystemTime retrieve API server time
 func (ok *Okx) GetSystemTime(ctx context.Context) (types.Time, error) {
-	resp := &ServerTime{}
-	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, "public/time", nil, &resp, request.UnauthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, "public/time", nil, resp, request.UnauthenticatedRequest)
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day
