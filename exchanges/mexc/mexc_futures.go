@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // GetContractsDetail retrieves list of detailed futures contract
@@ -685,7 +684,7 @@ func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, external
 	params.Set("symbol", symbol)
 	params.Set("externalOid", externalOrderID)
 	var resp *OrderCancellationResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/order/cancel_with_external", http.MethodPost, params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, cancelOrderByClientOrderIDEPL, "private/order/cancel_with_external", http.MethodPost, params, nil, &resp, true)
 }
 
 // CancelAllOpenOrders cancels all open contracts under this account
@@ -695,15 +694,66 @@ func (me *MEXC) CancelAllOpenOrders(ctx context.Context, symbol string) ([]Order
 		params.Set("symbol", symbol)
 	}
 	var resp []OrderCancellationResponse
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/order/cancel_all", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, cancelAllOpenOrdersEPL, http.MethodPost, "private/order/cancel_all", params, nil, &resp, true)
 }
 
 // PlaceFuturesTriggerOrder places a futures trigger order
-func (me *MEXC) PlaceFuturesTriggerOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (interface{}, error) {
+func (me *MEXC) PlaceFuturesTriggerOrder(ctx context.Context, arg *PlaceFuturesTriggerOrderParams) (interface{}, error) {
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Volume <= 0 {
+		return nil, fmt.Errorf("%w: volume is required", order.ErrAmountBelowMin)
+	}
 	params := url.Values{}
-
+	switch arg.Side {
+	case order.Sell, order.Short:
+	case order.Buy, order.Long:
+		// params.Set("side", "1")
+	default:
+		return nil, fmt.Errorf("%w: orderSide is required", order.ErrSideIsInvalid)
+	}
+	switch arg.MarginType {
+	case margin.Isolated:
+	case margin.Multi:
+	default:
+		return nil, fmt.Errorf("%w: MarginType is required", margin.ErrInvalidMarginType)
+	}
+	if arg.TriggerPrice <= 0 {
+		return nil, fmt.Errorf("%w: TriggerPrice is required", order.ErrPriceBelowMin)
+	}
+	if arg.TriggerPriceType == 0 {
+		return nil, fmt.Errorf("%w: TriggerPriceType is required", order.ErrUnknownPriceType)
+	}
+	if arg.ExecutionCycle <= 0 {
+		// return nil,
+	}
+	switch arg.OrderType {
+	case order.Limit:
+		params.Set("orderType", "1")
+	case order.PostOnly:
+		params.Set("orderType", "2")
+	case order.ImmediateOrCancel:
+		params.Set("orderType", "3")
+	case order.FillOrKill:
+		params.Set("orderType", "4")
+	case order.Market:
+		params.Set("orderType", "5")
+	default:
+		return nil, fmt.Errorf("%w: OrderType is not supported", order.ErrUnsupportedOrderType)
+	}
+	switch arg.PriceType {
+	case order.LastPrice:
+		params.Set("trend", "2")
+	case order.MarkPrice:
+		params.Set("trend", "2")
+	case order.IndexPrice:
+		params.Set("trend", "2")
+	default:
+		return nil, fmt.Errorf("%w: Price Type is required", order.ErrUnknownPriceType)
+	}
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/planorder/place", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, placeFuturesTriggerOrderEPL, http.MethodPost, "private/planorder/place", params, nil, &resp, true)
 }
 
 // SwitchStopLimitLimitedOrderPrice toggles stop limig limited order price
@@ -720,7 +770,7 @@ func (me *MEXC) SwitchStopLimitLimitedOrderPrice(ctx context.Context, orderID st
 		params.Set("takeProfitPrice", strconv.FormatFloat(takeProfitPrice, 'f', -1, 64))
 	}
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/stoporder/change_price", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, switchSLLimitedOrderPriceEPL, http.MethodPost, "private/stoporder/change_price", params, nil, &resp, true)
 }
 
 // SwitchStopLimitPriceOfTriggerPrice toggles the stop limit price of trigger price order
@@ -737,7 +787,7 @@ func (me *MEXC) SwitchStopLimitPriceOfTriggerPrice(ctx context.Context, stopPlan
 		params.Set("takeProfitPrice", strconv.FormatFloat(takeProfitPrice, 'f', -1, 64))
 	}
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/stoporder/change_plan_price", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, switchSLPriceOfTriggerPriceEPL, http.MethodPost, "private/stoporder/change_plan_price", params, nil, &resp, true)
 }
 
 // CancelAllStopLimitPriceTriggerOrders cancels all price triggered stop limit orders given a position ID and contract symbol
@@ -750,12 +800,23 @@ func (me *MEXC) CancelAllStopLimitPriceTriggerOrders(ctx context.Context, positi
 		params.Set("symbol", symbol)
 	}
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "private/stoporder/cancel_all", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, cancelALlSLPriceTriggerOrdersEPL, http.MethodGet, "private/stoporder/cancel_all", params, nil, &resp, true)
+}
+
+// CancelAllTriggerOrders cancels all futures trigger orders
+func (me *MEXC) CancelAllTriggerOrders(ctx context.Context, symbol string) ([]OrderIDDetail, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []OrderIDDetail
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, cancelAllTriggerOrdersEPL, http.MethodPost, "private/planorder/cancel_all", params, nil, &resp, true)
 }
 
 // CancelStopLimitTriggerOrder cancels a stop limit trigger order by stop plan order ID
+// TODO: Under mentainance | incomplete
 func (me *MEXC) CancelStopLimitTriggerOrder(ctx context.Context, stopPlanOrderIDs []string) (interface{}, error) {
 	params := url.Values{}
 	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "private/stoporder/cancel", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, cancelSLTriggerOrderEPL, http.MethodPost, "private/stoporder/cancel", params, nil, &resp, true)
 }

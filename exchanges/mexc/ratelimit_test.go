@@ -99,6 +99,11 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getPositionMode":                  getPositionModeEPL,
 		"changePositionMode":               changePositionModeEPL,
 		"placeFuturesOrder":                placeFuturesOrderEPL,
+		"cancelAllTriggerOrders":           cancelAllTriggerOrdersEPL,
+		"cancelSLTriggerOrder":             cancelSLTriggerOrderEPL,
+		"cancelALlSLPriceTriggerOrders":    cancelALlSLPriceTriggerOrdersEPL,
+		"switchSLPriceOfTriggerPrice":      switchSLPriceOfTriggerPriceEPL,
+		"switchSLLimitedOrderPrice":        switchSLLimitedOrderPriceEPL,
 	}
 	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimit()))
 	require.NoError(t, err)

@@ -100,6 +100,15 @@ const (
 	getPositionModeEPL
 	changePositionModeEPL
 	placeFuturesOrderEPL
+
+	cancelOrderByClientOrderIDEPL
+	cancelAllOpenOrdersEPL
+	placeFuturesTriggerOrderEPL
+	cancelAllTriggerOrdersEPL
+	cancelSLTriggerOrderEPL
+	cancelALlSLPriceTriggerOrdersEPL
+	switchSLPriceOfTriggerPriceEPL
+	switchSLLimitedOrderPriceEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -199,5 +208,14 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getPositionModeEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		changePositionModeEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		placeFuturesOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		cancelOrderByClientOrderIDEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAllOpenOrdersEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		placeFuturesTriggerOrderEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAllTriggerOrdersEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelSLTriggerOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelALlSLPriceTriggerOrdersEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		switchSLPriceOfTriggerPriceEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		switchSLLimitedOrderPriceEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 	}
 }

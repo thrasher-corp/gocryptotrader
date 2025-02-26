@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1256,6 +1257,21 @@ type PlaceFuturesOrderParams struct {
 	ReduceOnly      bool
 }
 
+// PlaceFuturesTriggerOrderParams holds a futures trigger price parameters
+type PlaceFuturesTriggerOrderParams struct {
+	Symbol           string `json:"symbol"`
+	Price            float64
+	Volume           float64
+	Leverage         int64
+	Side             order.Side
+	MarginType       margin.Type
+	TriggerPrice     float64
+	TriggerPriceType order.PriceType
+	ExecutionCycle   kline.Interval
+	OrderType        order.Type
+	PriceType        order.PriceType
+}
+
 // FuturesOrderInfo represents a futures order info
 type FuturesOrderInfo struct {
 	Symbol          string  `json:"symbol"`
@@ -1272,4 +1288,10 @@ type FuturesOrderInfo struct {
 type OrderCancellationResponse struct {
 	Symbol          string `json:"symbol"`
 	ExternalOrderID string `json:"externalOid"`
+}
+
+// OrderIDDetail holds an order ID and symbol info
+type OrderIDDetail struct {
+	Symbol  string `json:"symbol"`
+	OrderID int64  `json:"orderId"`
 }
