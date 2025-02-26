@@ -5294,3 +5294,7 @@ type MonthlyStatement struct {
 type tsResp struct {
 	Timestamp types.Time `json:"ts"`
 }
+
+type withdrawData struct {
+	WithdrawalID string `json:"wdId"`
+}

@@ -1306,14 +1306,11 @@ func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (strin
 	if withdrawalID == "" {
 		return "", errMissingValidWithdrawalID
 	}
-	type withdrawData struct {
-		WithdrawalID string `json:"wdId"`
-	}
 	arg := &withdrawData{
 		WithdrawalID: withdrawalID,
 	}
-	var response withdrawData
-	return response.WithdrawalID, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalEPL, http.MethodPost, "asset/cancel-withdrawal", arg, &response, request.AuthenticatedRequest)
+	var resp withdrawData
+	return resp.WithdrawalID, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalEPL, http.MethodPost, "asset/cancel-withdrawal", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetWithdrawalHistory retrieves the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order.
