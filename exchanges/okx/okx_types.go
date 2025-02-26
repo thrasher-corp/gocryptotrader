@@ -496,11 +496,6 @@ type DiscountRateInfoItem struct {
 	DiscountCurrencyEquity types.Number `json:"disCcyEq"`
 }
 
-// ServerTime returning  the server time instance
-type ServerTime struct {
-	Timestamp types.Time `json:"ts"`
-}
-
 // LiquidationOrderRequestParams holds information to request liquidation orders
 type LiquidationOrderRequestParams struct {
 	InstrumentType string
@@ -5293,5 +5288,9 @@ type FiatDepositPaymentMethods struct {
 type MonthlyStatement struct {
 	FileHref  string     `json:"fileHref"`
 	State     string     `json:"state"`
+	Timestamp types.Time `json:"ts"`
+}
+
+type tsResp struct {
 	Timestamp types.Time `json:"ts"`
 }

@@ -520,6 +520,7 @@ func TestGetSystemTime(t *testing.T) {
 	result, err := ok.GetSystemTime(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	assert.False(t, result.Time().IsZero(), "GetSystemTime must not return a zero time")
 }
 
 func TestGetLiquidationOrders(t *testing.T) {
