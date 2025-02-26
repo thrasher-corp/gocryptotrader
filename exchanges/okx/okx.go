@@ -864,10 +864,8 @@ func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequestsPar
 
 // CancelAllRFQs cancels all active RFQs
 func (ok *Okx) CancelAllRFQs(ctx context.Context) (types.Time, error) {
-	var resp types.Time
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, &struct {
-		Timestamp *types.Time `json:"ts"`
-	}{Timestamp: &resp}, request.AuthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, resp, request.AuthenticatedRequest)
 }
 
 // ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
@@ -915,11 +913,9 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 }
 
 // ResetRFQMMPStatus reset the MMP status to be inactive
-func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
-	resp := &struct {
-		Timestamp types.Time `json:"ts"`
-	}{}
-	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
+func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (types.Time, error) {
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
 }
 
 // CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
@@ -976,11 +972,8 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 
 // CancelAllRFQQuotes cancels all active quote orders
 func (ok *Okx) CancelAllRFQQuotes(ctx context.Context) (types.Time, error) {
-	var resp types.Time
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil,
-		&struct {
-			Timestamp *types.Time `json:"ts"`
-		}{Timestamp: &resp}, request.AuthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil, resp, request.AuthenticatedRequest)
 }
 
 // GetRFQs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
@@ -1313,14 +1306,11 @@ func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (strin
 	if withdrawalID == "" {
 		return "", errMissingValidWithdrawalID
 	}
-	type withdrawData struct {
-		WithdrawalID string `json:"wdId"`
-	}
 	arg := &withdrawData{
 		WithdrawalID: withdrawalID,
 	}
-	var response withdrawData
-	return response.WithdrawalID, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalEPL, http.MethodPost, "asset/cancel-withdrawal", arg, &response, request.AuthenticatedRequest)
+	var resp withdrawData
+	return resp.WithdrawalID, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalEPL, http.MethodPost, "asset/cancel-withdrawal", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetWithdrawalHistory retrieves the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order.
@@ -1492,11 +1482,9 @@ func (ok *Okx) ApplyForMonthlyStatement(ctx context.Context, month string) (type
 	if month == "" {
 		return types.Time{}, errMonthNameRequired
 	}
-	resp := &struct {
-		Timestamp types.Time `json:"ts"`
-	}{}
+	resp := &tsResp{}
 	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, applyForMonthlyStatementEPL,
-		http.MethodPost, "asset/monthly-statement", &map[string]string{"month": month}, &resp, request.AuthenticatedRequest)
+		http.MethodPost, "asset/monthly-statement", &map[string]string{"month": month}, resp, request.AuthenticatedRequest)
 }
 
 // GetMonthlyStatement retrieves monthly statements for the past year.
@@ -1741,7 +1729,7 @@ func (ok *Okx) ApplyBillDetails(ctx context.Context, year, quarter string) ([]Bi
 		return nil, errQuarterValueRequired
 	}
 	var resp []BillsDetailResp
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsHistoryArchive retrieves bill data archive
@@ -1756,7 +1744,7 @@ func (ok *Okx) GetBillsHistoryArchive(ctx context.Context, year, quarter string)
 	params.Set("year", year)
 	params.Set("quarter", quarter)
 	var resp []BillsArchiveInfo
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsDetail retrieves the bills of the account
@@ -1806,9 +1794,9 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 }
 
 // GetAccountConfiguration retrieves current account configuration
-func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurationResponse, error) {
-	var resp []AccountConfigurationResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest, true)
+func (ok *Okx) GetAccountConfiguration(ctx context.Context) (*AccountConfigurationResponse, error) {
+	var resp *AccountConfigurationResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
@@ -2653,10 +2641,8 @@ func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*R
 
 // ActivateOption activates option
 func (ok *Okx) ActivateOption(ctx context.Context) (types.Time, error) {
-	resp := &struct {
-		Timestamp types.Time `json:"ts"`
-	}{}
-	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, request.AuthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, resp, request.AuthenticatedRequest)
 }
 
 // SetAutoLoan only applicable to Multi-currency margin and Portfolio margin
@@ -5047,8 +5033,8 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, ccy curr
 
 // GetSystemTime retrieve API server time
 func (ok *Okx) GetSystemTime(ctx context.Context) (types.Time, error) {
-	resp := &ServerTime{}
-	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, "public/time", nil, &resp, request.UnauthenticatedRequest)
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, "public/time", nil, resp, request.UnauthenticatedRequest)
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day
@@ -5277,8 +5263,8 @@ func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrume
 
 // GetSupportCoins retrieves the currencies supported by the trading data endpoints
 func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
-	var response *SupportedCoinsData
-	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &response, request.UnauthenticatedRequest, true)
+	var resp *SupportedCoinsData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &resp, request.UnauthenticatedRequest, true)
 }
 
 // GetTakerVolume retrieves the taker volume for both buyers and sellers
@@ -5502,7 +5488,7 @@ func (ok *Okx) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam) (*
 		return nil, errLendingTermIsRequired
 	}
 	var resp *LendingOrderResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, request.AuthenticatedRequest, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendLendingOrder amends a lending order
@@ -5846,9 +5832,20 @@ func (ok *Okx) GetFiatDepositPaymentMethods(ctx context.Context, ccy currency.Co
 		common.EncodeURLValues("fiat/deposit-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SendHTTPRequest sends an authenticated http request to a desired
-// path with a JSON payload (of present)
-// URL arguments must be in the request path and not as url.URL values
+/*
+SendHTTPRequest sends an http request, optionally with a JSON payload
+URL arguments must be encoded in the request path
+result must be a pointer
+If useAsItIs is true resp.Data is unmarshaled directly into result,
+When false resp.Data is unmarshaled into a slice; []any{result}
+useAsItIs default value when omitted is:
+
+  - true when result is a pointer to a slice
+
+  - false true for all other types
+
+    There are only a few rare API exceptions where useAsIs default value is correct: resp.Data is an object or resp.Data is a slice containing a slice
+*/
 func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
 	rv := reflect.ValueOf(result)
 	if rv.Kind() != reflect.Pointer {
@@ -5858,16 +5855,18 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	var respResult interface{}
+	var respResult any
 	switch {
-	case rv.Elem().Kind() == reflect.Slice && len(useAsItIs) > 0 && !useAsItIs[0]:
-		respResult = &[]interface{}{&result}
-	case rv.Elem().Kind() == reflect.Slice ||
-		// When needed to use the result as it is.
-		len(useAsItIs) > 0 && useAsItIs[0]:
+	case len(useAsItIs) > 0:
+		if useAsItIs[0] {
+			respResult = result
+		} else {
+			respResult = &[]any{result}
+		}
+	case rv.Elem().Kind() == reflect.Slice:
 		respResult = result
 	default:
-		respResult = &[]interface{}{result}
+		respResult = &[]any{result}
 	}
 	resp := struct {
 		Code types.Number `json:"code"`
