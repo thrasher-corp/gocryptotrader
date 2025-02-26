@@ -912,11 +912,10 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, "rfq/maker-instrument-settings", &args, &resp, request.AuthenticatedRequest)
 }
 
-func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
-	resp := &struct {
-		Timestamp types.Time `json:"ts"`
-	}{}
-	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
+// ResetRFQMMPStatus reset the MMP status to be inactive
+func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (types.Time, error) {
+	resp := &tsResp{}
+	return resp.Timestamp, ok.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
 }
 
 // CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
