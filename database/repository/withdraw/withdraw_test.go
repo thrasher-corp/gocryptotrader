@@ -60,7 +60,7 @@ func TestWithdraw(t *testing.T) {
 		config *database.Config
 		runner func(t *testing.T)
 		closer func(dbConn *database.Instance) error
-		output interface{}
+		output any
 	}{
 		{
 			"SQLite-Write",

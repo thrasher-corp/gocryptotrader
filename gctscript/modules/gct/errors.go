@@ -17,7 +17,7 @@ var (
 
 // errorResponsef is a helper function to apply error details to a return object
 // for better script side error handling
-func errorResponsef(format string, a ...interface{}) (objects.Object, error) {
+func errorResponsef(format string, a ...any) (objects.Object, error) {
 	if format == "" {
 		return nil, fmt.Errorf("cannot generate tengo error object %w", errFormatStringIsEmpty)
 	}
@@ -31,7 +31,7 @@ func errorResponsef(format string, a ...interface{}) (objects.Object, error) {
 	}, nil
 }
 
-func constructRuntimeError(argPosition int, funcName, expectedType string, unexpectedData interface{}) error {
+func constructRuntimeError(argPosition int, funcName, expectedType string, unexpectedData any) error {
 	return fmt.Errorf("function [%s] argument position [%d] - %w",
 		funcName,
 		argPosition,

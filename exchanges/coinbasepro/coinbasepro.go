@@ -68,7 +68,7 @@ func (c *CoinbasePro) GetProducts(ctx context.Context) ([]Product, error) {
 }
 
 // GetOrderbook returns orderbook by currency pair and level
-func (c *CoinbasePro) GetOrderbook(ctx context.Context, symbol string, level int) (interface{}, error) {
+func (c *CoinbasePro) GetOrderbook(ctx context.Context, symbol string, level int) (any, error) {
 	orderbook := OrderbookResponse{}
 
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproProducts, symbol, coinbaseproOrderbook)
@@ -337,7 +337,7 @@ func (c *CoinbasePro) GetHolds(ctx context.Context, accountID string) ([]Account
 // postOnly - [optional] Post only flag Invalid when time_in_force is IOC or FOK
 func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, price, amount float64, side string, timeInforce RequestParamsTimeForceType, cancelAfter, productID, stp string, postOnly bool) (string, error) {
 	resp := GeneralizedOrderResponse{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["type"] = order.Limit.Lower()
 	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	req["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
@@ -386,7 +386,7 @@ func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, pri
 // * One of size or funds is required.
 func (c *CoinbasePro) PlaceMarketOrder(ctx context.Context, clientRef string, size, funds float64, side, productID, stp string) (string, error) {
 	resp := GeneralizedOrderResponse{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["side"] = side
 	req["product_id"] = productID
 	req["type"] = order.Market.Lower()
@@ -429,7 +429,7 @@ func (c *CoinbasePro) PlaceMarketOrder(ctx context.Context, clientRef string, si
 // funds - [optional]* Desired amount of quote currency to use
 func (c *CoinbasePro) PlaceMarginOrder(ctx context.Context, clientRef string, size, funds float64, side, productID, stp string) (string, error) {
 	resp := GeneralizedOrderResponse{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["side"] = side
 	req["product_id"] = productID
 	req["type"] = "margin"
@@ -468,7 +468,7 @@ func (c *CoinbasePro) CancelExistingOrder(ctx context.Context, orderID string) e
 // canceled
 func (c *CoinbasePro) CancelAllExistingOrders(ctx context.Context, currencyPair string) ([]string, error) {
 	var resp []string
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 
 	if currencyPair != "" {
 		req["product_id"] = currencyPair
@@ -538,7 +538,7 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, currencyPair string
 // currency - currency to transfer, currently on "BTC" or "USD"
 func (c *CoinbasePro) MarginTransfer(ctx context.Context, amount float64, transferType, profileID, currency string) (MarginTransfer, error) {
 	resp := MarginTransfer{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["type"] = transferType
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["currency"] = currency
@@ -560,7 +560,7 @@ func (c *CoinbasePro) GetPosition(ctx context.Context) (AccountOverview, error) 
 // repayOnly -  allows the position to be repaid
 func (c *CoinbasePro) ClosePosition(ctx context.Context, repayOnly bool) (AccountOverview, error) {
 	resp := AccountOverview{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["repay_only"] = repayOnly
 
 	return resp,
@@ -583,7 +583,7 @@ func (c *CoinbasePro) GetPayMethods(ctx context.Context) ([]PaymentMethod, error
 // paymentID - ID of the payment method
 func (c *CoinbasePro) DepositViaPaymentMethod(ctx context.Context, amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["amount"] = amount
 	req["currency"] = currency
 	req["payment_method_id"] = paymentID
@@ -602,7 +602,7 @@ func (c *CoinbasePro) DepositViaPaymentMethod(ctx context.Context, amount float6
 // accountID - ID of the coinbase account
 func (c *CoinbasePro) DepositViaCoinbase(ctx context.Context, amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["amount"] = amount
 	req["currency"] = currency
 	req["coinbase_account_id"] = accountID
@@ -618,7 +618,7 @@ func (c *CoinbasePro) DepositViaCoinbase(ctx context.Context, amount float64, cu
 // paymentID - ID of the payment method
 func (c *CoinbasePro) WithdrawViaPaymentMethod(ctx context.Context, amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["amount"] = amount
 	req["currency"] = currency
 	req["payment_method_id"] = paymentID
@@ -635,7 +635,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(ctx context.Context, amount float
 // accountID - 	ID of the coinbase account
 // func (c *CoinbasePro) WithdrawViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
 // 	resp := DepositWithdrawalInfo{}
-// 	req := make(map[string]interface{})
+// 	req := make(map[string]any)
 // 	req["amount"] = amount
 // 	req["currency"] = currency
 // 	req["coinbase_account_id"] = accountID
@@ -651,7 +651,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(ctx context.Context, amount float
 // cryptoAddress - 	A crypto address of the recipient
 func (c *CoinbasePro) WithdrawCrypto(ctx context.Context, amount float64, currency, cryptoAddress string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["amount"] = amount
 	req["currency"] = currency
 	req["crypto_address"] = cryptoAddress
@@ -682,7 +682,7 @@ func (c *CoinbasePro) GetCoinbaseAccounts(ctx context.Context) ([]CoinbaseAccoun
 // email - [optional] Email address to send the report to
 func (c *CoinbasePro) GetReport(ctx context.Context, reportType, startDate, endDate, currencyPair, accountID, format, email string) (Report, error) {
 	resp := Report{}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["type"] = reportType
 	req["start_date"] = startDate
 	req["end_date"] = endDate
@@ -731,7 +731,7 @@ func (c *CoinbasePro) GetTransfers(ctx context.Context, profileID, transferType 
 			return nil, err
 		}
 	}
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if profileID != "" {
 		req["profile_id"] = profileID
 	}
@@ -752,7 +752,7 @@ func (c *CoinbasePro) GetTransfers(ctx context.Context, profileID, transferType 
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -773,7 +773,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
+func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]any, result any) (err error) {
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err

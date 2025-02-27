@@ -44,7 +44,6 @@ var (
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 	errInvalidDestinationID                = errors.New("invalid destination id")
-	errUnsupportedChannel                  = errors.New("channels not supported")
 	errUnacceptableAPIKey                  = errors.New("unacceptable api key name")
 	errInvalidUsername                     = errors.New("new username has to be specified")
 	errSubAccountNameChangeFailed          = errors.New("subaccount name change failed")
@@ -845,19 +844,19 @@ type TransactionsData struct {
 // wsInput defines a request obj for the JSON-RPC login and gets a websocket
 // response
 type wsInput struct {
-	JSONRPCVersion string                 `json:"jsonrpc,omitempty"`
-	ID             int64                  `json:"id,omitempty"`
-	Method         string                 `json:"method"`
-	Params         map[string]interface{} `json:"params,omitempty"`
+	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
+	ID             int64          `json:"id,omitempty"`
+	Method         string         `json:"method"`
+	Params         map[string]any `json:"params,omitempty"`
 }
 
 // WsRequest defines a request obj for the JSON-RPC endpoints and gets a websocket
 // response
 type WsRequest struct {
-	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
-	ID             int64       `json:"id,omitempty"`
-	Method         string      `json:"method"`
-	Params         interface{} `json:"params,omitempty"`
+	JSONRPCVersion string `json:"jsonrpc,omitempty"`
+	ID             int64  `json:"id,omitempty"`
+	Method         string `json:"method"`
+	Params         any    `json:"params,omitempty"`
 }
 
 // WsSubscriptionInput defines a request obj for the JSON-RPC and gets a websocket
@@ -870,22 +869,22 @@ type WsSubscriptionInput struct {
 }
 
 type wsResponse struct {
-	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
-	ID             int64       `json:"id,omitempty"`
-	Result         interface{} `json:"result,omitempty"`
+	JSONRPCVersion string `json:"jsonrpc,omitempty"`
+	ID             int64  `json:"id,omitempty"`
+	Result         any    `json:"result,omitempty"`
 	Error          struct {
-		Message string      `json:"message,omitempty"`
-		Code    int64       `json:"code,omitempty"`
-		Data    interface{} `json:"data"`
-	} `json:"error,omitempty"`
+		Message string `json:"message,omitempty"`
+		Code    int64  `json:"code,omitempty"`
+		Data    any    `json:"data"`
+	} `json:"error"`
 }
 
 type wsLoginResponse struct {
-	JSONRPCVersion string                 `json:"jsonrpc"`
-	ID             int64                  `json:"id"`
-	Method         string                 `json:"method"`
-	Result         map[string]interface{} `json:"result"`
-	Error          *UnmarshalError        `json:"error"`
+	JSONRPCVersion string          `json:"jsonrpc"`
+	ID             int64           `json:"id"`
+	Method         string          `json:"method"`
+	Result         map[string]any  `json:"result"`
+	Error          *UnmarshalError `json:"error"`
 }
 
 type wsSubscriptionResponse struct {
@@ -934,25 +933,25 @@ type BlockTradeParam struct {
 
 // BlockTradeData represents a user's block trade data.
 type BlockTradeData struct {
-	TradeSeq               int64       `json:"trade_seq"`
-	TradeID                string      `json:"trade_id"`
-	Timestamp              types.Time  `json:"timestamp"`
-	TickDirection          int64       `json:"tick_direction"`
-	State                  string      `json:"state"`
-	SelfTrade              bool        `json:"self_trade"`
-	Price                  float64     `json:"price"`
-	OrderType              string      `json:"order_type"`
-	OrderID                string      `json:"order_id"`
-	MatchingID             interface{} `json:"matching_id"`
-	Liquidity              string      `json:"liquidity"`
-	OptionmpliedVolatility float64     `json:"iv,omitempty"`
-	InstrumentName         string      `json:"instrument_name"`
-	IndexPrice             float64     `json:"index_price"`
-	FeeCurrency            string      `json:"fee_currency"`
-	Fee                    float64     `json:"fee"`
-	Direction              string      `json:"direction"`
-	BlockTradeID           string      `json:"block_trade_id"`
-	Amount                 float64     `json:"amount"`
+	TradeSeq               int64      `json:"trade_seq"`
+	TradeID                string     `json:"trade_id"`
+	Timestamp              types.Time `json:"timestamp"`
+	TickDirection          int64      `json:"tick_direction"`
+	State                  string     `json:"state"`
+	SelfTrade              bool       `json:"self_trade"`
+	Price                  float64    `json:"price"`
+	OrderType              string     `json:"order_type"`
+	OrderID                string     `json:"order_id"`
+	MatchingID             any        `json:"matching_id"`
+	Liquidity              string     `json:"liquidity"`
+	OptionmpliedVolatility float64    `json:"iv,omitempty"`
+	InstrumentName         string     `json:"instrument_name"`
+	IndexPrice             float64    `json:"index_price"`
+	FeeCurrency            string     `json:"fee_currency"`
+	Fee                    float64    `json:"fee"`
+	Direction              string     `json:"direction"`
+	BlockTradeID           string     `json:"block_trade_id"`
+	Amount                 float64    `json:"amount"`
 }
 
 // Announcement represents public announcements.
@@ -987,9 +986,9 @@ type PortfolioMargin struct {
 	Pls                 []float64          `json:"pls"`
 	PcoOpt              float64            `json:"pco_opt"`
 	PcoFtu              float64            `json:"pco_ftu"`
-	OptSummary          []interface{}      `json:"opt_summary"`
+	OptSummary          []any              `json:"opt_summary"`
 	OptPls              []float64          `json:"opt_pls"`
-	OptEntries          []interface{}      `json:"opt_entries"`
+	OptEntries          []any              `json:"opt_entries"`
 	MarginPos           float64            `json:"margin_pos"`
 	Margin              float64            `json:"margin"`
 	FtuSummary          []struct {
@@ -1114,8 +1113,8 @@ type BlockTradeMoveResponse struct {
 type WsResponse struct {
 	ID     int64 `json:"id,omitempty"`
 	Params struct {
-		Data    interface{} `json:"data"`
-		Channel string      `json:"channel"`
+		Data    any    `json:"data"`
+		Channel string `json:"channel"`
 
 		// Used in heartbead and test_request messages.
 		Type string `json:"type"`
@@ -1124,7 +1123,7 @@ type WsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc"`
 
 	// for status "ok" and "version" push data messages
-	Result interface{} `json:"result"`
+	Result any `json:"result"`
 }
 
 // VersionInformation represents websocket version information
@@ -1134,12 +1133,12 @@ type VersionInformation struct {
 
 // wsOrderbook represents orderbook push data for a book websocket subscription.
 type wsOrderbook struct {
-	Type           string          `json:"type"`
-	Timestamp      types.Time      `json:"timestamp"`
-	InstrumentName string          `json:"instrument_name"`
-	ChangeID       int64           `json:"change_id"`
-	Bids           [][]interface{} `json:"bids"`
-	Asks           [][]interface{} `json:"asks"`
+	Type           string     `json:"type"`
+	Timestamp      types.Time `json:"timestamp"`
+	InstrumentName string     `json:"instrument_name"`
+	ChangeID       int64      `json:"change_id"`
+	Bids           [][]any    `json:"bids"`
+	Asks           [][]any    `json:"asks"`
 }
 
 // wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
@@ -1310,11 +1309,11 @@ type wsQuoteTickerInformation struct {
 
 // wsRequestForQuote represents a notifications about RFQs for instruments in given currency.
 type wsRequestForQuote struct {
-	State            bool        `json:"state"`
-	Side             interface{} `json:"side"`
-	LastRFQTimestamp types.Time  `json:"last_rfq_tstamp"`
-	InstrumentName   string      `json:"instrument_name"`
-	Amount           interface{} `json:"amount"`
+	State            bool       `json:"state"`
+	Side             any        `json:"side"`
+	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
+	InstrumentName   string     `json:"instrument_name"`
+	Amount           any        `json:"amount"`
 }
 
 // wsTrade represents trades for an instrument.
@@ -1344,27 +1343,27 @@ type wsAccessLog struct {
 // wsChanges represents user's updates related to order, trades, etc. in an instrument.
 type wsChanges struct {
 	Trades []struct {
-		TradeSeq       float64     `json:"trade_seq"`
-		TradeID        string      `json:"trade_id"`
-		Timestamp      types.Time  `json:"timestamp"`
-		TickDirection  float64     `json:"tick_direction"`
-		State          string      `json:"state"`
-		SelfTrade      bool        `json:"self_trade"`
-		ReduceOnly     bool        `json:"reduce_only"`
-		ProfitLoss     float64     `json:"profit_loss"`
-		Price          float64     `json:"price"`
-		PostOnly       bool        `json:"post_only"`
-		OrderType      string      `json:"order_type"`
-		OrderID        string      `json:"order_id"`
-		MatchingID     interface{} `json:"matching_id"`
-		MarkPrice      float64     `json:"mark_price"`
-		Liquidity      string      `json:"liquidity"`
-		InstrumentName string      `json:"instrument_name"`
-		IndexPrice     float64     `json:"index_price"`
-		FeeCurrency    string      `json:"fee_currency"`
-		Fee            float64     `json:"fee"`
-		Direction      string      `json:"direction"`
-		Amount         float64     `json:"amount"`
+		TradeSeq       float64    `json:"trade_seq"`
+		TradeID        string     `json:"trade_id"`
+		Timestamp      types.Time `json:"timestamp"`
+		TickDirection  float64    `json:"tick_direction"`
+		State          string     `json:"state"`
+		SelfTrade      bool       `json:"self_trade"`
+		ReduceOnly     bool       `json:"reduce_only"`
+		ProfitLoss     float64    `json:"profit_loss"`
+		Price          float64    `json:"price"`
+		PostOnly       bool       `json:"post_only"`
+		OrderType      string     `json:"order_type"`
+		OrderID        string     `json:"order_id"`
+		MatchingID     any        `json:"matching_id"`
+		MarkPrice      float64    `json:"mark_price"`
+		Liquidity      string     `json:"liquidity"`
+		InstrumentName string     `json:"instrument_name"`
+		IndexPrice     float64    `json:"index_price"`
+		FeeCurrency    string     `json:"fee_currency"`
+		Fee            float64    `json:"fee"`
+		Direction      string     `json:"direction"`
+		Amount         float64    `json:"amount"`
 	} `json:"trades"`
 	Positions []WebsocketPosition `json:"positions"`
 	Orders    []struct {

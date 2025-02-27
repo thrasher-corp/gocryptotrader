@@ -21,14 +21,14 @@ type GetUpdateResponse struct {
 	Result      []struct {
 		UpdateID           int64       `json:"update_id"`
 		Message            MessageType `json:"message"`
-		EditedMessage      interface{} `json:"edited_message"`
-		ChannelPost        interface{} `json:"channel_post"`
-		EditedChannelPost  interface{} `json:"edited_channel_post"`
-		InlineQuery        interface{} `json:"inline_query"`
-		ChosenInlineResult interface{} `json:"chosen_inline_result"`
-		CallbackQuery      interface{} `json:"callback_query"`
-		ShippingQuery      interface{} `json:"shipping_query"`
-		PreCheckoutQuery   interface{} `json:"pre_checkout_query"`
+		EditedMessage      any         `json:"edited_message"`
+		ChannelPost        any         `json:"channel_post"`
+		EditedChannelPost  any         `json:"edited_channel_post"`
+		InlineQuery        any         `json:"inline_query"`
+		ChosenInlineResult any         `json:"chosen_inline_result"`
+		CallbackQuery      any         `json:"callback_query"`
+		ShippingQuery      any         `json:"shipping_query"`
+		PreCheckoutQuery   any         `json:"pre_checkout_query"`
 	} `json:"result"`
 }
 
@@ -50,7 +50,7 @@ type MessageType struct {
 	ForwardFromMessageID int64               `json:"forward_from_message_id"`
 	ForwardSignature     string              `json:"forward_signature"`
 	ForwardDate          int64               `json:"forward_date"`
-	ReplyToMessage       interface{}         `json:"reply_to_message"`
+	ReplyToMessage       any                 `json:"reply_to_message"`
 	EditDate             int64               `json:"edit_date"`
 	MediaGroupID         string              `json:"media_group_id"`
 	AuthorSignature      string              `json:"author_signature"`

@@ -43,7 +43,7 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 }
 
 // Unsubscribe returns channel to the pool for the full signature set
-func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
+func (m *Mux) Unsubscribe(id uuid.UUID, ch chan any) error {
 	if m == nil {
 		return errMuxIsNil
 	}
@@ -52,7 +52,7 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 
 // Publish takes in a persistent memory address and dispatches changes to
 // required pipes.
-func (m *Mux) Publish(data interface{}, ids ...uuid.UUID) error {
+func (m *Mux) Publish(data any, ids ...uuid.UUID) error {
 	if m == nil {
 		return errMuxIsNil
 	}
@@ -91,6 +91,6 @@ func (p *Pipe) Release() error {
 }
 
 // Channel returns the Pipe's channel
-func (p *Pipe) Channel() <-chan interface{} {
+func (p *Pipe) Channel() <-chan any {
 	return p.c
 }

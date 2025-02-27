@@ -12,7 +12,7 @@ func (a *orderbookResponse) UnmarshalJSON(data []byte) error {
 	}
 	err := json.Unmarshal(data, child)
 	if err != nil {
-		var resp []interface{}
+		var resp []any
 		err = json.Unmarshal(data, &resp)
 		if err != nil {
 			return err

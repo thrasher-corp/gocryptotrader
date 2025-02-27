@@ -88,14 +88,14 @@ type WebsocketEvent struct {
 	Exchange  string `json:"exchange,omitempty"`
 	AssetType string `json:"assetType,omitempty"`
 	Event     string
-	Data      interface{}
+	Data      any
 }
 
 // WebsocketEventResponse is the struct used for websocket event responses
 type WebsocketEventResponse struct {
-	Event string      `json:"event"`
-	Data  interface{} `json:"data"`
-	Error string      `json:"error"`
+	Event string `json:"event"`
+	Data  any    `json:"data"`
+	Error string `json:"error"`
 }
 
 // WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
@@ -164,5 +164,5 @@ var wsHandlers = map[string]wsCommandHandler{
 
 type wsCommandHandler struct {
 	authRequired bool
-	handler      func(client *websocketClient, data interface{}) error
+	handler      func(client *websocketClient, data any) error
 }

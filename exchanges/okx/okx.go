@@ -5858,16 +5858,16 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	var respResult interface{}
+	var respResult any
 	switch {
 	case rv.Elem().Kind() == reflect.Slice && len(useAsItIs) > 0 && !useAsItIs[0]:
-		respResult = &[]interface{}{&result}
+		respResult = &[]any{&result}
 	case rv.Elem().Kind() == reflect.Slice ||
 		// When needed to use the result as it is.
 		len(useAsItIs) > 0 && useAsItIs[0]:
 		respResult = result
 	default:
-		respResult = &[]interface{}{result}
+		respResult = &[]any{result}
 	}
 	resp := struct {
 		Code types.Number `json:"code"`
@@ -5931,7 +5931,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		return err
 	}
 	if rv.Kind() == reflect.Slice {
-		value, okay := result.([]interface{})
+		value, okay := result.([]any)
 		if !okay || result == nil || len(value) == 0 {
 			return fmt.Errorf("%w, received invalid response", common.ErrNoResponse)
 		}

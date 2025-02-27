@@ -8,35 +8,35 @@ func New(capacity uint64) *LRUCache {
 }
 
 // Add new entry to Cache return true if entry removed
-func (l *LRUCache) Add(k, v interface{}) {
+func (l *LRUCache) Add(k, v any) {
 	l.m.Lock()
 	l.lru.Add(k, v)
 	l.m.Unlock()
 }
 
 // Get looks up a key's value from the cache.
-func (l *LRUCache) Get(key interface{}) (value interface{}) {
+func (l *LRUCache) Get(key any) (value any) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.Get(key)
 }
 
 // GetOldest looks up old key's value from the cache.
-func (l *LRUCache) getOldest() (key, value interface{}) {
+func (l *LRUCache) getOldest() (key, value any) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.getOldest()
 }
 
 // getNewest looks up a key's value from the cache.
-func (l *LRUCache) getNewest() (key, value interface{}) {
+func (l *LRUCache) getNewest() (key, value any) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.getNewest()
 }
 
 // ContainsOrAdd checks if cache contains key if not adds to cache
-func (l *LRUCache) ContainsOrAdd(key, value interface{}) bool {
+func (l *LRUCache) ContainsOrAdd(key, value any) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if l.lru.Contains(key) {
@@ -47,14 +47,14 @@ func (l *LRUCache) ContainsOrAdd(key, value interface{}) bool {
 }
 
 // Contains checks if cache contains key
-func (l *LRUCache) Contains(key interface{}) bool {
+func (l *LRUCache) Contains(key any) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.Contains(key)
 }
 
 // Remove entry from cache
-func (l *LRUCache) Remove(key interface{}) bool {
+func (l *LRUCache) Remove(key any) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.Remove(key)

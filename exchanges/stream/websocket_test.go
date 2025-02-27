@@ -45,7 +45,7 @@ type testRequest struct {
 	Event        string          `json:"event"`
 	RequestID    int64           `json:"reqid,omitempty"`
 	Pairs        []string        `json:"pair"`
-	Subscription testRequestData `json:"subscription,omitempty"`
+	Subscription testRequestData `json:"subscription"`
 }
 
 // testRequestData contains details on WS channel
@@ -98,7 +98,7 @@ func TestSetup(t *testing.T) {
 	err := w.Setup(nil)
 	assert.ErrorIs(t, err, errWebsocketIsNil)
 
-	w = &Websocket{DataHandler: make(chan interface{})}
+	w = &Websocket{DataHandler: make(chan any)}
 	err = w.Setup(nil)
 	assert.ErrorIs(t, err, errWebsocketSetupIsNil)
 
@@ -1457,7 +1457,7 @@ func TestMonitorFrame(t *testing.T) {
 
 func TestMonitorData(t *testing.T) {
 	t.Parallel()
-	ws := Websocket{ShutdownC: make(chan struct{}), DataHandler: make(chan interface{}, 10)}
+	ws := Websocket{ShutdownC: make(chan struct{}), DataHandler: make(chan any, 10)}
 	// Handle shutdown signal
 	close(ws.ShutdownC)
 	require.True(t, ws.observeData(nil))
@@ -1468,7 +1468,7 @@ func TestMonitorData(t *testing.T) {
 	require.False(t, ws.observeData(&dropped))
 	require.Equal(t, 1, dropped)
 	// Handle reinstate of ToRoutine functionality which will reset dropped counter
-	ws.ToRoutine = make(chan interface{}, 10)
+	ws.ToRoutine = make(chan any, 10)
 	go func() { ws.DataHandler <- nil }()
 	require.False(t, ws.observeData(&dropped))
 	require.Empty(t, dropped)
@@ -1502,7 +1502,7 @@ func TestMonitorConnection(t *testing.T) {
 	require.False(t, ws.observeConnection(timer)) // Connect is intentionally erroring
 	// Handle error from a connection which will then trigger a reconnect
 	ws.setState(connectedState)
-	ws.DataHandler = make(chan interface{}, 1)
+	ws.DataHandler = make(chan any, 1)
 	ws.ReadMessageErrors <- errConnectionFault
 	timer = time.NewTimer(time.Second)
 	require.False(t, ws.observeConnection(timer))
