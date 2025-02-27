@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"testing"
@@ -492,6 +493,8 @@ func TestAllocatePortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	err = c.AllocatePortfolio(context.Background(), "meow", "bark", "", 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	err = c.AllocatePortfolio(context.Background(), "meow", "bark", "woof", 0)
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	pID := getINTXPortfolio(t)
 	err = c.AllocatePortfolio(context.Background(), pID, testCrypto.String(), testFiat.String(), 0.001337)
@@ -561,7 +564,6 @@ func TestGetConvertTradeByID(t *testing.T) {
 
 func TestGetV3Time(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	testGetNoArgs(t, c.GetV3Time)
 }
 
@@ -1060,37 +1062,11 @@ func TestUpdateAccountInfo(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.FetchAccountInfo(context.Background(), asset.Spot)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := c.UpdateTicker(context.Background(), currency.Pair{}, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := c.UpdateTicker(context.Background(), testPair, asset.Spot)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	_, err := c.FetchTicker(context.Background(), currency.Pair{}, asset.Spot)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.FetchTicker(context.Background(), testPair, asset.Spot)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	_, err := c.FetchOrderbook(context.Background(), currency.Pair{}, asset.Empty)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.FetchOrderbook(context.Background(), testPair, asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1447,6 +1423,7 @@ func TestFormatExchangeKlineIntervalV3(t *testing.T) {
 		kline.FiveMin:    granFiveMin,
 		kline.FifteenMin: granFifteenMin,
 		kline.ThirtyMin:  granThirtyMin,
+		kline.OneHour:    granOneHour,
 		kline.TwoHour:    granTwoHour,
 		kline.SixHour:    granSixHour,
 		kline.OneDay:     granOneDay,
@@ -1718,6 +1695,145 @@ func TestGetJWT(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, _, err := c.GetJWT(context.Background(), "")
 	assert.NoError(t, err)
+}
+
+func TestEncodeDateRange(t *testing.T) {
+	t.Parallel()
+	var p Params
+	err := p.encodeDateRange(time.Time{}, time.Time{}, "", "")
+	assert.NoError(t, err)
+	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(1, 1), "", "")
+	assert.ErrorIs(t, err, common.ErrStartEqualsEnd)
+	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "", "")
+	assert.ErrorIs(t, err, errDateLabelEmpty)
+	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
+	assert.ErrorIs(t, err, errParamValuesNil)
+	p.Values = url.Values{}
+	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
+	assert.NoError(t, err)
+}
+
+func TestEncodePagination(t *testing.T) {
+	t.Parallel()
+	var p Params
+	err := p.encodePagination(PaginationInp{})
+	assert.ErrorIs(t, err, errParamValuesNil)
+	p.Values = url.Values{}
+	err = p.encodePagination(PaginationInp{
+		Limit:         1,
+		OrderAscend:   true,
+		StartingAfter: "a",
+		EndingBefore:  "b",
+	})
+	assert.NoError(t, err)
+}
+
+func TestCreateOrderConfig(t *testing.T) {
+	t.Parallel()
+	_, err := createOrderConfig("", "", "", 0, 0, 0, time.Time{}, false)
+	assert.ErrorIs(t, err, errInvalidOrderType)
+	_, err = createOrderConfig(order.Market.String(), order.Buy.String(), "", 0, 0, 0, time.Time{}, false)
+	assert.NoError(t, err)
+	_, err = createOrderConfig(order.Market.String(), order.Sell.String(), "", 0, 0, 0, time.Time{}, false)
+	assert.NoError(t, err)
+	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Time{}, false)
+	assert.NoError(t, err)
+	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Unix(1, 1), false)
+	assert.ErrorIs(t, err, errEndTimeInPast)
+	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Now(), false)
+	assert.NoError(t, err)
+	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Time{}, false)
+	assert.NoError(t, err)
+	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Unix(1, 1), false)
+	assert.ErrorIs(t, err, errEndTimeInPast)
+	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Now(), false)
+	assert.NoError(t, err)
+}
+
+func TestFormatMarginType(t *testing.T) {
+	t.Parallel()
+	resp := FormatMarginType("ISOLATED")
+	assert.Equal(t, "ISOLATED", resp)
+	resp = FormatMarginType("MULTI")
+	assert.Equal(t, "CROSS", resp)
+	resp = FormatMarginType("fake")
+	assert.Equal(t, "", resp)
+}
+
+func TestStatusToStandardStatus(t *testing.T) {
+	t.Parallel()
+	resp, _ := statusToStandardStatus("PENDING")
+	assert.Equal(t, order.New, resp)
+	resp, _ = statusToStandardStatus("OPEN")
+	assert.Equal(t, order.Active, resp)
+	resp, _ = statusToStandardStatus("FILLED")
+	assert.Equal(t, order.Filled, resp)
+	resp, _ = statusToStandardStatus("CANCELLED")
+	assert.Equal(t, order.Cancelled, resp)
+	resp, _ = statusToStandardStatus("EXPIRED")
+	assert.Equal(t, order.Expired, resp)
+	resp, _ = statusToStandardStatus("FAILED")
+	assert.Equal(t, order.Rejected, resp)
+	_, err := statusToStandardStatus("")
+	assert.ErrorIs(t, err, order.ErrUnsupportedStatusType)
+}
+
+func TestStringToStandardType(t *testing.T) {
+	t.Parallel()
+	resp, _ := stringToStandardType("LIMIT_ORDER_TYPE")
+	assert.Equal(t, order.Limit, resp)
+	resp, _ = stringToStandardType("MARKET_ORDER_TYPE")
+	assert.Equal(t, order.Market, resp)
+	resp, _ = stringToStandardType("STOP_LIMIT_ORDER_TYPE")
+	assert.Equal(t, order.StopLimit, resp)
+	_, err := stringToStandardType("")
+	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
+}
+
+func TestStringToStandardAsset(t *testing.T) {
+	t.Parallel()
+	resp, _ := stringToStandardAsset("SPOT")
+	assert.Equal(t, asset.Spot, resp)
+	resp, _ = stringToStandardAsset("FUTURE")
+	assert.Equal(t, asset.Futures, resp)
+	_, err := stringToStandardAsset("")
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestStrategyDecoder(t *testing.T) {
+	t.Parallel()
+	resp1, resp2, _ := strategyDecoder("IMMEDIATE_OR_CANCEL")
+	assert.True(t, resp1)
+	assert.False(t, resp2)
+	resp1, resp2, _ = strategyDecoder("FILL_OR_KILL")
+	assert.False(t, resp1)
+	assert.True(t, resp2)
+	resp1, resp2, _ = strategyDecoder("GOOD_UNTIL_CANCELLED")
+	assert.False(t, resp1)
+	assert.False(t, resp2)
+	_, _, err := strategyDecoder("")
+	assert.ErrorIs(t, err, errUnrecognisedStrategyType)
+}
+
+func TestBase64URLEncode(t *testing.T) {
+	t.Parallel()
+	resp := base64URLEncode([]byte{byte(252), byte(253), byte(254), byte(255)})
+	assert.Equal(t, "_P3-_w", resp)
+}
+
+func TestProcessFundingData(t *testing.T) {
+	t.Parallel()
+	resp := c.processFundingData([]DeposWithdrData{
+		{},
+	}, []TransactionData{
+		{
+			Type: "receive",
+		},
+		{
+			Type: "send",
+		},
+	})
+	assert.NotEmpty(t, resp)
 }
 
 func exchangeBaseHelper(c *CoinbasePro) error {

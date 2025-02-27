@@ -148,12 +148,12 @@ var (
 	errPayMethodNotFound        = errors.New("payment method not found")
 	errUnknownL2DataType        = errors.New("unknown l2update data type")
 	errOrderFailedToCancel      = errors.New("failed to cancel order")
-	errUnrecognisedStatusType   = errors.New("unrecognised status type")
 	errWrappedAssetEmpty        = errors.New("wrapped asset cannot be empty")
 	errUnrecognisedStrategyType = errors.New("unrecognised strategy type")
 	errEndpointPathInvalid      = errors.New("endpoint path invalid, should start with https://")
 	errPairsDisabledOrErrored   = errors.New("pairs are either disabled or errored")
-	errTypeAssert               = errors.New("type assertion failed")
+	errDateLabelEmpty           = errors.New("date label cannot be empty")
+	errParamValuesNil           = errors.New("param values cannot be nil")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -316,7 +316,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := prepareOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
+	orderConfig, err := createOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size
 func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType, retailPortfolioID string, orderStatus, assetFilters []string, limit int32, startDate, endDate time.Time) (*GetAllOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startDate, endDate, startDateString, endDateString)
+	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +443,7 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
 	var params Params
 	params.Values = url.Values{}
-	err := params.prepareDateString(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
+	err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +488,7 @@ func (c *CoinbasePro) PreviewOrder(ctx context.Context, productID, side, orderTy
 	if amount == 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := prepareOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
+	orderConfig, err := createOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +715,7 @@ func (c *CoinbasePro) GetPerpetualsPositionByID(ctx context.Context, portfolioID
 func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, userNativeCurrency, productType, contractExpiryType string) (*TransactionSummary, error) {
 	var params Params
 	params.Values = url.Values{}
-	err := params.prepareDateString(startDate, endDate, startDateString, endDateString)
+	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
 	if err != nil {
 		return nil, err
 	}
@@ -832,7 +832,9 @@ func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*Ge
 	var resp *GetAllWalletsResponse
 	var params Params
 	params.Values = url.Values{}
-	params.preparePagination(pag)
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp, nil)
 }
 
@@ -875,7 +877,9 @@ func (c *CoinbasePro) GetAllAddresses(ctx context.Context, walletID string, pag 
 	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseAddresses
 	var params Params
 	params.Values = url.Values{}
-	params.preparePagination(pag)
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
 	var resp *GetAllAddrResponse
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp, nil)
 }
@@ -906,7 +910,9 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseAddresses + "/" + addressID + "/" + coinbaseTransactions
 	var params Params
 	params.Values = url.Values{}
-	params.preparePagination(pag)
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
 	var resp *ManyTransactionsResp
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp, nil)
 }
@@ -954,7 +960,9 @@ func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, p
 	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
 	var params Params
 	params.Values = url.Values{}
-	params.preparePagination(pag)
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
 	var resp *ManyTransactionsResp
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp, nil)
 }
@@ -1041,7 +1049,9 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 	}
 	var params Params
 	params.Values = url.Values{}
-	params.preparePagination(pag)
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
 	var resp *ManyDeposWithdrResp
 	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp, nil)
 	if err != nil {
@@ -1186,7 +1196,7 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 	}
 	var params Params
 	params.Values = url.Values{}
-	err := params.prepareDateString(startTime, endTime, "start", "end")
+	err := params.encodeDateRange(startTime, endTime, "start", "end")
 	if err != nil {
 		return nil, err
 	}
@@ -1488,22 +1498,30 @@ func isStablePair(pair currency.Pair) bool {
 	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
 }
 
-// PrepareDateString encodes a set of parameters indicating start & end dates
-func (p *Params) prepareDateString(startDate, endDate time.Time, labelStart, labelEnd string) error {
-	err := common.StartEndTimeCheck(startDate, endDate)
-	if err != nil {
+// encodeDateRange encodes a set of parameters indicating start & end dates
+func (p *Params) encodeDateRange(startDate, endDate time.Time, labelStart, labelEnd string) error {
+	if err := common.StartEndTimeCheck(startDate, endDate); err != nil {
 		if errors.Is(err, common.ErrDateUnset) {
 			return nil
 		}
 		return err
+	}
+	if labelStart == "" || labelEnd == "" {
+		return errDateLabelEmpty
+	}
+	if p.Values == nil {
+		return errParamValuesNil
 	}
 	p.Values.Set(labelStart, startDate.Format(time.RFC3339))
 	p.Values.Set(labelEnd, endDate.Format(time.RFC3339))
 	return nil
 }
 
-// PreparePagination formats pagination information in the way the exchange expects
-func (p *Params) preparePagination(pag PaginationInp) {
+// encodePagination formats pagination information in the way the exchange expects
+func (p *Params) encodePagination(pag PaginationInp) error {
+	if p.Values == nil {
+		return errParamValuesNil
+	}
 	if pag.Limit != 0 {
 		p.Values.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))
 	}
@@ -1516,22 +1534,22 @@ func (p *Params) preparePagination(pag PaginationInp) {
 	if pag.EndingBefore != "" {
 		p.Values.Set("ending_before", pag.EndingBefore)
 	}
+	return nil
 }
 
-// prepareOrderConfig populates the OrderConfiguration struct
-func prepareOrderConfig(orderType, side, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
+// createOrderConfig populates the OrderConfiguration struct
+func createOrderConfig(orderType, side, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
 	case order.Market.String(), order.ImmediateOrCancel.String():
-		orderConfig.MarketMarketIOC = &MarketMarketIOC{}
 		if side == order.Buy.String() {
-			orderConfig.MarketMarketIOC.QuoteSize = types.Number(amount)
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(amount)}
 		}
 		if side == order.Sell.String() {
-			orderConfig.MarketMarketIOC.BaseSize = types.Number(amount)
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(amount)}
 		}
 	case order.Limit.String():
-		if endTime == (time.Time{}) {
+		if endTime.IsZero() {
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
 			orderConfig.LimitLimitGTC.BaseSize = types.Number(amount)
 			orderConfig.LimitLimitGTC.LimitPrice = types.Number(limitPrice)
@@ -1547,7 +1565,7 @@ func prepareOrderConfig(orderType, side, stopDirection string, amount, limitPric
 			orderConfig.LimitLimitGTD.EndTime = endTime
 		}
 	case order.StopLimit.String():
-		if endTime == (time.Time{}) {
+		if endTime.IsZero() {
 			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
 			orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(amount)
 			orderConfig.StopLimitStopLimitGTC.LimitPrice = types.Number(limitPrice)
@@ -1592,17 +1610,8 @@ func (f FiatTransferType) String() string {
 // UnmarshalJSON unmarshals the JSON data
 func (o *Orders) UnmarshalJSON(data []byte) error {
 	var alias any
-	var str1, str2 string
-	temp := [3]any{&str1, &str2, &alias}
+	temp := [3]any{&o.Price, &o.Size, &alias}
 	err := json.Unmarshal(data, &temp)
-	if err != nil {
-		return err
-	}
-	o.Price, err = strconv.ParseFloat(str1, 64)
-	if err != nil {
-		return err
-	}
-	o.Size, err = strconv.ParseFloat(str2, 64)
 	if err != nil {
 		return err
 	}
@@ -1616,25 +1625,13 @@ func (o *Orders) UnmarshalJSON(data []byte) error {
 	case float64:
 		o.OrderCount = uint64(a)
 	default:
-		return errTypeAssert
+		return common.ErrTypeAssertFailure
 	}
 	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data
 func (c *Candle) UnmarshalJSON(data []byte) error {
-	var f1, f2, f3, f4, f5, f6 float64
-	temp := [6]any{&f1, &f2, &f3, &f4, &f5, &f6}
-	err := json.Unmarshal(data, &temp)
-	if err != nil {
-		return err
-	}
-	ti := int64(f1)
-	c.Time = time.Unix(ti, 0)
-	c.Low = f2
-	c.High = f3
-	c.Open = f4
-	c.Close = f5
-	c.Volume = f6
-	return nil
+	temp := [6]any{&c.Time, &c.Low, &c.High, &c.Open, &c.Close, &c.Volume}
+	return json.Unmarshal(data, &temp)
 }

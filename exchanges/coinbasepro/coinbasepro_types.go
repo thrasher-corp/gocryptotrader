@@ -18,7 +18,7 @@ type jwtStruct struct {
 	m         sync.RWMutex
 }
 
-type aliasStruct struct {
+type pairAliases struct {
 	associatedAliases map[currency.Pair]currency.Pairs
 	m                 sync.RWMutex
 }
@@ -27,7 +27,7 @@ type aliasStruct struct {
 type CoinbasePro struct {
 	exchange.Base
 	jwtStruct   jwtStruct
-	aliasStruct aliasStruct
+	pairAliases pairAliases
 }
 
 // Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality
@@ -1413,18 +1413,15 @@ type OrderBookResp struct {
 
 // Orders holds information on orders, used as a sub-struct in OrderBook
 type Orders struct {
-	Price      float64
-	Size       float64
+	Price      types.Number
+	Size       types.Number
 	OrderCount uint64
 	OrderID    uuid.UUID
 }
 
-// RawCandles holds raw candle data, used in unmarshalling for GetProductCandles
-type RawCandles [6]any
-
 // Candle holds properly formatted candle data, returned by GetProductCandles
 type Candle struct {
-	Time   time.Time
+	Time   types.Time
 	Low    float64
 	High   float64
 	Open   float64

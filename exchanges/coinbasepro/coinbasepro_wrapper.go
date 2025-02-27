@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strconv"
 	"time"
@@ -210,14 +211,7 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 			aliases[products.Products[x].ID] = aliases[products.Products[x].ID].Add(products.Products[x].AliasTo...)
 		}
 	}
-	c.aliasStruct.m.Lock()
-	defer c.aliasStruct.m.Unlock()
-	if c.aliasStruct.associatedAliases == nil {
-		c.aliasStruct.associatedAliases = make(map[currency.Pair]currency.Pairs)
-	}
-	for k, v := range aliases {
-		c.aliasStruct.associatedAliases[k] = c.aliasStruct.associatedAliases[k].Add(v...)
-	}
+	c.pairAliases.Load(aliases)
 	return pairs, nil
 }
 
@@ -283,19 +277,6 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 	return response, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := c.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(c.Name, creds, assetType)
-	if err != nil {
-		return c.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // UpdateTickers updates all currency pairs of a given asset type
 func (c *CoinbasePro) UpdateTickers(context.Context, asset.Item) error {
 	return common.ErrFunctionNotSupported
@@ -316,32 +297,6 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 		return nil, err
 	}
 	return ticker.GetTicker(c.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (c *CoinbasePro) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	p, err := c.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
-	if err != nil {
-		return c.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (c *CoinbasePro) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	p, err := c.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	ob, err := orderbook.Get(c.Name, p, assetType)
-	if err != nil {
-		return c.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -392,7 +347,7 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 			Price:  orderbookNew.Pricebook.Asks[x].Price,
 		}
 	}
-	aliases := c.aliasStruct.LoadAlias(p)
+	aliases := c.pairAliases.GetAlias(p)
 	var errs error
 	var validPairs currency.Pairs
 	for i := range aliases {
@@ -910,11 +865,11 @@ func (c *CoinbasePro) ValidateAPICredentials(ctx context.Context, assetType asse
 
 // GetServerTime returns the current exchange server time.
 func (c *CoinbasePro) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	st, err := c.GetV2Time(ctx)
+	st, err := c.GetV3Time(ctx)
 	if err != nil {
 		return time.Time{}, err
 	}
-	return st.ISO, nil
+	return st.Iso, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
@@ -1333,9 +1288,28 @@ func FormatAssetOutbound(a asset.Item) string {
 	return a.Upper()
 }
 
-// LoadAlias returns the aliases for a currency pair, with the original pair included
-func (a *aliasStruct) LoadAlias(p currency.Pair) currency.Pairs {
+// GetAlias returns the aliases for a currency pair, with the original pair included
+func (a *pairAliases) GetAlias(p currency.Pair) currency.Pairs {
 	a.m.RLock()
 	defer a.m.RUnlock()
 	return a.associatedAliases[p].Add(p)
+}
+
+// GetAliases returns a map of all aliases associated with all pairs
+func (a *pairAliases) GetAliases() map[currency.Pair]currency.Pairs {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	return maps.Clone(a.associatedAliases)
+}
+
+// Load adds a batch of aliases to the alias map
+func (a *pairAliases) Load(aliases map[currency.Pair]currency.Pairs) {
+	a.m.Lock()
+	defer a.m.Unlock()
+	if a.associatedAliases == nil {
+		a.associatedAliases = make(map[currency.Pair]currency.Pairs)
+	}
+	for k, v := range aliases {
+		a.associatedAliases[k] = a.associatedAliases[k].Add(v...)
+	}
 }

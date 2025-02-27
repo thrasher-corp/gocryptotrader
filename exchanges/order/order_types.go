@@ -28,6 +28,7 @@ var (
 	ErrSubmitLeverageNotSupported = errors.New("leverage is not supported via order submission")
 	ErrClientOrderIDNotSupported  = errors.New("client order id not supported")
 	ErrUnsupportedOrderType       = errors.New("unsupported order type")
+	ErrUnsupportedStatusType      = errors.New("unsupported status type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")

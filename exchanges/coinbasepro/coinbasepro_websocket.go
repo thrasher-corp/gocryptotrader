@@ -3,7 +3,6 @@ package coinbasepro
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -152,9 +151,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		if err != nil {
 			return warnString, err
 		}
-		c.aliasStruct.m.RLock()
-		aliases := maps.Clone(c.aliasStruct.associatedAliases)
-		c.aliasStruct.m.RUnlock()
+		aliases := c.pairAliases.GetAliases()
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
 				tickAlias := aliases[wsTicker[i].Tickers[j].ProductID]
@@ -398,7 +395,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 		LastUpdated:     timestamp,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	aliases := c.aliasStruct.LoadAlias(snapshot.ProductID)
+	aliases := c.pairAliases.GetAlias(snapshot.ProductID)
 	var errs error
 	for i := range aliases {
 		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
@@ -430,7 +427,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-	aliases := c.aliasStruct.LoadAlias(update.ProductID)
+	aliases := c.pairAliases.GetAlias(update.ProductID)
 	var errs error
 	for i := range aliases {
 		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
@@ -573,7 +570,7 @@ func statusToStandardStatus(stat string) (order.Status, error) {
 	case "FAILED":
 		return order.Rejected, nil
 	default:
-		return order.UnknownStatus, fmt.Errorf("%w %v", errUnrecognisedStatusType, stat)
+		return order.UnknownStatus, fmt.Errorf("%w %v", order.ErrUnsupportedStatusType, stat)
 	}
 }
 
