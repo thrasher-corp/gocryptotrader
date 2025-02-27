@@ -1740,13 +1740,13 @@ func TestCreateOrderConfig(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Unix(1, 1), false)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Now(), false)
+	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Now().Add(time.Hour), false)
 	assert.NoError(t, err)
 	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Time{}, false)
 	assert.NoError(t, err)
 	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Unix(1, 1), false)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Now(), false)
+	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Now().Add(time.Hour), false)
 	assert.NoError(t, err)
 }
 
