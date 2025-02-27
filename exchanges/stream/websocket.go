@@ -407,11 +407,9 @@ func (w *Websocket) connect() error {
 		}
 
 		if len(subs) == 0 {
-			// If no subscriptions are generated, we skip the connection
 			if w.verbose {
 				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", w.exchangeName)
 			}
-			continue
 		}
 
 		if w.connectionManager[i].Setup.Connector == nil {
@@ -456,15 +454,17 @@ func (w *Websocket) connect() error {
 			}
 		}
 
-		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
-		if err != nil {
-			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v Error subscribing %w", w.exchangeName, err))
-			continue
-		}
+		if len(subs) != 0 {
+			err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
+			if err != nil {
+				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v Error subscribing %w", w.exchangeName, err))
+				continue
+			}
 
-		if missing := w.connectionManager[i].Subscriptions.Missing(subs); len(missing) > 0 {
-			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w `%s`", w.exchangeName, ErrSubscriptionsNotAdded, missing))
-			continue
+			if missing := w.connectionManager[i].Subscriptions.Missing(subs); len(missing) > 0 {
+				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w `%s`", w.exchangeName, ErrSubscriptionsNotAdded, missing))
+				continue
+			}
 		}
 
 		if w.verbose {
