@@ -44,26 +44,21 @@ func (ku *Kucoin) SetDefaults() {
 	ku.API.CredentialsValidator.RequiresSecret = true
 	ku.API.CredentialsValidator.RequiresClientID = true
 
-	spot := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		if a == asset.Futures {
+			ps.RequestFormat.Delimiter = ""
+			ps.ConfigFormat.Delimiter = currency.UnderscoreDelimiter
+		}
+		if err := ku.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", ku.Name, a, err)
+		}
 	}
-	futures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-	}
-	err := ku.StoreAssetPairFormat(asset.Spot, spot)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ku.StoreAssetPairFormat(asset.Margin, spot)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ku.StoreAssetPairFormat(asset.Futures, futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
+
 	ku.Features = exchange.Features{
 		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{
 			currency.XBT:   currency.BTC,
@@ -151,6 +146,8 @@ func (ku *Kucoin) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
+
+	var err error
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
