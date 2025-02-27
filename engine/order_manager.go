@@ -358,7 +358,7 @@ func (m *OrderManager) validate(exch exchange.IBotExchange, newOrder *order.Subm
 	}
 
 	if newOrder.Exchange == "" {
-		return ErrExchangeNameIsEmpty
+		return common.ErrExchangeNameUnset
 	}
 
 	if err := newOrder.Validate(exch.GetTradingRequirements()); err != nil {
