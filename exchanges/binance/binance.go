@@ -406,7 +406,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 
 	path := candleStick + "?" + params.Encode()
-	var resp interface{}
+	var resp any
 
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -416,16 +416,16 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	if err != nil {
 		return nil, err
 	}
-	responseData, ok := resp.([]interface{})
+	responseData, ok := resp.([]any)
 	if !ok {
-		return nil, common.GetTypeAssertError("[]interface{}", resp)
+		return nil, common.GetTypeAssertError("[]any", resp)
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
-		individualData, ok := responseData[x].([]interface{})
+		individualData, ok := responseData[x].([]any)
 		if !ok {
-			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
+			return nil, common.GetTypeAssertError("[]any", responseData[x])
 		}
 		if len(individualData) != 12 {
 			return nil, errors.New("unexpected kline data length")
@@ -796,7 +796,7 @@ func (b *Binance) GetMarginAccount(ctx context.Context) (*MarginAccount, error) 
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -817,7 +817,7 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
 // appended to the headers without a secret
-func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -846,7 +846,7 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
+func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -914,10 +914,8 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 
 // CheckLimit checks value against a variable list
 func (b *Binance) CheckLimit(limit int) error {
-	for x := range b.validLimits {
-		if b.validLimits[x] == limit {
-			return nil
-		}
+	if slices.Contains(b.validLimits, limit) {
+		return nil
 	}
 	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }

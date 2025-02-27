@@ -452,10 +452,7 @@ func (m *SyncManager) worker() {
 	}
 	defer cleanup()
 
-	interval := greatestCommonDivisor(m.config.TimeoutWebsocket, m.config.TimeoutREST)
-	if interval > time.Second {
-		interval = time.Second
-	}
+	interval := min(greatestCommonDivisor(m.config.TimeoutWebsocket, m.config.TimeoutREST), time.Second)
 	t := time.NewTicker(interval)
 
 	for {
@@ -905,7 +902,7 @@ func (m *SyncManager) WaitForInitialSync() error {
 	return nil
 }
 
-func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
+func relayWebsocketEvent(result any, event, assetType, exchangeName string) {
 	evt := WebsocketEvent{
 		Data:      result,
 		Event:     event,

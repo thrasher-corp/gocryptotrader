@@ -51,7 +51,7 @@ type ExchangeInfo struct {
 		Interval      string `json:"interval"`
 		Limit         int64  `json:"limit"`
 	} `json:"rateLimits"`
-	ExchangeFilters interface{} `json:"exchangeFilters"`
+	ExchangeFilters any `json:"exchangeFilters"`
 	Symbols         []struct {
 		Symbol                     string   `json:"symbol"`
 		Status                     string   `json:"status"`
@@ -809,9 +809,9 @@ type UserAccountStream struct {
 
 // WebsocketPayload defines the payload through the websocket connection
 type WebsocketPayload struct {
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
-	ID     int64         `json:"id"`
+	Method string `json:"method"`
+	Params []any  `json:"params"`
+	ID     int64  `json:"id"`
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation

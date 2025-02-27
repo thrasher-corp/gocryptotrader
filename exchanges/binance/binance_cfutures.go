@@ -268,7 +268,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
-	var data [][10]interface{}
+	var data [][10]any
 	rateBudget := getKlineRateBudget(limit)
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
@@ -388,7 +388,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 	}
 
 	rateBudget := getKlineRateBudget(limit)
-	var data [][10]interface{}
+	var data [][10]any
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesContinuousKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return nil, err
@@ -503,7 +503,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 	}
 
 	rateBudget := getKlineRateBudget(limit)
-	var data [][10]interface{}
+	var data [][10]any
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesIndexKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return nil, err
@@ -621,7 +621,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
-	var data [][10]interface{}
+	var data [][10]any
 	rateBudget := getKlineRateBudget(limit)
 	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesMarkPriceKline+params.Encode(), rateBudget, &data)
 	if err != nil {

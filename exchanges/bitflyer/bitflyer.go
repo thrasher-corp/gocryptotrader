@@ -287,7 +287,7 @@ func (b *Bitflyer) GetTradingCommission() {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Bitflyer) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (b *Bitflyer) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

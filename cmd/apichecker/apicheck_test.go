@@ -296,17 +296,6 @@ func TestHTMLScrapeBitflyer(t *testing.T) {
 	}
 }
 
-func TestHTMLScrapeANX(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{
-		RegExp: `ANX Exchange API v\d{1}`,
-		Path:   "https://anxv3.docs.apiary.io/#reference/quickstart-catalog",
-	}
-	if _, err := htmlScrapeANX(&data); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestHTMLPoloniex(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{

@@ -91,7 +91,7 @@ func (b *BTCMarkets) wsReadData() {
 
 // UnmarshalJSON implements the unmarshaler interface.
 func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
-	resp := make([][3]interface{}, len(data))
+	resp := make([][3]any, len(data))
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -468,10 +468,7 @@ func checksum(ob *orderbook.Base, checksum uint32) error {
 
 // concat concatenates price and amounts together for checksum processing
 func concat(liquidity orderbook.Tranches) string {
-	length := 10
-	if len(liquidity) < 10 {
-		length = len(liquidity)
-	}
+	length := min(10, len(liquidity))
 	var c string
 	for x := range length {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)

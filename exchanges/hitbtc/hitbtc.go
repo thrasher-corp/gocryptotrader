@@ -419,7 +419,7 @@ func (h *HitBTC) GetFeeInfo(ctx context.Context, currencyPair string) (Fee, erro
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (h *HitBTC) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (h *HitBTC) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -440,7 +440,7 @@ func (h *HitBTC) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
-func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, f request.EndpointLimit, result interface{}) error {
+func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, f request.EndpointLimit, result any) error {
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return err

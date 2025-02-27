@@ -19,7 +19,7 @@ type Parameter interface {
 
 // StructValsToURLVals converts a struct into url.values for easy encoding
 // can set json tags for outgoing naming conventions.
-func StructValsToURLVals(v interface{}) (url.Values, error) {
+func StructValsToURLVals(v any) (url.Values, error) {
 	values := url.Values{}
 
 	if reflect.ValueOf(v).Kind() != reflect.Ptr {

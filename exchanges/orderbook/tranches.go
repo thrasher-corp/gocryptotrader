@@ -3,6 +3,7 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
@@ -88,7 +89,7 @@ updates:
 				copy((*ts)[y:], (*ts)[y+1:])
 				*ts = (*ts)[:len(*ts)-1]
 			} else {
-				*ts = append((*ts)[:y], (*ts)[y+1:]...)
+				*ts = slices.Delete(*ts, y, y+1)
 			}
 			continue updates
 		}
@@ -117,7 +118,9 @@ func (ts Tranches) retrieve(count int) Tranches {
 	if count == 0 || count >= len(ts) {
 		count = len(ts)
 	}
-	return append(Tranches{}, ts[:count]...)
+	result := make(Tranches, count)
+	copy(result, ts[:count])
+	return result
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by

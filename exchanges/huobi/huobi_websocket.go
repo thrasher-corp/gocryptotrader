@@ -53,10 +53,7 @@ const (
 	wsUnsubOp            = "unsub"
 )
 
-var (
-	errInvalidChannel = errors.New("invalid channel format")
-	errParsingMsg     = errors.New("error parsing message")
-)
+var errParsingMsg = errors.New("error parsing message")
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},

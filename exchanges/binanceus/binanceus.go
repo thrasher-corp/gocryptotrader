@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -393,10 +394,8 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 
 // CheckLimit checks value against a variable list
 func (bi *Binanceus) CheckLimit(limit int64) error {
-	for x := range bi.validLimits {
-		if bi.validLimits[x] == limit {
-			return nil
-		}
+	if slices.Contains(bi.validLimits, limit) {
+		return nil
 	}
 	return errIncorrectLimitValues
 }
@@ -458,7 +457,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 		params.Set("endTime", strconv.FormatInt((arg.EndTime).UnixMilli(), 10))
 	}
 	path := common.EncodeURLValues(candleStick, params)
-	var resp interface{}
+	var resp any
 	err = bi.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		path,
@@ -467,16 +466,16 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 	if err != nil {
 		return nil, err
 	}
-	responseData, ok := resp.([]interface{})
+	responseData, ok := resp.([]any)
 	if !ok {
-		return nil, common.GetTypeAssertError("[]interface{}", resp, "responseData")
+		return nil, common.GetTypeAssertError("[]any", resp, "responseData")
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
-		individualData, ok := responseData[x].([]interface{})
+		individualData, ok := responseData[x].([]any)
 		if !ok {
-			return nil, common.GetTypeAssertError("[]interface{}", responseData[x], "individualData")
+			return nil, common.GetTypeAssertError("[]any", responseData[x], "individualData")
 		}
 		if len(individualData) != 12 {
 			return nil, errUnexpectedKlineDataLength
@@ -805,7 +804,7 @@ func (bi *Binanceus) GetAssetDistributionHistory(ctx context.Context, asset stri
 func (bi *Binanceus) QuickEnableCryptoWithdrawal(ctx context.Context) error {
 	params := url.Values{}
 	response := struct {
-		Data interface{}
+		Data any
 	}{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
@@ -1765,7 +1764,7 @@ func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessT
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -1785,7 +1784,7 @@ func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pa
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
 // appended to the headers without a secret
-func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -1813,7 +1812,7 @@ func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.U
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
+func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
 	creds, err := bi.GetCredentials(ctx)
 	if err != nil {
 		return err

@@ -449,20 +449,14 @@ func getOrderbook(c *cli.Context) error {
 	}
 
 	if exchangeStyle {
-		var maxLen, bidLen, askLen int64
-		bidLen = int64(len(result.Bids) - 1)
-		askLen = int64(len(result.Asks) - 1)
-		if bidLen >= askLen {
-			maxLen = bidLen
-		} else {
-			maxLen = askLen
-		}
+		bidLen := int64(len(result.Bids) - 1)
+		askLen := int64(len(result.Asks) - 1)
+		maxLen := max(bidLen, askLen)
 		if depthLimit > 0 && depthLimit < maxLen {
 			maxLen = depthLimit
 		}
-		if maxLen > 100 {
-			maxLen = 100
-		}
+
+		maxLen = min(maxLen, 100)
 		renderOrderbookExchangeStyle(result, exchangeName, assetType, maxLen, askLen, bidLen)
 	} else {
 		jsonOutput(result)
@@ -612,13 +606,7 @@ func getOrderbookStream(c *cli.Context) error {
 
 		bidLen := int64(len(resp.Bids) - 1)
 		askLen := int64(len(resp.Asks) - 1)
-
-		var maxLen int64
-		if bidLen >= askLen {
-			maxLen = bidLen
-		} else {
-			maxLen = askLen
-		}
+		maxLen := max(bidLen, askLen)
 		if depthLimit > 0 && depthLimit < maxLen {
 			maxLen = depthLimit
 		}

@@ -69,16 +69,16 @@ type Historical struct {
 
 // TimeSeries holds historic rate data
 type TimeSeries struct {
-	Disclaimer  string                 `json:"disclaimer"`
-	License     string                 `json:"license"`
-	StartDate   string                 `json:"start_date"`
-	EndDate     string                 `json:"end_date"`
-	Base        string                 `json:"base"`
-	Rates       map[string]interface{} `json:"rates"`
-	Error       bool                   `json:"error"`
-	Status      int                    `json:"status"`
-	Message     string                 `json:"message"`
-	Description string                 `json:"description"`
+	Disclaimer  string         `json:"disclaimer"`
+	License     string         `json:"license"`
+	StartDate   string         `json:"start_date"`
+	EndDate     string         `json:"end_date"`
+	Base        string         `json:"base"`
+	Rates       map[string]any `json:"rates"`
+	Error       bool           `json:"error"`
+	Status      int            `json:"status"`
+	Message     string         `json:"message"`
+	Description string         `json:"description"`
 }
 
 // Convert holds historic rate data
@@ -104,16 +104,16 @@ type Convert struct {
 
 // OHLC holds open high low close values
 type OHLC struct {
-	Disclaimer  string                 `json:"disclaimer"`
-	License     string                 `json:"license"`
-	StartDate   string                 `json:"start_date"`
-	EndDate     string                 `json:"end_date"`
-	Base        string                 `json:"base"`
-	Rates       map[string]interface{} `json:"rates"`
-	Error       bool                   `json:"error"`
-	Status      int                    `json:"status"`
-	Message     string                 `json:"message"`
-	Description string                 `json:"description"`
+	Disclaimer  string         `json:"disclaimer"`
+	License     string         `json:"license"`
+	StartDate   string         `json:"start_date"`
+	EndDate     string         `json:"end_date"`
+	Base        string         `json:"base"`
+	Rates       map[string]any `json:"rates"`
+	Error       bool           `json:"error"`
+	Status      int            `json:"status"`
+	Message     string         `json:"message"`
+	Description string         `json:"description"`
 }
 
 // Usage holds usage statistical data
