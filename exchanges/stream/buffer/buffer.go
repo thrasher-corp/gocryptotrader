@@ -16,6 +16,11 @@ import (
 
 const packageError = "websocket orderbook buffer error: %w"
 
+// Public errors exported by this package
+var (
+	ErrDepthNotFound = errors.New("orderbook depth not found")
+)
+
 var (
 	errExchangeConfigNil            = errors.New("exchange config is nil")
 	errBufferConfigNil              = errors.New("buffer config is nil")
@@ -23,7 +28,6 @@ var (
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
-	ErrDepthNotFound                = errors.New("orderbook depth not found")
 	errRESTOverwrite                = errors.New("orderbook has been overwritten by REST protocol")
 	errInvalidAction                = errors.New("invalid action")
 	errAmendFailure                 = errors.New("orderbook amend update failure")

@@ -95,7 +95,7 @@ type MerchantList struct {
 	CompletionRate30D   float64    `json:"completionRate30d,string"`
 }
 
-// P2PMerResp holds information on P2P merchant lists
+// P2PMerListResp holds information on P2P merchant lists
 type P2PMerListResp struct {
 	MerchantList      []MerchantList `json:"merchantList"`
 	MinimumMerchantID int64          `json:"minMerchantId,string"`
@@ -373,7 +373,7 @@ type GetVirSubResp struct {
 // AlterAPIKeyResp contains information returned when creating or modifying an API key
 type AlterAPIKeyResp struct {
 	SubaccountUID    string   `json:"subAccountUid"`
-	SubaccountApiKey string   `json:"subAccountApiKey"`
+	SubaccountAPIKey string   `json:"subAccountApiKey"`
 	SecretKey        string   `json:"secretKey"`
 	PermList         []string `json:"permList"`
 	Label            string   `json:"label"`
@@ -383,7 +383,7 @@ type AlterAPIKeyResp struct {
 // GetAPIKeyResp contains information on the user's API keys
 type GetAPIKeyResp struct {
 	SubaccountUID    string   `json:"subAccountUid"`
-	SubaccountApiKey string   `json:"subAccountApiKey"`
+	SubaccountAPIKey string   `json:"subAccountApiKey"`
 	IPList           []string `json:"ipList"`
 	PermList         []string `json:"permList"`
 	Label            string   `json:"label"`
@@ -685,7 +685,7 @@ type MarketFillsResp struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// PlaceOrderStruct contains information on an order to be placed
+// PlaceSpotOrderStruct contains information on an order to be placed
 type PlaceSpotOrderStruct struct {
 	// Symbol needs to be included, despite it being absent in the documentation, or the exchange will return an error
 	Pair                   currency.Pair `json:"symbol"`
@@ -1095,7 +1095,7 @@ type OpenInterestList struct {
 	Size   float64 `json:"size,string"`
 }
 
-// OpenPositionResp contains information on open positions
+// OpenPositionsResp contains information on open positions
 type OpenPositionsResp struct {
 	OpenInterestList []OpenInterestList `json:"openInterestList"`
 	Timestamp        types.Time         `json:"ts"`
@@ -1686,7 +1686,7 @@ type CrossInterest struct {
 	InterestCoin      currency.Code `json:"interestCoin"`
 	DailyInterestRate float64       `json:"dailyInterestRate,string"`
 	InterestAmount    float64       `json:"interestAmount,string"`
-	InterestType      string        `json:"interstType"` // sic
+	InterestType      string        `json:"interstType"` // Misspelling of interestType
 	CreationTime      types.Time    `json:"cTime"`
 	UpdateTime        types.Time    `json:"uTime"`
 }
@@ -1982,7 +1982,7 @@ type IsoInterest struct {
 	InterestCoin      currency.Code `json:"interestCoin"`
 	DailyInterestRate float64       `json:"dailyInterestRate,string"`
 	InterestAmount    float64       `json:"interestAmount,string"`
-	InterestType      string        `json:"interstType"` // sic
+	InterestType      string        `json:"interstType"` // Misspelling of interestType
 	Symbol            string        `json:"symbol"`
 	CreationTime      types.Time    `json:"cTime"`
 	UpdateTime        types.Time    `json:"uTime"`
@@ -2091,14 +2091,14 @@ type IntRateMaxBorrowIso struct {
 	BaseTransferable         bool          `json:"baseTransferable"`
 	BaseBorrowable           bool          `json:"baseBorrowable"`
 	BaseDailyInterestRate    float64       `json:"baseDailyInterestRate,string"`
-	BaseAnnualInterestRate   float64       `json:"baseAnnuallyInterestRate,string"` // sic
+	BaseAnnualInterestRate   float64       `json:"baseAnnuallyInterestRate,string"` // Misspelling of baseAnnualInterestRate
 	BaseMaxBorrowableAmount  float64       `json:"baseMaxBorrowableAmount,string"`
 	BaseVIPList              []IsoVIPList  `json:"baseVipList"`
 	QuoteCoin                currency.Code `json:"quoteCoin"`
 	QuoteTransferable        bool          `json:"quoteTransferable"`
 	QuoteBorrowable          bool          `json:"quoteBorrowable"`
 	QuoteDailyInterestRate   float64       `json:"quoteDailyInterestRate,string"`
-	QuoteAnnualInterestRate  float64       `json:"quoteAnnuallyInterestRate,string"` // sic
+	QuoteAnnualInterestRate  float64       `json:"quoteAnnuallyInterestRate,string"` // Misspelling of quoteAnnualInterestRate
 	QuoteMaxBorrowableAmount float64       `json:"quoteMaxBorrowableAmount,string"`
 	QuoteVIPList             []IsoVIPList  `json:"quoteList"`
 }
@@ -2141,6 +2141,7 @@ type FlashRepayIso struct {
 	Result  SuccessBool `json:"result"`
 }
 
+// APY contains information on the APY of a savings product
 type APY struct {
 	RateLevel        int64   `json:"rateLevel,string"`
 	MinimumStepValue float64 `json:"minStepVal,string"`
@@ -2232,13 +2233,13 @@ type SavingsSubDetail struct {
 	RedeemDelay        string     `json:"redeemDelay"`
 }
 
-// SubResp contains information on a transaction involving a savings product
+// SaveResp contains information on a transaction involving a savings product
 type SaveResp struct {
 	OrderID int64  `json:"orderId,string"`
 	Status  string `json:"status"` // Double-check, might be a float64
 }
 
-// SubResult contains information on the result of a transaction involving a savings product
+// SaveResult contains information on the result of a transaction involving a savings product
 type SaveResult struct {
 	Result  SuccessBool `json:"result"`
 	Message string      `json:"msg"`
@@ -2251,7 +2252,7 @@ type EarnAssets struct {
 }
 
 // SharkFinProduct is a sub-struct containing information on a shark fin product
-type SharKFinProduct struct {
+type SharkFinProduct struct {
 	ProductID         int64         `json:"productId,string"`
 	ProductName       string        `json:"productName"`
 	ProductCoin       currency.Code `json:"productCoin"`
@@ -2273,7 +2274,7 @@ type SharKFinProduct struct {
 
 // SharkFinProductResp contains information on shark fin products
 type SharkFinProductResp struct {
-	ResultList []SharKFinProduct `json:"resultList"`
+	ResultList []SharkFinProduct `json:"resultList"`
 	EndID      EmptyInt          `json:"endId"`
 }
 
@@ -2528,7 +2529,7 @@ type LoanToValue struct {
 // TransferableAmount contains information on transferable amounts
 type TransferableAmount struct {
 	Coin        currency.Code `json:"coin"`
-	Transferred float64       `json:"transfered,string"` // sic
+	Transferred float64       `json:"transfered,string"` //nolint:misspell // Bitget spelling mistake
 	UserID      uint64        `json:"userId,string"`
 }
 
@@ -2872,7 +2873,7 @@ type WsAccountCrossMarginResponse struct {
 	Coupon     float64       `json:"coupon,string"`
 }
 
-// WsOrderCrossMarginResponse contains information on an order response for margin trading
+// WsOrderMarginResponse contains information on an order response for margin trading
 type WsOrderMarginResponse struct {
 	Force            string              `json:"force"`
 	OrderType        string              `json:"orderType"`
@@ -2893,7 +2894,7 @@ type WsOrderMarginResponse struct {
 	STPMode          string              `json:"stpMode"`
 }
 
-// WsAccountisolatedMarginResponse contains information on an account response for isolated margin trading
+// WsAccountIsolatedMarginResponse contains information on an account response for isolated margin trading
 type WsAccountIsolatedMarginResponse struct {
 	UpdateTime types.Time    `json:"uTime"`
 	ID         int64         `json:"id,string"`

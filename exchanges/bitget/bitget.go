@@ -30,7 +30,7 @@ const (
 
 	// Public endpoints
 	bitgetPublic                   = "public/"
-	bitgetAnnouncements            = "annoucements" // sic
+	bitgetAnnouncements            = "annoucements" // Misspelling of announcements
 	bitgetTime                     = "time"
 	bitgetMarket                   = "market/"
 	bitgetWhaleNetFlow             = "whale-net-flow"
@@ -94,7 +94,7 @@ const (
 	bitgetCreate                   = "create-"
 	bitgetVirtualSubaccount        = "virtual-subaccount"
 	bitgetModify                   = "modify-"
-	bitgetBatchCreateSubAccApi     = "batch-create-subaccount-and-apikey"
+	bitgetBatchCreateSubAccAPI     = "batch-create-subaccount-and-apikey"
 	bitgetList                     = "list"
 	bitgetAPIKey                   = "apikey"
 	bitgetFundingAssets            = "/funding-assets"
@@ -158,7 +158,7 @@ const (
 	bitgetBill                     = "/bill"
 	bitgetPosition                 = "position/"
 	bitgetSinglePosition           = "single-position"
-	bitgetAllPositions             = "all-position" // sic
+	bitgetAllPositions             = "all-position" // Misspelling of all-positions
 	bitgetHistoryPosition          = "history-position"
 	bitgetOrder                    = "order"
 	bitgetClickBackhand            = "/click-backhand"
@@ -213,7 +213,7 @@ const (
 	bitgetProductInfos             = "product-infos"
 	bitgetEnsureCoinsConvert       = "ensure-coins-convert"
 	bitgetLTVConvert               = "ltv-convert"
-	bitgetTransferred              = "transfered" // sic
+	bitgetTransferred              = "transfered" //nolint:misspell // Bitget spelling mistake
 	bitgetRiskUnit                 = "risk-unit"
 	bitgetBindUID                  = "bind-uid"
 	bitgetLoanOrder                = "loan-order"
@@ -320,7 +320,7 @@ var (
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
 )
 
-// QueryAnnouncement returns announcements from the exchange, filtered by type and time
+// QueryAnnouncements returns announcements from the exchange, filtered by type and time
 func (bi *Bitget) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time) ([]AnnResp, error) {
 	var params Params
 	params.Values = make(url.Values)
@@ -752,7 +752,7 @@ func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName,
 	var resp struct {
 		CrSubAccAPIKeyResp []CrSubAccAPIKeyResp `json:"data"`
 	}
-	return resp.CrSubAccAPIKeyResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, bitgetUser+bitgetBatchCreateSubAccApi, nil, req, &resp)
+	return resp.CrSubAccAPIKeyResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, bitgetUser+bitgetBatchCreateSubAccAPI, nil, req, &resp)
 }
 
 // GetVirtualSubaccounts returns a list of the user's virtual sub-accounts
@@ -1061,7 +1061,9 @@ func (bi *Bitget) GetSpotMergeDepth(ctx context.Context, pair currency.Pair, pre
 func (bi *Bitget) GetOrderbookDepth(ctx context.Context, pair currency.Pair, step string, limit uint8) (*OrderbookResp, error) {
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	vals.Set("type", step)
+	if step != "" {
+		vals.Set("type", step)
+	}
 	vals.Set("limit", strconv.FormatUint(uint64(limit), 10))
 	path := bitgetSpot + bitgetMarket + bitgetOrderbook
 	var resp struct {
@@ -1589,7 +1591,7 @@ func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair currency.Pai
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlanOrderHistory
 	var resp struct {
@@ -4550,15 +4552,15 @@ func (bi *Bitget) SubscribeSavings(ctx context.Context, productID int64, periodT
 }
 
 // GetSavingsSubscriptionResult returns the result of a subscription attempt
-func (bi *Bitget) GetSavingsSubscriptionResult(ctx context.Context, productId int64, periodType string) (*SaveResult, error) {
-	if productId == 0 {
+func (bi *Bitget) GetSavingsSubscriptionResult(ctx context.Context, productID int64, periodType string) (*SaveResult, error) {
+	if productID == 0 {
 		return nil, errProductIDEmpty
 	}
 	if periodType == "" {
 		return nil, errPeriodTypeEmpty
 	}
 	vals := url.Values{}
-	vals.Set("productId", strconv.FormatInt(productId, 10))
+	vals.Set("productId", strconv.FormatInt(productID, 10))
 	vals.Set("periodType", periodType)
 	path := bitgetEarn + bitgetSavings + bitgetSubscribeResult
 	var resp struct {
@@ -5376,20 +5378,20 @@ func (bi *Bitget) candlestickHelper(ctx context.Context, pair currency.Pair, gra
 		if !ok {
 			return nil, errTypeAssertClosePrice
 		}
-		baseVolumeTemp := resp.Data[i][5].(string)
+		baseVolumeTemp, ok := resp.Data[i][5].(string)
 		if !ok {
 			return nil, errTypeAssertBaseVolume
 		}
-		quoteVolumeTemp := resp.Data[i][6].(string)
+		quoteVolumeTemp, ok := resp.Data[i][6].(string)
 		if !ok {
 			return nil, errTypeAssertQuoteVolume
 		}
 		if spot {
-			usdtVolumeTemp := resp.Data[i][7].(string)
+			usdtVolumeTemp, ok := resp.Data[i][7].(string)
 			if !ok {
 				return nil, errTypeAssertUSDTVolume
 			}
-			data.SpotCandles[i].Timestamp = time.Time(time.UnixMilli(timeTemp2).UTC())
+			data.SpotCandles[i].Timestamp = time.UnixMilli(timeTemp2).UTC()
 			data.SpotCandles[i].Open, err = strconv.ParseFloat(openTemp, 64)
 			if err != nil {
 				return nil, err
@@ -5419,7 +5421,7 @@ func (bi *Bitget) candlestickHelper(ctx context.Context, pair currency.Pair, gra
 				return nil, err
 			}
 		} else {
-			data.FuturesCandles[i].Timestamp = time.Time(time.UnixMilli(timeTemp2).UTC())
+			data.FuturesCandles[i].Timestamp = time.UnixMilli(timeTemp2).UTC()
 			data.FuturesCandles[i].Entry, err = strconv.ParseFloat(openTemp, 64)
 			if err != nil {
 				return nil, err

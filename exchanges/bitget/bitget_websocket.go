@@ -268,7 +268,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				close, err := strconv.ParseFloat(candles[i][4], 64)
+				closePrice, err := strconv.ParseFloat(candles[i][4], 64)
 				if err != nil {
 					return err
 				}
@@ -293,7 +293,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 					CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
 					Interval:   "1d",
 					OpenPrice:  open,
-					ClosePrice: close,
+					ClosePrice: closePrice,
 					HighPrice:  high,
 					LowPrice:   low,
 					Volume:     volume,
@@ -301,13 +301,13 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			}
 			bi.Websocket.DataHandler <- resp
 		case bitgetTrade:
-			resp, err := bi.tradeDataHandler(wsResponse)
+			resp, err := bi.tradeDataHandler(&wsResponse)
 			if err != nil {
 				return err
 			}
 			bi.Websocket.DataHandler <- resp
 		case bitgetBookFullChannel:
-			err := bi.orderbookDataHandler(wsResponse)
+			err := bi.orderbookDataHandler(&wsResponse)
 			if err != nil {
 				return err
 			}
@@ -783,7 +783,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				close, err := strconv.ParseFloat(candles[i][4], 64)
+				closePrice, err := strconv.ParseFloat(candles[i][4], 64)
 				if err != nil {
 					return err
 				}
@@ -808,7 +808,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 					CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
 					Interval:   "1d",
 					OpenPrice:  open,
-					ClosePrice: close,
+					ClosePrice: closePrice,
 					HighPrice:  high,
 					LowPrice:   low,
 					Volume:     volume,
@@ -816,13 +816,13 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 			}
 			bi.Websocket.DataHandler <- resp
 		case bitgetTrade:
-			resp, err := bi.tradeDataHandler(wsResponse)
+			resp, err := bi.tradeDataHandler(&wsResponse)
 			if err != nil {
 				return err
 			}
 			bi.Websocket.DataHandler <- resp
 		case bitgetBookFullChannel:
-			err := bi.orderbookDataHandler(wsResponse)
+			err := bi.orderbookDataHandler(&wsResponse)
 			if err != nil {
 				return err
 			}
@@ -873,7 +873,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 }
 
 // TradeDataHandler handles trade data, as functionality is shared between updates and snapshots
-func (bi *Bitget) tradeDataHandler(wsResponse WsResponse) ([]trade.Data, error) {
+func (bi *Bitget) tradeDataHandler(wsResponse *WsResponse) ([]trade.Data, error) {
 	var trades []WsTradeResponse
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
 	if err != nil {
@@ -900,7 +900,7 @@ func (bi *Bitget) tradeDataHandler(wsResponse WsResponse) ([]trade.Data, error) 
 }
 
 // OrderbookDataHandler handles orderbook data, as functionality is shared between updates and snapshots
-func (bi *Bitget) orderbookDataHandler(wsResponse WsResponse) error {
+func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 	var ob []WsOrderBookResponse
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
 	if err != nil {
@@ -977,9 +977,10 @@ func trancheConstructor(data [][2]string) ([]orderbook.Tranche, error) {
 	return resp, nil
 }
 
+// CalculateUpdateOrderbookChecksum calculates the checksum of the orderbook data
 func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
 	var builder strings.Builder
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if len(orderbookData.Bids) > i {
 			builder.WriteString(orderbookData.Bids[i].StrPrice + ":" + orderbookData.Bids[i].StrAmount + ":")
 		}
@@ -1038,11 +1039,11 @@ func (bi *Bitget) Unsubscribe(subs subscription.List) error {
 
 // ReqSplitter splits a request into multiple requests to avoid going over the byte limit
 func reqSplitter(req *WsRequest) []WsRequest {
-	cap := (len(req.Arguments) / 47) + 1
-	reqs := make([]WsRequest, cap)
-	for i := 0; i < cap; i++ {
+	capacity := (len(req.Arguments) / 47) + 1
+	reqs := make([]WsRequest, capacity)
+	for i := range capacity {
 		reqs[i].Operation = req.Operation
-		if i == cap-1 {
+		if i == capacity-1 {
 			reqs[i].Arguments = req.Arguments[i*47:]
 			break
 		}
@@ -1075,8 +1076,7 @@ func (bi *Bitget) reqBuilder(req *WsRequest, sub *subscription.Subscription) {
 				InstrumentType: "USDT-FUTURES",
 				Coin:           currency.NewCode("default"),
 				InstrumentID:   "default",
-			})
-			req.Arguments = append(req.Arguments, WsArgument{
+			}, WsArgument{
 				Channel:        sub.Channel,
 				InstrumentType: "USDC-FUTURES",
 				Coin:           currency.NewCode("default"),

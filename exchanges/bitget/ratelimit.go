@@ -31,6 +31,7 @@ const (
 	RateSubscription
 )
 
+// GetRateLimits returns the rate limits for Bitget
 func GetRateLimits() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		Rate20:           request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate20, 1),

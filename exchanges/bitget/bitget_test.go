@@ -360,7 +360,7 @@ func TestModifyVirtualSubaccount(t *testing.T) {
 	_, err = bi.ModifyVirtualSubaccount(context.Background(), "meow", "woof", perms)
 	assert.ErrorIs(t, err, errNewPermsEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	tarID := subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
 	perms = append(perms, "read")
 	resp, err := bi.ModifyVirtualSubaccount(context.Background(), tarID, "normal", perms)
 	require.NoError(t, err)
@@ -399,7 +399,7 @@ func TestCreateAPIKey(t *testing.T) {
 	_, err = bi.CreateAPIKey(context.Background(), "woof", "meow", "", ipL, ipL)
 	assert.ErrorIs(t, err, errLabelEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	tarID := subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
 	ipL = append(ipL, testIP)
 	pL := []string{"read"}
 	_, err = bi.CreateAPIKey(context.Background(), tarID, clientID, "neigh whinny", ipL, pL)
@@ -410,7 +410,6 @@ func TestCreateAPIKey(t *testing.T) {
 			t.Error(err)
 		}
 	}
-
 }
 
 func TestModifyAPIKey(t *testing.T) {
@@ -425,13 +424,13 @@ func TestModifyAPIKey(t *testing.T) {
 	_, err = bi.ModifyAPIKey(context.Background(), "", "meow", "quack", "woof", ipL, ipL)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	tarID := subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
 	resp, err := bi.GetAPIKeys(context.Background(), tarID)
 	assert.NoError(t, err)
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientAPIKeysFound)
 	}
-	resp2, err := bi.ModifyAPIKey(context.Background(), tarID, clientID, "oink", resp[0].SubaccountApiKey, ipL, ipL)
+	resp2, err := bi.ModifyAPIKey(context.Background(), tarID, clientID, "oink", resp[0].SubaccountAPIKey, ipL, ipL)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp2)
 }
@@ -440,7 +439,7 @@ func TestGetAPIKeys(t *testing.T) {
 	t.Parallel()
 	var tarID string
 	if sharedtestvalues.AreAPICredentialsSet(bi) {
-		tarID = subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+		tarID = subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
 	}
 	testGetOneArg(t, bi.GetAPIKeys, "", tarID, errSubaccountEmpty, true, true, true)
 }
@@ -542,7 +541,7 @@ func TestGetSpotMergeDepth(t *testing.T) {
 
 func TestGetOrderbookDepth(t *testing.T) {
 	t.Parallel()
-	resp, err := bi.GetOrderbookDepth(context.Background(), testPair, "", 5)
+	resp, err := bi.GetOrderbookDepth(context.Background(), testPair, "step0", 5)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -898,8 +897,8 @@ func TestSubaccountTransfer(t *testing.T) {
 	_, err = bi.SubaccountTransfer(context.Background(), "meow", "woof", "", "neigh", "moo", testCrypto, currency.Pair{}, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	fromID := subAccTestHelper(t, "", strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com")
-	toID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	fromID := subAccTestHelper(t, "", strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com")
+	toID := subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
 	_, err = bi.SubaccountTransfer(context.Background(), "spot", "p2p", clientIDGenerator(), fromID, toID, testCrypto, testPair, testAmount)
 	assert.NoError(t, err)
 }
@@ -984,6 +983,7 @@ func TestCancelWithdrawal(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.OrderID)
 	_, err = bi.CancelWithdrawal(context.Background(), int64(resp.OrderID))
+	assert.NoError(t, err)
 }
 
 func TestGetSubaccountDepositRecords(t *testing.T) {
@@ -2213,9 +2213,8 @@ func TestRedeemSavings(t *testing.T) {
 		}
 		if tarProd != 0 || int64(resp.EndID) == pagination || resp.EndID == 0 {
 			break
-		} else {
-			pagination = int64(resp.EndID)
 		}
+		pagination = int64(resp.EndID)
 	}
 	if tarProd == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -2446,7 +2445,6 @@ func TestGetLiquidationRecords(t *testing.T) {
 // Try to put these into those get one arg functions
 func TestGetLoanInfo(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	_, err := bi.GetLoanInfo(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -2456,7 +2454,6 @@ func TestGetLoanInfo(t *testing.T) {
 
 func TestGetMarginCoinRatio(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	_, err := bi.GetMarginCoinRatio(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -2466,7 +2463,6 @@ func TestGetMarginCoinRatio(t *testing.T) {
 
 func TestGetSpotSymbols(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	_, err := bi.GetSpotSymbols(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -2476,17 +2472,16 @@ func TestGetSpotSymbols(t *testing.T) {
 
 func TestGetLoanToValue(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err := bi.GetLoanToValue(context.Background(), "")
 	assert.NoError(t, err)
 	tarID := riskUnitHelper(t)
 	_, err = bi.GetLoanToValue(context.Background(), tarID)
+	assert.NoError(t, err)
 }
 
 func TestGetTransferableAmount(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	_, err := bi.GetTransferableAmount(context.Background(), "", currency.Code{})
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -2496,7 +2491,6 @@ func TestGetTransferableAmount(t *testing.T) {
 
 func TestGetRiskUnit(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	testGetNoArgs(t, bi.GetRiskUnit)
 }
@@ -2506,7 +2500,7 @@ func TestSubaccountRiskUnitBinding(t *testing.T) {
 	_, err := bi.SubaccountRiskUnitBinding(context.Background(), "", "", false)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
+	tarID := subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
 	tarID2 := riskUnitHelper(t)
 	_, err = bi.SubaccountRiskUnitBinding(context.Background(), tarID, tarID2, false)
 	assert.NoError(t, err)
@@ -2514,7 +2508,6 @@ func TestSubaccountRiskUnitBinding(t *testing.T) {
 
 func TestGetLoanOrders(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	_, err := bi.GetLoanOrders(context.Background(), "", time.Now().Add(time.Minute), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -2524,7 +2517,6 @@ func TestGetLoanOrders(t *testing.T) {
 
 func TestGetRepaymentOrders(t *testing.T) {
 	t.Parallel()
-	// bi.Verbose = true
 	_, err := bi.GetRepaymentOrders(context.Background(), 0, time.Now().Add(time.Minute), time.Time{})
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
