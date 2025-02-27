@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -31,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -1367,6 +1369,32 @@ func TestWSTradeDetail(t *testing.T) {
 	h.SetSaveTradeDataStatus(true)
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", h.wsHandleData)
 	close(h.Websocket.DataHandler)
+	expJSON := []string{
+		`{"TID":"102523573486","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"BUY","Price":52648.62,"Amount":0.006754,"Timestamp":"2021-09-07T13:09:23.173+07:00"}`,
+	}
+	require.Len(t, h.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
+	for resp := range h.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case []trade.Data:
+			exp := []trade.Data{{
+				Exchange:     h.Name,
+				CurrencyPair: btcusdtPair,
+			},
+			}
+			require.NoError(t, json.Unmarshal([]byte(expJSON[0]), &exp[0]), "Must not error unmarshalling json %d:%s", 0, expJSON)
+			for i := range v {
+				v[i].ID = [16]uint8{}
+			}
+			for i := range exp {
+				exp[i].ID = [16]uint8{}
+			}
+			require.Equalf(t, exp, v, "Trade [%d] should be correct", 0)
+		case error:
+			t.Error()
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
+		}
+	}
 	require.Empty(t, h.Websocket.DataHandler, "Must not see any errors going to datahandler")
 }
 

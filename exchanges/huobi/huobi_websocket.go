@@ -228,7 +228,9 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 }
 
 func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
-	if !h.IsSaveTradeDataEnabled() {
+	saveTradeData := h.IsSaveTradeDataEnabled()
+	tradeFeed := h.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
 		return nil
 	}
 	if len(s.Pairs) != 1 {
@@ -255,7 +257,13 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 		})
 	}
-	return trade.AddTradesToBuffer(h.Name, trades...)
+	if tradeFeed {
+		h.Websocket.DataHandler <- trades
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(h.Name, trades...)
+	}
+	return nil
 }
 
 func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
