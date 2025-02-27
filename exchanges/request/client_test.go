@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
@@ -14,12 +15,7 @@ import (
 func (c *clientTracker) contains(check *http.Client) bool {
 	c.Lock()
 	defer c.Unlock()
-	for x := range c.clients {
-		if check == c.clients[x] {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.clients, check)
 }
 
 func TestCheckAndRegister(t *testing.T) {

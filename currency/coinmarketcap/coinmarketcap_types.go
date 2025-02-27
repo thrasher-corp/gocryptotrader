@@ -112,23 +112,23 @@ type OHLC struct {
 
 // CryptoCurrencyInfo defines cryptocurrency information
 type CryptoCurrencyInfo map[string]struct {
-	ID       int         `json:"id"`
-	Name     string      `json:"name"`
-	Symbol   string      `json:"symbol"`
-	Category string      `json:"category"`
-	Slug     string      `json:"slug"`
-	Logo     string      `json:"logo"`
-	Tags     []string    `json:"tags"`
-	Platform interface{} `json:"platform"`
+	ID       int      `json:"id"`
+	Name     string   `json:"name"`
+	Symbol   string   `json:"symbol"`
+	Category string   `json:"category"`
+	Slug     string   `json:"slug"`
+	Logo     string   `json:"logo"`
+	Tags     []string `json:"tags"`
+	Platform any      `json:"platform"`
 	Urls     struct {
-		Website      []string      `json:"website"`
-		Explorer     []string      `json:"explorer"`
-		SourceCode   []string      `json:"source_code"`
-		MessageBoard []string      `json:"message_board"`
-		Chat         []interface{} `json:"chat"`
-		Announcement []interface{} `json:"announcement"`
-		Reddit       []string      `json:"reddit"`
-		Twitter      []string      `json:"twitter"`
+		Website      []string `json:"website"`
+		Explorer     []string `json:"explorer"`
+		SourceCode   []string `json:"source_code"`
+		MessageBoard []string `json:"message_board"`
+		Chat         []any    `json:"chat"`
+		Announcement []any    `json:"announcement"`
+		Reddit       []string `json:"reddit"`
+		Twitter      []string `json:"twitter"`
 	} `json:"urls"`
 }
 
@@ -170,19 +170,19 @@ type CryptocurrencyHistoricalListings struct {
 
 // CryptocurrencyLatestListings defines latest cryptocurrency listing data
 type CryptocurrencyLatestListings struct {
-	ID                int         `json:"id"`
-	Name              string      `json:"name"`
-	Symbol            string      `json:"symbol"`
-	Slug              string      `json:"slug"`
-	CmcRank           int         `json:"cmc_rank"`
-	NumMarketPairs    int         `json:"num_market_pairs"`
-	CirculatingSupply float64     `json:"circulating_supply"`
-	TotalSupply       float64     `json:"total_supply"`
-	MaxSupply         float64     `json:"max_supply"`
-	LastUpdated       time.Time   `json:"last_updated"`
-	DateAdded         time.Time   `json:"date_added"`
-	Tags              []string    `json:"tags"`
-	Platform          interface{} `json:"platform"`
+	ID                int       `json:"id"`
+	Name              string    `json:"name"`
+	Symbol            string    `json:"symbol"`
+	Slug              string    `json:"slug"`
+	CmcRank           int       `json:"cmc_rank"`
+	NumMarketPairs    int       `json:"num_market_pairs"`
+	CirculatingSupply float64   `json:"circulating_supply"`
+	TotalSupply       float64   `json:"total_supply"`
+	MaxSupply         float64   `json:"max_supply"`
+	LastUpdated       time.Time `json:"last_updated"`
+	DateAdded         time.Time `json:"date_added"`
+	Tags              []string  `json:"tags"`
+	Platform          any       `json:"platform"`
 	Quote             struct {
 		USD Currency `json:"USD"`
 		BTC Currency `json:"BTC"`
@@ -240,12 +240,12 @@ type CryptocurrencyOHLCHistorical struct {
 
 // CryptocurrencyOHLCLatest defines open high low close latest data
 type CryptocurrencyOHLCLatest map[string]struct {
-	ID          int         `json:"id"`
-	Name        string      `json:"name"`
-	Symbol      string      `json:"symbol"`
-	LastUpdated time.Time   `json:"last_updated"`
-	TimeOpen    time.Time   `json:"time_open"`
-	TimeClose   interface{} `json:"time_close"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Symbol      string    `json:"symbol"`
+	LastUpdated time.Time `json:"last_updated"`
+	TimeOpen    time.Time `json:"time_open"`
+	TimeClose   any       `json:"time_close"`
 	Quote       struct {
 		USD OHLC `json:"USD"`
 	} `json:"quote"`
@@ -253,19 +253,19 @@ type CryptocurrencyOHLCLatest map[string]struct {
 
 // CryptocurrencyLatestQuotes defines latest cryptocurrency quotation data
 type CryptocurrencyLatestQuotes map[string]struct {
-	ID                int         `json:"id"`
-	Name              string      `json:"name"`
-	Symbol            string      `json:"symbol"`
-	Slug              string      `json:"slug"`
-	CirculatingSupply float64     `json:"circulating_supply"`
-	TotalSupply       float64     `json:"total_supply"`
-	MaxSupply         float64     `json:"max_supply"`
-	DateAdded         time.Time   `json:"date_added"`
-	NumMarketPairs    int         `json:"num_market_pairs"`
-	CmcRank           int         `json:"cmc_rank"`
-	LastUpdated       time.Time   `json:"last_updated"`
-	Tags              []string    `json:"tags"`
-	Platform          interface{} `json:"platform"`
+	ID                int       `json:"id"`
+	Name              string    `json:"name"`
+	Symbol            string    `json:"symbol"`
+	Slug              string    `json:"slug"`
+	CirculatingSupply float64   `json:"circulating_supply"`
+	TotalSupply       float64   `json:"total_supply"`
+	MaxSupply         float64   `json:"max_supply"`
+	DateAdded         time.Time `json:"date_added"`
+	NumMarketPairs    int       `json:"num_market_pairs"`
+	CmcRank           int       `json:"cmc_rank"`
+	LastUpdated       time.Time `json:"last_updated"`
+	Tags              []string  `json:"tags"`
+	Platform          any       `json:"platform"`
 	Quote             struct {
 		USD Currency `json:"USD"`
 	} `json:"quote"`
@@ -288,11 +288,11 @@ type CryptocurrencyHistoricalQuotes struct {
 // ExchangeInfo defines exchange information
 type ExchangeInfo map[string]struct {
 	Urls struct {
-		Website []string      `json:"website"`
-		Twitter []string      `json:"twitter"`
-		Blog    []interface{} `json:"blog"`
-		Chat    []string      `json:"chat"`
-		Fee     []string      `json:"fee"`
+		Website []string `json:"website"`
+		Twitter []string `json:"twitter"`
+		Blog    []any    `json:"blog"`
+		Chat    []string `json:"chat"`
+		Fee     []string `json:"fee"`
 	} `json:"urls"`
 	Logo string `json:"logo"`
 	ID   int    `json:"id"`

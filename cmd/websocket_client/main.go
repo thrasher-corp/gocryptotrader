@@ -26,7 +26,7 @@ type WebsocketEvent struct {
 	Exchange  string `json:"exchange,omitempty"`
 	AssetType string `json:"assetType,omitempty"`
 	Event     string
-	Data      interface{}
+	Data      any
 }
 
 // WebsocketAuth is the struct used for a websocket auth request
@@ -37,9 +37,9 @@ type WebsocketAuth struct {
 
 // WebsocketEventResponse is the struct used for websocket event responses
 type WebsocketEventResponse struct {
-	Event string      `json:"event"`
-	Data  interface{} `json:"data"`
-	Error string      `json:"error"`
+	Event string `json:"event"`
+	Data  any    `json:"data"`
+	Error string `json:"error"`
 }
 
 // WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
@@ -51,7 +51,7 @@ type WebsocketOrderbookTickerRequest struct {
 }
 
 // SendWebsocketEvent sends a websocket event message
-func SendWebsocketEvent(event string, reqData interface{}, result *WebsocketEventResponse) error {
+func SendWebsocketEvent(event string, reqData any, result *WebsocketEventResponse) error {
 	req := WebsocketEvent{
 		Event: event,
 	}

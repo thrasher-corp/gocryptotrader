@@ -243,7 +243,7 @@ func TestGetAllActiveAccounts(t *testing.T) {
 	}
 }
 
-func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
+func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
 	t.Helper()
 	w := httptest.NewRecorder()
 

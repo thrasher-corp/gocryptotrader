@@ -6,7 +6,7 @@ import "errors"
 var ErrFeedDisabled = errors.New("fill feed disabled")
 
 // Setup sets up the fill processor
-func (f *Fills) Setup(fillsFeedEnabled bool, c chan interface{}) {
+func (f *Fills) Setup(fillsFeedEnabled bool, c chan any) {
 	f.dataHandler = c
 	f.fillsFeedEnabled = fillsFeedEnabled
 }

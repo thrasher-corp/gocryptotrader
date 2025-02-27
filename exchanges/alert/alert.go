@@ -21,7 +21,7 @@ const (
 var (
 	// pool is a silent shared pool between all notice instances for alerting
 	// external routines waiting on a state change.
-	pool = sync.Pool{New: func() interface{} { return make(chan bool) }}
+	pool = sync.Pool{New: func() any { return make(chan bool) }}
 
 	preAllocBufferSize = PreAllocCommsDefaultBuffer
 	mu                 sync.RWMutex

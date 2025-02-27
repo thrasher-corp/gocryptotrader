@@ -27,9 +27,9 @@ type orderbookResponse struct {
 
 // Authenticate stores authentication variables required
 type Authenticate struct {
-	RequestID string        `json:"req_id"`
-	Args      []interface{} `json:"args"`
-	Operation string        `json:"op"`
+	RequestID string `json:"req_id"`
+	Args      []any  `json:"args"`
+	Operation string `json:"op"`
 }
 
 // SubscriptionArgument represents a subscription arguments.
@@ -105,9 +105,9 @@ type InstrumentInfo struct {
 
 // RestResponse represents a REST response instance.
 type RestResponse struct {
-	RetCode    int64       `json:"retCode"`
-	RetMsg     string      `json:"retMsg"`
-	Result     interface{} `json:"result"`
+	RetCode    int64  `json:"retCode"`
+	RetMsg     string `json:"retMsg"`
+	Result     any    `json:"result"`
 	RetExtInfo struct {
 		List []ErrorMessage `json:"list"`
 	} `json:"retExtInfo"`
@@ -344,7 +344,7 @@ type OrderResponse struct {
 // AmendOrderParams represents a parameter for amending order.
 type AmendOrderParams struct {
 	Category               string        `json:"category,omitempty"`
-	Symbol                 currency.Pair `json:"symbol,omitempty"`
+	Symbol                 currency.Pair `json:"symbol,omitzero"`
 	OrderID                string        `json:"orderId,omitempty"`
 	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
@@ -373,7 +373,7 @@ type AmendOrderParams struct {
 // CancelOrderParams represents a cancel order parameters.
 type CancelOrderParams struct {
 	Category    string        `json:"category,omitempty"`
-	Symbol      currency.Pair `json:"symbol,omitempty"`
+	Symbol      currency.Pair `json:"symbol,omitzero"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 
@@ -464,7 +464,7 @@ type PlaceBatchOrderParam struct {
 // BatchOrderItemParam represents a batch order place parameter.
 type BatchOrderItemParam struct {
 	Category         string        `json:"category,omitempty"`
-	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Symbol           currency.Pair `json:"symbol,omitzero"`
 	OrderType        string        `json:"orderType,omitempty"`
 	Side             string        `json:"side,omitempty"`
 	OrderQuantity    float64       `json:"qty,string,omitempty"`
@@ -1242,7 +1242,7 @@ type WithdrawableAmount struct {
 
 // WithdrawalParam represents asset withdrawal request parameter.
 type WithdrawalParam struct {
-	Coin        currency.Code `json:"coin,omitempty"`
+	Coin        currency.Code `json:"coin,omitzero"`
 	Chain       string        `json:"chain,omitempty"`
 	Address     string        `json:"address,omitempty"`
 	Tag         string        `json:"tag,omitempty"`

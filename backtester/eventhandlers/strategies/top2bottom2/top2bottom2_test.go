@@ -51,7 +51,7 @@ func TestSetCustomSettings(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	float14 := float64(14)
-	mappalopalous := make(map[string]interface{})
+	mappalopalous := make(map[string]any)
 	mappalopalous[mfiPeriodKey] = float14
 	mappalopalous[mfiLowKey] = float14
 	mappalopalous[mfiHighKey] = float14

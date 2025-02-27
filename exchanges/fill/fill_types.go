@@ -10,7 +10,7 @@ import (
 
 // Fills is used to hold data and methods related to fill dissemination
 type Fills struct {
-	dataHandler      chan interface{}
+	dataHandler      chan any
 	fillsFeedEnabled bool
 }
 

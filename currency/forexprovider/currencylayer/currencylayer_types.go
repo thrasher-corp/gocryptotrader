@@ -92,15 +92,15 @@ type ConversionRate struct {
 
 // TimeFrame is a response type holding exchange rates for a time period
 type TimeFrame struct {
-	Success   bool                   `json:"success"`
-	Error     Error                  `json:"error"`
-	Terms     string                 `json:"terms"`
-	Privacy   string                 `json:"privacy"`
-	Timeframe bool                   `json:"timeframe"`
-	StartDate string                 `json:"start_date"`
-	EndDate   string                 `json:"end_date"`
-	Source    string                 `json:"source"`
-	Quotes    map[string]interface{} `json:"quotes"`
+	Success   bool           `json:"success"`
+	Error     Error          `json:"error"`
+	Terms     string         `json:"terms"`
+	Privacy   string         `json:"privacy"`
+	Timeframe bool           `json:"timeframe"`
+	StartDate string         `json:"start_date"`
+	EndDate   string         `json:"end_date"`
+	Source    string         `json:"source"`
+	Quotes    map[string]any `json:"quotes"`
 }
 
 // ChangeRate is the response type that holds rate change data.
