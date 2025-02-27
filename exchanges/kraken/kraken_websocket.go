@@ -542,6 +542,9 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		if !ok {
 			return errors.New("unidentified trade data received")
 		}
+		if len(t) < 4 {
+			return fmt.Errorf("unexpected trade data length: %s", t)
+		}
 		ts, ok := t[2].(string)
 		if !ok {
 			return common.GetTypeAssertError("string", t[2], "timeData")
