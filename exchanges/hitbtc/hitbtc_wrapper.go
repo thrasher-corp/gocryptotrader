@@ -790,7 +790,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 	data, err := h.GetCandles(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(req.RequestLimit, 10),
+		strconv.FormatUint(req.RequestLimit, 10),
 		formattedInterval,
 		req.Start,
 		req.End)
@@ -829,7 +829,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(req.RequestLimit, 10),
+			strconv.FormatUint(req.RequestLimit, 10),
 			formattedInterval,
 			req.RangeHolder.Ranges[y].Start.Time,
 			req.RangeHolder.Ranges[y].End.Time)

@@ -4784,7 +4784,6 @@
         "currencies": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcAccountCurrencyInfo"
           }
         }
@@ -4916,7 +4915,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrders"
           }
         },
@@ -4958,7 +4956,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrders"
           }
         }
@@ -5282,7 +5279,6 @@
         "currencyStates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCurrencyState"
           }
         }
@@ -5318,15 +5314,15 @@
         },
         "requestSizeLimit": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "maxRetryAttempts": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "batchSize": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "status": {
           "type": "string"
@@ -5346,7 +5342,7 @@
         },
         "decimalPlaceComparison": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "secondaryExchangeName": {
           "type": "string"
@@ -5361,7 +5357,6 @@
         "jobResults": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcDataHistoryJobResult"
           }
         },
@@ -5399,7 +5394,6 @@
         "results": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcDataHistoryJob"
           }
         }
@@ -5425,7 +5419,6 @@
         "addresses": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcDepositAddress"
           }
         }
@@ -5547,7 +5540,6 @@
         "rates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcFundingRate"
           }
         },
@@ -5637,7 +5629,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
         },
@@ -5797,7 +5788,6 @@
         "scripts": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcGCTScript"
           }
         }
@@ -5863,7 +5853,6 @@
         "accounts": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcAccount"
           }
         }
@@ -5875,7 +5864,6 @@
         "events": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcAuditEvent"
           }
         }
@@ -5950,14 +5938,12 @@
         "currencyBreakdown": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCollateralForCurrency"
           }
         },
         "positionBreakdown": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCollateralByPosition"
           }
         }
@@ -6166,7 +6152,6 @@
         "forexProviders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcForexProvider"
           }
         }
@@ -6178,7 +6163,6 @@
         "forexRates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcForexRatesConversion"
           }
         }
@@ -6198,7 +6182,6 @@
         "positions": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
         }
@@ -6242,7 +6225,6 @@
         "candle": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCandle"
           }
         }
@@ -6340,7 +6322,6 @@
         "positions": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
         }
@@ -6352,7 +6333,6 @@
         "rates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcMarginRate"
           }
         },
@@ -6389,7 +6369,6 @@
         "data": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOpenInterestDataResponse"
           }
         }
@@ -6575,7 +6554,6 @@
         "orderbooks": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbooks"
           }
         }
@@ -6607,7 +6585,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
         }
@@ -6619,7 +6596,6 @@
         "portfolio": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcPortfolioAddress"
           }
         }
@@ -6631,14 +6607,12 @@
         "coinTotals": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
         "coinsOffline": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
@@ -6651,7 +6625,6 @@
         "coinsOnline": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
@@ -6716,7 +6689,6 @@
         "tickers": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTickers"
           }
         }
@@ -6804,7 +6776,6 @@
         "addresses": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOfflineCoinSummary"
           }
         }
@@ -6922,7 +6893,6 @@
         "trades": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTradeHistory"
           }
         },
@@ -6961,14 +6931,12 @@
         "bids": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
         "asks": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
@@ -6993,7 +6961,6 @@
         "orderbooks": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookResponse"
           }
         }
@@ -7113,7 +7080,6 @@
         "trades": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcSavedTrades"
           }
         }
@@ -7174,7 +7140,6 @@
         "pairs": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCurrencyPair"
           }
         },
@@ -7311,7 +7276,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
@@ -7382,7 +7346,6 @@
         "trades": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTrades"
           }
         }
@@ -7440,7 +7403,6 @@
         "tickers": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTickerResponse"
           }
         }
@@ -7541,7 +7503,7 @@
         },
         "requestSizeLimit": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "dataType": {
           "type": "string",
@@ -7549,11 +7511,11 @@
         },
         "maxRetryAttempts": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "batchSize": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "insertOnly": {
           "type": "boolean"
@@ -7570,7 +7532,7 @@
         },
         "decimalPlaceComparison": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "secondaryExchangeName": {
           "type": "string"
@@ -7630,7 +7592,6 @@
         "subscriptions": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcWebsocketSubscription"
           }
         }
@@ -7820,7 +7781,6 @@
         "event": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
           }
         }
@@ -7840,8 +7800,8 @@
           "format": "double"
         },
         "type": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "fiat": {
           "$ref": "#/definitions/gctrpcFiatWithdrawalEvent"
@@ -7887,7 +7847,6 @@
         "details": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

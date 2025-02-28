@@ -138,8 +138,7 @@
             "name": "config.dataSettings.interval",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "uint64"
+            "type": "string"
           },
           {
             "name": "config.dataSettings.datatype",
@@ -426,8 +425,7 @@
             "name": "intervalOverride",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "uint64"
+            "type": "string"
           }
         ],
         "tags": [
@@ -723,8 +721,7 @@
       "type": "object",
       "properties": {
         "interval": {
-          "type": "string",
-          "format": "uint64"
+          "type": "string"
         },
         "datatype": {
           "type": "string"

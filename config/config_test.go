@@ -1746,7 +1746,7 @@ func BenchmarkUpdateConfig(b *testing.B) {
 	}
 
 	newCfg := c
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = c.UpdateConfig(TestFile, &newCfg, true)
 	}
 }

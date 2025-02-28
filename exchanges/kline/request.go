@@ -58,12 +58,12 @@ type Request struct {
 	ProcessedCandles []Candle
 	// RequestLimit is the potential maximum amount of candles that can be
 	// returned
-	RequestLimit int64
+	RequestLimit uint64
 }
 
 // CreateKlineRequest generates a `Request` type for interval conversions
 // supported by an exchange.
-func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item, clientRequired, exchangeInterval Interval, start, end time.Time, specificEndpointLimit int64) (*Request, error) {
+func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item, clientRequired, exchangeInterval Interval, start, end time.Time, specificEndpointLimit uint64) (*Request, error) {
 	if name == "" {
 		return nil, ErrUnsetName
 	}
@@ -132,7 +132,7 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 
 // GetRanges returns the date ranges for candle intervals broken up over
 // requests
-func (r *Request) GetRanges(limit uint32) (*IntervalRangeHolder, error) {
+func (r *Request) GetRanges(limit uint64) (*IntervalRangeHolder, error) {
 	if r == nil {
 		return nil, errNilRequest
 	}
@@ -193,12 +193,12 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 }
 
 // Size returns the max length of return for pre-allocation.
-func (r *Request) Size() int {
+func (r *Request) Size() uint64 {
 	if r == nil {
 		return 0
 	}
 
-	return int(TotalCandlesPerInterval(r.Start, r.End, r.ExchangeInterval))
+	return TotalCandlesPerInterval(r.Start, r.End, r.ExchangeInterval)
 }
 
 // ExtendedRequest used in extended functionality for when candles requested
@@ -236,12 +236,12 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 }
 
 // Size returns the max length of return for pre-allocation.
-func (r *ExtendedRequest) Size() int {
+func (r *ExtendedRequest) Size() uint64 {
 	if r == nil || r.RangeHolder == nil {
 		return 0
 	}
 	if r.RangeHolder.Limit == 0 {
 		log.Warnf(log.ExchangeSys, "%v candle request limit is zero while calling Size()", r.Exchange)
 	}
-	return r.RangeHolder.Limit * len(r.RangeHolder.Ranges)
+	return r.RangeHolder.Limit * uint64(len(r.RangeHolder.Ranges))
 }

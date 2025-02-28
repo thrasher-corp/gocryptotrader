@@ -811,7 +811,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		req.Start,
 		req.End,
 		b.FormatExchangeKlineInterval(req.ExchangeInterval),
-		strconv.FormatInt(req.RequestLimit, 10))
+		strconv.FormatUint(req.RequestLimit, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -849,7 +849,7 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			req.RangeHolder.Ranges[x].Start.Time,
 			req.RangeHolder.Ranges[x].End.Time,
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			strconv.FormatInt(req.RequestLimit, 10),
+			strconv.FormatUint(req.RequestLimit, 10),
 		)
 		if err != nil {
 			return nil, err

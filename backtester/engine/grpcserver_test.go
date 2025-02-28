@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -80,7 +81,7 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		StrategyFilePath:  dcaConfigPath,
 		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Minute)),
 		EndTimeOverride:   timestamppb.New(time.Now()),
-		IntervalOverride:  1,
+		IntervalOverride:  durationpb.New(time.Duration(1)),
 	})
 	if !errors.Is(err, gctkline.ErrInvalidInterval) {
 		t.Errorf("received '%v' expecting '%v'", err, gctkline.ErrInvalidInterval)
@@ -90,7 +91,7 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		StrategyFilePath:  dcaConfigPath,
 		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Hour * 6).Truncate(time.Hour)),
 		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Hour * 2).Truncate(time.Hour)),
-		IntervalOverride:  uint64(time.Hour.Nanoseconds()),
+		IntervalOverride:  durationpb.New(time.Hour),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -218,7 +219,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 
 	dataSettings := &btrpc.DataSettings{
-		Interval: uint64(defaultConfig.DataSettings.Interval.Duration().Nanoseconds()),
+		Interval: durationpb.New(defaultConfig.DataSettings.Interval.Duration()),
 		Datatype: defaultConfig.DataSettings.DataType,
 	}
 	if defaultConfig.DataSettings.APIData != nil {
@@ -256,7 +257,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	if defaultConfig.DataSettings.DatabaseData != nil {
 		dbConnectionDetails := &btrpc.DatabaseConnectionDetails{
 			Host:     defaultConfig.DataSettings.DatabaseData.Config.Host,
-			Port:     uint32(defaultConfig.DataSettings.DatabaseData.Config.Port),
+			Port:     defaultConfig.DataSettings.DatabaseData.Config.Port,
 			Password: defaultConfig.DataSettings.DatabaseData.Config.Password,
 			Database: defaultConfig.DataSettings.DatabaseData.Config.Database,
 			SslMode:  defaultConfig.DataSettings.DatabaseData.Config.SSLMode,

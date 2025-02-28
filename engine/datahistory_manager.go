@@ -178,7 +178,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	}
 	var err error
 	for i := range jobs {
-		jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, uint32(jobs[i].RequestSizeLimit))
+		jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, jobs[i].RequestSizeLimit)
 		if err != nil {
 			return err
 		}
@@ -354,7 +354,7 @@ func (m *DataHistoryManager) runDataJob(job *DataHistoryJob, exch exchange.IBotE
 	if !m.IsRunning() {
 		return ErrSubSystemNotStarted
 	}
-	var intervalsProcessed int64
+	var intervalsProcessed uint64
 	var err error
 	var result *DataHistoryJobResult
 ranges:
@@ -404,7 +404,7 @@ ranges:
 				job.DataType)
 		}
 
-		var failures int64
+		var failures uint64
 		hasDataInRange := false
 		resultLookup, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
 		if ok {
@@ -503,9 +503,9 @@ func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange
 	if !m.IsRunning() {
 		return ErrSubSystemNotStarted
 	}
-	var intervalsProcessed int64
+	var intervalsProcessed uint64
 	var jobIntervals, intervalsToCheck []time.Time
-	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
+	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit) //nolint:gosec // TODO: Ensure size limit can't overflow
 	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
 		jobIntervals = append(jobIntervals, i)
 	}
@@ -513,7 +513,7 @@ func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange
 timesToFetch:
 	for t, results := range job.Results {
 		tt := time.Unix(t, 0)
-		if len(results) < int(job.MaxRetryAttempts) {
+		if uint64(len(results)) < job.MaxRetryAttempts {
 			for x := range results {
 				if results[x].Status == dataHistoryStatusComplete {
 					continue timesToFetch
@@ -1156,7 +1156,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if job.DataType == dataHistoryConvertCandlesDataType {
 		interval = job.ConversionInterval
 	}
-	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, interval, uint32(job.RequestSizeLimit))
+	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, interval, job.RequestSizeLimit)
 	if err != nil {
 		return err
 	}
@@ -1256,7 +1256,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 
 	if job.DataType == dataHistoryCandleValidationDataType {
-		if job.DecimalPlaceComparison < 0 {
+		if job.DecimalPlaceComparison == 0 {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v decimal places when comparing data for validation", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}

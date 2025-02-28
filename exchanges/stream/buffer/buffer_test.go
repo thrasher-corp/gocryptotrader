@@ -92,8 +92,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 	ob, _, _, err := createSnapshot(cp)
 	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		bidAsks := bidAskGenerator()
 		update := &orderbook.Update{
 			Bids:       bidAsks,
@@ -114,8 +113,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 	ob, _, _, err := createSnapshot(cp)
 	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		bidAsks := bidAskGenerator()
 		update := &orderbook.Update{
 			Bids:       bidAsks,
@@ -147,8 +145,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -175,8 +172,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -203,8 +199,8 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -231,9 +227,8 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
