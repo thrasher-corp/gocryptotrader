@@ -482,41 +482,33 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		return nil, common.ErrStartEqualsEnd
 	}
 
+	intervals := make([]IntervalData, 0, count)
+	for iStart := start; iStart.Before(end); iStart = iStart.Add(interval.Duration()) {
+		intervals = append(intervals, IntervalData{
+			Start: CreateIntervalTime(iStart),
+			End:   CreateIntervalTime(iStart.Add(interval.Duration())),
+		})
+	}
+
 	if limit == 0 {
 		limit = count
 	}
 
-	requests := (count + limit - 1) / limit
-
-	ranges := make([]IntervalRange, requests)
-	requestStart := start
-	remaining := count
-
-	for x := range ranges {
-		current := limit
-		if remaining < limit {
-			current = remaining
-		}
-
-		ranges[x].Start = CreateIntervalTime(requestStart)
-		ranges[x].Intervals = make([]IntervalData, current)
-
-		for y := range ranges[x].Intervals {
-			ranges[x].Intervals[y].Start = CreateIntervalTime(requestStart)
-			requestStart = requestStart.Add(interval.Duration())
-			ranges[x].Intervals[y].End = CreateIntervalTime(requestStart)
-		}
-
-		ranges[x].End = CreateIntervalTime(requestStart)
-		remaining -= current
+	h := &IntervalRangeHolder{
+		Start: CreateIntervalTime(start),
+		End:   CreateIntervalTime(end),
+		Limit: limit,
 	}
 
-	return &IntervalRangeHolder{
-		Start:  CreateIntervalTime(start),
-		End:    CreateIntervalTime(requestStart),
-		Ranges: ranges,
-		Limit:  limit,
-	}, nil
+	for _, b := range common.Batch(intervals, int(limit)) { //nolint:gosec // Ignore this warning as Batch requires int
+		h.Ranges = append(h.Ranges, IntervalRange{
+			Start:     b[0].Start,
+			End:       b[len(b)-1].End,
+			Intervals: b,
+		})
+	}
+
+	return h, nil
 }
 
 // HasDataAtDate determines whether a there is any data at a set

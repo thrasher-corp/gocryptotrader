@@ -61,7 +61,7 @@ func TestPromptForConfigKey(t *testing.T) {
 	})
 }
 
-func TestEncryptConfigFile(t *testing.T) {
+func TestEncryptConfigData(t *testing.T) {
 	t.Parallel()
 	_, err := EncryptConfigData([]byte("test"), nil)
 	require.ErrorIs(t, err, errKeyIsEmpty)
@@ -87,7 +87,7 @@ func TestEncryptConfigFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDecryptConfigFile(t *testing.T) {
+func TestDecryptConfigData(t *testing.T) {
 	t.Parallel()
 	e, err := EncryptConfigData([]byte(`{"test":1}`), []byte("key"))
 	require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestDecryptConfigFile(t *testing.T) {
 	require.ErrorIs(t, err, errAESBlockSize)
 
 	sessionDK, salt, err := makeNewSessionDK([]byte("key"))
-	require.NoError(t, err)
+	require.NoError(t, err, "makeNewSessionDK must not error")
 
 	encData, err := legacyEncrypt(t, salt, []byte(`{"test":123}`), sessionDK)
 	require.NoError(t, err)

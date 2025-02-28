@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -244,7 +245,7 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 				return fullBalance, err
 			}
 		default:
-			return fullBalance, fmt.Errorf("unhandled type %T", v)
+			return fullBalance, common.GetTypeAssertError("float64|string", datum)
 		}
 
 		switch splitTag[0] {

@@ -185,7 +185,7 @@ func (c *Config) decryptConfigData(d, key []byte) ([]byte, error) {
 	} else {
 		d = d[len(encryptionVersionPrefix):]
 		switch ver := binary.BigEndian.Uint16(d[:versionSize]); ver {
-		case 1: // TODO: Add support for version migration
+		case 1: // TODO: Intertwine this with the existing config versioning system
 			d = d[versionSize:]
 			ciphertext, err = decryptAESGCMCiphertext(d, key)
 			if err != nil {
@@ -200,7 +200,7 @@ func (c *Config) decryptConfigData(d, key []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// decryptAESGCMCiphertext attempts to decrypt the ciphertext using AES-GCM
+// decryptAESGCMCiphertext decrypts the ciphertext using AES-GCM
 func decryptAESGCMCiphertext(data, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -212,11 +212,10 @@ func decryptAESGCMCiphertext(data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	plaintext, err := cipherAEAD.Open(nil, nil, data, nil)
-	return plaintext, err
+	return cipherAEAD.Open(nil, nil, data, nil)
 }
 
-// decryptAESCFBCiphertext attempts to decrypt the ciphertext using AES-CFB (legacy mode)
+// decryptAESCFBCiphertext decrypts the ciphertext using AES-CFB (legacy mode)
 func decryptAESCFBCiphertext(data, key []byte) ([]byte, error) {
 	if len(data) < aes.BlockSize {
 		return nil, errAESBlockSize
