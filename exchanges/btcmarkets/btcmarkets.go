@@ -78,10 +78,6 @@ const (
 	askSide = "Ask"
 	bidSide = "Bid"
 
-	// time in force
-	immediateOrCancel = "IOC"
-	fillOrKill        = "FOK"
-
 	subscribe         = "subscribe"
 	fundChange        = "fundChange"
 	orderChange       = "orderChange"
@@ -378,7 +374,7 @@ func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
 // getTimeInForce returns a string depending on the options in order.Submit
 func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
 	switch s.TimeInForce {
-	case order.IOC, order.FOK:
+	case order.ImmediateOrCancel, order.FillOrKill:
 		return s.TimeInForce.String()
 	default:
 		return "" // GTC (good till cancelled, default value)

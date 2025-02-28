@@ -374,9 +374,6 @@ func TestFilterOrdersByType(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			Type: ImmediateOrCancel,
-		},
-		{
 			Type: Limit,
 		},
 		{}, // Unpopulated fields are preserved for API differences
@@ -699,14 +696,9 @@ func TestSortOrdersByOrderType(t *testing.T) {
 		}, {
 			Type: Limit,
 		}, {
-			Type: ImmediateOrCancel,
-		}, {
 			Type: TrailingStop,
 		},
 	}
-
-	SortOrdersByType(&orders, false)
-	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), ImmediateOrCancel.String()), "Expected: '%v', received: '%v'", ImmediateOrCancel, orders[0].Type)
 
 	SortOrdersByType(&orders, true)
 	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), TrailingStop.String()), "Expected: '%v', received: '%v'", TrailingStop, orders[0].Type)
@@ -769,10 +761,6 @@ func TestStringToOrderType(t *testing.T) {
 		{"market", Market, nil},
 		{"MARKET", Market, nil},
 		{"mArKeT", Market, nil},
-		{"immediate_or_cancel", ImmediateOrCancel, nil},
-		{"IMMEDIATE_OR_CANCEL", ImmediateOrCancel, nil},
-		{"iMmEdIaTe_Or_CaNcEl", ImmediateOrCancel, nil},
-		{"iMmEdIaTe Or CaNcEl", ImmediateOrCancel, nil},
 		{"stop", Stop, nil},
 		{"STOP", Stop, nil},
 		{"sToP", Stop, nil},
@@ -782,10 +770,7 @@ func TestStringToOrderType(t *testing.T) {
 		{"TRAILING_STOP", TrailingStop, nil},
 		{"tRaIlInG_sToP", TrailingStop, nil},
 		{"tRaIlInG sToP", TrailingStop, nil},
-		{"fOk", FillOrKill, nil},
-		{"exchange fOk", FillOrKill, nil},
 		{"ios", IOS, nil},
-		{"post_ONly", PostOnly, nil},
 		{"any", AnyType, nil},
 		{"ANY", AnyType, nil},
 		{"aNy", AnyType, nil},
@@ -912,8 +897,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	require.NoError(t, err)
 
 	om := ModifyResponse{
-		TimeInForce:     IOC,
-		PostOnly:        true,
+		TimeInForce:     PostOnly | GoodTillTime,
 		Price:           1,
 		Amount:          1,
 		TriggerPrice:    1,
@@ -929,7 +913,8 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 
 	od.UpdateOrderFromModifyResponse(&om)
 	assert.NotEqual(t, UnknownTIF, od.TimeInForce)
-	assert.True(t, od.PostOnly)
+	assert.True(t, od.TimeInForce.Is(GoodTillTime))
+	assert.True(t, od.TimeInForce.Is(PostOnly))
 	assert.Equal(t, 1., od.Price)
 	assert.Equal(t, 1., od.Amount)
 	assert.Equal(t, 1., od.TriggerPrice)
@@ -961,9 +946,8 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	require.ErrorIs(t, err, ErrOrderDetailIsNil)
 
 	om := &Detail{
-		TimeInForce:     GoodTillCancel,
+		TimeInForce:     GoodTillCancel | PostOnly,
 		HiddenOrder:     true,
-		PostOnly:        true,
 		Leverage:        1,
 		Price:           1,
 		Amount:          1,
@@ -999,9 +983,9 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, od.InternalOrderID, id)
-	assert.Equal(t, GoodTillCancel, od.TimeInForce)
+	assert.True(t, od.TimeInForce.Is(GoodTillCancel))
+	assert.True(t, od.TimeInForce.Is(PostOnly))
 	require.True(t, od.HiddenOrder)
-	assert.True(t, od.PostOnly)
 	assert.Equal(t, 1., od.Leverage)
 	assert.Equal(t, 1., od.Price)
 	assert.Equal(t, 1., od.Amount)
@@ -1696,15 +1680,15 @@ func TestSideUnmarshal(t *testing.T) {
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	var timeInForceValidityMap = map[TimeInForce]bool{
-		TimeInForce(1): false,
-		IOC:            true,
-		GoodTillTime:   true,
-		GoodTillCancel: true,
-		GoodTillDay:    true,
-		FOK:            true,
-		PostOnlyGTC:    true,
-		UnsetTIF:       true,
-		UnknownTIF:     false,
+		TimeInForce(1):    false,
+		ImmediateOrCancel: true,
+		GoodTillTime:      true,
+		GoodTillCancel:    true,
+		GoodTillDay:       true,
+		FillOrKill:        true,
+		PostOnly:          true,
+		UnsetTIF:          true,
+		UnknownTIF:        false,
 	}
 	var tif TimeInForce
 	for tif = range timeInForceValidityMap {
@@ -1724,22 +1708,22 @@ func TestStringToTimeInForce(t *testing.T) {
 		"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
 		"GTT":                          {TIF: GoodTillTime},
 		"GOOD_TIL_TIME":                {TIF: GoodTillTime},
-		"FILLORKILL":                   {TIF: FOK},
-		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: PostOnlyGTC},
-		"immedIate_Or_Cancel":          {TIF: IOC},
+		"FILLORKILL":                   {TIF: FillOrKill},
+		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: PostOnly},
+		"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
 		"":                             {TIF: UnsetTIF},
-		"IOC":                          {TIF: IOC},
-		"immediate_or_cancel":          {TIF: IOC},
-		"IMMEDIATE_OR_CANCEL":          {TIF: IOC},
-		"IMMEDIATEORCANCEL":            {TIF: IOC},
+		"IOC":                          {TIF: ImmediateOrCancel},
+		"immediate_or_cancel":          {TIF: ImmediateOrCancel},
+		"IMMEDIATE_OR_CANCEL":          {TIF: ImmediateOrCancel},
+		"IMMEDIATEORCANCEL":            {TIF: ImmediateOrCancel},
 		"GOOD_TILL_CANCELLED":          {TIF: GoodTillCancel},
 		"good_till_day":                {TIF: GoodTillDay},
 		"GOOD_TILL_DAY":                {TIF: GoodTillDay},
 		"GTD":                          {TIF: GoodTillDay},
 		"GOODtillday":                  {TIF: GoodTillDay},
 		"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-		"PoC":                          {TIF: IOC},
-		"PendingORCANCEL":              {TIF: IOC},
+		"PoC":                          {TIF: ImmediateOrCancel},
+		"PendingORCANCEL":              {TIF: ImmediateOrCancel},
 	}
 
 	for tk := range timeInForceStringToValueMap {
@@ -1752,14 +1736,14 @@ func TestStringToTimeInForce(t *testing.T) {
 func TestString(t *testing.T) {
 	t.Parallel()
 	valMap := map[TimeInForce]string{
-		IOC:            "IOC",
-		GoodTillCancel: "GTC",
-		GoodTillTime:   "GTT",
-		GoodTillDay:    "GTD",
-		FOK:            "FOK",
-		PostOnlyGTC:    "POST_ONLY_GOOD_TIL_CANCELLED",
-		UnknownTIF:     "UNKNOWN",
-		UnsetTIF:       "",
+		ImmediateOrCancel: "IOC",
+		GoodTillCancel:    "GTC",
+		GoodTillTime:      "GTT",
+		GoodTillDay:       "GTD",
+		FillOrKill:        "FOK",
+		PostOnly:          "POST_ONLY_GOOD_TIL_CANCELLED",
+		UnknownTIF:        "UNKNOWN",
+		UnsetTIF:          "",
 	}
 	for x := range valMap {
 		result := x.String()
@@ -1769,8 +1753,8 @@ func TestString(t *testing.T) {
 
 func TestIsIOC(t *testing.T) {
 	t.Parallel()
-	require.True(t, IOC.IsIOC())
-	require.False(t, FOK.IsIOC())
+	require.True(t, ImmediateOrCancel.IsIOC())
+	require.False(t, FillOrKill.IsIOC())
 	require.False(t, TimeInForce(0).IsIOC())
 }
 

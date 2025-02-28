@@ -597,9 +597,9 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		timeInForce = "good_til_cancelled"
 	case order.GoodTillDay:
 		timeInForce = "good_till_day"
-	case order.FOK:
+	case order.FillOrKill:
 		timeInForce = "fill_or_kill"
-	case order.IOC:
+	case order.ImmediateOrCancel:
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData
@@ -794,9 +794,9 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 	case "good_til_day":
 		tif = order.GoodTillDay
 	case "fill_or_kill":
-		tif = order.FOK
+		tif = order.FillOrKill
 	case "immediate_or_cancel":
-		tif = order.IOC
+		tif = order.ImmediateOrCancel
 	}
 	return &order.Detail{
 		AssetType:       assetType,
@@ -919,10 +919,15 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if ordersData[y].OrderState != "open" {
 				continue
 			}
+
+			var tif order.TimeInForce
+			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
+				tif = order.PostOnly
+			}
+
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
-				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,
 				Amount:          ordersData[y].Amount,
 				ExecutedAmount:  ordersData[y].FilledAmount,
@@ -934,6 +939,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
+				TimeInForce:     tif,
 			})
 		}
 	}
@@ -988,10 +994,14 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
 				}
 			}
+
+			var tif order.TimeInForce
+			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
+				tif = order.PostOnly
+			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
-				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,
 				Amount:          ordersData[y].Amount,
 				ExecutedAmount:  ordersData[y].FilledAmount,
@@ -1003,6 +1013,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
+				TimeInForce:     tif,
 			})
 		}
 	}

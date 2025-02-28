@@ -1488,7 +1488,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
 
-		ordertype, postonly := getTypeFromTimeInForce(fOrder.TimeInForce)
+		ordertype, tif := getTypeFromTimeInForce(fOrder.TimeInForce)
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -1504,7 +1504,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:                 pair,
 			AssetType:            a,
 			Type:                 ordertype,
-			PostOnly:             postonly,
+			TimeInForce:          tif,
 			Side:                 side,
 		}, nil
 	case asset.Options:
@@ -1719,6 +1719,11 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					continue
 				}
 
+				var tif order.TimeInForce
+				if futuresOrders[x].TimeInForce == "poc" {
+					tif = order.PostOnly
+				}
+
 				side, amount, remaining := getSideAndAmountFromSize(futuresOrders[x].Size, futuresOrders[x].RemainingAmount)
 				orders = append(orders, order.Detail{
 					Status:               order.Open,
@@ -1738,7 +1743,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Type:                 order.Limit,
 					SettlementCurrency:   settlement,
 					ReduceOnly:           futuresOrders[x].IsReduceOnly,
-					PostOnly:             futuresOrders[x].TimeInForce == "poc",
+					TimeInForce:          tif,
 					AverageExecutedPrice: futuresOrders[x].FillPrice.Float64(),
 				})
 			}
@@ -2506,16 +2511,18 @@ func getClientOrderIDFromText(text string) string {
 }
 
 // getTypeFromTimeInForce returns the order type and if the order is post only
-func getTypeFromTimeInForce(tif string) (orderType order.Type, postOnly bool) {
+// TODO: Add in price param to correctly determine if order is market or limit as a zero value price must be a market order
+// IOC and POC can be limits if price is supplied.
+func getTypeFromTimeInForce(tif string) (orderType order.Type, postOnly order.TimeInForce) {
 	switch tif {
 	case "ioc":
-		return order.Market, false
+		return order.Market, order.UnsetTIF
 	case "fok":
-		return order.Market, false
+		return order.Market, order.UnsetTIF
 	case "poc":
-		return order.Limit, true
+		return order.Limit, order.PostOnly
 	default:
-		return order.Limit, false
+		return order.Limit, order.UnsetTIF
 	}
 }
 
@@ -2544,11 +2551,11 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 func getTimeInForce(s *order.Submit) (string, error) {
 	var timeInForce string
 	switch s.TimeInForce {
-	case order.IOC:
+	case order.ImmediateOrCancel:
 		timeInForce = "ioc" // market taker only
-	case order.FOK:
+	case order.FillOrKill:
 		timeInForce = "fok"
-	case order.PostOnlyGTC:
+	case order.PostOnly:
 		timeInForce = "poc"
 	case order.GoodTillCancel:
 		timeInForce = "gtc"

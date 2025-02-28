@@ -692,10 +692,10 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var timeInForce string
 			if oType == order.Limit {
 				switch {
-				case s.TimeInForce == order.FOK:
-					timeInForce = order.FOK.String()
-				case s.TimeInForce == order.IOC:
-					timeInForce = order.IOC.String()
+				case s.TimeInForce == order.FillOrKill:
+					timeInForce = order.FillOrKill.String()
+				case s.TimeInForce == order.ImmediateOrCancel:
+					timeInForce = order.ImmediateOrCancel.String()
 				case s.PostOnly:
 				default:
 					timeInForce = order.GoodTillCancel.String()
@@ -1033,8 +1033,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price,
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
-			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce),
-			PostOnly:             orderDetail.PostOnly,
+			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
 			ReduceOnly:           orderDetail.ReduceOnly,
 			Leverage:             orderDetail.Leverage,
 			AverageExecutedPrice: orderDetail.Price,
@@ -1105,8 +1104,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price.Float64(),
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
-			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce),
-			PostOnly:             orderDetail.PostOnly,
+			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
 			AverageExecutedPrice: orderDetail.Price.Float64(),
 			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
 			ClientOrderID:        orderDetail.ClientOID,
@@ -1278,8 +1276,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:               side,
 				Type:               oType,
 				Pair:               dPair,
-				TimeInForce:        StringToTimeInForce(futuresOrders.Items[x].TimeInForce),
-				PostOnly:           futuresOrders.Items[x].PostOnly,
+				TimeInForce:        StringToTimeInForce(futuresOrders.Items[x].TimeInForce, futuresOrders.Items[x].PostOnly),
 				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
 				Status:             status,
 				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
@@ -1375,8 +1372,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
-					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce),
-					PostOnly:       response.Items[a].PostOnly,
+					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce, response.Items[a].PostOnly),
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
 					HiddenOrder:    response.Items[a].Hidden,
@@ -1614,8 +1610,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
-					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce),
-					PostOnly:       response.Items[a].PostOnly,
+					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce, response.Items[a].PostOnly),
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
 					HiddenOrder:    response.Items[a].Hidden,
@@ -2462,14 +2457,20 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 }
 
 // StringToTimeInForce returns an order.TimeInForder instance from string
-func StringToTimeInForce(tif string) order.TimeInForce {
+func StringToTimeInForce(tif string, postOnly bool) order.TimeInForce {
+	var out order.TimeInForce
 	switch tif {
 	case "GTT":
-		return order.GoodTillTime
+		out = order.GoodTillTime
 	case "IOC":
-		return order.IOC
+		out = order.ImmediateOrCancel
 	case "FOK":
-		return order.FOK
+		out = order.FillOrKill
+	default:
+		out = order.GoodTillCancel
 	}
-	return order.GoodTillCancel
+	if postOnly {
+		out |= order.PostOnly
+	}
+	return out
 }

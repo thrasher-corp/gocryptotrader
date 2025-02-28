@@ -3370,21 +3370,21 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 
 func TestGetTypeFromTimeInForce(t *testing.T) {
 	t.Parallel()
-	typeResp, postOnly := getTypeFromTimeInForce("gtc")
+	typeResp, tif := getTypeFromTimeInForce("gtc")
 	assert.Equal(t, order.Limit, typeResp, "should be a limit order")
-	assert.False(t, postOnly, "should return false")
+	assert.False(t, tif.Is(order.PostOnly), "should return false")
 
-	typeResp, postOnly = getTypeFromTimeInForce("ioc")
+	typeResp, tif = getTypeFromTimeInForce("ioc")
 	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return false")
+	assert.False(t, tif.Is(order.PostOnly), "should return false")
 
-	typeResp, postOnly = getTypeFromTimeInForce("poc")
+	typeResp, tif = getTypeFromTimeInForce("poc")
 	assert.Equal(t, order.Limit, typeResp, "should be limit order")
-	assert.True(t, postOnly, "should return true")
+	assert.True(t, tif.Is(order.PostOnly), "should return true")
 
-	typeResp, postOnly = getTypeFromTimeInForce("fok")
+	typeResp, tif = getTypeFromTimeInForce("fok")
 	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return false")
+	assert.False(t, tif.Is(order.PostOnly), "should return false")
 }
 
 func TestGetSideAndAmountFromSize(t *testing.T) {
@@ -3417,14 +3417,14 @@ func TestGetFutureOrderSize(t *testing.T) {
 func TestGetTimeInForce(t *testing.T) {
 	t.Parallel()
 
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.PostOnlyGTC})
+	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.PostOnly})
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
 	require.NoError(t, err)
 	assert.Equal(t, "ioc", ret)
 
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.PostOnlyGTC})
+	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.PostOnly})
 	require.NoError(t, err)
 	assert.Equal(t, "poc", ret)
 
@@ -3432,7 +3432,7 @@ func TestGetTimeInForce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gtc", ret)
 
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FOK})
+	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FillOrKill})
 	require.NoError(t, err)
 	assert.Equal(t, "fok", ret)
 }

@@ -889,8 +889,8 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
-			if s.TimeInForce == order.IOC {
-				timeInForce = order.IOC.String()
+			if s.TimeInForce == order.ImmediateOrCancel {
+				timeInForce = order.ImmediateOrCancel.String()
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:

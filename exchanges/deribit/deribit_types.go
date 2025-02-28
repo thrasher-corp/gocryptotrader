@@ -44,7 +44,6 @@ var (
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 	errInvalidDestinationID                = errors.New("invalid destination id")
-	errUnsupportedChannel                  = errors.New("channels not supported")
 	errUnacceptableAPIKey                  = errors.New("unacceptable api key name")
 	errInvalidUsername                     = errors.New("new username has to be specified")
 	errSubAccountNameChangeFailed          = errors.New("subaccount name change failed")

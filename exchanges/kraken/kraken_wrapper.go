@@ -717,7 +717,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	switch s.AssetType {
 	case asset.Spot:
 		timeInForce := order.GoodTillCancel.String()
-		if s.TimeInForce == order.IOC {
+		if s.TimeInForce.Is(order.ImmediateOrCancel) {
 			timeInForce = s.TimeInForce.String()
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -764,7 +764,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			"",
 			s.ClientOrderID,
 			"",
-			s.TimeInForce == order.IOC,
+			s.TimeInForce,
 			s.Amount,
 			s.Price,
 			0,

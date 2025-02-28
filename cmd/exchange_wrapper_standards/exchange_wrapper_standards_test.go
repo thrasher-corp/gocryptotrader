@@ -453,7 +453,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Amount:        1,
 			ClientID:      "1337",
 			ClientOrderID: "13371337",
-			TimeInForce:   order.IOC,
+			TimeInForce:   order.ImmediateOrCancel,
 			Leverage:      1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
@@ -467,7 +467,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Amount:        1,
 			ClientOrderID: "13371337",
 			OrderID:       "1337",
-			TimeInForce:   order.IOC,
+			TimeInForce:   order.ImmediateOrCancel,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{

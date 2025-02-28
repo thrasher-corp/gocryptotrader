@@ -202,10 +202,6 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.AccountID = m.AccountID
 		updated = true
 	}
-	if m.PostOnly != d.PostOnly {
-		d.PostOnly = m.PostOnly
-		updated = true
-	}
 	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
 		// TODO: Add a check to see if the original pair is empty as well, but
 		// error if it is changing from BTC-USD -> LTC-USD.
@@ -335,10 +331,6 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	}
 	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
 		d.TriggerPrice = m.TriggerPrice
-		updated = true
-	}
-	if m.PostOnly != d.PostOnly {
-		d.PostOnly = m.PostOnly
 		updated = true
 	}
 	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
@@ -590,7 +582,6 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		AssetType: s.AssetType,
 
 		TimeInForce:   s.TimeInForce,
-		PostOnly:      s.PostOnly,
 		ReduceOnly:    s.ReduceOnly,
 		Leverage:      s.Leverage,
 		Price:         s.Price,
@@ -656,7 +647,6 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 		AssetType:     m.AssetType,
 		Pair:          m.Pair,
 		TimeInForce:   m.TimeInForce,
-		PostOnly:      m.PostOnly,
 		Price:         m.Price,
 		Amount:        m.Amount,
 		TriggerPrice:  m.TriggerPrice,
@@ -691,10 +681,6 @@ func (t Type) String() string {
 		return "LIMIT"
 	case Market:
 		return "MARKET"
-	case PostOnly:
-		return "POST_ONLY"
-	case ImmediateOrCancel:
-		return "IMMEDIATE_OR_CANCEL"
 	case Stop:
 		return "STOP"
 	case ConditionalStop:
@@ -717,8 +703,6 @@ func (t Type) String() string {
 		return "TAKE PROFIT MARKET"
 	case TrailingStop:
 		return "TRAILING_STOP"
-	case FillOrKill:
-		return "FOK"
 	case IOS:
 		return "IOS"
 	case Liquidation:
@@ -737,7 +721,7 @@ func (t Type) String() string {
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
 	switch t {
-	case IOC:
+	case ImmediateOrCancel:
 		return "IOC"
 	case GoodTillCancel:
 		return "GTC"
@@ -745,11 +729,10 @@ func (t TimeInForce) String() string {
 		return "GTD"
 	case GoodTillTime:
 		return "GTT"
-	case FOK:
+	case FillOrKill:
 		return "FOK"
-	case PostOnlyGTC:
-		// Added in Bittrex exchange to represent PostOnly and GTC
-		return "POST_ONLY_GOOD_TIL_CANCELLED"
+	case PostOnly:
+		return "POSTONLY"
 	case UnsetTIF:
 		return ""
 	default:
@@ -759,7 +742,7 @@ func (t TimeInForce) String() string {
 
 // IsIOC determines whether the TimeInForce value is set to IOC (Immediate or Cancel).
 func (t TimeInForce) IsIOC() bool {
-	return t == IOC
+	return t == ImmediateOrCancel
 }
 
 // Lower returns the type lower case string
@@ -1159,8 +1142,6 @@ func StringToOrderType(oType string) (Type, error) {
 		return Limit, nil
 	case Market.String(), "EXCHANGE MARKET":
 		return Market, nil
-	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
-		return ImmediateOrCancel, nil
 	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
 	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
@@ -1169,12 +1150,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return StopMarket, nil
 	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
-	case FillOrKill.String(), "EXCHANGE FOK":
-		return FillOrKill, nil
 	case IOS.String():
 		return IOS, nil
-	case PostOnly.String():
-		return PostOnly, nil
 	case AnyType.String():
 		return AnyType, nil
 	case Trigger.String():
@@ -1260,18 +1237,18 @@ func StringToOrderStatus(status string) (Status, error) {
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
-	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", IOC.String(), "POC", "PENDINGORCANCEL":
-		return IOC, nil
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String(), "POC", "PENDINGORCANCEL":
+		return ImmediateOrCancel, nil
 	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String():
 		return GoodTillCancel, nil
 	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
 		return GoodTillDay, nil
 	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
 		return GoodTillTime, nil
-	case "FILLORKILL", "FILL_OR_KILL", FOK.String():
-		return FOK, nil
-	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnlyGTC.String():
-		return PostOnlyGTC, nil
+	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
+		return FillOrKill, nil
+	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String():
+		return PostOnly, nil
 	case "":
 		return UnsetTIF, nil
 	default:
