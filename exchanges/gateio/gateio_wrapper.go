@@ -40,8 +40,6 @@ import (
 // this error.
 const unfundedFuturesAccount = `please transfer funds first to create futures account`
 
-var errNoResponseReceived = errors.New("no response received")
-
 // SetDefaults sets default values for the exchange
 func (g *Gateio) SetDefaults() {
 	g.Name = "GateIO"
@@ -2629,7 +2627,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 // DeriveSpotWebsocketOrderResponses returns the order submission responses for spot
 func (g *Gateio) DeriveSpotWebsocketOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
-		return nil, errNoResponseReceived
+		return nil, common.ErrNoResponse
 	}
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
@@ -2692,7 +2690,7 @@ func (g *Gateio) DeriveSpotWebsocketOrderResponses(responses []WebsocketOrderRes
 // DeriveFuturesWebsocketOrderResponses returns the order submission responses for futures
 func (g *Gateio) DeriveFuturesWebsocketOrderResponses(responses []WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
-		return nil, errNoResponseReceived
+		return nil, common.ErrNoResponse
 	}
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
@@ -2714,14 +2712,6 @@ func (g *Gateio) DeriveFuturesWebsocketOrderResponses(responses []WebsocketFutur
 		side := order.Long
 		if responses[x].Size < 0 {
 			side = order.Short
-		}
-
-		if responses[x].IsReduceOnly {
-			if side.IsLong() {
-				side = order.Short
-			} else {
-				side = order.Long
-			}
 		}
 
 		var clientOrderID string
