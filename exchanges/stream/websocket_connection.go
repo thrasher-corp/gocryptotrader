@@ -293,8 +293,8 @@ func (w *WebsocketConnection) GetURL() string {
 }
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error) {
-	resps, err := w.SendMessageReturnResponses(ctx, epl, signature, request, 1)
+func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
+	resps, err := w.SendMessageReturnResponses(ctx, epl, signature, payload, 1)
 	if err != nil {
 		return nil, err
 	}
