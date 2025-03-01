@@ -546,7 +546,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		}
 		ts, ok := t[2].(string)
 		if !ok {
-			return common.GetTypeAssertError("string", t[2], "timeData")
+			return common.GetTypeAssertError("string", t[2], "trade.time")
 		}
 		timeData, err := strconv.ParseFloat(ts, 64)
 		if err != nil {
@@ -554,24 +554,24 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		}
 		p, ok := t[0].(string)
 		if !ok {
-			return common.GetTypeAssertError("string", t[0], "price")
+			return common.GetTypeAssertError("string", t[0], "trade.price")
 		}
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
-		a, ok := t[1].(string)
+		v, ok := t[1].(string)
 		if !ok {
-			return common.GetTypeAssertError("string", t[1], "amount")
+			return common.GetTypeAssertError("string", t[1], "trade.volume")
 		}
-		amount, err := strconv.ParseFloat(a, 64)
+		amount, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
 		var tSide = order.Buy
 		s, ok := t[3].(string)
 		if !ok {
-			return common.GetTypeAssertError("string", t[3], "side")
+			return common.GetTypeAssertError("string", t[3], "trade.side")
 		}
 		if s == "s" {
 			tSide = order.Sell
@@ -588,7 +588,9 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		}
 	}
 	if tradeFeed {
-		k.Websocket.DataHandler <- trades
+		for i := range trades {
+			k.Websocket.DataHandler <- trades[i]
+		}
 	}
 	if saveTradeData {
 		return trade.AddTradesToBuffer(k.Name, trades...)
