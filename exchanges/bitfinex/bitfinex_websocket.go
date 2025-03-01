@@ -446,7 +446,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
-		return fmt.Errorf("%w 'event': %w from message: %s", errParsingWSField, err, respRaw)
+		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 	}
 	switch event {
 	case wsEventSubscribed:
@@ -454,7 +454,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventUnsubscribed:
 		chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId")
 		if err != nil {
-			return fmt.Errorf("%w 'chanId': %w from message: %s", errParsingWSField, err, respRaw)
+			return fmt.Errorf("%w 'chanId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
 		err = b.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
 		if err != nil {
@@ -477,7 +477,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventAuth:
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
-			return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, respRaw)
+			return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
 		if status == "OK" {
 			var glob map[string]interface{}
@@ -489,7 +489,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 		} else {
 			errCode, err := jsonparser.GetInt(respRaw, "code")
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, errParsingWSField, err, respRaw)
+				log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, common.ErrParsingWSField, err, respRaw)
 			}
 			return fmt.Errorf("WS auth subscription error; Status: %s Error Code: %d", status, errCode)
 		}
@@ -499,7 +499,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventConf:
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
-			return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, respRaw)
+			return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
 		if status != "OK" {
 			return fmt.Errorf("WS configure channel error; Status: %s", status)
@@ -516,7 +516,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 	if err != nil {
-		return fmt.Errorf("%w 'subId': %w from message: %s", errParsingWSField, err, respRaw)
+		return fmt.Errorf("%w 'subId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 	}
 
 	c := b.Websocket.GetSubscription(subID)
@@ -526,7 +526,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 
 	chanID, err := jsonparser.GetInt(respRaw, "chanId")
 	if err != nil {
-		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Pairs)
+		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
 	}
 
 	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
@@ -1815,19 +1815,19 @@ func (b *Bitfinex) unsubscribeFromChan(subs subscription.List) error {
 func (b *Bitfinex) getErrResp(resp []byte) error {
 	event, err := jsonparser.GetUnsafeString(resp, "event")
 	if err != nil {
-		return fmt.Errorf("%w 'event': %w from message: %s", errParsingWSField, err, resp)
+		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, resp)
 	}
 	if event != "error" {
 		return nil
 	}
 	errCode, err := jsonparser.GetInt(resp, "code")
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, errParsingWSField, err, resp)
+		log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, common.ErrParsingWSField, err, resp)
 	}
 
 	var apiErr error
 	if msg, e2 := jsonparser.GetString(resp, "msg"); e2 != nil {
-		log.Errorf(log.ExchangeSys, "%s %s 'msg': %s from message: %s", b.Name, errParsingWSField, e2, resp)
+		log.Errorf(log.ExchangeSys, "%s %s 'msg': %s from message: %s", b.Name, common.ErrParsingWSField, e2, resp)
 		apiErr = common.ErrUnknownError
 	} else {
 		apiErr = errors.New(msg)

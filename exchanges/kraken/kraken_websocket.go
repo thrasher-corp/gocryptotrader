@@ -79,7 +79,6 @@ func init() {
 
 var (
 	authToken          string
-	errParsingWSField  = errors.New("error parsing WS field")
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -543,7 +542,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 			return errors.New("unidentified trade data received")
 		}
 		if len(t) < 4 {
-			return fmt.Errorf("unexpected trade data length: %s", t)
+			return fmt.Errorf("%w; unexpected trade data length: %d", common.ErrParsingWSField, len(t))
 		}
 		ts, ok := t[2].(string)
 		if !ok {
@@ -1352,7 +1351,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 
 	status, err := jsonparser.GetUnsafeString(resp, "status")
 	if err != nil {
-		return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, resp)
+		return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, resp)
 	} else if status == "ok" {
 		return nil
 	}
