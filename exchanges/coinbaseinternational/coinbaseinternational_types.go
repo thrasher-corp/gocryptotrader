@@ -490,26 +490,16 @@ type PortfolioFill struct {
 	} `json:"results"`
 }
 
-// PortfolioCrossCollateralDetail represents a portfolio cross-collateral response detail
-type PortfolioCrossCollateralDetail struct {
-	PortfolioID             string  `json:"portfolio_id"`
-	PortfolioUUID           string  `json:"portfolio_uuid"`
-	Name                    string  `json:"name"`
-	UserUUID                string  `json:"user_uuid"`
-	MakerFeeRate            float64 `json:"maker_fee_rate"`
-	TakerFeeRate            float64 `json:"taker_fee_rate"`
-	TradingLock             string  `json:"trading_lock"`
-	BorrowDisabled          string  `json:"borrow_disabled"`
-	IsLsp                   string  `json:"is_lsp"`
-	IsDefault               string  `json:"is_default"`
-	CrossCollateralEnabled  string  `json:"cross_collateral_enabled"`
-	PreLaunchTradingEnabled string  `json:"pre_launch_trading_enabled"`
-}
-
 // PortfolioMarginOverrideResponse represents margin override value for a portfolio
 type PortfolioMarginOverrideResponse struct {
 	PortfolioID    string  `json:"portfolio_id"`
 	MarginOverride float64 `json:"margin_override"`
+}
+
+// PortfolioPositionLimit holds the portfolio position limit across instruments
+type PortfolioPositionLimit struct {
+	TotalOpenPositionNotionalLimit         int64  `json:"total_open_position_notional_limit"`
+	TotalOpenPositionNotionalLimitEnforced string `json:"total_open_position_notional_limit_enforced"`
 }
 
 // TransferFundsBetweenPortfoliosParams transfer assets from one portfolio to another

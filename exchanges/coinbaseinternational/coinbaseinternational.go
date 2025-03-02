@@ -116,7 +116,7 @@ func (co *CoinbaseInternational) GetIndexCompositionHistory(ctx context.Context,
 		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
 	}
 	var resp *IndexMetadata
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/compositio/history", params, nil, &resp, true)
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/composition-history", params, nil, &resp, true)
 }
 
 // GetIndexPrice retrieves the latest index price
@@ -404,22 +404,33 @@ func (co *CoinbaseInternational) CreatePortfolio(ctx context.Context, portfolioN
 	}{Name: portfolioName}, &resp, true)
 }
 
+// GetUserPortfolio retrieves the user's specified portfolio.
+func (co *CoinbaseInternational) GetUserPortfolio(ctx context.Context, portfolioID string) (*PortfolioItem, error) {
+	if portfolioID == "" {
+		return nil, errMissingPortfolioID
+	}
+	var resp *PortfolioItem
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, portfolios+portfolioID, nil, nil, &resp, true)
+}
+
 // PatchPortfolio update parameters for existing portfolio
-func (co *CoinbaseInternational) PatchPortfolio(ctx context.Context, arg *PatchPortfolioParams) (interface{}, error) {
+func (co *CoinbaseInternational) PatchPortfolio(ctx context.Context, arg *PatchPortfolioParams) (*PortfolioItem, error) {
 	if arg == nil || *arg == (PatchPortfolioParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	var resp *PatchPortfolioParams
+	var resp *PortfolioItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPatch, "portfolios", nil, arg, &resp, true)
 }
 
 // UpdatePortfolio update existing user portfolio
-func (co *CoinbaseInternational) UpdatePortfolio(ctx context.Context, portfolioID string) (interface{}, error) {
+func (co *CoinbaseInternational) UpdatePortfolio(ctx context.Context, portfolioID, portfolioUniqueName string) (*PortfolioItem, error) {
 	if portfolioID == "" {
 		return nil, errMissingPortfolioID
 	}
-	var resp interface{}
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, portfolios+portfolioID, nil, nil, &resp, true)
+	var resp *PortfolioItem
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, portfolios+portfolioID, nil, &struct {
+		Name string `json:"name,omitempty"`
+	}{Name: portfolioUniqueName}, &resp, true)
 }
 
 // GetPortfolioDetails retrieves the summary, positions, and balances of a portfolio.
@@ -613,6 +624,15 @@ func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Cont
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
+// GetTotalOpenPositionLimitPortfolio retrieves the total open position limit across instruments for a given portfolio.
+func (co *CoinbaseInternational) GetTotalOpenPositionLimitPortfolio(ctx context.Context, portfolioID string) (*PortfolioPositionLimit, error) {
+	if portfolioID == "" {
+		return nil, errMissingPortfolioID
+	}
+	var resp *PortfolioPositionLimit
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, portfolios+portfolioID+"/position-limits", nil, nil, &resp, true)
+}
+
 // GetFillsByPortfolio returns fills for specified portfolios or fills for all portfolios if none are provided
 func (co *CoinbaseInternational) GetFillsByPortfolio(ctx context.Context, portfolioUUID, orderID, clientOrderID string, resultLimit, resultOffset int64, refDateTime, timeFrom time.Time) (*PortfolioFill, error) {
 	params := url.Values{}
@@ -657,7 +677,7 @@ func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfol
 }
 
 // EnableDisablePortfolioCrossCollateral enable or disable the cross collateral feature for the portfolio, which allows the portfolio to use non-USDC assets as collateral for margin trading.
-func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioCrossCollateralDetail, error) {
+func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioItem, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -667,7 +687,7 @@ func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx conte
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp *PortfolioCrossCollateralDetail
+	var resp *PortfolioItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &struct {
 		Enabled bool `json:"enabled,omitempty"`
 	}{
@@ -677,7 +697,7 @@ func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx conte
 
 // EnableDisablePortfolioAutoMarginMode enable or disable the auto margin feature,
 // which lets the portfolio automatically post margin amounts required to exceed the high leverage position restrictions.
-func (co *CoinbaseInternational) EnableDisablePortfolioAutoMarginMode(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (interface{}, error) {
+func (co *CoinbaseInternational) EnableDisablePortfolioAutoMarginMode(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioItem, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -687,7 +707,7 @@ func (co *CoinbaseInternational) EnableDisablePortfolioAutoMarginMode(ctx contex
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp *PortfolioCrossCollateralDetail
+	var resp *PortfolioItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &struct {
 		Enabled bool `json:"enabled,omitempty"`
 	}{
@@ -945,7 +965,6 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 	if result == nil {
 		return nil
 	}
-
 	return json.Unmarshal(intrim, result)
 }
 

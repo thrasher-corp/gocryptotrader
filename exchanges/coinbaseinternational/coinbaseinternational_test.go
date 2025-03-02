@@ -344,6 +344,17 @@ func TestCreatePortfolio(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetUserPortfolio(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetUserPortfolio(context.Background(), "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetUserPortfolio(context.Background(), "4thr7ft-1-0")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestPatchPortfolio(t *testing.T) {
 	t.Parallel()
 	_, err := co.PatchPortfolio(context.Background(), nil)
@@ -357,11 +368,11 @@ func TestPatchPortfolio(t *testing.T) {
 
 func TestUpdatePortfolio(t *testing.T) {
 	t.Parallel()
-	_, err := co.UpdatePortfolio(context.Background(), "")
+	_, err := co.UpdatePortfolio(context.Background(), "", "")
 	require.ErrorIs(t, err, errMissingPortfolioID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
-	result, err := co.UpdatePortfolio(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1")
+	result, err := co.UpdatePortfolio(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -500,6 +511,17 @@ func TestGetPortfolioInstrumentPosition(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetPortfolioInstrumentPosition(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", btcPerp)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTotalOpenPositionLimitPortfolio(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetTotalOpenPositionLimitPortfolio(context.Background(), "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	result, err := co.GetTotalOpenPositionLimitPortfolio(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
