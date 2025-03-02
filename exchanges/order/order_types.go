@@ -369,6 +369,7 @@ const (
 	TakeProfit
 	TakeProfitMarket
 	TrailingStop
+	TrailingStopLimit
 	FillOrKill
 	IOS
 	AnyType
@@ -381,6 +382,7 @@ const (
 	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
 	TWAP                             // time-weighted average price.
 	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	LimitMaker
 )
 
 // Side enforces a standard for order sides across the code base
